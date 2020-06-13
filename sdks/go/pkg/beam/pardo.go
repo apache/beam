@@ -428,31 +428,20 @@ func ParDoErrorFormatter(doFn interface{}, parDo interface{}) string {
 	parDoName := reflectx.FunctionName(parDo)
 	parDoOutSize := reflectx.FunctionOutputSize(parDo)
 
-	useParDo := reflectx.FunctionName(RecommendParDo(doFnOutSize))
+	useParDo := reflectx.FunctionName(recommendParDo(doFnOutSize))
 	return fmt.Sprintf("DoFn %v has %v outptus, but %v requires %v outputs, Use %v instead.", doFnName, doFnOutSize, parDoName, parDoOutSize, useParDo)
 
 }
 
 // recommendParDo takes a in a DoFns emit dimension and recommends the correct
 // ParDo to use.
-func RecommendParDo(emitDim int) interface{} {
-	switch {
-	case emitDim == 0:
-		return ParDo0
-	case emitDim == 1:
-		return ParDo
-	case emitDim == 2:
-		return ParDo2
-	case emitDim == 3:
-		return ParDo3
-	case emitDim == 4:
-		return ParDo4
-	case emitDim == 5:
-		return ParDo5
-	case emitDim == 6:
-		return ParDo6
-	case emitDim == 7:
-		return ParDo7
+func recommendParDo(emitDim int) string {
+	switch emitDim {
+	case 0, 2, 3, 4, 5, 6, 7:
+		return fmt.Sprintf("ParDo%d", emitDim)
+	case 1:
+		return "ParDo"
+	default:
+		return "ParDoN"
 	}
-	return ParDoN
 }

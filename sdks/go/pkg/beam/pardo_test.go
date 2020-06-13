@@ -13,46 +13,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package regression
+package beam
 
-import (
-	"testing"
+import "testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-)
-
-func TestDirectParDo(t *testing.T) {
-	if err := ptest.Run(DirectParDo()); err != nil {
-		t.Error(err)
+func TestRecommendParDo(t *testing.T) {
+	var tests = []struct {
+		name      string
+		outputDim int
+		want      string
+	}{
+		{"zero outputs", 0, "ParDo0"},
+		{"one output", 1, "ParDo"},
+		{"more than 7 outputs", 10, "ParDoN"},
 	}
-}
 
-func TestEmitParDo(t *testing.T) {
-	if err := ptest.Run(EmitParDo()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestMultiEmitParDo(t *testing.T) {
-	if err := ptest.Run(MultiEmitParDo()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestMixedOutputParDo(t *testing.T) {
-	if err := ptest.Run(MixedOutputParDo()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestDirectParDoAfterGBK(t *testing.T) {
-	if err := ptest.Run(DirectParDoAfterGBK()); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestEmitParDoAfterGBK(t *testing.T) {
-	if err := ptest.Run(EmitParDoAfterGBK()); err != nil {
-		t.Error(err)
+	for _, tt := range tests {
+		testName := tt.name
+		t.Run(testName, func(t *testing.T) {
+			got := recommendParDo(tt.outputDim)
+			if got != tt.want {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
