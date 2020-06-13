@@ -1359,8 +1359,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       // the data as a PubsubMessage's payload.
       if (overriddenTransform.getNeedsAttributes() || overriddenTransform.getNeedsMessageId()) {
         stepContext.addInput(
-                PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN,
-                byteArrayToJsonString(serializeToByteArray(new IdentityMessageFn())));
+            PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN,
+            byteArrayToJsonString(serializeToByteArray(new IdentityMessageFn())));
       }
       stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     }
