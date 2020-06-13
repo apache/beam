@@ -21,6 +21,6 @@ package stats
 
 //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 {{- with $x := .X }}
-//go:generate starcgen --package=stats --identifiers=mapFn,meanFn{{- range $i, $t := $x -}},max{{$t.Name}}Fn,min{{$t.Name}}Fn,sum{{$t.Name}}Fn{{- end -}}
+//go:generate starcgen --package=stats --identifiers=countFn,keyedCountFn,meanFn{{- range $i, $t := $x -}},max{{$t.Name}}Fn,min{{$t.Name}}Fn,sum{{$t.Name}}Fn{{- end -}}
 {{end}}
 
