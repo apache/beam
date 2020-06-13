@@ -24,10 +24,6 @@ func testFunction() int64 {
 	return 42
 }
 
-func testFunction2() (int, int) {
-	return 42, 42
-}
-
 func TestLoadFunction(t *testing.T) {
 	val := reflect.ValueOf(testFunction)
 	fi := uintptr(val.Pointer())
@@ -47,17 +43,21 @@ func TestLoadFunction(t *testing.T) {
 }
 
 func TestFunctionOutputSize(t *testing.T) {
-	expected := 1
-	received := FunctionOutputSize(testFunction)
-	if received != expected {
-		t.Errorf("got %d, wanted %d", received, expected)
+	var tests = []struct {
+		name string
+		fn   interface{}
+		want int
+	}{
+		{"single", func() int { return 1 }, 1},
+		{"double", func() (int, int) { return 1, 1 }, 2},
 	}
-}
-
-func TestFunction2OutputSize(t *testing.T) {
-	expected := 2
-	received := FunctionOutputSize(testFunction2)
-	if received != expected {
-		t.Errorf("got %d, wanted %d", received, expected)
+	for _, tt := range tests {
+		testName := tt.name
+		t.Run(testName, func(t *testing.T) {
+			got := FunctionOutputSize(tt.fn)
+			if got != tt.want {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
