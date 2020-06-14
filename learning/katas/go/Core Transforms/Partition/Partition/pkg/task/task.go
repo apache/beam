@@ -13,18 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module hello_beam
+package task
 
-go 1.14
+import "github.com/apache/beam/sdks/go/pkg/beam"
 
-require (
-	github.com/apache/beam v2.22.0+incompatible
-	github.com/golang/protobuf v1.4.2 // indirect
-	github.com/google/go-cmp v0.4.0 // indirect
-	go.opencensus.io v0.22.3 // indirect
-	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
-	golang.org/x/sys v0.0.0-20200610111108-226ff32320da // indirect
-	google.golang.org/api v0.21.0 // indirect
-	google.golang.org/genproto v0.0.0-20200611194920-44ba362f84c1 // indirect
-	google.golang.org/grpc v1.29.1 // indirect
-)
+func ApplyTransform(s beam.Scope, input beam.PCollection) []beam.PCollection {
+	return beam.Partition(s, 2, func(element int) int {
+		if element > 100 {
+			return 0
+		}
+		return 1
+	}, input)
+}

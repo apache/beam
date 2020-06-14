@@ -27,8 +27,6 @@ dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/apache/beam v1.9.1 h1:9PVC+zHFM1Anpf2jZ2LksZ2xJjL6kdyAxazuokQ4hvo=
-github.com/apache/beam v2.21.0+incompatible h1:ETfDaxjAOSQqy44CyaxqrSW5omoLzmEZmThJEtSLHBI=
-github.com/apache/beam v2.21.0+incompatible/go.mod h1:/8NX3Qi8vGstDLLaeaU7+lzVEu/ACaQhYjeefzQ0y1o=
 github.com/apache/beam v2.22.0+incompatible h1:SsORSlJF1b7rY4//RIXz2XbExy9O28O/h35Arj2b1sU=
 github.com/apache/beam v2.22.0+incompatible/go.mod h1:/8NX3Qi8vGstDLLaeaU7+lzVEu/ACaQhYjeefzQ0y1o=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
