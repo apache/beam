@@ -383,7 +383,7 @@ public class RowJson {
       this.schema = schema;
     }
 
-    /** Serializer drops nulls on write if set to true instead of writing fieldName: null */
+    /** Serializer drops nulls on write if set to true instead of writing fieldName: null. */
     public RowJsonSerializer withDropNullsOnWrite(Boolean dropNullsOnWrite) {
       this.dropNullsOnWrite = dropNullsOnWrite;
       return this;
