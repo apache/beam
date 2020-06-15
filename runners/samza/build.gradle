@@ -46,7 +46,17 @@ configurations {
   validatesRunner
 }
 
-def samza_version = System.getProperty("samzaVersion")
+def get_samza_version = { ->
+  def path = file("${project.rootDir}" + "/../build/dependency-spec.json").getCanonicalPath()
+  def stdout = new ByteArrayOutputStream()
+  exec {
+    commandLine "bash", "-c", "grep 'com.linkedin.samza-li:samza-api' ${path} | awk -F ':' '{print \$4}' | tr -d \"\\\",\""
+    standardOutput = stdout
+  }
+  return stdout.toString().trim()
+}
+
+def samza_version = get_samza_version()
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre
