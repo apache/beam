@@ -1137,7 +1137,7 @@ Create and push a new signed tag for the released version by copying the tag for
 ```
 VERSION_TAG="v${RELEASE}"
 git tag -s "$VERSION_TAG" "$RC_TAG"
-git push upstream "$VERSION_TAG"
+git push origin "$VERSION_TAG"
 ```
 
 After the tag is uploaded, publish the release notes to Github, as follows:
