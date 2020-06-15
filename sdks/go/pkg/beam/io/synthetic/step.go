@@ -47,9 +47,8 @@ func Step(s beam.Scope, cfg StepConfig, col beam.PCollection) beam.PCollection {
 	s = s.Scope("synthetic.Step")
 	if cfg.Splittable {
 		return beam.ParDo(s, &sdfStepFn{cfg: cfg}, col)
-	} else {
-		return beam.ParDo(s, &stepFn{cfg: cfg}, col)
 	}
+	return beam.ParDo(s, &stepFn{cfg: cfg}, col)
 }
 
 // stepFn is a DoFn implementing behavior for synthetic steps. For usage
@@ -150,7 +149,7 @@ type StepConfigBuilder struct {
 	cfg StepConfig
 }
 
-// DefaultSourceConfig creates a StepConfig with intended defaults for the
+// DefaultStepConfig creates a StepConfig with intended defaults for the
 // StepConfig fields. This function is the intended starting point for
 // initializing a StepConfig and should always be used to create
 // StepConfigBuilders.
