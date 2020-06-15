@@ -140,4 +140,9 @@ public class GrowableOffsetRangeTracker extends OffsetRangeTracker {
         totalWork.subtract(workRemaining, MathContext.DECIMAL128).doubleValue(),
         workRemaining.doubleValue());
   }
+
+  @Override
+  public boolean isBounded() {
+    return false;
+  }
 }

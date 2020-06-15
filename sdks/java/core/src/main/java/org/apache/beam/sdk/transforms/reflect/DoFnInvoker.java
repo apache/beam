@@ -93,6 +93,9 @@ public interface DoFnInvoker<InputT, OutputT> {
   /** Invoke the {@link DoFn.SplitRestriction} method on the bound {@link DoFn}. */
   void invokeSplitRestriction(ArgumentProvider<InputT, OutputT> arguments);
 
+  /** Invoke the {@link DoFn.TruncateSizedRestriction} method on the bound {@link DoFn}. */
+  void invokeTruncateSizedRestriction(ArgumentProvider<InputT, OutputT> arguments);
+
   /**
    * Invoke the {@link DoFn.GetSize} method on the bound {@link DoFn}. Falls back to:
    *

@@ -430,6 +430,11 @@ public class Read {
             "Expected all records to have been claimed but finished processing "
                 + "bounded source while some records may have not been read.");
       }
+
+      @Override
+      public boolean isBounded() {
+        return true;
+      }
     }
   }
 
@@ -498,6 +503,19 @@ public class Read {
             @Restriction UnboundedSourceRestriction<OutputT, CheckpointT> restriction,
             PipelineOptions pipelineOptions) {
       return new UnboundedSourceAsSDFRestrictionTracker(restriction, pipelineOptions);
+    }
+
+    @TruncateSizedRestriction
+    public void truncateSizedRestriction(
+        @Restriction UnboundedSourceRestriction<OutputT, CheckpointT> restriction,
+        OutputReceiver<UnboundedSourceRestriction<OutputT, CheckpointT>> receiver) {
+      try {
+        restriction.getCheckpoint().finalizeCheckpoint();
+      } catch (Exception e) {
+        LOG.warn("Failed to finalize CheckpointMark {}", restriction.getWatermark());
+      } finally {
+        receiver.output(null);
+      }
     }
 
     @ProcessElement
@@ -862,6 +880,11 @@ public class Read {
             currentReader instanceof EmptyUnboundedSource.EmptyUnboundedReader,
             "Expected all records to have been claimed but finished processing "
                 + "unbounded source while some records may have not been read.");
+      }
+
+      @Override
+      public boolean isBounded() {
+        return false;
       }
 
       @Override

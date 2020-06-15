@@ -141,6 +141,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, factory)
           .put(PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN, factory)
           .put(PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN, factory)
+          .put(PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN, factory)
           .put(
               PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN, factory)
           .build();
@@ -324,6 +325,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           break;
         case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
         case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
+        case PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN:
           mainOutputTag =
               new TupleTag(Iterables.getOnlyElement(pTransform.getOutputsMap().keySet()));
           break;
@@ -447,6 +449,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
         // startBundle should not be invoked
       case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
+        // startBundle should not be invoked
+      case PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN:
         // startBundle should not be invoked
       default:
         // no-op
@@ -574,6 +578,99 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               };
         }
         break;
+      case PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN:
+        if ((doFnSignature.truncateSizedRestriction() != null
+                && doFnSignature.truncateSizedRestriction().observesWindow())
+            || (doFnSignature.newTracker() != null && doFnSignature.newTracker().observesWindow())
+            || (doFnSignature.getSize() != null && doFnSignature.getSize().observesWindow())
+            || !sideInputMapping.isEmpty()) {
+          mainInputConsumer = this::processElementForWindowObservingTruncateSizedRestriction;
+          // OutputT == RestrictionT
+          this.processContext =
+              new WindowObservingProcessBundleContext() {
+                @Override
+                public void outputWithTimestamp(OutputT output, Instant timestamp) {
+                  double size =
+                      doFnInvoker.invokeGetSize(
+                          new DelegatingArgumentProvider<InputT, OutputT>(
+                              this,
+                              PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN
+                                  + "/GetSize") {
+                            @Override
+                            public Object restriction() {
+                              return output;
+                            }
+
+                            @Override
+                            public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                              return timestamp;
+                            }
+
+                            @Override
+                            public RestrictionTracker<?, ?> restrictionTracker() {
+                              return doFnInvoker.invokeNewTracker(this);
+                            }
+                          });
+
+                  outputTo(
+                      mainOutputConsumers,
+                      (WindowedValue<OutputT>)
+                          WindowedValue.of(
+                              KV.of(
+                                  KV.of(
+                                      currentElement.getValue(),
+                                      KV.of(output, currentWatermarkEstimatorState)),
+                                  size),
+                              timestamp,
+                              currentWindow,
+                              currentElement.getPane()));
+                }
+              };
+        } else {
+          mainInputConsumer = this::processElementForTruncateSizedRestriction;
+          // OutputT == RestrictionT
+          this.processContext =
+              new NonWindowObservingProcessBundleContext() {
+                @Override
+                public void outputWithTimestamp(OutputT output, Instant timestamp) {
+                  double size =
+                      doFnInvoker.invokeGetSize(
+                          new DelegatingArgumentProvider<InputT, OutputT>(
+                              this,
+                              PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN
+                                  + "/GetSize") {
+                            @Override
+                            public Object restriction() {
+                              return output;
+                            }
+
+                            @Override
+                            public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                              return timestamp;
+                            }
+
+                            @Override
+                            public RestrictionTracker<?, ?> restrictionTracker() {
+                              return doFnInvoker.invokeNewTracker(this);
+                            }
+                          });
+
+                  outputTo(
+                      mainOutputConsumers,
+                      (WindowedValue<OutputT>)
+                          WindowedValue.of(
+                              KV.of(
+                                  KV.of(
+                                      currentElement.getValue(),
+                                      KV.of(output, currentWatermarkEstimatorState)),
+                                  size),
+                              timestamp,
+                              currentElement.getWindows(),
+                              currentElement.getPane()));
+                }
+              };
+        }
+        break;
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
         if (doFnSignature.processElement().observesWindow()
             || (doFnSignature.newTracker() != null && doFnSignature.newTracker().observesWindow())
@@ -608,17 +705,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     pCollectionConsumerRegistry.register(
         pTransform.getInputsOrThrow(mainInput), pTransformId, (FnDataReceiver) mainInputConsumer);
 
-    switch (pTransform.getSpec().getUrn()) {
-      case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
-        break;
-      case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
-      case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-      case PTransformTranslation.PAR_DO_TRANSFORM_URN:
-        break;
-      default:
-        throw new IllegalStateException(
-            String.format("Unknown URN %s", pTransform.getSpec().getUrn()));
-    }
     this.finishBundleArgumentProvider = new FinishBundleArgumentProvider();
     switch (pTransform.getSpec().getUrn()) {
       case PTransformTranslation.PAR_DO_TRANSFORM_URN:
@@ -628,6 +714,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
         // finishBundle should not be invoked
       case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
+        // finishBundle should not be invoked
+      case PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN:
         // finishBundle should not be invoked
       default:
         // no-op
@@ -829,6 +917,68 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     this.stateAccessor.finalizeState();
   }
 
+  private void processElementForTruncateSizedRestriction(
+      WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
+    currentElement = elem.withValue(elem.getValue().getKey().getKey());
+    currentRestriction = elem.getValue().getKey().getValue().getKey();
+    currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
+    currentTracker =
+        RestrictionTrackers.observe(
+            doFnInvoker.invokeNewTracker(processContext),
+            new ClaimObserver<PositionT>() {
+              @Override
+              public void onClaimed(PositionT position) {}
+
+              @Override
+              public void onClaimFailed(PositionT position) {}
+            });
+    try {
+      doFnInvoker.invokeTruncateSizedRestriction(processContext);
+    } finally {
+      currentTracker = null;
+      currentElement = null;
+      currentRestriction = null;
+      currentWatermarkEstimatorState = null;
+    }
+
+    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
+    this.stateAccessor.finalizeState();
+  }
+
+  private void processElementForWindowObservingTruncateSizedRestriction(
+      WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
+    currentElement = elem.withValue(elem.getValue().getKey().getKey());
+    currentRestriction = elem.getValue().getKey().getValue().getKey();
+    currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
+    try {
+      Iterator<BoundedWindow> windowIterator =
+          (Iterator<BoundedWindow>) elem.getWindows().iterator();
+      while (windowIterator.hasNext()) {
+        currentWindow = windowIterator.next();
+        currentTracker =
+            RestrictionTrackers.observe(
+                doFnInvoker.invokeNewTracker(processContext),
+                new ClaimObserver<PositionT>() {
+                  @Override
+                  public void onClaimed(PositionT position) {}
+
+                  @Override
+                  public void onClaimFailed(PositionT position) {}
+                });
+        doFnInvoker.invokeTruncateSizedRestriction(processContext);
+      }
+    } finally {
+      currentTracker = null;
+      currentElement = null;
+      currentRestriction = null;
+      currentWatermarkEstimatorState = null;
+      currentWindow = null;
+    }
+
+    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
+    this.stateAccessor.finalizeState();
+  }
+
   /** Internal class to hold the primary and residual roots when converted to an input element. */
   @AutoValue
   abstract static class WindowedSplitResult {
@@ -858,6 +1008,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private void processElementForWindowObservingSizedElementAndRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
+    // No need to process if current restriction is null.
+    if (elem.getValue().getKey().getValue().getKey() == null) {
+      return;
+    }
     try {
       currentWindowIterator =
           currentElement.getWindows() instanceof List

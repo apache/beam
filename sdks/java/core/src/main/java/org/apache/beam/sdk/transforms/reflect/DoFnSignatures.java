@@ -520,6 +520,8 @@ public class DoFnSignatures {
         findAnnotatedMethod(errors, DoFn.GetInitialRestriction.class, fnClass, false);
     Method splitRestrictionMethod =
         findAnnotatedMethod(errors, DoFn.SplitRestriction.class, fnClass, false);
+    Method truncateSizedRestrictionMethod =
+        findAnnotatedMethod(errors, DoFn.TruncateSizedRestriction.class, fnClass, false);
     Method getRestrictionCoderMethod =
         findAnnotatedMethod(errors, DoFn.GetRestrictionCoder.class, fnClass, false);
     Method newTrackerMethod = findAnnotatedMethod(errors, DoFn.NewTracker.class, fnClass, false);
@@ -717,6 +719,19 @@ public class DoFnSignatures {
                 fnContext));
       }
 
+      if (truncateSizedRestrictionMethod != null) {
+        signatureBuilder.setTruncateSizedRestriction(
+            analyzeTruncateSizedRestrictionMethod(
+                errors.forMethod(
+                    DoFn.TruncateSizedRestriction.class, truncateSizedRestrictionMethod),
+                fnT,
+                truncateSizedRestrictionMethod,
+                inputT,
+                outputT,
+                restrictionT,
+                fnContext));
+      }
+
       if (getSizeMethod != null) {
         signatureBuilder.setGetSize(
             analyzeGetSizeMethod(
@@ -777,6 +792,9 @@ public class DoFnSignatures {
       }
       if (splitRestrictionMethod != null) {
         forbiddenMethods.add("@" + format(DoFn.SplitRestriction.class));
+      }
+      if (truncateSizedRestrictionMethod != null) {
+        forbiddenMethods.add("@" + format(DoFn.TruncateSizedRestriction.class));
       }
       if (newTrackerMethod != null) {
         forbiddenMethods.add("@" + format(DoFn.NewTracker.class));
@@ -1791,6 +1809,60 @@ public class DoFnSignatures {
     }
 
     return DoFnSignature.SplitRestrictionMethod.create(
+        m, windowT, methodContext.getExtraParameters());
+  }
+
+  @VisibleForTesting
+  static DoFnSignature.TruncateSizedRestrictionMethod analyzeTruncateSizedRestrictionMethod(
+      ErrorReporter errors,
+      TypeDescriptor<? extends DoFn<?, ?>> fnT,
+      Method m,
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> outputT,
+      TypeDescriptor<?> restrictionT,
+      FnAnalysisContext fnContext) {
+    // Method is of the form:
+    // @TruncateSizedRestriction
+    // void truncateSizedRestriction(... parameters ...);
+    errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
+
+    Type[] params = m.getGenericParameterTypes();
+    MethodAnalysisContext methodContext = MethodAnalysisContext.create();
+    TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnT, m);
+    for (int i = 0; i < params.length; ++i) {
+      Parameter extraParam =
+          analyzeExtraParameter(
+              errors,
+              fnContext,
+              methodContext,
+              fnT,
+              ParameterDescription.of(
+                  m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
+              inputT,
+              restrictionT);
+      if (extraParam instanceof SchemaElementParameter) {
+        errors.throwIllegalArgument(
+            "Schema @%s are not supported for @%s method. Found %s, did you mean to use %s?",
+            format(DoFn.Element.class),
+            format(DoFn.TruncateSizedRestriction.class),
+            format(((SchemaElementParameter) extraParam).elementT()),
+            format(inputT));
+      } else if (extraParam instanceof RestrictionParameter) {
+        errors.checkArgument(
+            restrictionT.equals(((RestrictionParameter) extraParam).restrictionT()),
+            "Uses restriction type %s, but @%s method uses restriction type %s",
+            format(((RestrictionParameter) extraParam).restrictionT()),
+            format(DoFn.GetInitialRestriction.class),
+            format(restrictionT));
+      }
+      methodContext.addParameter(extraParam);
+    }
+
+    for (Parameter parameter : methodContext.getExtraParameters()) {
+      checkParameterOneOf(errors, parameter, ALLOWED_SPLIT_RESTRICTION_PARAMETERS);
+    }
+
+    return DoFnSignature.TruncateSizedRestrictionMethod.create(
         m, windowT, methodContext.getExtraParameters());
   }
 

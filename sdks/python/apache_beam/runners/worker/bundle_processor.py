@@ -1429,6 +1429,36 @@ def create_split_and_size_restrictions(*args):
 
 
 @BeamTransformFactory.register_urn(
+    common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn,
+    beam_runner_api_pb2.ParDoPayload)
+def create_truncate_sized_restriction(*args):
+  class TruncateAndSizeRestriction(beam.DoFn):
+    def __init__(self, fn, restriction_provider, watermark_estimator_provider):
+      self.restriction_provider = restriction_provider
+      self.dofn_signature = common.DoFnSignature(fn)
+
+    def process(self, element_restrictin, *args, **kwargs):
+      ((element, (restriction, estimator_state)), _) = element_restrictin
+      try:
+        truncated_restriciton = self.restriction_provider.truncate(
+            element, restriction)
+        if truncated_restriciton:
+          truncated_restriciton_size = self.restriction_provider.restriction_size(
+              element, truncated_restriciton)
+        else:
+          truncated_restriciton_size = 0
+        yield ((element, (truncated_restriciton, estimator_state)),
+               truncated_restriciton_size)
+      except NotImplementedError:
+        if self.dofn_signature.is_unbounded_per_element():
+          yield ((element, (None, estimator_state)), 0)
+        else:
+          yield element_restrictin
+
+  return _create_sdf_operation(TruncateAndSizeRestriction, *args)
+
+
+@BeamTransformFactory.register_urn(
     common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
     beam_runner_api_pb2.ParDoPayload)
 def create_process_sized_elements_and_restrictions(

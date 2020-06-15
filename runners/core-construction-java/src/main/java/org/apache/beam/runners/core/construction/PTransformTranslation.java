@@ -113,6 +113,8 @@ public class PTransformTranslation {
   // SplittableParDoComponents
   public static final String SPLITTABLE_PAIR_WITH_RESTRICTION_URN =
       "beam:transform:sdf_pair_with_restriction:v1";
+  public static final String SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN =
+      "beam:transform:sdf_truncate_sized_restrictions:v1";
   /**
    * @deprecated runners should move away from using `SplittableProcessKeyedElements` and prefer to
    *     internalize any necessary SplittableDoFn expansion.

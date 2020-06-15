@@ -112,6 +112,10 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract SplitRestrictionMethod splitRestriction();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.TruncateSizedRestriction} method. */
+  @Nullable
+  public abstract TruncateSizedRestrictionMethod truncateSizedRestriction();
+
   /** Details about this {@link DoFn}'s {@link DoFn.GetRestrictionCoder} method. */
   @Nullable
   public abstract GetRestrictionCoderMethod getRestrictionCoder();
@@ -185,6 +189,9 @@ public abstract class DoFnSignature {
     abstract Builder setGetInitialRestriction(GetInitialRestrictionMethod getInitialRestriction);
 
     abstract Builder setSplitRestriction(SplitRestrictionMethod splitRestriction);
+
+    abstract Builder setTruncateSizedRestriction(
+        TruncateSizedRestrictionMethod truncateSizedRestriction);
 
     abstract Builder setGetRestrictionCoder(GetRestrictionCoderMethod getRestrictionCoder);
 
@@ -1325,6 +1332,31 @@ public abstract class DoFnSignature {
         TypeDescriptor<? extends BoundedWindow> windowT,
         List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_SplitRestrictionMethod(
+          targetMethod, windowT, extraParameters);
+    }
+  }
+
+  /** Describes a {@link DoFn.TruncateSizedRestriction} method. */
+  @AutoValue
+  public abstract static class TruncateSizedRestrictionMethod implements MethodWithExtraParameters {
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static TruncateSizedRestrictionMethod create(
+        Method targetMethod,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_TruncateSizedRestrictionMethod(
           targetMethod, windowT, extraParameters);
     }
   }

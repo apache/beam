@@ -195,6 +195,8 @@ class MethodWrapper(object):
     self.restriction_provider_arg_name = None
     self.watermark_estimator_provider = None
     self.watermark_estimator_provider_arg_name = None
+    self.unbounded_per_element = getattr(
+        self.method_value, 'unbounded_per_element', False)
 
     for kw, v in zip(self.args[-len(self.defaults):], self.defaults):
       if isinstance(v, core.DoFn.StateParam):
@@ -303,6 +305,9 @@ class DoFnSignature(object):
   def get_watermark_estimator_provider(self):
     # type: () -> WatermarkEstimatorProvider
     return self.process_method.watermark_estimator_provider
+
+  def is_unbounded_per_element(self):
+    return self.process_method.unbounded_per_element
 
   def _validate(self):
     # type: () -> None
@@ -968,6 +973,9 @@ class DoFnRunner:
     (element, (restriction, estimator_state)), _ = windowed_value.value
     watermark_estimator = (
         self.do_fn_invoker.invoke_create_watermark_estimator(estimator_state))
+    if restriction is None:
+      return
+
     return self.do_fn_invoker.invoke_process(
         windowed_value.with_value(element),
         restriction_tracker=self.do_fn_invoker.invoke_create_tracker(

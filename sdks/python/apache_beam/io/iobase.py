@@ -1243,6 +1243,17 @@ class RestrictionTracker(object):
     """
     raise NotImplementedError
 
+  def is_bounded(self):
+    """Identify whether the output produced by the current restriction is
+    bounded.
+
+    The value is important for the default behavior of truncate when the
+    pipeline starts to drain in streaming. If the current restriction is
+    bounded, it will be processed completely by default. If the restriction is
+    unbounded, it will be truncated into null and finish processing immediately.
+    """
+    raise NotImplementedError
+
 
 class WatermarkEstimator(object):
   """A WatermarkEstimator which is used for estimating output_watermark based on
@@ -1436,6 +1447,9 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
 
     def check_done(self):
       return self.restriction.range_tracker().fraction_consumed() >= 1.0
+
+    def is_bounded(self):
+      return True
 
   class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
     """A `RestrictionProvider` that is used by SDF for `BoundedSource`."""

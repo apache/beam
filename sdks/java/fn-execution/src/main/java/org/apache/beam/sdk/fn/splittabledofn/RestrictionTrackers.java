@@ -76,6 +76,11 @@ public class RestrictionTrackers {
     public synchronized void checkDone() throws IllegalStateException {
       delegate.checkDone();
     }
+
+    @Override
+    public boolean isBounded() {
+      return delegate.isBounded();
+    }
   }
 
   /**

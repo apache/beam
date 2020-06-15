@@ -22,6 +22,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.commons.lang3.NotImplementedException;
 
 /**
  * Manages access to the restriction and keeps track of its claimed part for a <a
@@ -98,6 +99,10 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    * work remaining in the restriction.
    */
   public abstract void checkDone() throws IllegalStateException;
+
+  public boolean isBounded() throws NotImplementedException {
+    throw new NotImplementedException("isBounded is not implemented.");
+  }
 
   /**
    * All {@link RestrictionTracker}s SHOULD implement this interface to improve auto-scaling and

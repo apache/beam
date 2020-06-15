@@ -1034,6 +1034,47 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
    *       passed the timestamp of the current element being processed; the argument must be of type
    *       {@link Instant}.
+   *   <li>If one of its arguments is a subtype of {@link BoundedWindow}, then it will be passed the
+   *       window of the current element. When applied by {@link ParDo} the subtype of {@link
+   *       BoundedWindow} must match the type of windows on the input {@link PCollection}. If the
+   *       window is not accessed a runner may perform additional optimizations.
+   *   <li>If one of its arguments is of type {@link PaneInfo}, then it will be passed information
+   *       about the current triggering pane.
+   *   <li>If one of the parameters is of type {@link PipelineOptions}, then it will be passed the
+   *       options for the current pipeline.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public @interface SplitRestriction {}
+
+  /**
+   * Annotation for the method that truncates restriction of a <a
+   * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} into bounded one to be
+   * processed when pipeline starts to drain.
+   *
+   * <p>This method is used to perform truncating the restriction before actual processing.
+   *
+   * <p>Signature: {@code void truncateSizedRestriction(<arguments>);}
+   *
+   * <p>This method must satisfy the following constraints:
+   *
+   * <ul>
+   *   <li>If one of the arguments is of type {@link OutputReceiver}, then it will be passed an
+   *       output receiver for outputting the splits. All splits must be output through this
+   *       parameter.
+   *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
+   *       passed the current element being processed; the argument must be of type {@code InputT}.
+   *       Note that automatic conversion of {@link Row}s and {@link FieldAccess} parameters are
+   *       currently unsupported.
+   *   <li>If one of its arguments is tagged with the {@link Restriction} annotation, then it will
+   *       be passed the current restriction being processed; the argument must be of type {@code
+   *       RestrictionT}.
+   *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
+   *       passed the timestamp of the current element being processed; the argument must be of type
+   *       {@link Instant}.
    *   <li>If one of its arguments is a {@link RestrictionTracker}, then it will be passed a tracker
    *       that is initialized for the current {@link Restriction}. The argument must be of the
    *       exact type {@code RestrictionTracker<RestrictionT, PositionT>}.
@@ -1051,7 +1092,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
   @Experimental(Kind.SPLITTABLE_DO_FN)
-  public @interface SplitRestriction {}
+  public @interface TruncateSizedRestriction {}
 
   /**
    * Annotation for the method that creates a new {@link RestrictionTracker} for the restriction of
