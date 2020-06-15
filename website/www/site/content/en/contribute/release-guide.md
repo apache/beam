@@ -1126,9 +1126,12 @@ Verify that:
 * Images with *latest* tag are pointing to current release by confirming 
   1. Digest of the image with *latest* tag is the same as the one with {RELEASE} tag.
 
-### Merge website pull request
+### Merge Website pull requests
 
-Merge the website pull request to [list the release](/get-started/downloads/), publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/), the [Java API reference manual](https://beam.apache.org/releases/javadoc/) and Blogpost created earlier.
+Merge all of the website pull requests
+- [listing the release](/get-started/downloads/)
+- publishing the [Python API reference manual](https://beam.apache.org/releases/pydoc/) and the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and
+- adding the release blog post.
 
 ### Git tag
 
@@ -1137,7 +1140,7 @@ Create and push a new signed tag for the released version by copying the tag for
 ```
 VERSION_TAG="v${RELEASE}"
 git tag -s "$VERSION_TAG" "$RC_TAG"
-git push origin "$VERSION_TAG"
+git push https://github.com/apache/beam "$VERSION_TAG"
 ```
 
 After the tag is uploaded, publish the release notes to Github, as follows:
