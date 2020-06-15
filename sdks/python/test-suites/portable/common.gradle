@@ -158,7 +158,7 @@ def sparkCompatibilityMatrix = {
   def config = it ? it as CompatibilityMatrixConfig : new CompatibilityMatrixConfig()
   def workerType = config.workerType.name()
   def streaming = config.streaming
-//  def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "--environment_config='{\"command\": \"${buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
+  def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "--environment_config='{\"command\": \"${buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
   def name = "sparkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${config.preOptimize ? 'PreOptimize' : ''}${workerType}"
   def extra_experiments = []
   if (config.preOptimize)
@@ -168,12 +168,9 @@ def sparkCompatibilityMatrix = {
     dependsOn 'setupVirtualenv'
     dependsOn ':runners:spark:job-server:shadowJar'
     doLast {
-//      def environment_config = "'{\"command\": \"${buildDir.absolutePath}/sdk_worker.sh\"}'"
-      def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "'{\"command\": \"${buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
       def argMap = [
               "environment_type"    : workerType,
               "spark_job_server_jar": project(":runners:spark:job-server:").shadowJar.archivePath,
-              "environment_config": environment_config,
               "environment_cache_millis": 10000,
       ]
       def argString = mapToArgString(argMap)
@@ -186,7 +183,7 @@ def sparkCompatibilityMatrix = {
 
       exec {
         executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.runners.portability.spark_runner_test $tests $argString"
+        args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.runners.portability.spark_runner_test $tests $argString ${environment_config}"
       }
     }
   }
