@@ -35,6 +35,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
@@ -62,6 +63,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.IsBounded;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -306,6 +309,20 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
+  /** Default implementation of {@link TruncateRestriction}, for delegation by bytebuddy. */
+  public static class DefaultTruncateRestriction {
+
+    /** Output the current restriction if it is bounded. Otherwise, return null. */
+    @SuppressWarnings("unused")
+    public static TruncateResult<?> invokeTruncateRestriction(
+        DoFnInvoker.ArgumentProvider argumentProvider) {
+      if (argumentProvider.restrictionTracker().isBounded() == IsBounded.BOUNDED) {
+        return TruncateResult.of(argumentProvider.restriction());
+      }
+      return null;
+    }
+  }
+
   /** Default implementation of {@link DoFn.GetRestrictionCoder}, for delegation by bytebuddy. */
   public static class DefaultRestrictionCoder {
     private final TypeDescriptor<?> restrictionType;
@@ -314,7 +331,6 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       this.restrictionType = restrictionType;
     }
 
-    /** Doesn't split the restriction. */
     @SuppressWarnings({"unused", "unchecked"})
     public <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder(CoderRegistry registry)
         throws CannotProvideCoderException {
@@ -461,6 +477,9 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                     clazzDescription, signature.getInitialRestriction()))
             .method(ElementMatchers.named("invokeSplitRestriction"))
             .intercept(splitRestrictionDelegation(clazzDescription, signature.splitRestriction()))
+            .method(ElementMatchers.named("invokeTruncateRestriction"))
+            .intercept(
+                truncateRestrictionDelegation(clazzDescription, signature.truncateRestriction()))
             .method(ElementMatchers.named("invokeGetRestrictionCoder"))
             .intercept(getRestrictionCoderDelegation(clazzDescription, signature))
             .method(ElementMatchers.named("invokeNewTracker"))
@@ -527,6 +546,15 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       TypeDescription doFnType, DoFnSignature.SplitRestrictionMethod signature) {
     if (signature == null) {
       return MethodDelegation.to(DefaultSplitRestriction.class);
+    } else {
+      return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);
+    }
+  }
+
+  private static Implementation truncateRestrictionDelegation(
+      TypeDescription doFnType, DoFnSignature.TruncateRestrictionMethod signature) {
+    if (signature == null) {
+      return MethodDelegation.to(DefaultTruncateRestriction.class);
     } else {
       return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);
     }
