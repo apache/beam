@@ -41,4 +41,3 @@ func TestLoadFunction(t *testing.T) {
 		t.Errorf("got %d, wanted %d", out[0].Int(), testFunction())
 	}
 }
-

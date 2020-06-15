@@ -45,4 +45,3 @@ func LoadFunction(ptr uintptr, t reflect.Type) interface{} {
 	*(*unsafe.Pointer)(unsafe.Pointer(v.Addr().Pointer())) = unsafe.Pointer(p)
 	return v.Interface()
 }
-
