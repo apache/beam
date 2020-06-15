@@ -193,6 +193,7 @@ REQUIRED_TEST_PACKAGES = [
     'pytest>=4.4.0,<5.0',
     'pytest-xdist>=1.29.0,<2',
     'pytest-timeout>=1.3.3,<2',
+    'rsa<4.1; python_version < "3.0"',
     ]
 
 GCP_REQUIREMENTS = [
