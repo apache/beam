@@ -142,7 +142,7 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         (
             'bare frozenset',
             typing.FrozenSet,
-            typehints.FrozenSet[typehints.TypeVariable('T')]),
+            typehints.FrozenSet[typehints.TypeVariable('T', True)]),
         (
             'bare iterator',
             typing.Iterator,
