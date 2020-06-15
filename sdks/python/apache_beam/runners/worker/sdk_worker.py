@@ -944,6 +944,10 @@ class CachingStateHandler(object):
     if cache_token:
       # Update the cache
       cache_key = self._convert_to_cache_key(state_key)
+      if self._state_cache.get(cache_key, cache_token) is None:
+        # We have never cached this key before, first initialize cache
+        self.blocking_get(state_key, coder, is_cached=True)
+      # Now update the values in the cache
       self._state_cache.extend(cache_key, cache_token, elements)
     # Write to state handler
     out = coder_impl.create_OutputStream()
