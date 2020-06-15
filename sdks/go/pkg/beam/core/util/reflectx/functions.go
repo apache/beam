@@ -46,12 +46,3 @@ func LoadFunction(ptr uintptr, t reflect.Type) interface{} {
 	return v.Interface()
 }
 
-//FunctionOutputSize returns the dimensions of the output of a function.
-// Panics if the type is not a function.
-func FunctionOutputSize(fn interface{}) int {
-	reflectType := reflect.TypeOf(fn)
-	if reflectType.Kind() != reflect.Func {
-		panic(fmt.Sprintf("value %v is not a function", fn))
-	}
-	return reflectType.NumOut()
-}

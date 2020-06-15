@@ -42,22 +42,3 @@ func TestLoadFunction(t *testing.T) {
 	}
 }
 
-func TestFunctionOutputSize(t *testing.T) {
-	var tests = []struct {
-		name string
-		fn   interface{}
-		want int
-	}{
-		{"single", func() int { return 1 }, 1},
-		{"double", func() (int, int) { return 1, 1 }, 2},
-	}
-	for _, tt := range tests {
-		testName := tt.name
-		t.Run(testName, func(t *testing.T) {
-			got := FunctionOutputSize(tt.fn)
-			if got != tt.want {
-				t.Errorf("got %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
