@@ -160,9 +160,6 @@ def sparkCompatibilityMatrix = {
   def streaming = config.streaming
   def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "--environment_config='{\"command\": \"${buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
   def name = "sparkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${config.preOptimize ? 'PreOptimize' : ''}${workerType}"
-  def extra_experiments = []
-  if (config.preOptimize)
-    extra_experiments.add('pre_optimize=all')
   tasks.create(name: name) {
     dependsOn 'createProcessWorker'
     dependsOn 'setupVirtualenv'
