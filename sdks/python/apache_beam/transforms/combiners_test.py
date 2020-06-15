@@ -112,8 +112,9 @@ class CombineTest(unittest.TestCase):
       # Now for global combines without default
       timestamped = pcoll | Map(lambda x: TimestampedValue(x, timestamp))
       windowed = timestamped | 'window' >> WindowInto(FixedWindows(60))
-      result_windowed_mean = windowed | 'mean-wo-defaults' >> combine.Mean.Globally(
-      ).without_defaults()
+      result_windowed_mean = (
+          windowed
+          | 'mean-wo-defaults' >> combine.Mean.Globally().without_defaults())
       assert_that(
           result_windowed_mean,
           equal_to([mean]),
