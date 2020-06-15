@@ -1079,6 +1079,7 @@ class BundleProcessor(object):
                                   ):
     # type: (...) -> beam_fn_api_pb2.BundleApplication
     transform_id, main_input_tag, main_input_coder, outputs = op.input_info
+
     if output_watermark:
       proto_output_watermark = proto_utils.from_micros(
           timestamp_pb2.Timestamp, output_watermark.micros)
@@ -1426,6 +1427,31 @@ def create_split_and_size_restrictions(*args):
 
 
 @BeamTransformFactory.register_urn(
+    common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn,
+    beam_runner_api_pb2.ParDoPayload)
+def create_truncate_sized_restriction(*args):
+  class TruncateAndSizeRestriction(beam.DoFn):
+    def __init__(self, fn, restriction_provider, watermark_estimator_provider):
+      self.restriction_provider = restriction_provider
+
+    def process(self, element_restriction, *args, **kwargs):
+      ((element, (restriction, estimator_state)), _) = element_restriction
+      truncated_restriction = self.restriction_provider.truncate(
+          element, restriction)
+      if truncated_restriction:
+        truncated_restriction_size = (
+            self.restriction_provider.restriction_size(
+                element, truncated_restriction))
+        yield ((element, (truncated_restriction, estimator_state)),
+               truncated_restriction_size)
+
+  return _create_sdf_operation(
+      TruncateAndSizeRestriction,
+      *args,
+      operation_cls=operations.SdfTruncateSizedRestrictions)
+
+
+@BeamTransformFactory.register_urn(
     common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
     beam_runner_api_pb2.ParDoPayload)
 def create_process_sized_elements_and_restrictions(
@@ -1448,7 +1474,13 @@ def create_process_sized_elements_and_restrictions(
 
 
 def _create_sdf_operation(
-    proxy_dofn, factory, transform_id, transform_proto, parameter, consumers):
+    proxy_dofn,
+    factory,
+    transform_id,
+    transform_proto,
+    parameter,
+    consumers,
+    operation_cls=operations.DoOperation):
 
   dofn_data = pickler.loads(parameter.do_fn.payload)
   dofn = dofn_data[0]
@@ -1464,7 +1496,8 @@ def _create_sdf_operation(
       transform_proto,
       consumers,
       serialized_fn,
-      parameter)
+      parameter,
+      operation_cls=operation_cls)
 
 
 @BeamTransformFactory.register_urn(
