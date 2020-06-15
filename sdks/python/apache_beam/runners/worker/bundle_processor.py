@@ -345,8 +345,9 @@ class _StateBackedIterable(object):
 
   def __iter__(self):
     # type: () -> Iterator[Any]
-    return self._state_handler.blocking_get(
-        self._state_key, self._coder_impl, is_cached=self._is_cached)
+    return iter(
+        self._state_handler.blocking_get(
+            self._state_key, self._coder_impl, is_cached=self._is_cached))
 
   def __reduce__(self):
     return list, (list(self), )
