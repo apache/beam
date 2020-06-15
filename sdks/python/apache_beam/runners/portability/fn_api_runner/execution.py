@@ -683,7 +683,21 @@ class BundleContextManager(object):
     input_pcoll = self.process_bundle_descriptor.transforms[
         transform_id].inputs[input_id]
     for read_id, proto in self.process_bundle_descriptor.transforms.items():
+      # The GrpcRead is followed by the SDF/Process.
       if (proto.spec.urn == bundle_processor.DATA_INPUT_URN and
           input_pcoll in proto.outputs.values()):
         return read_id
+      # The GrpcRead is followed by the SDF/Truncate -> SDF/Process.
+      if (proto.spec.urn ==
+          common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn and
+          input_pcoll in proto.outputs.values()):
+        read_input = list(
+            self.process_bundle_descriptor.transforms[read_id].inputs.values()
+        )[0]
+        for (grpc_read,
+             transform_proto) in self.process_bundle_descriptor.transforms.items():  # pylint: disable=line-too-long
+          if (transform_proto.spec.urn == bundle_processor.DATA_INPUT_URN and
+              read_input in transform_proto.outputs.values()):
+            return grpc_read
+
     raise RuntimeError('No IO transform feeds %s' % transform_id)
