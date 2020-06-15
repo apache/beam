@@ -709,16 +709,6 @@ deps:
     artifact: flink-test-utils_2.11
     owners:
 
-  org.apache.gearpump:gearpump-core_2.11:
-    group: org.apache.gearpump
-    artifact: gearpump-core_2.11
-    owners:
-
-  org.apache.gearpump:gearpump-streaming_2.11:
-    group: org.apache.gearpump
-    artifact: gearpump-streaming_2.11
-    owners:
-
   org.apache.hadoop:hadoop-client:
     group: org.apache.hadoop
     artifact: hadoop-client

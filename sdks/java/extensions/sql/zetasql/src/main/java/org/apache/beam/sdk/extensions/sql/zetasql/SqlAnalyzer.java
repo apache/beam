@@ -206,9 +206,41 @@ class SqlAnalyzer {
     // TUMBLE
     catalog.addTableValuedFunction(
         new TableValuedFunction.ForwardInputSchemaToOutputSchemaWithAppendedColumnTVF(
-            ImmutableList.of("TUMBLE"),
+            ImmutableList.of(TVFStreamingUtils.FIXED_WINDOW_TVF),
             new FunctionSignature(
-                retType, ImmutableList.of(inputTableType, descriptorType, stringType), 123),
+                retType, ImmutableList.of(inputTableType, descriptorType, stringType), -1),
+            ImmutableList.of(
+                TVFRelation.Column.create(
+                    TVFStreamingUtils.WINDOW_START,
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
+                TVFRelation.Column.create(
+                    TVFStreamingUtils.WINDOW_END,
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)))));
+
+    // HOP
+    catalog.addTableValuedFunction(
+        new TableValuedFunction.ForwardInputSchemaToOutputSchemaWithAppendedColumnTVF(
+            ImmutableList.of(TVFStreamingUtils.SLIDING_WINDOW_TVF),
+            new FunctionSignature(
+                retType,
+                ImmutableList.of(inputTableType, descriptorType, stringType, stringType),
+                -1),
+            ImmutableList.of(
+                TVFRelation.Column.create(
+                    TVFStreamingUtils.WINDOW_START,
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
+                TVFRelation.Column.create(
+                    TVFStreamingUtils.WINDOW_END,
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)))));
+
+    // SESSION
+    catalog.addTableValuedFunction(
+        new TableValuedFunction.ForwardInputSchemaToOutputSchemaWithAppendedColumnTVF(
+            ImmutableList.of(TVFStreamingUtils.SESSION_WINDOW_TVF),
+            new FunctionSignature(
+                retType,
+                ImmutableList.of(inputTableType, descriptorType, descriptorType, stringType),
+                -1),
             ImmutableList.of(
                 TVFRelation.Column.create(
                     TVFStreamingUtils.WINDOW_START,

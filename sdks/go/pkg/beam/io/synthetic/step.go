@@ -18,11 +18,17 @@ package synthetic
 import (
 	"fmt"
 	"math/rand"
+	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
 )
+
+func init() {
+	beam.RegisterType(reflect.TypeOf((*stepFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*sdfStepFn)(nil)).Elem())
+}
 
 // Step creates a synthetic step transform that receives KV<[]byte, []byte>
 // elements from other synthetic transforms, and outputs KV<[]byte, []byte>

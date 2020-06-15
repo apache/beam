@@ -120,7 +120,7 @@ def get_iter(state, unused_arg):
 
 def symmetric_binary_op(state, unused_arg):
   # TODO(robertwb): This may not be entirely correct...
-  b, a = state.stack.pop(), state.stack.pop()
+  b, a = Const.unwrap(state.stack.pop()), Const.unwrap(state.stack.pop())
   if a == b:
     state.stack.append(a)
   elif type(a) == type(b) and isinstance(a, typehints.SequenceTypeConstraint):

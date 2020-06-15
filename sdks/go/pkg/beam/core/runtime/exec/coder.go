@@ -77,6 +77,9 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 	case coder.Double:
 		return &doubleEncoder{}
 
+	case coder.String:
+		return &stringEncoder{}
+
 	case coder.Custom:
 		return &customEncoder{
 			t:   c.Custom.Type,
@@ -109,6 +112,9 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 
 	case coder.Double:
 		return &doubleDecoder{}
+
+	case coder.String:
+		return &stringDecoder{}
 
 	case coder.Custom:
 		return &customDecoder{
@@ -263,6 +269,33 @@ func (*doubleDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 }
 
 func (d *doubleDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := d.DecodeTo(r, fv); err != nil {
+		return nil, err
+	}
+	return fv, nil
+}
+
+type stringEncoder struct{}
+
+func (*stringEncoder) Encode(val *FullValue, w io.Writer) error {
+	// Encoding: beam utf8 string (length prefix + run of bytes)
+	return coder.EncodeStringUTF8(val.Elm.(string), w)
+}
+
+type stringDecoder struct{}
+
+func (*stringDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
+	// Encoding: beam utf8 string (length prefix + run of bytes)
+	f, err := coder.DecodeStringUTF8(r)
+	if err != nil {
+		return err
+	}
+	*fv = FullValue{Elm: f}
+	return nil
+}
+
+func (d *stringDecoder) Decode(r io.Reader) (*FullValue, error) {
 	fv := &FullValue{}
 	if err := d.DecodeTo(r, fv); err != nil {
 		return nil, err

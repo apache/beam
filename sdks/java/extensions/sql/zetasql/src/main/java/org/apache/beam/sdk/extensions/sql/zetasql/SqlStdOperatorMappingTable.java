@@ -89,6 +89,7 @@ public class SqlStdOperatorMappingTable {
           FunctionSignatureId.FN_CHAR_LENGTH_STRING,
           FunctionSignatureId.FN_ENDS_WITH_STRING,
           FunctionSignatureId.FN_STRING_LIKE,
+          FunctionSignatureId.FN_BYTE_LIKE,
           FunctionSignatureId.FN_COALESCE,
           FunctionSignatureId.FN_IF,
           FunctionSignatureId.FN_IFNULL,

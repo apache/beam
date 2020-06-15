@@ -115,6 +115,7 @@ def pull_from_url(dep, configs):
     finally:
       shutil.rmtree(cur_temp_dir)
 
+
 if __name__ == "__main__":
   os.makedirs(LICENSE_DIR)
   no_licenses = []
@@ -144,8 +145,12 @@ if __name__ == "__main__":
              'and add entries to sdks/python/container/license_scripts/' \
              'dep_urls_py.yaml.'
     raise RuntimeError(
-        'Could not retrieve licences for packages [{license_list}] in '
+        'Could not retrieve licences for packages {license_list} in '
         'Python{py_ver} environment. \n {how_to}'.format(
-            py_ver=py_ver, license_list=sorted(','.join(no_licenses)), how_to=how_to))
+            py_ver=py_ver,
+            license_list=sorted(no_licenses),
+            how_to=how_to))
   else:
-    logging.info('Successfully pulled licenses for {n} dependencies'.format(n=len(dependencies)))
+    logging.info(
+        'Successfully pulled licenses for {n} dependencies'.format(
+            n=len(dependencies)))

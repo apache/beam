@@ -35,6 +35,7 @@ const (
 	urnBoolCoder                = "beam:coder:bool:v1"
 	urnVarIntCoder              = "beam:coder:varint:v1"
 	urnDoubleCoder              = "beam:coder:double:v1"
+	urnStringCoder              = "beam:coder:string_utf8:v1"
 	urnLengthPrefixCoder        = "beam:coder:length_prefix:v1"
 	urnKVCoder                  = "beam:coder:kv:v1"
 	urnIterableCoder            = "beam:coder:iterable:v1"
@@ -56,6 +57,7 @@ func knownStandardCoders() []string {
 		urnBoolCoder,
 		urnVarIntCoder,
 		urnDoubleCoder,
+		urnStringCoder,
 		urnLengthPrefixCoder,
 		urnKVCoder,
 		urnIterableCoder,
@@ -184,6 +186,9 @@ func (b *CoderUnmarshaller) makeCoder(c *pipepb.Coder) (*coder.Coder, error) {
 	case urnDoubleCoder:
 		return coder.NewDouble(), nil
 
+	case urnStringCoder:
+		return coder.NewString(), nil
+
 	case urnKVCoder:
 		if len(components) != 2 {
 			return nil, errors.Errorf("could not unmarshal KV coder from %v, want exactly 2 components but have %d", c, len(components))
@@ -239,19 +244,25 @@ func (b *CoderUnmarshaller) makeCoder(c *pipepb.Coder) (*coder.Coder, error) {
 			return nil, errors.Errorf("could not unmarshal length prefix coder from %v, want a single sub component but have %d", c, len(components))
 		}
 
-		elm, err := b.peek(components[0])
+		sub, err := b.peek(components[0])
 		if err != nil {
 			return nil, err
 		}
+
+		// No payload means this coder was length prefixed by the runner
+		// but is likely self describing - AKA a beam coder.
+		if len(sub.GetSpec().GetPayload()) == 0 {
+			return b.makeCoder(sub)
+		}
 		// TODO(lostluck) 2018/10/17: Make this strict again, once dataflow can use
 		// the portable pipeline model directly (BEAM-2885)
-		if elm.GetSpec().GetUrn() != "" && elm.GetSpec().GetUrn() != urnCustomCoder {
+		if sub.GetSpec().GetUrn() != "" && sub.GetSpec().GetUrn() != urnCustomCoder {
 			// TODO(herohde) 11/17/2017: revisit this restriction
-			return nil, errors.Errorf("could not unmarshal length prefix coder from %v, want a custom coder as a sub component but got %v", c, elm)
+			return nil, errors.Errorf("could not unmarshal length prefix coder from %v, want a custom coder as a sub component but got %v", c, sub)
 		}
 
 		var ref v1pb.CustomCoder
-		if err := protox.DecodeBase64(string(elm.GetSpec().GetPayload()), &ref); err != nil {
+		if err := protox.DecodeBase64(string(sub.GetSpec().GetPayload()), &ref); err != nil {
 			return nil, err
 		}
 		custom, err := decodeCustomCoder(&ref)
@@ -402,6 +413,9 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 
 	case coder.Double:
 		return b.internBuiltInCoder(urnDoubleCoder)
+
+	case coder.String:
+		return b.internBuiltInCoder(urnStringCoder)
 
 	default:
 		panic(fmt.Sprintf("Failed to marshal custom coder %v, unexpected coder kind: %v", c, c.Kind))

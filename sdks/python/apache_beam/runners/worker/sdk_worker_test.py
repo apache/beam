@@ -229,6 +229,62 @@ class CachingStateHandlerTest(unittest.TestCase):
       self.assertEqual(get_as_list(side2), [502])  # uncached
       self.assertEqual(get_as_list(side2), [502])  # cached on bundle
 
+  def test_extend_fetches_initial_state(self):
+    coder = VarIntCoder()
+    coder_impl = coder.get_impl()
+
+    class UnderlyingStateHandler(object):
+      """Simply returns an incremented counter as the state "value."
+      """
+      def set_value(self, value):
+        self._encoded_values = coder.encode(value)
+
+      def get_raw(self, *args):
+        return self._encoded_values, None
+
+      def append_raw(self, _key, bytes):
+        self._encoded_values += bytes
+
+      def clear(self, *args):
+        self._encoded_values = bytes()
+
+      @contextlib.contextmanager
+      def process_instruction_id(self, bundle_id):
+        yield
+
+    underlying_state_handler = UnderlyingStateHandler()
+    state_cache = statecache.StateCache(100)
+    handler = sdk_worker.CachingStateHandler(
+        state_cache, underlying_state_handler)
+
+    state = beam_fn_api_pb2.StateKey(
+        bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
+            user_state_id='state1'))
+
+    cache_token = beam_fn_api_pb2.ProcessBundleRequest.CacheToken(
+        token=b'state_token1',
+        user_state=beam_fn_api_pb2.ProcessBundleRequest.CacheToken.UserState())
+
+    def get():
+      return list(handler.blocking_get(state, coder_impl, True))
+
+    def append(value):
+      handler.extend(state, coder_impl, [value], True)
+
+    def clear():
+      handler.clear(state, True)
+
+    # Initialize state
+    underlying_state_handler.set_value(42)
+    with handler.process_instruction_id('bundle', [cache_token]):
+      # Append without reading beforehand
+      append(43)
+      self.assertEqual(get(), [42, 43])
+      clear()
+      self.assertEqual(get(), [])
+      append(44)
+      self.assertEqual(get(), [44])
+
 
 class ShortIdCacheTest(unittest.TestCase):
   def testShortIdAssignment(self):

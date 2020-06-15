@@ -41,7 +41,7 @@ pydot==1.4.1
 pytz==2019.3
 pyvcf==0.6.8;python_version<"3.0"
 pyyaml==5.1
-typing==3.7.4.1;python_version<"3.5.3"
+typing==3.7.4.1;python_full_version<"3.5.3"
 typing-extensions==3.7.4.1
 
 # GCP extra features

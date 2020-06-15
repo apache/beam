@@ -392,6 +392,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_cloud_core_version = "1.92.2"
     def google_cloud_spanner_version = "1.49.1"
     def google_cloud_datacatalog_version = "0.32.1"
+    def google_code_gson_version = "2.8.6"
     def google_http_clients_version = "1.34.0"
     def google_oauth_clients_version = "1.30.6"
     def grpc_version = "1.27.2"
@@ -408,7 +409,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def proto_google_common_protos_version = "1.17.0"
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
-    def spark_version = "2.4.5"
+    def spark_version = "2.4.6"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -466,7 +467,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20200313-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20200311-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20200305-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1beta1-rev20200307-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1beta1-rev20200525-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20200312-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20200226-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
@@ -480,7 +481,9 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.3",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version",
+        google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
         google_http_client                          : "com.google.http-client:google-http-client:$google_http_clients_version",
+        google_http_client_apache_v2                : "com.google.http-client:google-http-client-apache-v2:$google_http_clients_version",
         google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:1.29.2",
         google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2:$google_http_clients_version",
         google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf:$google_http_clients_version",

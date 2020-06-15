@@ -45,7 +45,6 @@ Beam currently supports Runners that work with the following distributed process
 
 - Apache Apex ![Apache Apex logo](/images/logos/runners/apex.png)
 - Apache Flink ![Apache Flink logo](/images/logos/runners/flink.png)
-- Apache Gearpump (incubating) ![Apache Gearpump logo](/images/logos/runners/gearpump.png)
 - Apache Samza <img src="/images/logos/runners/samza.png" height="20px" alt="Apache Samza logo">
 - Apache Spark ![Apache Spark logo](/images/logos/runners/spark.png)
 - Google Cloud Dataflow ![Google Cloud Dataflow logo](/images/logos/runners/dataflow.png)

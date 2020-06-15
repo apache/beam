@@ -25,11 +25,16 @@ package synthetic
 import (
 	"fmt"
 	"math/rand"
+	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
 )
+
+func init() {
+	beam.RegisterType(reflect.TypeOf((*sourceFn)(nil)).Elem())
+}
 
 // Source creates a synthetic source transform that emits randomly
 // generated KV<[]byte, []byte> elements.

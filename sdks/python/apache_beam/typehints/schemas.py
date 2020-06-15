@@ -120,6 +120,15 @@ PRIMITIVE_TO_ATOMIC_TYPE.update({
 _BEAM_SCHEMA_ID = "_beam_schema_id"
 
 
+def named_fields_to_schema(names_and_types):
+  return schema_pb2.Schema(
+      fields=[
+          schema_pb2.Field(name=name, type=typing_to_runner_api(type))
+          for (name, type) in names_and_types
+      ],
+      id=str(uuid4()))
+
+
 def typing_to_runner_api(type_):
   if _match_is_named_tuple(type_):
     schema = None
