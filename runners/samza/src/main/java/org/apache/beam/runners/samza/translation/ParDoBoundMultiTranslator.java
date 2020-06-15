@@ -314,6 +314,12 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
     final SamzaPipelineOptions options = ctx.getPipelineOptions();
 
+    // If a ParDo observes directly or indirectly with window, then this is a stateful ParDo
+    // in this case, we will use RocksDB as system store.
+    if (signature.processElement().observesWindow()) {
+      config.putAll(ConfigBuilder.createRocksDBStoreConfig(options));
+    }
+
     if (signature.usesState()) {
       // set up user state configs
       for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
@@ -337,6 +343,13 @@ class ParDoBoundMultiTranslator<InT, OutT>
     }
 
     return config;
+  }
+
+  @Override
+  public Map<String, String> createPortableConfig(
+      PipelineNode.PTransformNode transform, SamzaPipelineOptions options) {
+    // TODO: Add beamStore configs when portable use case supports stateful ParDo.
+    return Collections.emptyMap();
   }
 
   private static class SideInputWatermarkFn<InT>

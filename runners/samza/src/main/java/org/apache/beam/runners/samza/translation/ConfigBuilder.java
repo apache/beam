@@ -59,6 +59,7 @@ import org.slf4j.LoggerFactory;
 public class ConfigBuilder {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigBuilder.class);
 
+  private static final String BEAM_STORE_FACTORY = "stores.beamStore.factory";
   private static final String APP_RUNNER_CLASS = "app.runner.class";
   private static final String YARN_PACKAGE_PATH = "yarn.package.path";
   private static final String JOB_FACTORY_CLASS = "job.factory.class";
@@ -82,7 +83,7 @@ public class ConfigBuilder {
   public Config build() {
     try {
       // apply framework configs
-      config.putAll(createSystemConfig(options));
+      config.putAll(createSystemConfig(options, config));
 
       // apply user configs
       config.putAll(createUserConfig(options));
@@ -234,12 +235,10 @@ public class ConfigBuilder {
         .build();
   }
 
-  private static Map<String, String> createSystemConfig(SamzaPipelineOptions options) {
-    ImmutableMap.Builder<String, String> configBuilder =
+  private static Map<String, String> createSystemConfig(
+      SamzaPipelineOptions options, Map<String, String> config) {
+    final ImmutableMap.Builder<String, String> configBuilder =
         ImmutableMap.<String, String>builder()
-            .put(
-                "stores.beamStore.factory",
-                "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory")
             .put("stores.beamStore.key.serde", "byteArraySerde")
             .put("stores.beamStore.msg.serde", "stateValueSerde")
             .put(
@@ -249,10 +248,12 @@ public class ConfigBuilder {
                 "serializers.registry.byteArraySerde.class",
                 SamzaStateInternals.ByteArraySerdeFactory.class.getName());
 
-    if (options.getStateDurable()) {
-      LOG.info("stateDurable is enabled");
-      configBuilder.put("stores.beamStore.changelog", getChangelogTopic(options, "beamStore"));
-      configBuilder.put("job.host-affinity.enabled", "true");
+    // if config does not contain "stores.beamStore.factory" at this moment,
+    // then it is a stateless job.
+    if (!config.containsKey(BEAM_STORE_FACTORY)) {
+      configBuilder.put(
+          BEAM_STORE_FACTORY,
+          "org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStorageEngineFactory");
     }
 
     LOG.info("Execution environment is " + options.getSamzaExecutionEnvironment());
@@ -270,6 +271,22 @@ public class ConfigBuilder {
 
     // TODO: remove after we sort out Samza task wrapper
     configBuilder.put("samza.li.task.wrapper.enabled", "false");
+
+    return configBuilder.build();
+  }
+
+  static Map<String, String> createRocksDBStoreConfig(SamzaPipelineOptions options) {
+    final ImmutableMap.Builder<String, String> configBuilder =
+        ImmutableMap.<String, String>builder()
+            .put(
+                BEAM_STORE_FACTORY,
+                "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
+
+    if (options.getStateDurable()) {
+      LOG.info("stateDurable is enabled");
+      configBuilder.put("stores.beamStore.changelog", getChangelogTopic(options, "beamStore"));
+      configBuilder.put("job.host-affinity.enabled", "true");
+    }
 
     return configBuilder.build();
   }

@@ -19,12 +19,14 @@ package org.apache.beam.runners.samza.translation;
 
 import static org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils.escape;
 
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.runtime.DoFnOp;
 import org.apache.beam.runners.samza.runtime.GroupByKeyOp;
 import org.apache.beam.runners.samza.runtime.KvToKeyedWorkItemOp;
@@ -55,7 +57,9 @@ import org.apache.samza.serializers.KVSerde;
 /** Translates {@link GroupByKey} to Samza {@link GroupByKeyOp}. */
 class GroupByKeyTranslator<K, InputT, OutputT>
     implements TransformTranslator<
-        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
+            PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>>,
+        TransformConfigGenerator<
+            PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
 
   @Override
   public void translate(
@@ -108,6 +112,20 @@ class GroupByKeyTranslator<K, InputT, OutputT>
       QueryablePipeline pipeline,
       PortableTranslationContext ctx) {
     doTranslatePortable(transform, pipeline, ctx);
+  }
+
+  @Override
+  public Map<String, String> createConfig(
+      PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
+      TransformHierarchy.Node node,
+      ConfigContext ctx) {
+    return ConfigBuilder.createRocksDBStoreConfig(ctx.getPipelineOptions());
+  }
+
+  @Override
+  public Map<String, String> createPortableConfig(
+      PipelineNode.PTransformNode transform, SamzaPipelineOptions options) {
+    return ConfigBuilder.createRocksDBStoreConfig(options);
   }
 
   private static <K, InputT, OutputT> void doTranslatePortable(

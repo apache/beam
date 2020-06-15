@@ -32,6 +32,7 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
@@ -46,16 +47,17 @@ import org.apache.samza.job.yarn.YarnJobFactory;
 import org.apache.samza.runtime.LocalApplicationRunner;
 import org.apache.samza.runtime.RemoteApplicationRunner;
 import org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory;
+import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStorageEngineFactory;
 import org.apache.samza.zk.ZkJobCoordinatorFactory;
 import org.junit.Test;
 
 /** Test config generations for {@link org.apache.beam.runners.samza.SamzaRunner}. */
-public class ConfigGeneratorTest {
+public class TestConfigBuilder {
   private static final String APP_RUNNER_CLASS = "app.runner.class";
   private static final String JOB_FACTORY_CLASS = "job.factory.class";
 
   @Test
-  public void testBeamStoreConfig() {
+  public void testStatefulBeamStoreConfig() {
     SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
     options.setJobName("TestStoreConfig");
     options.setRunner(SamzaRunner.class);
@@ -82,6 +84,36 @@ public class ConfigGeneratorTest {
     final Config config2 = configBuilder.build();
     assertEquals(
         "TestStoreConfig-1-beamStore-changelog", config2.get("stores.beamStore.changelog"));
+  }
+
+  @Test
+  public void testStatelessBeamStoreConfig() {
+    SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
+    options.setJobName("TestStoreConfig");
+    options.setRunner(SamzaRunner.class);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply(Create.of(1, 2, 3)).apply(Filter.by(v -> v == 1));
+
+    pipeline.replaceAll(SamzaTransformOverrides.getDefaultOverrides());
+
+    final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
+    final ConfigBuilder configBuilder = new ConfigBuilder(options);
+    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
+    final Config config = configBuilder.build();
+
+    assertEquals(
+        InMemoryKeyValueStorageEngineFactory.class.getName(),
+        config.get("stores.beamStore.factory"));
+    assertEquals("byteArraySerde", config.get("stores.beamStore.key.serde"));
+    assertEquals("stateValueSerde", config.get("stores.beamStore.msg.serde"));
+    assertNull(config.get("stores.beamStore.changelog"));
+
+    options.setStateDurable(true);
+    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
+    final Config config2 = configBuilder.build();
+    // For stateless jobs, ignore state durable pipeline option.
+    assertNull(config2.get("stores.beamStore.changelog"));
   }
 
   @Test

@@ -294,7 +294,7 @@ public class SamzaStateInternalsTest implements Serializable {
 
     SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
     options.setRunner(TestSamzaRunner.class);
-    Map<String, String> configs = new HashMap(ConfigBuilder.localRunConfig());
+    Map<String, String> configs = new HashMap<>(ConfigBuilder.localRunConfig());
     configs.put("stores.foo.factory", TestStorageEngine.class.getName());
     options.setConfigOverride(configs);
 
