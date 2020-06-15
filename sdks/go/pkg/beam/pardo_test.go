@@ -15,7 +15,9 @@
 
 package beam
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestRecommendParDo(t *testing.T) {
 	var tests = []struct {
@@ -36,5 +38,17 @@ func TestRecommendParDo(t *testing.T) {
 				t.Errorf("RecommendParDo(%v) = %v, want %v", tt.outputDim, got, tt.want)
 			}
 		})
+	}
+}
+
+func testFunction() int64 {
+	return 42
+}
+
+func TestFormatParDoError(t *testing.T) {
+	got := formatParDoError(testFunction, 2, 1)
+	want := "DoFn github.com/apache/beam/sdks/go/pkg/beam.testFunction has 2 outputs, but ParDo requires 1 outputs, use ParDo2 instead."
+	if got != want {
+		t.Errorf("formatParDoError(testFunction,2,1) = %v, want = %v", got, want)
 	}
 }
