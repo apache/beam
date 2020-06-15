@@ -61,6 +61,7 @@ import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.SideInput;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
+import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.GetInitialRestrictionMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.GetInitialWatermarkEstimatorStateMethod;
@@ -82,6 +83,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -213,6 +215,17 @@ public class DoFnSignatures {
           Parameter.TimestampParameter.class,
           Parameter.PaneInfoParameter.class,
           Parameter.PipelineOptionsParameter.class);
+
+  private static final Collection<Class<? extends Parameter>>
+      ALLOWED_TRUNCATE_RESTRICTION_PARAMETERS =
+          ImmutableList.of(
+              Parameter.ElementParameter.class,
+              Parameter.RestrictionParameter.class,
+              Parameter.RestrictionTrackerParameter.class,
+              Parameter.WindowParameter.class,
+              Parameter.TimestampParameter.class,
+              Parameter.PaneInfoParameter.class,
+              Parameter.PipelineOptionsParameter.class);
 
   private static final Collection<Class<? extends Parameter>> ALLOWED_NEW_TRACKER_PARAMETERS =
       ImmutableList.of(
@@ -520,6 +533,8 @@ public class DoFnSignatures {
         findAnnotatedMethod(errors, DoFn.GetInitialRestriction.class, fnClass, false);
     Method splitRestrictionMethod =
         findAnnotatedMethod(errors, DoFn.SplitRestriction.class, fnClass, false);
+    Method truncateRestrictionMethod =
+        findAnnotatedMethod(errors, TruncateRestriction.class, fnClass, false);
     Method getRestrictionCoderMethod =
         findAnnotatedMethod(errors, DoFn.GetRestrictionCoder.class, fnClass, false);
     Method newTrackerMethod = findAnnotatedMethod(errors, DoFn.NewTracker.class, fnClass, false);
@@ -717,6 +732,17 @@ public class DoFnSignatures {
                 fnContext));
       }
 
+      if (truncateRestrictionMethod != null) {
+        signatureBuilder.setTruncateRestriction(
+            analyzeTruncateRestrictionMethod(
+                errors.forMethod(TruncateRestriction.class, truncateRestrictionMethod),
+                fnT,
+                truncateRestrictionMethod,
+                inputT,
+                restrictionT,
+                fnContext));
+      }
+
       if (getSizeMethod != null) {
         signatureBuilder.setGetSize(
             analyzeGetSizeMethod(
@@ -777,6 +803,9 @@ public class DoFnSignatures {
       }
       if (splitRestrictionMethod != null) {
         forbiddenMethods.add("@" + format(DoFn.SplitRestriction.class));
+      }
+      if (truncateRestrictionMethod != null) {
+        forbiddenMethods.add("@" + format(TruncateRestriction.class));
       }
       if (newTrackerMethod != null) {
         forbiddenMethods.add("@" + format(DoFn.NewTracker.class));
@@ -1791,6 +1820,59 @@ public class DoFnSignatures {
     }
 
     return DoFnSignature.SplitRestrictionMethod.create(
+        m, windowT, methodContext.getExtraParameters());
+  }
+
+  @VisibleForTesting
+  static DoFnSignature.TruncateRestrictionMethod analyzeTruncateRestrictionMethod(
+      ErrorReporter errors,
+      TypeDescriptor<? extends DoFn<?, ?>> fnT,
+      Method m,
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> restrictionT,
+      FnAnalysisContext fnContext) {
+    // Method is of the form:
+    // @TruncateRestriction
+    // TruncateResult<RestrictionT> truncateRestriction(... parameters ...);
+    errors.checkArgument(
+        TruncateResult.class.equals(m.getReturnType()), "Must return TruncateResult<Restriction>");
+    Type[] params = m.getGenericParameterTypes();
+    MethodAnalysisContext methodContext = MethodAnalysisContext.create();
+    TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnT, m);
+    for (int i = 0; i < params.length; ++i) {
+      Parameter extraParam =
+          analyzeExtraParameter(
+              errors,
+              fnContext,
+              methodContext,
+              fnT,
+              ParameterDescription.of(
+                  m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
+              inputT,
+              restrictionT);
+      if (extraParam instanceof SchemaElementParameter) {
+        errors.throwIllegalArgument(
+            "Schema @%s are not supported for @%s method. Found %s, did you mean to use %s?",
+            format(DoFn.Element.class),
+            format(TruncateRestriction.class),
+            format(((SchemaElementParameter) extraParam).elementT()),
+            format(inputT));
+      } else if (extraParam instanceof RestrictionParameter) {
+        errors.checkArgument(
+            restrictionT.equals(((RestrictionParameter) extraParam).restrictionT()),
+            "Uses restriction type %s, but @%s method uses restriction type %s",
+            format(((RestrictionParameter) extraParam).restrictionT()),
+            format(DoFn.GetInitialRestriction.class),
+            format(restrictionT));
+      }
+      methodContext.addParameter(extraParam);
+    }
+
+    for (Parameter parameter : methodContext.getExtraParameters()) {
+      checkParameterOneOf(errors, parameter, ALLOWED_TRUNCATE_RESTRICTION_PARAMETERS);
+    }
+
+    return DoFnSignature.TruncateRestrictionMethod.create(
         m, windowT, methodContext.getExtraParameters());
   }
 
