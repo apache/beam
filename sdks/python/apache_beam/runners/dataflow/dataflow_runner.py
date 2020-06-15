@@ -1364,8 +1364,9 @@ class DataflowRunner(PipelineRunner):
     transform = transform_node.transform
     step = self._add_step(
         TransformNames.READ, transform_node.full_label, transform_node)
-    step.add_property(PropertyNames.SERIALIZED_FN,
-                      self.proto_context.transforms.get_id(transform_node))
+    step.add_property(
+        PropertyNames.SERIALIZED_FN,
+        self.proto_context.transforms.get_id(transform_node))
     step.add_property(PropertyNames.FORMAT, 'test_stream')
     test_stream_payload = beam_runner_api_pb2.TestStreamPayload()
     # TestStream source doesn't do any decoding of elements,
