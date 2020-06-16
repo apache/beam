@@ -1609,6 +1609,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
   @Test
   public void testProcessElementForWindowedSizedElementAndRestriction() throws Exception {
     Pipeline p = Pipeline.create();
+    addExperiment(p.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+    // TODO(BEAM-10097): Remove experiment once all portable runners support this view type
+    addExperiment(p.getOptions().as(ExperimentalOptions.class), "use_runner_v2");
     PCollection<String> valuePCollection = p.apply(Create.of("unused"));
     PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
     TestSplittableDoFn doFn = new TestSplittableDoFn(singletonSideInputView);
@@ -1665,7 +1668,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     ImmutableMap<StateKey, ByteString> stateData =
         ImmutableMap.of(
-            multimapSideInputKey(singletonSideInputView.getTagInternal().getId(), ByteString.EMPTY),
+            iterableSideInputKey(singletonSideInputView.getTagInternal().getId(), ByteString.EMPTY),
             encode("8"));
 
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
