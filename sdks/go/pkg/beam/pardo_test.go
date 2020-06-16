@@ -41,6 +41,11 @@ func TestRecommendParDo(t *testing.T) {
 	}
 }
 
+// testFunction is used in TestFormatParDoError test to validate that the
+// error message returned by the formatParDoError function is correct. This
+// function specifically is named and not anonymous to ensure that returned
+// error message contains the correct function name which was violating the
+// output dimension alignment.
 func testFunction() int64 {
 	return 42
 }
