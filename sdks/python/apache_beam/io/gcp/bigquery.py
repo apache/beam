@@ -45,8 +45,8 @@ call *one* row of the main table and *all* rows of the side table. The runner
 may use some caching techniques to share the side inputs between calls in order
 to avoid excessive reading:::
 
-  main_table = pipeline | 'VeryBig' >> beam.io.Read(beam.io.BigQuerySource()
-  side_table = pipeline | 'NotBig' >> beam.io.Read(beam.io.BigQuerySource()
+  main_table = pipeline | 'VeryBig' >> beam.io.ReadFroBigQuery(...)
+  side_table = pipeline | 'NotBig' >> beam.io.ReadFromBigQuery(...)
   results = (
       main_table
       | 'ProcessData' >> beam.Map(
@@ -58,14 +58,8 @@ as a parameter to the Map transform. AsList signals to the execution framework
 that its input should be made available whole.
 
 The main and side inputs are implemented differently. Reading a BigQuery table
-as main input entails exporting the table to a set of GCS files (currently in
-JSON format) and then processing those files. Reading the same table as a side
-input entails querying the table for all its rows. The coder argument on
-BigQuerySource controls the reading of the lines in the export files (i.e.,
-transform a JSON object into a PCollection element). The coder is not involved
-when the same table is read as a side input since there is no intermediate
-format involved. We get the table rows directly from the BigQuery service with
-a query.
+as main input entails exporting the table to a set of GCS files (in AVRO or in
+JSON format) and then processing those files.
 
 Users may provide a query to read from rather than reading all of a BigQuery
 table. If specified, the result obtained by executing the specified query will
@@ -77,6 +71,12 @@ be used as the data of the input transform.::
 When creating a BigQuery input transform, users should provide either a query
 or a table. Pipeline construction will fail with a validation error if neither
 or both are specified.
+
+When reading from BigQuery using `BigQuerySource`, bytes are returned as
+base64-encoded bytes. When reading via `ReadFromBigQuery`, bytes are returned
+as bytes without base64 encoding. This is due to the fact that ReadFromBigQuery
+uses Avro expors by default. To get base64-encoded bytes, you can use the flag
+`use_json_exports` to export data as JSON, and receive base64-encoded bytes.
 
 Writing Data to BigQuery
 ========================
@@ -225,8 +225,7 @@ The GEOGRAPHY data type works with Well-Known Text (See
 https://en.wikipedia.org/wiki/Well-known_text) format for reading and writing
 to BigQuery.
 BigQuery IO requires values of BYTES datatype to be encoded using base64
-encoding when writing to BigQuery. When bytes are read from BigQuery they are
-returned as base64-encoded bytes.
+encoding when writing to BigQuery.
 """
 
 # pytype: skip-file
@@ -251,6 +250,7 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.avroio import _create_avro_source as create_avro_source
 from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
@@ -609,7 +609,8 @@ class _CustomBigQuerySource(BoundedSource):
       use_standard_sql=False,
       flatten_results=True,
       kms_key=None,
-      bigquery_job_labels=None):
+      bigquery_job_labels=None,
+      use_json_exports=False):
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -638,14 +639,17 @@ class _CustomBigQuerySource(BoundedSource):
     self.split_result = None
     self.options = pipeline_options
     self.bigquery_job_labels = bigquery_job_labels or {}
+    self.use_json_exports = use_json_exports
 
   def display_data(self):
+    export_format = 'JSON' if self.use_json_exports else 'AVRO'
     return {
         'table': str(self.table_reference),
         'query': str(self.query),
         'project': str(self.project),
         'use_legacy_sql': self.use_legacy_sql,
         'bigquery_job_labels': json.dumps(self.bigquery_job_labels),
+        'export_file_format': export_format,
     }
 
   def estimate_size(self):
@@ -691,6 +695,17 @@ class _CustomBigQuerySource(BoundedSource):
       project = self.project
     return project
 
+  def _create_source(self, path, schema):
+    if not self.use_json_exports:
+      return create_avro_source(path, use_fastavro=True)
+    else:
+      return TextSource(
+          path,
+          min_bundle_size=0,
+          compression_type=CompressionTypes.UNCOMPRESSED,
+          strip_trailing_newlines=True,
+          coder=self.coder(schema))
+
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
       bq = bigquery_tools.BigQueryWrapper()
@@ -701,13 +716,10 @@ class _CustomBigQuerySource(BoundedSource):
 
       schema, metadata_list = self._export_files(bq)
       self.split_result = [
-          TextSource(
-              metadata.path,
-              0,
-              CompressionTypes.UNCOMPRESSED,
-              True,
-              self.coder(schema)) for metadata in metadata_list
+          self._create_source(metadata.path, schema)
+          for metadata in metadata_list
       ]
+
       if self.query is not None:
         bq.clean_up_temporary_dataset(self._get_project())
 
@@ -755,13 +767,23 @@ class _CustomBigQuerySource(BoundedSource):
       bigquery.TableSchema instance, a list of FileMetadata instances
     """
     job_id = uuid.uuid4().hex
-    job_ref = bq.perform_extract_job([self.gcs_location],
-                                     job_id,
-                                     self.table_reference,
-                                     bigquery_tools.FileFormat.JSON,
-                                     project=self._get_project(),
-                                     include_header=False,
-                                     job_labels=self.bigquery_job_labels)
+    if self.use_json_exports:
+      job_ref = bq.perform_extract_job([self.gcs_location],
+                                       job_id,
+                                       self.table_reference,
+                                       bigquery_tools.FileFormat.JSON,
+                                       project=self._get_project(),
+                                       job_labels=self.bigquery_job_labels,
+                                       include_header=False)
+    else:
+      job_ref = bq.perform_extract_job([self.gcs_location],
+                                       job_id,
+                                       self.table_reference,
+                                       bigquery_tools.FileFormat.AVRO,
+                                       project=self._get_project(),
+                                       include_header=False,
+                                       job_labels=self.bigquery_job_labels,
+                                       use_avro_logical_types=True)
     bq.wait_for_bq_job(job_ref)
     metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
 
@@ -1627,7 +1649,8 @@ class ReadFromBigQuery(PTransform):
   """Read data from BigQuery.
 
     This PTransform uses a BigQuery export job to take a snapshot of the table
-    on GCS, and then reads from each produced JSON file.
+    on GCS, and then reads from each produced file. File format is Avro by
+    default.
 
   Args:
     table (str, callable, ValueProvider): The ID of the table, or a callable
@@ -1671,7 +1694,23 @@ class ReadFromBigQuery(PTransform):
       to BigQuery export and query jobs created by this transform. See:
       https://cloud.google.com/bigquery/docs/reference/rest/v2/\
               Job#JobConfiguration
-  """
+    use_json_exports (bool): By default, this transform works by exporting
+      BigQuery data into Avro files, and reading those files. With this
+      parameter, the transform will instead export to JSON files. JSON files
+      are slower to read due to their larger size.
+      When using JSON exports, the BigQuery types for DATE, DATETIME, TIME, and
+      TIMESTAMP will be exported as strings. This behavior is consistent with
+      BigQuerySource.
+      When using Avro exports, these fields will be exported as native Python
+      types (datetime.date, datetime.datetime, datetime.datetime,
+      and datetime.datetime respectively). Avro exports are recommended.
+      To learn more about BigQuery types, and Time-related type
+      representations, see: https://cloud.google.com/bigquery/docs/reference/\
+              standard-sql/data-types
+      To learn more about type conversions between BigQuery and Avro, see:
+      https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\
+              #avro_conversions
+   """
   def __init__(self, gcs_location=None, validate=False, *args, **kwargs):
     if gcs_location:
       if not isinstance(gcs_location, (str, unicode, ValueProvider)):

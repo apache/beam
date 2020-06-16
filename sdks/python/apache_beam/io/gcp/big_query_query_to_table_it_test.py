@@ -173,7 +173,8 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'output_schema': DIALECT_OUTPUT_SCHEMA,
         'use_standard_sql': False,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
-        'on_success_matcher': all_of(*pipeline_verifiers)
+        'on_success_matcher': all_of(*pipeline_verifiers),
+        'experiments': 'use_beam_bq_sink',
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
@@ -196,7 +197,8 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'output_schema': DIALECT_OUTPUT_SCHEMA,
         'use_standard_sql': True,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
-        'on_success_matcher': all_of(*pipeline_verifiers)
+        'on_success_matcher': all_of(*pipeline_verifiers),
+        'experiments': 'use_beam_bq_sink',
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
@@ -254,7 +256,32 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'output_schema': NEW_TYPES_OUTPUT_SCHEMA,
         'use_standard_sql': False,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
+        'use_json_exports': True,
         'on_success_matcher': all_of(*pipeline_verifiers)
+    }
+    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
+    big_query_query_to_table_pipeline.run_bq_pipeline(options)
+
+  @attr('IT')
+  def test_big_query_new_types_avro(self):
+    expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
+    verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table
+    pipeline_verifiers = [
+        PipelineStateMatcher(),
+        BigqueryMatcher(
+            project=self.project,
+            query=verify_query,
+            checksum=expected_checksum)
+    ]
+    self._setup_new_types_env()
+    extra_opts = {
+        'query': NEW_TYPES_QUERY % (self.dataset_id, NEW_TYPES_INPUT_TABLE),
+        'output': self.output_table,
+        'output_schema': NEW_TYPES_OUTPUT_SCHEMA,
+        'use_standard_sql': False,
+        'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
+        'on_success_matcher': all_of(*pipeline_verifiers),
+        'experiments': 'use_beam_bq_sink',
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
