@@ -307,12 +307,16 @@ limitations under the License.
 &lt;ul>
 &lt;li>&lt;a href="#deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#deploy-python-artifacts-to-pypi">Deploy Python artifacts to PyPI&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#deploy-sdk-docker-images-to-dockerhub">Deploy SDK docker images to DockerHub&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#merge-website-pull-requests">Merge Website pull requests&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#git-tag">Git tag&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#pmc-only-finalization">PMC-Only Finalization&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#mark-the-version-as-released-in-jira">Mark the version as released in JIRA&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#recordkeeping-with-asf">Recordkeeping with ASF&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
 &lt;li>&lt;a href="#checklist-to-proceed-to-the-next-step-3">Checklist to proceed to the next step&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
@@ -1354,10 +1358,6 @@ please follow &lt;a href="https://help.github.com/articles/creating-a-personal-a
 All wheels should be published, in addition to the zip of the release source.
 (Signatures and hashes do &lt;em>not&lt;/em> need to be uploaded.)&lt;/li>
 &lt;/ul>
-&lt;h3 id="deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org&lt;/h3>
-&lt;p>Copy the source release from the &lt;code>dev&lt;/code> repository to the &lt;code>release&lt;/code> repository at &lt;code>dist.apache.org&lt;/code> using Subversion.&lt;/p>
-&lt;p>Move last release artifacts from &lt;code>dist.apache.org&lt;/code> to &lt;code>archive.apache.org&lt;/code> using Subversion. Make sure to change these links on the website (&lt;a href="https://github.com/apache/beam/pull/11727">example&lt;/a>).&lt;/p>
-&lt;p>&lt;strong>NOTE&lt;/strong>: Only PMC members have permissions to do it, ping &lt;a href="mailto:dev@beam.apache.org">dev@&lt;/a> for assitance;&lt;/p>
 &lt;h3 id="deploy-sdk-docker-images-to-dockerhub">Deploy SDK docker images to DockerHub&lt;/h3>
 &lt;ul>
 &lt;li>Script: &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh">publish_docker_images.sh&lt;/a>&lt;/li>
@@ -1388,12 +1388,15 @@ git push https://github.com/apache/beam &amp;quot;$VERSION_TAG&amp;quot;
 &lt;/code>&lt;/pre>&lt;p>After the tag is uploaded, publish the release notes to Github, as follows:&lt;/p>
 &lt;pre>&lt;code>cd beam/release/src/main/scripts &amp;amp;&amp;amp; ./publish_github_release_notes.sh
 &lt;/code>&lt;/pre>&lt;p>Note this script reads the release notes from the blog post, so you should make sure to run this from master &lt;em>after&lt;/em> merging the blog post PR.&lt;/p>
-&lt;h3 id="mark-the-version-as-released-in-jira">Mark the version as released in JIRA&lt;/h3>
+&lt;h3 id="pmc-only-finalization">PMC-Only Finalization&lt;/h3>
+&lt;p>There are a few release finalization tasks that only PMC members have permissions to do. Ping &lt;a href="mailto:dev@beam.apache.org">dev@&lt;/a> for assistance if you need it.&lt;/p>
+&lt;h4 id="deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org&lt;/h4>
+&lt;p>Copy the source release from the &lt;code>dev&lt;/code> repository to the &lt;code>release&lt;/code> repository at &lt;code>dist.apache.org&lt;/code> using Subversion.&lt;/p>
+&lt;p>Make sure the last release&amp;rsquo;s artifacts have been copied from &lt;code>dist.apache.org&lt;/code> to &lt;code>archive.apache.org&lt;/code>. This should happen automatically: &lt;a href="https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E">dev@ thread&lt;/a> with context. The release manager should also make sure to change these links on the website (&lt;a href="https://github.com/apache/beam/pull/11727">example&lt;/a>).&lt;/p>
+&lt;h4 id="mark-the-version-as-released-in-jira">Mark the version as released in JIRA&lt;/h4>
 &lt;p>In JIRA, inside &lt;a href="https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions">version management&lt;/a>, hover over the current release and a settings menu will appear. Click &lt;code>Release&lt;/code>, and select today’s date.&lt;/p>
-&lt;p>&lt;strong>NOTE&lt;/strong>: Only PMC members have permissions to do it, ping &lt;a href="mailto:dev@beam.apache.org">dev@&lt;/a> for assitance;&lt;/p>
-&lt;h3 id="recordkeeping-with-asf">Recordkeeping with ASF&lt;/h3>
+&lt;h4 id="recordkeeping-with-asf">Recordkeeping with ASF&lt;/h4>
 &lt;p>Use reporter.apache.org to seed the information about the release into future project reports.&lt;/p>
-&lt;p>&lt;strong>NOTE&lt;/strong>: Only PMC members have permissions to do it, ping &lt;a href="mailto:dev@beam.apache.org">dev@&lt;/a> for assitance;&lt;/p>
 &lt;h3 id="checklist-to-proceed-to-the-next-step-3">Checklist to proceed to the next step&lt;/h3>
 &lt;ul>
 &lt;li>Maven artifacts released and indexed in the &lt;a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">Maven Central Repository&lt;/a>&lt;/li>
