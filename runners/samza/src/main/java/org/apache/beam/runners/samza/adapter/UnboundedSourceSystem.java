@@ -265,6 +265,7 @@ public class UnboundedSourceSystem {
       private final FnWithMetricsWrapper metricsWrapper;
 
       private volatile boolean running;
+      private volatile boolean maxWatermarkReached = false;
       private volatile Exception lastException;
       private long lastWatermarkTime = 0L;
 
@@ -300,7 +301,7 @@ public class UnboundedSourceSystem {
             }
           }
 
-          while (running) {
+          while (running && !maxWatermarkReached) {
             boolean elementAvailable = false;
             for (UnboundedReader reader : readers) {
               final boolean hasData = invoke(reader::advance);
@@ -360,6 +361,7 @@ public class UnboundedSourceSystem {
       private void updateWatermark() throws InterruptedException {
         final long time = System.currentTimeMillis();
         if (time - lastWatermarkTime > watermarkInterval) {
+          long watermarkMillis = Long.MAX_VALUE;
           for (UnboundedReader reader : readers) {
             final SystemStreamPartition ssp = readerToSsp.get(reader);
             final Instant currentWatermark =
@@ -367,13 +369,24 @@ public class UnboundedSourceSystem {
                     ? currentWatermarks.get(ssp)
                     : BoundedWindow.TIMESTAMP_MIN_VALUE;
             final Instant nextWatermark = reader.getWatermark();
+            if (nextWatermark != null) {
+              watermarkMillis = Math.min(nextWatermark.getMillis(), watermarkMillis);
+            }
             if (currentWatermark.isBefore(nextWatermark)) {
               currentWatermarks.put(ssp, nextWatermark);
-              enqueueWatermark(reader);
+              if (BoundedWindow.TIMESTAMP_MAX_VALUE.isAfter(nextWatermark)) {
+                enqueueWatermark(reader);
+              } else {
+                // Max watermark has been reached for this reader.
+                enqueueMaxWatermarkAndEndOfStream(reader);
+              }
             }
           }
 
           lastWatermarkTime = time;
+          if (watermarkMillis == BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+            maxWatermarkReached = true;
+          }
         }
       }
 
@@ -398,6 +411,37 @@ public class UnboundedSourceSystem {
             new IncomingMessageEnvelope(ssp, getOffset(reader), null, opMessage);
 
         queues.get(ssp).put(envelope);
+      }
+
+      // Send an max watermark message and an end of stream message to the corresponding ssp to
+      // close windows and finish the task.
+      private void enqueueMaxWatermarkAndEndOfStream(UnboundedReader<T> reader) {
+        final SystemStreamPartition ssp = readerToSsp.get(reader);
+        // Send the max watermark to force completion of any open windows.
+        final IncomingMessageEnvelope watermarkEnvelope =
+            IncomingMessageEnvelope.buildWatermarkEnvelope(
+                ssp, BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
+        enqueueUninterruptibly(watermarkEnvelope);
+
+        final IncomingMessageEnvelope endOfStreamEnvelope =
+            IncomingMessageEnvelope.buildEndOfStreamEnvelope(ssp);
+        enqueueUninterruptibly(endOfStreamEnvelope);
+      }
+
+      private void enqueueUninterruptibly(IncomingMessageEnvelope envelope) {
+        final BlockingQueue<IncomingMessageEnvelope> queue =
+            queues.get(envelope.getSystemStreamPartition());
+        while (true) {
+          try {
+            queue.put(envelope);
+            return;
+          } catch (InterruptedException e) {
+            // Some events require that we post an envelope to the queue even if the interrupt
+            // flag was set (i.e. during a call to stop) to ensure that the consumer properly
+            // shuts down. Consequently, if we receive an interrupt here we ignore it and retry
+            // the put operation.
+          }
+        }
       }
 
       void stop() {
