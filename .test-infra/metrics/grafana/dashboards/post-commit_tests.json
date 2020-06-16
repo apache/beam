@@ -359,7 +359,7 @@
           "targetBlank": true,
           "title": "Beam Jenkins",
           "type": "absolute",
-          "url": "https://builds.apache.org/view/A-D/view/Beam/"
+          "url": "https://ci-beam.apache.org/"
         }
       ],
       "pageSize": null,
