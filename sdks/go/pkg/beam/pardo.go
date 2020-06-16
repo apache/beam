@@ -417,7 +417,7 @@ func ParDo7(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 	return ret[0], ret[1], ret[2], ret[3], ret[4], ret[5], ret[6]
 }
 
-//formatParDoError is a helper function to provide a more concise error
+// formatParDoError is a helper function to provide a more concise error
 // message to the users when a DoFn and its ParDo pairing is incorrect.
 //
 // We construct a new graph.Fn using the doFn which is passed. We explicitly
