@@ -435,15 +435,17 @@ class AnyTypeConstraint(TypeConstraint):
 
 
 class TypeVariable(AnyTypeConstraint):
-  def __init__(self, name, ignore_name=False):
+  def __init__(self, name, use_name_in_eq=True):
     self.name = name
-    self.ignore_name = ignore_name
+    self.use_name_in_eq = use_name_in_eq
 
   def __eq__(self, other):
-    if self.ignore_name:
-      return type(self) == type(other)
+    # The "other" may be an Ellipsis object so we have to check if it has use_name_in_eq first
+    if self.use_name_in_eq and (hasattr(other, 'use_name_in_eq') and
+                                other.use_name_in_eq):
+      return type(self) == type(other) and self.name == other.name
 
-    return type(self) == type(other) and self.name == other.name
+    return type(self) == type(other)
 
   def __hash__(self):
     # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.

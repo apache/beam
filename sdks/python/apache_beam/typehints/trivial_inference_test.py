@@ -118,7 +118,7 @@ class TrivialInferenceTest(unittest.TestCase):
 
     self.assertReturnType(
         typehints.List[typehints.Any],
-        lambda xs: list(xs), # List is a disallowed builtin
+        lambda xs: list(xs),  # List is a disallowed builtin
         [typehints.Tuple[int, ...]])
 
   def testListComprehension(self):

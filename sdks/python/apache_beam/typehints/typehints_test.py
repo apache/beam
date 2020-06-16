@@ -115,6 +115,28 @@ class TypeHintTestCase(unittest.TestCase):
         is_consistent_with(sub, base), '%s is consistent with %s' % (sub, base))
 
 
+class TypeVariableTestCase(TypeHintTestCase):
+  def test_eq_with_name_check(self):
+    use_name_in_eq = True
+    self.assertNotEqual(
+        typehints.Set[typehints.TypeVariable('T', use_name_in_eq)],
+        typehints.Set[typehints.TypeVariable('T2', use_name_in_eq)])
+
+  def test_eq_without_name_check(self):
+    use_name_in_eq = False
+    self.assertEqual(
+        typehints.Set[typehints.TypeVariable('T', use_name_in_eq)],
+        typehints.Set[typehints.TypeVariable('T2', use_name_in_eq)])
+
+  def test_eq_with_different_name_checks(self):
+    self.assertEqual(
+        typehints.Set[typehints.TypeVariable('T', True)],
+        typehints.Set[typehints.TypeVariable('T2', False)])
+    self.assertEqual(
+        typehints.Set[typehints.TypeVariable('T', False)],
+        typehints.Set[typehints.TypeVariable('T2', True)])
+
+
 class AnyTypeConstraintTestCase(TypeHintTestCase):
   def test_any_compatibility(self):
     self.assertCompatible(typehints.Any, typehints.List[int])
