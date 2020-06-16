@@ -601,7 +601,11 @@ class GoogleCloudOptions(PipelineOptions):
         help='Set the Flexible Resource Scheduling mode')
 
   def _create_default_gcs_bucket(self):
-    from apache_beam.io.gcp import gcsio
+    try:
+      from apache_beam.io.gcp import gcsio
+    except ImportError:
+      _LOGGER.warning('Unable to create default GCS bucket.')
+      return None
     bucket = gcsio.get_or_create_default_gcs_bucket(self)
     if bucket:
       return 'gs://%s' % bucket.id
