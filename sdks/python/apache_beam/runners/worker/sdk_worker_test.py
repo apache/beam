@@ -176,7 +176,7 @@ class CachingStateHandlerTest(unittest.TestCase):
             transform_id='transform', side_input_id='side1'))
 
     def get_as_list(key):
-      return list(caching_state_hander.blocking_get(key, coder_impl, True))
+      return list(caching_state_hander.blocking_get(key, coder_impl))
 
     underlying_state.set_counter(100)
     with caching_state_hander.process_instruction_id('bundle1', []):
@@ -284,13 +284,13 @@ class CachingStateHandlerTest(unittest.TestCase):
         state_cache, underlying_state_handler)
 
     def get():
-      return handler.blocking_get(state, coder.get_impl(), True)
+      return handler.blocking_get(state, coder.get_impl())
 
     def append(iterable):
-      handler.extend(state, coder.get_impl(), iterable, True)
+      handler.extend(state, coder.get_impl(), iterable)
 
     def clear():
-      handler.clear(state, True)
+      handler.clear(state)
 
     # Initialize state
     underlying_state_handler.set_value(42, coder)
@@ -325,17 +325,17 @@ class CachingStateHandlerTest(unittest.TestCase):
         user_state=beam_fn_api_pb2.ProcessBundleRequest.CacheToken.UserState())
 
     def get(materialize=True):
-      result = handler.blocking_get(state, coder.get_impl(), True)
+      result = handler.blocking_get(state, coder.get_impl())
       return list(result) if materialize else result
 
     def get_type():
       return type(get(materialize=False))
 
     def append(*values):
-      handler.extend(state, coder.get_impl(), values, True)
+      handler.extend(state, coder.get_impl(), values)
 
     def clear():
-      handler.clear(state, True)
+      handler.clear(state)
 
     underlying_state_handler.set_continuations(True)
     underlying_state_handler.set_values([45, 46, 47], coder)
