@@ -269,7 +269,7 @@ public final class ZetaSqlBeamTranslationUtils {
         .collect(Collectors.toList());
   }
 
-  private static Row zetaSqlStructValueToBeamRow(
+  public static Row zetaSqlStructValueToBeamRow(
       Value structValue, Schema schema, boolean verifyValues) {
     List<Object> objects = new ArrayList<>(schema.getFieldCount());
     List<Value> values = structValue.getFieldList();
