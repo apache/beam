@@ -914,10 +914,9 @@ class CachingStateHandler(object):
   def blocking_get(self,
                    state_key,  # type: beam_fn_api_pb2.StateKey
                    coder,  # type: coder_impl.CoderImpl
-                   is_cached=False
                   ):
     # type: (...) -> Iterable[Any]
-    cache_token = self._get_cache_token(state_key, is_cached)
+    cache_token = self._get_cache_token(state_key)
     if not cache_token:
       # Cache disabled / no cache token. Can't do a lookup/store in the cache.
       # Fall back to lazily materializing the state, one element at a time.
@@ -945,10 +944,9 @@ class CachingStateHandler(object):
              state_key,  # type: beam_fn_api_pb2.StateKey
              coder,  # type: coder_impl.CoderImpl
              elements,  # type: Iterable[Any]
-             is_cached=False
             ):
     # type: (...) -> _Future
-    cache_token = self._get_cache_token(state_key, is_cached)
+    cache_token = self._get_cache_token(state_key)
     if cache_token:
       # Update the cache
       cache_key = self._convert_to_cache_key(state_key)
@@ -979,9 +977,9 @@ class CachingStateHandler(object):
       coder.encode_to_stream(element, out, True)
     return self._underlying.append_raw(state_key, out.get())
 
-  def clear(self, state_key, is_cached=False):
-    # type: (beam_fn_api_pb2.StateKey, bool) -> _Future
-    cache_token = self._get_cache_token(state_key, is_cached)
+  def clear(self, state_key):
+    # type: (beam_fn_api_pb2.StateKey) -> _Future
+    cache_token = self._get_cache_token(state_key)
     if cache_token:
       cache_key = self._convert_to_cache_key(state_key)
       self._state_cache.clear(cache_key, cache_token)
@@ -1011,11 +1009,11 @@ class CachingStateHandler(object):
       if not continuation_token:
         break
 
-  def _get_cache_token(self, state_key, request_is_cached):
+  def _get_cache_token(self, state_key):
     if not self._state_cache.is_cache_enabled():
       return None
     elif state_key.HasField('bag_user_state'):
-      if request_is_cached and self._context.user_state_cache_token:
+      if self._context.user_state_cache_token:
         return self._context.user_state_cache_token
       else:
         return self._context.bundle_cache_token
