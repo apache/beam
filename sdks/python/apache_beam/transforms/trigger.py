@@ -256,7 +256,7 @@ class TriggerFn(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
         'always': Always,
         'default': DefaultTrigger,
         'element_count': AfterCount,
-        # never
+        'never': _Never,
         'or_finally': OrFinally,
         'repeat': Repeatedly,
     }[proto.WhichOneof('trigger')].from_runner_api(proto, context)
@@ -388,7 +388,7 @@ class Always(TriggerFn):
     pass
 
   def has_ontime_pane(self):
-    False
+    return False
 
   def reset(self, window, context):
     pass
@@ -406,6 +406,50 @@ class Always(TriggerFn):
   def to_runner_api(self, context):
     return beam_runner_api_pb2.Trigger(
         always=beam_runner_api_pb2.Trigger.Always())
+
+
+class _Never(TriggerFn):
+  """A trigger that never fires.
+
+  Data may still be released at window closing.
+  """
+  def __init__(self):
+    pass
+
+  def __repr__(self):
+    return 'Never'
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+  def on_element(self, element, window, context):
+    pass
+
+  def on_merge(self, to_be_merged, merge_result, context):
+    pass
+
+  def has_ontime_pane(self):
+    False
+
+  def reset(self, window, context):
+    pass
+
+  def should_fire(self, time_domain, watermark, window, context):
+    return False
+
+  def on_fire(self, watermark, window, context):
+    return True
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    return _Never()
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.Trigger(
+        never=beam_runner_api_pb2.Trigger.Never())
 
 
 class AfterWatermark(TriggerFn):
@@ -1022,6 +1066,12 @@ def create_trigger_driver(
     windowing, is_batch=False, phased_combine_fn=None, clock=None):
   """Create the TriggerDriver for the given windowing and options."""
 
+  # TODO(BEAM-10149): Respect closing and on-time behaviors.
+  # For batch, we should always fire once, no matter what.
+  if is_batch and windowing.triggerfn == _Never():
+    windowing = copy.copy(windowing)
+    windowing.triggerfn = Always()
+
   # TODO(robertwb): We can do more if we know elements are in timestamp
   # sorted order.
   if windowing.is_default() and is_batch:
@@ -1062,12 +1112,7 @@ class TriggerDriver(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
       input_watermark=None):
     pass
 
-  def process_entire_key(
-      self,
-      key,
-      windowed_values,
-      unused_output_watermark=None,
-      unused_input_watermark=None):
+  def process_entire_key(self, key, windowed_values):
     state = InMemoryUnmergedState()
     for wvalue in self.process_elements(state,
                                         windowed_values,
@@ -1291,8 +1336,7 @@ class GeneralTriggerDriver(TriggerDriver):
                                      window,
                                      context):
         finished = self.trigger_fn.on_fire(input_watermark, window, context)
-        yield self._output(
-            window, finished, state, input_watermark, output_watermark, False)
+        yield self._output(window, finished, state, output_watermark, False)
 
   def process_timer(
       self,
@@ -1320,20 +1364,12 @@ class GeneralTriggerDriver(TriggerDriver):
               window,
               finished,
               state,
-              input_watermark,
               timestamp,
               time_domain == TimeDomain.WATERMARK)
     else:
       raise Exception('Unexpected time domain: %s' % time_domain)
 
-  def _output(
-      self,
-      window,
-      finished,
-      state,
-      input_watermark,
-      output_watermark,
-      maybe_ontime):
+  def _output(self, window, finished, state, output_watermark, maybe_ontime):
     """Output window and clean up if appropriate."""
     index = state.get_state(window, self.INDEX)
     state.add_state(window, self.INDEX, 1)
@@ -1368,7 +1404,7 @@ class GeneralTriggerDriver(TriggerDriver):
     if timestamp is None:
       # If no watermark hold was set, output at end of window.
       timestamp = window.max_timestamp()
-    elif input_watermark < window.end and self.trigger_fn.has_ontime_pane():
+    elif output_watermark < window.end and self.trigger_fn.has_ontime_pane():
       # Hold the watermark in case there is an empty pane that needs to be fired
       # at the end of the window.
       pass

@@ -16,6 +16,7 @@
 
 from __future__ import absolute_import
 
+import doctest
 import os
 import sys
 import tempfile
@@ -38,14 +39,28 @@ SAMPLE_DOCTEST = '''
 Animal
 Falcon      375.0
 Parrot       25.0
->>>
 '''
 
 CHECK_USES_DEFERRED_DATAFRAMES = '''
 >>> type(pd).__name__
-'FakePandas'
+'FakePandasObject'
+
 >>> type(pd.DataFrame([]))
 <class 'apache_beam.dataframe.frames.DeferredDataFrame'>
+
+>>> type(pd.DataFrame.from_dict({'a': [1, 2], 'b': [3, 4]}))
+<class 'apache_beam.dataframe.frames.DeferredDataFrame'>
+
+>>> pd.Index(range(10))
+RangeIndex(start=0, stop=10, step=1)
+'''
+
+ERROR_RAISING_TESTS = '''
+>>> import apache_beam
+>>> raise apache_beam.dataframe.frame_base.WontImplementError('anything')
+ignored exception
+>>> pd.Series(range(10)).__array__()
+ignored result
 '''
 
 
@@ -84,6 +99,11 @@ class DoctestTest(unittest.TestCase):
       result = doctests.testfile(filename, module_relative=False, report=False)
     self.assertNotEqual(result.attempted, 0)
     self.assertEqual(result.failed, 0)
+
+  def test_wont_implement(self):
+    doctests.teststring(ERROR_RAISING_TESTS, optionflags=doctest.ELLIPSIS)
+    doctests.teststring(
+        ERROR_RAISING_TESTS, optionflags=doctest.IGNORE_EXCEPTION_DETAIL)
 
 
 if __name__ == '__main__':

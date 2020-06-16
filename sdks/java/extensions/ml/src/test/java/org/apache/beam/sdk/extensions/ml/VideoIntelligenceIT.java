@@ -20,7 +20,9 @@ package org.apache.beam.sdk.extensions.ml;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.videointelligence.v1.Feature;
+import com.google.cloud.videointelligence.v1.LabelDetectionConfig;
 import com.google.cloud.videointelligence.v1.VideoAnnotationResults;
+import com.google.cloud.videointelligence.v1.VideoContext;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -29,6 +31,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,11 +46,16 @@ public class VideoIntelligenceIT {
   private List<Feature> featureList = Collections.singletonList(Feature.LABEL_DETECTION);
 
   @Test
-  public void annotateVideoFromURINoContext() {
+  public void annotateVideoFromURIWithContext() {
+    VideoContext context =
+        VideoContext.newBuilder()
+            .setLabelDetectionConfig(LabelDetectionConfig.newBuilder().setModel("builtin/latest"))
+            .build();
+
     PCollection<List<VideoAnnotationResults>> annotationResults =
         testPipeline
-            .apply(Create.of(VIDEO_URI))
-            .apply("Annotate video", VideoIntelligence.annotateFromURI(featureList, null));
+            .apply(Create.of(KV.of(VIDEO_URI, context)))
+            .apply("Annotate video", VideoIntelligence.annotateFromUriWithContext(featureList));
     PAssert.that(annotationResults).satisfies(new VerifyVideoAnnotationResult());
     testPipeline.run().waitUntilFinish();
   }
@@ -58,7 +66,7 @@ public class VideoIntelligenceIT {
     @Override
     public Void apply(Iterable<List<VideoAnnotationResults>> input) {
       List<Boolean> labelEvaluations = new ArrayList<>();
-      input.forEach(findStringMatchesInVideoAnnotationResultList(labelEvaluations, "dinosaur"));
+      input.forEach(findStringMatchesInVideoAnnotationResultList(labelEvaluations, "bicycle"));
       assertEquals(Boolean.TRUE, labelEvaluations.contains(Boolean.TRUE));
       return null;
     }
@@ -73,9 +81,9 @@ public class VideoIntelligenceIT {
 
     private boolean entityWithDescriptionFoundInSegmentLabels(
         String toMatch, VideoAnnotationResults result) {
-      return result.getSegmentLabelAnnotationsList().stream()
+      return result.getSegmentPresenceLabelAnnotationsList().stream()
           .anyMatch(
-              labelAnnotation -> labelAnnotation.getEntity().getDescription().equals(toMatch));
+              labelAnnotation -> labelAnnotation.getEntity().getDescription().contains(toMatch));
     }
   }
 }

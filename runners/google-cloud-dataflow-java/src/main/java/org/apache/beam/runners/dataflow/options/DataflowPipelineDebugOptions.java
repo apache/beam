@@ -193,6 +193,34 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   void setDumpHeapOnOOM(boolean dumpHeapBeforeExit);
 
   /**
+   * The GC thrashing threshold percentage. A given period of time is considered "thrashing" if this
+   * percentage of CPU time is spent in garbage collection. Dataflow will force fail tasks after
+   * sustained periods of thrashing.
+   *
+   * <p>If {@literal 100} is given as the value, MemoryMonitor will be disabled.
+   */
+  @Description(
+      "The GC thrashing threshold percentage. A given period of time is considered \"thrashing\" if this "
+          + "percentage of CPU time is spent in garbage collection. Dataflow will force fail tasks after "
+          + "sustained periods of thrashing.")
+  @Default.Double(50.0)
+  Double getGCThrashingPercentagePerPeriod();
+
+  void setGCThrashingPercentagePerPeriod(Double value);
+
+  /**
+   * The size of the worker's in-memory cache, in megabytes.
+   *
+   * <p>Currently, this cache is used for storing read values of side inputs. as well as the state
+   * for streaming jobs.
+   */
+  @Description("The size of the worker's in-memory cache, in megabytes.")
+  @Default.Integer(100)
+  Integer getWorkerCacheMb();
+
+  void setWorkerCacheMb(Integer value);
+
+  /**
    * CAUTION: This option implies dumpHeapOnOOM, and has similar caveats. Specifically, heap dumps
    * can of comparable size to the default boot disk. Consider increasing the boot disk size before
    * setting this flag to true.

@@ -16,9 +16,10 @@
 package graphx_test
 
 import (
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
@@ -27,7 +28,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 )
@@ -155,12 +156,12 @@ func TestMarshal(t *testing.T) {
 				t.Fatal("expected a single edge")
 			}
 
-			payload, err := proto.Marshal(&pb.DockerPayload{ContainerImage: "foo"})
+			payload, err := proto.Marshal(&pipepb.DockerPayload{ContainerImage: "foo"})
 			if err != nil {
 				t.Fatal(err)
 			}
 			p, err := graphx.Marshal(edges,
-				&graphx.Options{Environment: &pb.Environment{Urn: "beam:env:docker:v1", Payload: payload}})
+				&graphx.Options{Environment: &pipepb.Environment{Urn: "beam:env:docker:v1", Payload: payload}})
 			if err != nil {
 				t.Fatal(err)
 			}

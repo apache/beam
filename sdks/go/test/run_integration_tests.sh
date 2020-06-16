@@ -95,6 +95,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --filter)
+        FILTER="$2"
+        shift
+        shift
+        ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
@@ -209,6 +214,7 @@ echo ">>> RUNNING $RUNNER INTEGRATION TESTS"
     --dataflow_worker_jar=$DATAFLOW_WORKER_JAR \
     --endpoint=$ENDPOINT \
     --parallel=$PARALLEL \
+    --filter=$FILTER \
     || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
 
 if [[ ! -z "$JOB_PORT" ]]; then

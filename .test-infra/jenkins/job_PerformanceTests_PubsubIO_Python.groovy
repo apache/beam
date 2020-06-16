@@ -39,7 +39,10 @@ def psio_test = [
                 temp_location             : 'gs://temp-storage-for-perf-tests/loadtests',
                 publish_to_big_query      : true,
                 metrics_dataset           : 'beam_performance',
-                metrics_table             : 'psio_io_2GB_msg_results',
+                metrics_table             : 'psio_io_2GB_results',
+                influx_measurement        : 'python_psio_2GB_results',
+                influx_db_name            : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+                influx_hostname           : InfluxDBCredentialsHelper.InfluxDBHostname,
                 input_options             : '\'{' +
                         '"num_records": 2097152,' +
                         '"key_size": 1,' +
@@ -59,7 +62,7 @@ def executeJob = { scope, testConfig ->
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_PubsubIO_Performance_Test_Python',
+        'beam_PerformanceTests_PubsubIOIT_Python_Streaming',
         'Run PubsubIO Performance Test Python',
         'PubsubIO Performance Test Python',
         this
@@ -67,6 +70,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     executeJob(delegate, psio_test)
 }
 
-CronJobBuilder.cronJob('beam_PubsubIO_Performance_Test_Python', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_PubsubIOIT_Python_Streaming', 'H 15 * * *', this) {
     executeJob(delegate, psio_test)
 }

@@ -108,7 +108,7 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
 
       # Prepare the job.
       prepare_response = plan.prepare(beam_runner_api_pb2.Pipeline())
-      retrieval_token = plan.stage(
+      plan.stage(
           beam_runner_api_pb2.Pipeline(),
           prepare_response.artifact_staging_endpoint.url,
           prepare_response.staging_session_token)
@@ -121,7 +121,7 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
           'http://flink/v1/jars/nonce/run', json={'jobid': 'some_job_id'})
 
       _, message_stream, state_stream = plan.run(
-          prepare_response.preparation_id, retrieval_token)
+          prepare_response.preparation_id)
 
       # Check the status until the job is "done" and get all error messages.
       http_mock.get(

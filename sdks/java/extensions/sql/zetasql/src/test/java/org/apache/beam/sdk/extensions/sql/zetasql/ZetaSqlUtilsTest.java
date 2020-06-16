@@ -26,9 +26,11 @@ import com.google.zetasql.StructType.StructField;
 import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
+import java.time.LocalDate;
 import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -44,16 +46,19 @@ public class ZetaSqlUtilsTest {
 
   private static final Schema TEST_SCHEMA =
       Schema.builder()
-          .addField("f1", FieldType.INT64)
-          // .addField("f2", FieldType.DECIMAL)
-          .addField("f3", FieldType.DOUBLE)
-          .addField("f4", FieldType.STRING)
-          .addField("f5", FieldType.DATETIME)
-          .addField("f6", FieldType.BOOLEAN)
-          .addField("f7", FieldType.BYTES)
-          .addArrayField("f8", FieldType.DOUBLE)
-          .addRowField("f9", TEST_INNER_SCHEMA)
-          .addNullableField("f10", FieldType.INT64)
+          .addField("f_int64", FieldType.INT64)
+          .addField("f_float64", FieldType.DOUBLE)
+          .addField("f_boolean", FieldType.BOOLEAN)
+          .addField("f_string", FieldType.STRING)
+          .addField("f_bytes", FieldType.BYTES)
+          .addLogicalTypeField("f_date", SqlTypes.DATE)
+          // .addLogicalTypeField("f_datetime", SqlTypes.DATETIME)
+          // .addLogicalTypeField("f_time", SqlTypes.TIME)
+          .addField("f_timestamp", FieldType.DATETIME)
+          .addArrayField("f_array", FieldType.DOUBLE)
+          .addRowField("f_struct", TEST_INNER_SCHEMA)
+          // .addLogicalTypeField("f_numeric", SqlTypes.NUMERIC)
+          .addNullableField("f_null", FieldType.INT64)
           .build();
 
   private static final FieldType TEST_FIELD_TYPE = FieldType.row(TEST_SCHEMA);
@@ -70,26 +75,26 @@ public class ZetaSqlUtilsTest {
   private static final StructType TEST_TYPE =
       TypeFactory.createStructType(
           Arrays.asList(
-              new StructField("f1", TypeFactory.createSimpleType(TypeKind.TYPE_INT64)),
-              // new StructField("f2", TypeFactory.createSimpleType(TypeKind.TYPE_NUMERIC)),
-              new StructField("f3", TypeFactory.createSimpleType(TypeKind.TYPE_DOUBLE)),
-              new StructField("f4", TypeFactory.createSimpleType(TypeKind.TYPE_STRING)),
-              new StructField("f5", TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
-              new StructField("f6", TypeFactory.createSimpleType(TypeKind.TYPE_BOOL)),
-              new StructField("f7", TypeFactory.createSimpleType(TypeKind.TYPE_BYTES)),
-              new StructField("f8", TEST_INNER_ARRAY_TYPE),
-              new StructField("f9", TEST_INNER_STRUCT_TYPE),
-              new StructField("f10", TypeFactory.createSimpleType(TypeKind.TYPE_INT64))));
+              new StructField("f_int64", TypeFactory.createSimpleType(TypeKind.TYPE_INT64)),
+              new StructField("f_float64", TypeFactory.createSimpleType(TypeKind.TYPE_DOUBLE)),
+              new StructField("f_boolean", TypeFactory.createSimpleType(TypeKind.TYPE_BOOL)),
+              new StructField("f_string", TypeFactory.createSimpleType(TypeKind.TYPE_STRING)),
+              new StructField("f_bytes", TypeFactory.createSimpleType(TypeKind.TYPE_BYTES)),
+              new StructField("f_date", TypeFactory.createSimpleType(TypeKind.TYPE_DATE)),
+              new StructField("f_timestamp", TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
+              new StructField("f_array", TEST_INNER_ARRAY_TYPE),
+              new StructField("f_struct", TEST_INNER_STRUCT_TYPE),
+              new StructField("f_null", TypeFactory.createSimpleType(TypeKind.TYPE_INT64))));
 
   private static final Row TEST_ROW =
       Row.withSchema(TEST_SCHEMA)
           .addValue(64L)
-          // .addValue(BigDecimal.valueOf(9999L))
-          .addValue(5.0)
-          .addValue("Hello")
-          .addValue(Instant.ofEpochMilli(12345678L))
+          .addValue(5.15)
           .addValue(false)
+          .addValue("Hello")
           .addValue(new byte[] {0x11, 0x22})
+          .addValue(LocalDate.of(2020, 6, 4))
+          .addValue(Instant.ofEpochMilli(12345678L))
           .addArray(3.0, 6.5)
           .addValue(Row.withSchema(TEST_INNER_SCHEMA).addValues(0L, "world").build())
           .addValue(null)
@@ -100,13 +105,12 @@ public class ZetaSqlUtilsTest {
           TEST_TYPE,
           Arrays.asList(
               Value.createInt64Value(64L),
-              // TODO[BEAM-8630]: Value.createNumericValue() is broken due to a dependency issue
-              // Value.createNumericValue(BigDecimal.valueOf(9999L)),
-              Value.createDoubleValue(5.0),
-              Value.createStringValue("Hello"),
-              Value.createTimestampValueFromUnixMicros(12345678000L),
+              Value.createDoubleValue(5.15),
               Value.createBoolValue(false),
+              Value.createStringValue("Hello"),
               Value.createBytesValue(ByteString.copyFrom(new byte[] {0x11, 0x22})),
+              Value.createDateValue((int) LocalDate.of(2020, 6, 4).toEpochDay()),
+              Value.createTimestampValueFromUnixMicros(12345678000L),
               Value.createArrayValue(
                   TEST_INNER_ARRAY_TYPE,
                   Arrays.asList(Value.createDoubleValue(3.0), Value.createDoubleValue(6.5))),

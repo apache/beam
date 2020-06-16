@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.sdk.io.kudu')
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.kudu')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

@@ -291,10 +291,10 @@ class TestStream(PTransform):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
     if not self.output_tags:
-      self.output_tags = set([None])
+      self.output_tags = {None}
 
     # For backwards compatibility return a single PCollection.
-    if len(self.output_tags) == 1:
+    if self.output_tags == {None}:
       return pvalue.PCollection(
           self.pipeline, is_bounded=False, tag=list(self.output_tags)[0])
     return {

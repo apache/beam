@@ -26,7 +26,6 @@ from __future__ import absolute_import
 from __future__ import division
 
 import base64
-import json
 import logging
 import os
 import subprocess
@@ -464,6 +463,9 @@ class DataflowRunner(PipelineRunner):
     # any added PTransforms.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
+    from apache_beam.runners.dataflow.ptransform_overrides import WriteToBigQueryPTransformOverride
+    pipeline.replace_all([WriteToBigQueryPTransformOverride(pipeline, options)])
+
     if (apiclient._use_fnapi(options) and
         not apiclient._use_unified_worker(options)):
       pipeline.replace_all(DataflowRunner._JRH_PTRANSFORM_OVERRIDES)
@@ -804,42 +806,6 @@ class DataflowRunner(PipelineRunner):
             PropertyNames.ENCODING: step.encoding,
             PropertyNames.OUTPUT_NAME: PropertyNames.OUT
         }])
-
-  def apply_WriteToBigQuery(self, transform, pcoll, options):
-    # Make sure this is the WriteToBigQuery class that we expected, and that
-    # users did not specifically request the new BQ sink by passing experiment
-    # flag.
-
-    # TODO(BEAM-6928): Remove this function for release 2.14.0.
-    experiments = options.view_as(DebugOptions).experiments or []
-    from apache_beam.runners.dataflow.internal import apiclient
-    use_fnapi = apiclient._use_fnapi(options)
-    if (not isinstance(transform, beam.io.WriteToBigQuery) or use_fnapi or
-        'use_beam_bq_sink' in experiments):
-      return self.apply_PTransform(transform, pcoll, options)
-    if transform.schema == beam.io.gcp.bigquery.SCHEMA_AUTODETECT:
-      raise RuntimeError(
-          'Schema auto-detection is not supported on the native sink')
-    standard_options = options.view_as(StandardOptions)
-    if standard_options.streaming:
-      if (transform.write_disposition ==
-          beam.io.BigQueryDisposition.WRITE_TRUNCATE):
-        raise RuntimeError('Can not use write truncation mode in streaming')
-      return self.apply_PTransform(transform, pcoll, options)
-    else:
-      from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
-      schema = None
-      if transform.schema:
-        schema = parse_table_schema_from_json(json.dumps(transform.schema))
-      return pcoll | 'WriteToBigQuery' >> beam.io.Write(
-          beam.io.BigQuerySink(
-              transform.table_reference.tableId,
-              transform.table_reference.datasetId,
-              transform.table_reference.projectId,
-              schema,
-              transform.create_disposition,
-              transform.write_disposition,
-              kms_key=transform.kms_key))
 
   # TODO(srohde): Remove this after internal usages have been removed.
   def apply_GroupByKey(self, transform, pcoll, options):
@@ -1398,6 +1364,9 @@ class DataflowRunner(PipelineRunner):
     transform = transform_node.transform
     step = self._add_step(
         TransformNames.READ, transform_node.full_label, transform_node)
+    step.add_property(
+        PropertyNames.SERIALIZED_FN,
+        self.proto_context.transforms.get_id(transform_node))
     step.add_property(PropertyNames.FORMAT, 'test_stream')
     test_stream_payload = beam_runner_api_pb2.TestStreamPayload()
     # TestStream source doesn't do any decoding of elements,

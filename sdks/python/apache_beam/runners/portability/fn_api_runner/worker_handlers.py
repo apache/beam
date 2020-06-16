@@ -47,7 +47,6 @@ import grpc
 from apache_beam.io import filesystems
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
-from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -63,7 +62,7 @@ from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.utils import proto_utils
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 # State caching is enabled in the fn_api_runner for testing, except for one
 # test which runs without state caching (FnApiRunnerTestWithDisabledCaching).
@@ -419,16 +418,6 @@ class BasicProvisionService(beam_provision_api_pb2_grpc.ProvisionServiceServicer
     return beam_provision_api_pb2.GetProvisionInfoResponse(info=info)
 
 
-class EmptyArtifactRetrievalService(
-    beam_artifact_api_pb2_grpc.LegacyArtifactRetrievalServiceServicer):
-  def GetManifest(self, request, context=None):
-    return beam_artifact_api_pb2.GetManifestResponse(
-        manifest=beam_artifact_api_pb2.Manifest())
-
-  def GetArtifact(self, request, context=None):
-    raise ValueError('No artifacts staged.')
-
-
 class GrpcServer(object):
 
   _DEFAULT_SHUTDOWN_TIMEOUT_SECS = 5
@@ -441,7 +430,8 @@ class GrpcServer(object):
     # type: (...) -> None
     self.state = state
     self.provision_info = provision_info
-    self.control_server = grpc.server(UnboundedThreadPoolExecutor())
+    self.control_server = grpc.server(
+        thread_pool_executor.shared_unbounded_instance())
     self.control_port = self.control_server.add_insecure_port('[::]:0')
     self.control_address = 'localhost:%s' % self.control_port
 
@@ -451,11 +441,13 @@ class GrpcServer(object):
     no_max_message_sizes = [("grpc.max_receive_message_length", -1),
                             ("grpc.max_send_message_length", -1)]
     self.data_server = grpc.server(
-        UnboundedThreadPoolExecutor(), options=no_max_message_sizes)
+        thread_pool_executor.shared_unbounded_instance(),
+        options=no_max_message_sizes)
     self.data_port = self.data_server.add_insecure_port('[::]:0')
 
     self.state_server = grpc.server(
-        UnboundedThreadPoolExecutor(), options=no_max_message_sizes)
+        thread_pool_executor.shared_unbounded_instance(),
+        options=no_max_message_sizes)
     self.state_port = self.state_server.add_insecure_port('[::]:0')
 
     self.control_handler = BeamFnControlServicer(worker_manager)
@@ -469,15 +461,6 @@ class GrpcServer(object):
             BasicProvisionService(
                 self.provision_info.provision_info, worker_manager),
             self.control_server)
-
-      if self.provision_info.artifact_staging_dir:
-        service = artifact_service.BeamFilesystemArtifactService(
-            self.provision_info.artifact_staging_dir
-        )  # type: beam_artifact_api_pb2_grpc.LegacyArtifactRetrievalServiceServicer
-      else:
-        service = EmptyArtifactRetrievalService()
-      beam_artifact_api_pb2_grpc.add_LegacyArtifactRetrievalServiceServicer_to_server(
-          service, self.control_server)
 
       beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
           artifact_service.ArtifactRetrievalService(
@@ -493,7 +476,8 @@ class GrpcServer(object):
         GrpcStateServicer(state), self.state_server)
 
     self.logging_server = grpc.server(
-        UnboundedThreadPoolExecutor(), options=no_max_message_sizes)
+        thread_pool_executor.shared_unbounded_instance(),
+        options=no_max_message_sizes)
     self.logging_port = self.logging_server.add_insecure_port('[::]:0')
     beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server(
         BasicLoggingService(), self.logging_server)

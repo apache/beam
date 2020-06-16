@@ -2310,14 +2310,14 @@ public class StreamingDataflowWorker {
           builder.append("<td>");
           builder.append(String.format("%016x", workItem.getShardingKey()));
           builder.append("</td><td>");
-          builder.append(workItem.getWorkToken());
+          builder.append(String.format("%016x", workItem.getWorkToken()));
           builder.append("</td><td>");
           builder.append(queue.size() - 1);
           builder.append("</td><td>");
           builder.append(elapsedString(work.getStartTime(), now));
           builder.append("</td><td>");
           builder.append(state);
-          builder.append("</td></tr>\n");
+          builder.append("</td><td>");
           builder.append(elapsedString(work.getStateStartTime(), now));
           builder.append("</td></tr>\n");
         }
