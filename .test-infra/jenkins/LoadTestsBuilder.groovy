@@ -43,7 +43,7 @@ class LoadTestsBuilder {
     InfluxDBCredentialsHelper.useCredentials(context)
 
     context.steps {
-      shell('echo "*** ${title} ***"')
+      shell("echo \"*** ${title} ***\"")
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         setGradleTask(delegate, runner, sdk, options, mainClass, withDataflowWorkerJar)
