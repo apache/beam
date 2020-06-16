@@ -302,7 +302,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
   private final ProcessBundleContext processContext;
-  private OnTimerContext onTimerContext;
+  private final OnTimerContext onTimerContext;
   private final FinishBundleArgumentProvider finishBundleArgumentProvider;
 
   /**
@@ -521,6 +521,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     tagToSideInputSpecMap = tagToSideInputSpecMapBuilder.build();
     this.splitListener = splitListener;
     this.bundleFinalizer = bundleFinalizer;
+    this.onTimerContext = new OnTimerContext();
 
     try {
       this.mainInputId = ParDoTranslation.getMainInputName(pTransform);
@@ -1164,7 +1165,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       String timerIdOrTimerFamilyId, TimeDomain timeDomain, Timer<K> timer) {
     currentTimer = timer;
     currentTimeDomain = timeDomain;
-    onTimerContext = new OnTimerContext<>(timer.getUserKey());
     // The timerIdOrTimerFamilyId contains either a timerId from timer declaration or timerFamilyId
     // from timer family declaration.
     String timerId =
@@ -1782,12 +1782,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   /** Provides arguments for a {@link DoFnInvoker} for {@link DoFn.OnTimer @OnTimer}. */
-  private class OnTimerContext<K> extends BaseArgumentProvider<InputT, OutputT> {
-    private final K key;
-
-    public OnTimerContext(K key) {
-      this.key = key;
-    }
+  private class OnTimerContext extends BaseArgumentProvider<InputT, OutputT> {
 
     private class Context extends DoFn<InputT, OutputT>.OnTimerContext {
       private Context() {
@@ -1887,8 +1882,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
-    public K key() {
-      return key;
+    public Object key() {
+      return currentTimer.getUserKey();
     }
 
     @Override
