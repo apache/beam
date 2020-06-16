@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-func TestRecommendParDo(t *testing.T) {
+func TestParDoForSize(t *testing.T) {
 	var tests = []struct {
 		name      string
 		outputDim int
@@ -27,6 +27,9 @@ func TestRecommendParDo(t *testing.T) {
 	}{
 		{"zero outputs", 0, "ParDo0"},
 		{"one output", 1, "ParDo"},
+		{"two outputs",2,"ParDo2"},
+		{"seven outputs",7,"ParDo7"},
+		{"eight outputs",8,"ParDoN"},
 		{"more than 7 outputs", 10, "ParDoN"},
 	}
 
