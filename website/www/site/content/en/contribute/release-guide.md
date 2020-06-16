@@ -1107,14 +1107,6 @@ please follow [the guide](https://help.github.com/articles/creating-a-personal-a
 All wheels should be published, in addition to the zip of the release source.
 (Signatures and hashes do _not_ need to be uploaded.)
 
-### Deploy source release to dist.apache.org
-
-Copy the source release from the `dev` repository to the `release` repository at `dist.apache.org` using Subversion.
-
-Move last release artifacts from `dist.apache.org` to `archive.apache.org` using Subversion. Make sure to change these links on the website ([example](https://github.com/apache/beam/pull/11727)).
-
-__NOTE__: Only PMC members have permissions to do it, ping [dev@](mailto:dev@beam.apache.org) for assitance;
-
 ### Deploy SDK docker images to DockerHub
 * Script: [publish_docker_images.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh)
 * Usage
@@ -1152,17 +1144,22 @@ cd beam/release/src/main/scripts && ./publish_github_release_notes.sh
 Note this script reads the release notes from the blog post, so you should make sure to run this from master _after_ merging the blog post PR.
 
 
-### Mark the version as released in JIRA
+### PMC-Only Finalization
+There are a few release finalization tasks that only PMC members have permissions to do. Ping [dev@](mailto:dev@beam.apache.org) for assistance if you need it.
+
+#### Deploy source release to dist.apache.org
+
+Copy the source release from the `dev` repository to the `release` repository at `dist.apache.org` using Subversion.
+
+Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`. This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context. The release manager should also make sure to change these links on the website ([example](https://github.com/apache/beam/pull/11727)).
+
+#### Mark the version as released in JIRA
 
 In JIRA, inside [version management](https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions), hover over the current release and a settings menu will appear. Click `Release`, and select today’s date.
 
-__NOTE__: Only PMC members have permissions to do it, ping [dev@](mailto:dev@beam.apache.org) for assitance;
-
-### Recordkeeping with ASF
+#### Recordkeeping with ASF
 
 Use reporter.apache.org to seed the information about the release into future project reports.
-
-__NOTE__: Only PMC members have permissions to do it, ping [dev@](mailto:dev@beam.apache.org) for assitance;
 
 ### Checklist to proceed to the next step
 
