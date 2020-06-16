@@ -309,8 +309,8 @@ limitations under the License.
 &lt;li>&lt;a href="#deploy-python-artifacts-to-pypi">Deploy Python artifacts to PyPI&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#deploy-sdk-docker-images-to-dockerhub">Deploy SDK docker images to DockerHub&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#merge-website-pull-requests">Merge Website pull requests&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#git-tag">Git tag&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#merge-website-pull-request">Merge website pull request&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#mark-the-version-as-released-in-jira">Mark the version as released in JIRA&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#recordkeeping-with-asf">Recordkeeping with ASF&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#checklist-to-proceed-to-the-next-step-3">Checklist to proceed to the next step&lt;/a>&lt;/li>
@@ -1373,17 +1373,21 @@ All wheels should be published, in addition to the zip of the release source.
 &lt;/ol>
 &lt;/li>
 &lt;/ul>
+&lt;h3 id="merge-website-pull-requests">Merge Website pull requests&lt;/h3>
+&lt;p>Merge all of the website pull requests&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="/get-started/downloads/">listing the release&lt;/a>&lt;/li>
+&lt;li>publishing the &lt;a href="https://beam.apache.org/releases/pydoc/">Python API reference manual&lt;/a> and the &lt;a href="https://beam.apache.org/releases/javadoc/">Java API reference manual&lt;/a>, and&lt;/li>
+&lt;li>adding the release blog post.&lt;/li>
+&lt;/ul>
 &lt;h3 id="git-tag">Git tag&lt;/h3>
 &lt;p>Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:&lt;/p>
 &lt;pre>&lt;code>VERSION_TAG=&amp;quot;v${RELEASE}&amp;quot;
 git tag -s &amp;quot;$VERSION_TAG&amp;quot; &amp;quot;$RC_TAG&amp;quot;
-git push upstream &amp;quot;$VERSION_TAG&amp;quot;
-&lt;/code>&lt;/pre>
-&lt;p>After the tag is uploaded, publish the release notes to Github:&lt;/p>
-&lt;pre>&lt;code>./beam/release/src/main/scripts/publish_github_release_notes.sh
-&lt;/code>&lt;/pre>
-&lt;h3 id="merge-website-pull-request">Merge website pull request&lt;/h3>
-&lt;p>Merge the website pull request to &lt;a href="/get-started/downloads/">list the release&lt;/a>, publish the &lt;a href="https://beam.apache.org/releases/pydoc/">Python API reference manual&lt;/a>, the &lt;a href="https://beam.apache.org/releases/javadoc/">Java API reference manual&lt;/a> and Blogpost created earlier.&lt;/p>
+git push https://github.com/apache/beam &amp;quot;$VERSION_TAG&amp;quot;
+&lt;/code>&lt;/pre>&lt;p>After the tag is uploaded, publish the release notes to Github, as follows:&lt;/p>
+&lt;pre>&lt;code>cd beam/release/src/main/scripts &amp;amp;&amp;amp; ./publish_github_release_notes.sh
+&lt;/code>&lt;/pre>&lt;p>Note this script reads the release notes from the blog post, so you should make sure to run this from master &lt;em>after&lt;/em> merging the blog post PR.&lt;/p>
 &lt;h3 id="mark-the-version-as-released-in-jira">Mark the version as released in JIRA&lt;/h3>
 &lt;p>In JIRA, inside &lt;a href="https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions">version management&lt;/a>, hover over the current release and a settings menu will appear. Click &lt;code>Release&lt;/code>, and select today’s date.&lt;/p>
 &lt;p>&lt;strong>NOTE&lt;/strong>: Only PMC members have permissions to do it, ping &lt;a href="mailto:dev@beam.apache.org">dev@&lt;/a> for assitance;&lt;/p>
