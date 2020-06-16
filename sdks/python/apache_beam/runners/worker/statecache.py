@@ -169,27 +169,6 @@ class StateCache(object):
     with self._lock:
       return self._cache.put((state_key, cache_token), value)
 
-  @Metrics.counter("extend")
-  def extend(self, state_key, cache_token, elements):
-    assert cache_token and self.is_cache_enabled()
-    with self._lock:
-      value = self._cache.get((state_key, cache_token))
-      if value is self._missing:
-        value = []
-        self._cache.put((state_key, cache_token), value)
-      if isinstance(value, list):
-        value.extend(elements)
-      else:
-
-        class Extended:
-          def __iter__(self):
-            for item in value:
-              yield item
-            for item in elements:
-              yield item
-
-        self._cache.put((state_key, cache_token), Extended())
-
   @Metrics.counter("clear")
   def clear(self, state_key, cache_token):
     assert cache_token and self.is_cache_enabled()

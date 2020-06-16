@@ -304,7 +304,6 @@ if __name__ == '__main__':
             'stateful.beam.metric:statecache:miss: 0',
             'stateful.beam.metric:statecache:hit: 20',
             'stateful.beam.metric:statecache:put: 0',
-            'stateful.beam.metric:statecache:extend: 10',
             'stateful.beam.metric:statecache:evict: 0',
             # Counters
             # (total of get/hit will be off by 10 due to the cross-bundle
@@ -317,7 +316,6 @@ if __name__ == '__main__':
             'stateful.beam.metric:statecache:miss_total: 20',
             'stateful.beam.metric:statecache:hit_total: 200',
             'stateful.beam.metric:statecache:put_total: 20',
-            'stateful.beam.metric:statecache:extend_total: 110',
             'stateful.beam.metric:statecache:evict_total: 0',
         ])
       else:
@@ -335,14 +333,12 @@ if __name__ == '__main__':
             'stateful).beam.metric:statecache:hit: 11',
             # State is flushed back once per key
             'stateful).beam.metric:statecache:put: 1',
-            'stateful).beam.metric:statecache:extend: 1',
             'stateful).beam.metric:statecache:evict: 0',
             # Counters
             'stateful).beam.metric:statecache:get_total: 120',
             'stateful).beam.metric:statecache:miss_total: 10',
             'stateful).beam.metric:statecache:hit_total: 110',
             'stateful).beam.metric:statecache:put_total: 10',
-            'stateful).beam.metric:statecache:extend_total: 10',
             'stateful).beam.metric:statecache:evict_total: 0',
         ])
       lines_actual = set()
