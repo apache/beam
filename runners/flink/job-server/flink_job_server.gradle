@@ -88,6 +88,7 @@ dependencies {
 //  TODO: Enable AWS and HDFS file system.
   // For resolving external transform requests
   runtime project(":sdks:java:io:kafka")
+  runtime project(":sdks:java:io:jdbc")
   runtime library.java.kafka_clients
   runtime project(":sdks:java:io:google-cloud-platform")
 }

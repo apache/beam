@@ -27,6 +27,7 @@ ADD target/beam-sdks-java-harness.jar /opt/apache/beam/jars/
 # TODO May be removed once custom environments are supported
 ADD target/beam-sdks-java-io-kafka.jar /opt/apache/beam/jars/
 ADD target/kafka-clients.jar /opt/apache/beam/jars/
+ADD target/beam-sdks-java-io-jdbc.jar /opt/apache/beam/jars/
 
 ADD target/linux_amd64/boot /opt/apache/beam/
 
