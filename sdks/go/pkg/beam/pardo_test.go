@@ -33,7 +33,7 @@ func TestRecommendParDo(t *testing.T) {
 	for _, tt := range tests {
 		testName := tt.name
 		t.Run(testName, func(t *testing.T) {
-			got := recommendParDo(tt.outputDim)
+			got := parDoForSize(tt.outputDim)
 			if got != tt.want {
 				t.Errorf("RecommendParDo(%v) = %v, want %v", tt.outputDim, got, tt.want)
 			}

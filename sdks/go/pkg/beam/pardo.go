@@ -427,15 +427,15 @@ func formatParDoError(doFn interface{}, emitSize int, parDoSize int) string {
 	doFun, _ := graph.NewFn(doFn)
 	doFnName := doFun.Name()
 
-	thisParDo := recommendParDo(parDoSize) // Conveniently keeps the API slim.
-	correctParDo := recommendParDo(emitSize)
+	thisParDo := parDoForSize(parDoSize) // Conveniently keeps the API slim.
+	correctParDo := parDoForSize(emitSize)
 
 	return fmt.Sprintf("DoFn %v has %v outputs, but %v requires %v outputs, use %v instead.", doFnName, emitSize, thisParDo, parDoSize, correctParDo)
 }
 
-// recommendParDo takes a in a DoFns emit dimension and recommends the correct
+// parDoForSize takes a in a DoFns emit dimension and recommends the correct
 // ParDo to use.
-func recommendParDo(emitDim int) string {
+func parDoForSize(emitDim int) string {
 	switch emitDim {
 	case 0, 2, 3, 4, 5, 6, 7:
 		return fmt.Sprintf("ParDo%d", emitDim)
