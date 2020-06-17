@@ -75,7 +75,7 @@ public class MetricsHttpSink implements MetricsSink {
     int responseCode = connection.getResponseCode();
     if (responseCode != 200) {
       throw new IOException(
-          "Expected HTTP 200 OK response while writing metrics to MetricsSinkHttp but received "
+          "Expected HTTP 200 OK response while writing metrics to MetricsHttpSink but received "
               + responseCode);
     }
   }
