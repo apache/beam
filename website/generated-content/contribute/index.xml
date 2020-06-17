@@ -624,7 +624,7 @@ sed -i -e &amp;quot;s/'beam-master-.*'/'beam-${RELEASE}'/g&amp;quot; runners/goo
 &lt;/li>
 &lt;/ul>
 &lt;h3 id="start-a-snapshot-build">Start a snapshot build&lt;/h3>
-&lt;p>Start a build of &lt;a href="https://builds.apache.org/view/A-D/view/Beam/job/beam_Release_NightlySnapshot/">the nightly snapshot&lt;/a> against master branch.
+&lt;p>Start a build of &lt;a href="https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/">the nightly snapshot&lt;/a> against master branch.
 Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version
 from the &lt;code>master&lt;/code> branch. Once the release branch is cut, these SNAPSHOT versions are no longer found,
 so builds will be broken until a new snapshot is available.&lt;/p>

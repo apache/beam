@@ -94,7 +94,7 @@ git commit -m &quot;Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master 
 sed -i -e &quot;s/${DEV}/${RELEASE}/g&quot; sdks/python/apache_beam/version.py
 sed -i -e &quot;s/${DEV}/${RELEASE}/g&quot; gradle.properties
 sed -i -e &quot;s/'beam-master-.*'/'beam-${RELEASE}'/g&quot; runners/google-cloud-dataflow-java/build.gradle
-</code></pre></li></ul><h3 id=start-a-snapshot-build>Start a snapshot build</h3><p>Start a build of <a href=https://builds.apache.org/view/A-D/view/Beam/job/beam_Release_NightlySnapshot/>the nightly snapshot</a> against master branch.
+</code></pre></li></ul><h3 id=start-a-snapshot-build>Start a snapshot build</h3><p>Start a build of <a href=https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/>the nightly snapshot</a> against master branch.
 Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version
 from the <code>master</code> branch. Once the release branch is cut, these SNAPSHOT versions are no longer found,
 so builds will be broken until a new snapshot is available.</p><p>There are 2 ways to trigger a nightly build, either using automation script(recommended), or perform all operations manually.</p><h4 id=run-start_snapshot_buildsh-to-trigger-build>Run start_snapshot_build.sh to trigger build</h4><ul><li><p>Script: <a href=https://github.com/apache/beam/blob/master/release/src/main/scripts/start_snapshot_build.sh>start_snapshot_build.sh</a></p></li><li><p>Usage</p><pre><code>./beam/release/src/main/scripts/start_snapshot_build.sh
