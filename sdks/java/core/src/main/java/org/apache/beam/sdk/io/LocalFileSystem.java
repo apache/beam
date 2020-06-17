@@ -202,6 +202,10 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
 
   @Override
   protected LocalResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
+    if (singleResourceSpec.endsWith(File.separator) && !isDirectory) {
+      throw new IllegalArgumentException(
+          String.format("Expected file path but received directory path %s", singleResourceSpec));
+    }
     Path path = Paths.get(singleResourceSpec);
     return LocalResourceId.fromPath(path, isDirectory);
   }
