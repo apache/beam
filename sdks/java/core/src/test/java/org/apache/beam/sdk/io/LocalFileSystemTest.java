@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -415,7 +416,7 @@ public class LocalFileSystemTest {
   }
 
   @Test
-  public void testMatchNewResource() throws Exception {
+  public void testMatchNewResource() {
     LocalResourceId fileResource =
         localFileSystem.matchNewResource("/some/test/resource/path", false /* isDirectory */);
     LocalResourceId dirResource =
@@ -432,6 +433,12 @@ public class LocalFileSystemTest {
             .resolve("path", StandardResolveOptions.RESOLVE_DIRECTORY),
         equalTo(dirResource.getCurrentDirectory()));
     assertThat(dirResource.toString(), equalTo("/some/test/resource/path/"));
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> localFileSystem.matchNewResource("/some/test/resource/path/", false));
+    assertTrue(exception.getMessage().startsWith("Expected file path but received directory path"));
   }
 
   private void createFileWithContent(Path path, String content) throws Exception {

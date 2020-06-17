@@ -19,6 +19,9 @@ package org.apache.beam.sdk.io;
 
 import static org.junit.Assert.assertEquals;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,6 +49,26 @@ public class DefaultFilenamePolicyTest {
             paneStr,
             windowStr);
     return constructed.toString();
+  }
+
+  private static DefaultFilenamePolicy.Params encodeDecodeParams(
+      DefaultFilenamePolicy.Params params) throws IOException {
+    return decodeParams(encodeParams(params));
+  }
+
+  private static byte[] encodeParams(DefaultFilenamePolicy.Params params) throws IOException {
+    try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+      DefaultFilenamePolicy.ParamsCoder.of().encode(params, outputStream);
+      outputStream.flush();
+      return outputStream.toByteArray();
+    }
+  }
+
+  private static DefaultFilenamePolicy.Params decodeParams(byte[] encodedParams)
+      throws IOException {
+    try (ByteArrayInputStream inputStream = new ByteArrayInputStream(encodedParams)) {
+      return DefaultFilenamePolicy.ParamsCoder.of().decode(inputStream);
+    }
   }
 
   @Test
@@ -130,5 +153,53 @@ public class DefaultFilenamePolicyTest {
         "/path/to/out-2/1.part-1-of-2-sWindow1-winsWindow1-ppaneL.txt",
         constructName(
             "/path/to/out", "-N/S.part-S-of-N-W-winW-pP", ".txt", 1, 2, "paneL", "sWindow1"));
+  }
+
+  @Test
+  public void testParamsCoder() throws IOException {
+    assertEquals(
+        new DefaultFilenamePolicy.Params()
+            .withBaseFilename(FileSystems.matchNewResource("/tmp/file1", false)),
+        encodeDecodeParams(
+            new DefaultFilenamePolicy.Params()
+                .withBaseFilename(FileSystems.matchNewResource("/tmp/file1", false))));
+    assertEquals(
+        new DefaultFilenamePolicy.Params()
+            .withBaseFilename(FileSystems.matchNewResource("/tmp/file2", false))
+            .withSuffix(".json"),
+        encodeDecodeParams(
+            new DefaultFilenamePolicy.Params()
+                .withBaseFilename(FileSystems.matchNewResource("/tmp/file2", false))
+                .withSuffix(".json")));
+
+    assertEquals(
+        new DefaultFilenamePolicy.Params()
+            .withBaseFilename(FileSystems.matchNewResource("/tmp/dir1/", true)),
+        encodeDecodeParams(
+            new DefaultFilenamePolicy.Params()
+                .withBaseFilename(FileSystems.matchNewResource("/tmp/dir1/", true))));
+    assertEquals(
+        new DefaultFilenamePolicy.Params()
+            .withBaseFilename(FileSystems.matchNewResource("/tmp/dir2/", true))
+            .withSuffix(".json"),
+        encodeDecodeParams(
+            new DefaultFilenamePolicy.Params()
+                .withBaseFilename(FileSystems.matchNewResource("/tmp/dir2/", true))
+                .withSuffix(".json")));
+
+    assertEquals(
+        new DefaultFilenamePolicy.Params()
+            .withBaseFilename(FileSystems.matchNewResource("/tmp/dir3", true)),
+        encodeDecodeParams(
+            new DefaultFilenamePolicy.Params()
+                .withBaseFilename(FileSystems.matchNewResource("/tmp/dir3", true))));
+    assertEquals(
+        new DefaultFilenamePolicy.Params()
+            .withBaseFilename(FileSystems.matchNewResource("/tmp/dir4", true))
+            .withSuffix(".json"),
+        encodeDecodeParams(
+            new DefaultFilenamePolicy.Params()
+                .withBaseFilename(FileSystems.matchNewResource("/tmp/dir4", true))
+                .withSuffix(".json")));
   }
 }
