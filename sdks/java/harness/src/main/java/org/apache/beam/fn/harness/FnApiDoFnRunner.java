@@ -87,7 +87,6 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
-import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
@@ -468,15 +467,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           parDoPayload.getSideInputsMap().entrySet()) {
         String sideInputTag = entry.getKey();
         RunnerApi.SideInput sideInput = entry.getValue();
-        checkArgument(
-            Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
-                sideInput.getAccessPattern().getUrn()),
-            "This SDK is only capable of dealing with %s materializations "
-                + "but was asked to handle %s for PCollectionView with tag %s.",
-            Materializations.MULTIMAP_MATERIALIZATION_URN,
-            sideInput.getAccessPattern().getUrn(),
-            sideInputTag);
-
         PCollection sideInputPCollection =
             pCollections.get(pTransform.getInputsOrThrow(sideInputTag));
         WindowingStrategy sideInputWindowingStrategy =
@@ -485,6 +475,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         tagToSideInputSpecMapBuilder.put(
             new TupleTag<>(entry.getKey()),
             SideInputSpec.create(
+                sideInput.getAccessPattern().getUrn(),
                 rehydratedComponents.getCoder(sideInputPCollection.getCoderId()),
                 sideInputWindowingStrategy.getWindowFn().windowCoder(),
                 PCollectionViewTranslation.viewFnFromProto(entry.getValue().getViewFn()),
@@ -822,7 +813,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             tagToSideInputSpecMap,
             beamFnStateClient,
             keyCoder,
-            (Coder<BoundedWindow>) windowCoder,
+            windowCoder,
             () -> {
               if (currentElement != null) {
                 checkState(
