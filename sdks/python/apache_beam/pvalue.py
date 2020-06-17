@@ -35,14 +35,13 @@ from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import Generic
 from typing import Iterator
 from typing import Optional
 from typing import Sequence
 from typing import TypeVar
 from typing import Union
 
-from apache_beam.typehints.typehints import CompositeTypeHint, SequenceTypeConstraint, _unified_repr, \
-    validate_composite_type_param
 from past.builtins import unicode
 
 from apache_beam import coders
@@ -142,7 +141,7 @@ class PValue(object):
     return self.pipeline.apply(ptransform, self)
 
 
-class PCollection(PValue, CompositeTypeHint):
+class PCollection(PValue, Generic[T]):
   """A multiple values (potentially huge) container.
 
   Dataflow users should not construct PCollection objects directly in their
@@ -159,19 +158,9 @@ class PCollection(PValue, CompositeTypeHint):
   def __hash__(self):
     return hash((self.tag, self.producer))
 
-  class PCollectionTypeConstraint(SequenceTypeConstraint):
-    def __init__(self, type_param):
-      super(PCollection.PCollectionTypeConstraint,
-            self).__init__(type_param, PCollection)
-
-    def __repr__(self):
-      return 'PCollection[%s]' % _unified_repr(self.inner_type)
-
   def __class_getitem__(cls, type_param):
-    validate_composite_type_param(
-        type_param, error_msg_prefix='Parameter to a Set hint')
-
-    return cls.PCollectionTypeConstraint(type_param)
+    from apache_beam.typehints import PCollectionTypeConstraint
+    return PCollectionTypeConstraint(type_param)
 
   @property
   def windowing(self):

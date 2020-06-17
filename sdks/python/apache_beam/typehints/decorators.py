@@ -110,7 +110,7 @@ from apache_beam.pvalue import PCollection
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
-from apache_beam.typehints.typehints import CompositeTypeHintError
+from apache_beam.typehints.typehints import CompositeTypeHintError, PCollectionTypeConstraint
 from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
 from apache_beam.typehints.typehints import validate_composite_type_param
@@ -383,7 +383,7 @@ class IOTypeHints(NamedTuple(
     # type: () -> IOTypeHints
 
     input_type = self.input_types[0][0]
-    if isinstance(input_type, PCollection.PCollectionTypeConstraint):
+    if isinstance(input_type, PCollectionTypeConstraint):
       return self._replace(
           input_types=((input_type.inner_type, ), {}),
           origin=self._make_origin([self],
@@ -399,7 +399,7 @@ class IOTypeHints(NamedTuple(
     # type: () -> IOTypeHints
 
     output_type = self.output_types[0][0]
-    if isinstance(output_type, PCollection.PCollectionTypeConstraint):
+    if isinstance(output_type, PCollectionTypeConstraint):
       return self._replace(
           output_types=((output_type.inner_type, ), {}),
           origin=self._make_origin([self],
