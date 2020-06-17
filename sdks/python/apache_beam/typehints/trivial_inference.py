@@ -474,12 +474,14 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           pop_count = arg + 1
           if depth <= 0:
             return_type = Any
-          else:
+          elif isinstance(state.stack[-pop_count], Const):
             return_type = infer_return_type(
                 state.stack[-pop_count].value,
                 state.stack[1 - pop_count:],
                 debug=debug,
                 depth=depth - 1)
+          else:
+            return_type = Any
         elif opname == 'CALL_FUNCTION_KW':
           # TODO(udim): Handle keyword arguments. Requires passing them by name
           #   to infer_return_type.
