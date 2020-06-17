@@ -47,6 +47,7 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
+import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
@@ -143,7 +144,6 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
     SideInputSpec sideInputSpec = sideInputSpecMap.get(tag);
     checkArgument(sideInputSpec != null, "Attempting to access unknown side input %s.", view);
-    KvCoder<?, ?> kvCoder = (KvCoder) sideInputSpec.getCoder();
 
     ByteString.Output encodedWindowOut = ByteString.newOutput();
     try {
@@ -154,28 +154,64 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       throw new IllegalStateException(e);
     }
     ByteString encodedWindow = encodedWindowOut.toByteString();
-
     StateKey.Builder cacheKeyBuilder = StateKey.newBuilder();
-    cacheKeyBuilder
-        .getMultimapSideInputBuilder()
-        .setTransformId(ptransformId)
-        .setSideInputId(tag.getId())
-        .setWindow(encodedWindow);
+    Object sideInputAccessor;
+
+    switch (sideInputSpec.getAccessPattern()) {
+      case Materializations.ITERABLE_MATERIALIZATION_URN:
+        cacheKeyBuilder
+            .getIterableSideInputBuilder()
+            .setTransformId(ptransformId)
+            .setSideInputId(tag.getId())
+            .setWindow(encodedWindow);
+        sideInputAccessor =
+            new IterableSideInput<>(
+                beamFnStateClient,
+                processBundleInstructionId.get(),
+                ptransformId,
+                tag.getId(),
+                encodedWindow,
+                sideInputSpec.getCoder());
+        break;
+
+      case Materializations.MULTIMAP_MATERIALIZATION_URN:
+        checkState(
+            sideInputSpec.getCoder() instanceof KvCoder,
+            "Expected %s but received %s.",
+            KvCoder.class,
+            sideInputSpec.getCoder().getClass());
+        KvCoder<?, ?> kvCoder = (KvCoder) sideInputSpec.getCoder();
+        cacheKeyBuilder
+            .getMultimapSideInputBuilder()
+            .setTransformId(ptransformId)
+            .setSideInputId(tag.getId())
+            .setWindow(encodedWindow);
+        sideInputAccessor =
+            new MultimapSideInput<>(
+                beamFnStateClient,
+                processBundleInstructionId.get(),
+                ptransformId,
+                tag.getId(),
+                encodedWindow,
+                kvCoder.getKeyCoder(),
+                kvCoder.getValueCoder());
+        break;
+
+      default:
+        throw new IllegalStateException(
+            String.format(
+                "This SDK is only capable of dealing with %s materializations "
+                    + "but was asked to handle %s for PCollectionView with tag %s.",
+                ImmutableList.of(
+                    Materializations.ITERABLE_MATERIALIZATION_URN,
+                    Materializations.MULTIMAP_MATERIALIZATION_URN),
+                sideInputSpec.getAccessPattern(),
+                tag));
+    }
+
     return (T)
         stateKeyObjectCache.computeIfAbsent(
-            cacheKeyBuilder.build(),
-            key ->
-                sideInputSpec
-                    .getViewFn()
-                    .apply(
-                        new MultimapSideInput<>(
-                            beamFnStateClient,
-                            processBundleInstructionId.get(),
-                            ptransformId,
-                            tag.getId(),
-                            encodedWindow,
-                            kvCoder.getKeyCoder(),
-                            kvCoder.getValueCoder())));
+            cacheKeyBuilder.build(), key -> sideInputSpec.getViewFn().apply(sideInputAccessor));
   }
 
   @Override
