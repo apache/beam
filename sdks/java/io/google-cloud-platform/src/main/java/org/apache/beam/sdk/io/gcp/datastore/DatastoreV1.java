@@ -63,8 +63,6 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
@@ -544,19 +542,17 @@ public class DatastoreV1 {
      * ensure that the query is originated from trusted sources to avoid any security
      * vulnerabilities via SQL Injection.
      *
-     * <p><b><i>Experimental</i></b>: Cloud Datastore does not a provide a clean way to translate a
-     * gql query string to {@link Query}, so we end up making a query to the service for translation
-     * but this may read the actual data, although it will be a small amount. It needs more
-     * validation through production use cases before marking it as stable.
+     * <p>Cloud Datastore does not a provide a clean way to translate a gql query string to {@link
+     * Query}, so we end up making a query to the service for translation but this may read the
+     * actual data, although it will be a small amount. It needs more validation through production
+     * use cases before marking it as stable.
      */
-    @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withLiteralGqlQuery(String gqlQuery) {
       checkArgument(gqlQuery != null, "gqlQuery can not be null");
       return toBuilder().setLiteralGqlQuery(StaticValueProvider.of(gqlQuery)).build();
     }
 
     /** Same as {@link Read#withLiteralGqlQuery(String)} but with a {@link ValueProvider}. */
-    @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withLiteralGqlQuery(ValueProvider<String> gqlQuery) {
       checkArgument(gqlQuery != null, "gqlQuery can not be null");
       if (gqlQuery.isAccessible()) {

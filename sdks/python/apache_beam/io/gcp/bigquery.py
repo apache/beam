@@ -276,7 +276,6 @@ from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
-from apache_beam.utils.annotations import experimental
 
 __all__ = [
     'TableRowJsonCoder',
@@ -450,8 +449,8 @@ class BigQuerySource(dataflow_io.NativeSource):
         This parameter is ignored for table inputs.
       flatten_results (bool): Flattens all nested and repeated fields in the
         query results. The default value is :data:`True`.
-      kms_key (str): Experimental. Optional Cloud KMS key name for use when
-        creating new tables.
+      kms_key (str): Optional Cloud KMS key name for use when creating new
+        tables.
 
     Raises:
       ValueError: if any of the following is true:
@@ -848,8 +847,8 @@ bigquery_v2_messages.TableSchema` object or a single string  of the form
         that will be JSON serialized as a line in a file. This argument needs a
         value only in special cases when writing table rows as dictionaries is
         not desirable.
-      kms_key (str): Experimental. Optional Cloud KMS key name for use when
-        creating new tables.
+      kms_key (str): Optional Cloud KMS key name for use when creating new
+        tables.
 
     Raises:
       TypeError: if the schema argument is not a :class:`str` or a
@@ -982,8 +981,7 @@ class BigQueryWriteFn(DoFn):
         -  BigQueryDisposition.WRITE_APPEND: add to existing rows.
         -  BigQueryDisposition.WRITE_EMPTY: fail the write if table not empty.
         For streaming pipelines WriteTruncate can not be used.
-      kms_key: Experimental. Optional Cloud KMS key name for use when creating
-        new tables.
+      kms_key: Optional Cloud KMS key name for use when creating new tables.
       test_client: Override the default bigquery client used for testing.
 
       max_buffered_rows: The maximum number of rows that are allowed to stay
@@ -1343,8 +1341,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           empty.
 
         For streaming pipelines WriteTruncate can not be used.
-      kms_key (str): Experimental. Optional Cloud KMS key name for use when
-        creating new tables.
+      kms_key (str): Optional Cloud KMS key name for use when creating new
+        tables.
       batch_size (int): Number of rows to be written to BQ per streaming API
         insert. The default is 500.
         insert.
@@ -1622,7 +1620,6 @@ class _PassThroughThenCleanup(PTransform):
     return main_output
 
 
-@experimental()
 class ReadFromBigQuery(PTransform):
   """Read data from BigQuery.
 
@@ -1661,8 +1658,8 @@ class ReadFromBigQuery(PTransform):
       This parameter is ignored for table inputs.
     flatten_results (bool): Flattens all nested and repeated fields in the
       query results. The default value is :data:`True`.
-    kms_key (str): Experimental. Optional Cloud KMS key name for use when
-      creating new temporary tables.
+    kms_key (str): Optional Cloud KMS key name for use when creating new
+      temporary tables.
     gcs_location (str, ValueProvider): The name of the Google Cloud Storage
       bucket where the extracted table should be written as a string or
       a :class:`~apache_beam.options.value_provider.ValueProvider`. If
