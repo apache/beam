@@ -36,7 +36,8 @@ LOCAL_WEBSITE_REPO=beam_website_repo
 
 USER_REMOTE_URL=
 USER_GITHUB_ID=
-GIT_REPO_URL=git@github.com:apache/beam.git
+GIT_REPO_BASE_URL=apache/beam
+GIT_REPO_URL=git@github.com:${GIT_REPO_BASE_URL}.git
 ROOT_SVN_URL=https://dist.apache.org/repos/dist/dev/beam
 GIT_BEAM_ARCHIVE=https://github.com/apache/beam/archive
 GIT_BEAM_WEBSITE=https://github.com/apache/beam-site.git
@@ -154,7 +155,10 @@ if [[ $confirmation = "y" ]]; then
   rm -rf ~/${LOCAL_JAVA_STAGING_DIR}
 fi
 
-echo "[Current Step]: Stage python binaries"
+
+echo "[Current Step]: Stage python binaries and wheels"
+echo "===============================Pre-requirements========================"
+echo "Please make sure you have configured and started your gpg by running ./preparation_before_release.sh."
 echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
@@ -170,25 +174,49 @@ if [[ $confirmation = "y" ]]; then
   git clone ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   git checkout ${RELEASE_BRANCH}
+  git push origin "${RELEASE_BRANCH}"
+  RELEASE_COMMIT=$(git rev-parse --verify HEAD)
 
-  echo '-------------------Generating Python Artifacts-----------------'
-  cd sdks/python
-  virtualenv ${LOCAL_PYTHON_VIRTUALENV}
+  echo '-------------------Creating Python Virtualenv-----------------'
+  python3 -m venv ${LOCAL_PYTHON_VIRTUALENV}
   source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
-  pip install -r build-requirements.txt
-  python setup.py sdist --format=zip
-  cd dist
+  pip install requests python-dateutil
+
+  echo '--------------Fetching GitHub Actions Artifacts--------------'
+  python release/src/main/scripts/download_github_actions_artifacts.py \
+    --github-token ${GITHUB_TOKEN} \
+    --github-user ${USER_GITHUB_ID} \
+    --repo-url ${GIT_REPO_BASE_URL} \
+    --release-branch ${RELEASE_BRANCH} \
+    --release-commit ${RELEASE_COMMIT} \
+    --artifacts_dir ${PYTHON_ARTIFACTS_DIR}
 
   svn co https://dist.apache.org/repos/dist/dev/beam
   mkdir -p beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
-  cp apache-beam-${RELEASE}.zip beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}/apache-beam-${RELEASE}.zip
+  cp -ar ${PYTHON_ARTIFACTS_DIR}/ beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}/
   cd beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
 
   echo "------Signing Source Release apache-beam-${RELEASE}.zip------"
   gpg --local-user ${SIGNING_KEY} --armor --detach-sig apache-beam-${RELEASE}.zip
 
-  echo "------Creating Hash Value for apache-beam-${RELEASE}.zip------"
+  echo "------Creating Hash Value for apache-beam-${RELEASE}.zip-----"
   sha512sum apache-beam-${RELEASE}.zip > apache-beam-${RELEASE}.zip.sha512
+
+  echo "-----Signing Source Release apache-beam-${RELEASE}.tar.gz-----"
+  gpg --local-user ${SIGNING_KEY} --armor --detach-sig apache-beam-${RELEASE}.zip
+
+  echo "-----Creating Hash Value for apache-beam-${RELEASE}.tar.gz----"
+  sha512sum apache-beam-${RELEASE}.zip > apache-beam-${RELEASE}.zip.sha512
+
+  echo "---------Signing Release wheels apache-beam-${RELEASE}--------"
+  for artifact in *.whl; do
+    gpg --local-user ${SIGNING_KEY} --armor --detach-sig $artifact
+  done
+
+  echo "-----Creating Hash Value for apache-beam-${RELEASE} wheels-----"
+  for artifact in *.whl; do
+    sha512sum $artifact > ${artifact}.sha512
+  done
 
   cd ..
   svn add --force ${PYTHON_ARTIFACTS_DIR}
