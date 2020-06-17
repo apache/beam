@@ -36,6 +36,7 @@ func main() {
 		emit("Singapore", "Singapore")
 		emit("Sydney", "Australia")
 	}, beam.Impulse(s))
+
 	persons := beam.Create(s,
 		task.Person{Name: "Henry", City: "Singapore"},
 		task.Person{Name: "Jane", City: "San Francisco"},
