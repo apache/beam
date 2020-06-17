@@ -43,7 +43,45 @@ For more information on changes in 2.22.0, check out the
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.22.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, aiyangar, Ajo Thomas, Akshay-Iyangar, Alan Pryor, Alexey Romanenko, Allen Pradeep Xavier, amaliujia, Andrew Pilloud, Ankur Goenka, Ashwin Ramaswami, bntnam, Borzoo Esmailloo, Boyuan Zhang, Brian Hulette, Chamikara Jayalath, Colm O hEigeartaigh, Craig Chambers, Damon Douglas, Daniel Oliveira, David Cavazos, David Moravek, Esun Kim, Etienne Chauchot, Filipe Regadas, Graeme Morgan, Hannah Jiang, Hannah-Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Ismaël Mejía, Israel Herraiz, Jacob Ferriero, Jan Lukavský, John Mora, Kamil Wasilewski, Kenneth Jung, Kenneth Knowles, kevingg, Kyle Weaver, Kyoungha Min, Kyungwon Jo, Luke Cwik, Mark Liu, Matthias Baetens, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Nam Bui, Niel Markwick, Ning Kang, Omar Ismail, omarismail94, Pablo Estrada, paul fisher, pawelpasterz, Pawel Pasterz, Piotr Szuberski, Rahul Patwari, rarokni, Rehman, Rehman Murad Ali, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Sam Rohde, Sam Whittle, Sebastian Graca, Shoaib Zafar, Sruthi Sree Kumar, Stephen O&amp;rsquo;Kennedy, Steve Koonce, Steve Niemitz, Steven van Rossum, Tesio, Thomas Weise, tobiaslieber-cognitedata, Tomo Suzuki, Tudor Marian, tvalentyn, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, xuelianhan, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Zhuo Peng&lt;/p></description><link>/blog/beam-2.22.0/</link><pubDate>Mon, 08 Jun 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.22.0/</guid><category>blog</category></item><item><title>Python SDK Typing Changes</title><description>
+&lt;p>Ahmet Altay, aiyangar, Ajo Thomas, Akshay-Iyangar, Alan Pryor, Alexey Romanenko, Allen Pradeep Xavier, amaliujia, Andrew Pilloud, Ankur Goenka, Ashwin Ramaswami, bntnam, Borzoo Esmailloo, Boyuan Zhang, Brian Hulette, Chamikara Jayalath, Colm O hEigeartaigh, Craig Chambers, Damon Douglas, Daniel Oliveira, David Cavazos, David Moravek, Esun Kim, Etienne Chauchot, Filipe Regadas, Graeme Morgan, Hannah Jiang, Hannah-Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Ismaël Mejía, Israel Herraiz, Jacob Ferriero, Jan Lukavský, John Mora, Kamil Wasilewski, Kenneth Jung, Kenneth Knowles, kevingg, Kyle Weaver, Kyoungha Min, Kyungwon Jo, Luke Cwik, Mark Liu, Matthias Baetens, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Nam Bui, Niel Markwick, Ning Kang, Omar Ismail, omarismail94, Pablo Estrada, paul fisher, pawelpasterz, Pawel Pasterz, Piotr Szuberski, Rahul Patwari, rarokni, Rehman, Rehman Murad Ali, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Sam Rohde, Sam Whittle, Sebastian Graca, Shoaib Zafar, Sruthi Sree Kumar, Stephen O&amp;rsquo;Kennedy, Steve Koonce, Steve Niemitz, Steven van Rossum, Tesio, Thomas Weise, tobiaslieber-cognitedata, Tomo Suzuki, Tudor Marian, tvalentyn, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, xuelianhan, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Zhuo Peng&lt;/p></description><link>/blog/beam-2.22.0/</link><pubDate>Mon, 08 Jun 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.22.0/</guid><category>blog</category></item><item><title>Announcing Beam Katas for Kotlin</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Today, we are happy to announce a new addition to the Beam Katas family: Kotlin!&lt;/p>
+&lt;p>&lt;img src="/images/blog/beam-katas-kotlin-release/beam-and-kotlin.png" alt="Apache Beam and Kotlin Shaking Hands" height="330" width="800" >&lt;/p>
+&lt;p>You may remember &lt;a href="https://beam.apache.org/blog/beam-kata-release">a post from last year&lt;/a> that informed everyone of the wonderful Beam Katas available on &lt;a href="https://stepik.org">Stepik&lt;/a>
+for learning more about writing Apache Beam applications, working with its various APIs and programming model
+hands-on, all from the comfort of your favorite IDEs. As of today, you can now work through all of the progressive
+exercises to learn about the fundamentals of Beam in Kotlin.&lt;/p>
+&lt;p>&lt;a href="https://kotlinlang.org">Kotlin&lt;/a> is a modern, open-source, statically typed language that targets the JVM. It is most commonly used by
+Android developers, however it has recently risen in popularity due to its extensive feature set that enables
+more concise and cleaner code than Java, without sacrificing performance or type safety. It recently was &lt;a href="https://insights.stackoverflow.com/survey/2020#technology-most-loved-dreaded-and-wanted-languages-loved">ranked
+as one of the most beloved programming languages in the annual Stack Overflow Developer Survey&lt;/a>, so don&amp;rsquo;t take
+just our word for it.&lt;/p>
+&lt;p>The relationship between Apache Beam and Kotlin isn&amp;rsquo;t a new one. You can find examples scattered across the web
+of engineering teams embracing the two technologies including &lt;a href="https://beam.apache.org/blog/beam-kotlin/">a series of samples announced on this very blog&lt;/a>.
+If you are new to Beam or are an experienced veteran looking for a change of pace, we&amp;rsquo;d encourage you to give
+Kotlin a try.&lt;/p>
+&lt;p>You can find the Kotlin and the other excellent Beam Katas below (or by just searching for &amp;ldquo;Beam Katas&amp;rdquo; within
+&lt;a href="https://www.jetbrains.com/education/download/#section=idea">IntelliJ&lt;/a> or &lt;a href="https://www.jetbrains.com/education/download/#section=pycharm-edu">PyCharm&lt;/a> through &lt;a href="https://plugins.jetbrains.com/plugin/10081-edutools">the EduTools plugin&lt;/a>):&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://stepik.org/course/72488">&lt;strong>Kotlin&lt;/strong>&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://stepik.org/course/54530">&lt;strong>Java&lt;/strong>&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://stepik.org/course/54532">&lt;strong>Python&lt;/strong>&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://stepik.org/course/70387">&lt;strong>Go (in development)&lt;/strong>&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;p>I&amp;rsquo;d like to extend a very special thanks to &lt;a href="https://twitter.com/henry_ken">Henry Suryawirawan&lt;/a> for his creation of the original series of Katas
+and his support during the review process and making this effort a reality.&lt;/p>
+&lt;p>&lt;br />&lt;/p>
+&lt;p>&lt;img src="/images/blog/beam-katas-kotlin-release/beam-katas-in-edutools.png" alt="Access Beam Katas Kotlin through a JetBrains Educational Product" height="252" width="800" >&lt;/p></description><link>/blog/beam-katas-kotlin-release/</link><pubDate>Mon, 01 Jun 2020 00:00:01 -0800</pubDate><guid>/blog/beam-katas-kotlin-release/</guid><category>blog</category></item><item><title>Python SDK Typing Changes</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -684,65 +722,4 @@ Salman Raza, Sam Rohde, Saul Chavez, Shoaib, Shoaib Zafar, Slava Chernyak, Tanay
 Thinh Ha, Thomas Weise, Tianzi Cai, Tim van der Lippe, Tomer Zeltzer, Tudor Marian,
 Udi Meiri, Valentyn Tymofieiev, Yichi Zhang, Yifan Zou, Yueyang Qiu, gxercavins,
 jesusrv1103, lostluck, matt-darwin, mrociorg, ostrokach, parahul, rahul8383, rosetn,
-sunjincheng121, the1plummie, ttanay, tvalentyn, venn001, yoshiki.obata, Łukasz Gajowy&lt;/p></description><link>/blog/beam-2.16.0/</link><pubDate>Mon, 07 Oct 2019 00:00:01 -0800</pubDate><guid>/blog/beam-2.16.0/</guid><category>blog</category></item><item><title>Google Summer of Code '19</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>Google Summer of Code was an amazing learning experience for me.
-I contributed to open source, learned about Apache Beam’s internals and worked with the best engineers in the world.&lt;/p>
-&lt;h2 id="motivation">Motivation&lt;/h2>
-&lt;p>Two of my friends had participated in GSoC in 2018. I was intrigued by their experience.
-The idea of working on open-source software that could potentially be used by developers across the world, while being mentored by the best people in a field was exciting!
-So, I decided to give Google Summer of Code a shot this year.&lt;/p>
-&lt;h2 id="what-is-google-summer-of-code">What is Google Summer of Code?&lt;/h2>
-&lt;p>&lt;a href="https://summerofcode.withgoogle.com/">Google Summer of Code&lt;/a> is a global program hosted by Google focused on introducing students to open source software development.
-Students work on a 3 month programming project with an open source organization during their break from university.&lt;/p>
-&lt;h2 id="why-apache-beam">Why Apache Beam?&lt;/h2>
-&lt;p>While interning at &lt;a href="https://atlan.com/">Atlan&lt;/a>, I discovered the field of Data Engineering. I found the challenges and the discussions of the engineers there interesting. While researching for my internship project, I came across the Streaming Systems book. It introduced me to the unified model of Apache Beam for Batch and Streaming Systems, which I was fascinated by.
-I wanted to explore Data Engineering, so for GSoC, I wanted to work on a project in that field. Towards the end of my internship, I started contributing to Apache Airflow(very cool project) and Apache Beam, hoping one of them would participate in GSoC. I got lucky!&lt;/p>
-&lt;p>&lt;a href="https://youtu.be/U2eWLb-LD44">Also, Spotify’s Discover Weekly uses Apache Beam!&lt;/a>&lt;/p>
-&lt;h2 id="preparation">Preparation&lt;/h2>
-&lt;p>I had already read the &lt;a href="http://streamingsystems.net/">Streaming Systems book&lt;/a>. So, I had an idea of the concepts that Beam is built on, but had never actually used Beam.
-Before actually submitting a proposal, I went through a bunch of resources to make sure I had a concrete understanding of Beam.
-I read the &lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">Streaming 101&lt;/a> and &lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102">Streaming 102&lt;/a> blogs by Tyler Akidau. They are the perfect introduction to Beam’s unified model for Batch and Streaming.
-In addition, I watched all Beam talks on YouTube. You can find them on the &lt;a href="https://beam.apache.org/documentation/resources/videos-and-podcasts/">Beam Website&lt;/a>.
-Beam has really good documentation. The &lt;a href="https://beam.apache.org/documentation/programming-guide/">Programming Guide&lt;/a> lays out all of Beam’s concepts really well. &lt;a href="https://beam.apache.org/documentation/runtime/model">Beam’s execution model&lt;/a> is also documented well and is a must-read to understand how Beam processes data.
-&lt;a href="https://www.waitingforcode.com/apache-beam">waitingforcode.com&lt;/a> also has good blog posts about Beam concepts.
-To get a better sense of the Beam codebase, I played around with it and worked on some PRs to understand Beam better and got familiar with the test suite and workflows.&lt;/p>
-&lt;h2 id="gsoc-journey">GSoC Journey&lt;/h2>
-&lt;p>GSoC has 2 phases. The first is the Community Bonding period in which students get familiar with the project and the community. The other is the actual Coding Period in which students work on their projects. Since the Coding Period has three evaluations spaced out by a month, I divided my project into three parts focusing on the implementation, tests, and documentation or improvements.&lt;/p>
-&lt;h3 id="project">Project&lt;/h3>
-&lt;p>My project(&lt;a href="https://issues.apache.org/jira/browse/BEAM-6611">BEAM-6611&lt;/a>) added support for File Loads method of inserting data into BigQuery for streaming pipelines. It builds on PR - &lt;a href="https://github.com/apache/beam/pull/7655">#7655&lt;/a> for &lt;a href="https://issues.apache.org/jira/browse/BEAM-6553">BEAM-6553&lt;/a> that added support in the Python SDK for writing to BigQuery using File Loads method for Batch pipelines. Streaming pipelines with non-default Windowing, Triggering and Accumulation mode can write data to BigQuery using file loads method. In case of failure, the pipeline will fail atomically. This means that each record will be loaded into BigQuery at-most-once.
-You can find my proposal &lt;a href="https://docs.google.com/document/d/15Peyd3Z_wu5rvGWw8lMLpZuTyyreM_JOAEFFWvF97YY/edit?usp=sharing">here&lt;/a>.&lt;/p>
-&lt;h3 id="community-bonding">Community Bonding&lt;/h3>
-&lt;p>When GSoC started, my semester end exams had not yet finished. As a result, I couldn’t get much done. I worked on three PTransforms for the Python SDK - Latest, WithKeys and Reify.&lt;/p>
-&lt;h3 id="coding-period-i">Coding Period I&lt;/h3>
-&lt;p>In this period, I wrote some Integration Tests for the BigQuery sink using Streaming Inserts in streaming mode. I worked on a failing integration test for my project. I also finished the implementation of my project. But, one PostCommit test didn’t pass. I realized that the matcher for the Integration Test that queried BigQuery for the results was intended to be used in Batch mode. So, I wrote a version of the matcher to work in streaming mode.&lt;/p>
-&lt;h3 id="coding-period-ii">Coding Period II&lt;/h3>
-&lt;p>Even after I had added the matcher for streaming mode, the PostComit tests did not pass. A test was being run even though it was not specified. I isolated the failure to a &lt;a href="https://nose.readthedocs.io/en/latest/doc_tests/test_multiprocess/multiprocess.html#other-differences-in-test-running">limitation&lt;/a> of the multiprocess plugin for &lt;a href="https://nose.readthedocs.io/en/latest/">nose(a Python test framework)&lt;/a> due to which it found more tests than had been specified. It took me a while to figure this out. In this period, changes for my project got merged.
-I also worked on small issues related to testing.&lt;/p>
-&lt;p>This period was marked by a few exciting events:&lt;/p>
-&lt;ul>
-&lt;li>Ending up in the top #100 contributors to apache/beam.&lt;/li>
-&lt;li>My first ever PR Review on an open source project.&lt;/li>
-&lt;/ul>
-&lt;p>&lt;img src="https://pbs.twimg.com/media/D_XNSC-UIAUmswG?format=png&amp;name=small" alt="Weird flex but ok" />&lt;/p>
-&lt;h3 id="coding-period-iii">Coding Period III&lt;/h3>
-&lt;p>This was the final coding period before the program ended. Since my project was merged earlier than expected, my mentor suggested another issue(&lt;a href="https://issues.apache.org/jira/browse/BEAM-7742">BEAM-7742&lt;/a>) in the same area - BigQueryIO, that I found interesting. So, I worked on partitioning written files in BigQuery to ensure that all load jobs triggered adhere to the load job size limitations specified for BigQuery.
-While working on my project, I was using a pipeline that uses PubSub as a source and BigQuery as a sink to validate my changes. My mentor suggested we add them to the Beam test suite as it would be the ultimate test for BigQueryIO. I also worked on adding this test to Beam.&lt;/p>
-&lt;p>You can find the list of PRs I worked on &lt;a href="https://github.com/apache/beam/pulls?utf8=%E2%9C%93&amp;amp;q=is%3Apr+author%3Attanay">here&lt;/a>.&lt;/p>
-&lt;h2 id="conclusion">Conclusion&lt;/h2>
-&lt;p>GSoC has been a lesson in discipline and goal-setting for me. Deciding what I wanted to work on and how much I wanted to get done each week was an important lesson.
-I had never worked remotely, so this was a new experience. Although I struggled with it initially, I appreciate the flexibility that it comes with.
-I also had a lot of fun learning about Apache Beam’s internals, and other tools in the same ecosystem.
-This was also the first time I had written code with a test-first approach.&lt;/p>
-&lt;p>I thank my mentor - Pablo Estrada, Apache Beam, The Apache Software Foundation and Google Summer of Code for this opportunity. I am also grateful to my mentor for helping me with everything I needed and more, and the Apache Beam community for being supportive and encouraging.&lt;/p>
-&lt;p>With the right effort, perseverance, conviction, and a plan, anything is possible. Anything.&lt;/p></description><link>/blog/gsoc-19/</link><pubDate>Wed, 04 Sep 2019 00:00:01 -0800</pubDate><guid>/blog/gsoc-19/</guid><category>blog</category><category>gsoc</category></item></channel></rss>
+sunjincheng121, the1plummie, ttanay, tvalentyn, venn001, yoshiki.obata, Łukasz Gajowy&lt;/p></description><link>/blog/beam-2.16.0/</link><pubDate>Mon, 07 Oct 2019 00:00:01 -0800</pubDate><guid>/blog/beam-2.16.0/</guid><category>blog</category></item></channel></rss>

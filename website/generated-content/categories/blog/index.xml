@@ -43,7 +43,45 @@ For more information on changes in 2.22.0, check out the
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.22.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, aiyangar, Ajo Thomas, Akshay-Iyangar, Alan Pryor, Alexey Romanenko, Allen Pradeep Xavier, amaliujia, Andrew Pilloud, Ankur Goenka, Ashwin Ramaswami, bntnam, Borzoo Esmailloo, Boyuan Zhang, Brian Hulette, Chamikara Jayalath, Colm O hEigeartaigh, Craig Chambers, Damon Douglas, Daniel Oliveira, David Cavazos, David Moravek, Esun Kim, Etienne Chauchot, Filipe Regadas, Graeme Morgan, Hannah Jiang, Hannah-Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Ismaël Mejía, Israel Herraiz, Jacob Ferriero, Jan Lukavský, John Mora, Kamil Wasilewski, Kenneth Jung, Kenneth Knowles, kevingg, Kyle Weaver, Kyoungha Min, Kyungwon Jo, Luke Cwik, Mark Liu, Matthias Baetens, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Nam Bui, Niel Markwick, Ning Kang, Omar Ismail, omarismail94, Pablo Estrada, paul fisher, pawelpasterz, Pawel Pasterz, Piotr Szuberski, Rahul Patwari, rarokni, Rehman, Rehman Murad Ali, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Sam Rohde, Sam Whittle, Sebastian Graca, Shoaib Zafar, Sruthi Sree Kumar, Stephen O&amp;rsquo;Kennedy, Steve Koonce, Steve Niemitz, Steven van Rossum, Tesio, Thomas Weise, tobiaslieber-cognitedata, Tomo Suzuki, Tudor Marian, tvalentyn, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, xuelianhan, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Zhuo Peng&lt;/p></description></item><item><title>Blog: Python SDK Typing Changes</title><link>/blog/python-typing/</link><pubDate>Thu, 28 May 2020 00:00:01 -0800</pubDate><guid>/blog/python-typing/</guid><description>
+&lt;p>Ahmet Altay, aiyangar, Ajo Thomas, Akshay-Iyangar, Alan Pryor, Alexey Romanenko, Allen Pradeep Xavier, amaliujia, Andrew Pilloud, Ankur Goenka, Ashwin Ramaswami, bntnam, Borzoo Esmailloo, Boyuan Zhang, Brian Hulette, Chamikara Jayalath, Colm O hEigeartaigh, Craig Chambers, Damon Douglas, Daniel Oliveira, David Cavazos, David Moravek, Esun Kim, Etienne Chauchot, Filipe Regadas, Graeme Morgan, Hannah Jiang, Hannah-Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Ismaël Mejía, Israel Herraiz, Jacob Ferriero, Jan Lukavský, John Mora, Kamil Wasilewski, Kenneth Jung, Kenneth Knowles, kevingg, Kyle Weaver, Kyoungha Min, Kyungwon Jo, Luke Cwik, Mark Liu, Matthias Baetens, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Nam Bui, Niel Markwick, Ning Kang, Omar Ismail, omarismail94, Pablo Estrada, paul fisher, pawelpasterz, Pawel Pasterz, Piotr Szuberski, Rahul Patwari, rarokni, Rehman, Rehman Murad Ali, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Sam Rohde, Sam Whittle, Sebastian Graca, Shoaib Zafar, Sruthi Sree Kumar, Stephen O&amp;rsquo;Kennedy, Steve Koonce, Steve Niemitz, Steven van Rossum, Tesio, Thomas Weise, tobiaslieber-cognitedata, Tomo Suzuki, Tudor Marian, tvalentyn, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, xuelianhan, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Zhuo Peng&lt;/p></description></item><item><title>Blog: Announcing Beam Katas for Kotlin</title><link>/blog/beam-katas-kotlin-release/</link><pubDate>Mon, 01 Jun 2020 00:00:01 -0800</pubDate><guid>/blog/beam-katas-kotlin-release/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Today, we are happy to announce a new addition to the Beam Katas family: Kotlin!&lt;/p>
+&lt;p>&lt;img src="/images/blog/beam-katas-kotlin-release/beam-and-kotlin.png" alt="Apache Beam and Kotlin Shaking Hands" height="330" width="800" >&lt;/p>
+&lt;p>You may remember &lt;a href="https://beam.apache.org/blog/beam-kata-release">a post from last year&lt;/a> that informed everyone of the wonderful Beam Katas available on &lt;a href="https://stepik.org">Stepik&lt;/a>
+for learning more about writing Apache Beam applications, working with its various APIs and programming model
+hands-on, all from the comfort of your favorite IDEs. As of today, you can now work through all of the progressive
+exercises to learn about the fundamentals of Beam in Kotlin.&lt;/p>
+&lt;p>&lt;a href="https://kotlinlang.org">Kotlin&lt;/a> is a modern, open-source, statically typed language that targets the JVM. It is most commonly used by
+Android developers, however it has recently risen in popularity due to its extensive feature set that enables
+more concise and cleaner code than Java, without sacrificing performance or type safety. It recently was &lt;a href="https://insights.stackoverflow.com/survey/2020#technology-most-loved-dreaded-and-wanted-languages-loved">ranked
+as one of the most beloved programming languages in the annual Stack Overflow Developer Survey&lt;/a>, so don&amp;rsquo;t take
+just our word for it.&lt;/p>
+&lt;p>The relationship between Apache Beam and Kotlin isn&amp;rsquo;t a new one. You can find examples scattered across the web
+of engineering teams embracing the two technologies including &lt;a href="https://beam.apache.org/blog/beam-kotlin/">a series of samples announced on this very blog&lt;/a>.
+If you are new to Beam or are an experienced veteran looking for a change of pace, we&amp;rsquo;d encourage you to give
+Kotlin a try.&lt;/p>
+&lt;p>You can find the Kotlin and the other excellent Beam Katas below (or by just searching for &amp;ldquo;Beam Katas&amp;rdquo; within
+&lt;a href="https://www.jetbrains.com/education/download/#section=idea">IntelliJ&lt;/a> or &lt;a href="https://www.jetbrains.com/education/download/#section=pycharm-edu">PyCharm&lt;/a> through &lt;a href="https://plugins.jetbrains.com/plugin/10081-edutools">the EduTools plugin&lt;/a>):&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://stepik.org/course/72488">&lt;strong>Kotlin&lt;/strong>&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://stepik.org/course/54530">&lt;strong>Java&lt;/strong>&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://stepik.org/course/54532">&lt;strong>Python&lt;/strong>&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://stepik.org/course/70387">&lt;strong>Go (in development)&lt;/strong>&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;p>I&amp;rsquo;d like to extend a very special thanks to &lt;a href="https://twitter.com/henry_ken">Henry Suryawirawan&lt;/a> for his creation of the original series of Katas
+and his support during the review process and making this effort a reality.&lt;/p>
+&lt;p>&lt;br />&lt;/p>
+&lt;p>&lt;img src="/images/blog/beam-katas-kotlin-release/beam-katas-in-edutools.png" alt="Access Beam Katas Kotlin through a JetBrains Educational Product" height="252" width="800" >&lt;/p></description></item><item><title>Blog: Python SDK Typing Changes</title><link>/blog/python-typing/</link><pubDate>Thu, 28 May 2020 00:00:01 -0800</pubDate><guid>/blog/python-typing/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

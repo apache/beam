@@ -1623,7 +1623,7 @@ sets as &lt;code>PCollection&lt;/code>s and its operations as &lt;code>Transform
 &lt;p>To use Beam, your driver program must first create an instance of the Beam SDK
 class &lt;code>Pipeline&lt;/code> (typically in the &lt;code>main()&lt;/code> function). When you create your
 &lt;code>Pipeline&lt;/code>, you&amp;rsquo;ll also need to set some &lt;strong>configuration options&lt;/strong>. You can set
-your pipeline&amp;rsquo;s configuration options programatically, but it&amp;rsquo;s often easier to
+your pipeline&amp;rsquo;s configuration options programmatically, but it&amp;rsquo;s often easier to
 set the options ahead of time (or read them from the command line) and pass them
 to the &lt;code>Pipeline&lt;/code> object when you create the object.&lt;/p>
 &lt;div class=language-java>
@@ -1858,9 +1858,9 @@ itself.&lt;/p>
 &lt;/div>
 &lt;h3 id="pcollection-characteristics">3.2. PCollection characteristics&lt;/h3>
 &lt;p>A &lt;code>PCollection&lt;/code> is owned by the specific &lt;code>Pipeline&lt;/code> object for which it is
-created; multiple pipelines cannot share a &lt;code>PCollection&lt;/code>. In some respects, a
-&lt;code>PCollection&lt;/code> functions like a collection class. However, a &lt;code>PCollection&lt;/code> can
-differ in a few key ways:&lt;/p>
+created; multiple pipelines cannot share a &lt;code>PCollection&lt;/code>. &lt;span language="java">
+In some respects, a &lt;code>PCollection&lt;/code> functions like a &lt;code>Collection&lt;/code> class. However,
+a &lt;code>PCollection&lt;/code> can differ in a few key ways:&lt;/span>&lt;/p>
 &lt;h4 id="element-type">3.2.1. Element type&lt;/h4>
 &lt;p>The elements of a &lt;code>PCollection&lt;/code> may be of any type, but must all be of the same
 type. However, to support distributed processing, Beam needs to be able to
@@ -1962,7 +1962,10 @@ transforms sequentially and also apply transforms that contain other transforms
 nested within (called &lt;a href="#composite-transforms">composite transforms&lt;/a> in the Beam
 SDKs).&lt;/p>
 &lt;p>How you apply your pipeline&amp;rsquo;s transforms determines the structure of your
-pipeline. The best way to think of your pipeline is as a directed acyclic graph, where &lt;code>PTransform&lt;/code> nodes are subroutines that accept &lt;code>PCollection&lt;/code> nodes as inputs and emit &lt;code>PCollection&lt;/code> nodes as outputs. For example, you can chain together transforms to create a pipeline that successively modifies input data:&lt;/p>
+pipeline. The best way to think of your pipeline is as a directed acyclic graph,
+where &lt;code>PTransform&lt;/code> nodes are subroutines that accept &lt;code>PCollection&lt;/code> nodes as
+inputs and emit &lt;code>PCollection&lt;/code> nodes as outputs. For example, you can chain
+together transforms to create a pipeline that successively modifies input data:&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">[&lt;/span>&lt;span class="n">Final&lt;/span> &lt;span class="n">Output&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">[&lt;/span>&lt;span class="n">Initial&lt;/span> &lt;span class="n">Input&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">].&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">([&lt;/span>&lt;span class="n">First&lt;/span> &lt;span class="n">Transform&lt;/span>&lt;span class="o">])&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">([&lt;/span>&lt;span class="n">Second&lt;/span> &lt;span class="n">Transform&lt;/span>&lt;span class="o">])&lt;/span>
@@ -1977,7 +1980,7 @@ pipeline. The best way to think of your pipeline is as a directed acyclic graph,
 &lt;p>&lt;img src="/images/design-your-pipeline-linear.svg" alt="This linear pipeline starts with one input collection, sequentially appliesthree transforms, and ends with one output collection.">&lt;/p>
 &lt;p>&lt;em>Figure 1: A linear pipeline with three sequential transforms.&lt;/em>&lt;/p>
 &lt;p>However, note that a transform &lt;em>does not consume or otherwise alter&lt;/em> the input
-collection&amp;ndash;remember that a &lt;code>PCollection&lt;/code> is immutable by definition. This means
+collection — remember that a &lt;code>PCollection&lt;/code> is immutable by definition. This means
 that you can apply multiple transforms to the same input &lt;code>PCollection&lt;/code> to create
 a branching pipeline, like so:&lt;/p>
 &lt;div class=language-java>
@@ -1995,7 +1998,7 @@ a branching pipeline, like so:&lt;/p>
 &lt;p>&lt;em>Figure 2: A branching pipeline. Two transforms are applied to a single
 PCollection of database table rows.&lt;/em>&lt;/p>
 &lt;p>You can also build your own &lt;a href="#composite-transforms">composite transforms&lt;/a> that
-nest multiple sub-steps inside a single, larger transform. Composite transforms
+nest multiple transforms inside a single, larger transform. Composite transforms
 are particularly useful for building a reusable sequence of simple steps that
 get used in a lot of different places.&lt;/p>
 &lt;h3 id="core-beam-transforms">4.2. Core Beam transforms&lt;/h3>
@@ -2011,14 +2014,15 @@ processing paradigm:&lt;/p>
 &lt;/ul>
 &lt;h4 id="pardo">4.2.1. ParDo&lt;/h4>
 &lt;p>&lt;code>ParDo&lt;/code> is a Beam transform for generic parallel processing. The &lt;code>ParDo&lt;/code>
-processing paradigm is similar to the &amp;ldquo;Map&amp;rdquo; phase of a Map/Shuffle/Reduce-style
+processing paradigm is similar to the &amp;ldquo;Map&amp;rdquo; phase of a
+&lt;a href="https://en.wikipedia.org/wiki/MapReduce">Map/Shuffle/Reduce&lt;/a>-style
 algorithm: a &lt;code>ParDo&lt;/code> transform considers each element in the input
 &lt;code>PCollection&lt;/code>, performs some processing function (your user code) on that
 element, and emits zero, one, or multiple elements to an output &lt;code>PCollection&lt;/code>.&lt;/p>
 &lt;p>&lt;code>ParDo&lt;/code> is useful for a variety of common data processing operations, including:&lt;/p>
 &lt;ul>
 &lt;li>&lt;strong>Filtering a data set.&lt;/strong> You can use &lt;code>ParDo&lt;/code> to consider each element in a
-&lt;code>PCollection&lt;/code> and either output that element to a new collection, or discard
+&lt;code>PCollection&lt;/code> and either output that element to a new collection or discard
 it.&lt;/li>
 &lt;li>&lt;strong>Formatting or type-converting each element in a data set.&lt;/strong> If your input
 &lt;code>PCollection&lt;/code> contains elements that are of a different type or format than
@@ -2084,7 +2088,7 @@ the length of each string, and outputs the result to a new &lt;code>PCollection&
 &lt;h5 id="4212-creating-a-dofn">4.2.1.2. Creating a DoFn&lt;/h5>
 &lt;p>The &lt;code>DoFn&lt;/code> object that you pass to &lt;code>ParDo&lt;/code> contains the processing logic that
 gets applied to the elements in the input collection. When you use Beam, often
-the most important pieces of code you&amp;rsquo;ll write are these &lt;code>DoFn&lt;/code>s&amp;ndash;they&amp;rsquo;re what
+the most important pieces of code you&amp;rsquo;ll write are these &lt;code>DoFn&lt;/code>s - they&amp;rsquo;re what
 define your pipeline&amp;rsquo;s exact data processing tasks.&lt;/p>
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> When you create your &lt;code>DoFn&lt;/code>, be mindful of the &lt;a href="#requirements-for-writing-user-code-for-beam-transforms">Requirements
@@ -2107,15 +2111,16 @@ that for you. Your &lt;code>@ProcessElement&lt;/code> method should accept a par
 &lt;code>@Element&lt;/code>, which will be populated with the input element. In order to output
 elements, the method can also take a parameter of type &lt;code>OutputReceiver&lt;/code> which
 provides a method for emitting elements. The parameter types must match the input
-and output types of your &lt;code>DoFn&lt;/code> or the framework will raise an error. Note: @Element and
-OutputReceiver were introduced in Beam 2.5.0; if using an earlier release of Beam, a
-ProcessContext parameter should be used instead.&lt;/p>
+and output types of your &lt;code>DoFn&lt;/code> or the framework will raise an error. Note: &lt;code>@Element&lt;/code> and
+&lt;code>OutputReceiver&lt;/code> were introduced in Beam 2.5.0; if using an earlier release of Beam, a
+&lt;code>ProcessContext&lt;/code> parameter should be used instead.&lt;/p>
 &lt;p class="language-py">Inside your &lt;code>DoFn&lt;/code> subclass, you&amp;rsquo;ll write a method &lt;code>process&lt;/code> where you provide
 the actual processing logic. You don&amp;rsquo;t need to manually extract the elements
-from the input collection; the Beam SDKs handle that for you. Your &lt;code>process&lt;/code>
-method should accept an object of type &lt;code>element&lt;/code>. This is the input element and
-output is emitted by using &lt;code>yield&lt;/code> or &lt;code>return&lt;/code> statement inside &lt;code>process&lt;/code>
-method.&lt;/p>
+from the input collection; the Beam SDKs handle that for you. Your &lt;code>process&lt;/code> method
+should accept an argument &lt;code>element&lt;/code>, which is the input element, and return an
+iterable with its output values. You can accomplish this by emitting individual
+elements with &lt;code>yield&lt;/code> statements. You can also use a &lt;code>return&lt;/code> statement
+with an iterable, like a list or a generator.&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">ComputeWordLengthFn&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="nd">@ProcessElement&lt;/span>
@@ -2150,6 +2155,12 @@ following requirements:&lt;/p>
 the &lt;code>@Element&lt;/code> annotation or &lt;code>ProcessContext.sideInput()&lt;/code> (the incoming
 elements from the input collection).&lt;/li>
 &lt;li>Once you output a value using &lt;code>OutputReceiver.output()&lt;/code> you should not modify
+that value in any way.&lt;/li>
+&lt;/ul>&lt;/p>
+&lt;p class="language-python">&lt;ul>
+&lt;li>You should not in any way modify the &lt;code>element&lt;/code> argument provided to the
+&lt;code>process&lt;/code> method, or any side inputs.&lt;/li>
+&lt;li>Once you output a value using &lt;code>yield&lt;/code> or &lt;code>return&lt;/code>, you should not modify
 that value in any way.&lt;/li>
 &lt;/ul>&lt;/p>
 &lt;h5 id="lightweight-dofns">4.2.1.3. Lightweight DoFns and other abstractions&lt;/h5>
@@ -3083,7 +3094,7 @@ If an element falls in multiple windows (for example, this will happen when usin
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
 &lt;span class="k">class&lt;/span> &lt;span class="nc">ProcessRecord&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">window&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WindowParam&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="c1"># access window e.g window.end.micros&lt;/span>
+&lt;span class="c1"># access window e.g. window.end.micros&lt;/span>
 &lt;span class="k">pass&lt;/span>
 &lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
@@ -3093,7 +3104,7 @@ you can determine whether this is an early or a late firing, and how many times 
 &lt;p class="language-py">&lt;strong>PaneInfo:&lt;/strong>
 When triggers are used, Beam provides a &lt;code>DoFn.PaneInfoParam&lt;/code> object that contains information about the current firing. Using &lt;code>DoFn.PaneInfoParam&lt;/code>
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.
-This feature implementation in python sdk is not fully completed, see more at &lt;a href="https://issues.apache.org/jira/browse/BEAM-3759">BEAM-3759&lt;/a>.&lt;/p>
+This feature implementation in Python SDK is not fully completed; see more at &lt;a href="https://issues.apache.org/jira/browse/BEAM-3759">BEAM-3759&lt;/a>.&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">processElement&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="nd">@Element&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">word&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">PaneInfo&lt;/span> &lt;span class="n">paneInfo&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
@@ -3103,7 +3114,7 @@ This feature implementation in python sdk is not fully completed, see more at &l
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
 &lt;span class="k">class&lt;/span> &lt;span class="nc">ProcessRecord&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pane_info&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PaneInfoParam&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="c1"># access pane info e.g pane_info.is_first, pane_info.is_last, pane_info.timing&lt;/span>
+&lt;span class="c1"># access pane info, e.g. pane_info.is_first, pane_info.is_last, pane_info.timing&lt;/span>
 &lt;span class="k">pass&lt;/span>
 &lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
@@ -3121,7 +3132,7 @@ a parameter of type &lt;code>TimeDomain&lt;/code> which tells whether the timer 
 Timers are explained in more detail in the
 &lt;a href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam&lt;/a> blog post.&lt;/p>
 &lt;p class="language-py">&lt;strong>Timer and State:&lt;/strong>
-In addition to aforementioned parameters, user defined Timer and State parameters can be used in a Stateful DoFn.
+In addition to aforementioned parameters, user defined Timer and State parameters can be used in a stateful DoFn.
 Timers and States are explained in more detail in the
 &lt;a href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam&lt;/a> blog post.&lt;/p>
 &lt;div class=language-py>
@@ -3137,7 +3148,7 @@ Timers and States are explained in more detail in the
 &lt;span class="n">buffer_1&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">BUFFER_STATE_1&lt;/span>&lt;span class="p">),&lt;/span>
 &lt;span class="n">buffer_2&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">BUFFER_STATE_2&lt;/span>&lt;span class="p">),&lt;/span>
 &lt;span class="n">watermark_timer&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TimerParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">WATERMARK_TIMER&lt;/span>&lt;span class="p">)):&lt;/span>
-&lt;span class="c1"># Do you processing here&lt;/span>
+&lt;span class="c1"># Do your processing here&lt;/span>
 &lt;span class="n">key&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">value&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">element&lt;/span>
 &lt;span class="c1"># Read all the data from buffer1&lt;/span>
 &lt;span class="n">all_values_in_buffer_1&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">buffer_1&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="p">()]&lt;/span>
@@ -3195,11 +3206,6 @@ words, producing a &lt;code>PCollection&lt;/code> of key/value pairs. Each key r
 word in the text, and each value represents the number of times that word
 appeared in the original data.&lt;/li>
 &lt;/ol>
-&lt;p>Note that this is also an example of nested composite transforms, as &lt;code>Count&lt;/code>
-is, by itself, a composite transform.&lt;/p>
-&lt;p>Your composite transform&amp;rsquo;s parameters and return value must match the initial
-input type and final return type for the entire transform, even if the
-transform&amp;rsquo;s intermediate data changes type multiple times.&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">CountWords&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span>
 &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Long&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
@@ -3228,6 +3234,10 @@ transform&amp;rsquo;s intermediate data changes type multiple times.&lt;/p>
 &lt;span class="c1"># Format each word and count into a printable string.&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;FormatCounts&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">FormatCountsFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;blockquote>
+&lt;p>&lt;strong>Note:&lt;/strong> Because &lt;code>Count&lt;/code> is itself a composite transform,
+&lt;code>CountWords&lt;/code> is also a nested composite transform.&lt;/p>
+&lt;/blockquote>
 &lt;h4 id="composite-transform-creation">4.6.2. Creating a composite transform&lt;/h4>
 &lt;p>To create your own composite transform, create a subclass of the &lt;code>PTransform&lt;/code>
 class and override the &lt;code>expand&lt;/code> method to specify the actual processing logic.
@@ -3279,6 +3289,9 @@ accept the appropriate input &lt;code>PCollection&lt;/code>(s) and return the co
 output &lt;code>PCollection&lt;/code>(s), you can include as many transforms as you want. These
 transforms can include core transforms, composite transforms, or the transforms
 included in the Beam SDK libraries.&lt;/p>
+&lt;p>Your composite transform&amp;rsquo;s parameters and return value must match the initial
+input type and final return type for the entire transform, even if the
+transform&amp;rsquo;s intermediate data changes type multiple times.&lt;/p>
 &lt;p>&lt;strong>Note:&lt;/strong> The &lt;code>expand&lt;/code> method of a &lt;code>PTransform&lt;/code> is not meant to be invoked
 directly by the user of a transform. Instead, you should call the &lt;code>apply&lt;/code> method
 on the &lt;code>PCollection&lt;/code> itself, with the transform as an argument. This allows
@@ -3324,7 +3337,7 @@ a &lt;code>PCollection&lt;/code>'s data at any point in your pipeline.&lt;/p>
 &lt;p>Many read transforms support reading from multiple input files matching a glob
 operator you provide. Note that glob operators are filesystem-specific and obey
 filesystem-specific consistency models. The following TextIO example uses a glob
-operator (*) to read all matching input files that have prefix &amp;ldquo;input-&amp;rdquo; and the
+operator (&lt;code>*&lt;/code>) to read all matching input files that have prefix &amp;ldquo;input-&amp;rdquo; and the
 suffix &amp;ldquo;.csv&amp;rdquo; in the given location:&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;ReadFromText&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
@@ -3363,7 +3376,7 @@ structures that can often be determined by examining the type. Even within a SDK
 (or equivalent structures in other languages) are often used as intermediate types, and these also have a
 clear structure that can be inferred by inspecting the class. By understanding the structure of a pipeline’s
 records, we can provide much more concise APIs for data processing.&lt;/p>
-&lt;h3 id="what-is-a-schema">6.1. What is a schema&lt;/h3>
+&lt;h3 id="what-is-a-schema">6.1. What is a schema?&lt;/h3>
 &lt;p>Most structured records share some common characteristics:&lt;/p>
 &lt;ul>
 &lt;li>They can be subdivided into separate named fields. Fields usually have string names, but sometimes - as in the case of indexed
