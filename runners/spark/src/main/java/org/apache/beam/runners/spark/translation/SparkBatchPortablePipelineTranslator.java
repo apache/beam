@@ -372,6 +372,11 @@ public class SparkBatchPortablePipelineTranslator {
         index++;
       }
       unionRDD = context.getSparkContext().union(rdds);
+
+      Partitioner partitioner = getPartitioner(context);
+      if (partitioner != null) {
+        unionRDD = unionRDD.coalesce(partitioner.numPartitions(), false);
+      }
     }
     context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(unionRDD));
   }
