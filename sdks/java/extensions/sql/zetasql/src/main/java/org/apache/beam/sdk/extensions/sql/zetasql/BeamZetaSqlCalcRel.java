@@ -158,7 +158,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       for (int i = 0; i < inputSchema.getFieldCount(); i++) {
         options.addExpressionColumn(
             columnName(i),
-            ZetaSqlUtils.beamFieldTypeToZetaSqlType(inputSchema.getField(i).getType()));
+            ZetaSqlBeamTranslationUtils.beamFieldTypeToZetaSqlType(inputSchema.getField(i).getType()));
       }
 
       // TODO[BEAM-8630]: use a single PreparedExpression for all condition and projects
@@ -181,7 +181,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       for (int i = 0; i < inputSchema.getFieldCount(); i++) {
         columns.put(
             columnName(i),
-            ZetaSqlUtils.javaObjectToZetaSqlValue(
+            ZetaSqlBeamTranslationUtils.javaObjectToZetaSqlValue(
                 row.getBaseValue(i, Object.class), inputSchema.getField(i).getType()));
       }
 
@@ -198,7 +198,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         // TODO[BEAM-8630]: performance optimization by bundling the gRPC calls
         Value v = projectExps.get(i).execute(columns, params);
         values.add(
-            ZetaSqlUtils.zetaSqlValueToJavaObject(
+            ZetaSqlBeamTranslationUtils.zetaSqlValueToJavaObject(
                 v, outputSchema.getField(i).getType(), verifyRowValues));
       }
       Row outputRow =

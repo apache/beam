@@ -36,45 +36,21 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
 import org.joda.time.Instant;
 
 /**
- * Utility methods for ZetaSQL related operations.
+ * Utility methods for ZetaSQL <=> Beam translation.
  *
  * <p>Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
  * TODO[BEAM-10238]: support ZetaSQL types: TIME, DATETIME, NUMERIC
  */
 @Internal
-public final class ZetaSqlUtils {
+public final class ZetaSqlBeamTranslationUtils {
 
   private static final long MICROS_PER_MILLI = 1000L;
 
-  private ZetaSqlUtils() {}
-
-  // Type conversion: ZetaSQL => Calcite
-  public static SqlTypeName zetaSqlTypeToCalciteTypeName(Type type) {
-    switch (type.getKind()) {
-      case TYPE_INT64:
-        return SqlTypeName.BIGINT;
-      case TYPE_DOUBLE:
-        return SqlTypeName.DOUBLE;
-      case TYPE_BOOL:
-        return SqlTypeName.BOOLEAN;
-      case TYPE_STRING:
-        return SqlTypeName.VARCHAR;
-      case TYPE_BYTES:
-        return SqlTypeName.VARBINARY;
-      case TYPE_DATE:
-        return SqlTypeName.DATE;
-      case TYPE_TIMESTAMP:
-        return SqlTypeName.TIMESTAMP;
-        // TODO[BEAM-9179] Add conversion code for ARRAY and ROW types
-      default:
-        throw new UnsupportedOperationException("Unknown ZetaSQL type: " + type.getKind().name());
-    }
-  }
+  private ZetaSqlBeamTranslationUtils() {}
 
   // Type conversion: Beam => ZetaSQL
   public static Type beamFieldTypeToZetaSqlType(FieldType fieldType) {
@@ -111,7 +87,7 @@ public final class ZetaSqlUtils {
   public static StructType beamSchemaToZetaSqlStructType(Schema schema) {
     return TypeFactory.createStructType(
         schema.getFields().stream()
-            .map(ZetaSqlUtils::beamFieldToZetaSqlStructField)
+            .map(ZetaSqlBeamTranslationUtils::beamFieldToZetaSqlStructField)
             .collect(Collectors.toList()));
   }
 
@@ -229,7 +205,7 @@ public final class ZetaSqlUtils {
   private static FieldType zetaSqlStructTypeToBeamRowType(StructType structType) {
     return FieldType.row(
             structType.getFieldList().stream()
-                .map(ZetaSqlUtils::zetaSqlStructFieldToBeamField)
+                .map(ZetaSqlBeamTranslationUtils::zetaSqlStructFieldToBeamField)
                 .collect(Schema.toSchema()))
         .withNullable(true);
   }

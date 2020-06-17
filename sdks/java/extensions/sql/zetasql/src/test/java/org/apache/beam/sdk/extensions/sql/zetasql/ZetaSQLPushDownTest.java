@@ -56,10 +56,10 @@ public class ZetaSQLPushDownTest {
   private static final Long PIPELINE_EXECUTION_WAITTIME_MINUTES = 2L;
   private static final Schema BASIC_SCHEMA =
       Schema.builder()
-          .addInt32Field("unused1")
-          .addInt32Field("id")
+          .addInt64Field("unused1")
+          .addInt64Field("id")
           .addStringField("name")
-          .addInt32Field("unused2")
+          .addInt64Field("unused2")
           .build();
 
   private static TestTableProvider tableProvider;
@@ -195,7 +195,8 @@ public class ZetaSQLPushDownTest {
   private static void initializeBeamTableProvider() {
     Table projectTable = getTable("InMemoryTableProject", PushDownOptions.PROJECT);
     Table bothTable = getTable("InMemoryTableBoth", PushDownOptions.BOTH);
-    Row[] rows = {row(BASIC_SCHEMA, 100, 1, "one", 100), row(BASIC_SCHEMA, 200, 2, "two", 200)};
+    Row[] rows = {row(BASIC_SCHEMA, (long) 100, (long) 1, "one", (long) 100),
+        row(BASIC_SCHEMA, (long) 200, (long) 2, "two", (long) 200)};
 
     tableProvider = new TestTableProvider();
     tableProvider.createTable(projectTable);
