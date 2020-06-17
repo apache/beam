@@ -223,8 +223,12 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     public void setTimer(TimerData timerData) {
       if (isBounded == IsBounded.UNBOUNDED
           && timerData.getTimestamp().getMillis()
-              >= GlobalWindow.INSTANCE.maxTimestamp().getMillis()) {
-        // No need to register a timer of max timestamp if the input is unbounded
+              > GlobalWindow.INSTANCE.maxTimestamp().getMillis()) {
+        // No need to register a timer greater than maxTimestamp if the input is unbounded.
+        // 1. It will ignore timers with (maxTimestamp + 1) created by stateful ParDo with global
+        // window.
+        // 2. It will register timers with maxTimestamp so that global window can be closed
+        // correctly when max watermark comes.
         return;
       }
 
