@@ -89,7 +89,7 @@ class SubprocessServer(object):
         try:
           channel_ready.result(timeout=wait_secs)
           break
-        except (grpc.FutureTimeoutError, grpc._channel._Rendezvous):
+        except (grpc.FutureTimeoutError, grpc.RpcError):
           wait_secs *= 1.2
           logging.log(
               logging.WARNING if wait_secs > 1 else logging.DEBUG,
