@@ -128,7 +128,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       @Override
       public ResultT get() {
         ArgT currentArg = arg.get();
-        if (currentArg != memoizedArg) {
+        if (currentArg != memoizedArg || currentArg == null) {
           memoizedResult = f.apply(this.memoizedArg = currentArg);
         }
         return memoizedResult;
