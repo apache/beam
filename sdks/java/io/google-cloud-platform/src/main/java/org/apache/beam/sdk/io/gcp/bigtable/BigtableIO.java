@@ -39,8 +39,6 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -71,6 +69,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * {@link PTransform Transforms} for reading from and writing to Google Cloud Bigtable.
+ *
+ * <p>Please note the Cloud BigTable HBase connector available <a
+ * href="https://github.com/googleapis/java-bigtable-hbase/tree/master/bigtable-dataflow-parent/bigtable-hbase-beam">here</a>.
+ * We recommend using that connector over this one if <a
+ * href="https://cloud.google.com/bigtable/docs/hbase-bigtable">HBase API</a></> works for your
+ * needs.
  *
  * <p>For more information about Cloud Bigtable, see the online documentation at <a
  * href="https://cloud.google.com/bigtable/">Google Cloud Bigtable</a>.
@@ -162,19 +166,12 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  *
- * <h3>Experimental</h3>
- *
- * <p>This connector for Cloud Bigtable is considered experimental and may break or receive
- * backwards-incompatible changes in future versions of the Apache Beam SDK. Cloud Bigtable is in
- * Beta, and thus it may introduce breaking changes in future revisions of its service or APIs.
- *
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
  * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner
  * PipelineRunners} for more details.
  */
-@Experimental(Kind.SOURCE_SINK)
 public class BigtableIO {
   private static final Logger LOG = LoggerFactory.getLogger(BigtableIO.class);
 
@@ -185,7 +182,6 @@ public class BigtableIO {
    * BigtableIO.Read#withTableId} that specifies which table to read. A {@link RowFilter} may also
    * optionally be specified using {@link BigtableIO.Read#withRowFilter(RowFilter)}.
    */
-  @Experimental
   public static Read read() {
     return Read.create();
   }
@@ -196,7 +192,6 @@ public class BigtableIO {
    * BigtableIO.Write#withInstanceId} that specifies the destination Cloud Bigtable instance, and a
    * {@link BigtableIO.Write#withTableId} that specifies which table to write.
    */
-  @Experimental
   public static Write write() {
     return Write.create();
   }
@@ -693,7 +688,6 @@ public class BigtableIO {
      * Returns a {@link BigtableIO.WriteWithResults} that will emit a {@link BigtableWriteResult}
      * for each batch of rows written.
      */
-    @Experimental
     public WriteWithResults withWriteResults() {
       return new WriteWithResults(getBigtableConfig());
     }
