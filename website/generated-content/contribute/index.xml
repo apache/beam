@@ -1942,7 +1942,7 @@ the console log of a job.&lt;/li>
 is &amp;gt;30m.&lt;/li>
 &lt;/ol>
 &lt;h3 id="pre-commit-dashboard">Pre-commit Dashboard&lt;/h3>
-&lt;p>The Beam Community Metrics site contains a &lt;a href="http://104.154.241.245/d/_TNndF2iz/pre-commit-tests">Pre-Commit
+&lt;p>The Beam Community Metrics site contains a &lt;a href="http://metrics.beam.apache.org/d/_TNndF2iz/pre-commit-tests">Pre-Commit
 Tests&lt;/a> dashboard showing
 job timing trends. You can modify the time window (defaults to 7 days) or filter
 down to a specific test suite by clicking on it.&lt;/p>

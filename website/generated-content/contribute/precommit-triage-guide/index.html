@@ -12,7 +12,7 @@ The aim is to have 95% of pre-commit jobs complete within 30 minutes
 the past 4 weeks, where running time is the duration of time the job spends in
 the Jenkins queue + the actual time it spends running.</p><h2 id=determining-slowness>Determining Slowness</h2><p>There are two main signs of slowness:</p><ol><li>Pre-commit jobs are timing out after 30 minutes. This can be determined from
 the console log of a job.</li><li>Pre-commits aren&rsquo;t timing out, but the total wait time for pre-commit results
-is >30m.</li></ol><h3 id=pre-commit-dashboard>Pre-commit Dashboard</h3><p>The Beam Community Metrics site contains a <a href=http://104.154.241.245/d/_TNndF2iz/pre-commit-tests>Pre-Commit
+is >30m.</li></ol><h3 id=pre-commit-dashboard>Pre-commit Dashboard</h3><p>The Beam Community Metrics site contains a <a href=http://metrics.beam.apache.org/d/_TNndF2iz/pre-commit-tests>Pre-Commit
 Tests</a> dashboard showing
 job timing trends. You can modify the time window (defaults to 7 days) or filter
 down to a specific test suite by clicking on it.</p><p><img src=/images/precommit_dashboard.png alt="example pre-commit duration dashboard"></p><h2 id=triage-process>Triage Process</h2><ol><li><a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Open%2C%20%22In%20Progress%22%2C%20Reopened)%20AND%20labels%20%3D%20precommit%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">Search for existing
