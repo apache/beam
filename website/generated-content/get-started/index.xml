@@ -978,7 +978,13 @@ limitations under the License.
 &lt;ul>
 &lt;li>&lt;a href="#set-up-your-development-environment">Set up your Development Environment&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#get-the-wordcount-code">Get the WordCount Code&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#run-wordcount">Run WordCount&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#optional-convert-from-maven-to-gradle-project">Optional: Convert from Maven to Gradle Project&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#run-wordcount">Run WordCount&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#run-wordcount-using-maven">Run WordCount Using Maven&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#run-wordcount-using-gradle">Run WordCount Using Gradle&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
 &lt;li>&lt;a href="#inspect-the-results">Inspect the results&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#next-steps">Next Steps&lt;/a>&lt;/li>
 &lt;/ul>
@@ -990,6 +996,9 @@ limitations under the License.
 &lt;/li>
 &lt;li>
 &lt;p>Download and install &lt;a href="https://maven.apache.org/download.cgi">Apache Maven&lt;/a> by following Maven&amp;rsquo;s &lt;a href="https://maven.apache.org/install.html">installation guide&lt;/a> for your specific operating system.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Optional: Install &lt;a href="https://gradle.org/install/">Gradle&lt;/a> if you would like to convert your Maven project into Gradle.&lt;/p>
 &lt;/li>
 &lt;/ol>
 &lt;h2 id="get-the-wordcount-code">Get the WordCount Code&lt;/h2>
@@ -1046,6 +1055,35 @@ d----- 7/19/2018 11:00 PM subprocess
 -a---- 7/19/2018 11:00 PM 7662 WordCount.java&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;p>For a detailed introduction to the Beam concepts used in these examples, see the &lt;a href="/get-started/wordcount-example">WordCount Example Walkthrough&lt;/a>. Here, we&amp;rsquo;ll just focus on executing &lt;code>WordCount.java&lt;/code>.&lt;/p>
+&lt;h2 id="optional-convert-from-maven-to-gradle-project">Optional: Convert from Maven to Gradle Project&lt;/h2>
+&lt;p>Ensure you are in the same directory as the &lt;code>pom.xml&lt;/code> file generated from the previous step. Automatically convert your project from Maven to Gradle by running:
+&lt;pre>&lt;code>$ gradle init&lt;/code>&lt;/pre>
+&lt;/p>
+&lt;p>After you have converted the project to Gradle:&lt;/p>
+&lt;ol>
+&lt;li>Edit the generated &lt;code>build.gradle&lt;/code> file by adding &lt;code>mavenCentral()&lt;/code> under &lt;code>repositories&lt;/code>:
+&lt;pre>&lt;code>repositories {
+mavenCentral()
+maven {
+url = uri(&amp;#39;https://repository.apache.org/content/repositories/snapshots/&amp;#39;)
+}
+maven {
+url = uri(&amp;#39;http://repo.maven.apache.org/maven2&amp;#39;)
+}
+}&lt;/code>&lt;/pre>
+&lt;/li>
+&lt;li>Add the following task in &lt;code>build.gradle&lt;/code> to allow you to execute pipelines with Gradle:
+&lt;pre>&lt;code>task execute (type:JavaExec) {
+main = System.getProperty(&amp;#34;mainClass&amp;#34;)
+classpath = sourceSets.main.runtimeClasspath
+systemProperties System.getProperties()
+args System.getProperty(&amp;#34;exec.args&amp;#34;).split()
+}&lt;/code>&lt;/pre>
+&lt;/li>
+&lt;li>Rebuild your project by running:
+&lt;pre>&lt;code>$ gradle build&lt;/code>&lt;/pre>
+&lt;/li>
+&lt;/ol>
 &lt;h2 id="run-wordcount">Run WordCount&lt;/h2>
 &lt;p>A single Beam pipeline can run on multiple Beam &lt;a href="/documentation#runners">runners&lt;/a>, including the &lt;a href="/documentation/runners/apex">ApexRunner&lt;/a>, &lt;a href="/documentation/runners/flink">FlinkRunner&lt;/a>, &lt;a href="/documentation/runners/spark">SparkRunner&lt;/a>, &lt;a href="/documentation/runners/nemo">NemoRunner&lt;/a>, &lt;a href="/documentation/runners/jet">JetRunner&lt;/a>, or &lt;a href="/documentation/runners/dataflow">DataflowRunner&lt;/a>. The &lt;a href="/documentation/runners/direct">DirectRunner&lt;/a> is a common runner for getting started, as it runs locally on your machine and requires no specific setup.&lt;/p>
 &lt;p>After you&amp;rsquo;ve chosen which runner you&amp;rsquo;d like to use:&lt;/p>
@@ -1060,6 +1098,7 @@ d----- 7/19/2018 11:00 PM subprocess
 &lt;/li>
 &lt;li>Run your first WordCount pipeline.&lt;/li>
 &lt;/ol>
+&lt;h3 id="run-wordcount-using-maven">Run WordCount Using Maven&lt;/h3>
 &lt;p>For Unix shells:&lt;/p>
 &lt;div class=runner-direct>
 &lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
@@ -1150,6 +1189,39 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;pre>&lt;code>PS&amp;gt; mvn package -P jet-runner
 PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
 --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/pom.xml --output=counts&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;h3 id="run-wordcount-using-gradle">Run WordCount Using Gradle&lt;/h3>
+&lt;p>For Unix shells (Instructions currently only available for Direct, Spark, and Dataflow):&lt;/p>
+&lt;div class=runner-direct>
+&lt;pre>&lt;code>$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+-Dexec.args=&amp;#34;--inputFile=pom.xml --output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;div class=runner-apex>
+&lt;pre>&lt;code>We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;div class=runner-flink-local>
+&lt;pre>&lt;code>We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;div class=runner-flink-cluster>
+&lt;pre>&lt;code>We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;div class=runner-spark>
+&lt;pre>&lt;code>$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+-Dexec.args=&amp;#34;--inputFile=pom.xml --output=counts&amp;#34; -Pspark-runner&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;div class=runner-dataflow>
+&lt;pre>&lt;code>$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+-Dexec.args=&amp;#34;--project=&amp;lt;your-gcp-project&amp;gt; --inputFile=gs://apache-beam-samples/shakespeare/* \
+--output=gs://&amp;lt;your-gcs-bucket&amp;gt;/counts&amp;#34; -Pdataflow-runner&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;div class=runner-samza-local>
+&lt;pre>&lt;code>We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;div class=runner-nemo>
+&lt;pre>&lt;code>We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;div class=runner-jet>
+&lt;pre>&lt;code>We are working on adding the instruction for this runner!&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;h2 id="inspect-the-results">Inspect the results&lt;/h2>
 &lt;p>Once the pipeline has completed, you can view the output. You&amp;rsquo;ll notice that there may be multiple output files prefixed by &lt;code>count&lt;/code>. The exact number of these files is decided by the runner, giving it the flexibility to do efficient, distributed execution.&lt;/p>
