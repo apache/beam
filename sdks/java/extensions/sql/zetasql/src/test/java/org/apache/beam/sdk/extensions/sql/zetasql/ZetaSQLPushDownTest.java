@@ -195,8 +195,9 @@ public class ZetaSQLPushDownTest {
   private static void initializeBeamTableProvider() {
     Table projectTable = getTable("InMemoryTableProject", PushDownOptions.PROJECT);
     Table bothTable = getTable("InMemoryTableBoth", PushDownOptions.BOTH);
-    Row[] rows = {row(BASIC_SCHEMA, (long) 100, (long) 1, "one", (long) 100),
-        row(BASIC_SCHEMA, (long) 200, (long) 2, "two", (long) 200)};
+    Row[] rows = {
+      row(BASIC_SCHEMA, 100L, 1L, "one", 100L), row(BASIC_SCHEMA, 200L, 2L, "two", 200L)
+    };
 
     tableProvider = new TestTableProvider();
     tableProvider.createTable(projectTable);

@@ -158,7 +158,8 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       for (int i = 0; i < inputSchema.getFieldCount(); i++) {
         options.addExpressionColumn(
             columnName(i),
-            ZetaSqlBeamTranslationUtils.beamFieldTypeToZetaSqlType(inputSchema.getField(i).getType()));
+            ZetaSqlBeamTranslationUtils.beamFieldTypeToZetaSqlType(
+                inputSchema.getField(i).getType()));
       }
 
       // TODO[BEAM-8630]: use a single PreparedExpression for all condition and projects

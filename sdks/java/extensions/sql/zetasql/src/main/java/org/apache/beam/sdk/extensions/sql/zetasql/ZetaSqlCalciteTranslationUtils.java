@@ -23,7 +23,6 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DATE;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DOUBLE;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_INT64;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIME;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
 import static java.util.stream.Collectors.toList;
 
@@ -48,10 +47,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * TODO[BEAM-10238]: support ZetaSQL types: TIME, DATETIME, NUMERIC
  */
 @Internal
-public class ZetaSqlCalciteTranslationUtils {
+public final class ZetaSqlCalciteTranslationUtils {
+
+  private ZetaSqlCalciteTranslationUtils() {}
 
   // Type conversion: Calcite => ZetaSQL
-  static Type toZetaType(RelDataType calciteType) {
+  public static Type toZetaType(RelDataType calciteType) {
     switch (calciteType.getSqlTypeName()) {
       case BIGINT:
         return TypeFactory.createSimpleType(TYPE_INT64);
@@ -65,17 +66,10 @@ public class ZetaSqlCalciteTranslationUtils {
         return TypeFactory.createSimpleType(TYPE_BYTES);
       case DATE:
         return TypeFactory.createSimpleType(TYPE_DATE);
-      case TIME:
-        return TypeFactory.createSimpleType(TYPE_TIME);
       case TIMESTAMP:
         return TypeFactory.createSimpleType(TYPE_TIMESTAMP);
       case ARRAY:
         return TypeFactory.createArrayType(toZetaType(calciteType.getComponentType()));
-      case MAP:
-        // it is ok to return a simple type for MAP because MAP only exists in pubsub table which
-        // used to save table attribute.
-        // TODO: have a better way to handle MAP given the fact that ZetaSQL has no MAP type.
-        return TypeFactory.createSimpleType(TypeKind.TYPE_STRING);
       case ROW:
         List<StructField> structFields =
             calciteType.getFieldList().stream()
@@ -106,7 +100,7 @@ public class ZetaSqlCalciteTranslationUtils {
       case TYPE_TIMESTAMP:
         // TODO: handle timestamp with time zone.
         return SqlTypeName.TIMESTAMP;
-      // TODO[BEAM-9179] Add conversion code for ARRAY and ROW types
+        // TODO[BEAM-9179] Add conversion code for ARRAY and ROW types
       default:
         throw new UnsupportedOperationException("Unknown ZetaSQL type: " + type.name());
     }
