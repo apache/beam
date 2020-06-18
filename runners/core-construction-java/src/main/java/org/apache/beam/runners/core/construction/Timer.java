@@ -76,6 +76,7 @@ public abstract class Timer<K> {
   }
 
   /** Returns the key that the timer is set on. */
+  @Nullable
   public abstract K getUserKey();
 
   /**
