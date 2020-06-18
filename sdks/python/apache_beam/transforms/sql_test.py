@@ -143,7 +143,7 @@ class SqlTransformTest(unittest.TestCase):
       out = (
           p
           | beam.Create([1, 2, 10])
-          | beam.Map(lambda x: beam.Row(a=x, b=str(x)))
+          | beam.Map(lambda x: beam.Row(a=x, b=unicode(x)))
           | SqlTransform("SELECT a*a as s, LENGTH(b) AS c FROM PCOLLECTION"))
       assert_that(out, equal_to([(1, 1), (4, 1), (100, 2)]))
 
