@@ -365,8 +365,10 @@ class EmbeddedWorkerHandler(WorkerHandler):
     pass
 
   def data_api_service_descriptor(self):
-    # type: () -> None
-    return None
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
+    # A fake endpoint is needed for properly constructing timer info map in
+    # bundle_processor for fnapi_runner.
+    return endpoints_pb2.ApiServiceDescriptor(url='fake')
 
   def state_api_service_descriptor(self):
     # type: () -> None

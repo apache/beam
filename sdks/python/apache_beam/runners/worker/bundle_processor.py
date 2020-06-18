@@ -801,7 +801,7 @@ class BundleProcessor(object):
     # There is no guarantee that the runner only set
     # timer_api_service_descriptor when having timers. So this field cannot be
     # used as an indicator of timers.
-    if self.process_bundle_descriptor.timer_api_service_descriptor:
+    if self.process_bundle_descriptor.timer_api_service_descriptor.url:
       self.timer_data_channel = (
           data_channel_factory.create_data_channel_from_url(
               self.process_bundle_descriptor.timer_api_service_descriptor.url))
