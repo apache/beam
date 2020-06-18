@@ -159,9 +159,16 @@ public class RowJson {
 
     private static final boolean SEQUENTIAL = false;
 
-    public enum MissingFieldBehavior {
-      ALLOW_MISSING,
-      REQUIRE_NULL
+    // Configure how we should attempt to parse null values when deserializing JSON
+    public enum NullBehavior {
+      // Interpret either a missing field or a null value is a null
+      ALLOW_MISSING_OR_NULL,
+      // Require nulls to be represented as a null value. If the key is missing for a nullable field
+      // an error will be thrown.
+      REQUIRE_NULL,
+      // Require nulls to be represented as a missing field. If the key exists with a null value an
+      // error will be thrown.
+      REQUIRE_MISSING,
     }
 
     private static final ImmutableMap<TypeName, ValueExtractor<?>> JSON_VALUE_GETTERS =
@@ -178,7 +185,7 @@ public class RowJson {
             .build();
 
     private final Schema schema;
-    private MissingFieldBehavior missingFieldBehavior = MissingFieldBehavior.REQUIRE_NULL;
+    private NullBehavior nullBehavior = NullBehavior.REQUIRE_NULL;
 
     /** Creates a deserializer for a {@link Row} {@link Schema}. */
     public static RowJsonDeserializer forSchema(Schema schema) {
@@ -192,12 +199,13 @@ public class RowJson {
     }
 
     /**
-     * Sets the behaviour of the deserializer with missing fields. If set to the default
-     * REQUIRE_NULL, it nulls must be explicitly defined as fieldName: null. If set to
-     * ALLOW_MISSING, missing fields will be interpreted as null.
+     * Sets the behaviour of the deserializer with when retrieving null values. If set to the
+     * default, REQUIRE_NULL, nulls must be explicitly defined as "fieldName": null. If set to
+     * REQUIRE_MISSING, a null value must be expressed by omitting the field. If set to
+     * ALLOW_MISSING_OR_NULL, both missing fields and null values will be interpreted as null.
      */
-    public RowJsonDeserializer withMissingFieldBehavior(MissingFieldBehavior behavior) {
-      this.missingFieldBehavior = behavior;
+    public RowJsonDeserializer withMissingFieldBehavior(NullBehavior behavior) {
+      this.nullBehavior = behavior;
       return this;
     }
 
@@ -213,15 +221,25 @@ public class RowJson {
 
     private Object extractJsonNodeValue(FieldValue fieldValue) {
       if (!fieldValue.isJsonValuePresent()) {
-        if (this.missingFieldBehavior == MissingFieldBehavior.ALLOW_MISSING) {
-          return null;
+        switch (this.nullBehavior) {
+          case ALLOW_MISSING_OR_NULL:
+          case REQUIRE_MISSING:
+            return null;
+          case REQUIRE_NULL:
+            throw new UnsupportedRowJsonException(
+                "Field '" + fieldValue.name() + "' is not present in the JSON object.");
         }
-        throw new UnsupportedRowJsonException(
-            "Field '" + fieldValue.name() + "' is not present in the JSON object");
       }
 
       if (fieldValue.isJsonNull()) {
-        return null;
+        switch (this.nullBehavior) {
+          case ALLOW_MISSING_OR_NULL:
+          case REQUIRE_NULL:
+            return null;
+          case REQUIRE_MISSING:
+            throw new UnsupportedRowJsonException(
+                "Field '" + fieldValue.name() + "' has a null value in the JSON object.");
+        }
       }
 
       if (fieldValue.isRowType()) {
