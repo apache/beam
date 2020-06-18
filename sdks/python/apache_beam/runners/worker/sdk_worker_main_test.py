@@ -94,8 +94,7 @@ class SdkWorkerMainTest(unittest.TestCase):
 
   @unittest.skip(
       'BEAM-10274: type=json.loads pipeline options cannot be parsed in the '
-      'python SDK harness'
-  )
+      'python SDK harness')
   def test_parse_json_object(self):
     # Note parsing is deferred, so the error isn't thrown until we try to access
     # m_json_object, or call get_all_options()
