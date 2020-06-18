@@ -1116,7 +1116,10 @@ class BeamModulePlugin implements Plugin<Project> {
               }
               artifact project.sourcesJar
               artifact project.testSourcesJar
-              artifact project.javadocJar
+
+              if (!project.hasProperty("skipJavadoc")) {
+                artifact project.javadocJar
+              }
 
               artifactId = project.archivesBaseName
               groupId = project.mavenGroupId
