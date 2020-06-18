@@ -17,14 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -34,50 +32,58 @@ import org.junit.Test;
 public class BeamAnalyticFunctionsExperimentTest extends BeamSqlDslBase {
 
   /**
-   * Table schema and data taken from
+   * Table schema and data taken from:
    * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#produce_table
-   *
-   * <p>Compute a cumulative sum query taken from
-   * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#compute_a_cumulative_sum
    */
-  @Test
-  public void testOverCumulativeSum() throws Exception {
-    pipeline.enableAbandonedNodeEnforcement(false);
+  private PCollection<Row> inputData() {
     Schema schema =
         Schema.builder()
             .addStringField("item")
             .addStringField("category")
             .addInt32Field("purchases")
             .build();
-    PCollection<Row> inputRows =
-        pipeline
-            .apply(
-                Create.of(
-                    TestUtils.rowsBuilderOf(schema)
-                        .addRows(
-                            "kale",
-                            "vegetable",
-                            23,
-                            "orange",
-                            "fruit",
-                            2,
-                            "cabbage",
-                            "vegetable",
-                            9,
-                            "apple",
-                            "fruit",
-                            8,
-                            "leek",
-                            "vegetable",
-                            2,
-                            "lettuce",
-                            "vegetable",
-                            10)
-                        .getRows()))
-            .setRowSchema(schema);
+    return pipeline
+        .apply(
+            Create.of(
+                TestUtils.rowsBuilderOf(schema)
+                    .addRows(
+                        "kale",
+                        "vegetable",
+                        23,
+                        "orange",
+                        "fruit",
+                        2,
+                        "cabbage",
+                        "vegetable",
+                        9,
+                        "apple",
+                        "fruit",
+                        8,
+                        "leek",
+                        "vegetable",
+                        2,
+                        "lettuce",
+                        "vegetable",
+                        10)
+                    .getRows()))
+        .setRowSchema(schema);
+  }
+
+  /**
+   * Compute a cumulative sum query taken from:
+   * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#compute_a_cumulative_sum
+   */
+  @Test
+  public void testOverCumulativeSum() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PCollection<Row> inputRows = inputData();
     String sql =
         "SELECT item, purchases, category, sum(purchases) over "
-            + "(PARTITION BY category ORDER BY purchases ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"
+            + "("
+            + "PARTITION BY category "
+            + "ORDER BY purchases "
+            + "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"
+            + ")"
             + " as total_purchases  FROM PCOLLECTION";
     PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
 
@@ -124,63 +130,56 @@ public class BeamAnalyticFunctionsExperimentTest extends BeamSqlDslBase {
   }
 
   /**
-   * Table schema and data taken from
-   * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#produce_table
-   *
-   * <p>Basic analytic function query taken from
+   * Basic analytic function query taken from:
    * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#compute_a_grand_total
    */
   @Test
-  @Ignore
   public void testSimpleOverFunction() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
-    Schema schema =
-        Schema.builder()
-            .addStringField("item")
-            .addStringField("category")
-            .addInt32Field("purchases")
-            .build();
-    PCollection<Row> inputRows =
-        pipeline
-            .apply(
-                Create.of(
-                    TestUtils.rowsBuilderOf(schema)
-                        .addRows(
-                            "kale",
-                            "vegetable",
-                            23,
-                            "orange",
-                            "fruit",
-                            2,
-                            "cabbage",
-                            "vegetable",
-                            9,
-                            "apple",
-                            "fruit",
-                            8,
-                            "leek",
-                            "vegetable",
-                            2,
-                            "lettuce",
-                            "vegetable",
-                            10)
-                        .getRows()))
-            .setRowSchema(schema);
+    PCollection<Row> inputRows = inputData();
     String sql =
         "SELECT item, purchases, category, sum(purchases) over ()"
             + " as total_purchases  FROM PCOLLECTION";
     PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
-    PAssert.that(result)
-        .satisfies(
-            input -> {
-              Iterator<Row> iter = input.iterator();
-              while (iter.hasNext()) {
-                Row row = iter.next();
-                System.out.println(row.toString());
-                // check results
-              }
-              return null;
-            });
+
+    Schema overResultSchema =
+        Schema.builder()
+            .addStringField("item")
+            .addInt32Field("purchases")
+            .addStringField("category")
+            .addInt32Field("total_purchases")
+            .build();
+
+    List<Row> overResult =
+        TestUtils.RowsBuilder.of(overResultSchema)
+            .addRows(
+                "orange",
+                2,
+                "fruit",
+                54,
+                "apple",
+                8,
+                "fruit",
+                54,
+                "leek",
+                2,
+                "vegetable",
+                54,
+                "cabbage",
+                9,
+                "vegetable",
+                54,
+                "lettuce",
+                10,
+                "vegetable",
+                54,
+                "kale",
+                23,
+                "vegetable",
+                54)
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(overResult);
 
     pipeline.run();
   }

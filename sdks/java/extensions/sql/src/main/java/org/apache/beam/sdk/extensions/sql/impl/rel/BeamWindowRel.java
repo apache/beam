@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static java.util.stream.Collectors.toList;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,7 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
-import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
@@ -41,10 +39,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlan
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.AggregateCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Window;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
@@ -62,62 +60,67 @@ public class BeamWindowRel extends Window implements BeamRelNode {
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     Schema outputSchema = CalciteUtils.toSchema(getRowType());
-    final List<FieldAggregation> analyticFields =
-        this.groups.stream()
-            .map(
-                anAnalyticGroup -> {
-                  List<Integer> partitionKeysDef = anAnalyticGroup.keys.toList();
-                  List<Integer> orderByKeys = Lists.newArrayList();
-                  List<Boolean> orderByDirections = Lists.newArrayList();
-                  List<Boolean> orderByNullDirections = Lists.newArrayList();
-                  anAnalyticGroup.orderKeys.getFieldCollations().stream()
-                      .forEach(
-                          fc -> {
-                            orderByKeys.add(fc.getFieldIndex());
-                            orderByDirections.add(
-                                fc.direction == RelFieldCollation.Direction.ASCENDING);
-                            orderByNullDirections.add(
-                                fc.nullDirection == RelFieldCollation.NullDirection.FIRST);
-                          });
-                  int lowerB = Integer.MAX_VALUE; // Unbounded by default
-                  int upperB = Integer.MAX_VALUE; // Unbounded by default
-                  if (anAnalyticGroup.lowerBound.isCurrentRow()) {
-                    lowerB = 0;
-                  } else if (anAnalyticGroup.lowerBound.isPreceding()) {
-                    // pending
-                  } else if (anAnalyticGroup.lowerBound.isFollowing()) {
-                    // pending
-                  }
-                  if (anAnalyticGroup.upperBound.isCurrentRow()) {
-                    upperB = 0;
-                  } else if (anAnalyticGroup.upperBound.isPreceding()) {
-                    // pending
-                  } else if (anAnalyticGroup.upperBound.isFollowing()) {
-                    // pending
-                  }
-                  // Assume a single input for now
-                  final List<Integer> aggregationFields = Lists.newArrayList();
-                  anAnalyticGroup.aggCalls.stream()
-                      .forEach(
-                          anAggCall -> {
-                            anAggCall.operands.stream()
-                                .forEach(
-                                    anAggCallInput -> {
-                                      aggregationFields.add(
-                                          ((RexInputRef) anAggCallInput).getIndex());
-                                    });
-                          });
-                  return new FieldAggregation(
-                      partitionKeysDef,
-                      orderByKeys,
-                      orderByDirections,
-                      orderByNullDirections,
-                      lowerB,
-                      upperB,
-                      anAnalyticGroup.isRows,
-                      aggregationFields);
-                })
-            .collect(toList());
+    final List<FieldAggregation> analyticFields = Lists.newArrayList();
+    this.groups.stream()
+        .forEach(
+            anAnalyticGroup -> {
+              List<Integer> partitionKeysDef = anAnalyticGroup.keys.toList();
+              List<Integer> orderByKeys = Lists.newArrayList();
+              List<Boolean> orderByDirections = Lists.newArrayList();
+              List<Boolean> orderByNullDirections = Lists.newArrayList();
+              anAnalyticGroup.orderKeys.getFieldCollations().stream()
+                  .forEach(
+                      fc -> {
+                        orderByKeys.add(fc.getFieldIndex());
+                        orderByDirections.add(
+                            fc.direction == RelFieldCollation.Direction.ASCENDING);
+                        orderByNullDirections.add(
+                            fc.nullDirection == RelFieldCollation.NullDirection.FIRST);
+                      });
+              int lowerB = Integer.MAX_VALUE; // Unbounded by default
+              int upperB = Integer.MAX_VALUE; // Unbounded by default
+              if (anAnalyticGroup.lowerBound.isCurrentRow()) {
+                lowerB = 0;
+              } else if (anAnalyticGroup.lowerBound.isPreceding()) {
+                // pending
+              } else if (anAnalyticGroup.lowerBound.isFollowing()) {
+                // pending
+              }
+              if (anAnalyticGroup.upperBound.isCurrentRow()) {
+                upperB = 0;
+              } else if (anAnalyticGroup.upperBound.isPreceding()) {
+                // pending
+              } else if (anAnalyticGroup.upperBound.isFollowing()) {
+                // pending
+              }
+              final int lowerBFinal = lowerB;
+              final int upperBFinal = upperB;
+              List<AggregateCall> aggregateCalls = anAnalyticGroup.getAggregateCalls(this);
+              aggregateCalls.stream()
+                  .forEach(
+                      anAggCall -> {
+                        List<Integer> argList = anAggCall.getArgList();
+                        Schema.Field field =
+                            CalciteUtils.toField(anAggCall.getName(), anAggCall.getType());
+                        Combine.CombineFn combineFn =
+                            AggregationCombineFnAdapter.createCombineFn(
+                                anAggCall, field, anAggCall.getAggregation().getName());
+                        FieldAggregation fieldAggregation =
+                            new FieldAggregation(
+                                partitionKeysDef,
+                                orderByKeys,
+                                orderByDirections,
+                                orderByNullDirections,
+                                lowerBFinal,
+                                upperBFinal,
+                                anAnalyticGroup.isRows,
+                                argList,
+                                combineFn,
+                                field);
+                        analyticFields.add(fieldAggregation);
+                      });
+            });
+
     return new Transform(outputSchema, analyticFields);
   }
 
@@ -131,7 +134,8 @@ public class BeamWindowRel extends Window implements BeamRelNode {
     private int upperLimit = Integer.MAX_VALUE;
     private boolean rows = true;
     private List<Integer> inputFields;
-    // private AggFunction  ... pending
+    private Combine.CombineFn combineFn;
+    private Schema.Field outputField;
 
     public FieldAggregation(
         List<Integer> partitionKeys,
@@ -141,7 +145,9 @@ public class BeamWindowRel extends Window implements BeamRelNode {
         int lowerLimit,
         int upperLimit,
         boolean rows,
-        List<Integer> fields) {
+        List<Integer> inputFields,
+        Combine.CombineFn combineFn,
+        Schema.Field outputField) {
       this.partitionKeys = partitionKeys;
       this.orderKeys = orderKeys;
       this.orderOrientations = orderOrientations;
@@ -149,7 +155,9 @@ public class BeamWindowRel extends Window implements BeamRelNode {
       this.lowerLimit = lowerLimit;
       this.upperLimit = upperLimit;
       this.rows = rows;
-      this.inputFields = fields;
+      this.inputFields = inputFields;
+      this.combineFn = combineFn;
+      this.outputField = outputField;
     }
   }
 
@@ -172,27 +180,71 @@ public class BeamWindowRel extends Window implements BeamRelNode {
     private Schema outputSchema;
     private List<FieldAggregation> aggFields;
 
-    public Transform(Schema s, List<FieldAggregation> af) {
-      this.outputSchema = s;
-      this.aggFields = af;
+    public Transform(Schema schema, List<FieldAggregation> fieldAgg) {
+      this.outputSchema = schema;
+      this.aggFields = fieldAgg;
     }
 
     @Override
     public PCollection<Row> expand(PCollectionList<Row> input) {
-      PCollection<Row> r = input.get(0);
+      PCollection<Row> inputData = input.get(0);
+      Schema inputSchema = inputData.getSchema();
       for (FieldAggregation af : aggFields) {
-        org.apache.beam.sdk.schemas.transforms.Group.ByFields<Row> myg =
-            org.apache.beam.sdk.schemas.transforms.Group.byFieldIds(af.partitionKeys);
-        r = r.apply("partitionBy", myg);
-        r = r.apply("orderBy", ParDo.of(sortPartition(af))).setRowSchema(r.getSchema());
-        r = r.apply("aggCall", ParDo.of(aggField(outputSchema, af))).setRowSchema(outputSchema);
+        if (af.partitionKeys.isEmpty()) {
+          // This sections simulate a KV Row
+          // Similar to the output of Group.byFieldIds
+          // When no partitions are specified
+          Schema inputSch = inputData.getSchema();
+          Schema mockKeySchema =
+              Schema.of(Schema.Field.of("mock", Schema.FieldType.STRING.withNullable(true)));
+          Schema simulatedKeyValueSchema =
+              Schema.of(
+                  Schema.Field.of("key", Schema.FieldType.row(mockKeySchema)),
+                  Schema.Field.of(
+                      "value", Schema.FieldType.iterable(Schema.FieldType.row(inputSch))));
+          PCollection<Iterable<Row>> apply =
+              inputData.apply(org.apache.beam.sdk.schemas.transforms.Group.globally());
+          inputData =
+              apply
+                  .apply(ParDo.of(uniquePartition(mockKeySchema, simulatedKeyValueSchema)))
+                  .setRowSchema(simulatedKeyValueSchema);
+        } else {
+          org.apache.beam.sdk.schemas.transforms.Group.ByFields<Row> myg =
+              org.apache.beam.sdk.schemas.transforms.Group.byFieldIds(af.partitionKeys);
+          inputData = inputData.apply("partitionBy", myg);
+        }
+        inputData =
+            inputData
+                .apply("orderBy", ParDo.of(sortPartition(af)))
+                .setRowSchema(inputData.getSchema());
+        inputSchema =
+            Schema.builder().addFields(inputSchema.getFields()).addFields(af.outputField).build();
+        inputData =
+            inputData
+                .apply("aggCall", ParDo.of(aggField(inputSchema, af)))
+                .setRowSchema(inputSchema);
       }
-      return r;
+      return inputData.setRowSchema(this.outputSchema);
     }
   }
 
+  private static DoFn<Iterable<Row>, Row> uniquePartition(
+      final Schema mockKeySchema, final Schema expectedSchema) {
+    return new DoFn<Iterable<Row>, Row>() {
+      @ProcessElement
+      public void processElement(
+          @Element Iterable<Row> inputPartition, OutputReceiver<Row> out, ProcessContext c) {
+        List<Row> result = Lists.newArrayList();
+        inputPartition.forEach(result::add);
+        Row key = Row.nullRow(mockKeySchema);
+        Row build = Row.withSchema(expectedSchema).addValues(key, result).build();
+        out.output(build);
+      }
+    };
+  }
+
   private static DoFn<Row, Row> aggField(
-      final Schema outputSchema, final FieldAggregation fieldAgg) {
+      final Schema expectedSchema, final FieldAggregation fieldAgg) {
     return new DoFn<Row, Row>() {
       @ProcessElement
       public void processElement(
@@ -200,34 +252,29 @@ public class BeamWindowRel extends Window implements BeamRelNode {
         Collection<Row> inputPartitions = inputPartition.getArray(1); // 1 -> value
         List<Row> sortedRowsAsList = new ArrayList<Row>(inputPartitions);
         for (int idx = 0; idx < sortedRowsAsList.size(); idx++) {
-          int lowerIndex = idx - fieldAgg.lowerLimit;
-          int upperIndex = idx + fieldAgg.upperLimit + 1;
+          int lowerIndex =
+              fieldAgg.lowerLimit == Integer.MAX_VALUE
+                  ? Integer.MIN_VALUE
+                  : idx - fieldAgg.lowerLimit;
+          int upperIndex =
+              fieldAgg.upperLimit == Integer.MAX_VALUE
+                  ? Integer.MAX_VALUE
+                  : idx + fieldAgg.upperLimit + 1;
           lowerIndex = lowerIndex < 0 ? 0 : lowerIndex;
           upperIndex = upperIndex > sortedRowsAsList.size() ? sortedRowsAsList.size() : upperIndex;
           List<Row> aggRange = sortedRowsAsList.subList(lowerIndex, upperIndex);
-
-          // Just concept-proof
-          // Assume that aggFun = SUM
-          // Assume dataType = INTEGER
-          final Combine.CombineFn<Integer, int[], Integer> aggFunction =
-              (Combine.CombineFn<Integer, int[], Integer>)
-                  BeamBuiltinAggregations.create("SUM", Schema.FieldType.INT32);
-          int[] aggAccumulator = aggFunction.createAccumulator();
-
-          // Assume a simple expression within SUM($aUniqueDirectField)
+          Object accumulator = fieldAgg.combineFn.createAccumulator();
           final int aggFieldIndex = fieldAgg.inputFields.get(0);
-
           for (Row aggRow : aggRange) {
-            Integer valueToAgg = aggRow.getInt32(aggFieldIndex);
-            aggFunction.addInput(aggAccumulator, valueToAgg);
+            fieldAgg.combineFn.addInput(accumulator, aggRow.getBaseValue(aggFieldIndex));
           }
-          Integer aggOutput = aggFunction.extractOutput(aggAccumulator);
-          List<Object> fieldValues =
-              Lists.newArrayListWithCapacity(sortedRowsAsList.get(idx).getFieldCount());
-          fieldValues.addAll(sortedRowsAsList.get(idx).getValues());
-          fieldValues.add(aggOutput);
-          Row ou = Row.withSchema(outputSchema).addValues(fieldValues).build();
-          out.output(ou);
+          Object result = fieldAgg.combineFn.extractOutput(accumulator);
+          Row processingRow = sortedRowsAsList.get(idx);
+          List<Object> fieldValues = Lists.newArrayListWithCapacity(processingRow.getFieldCount());
+          fieldValues.addAll(processingRow.getValues());
+          fieldValues.add(result);
+          Row build = Row.withSchema(expectedSchema).addValues(fieldValues).build();
+          out.output(build);
         }
       }
     };
