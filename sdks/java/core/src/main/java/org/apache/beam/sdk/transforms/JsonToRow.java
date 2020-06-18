@@ -165,8 +165,6 @@ public class JsonToRow {
   @AutoValue
   abstract static class JsonToRowWithErrFn extends PTransform<PCollection<String>, ParseResult> {
 
-    private Pipeline pipeline;
-
     private static final String LINE_FIELD_NAME = "line";
     private static final String ERROR_FIELD_NAME = "err";
 
@@ -264,6 +262,7 @@ public class JsonToRow {
       }
 
       return ParseResult.resultBuilder()
+          .setCallingPipeline(jsonStrings.getPipeline())
           .setJsonToRowWithErrFn(this)
           .setParsedLine(result.get(PARSED_LINE).setRowSchema(this.getSchema()))
           .setFailedParse(failures)
@@ -343,6 +342,8 @@ public class JsonToRow {
 
     public abstract ParseResult.Builder toBuilder();
 
+    public abstract Pipeline getCallingPipeline();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setJsonToRowWithErrFn(JsonToRowWithErrFn value);
@@ -350,6 +351,8 @@ public class JsonToRow {
       public abstract Builder setParsedLine(PCollection<Row> value);
 
       public abstract Builder setFailedParse(PCollection<Row> value);
+
+      public abstract Builder setCallingPipeline(Pipeline value);
 
       public abstract ParseResult build();
     }
@@ -360,7 +363,7 @@ public class JsonToRow {
 
     @Override
     public Pipeline getPipeline() {
-      return getJsonToRowWithErrFn().pipeline;
+      return getCallingPipeline();
     }
 
     @Override
