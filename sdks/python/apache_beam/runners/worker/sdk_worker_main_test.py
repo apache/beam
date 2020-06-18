@@ -23,6 +23,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import json
 import logging
 import unittest
 
@@ -47,6 +48,11 @@ class SdkWorkerMainTest(unittest.TestCase):
       parser.add_argument('--m_option', help='mock option')
       parser.add_argument(
           '--m_m_option', action='append', help='mock multi option')
+      parser.add_argument(
+          '--m_json_object',
+          default={},
+          type=json.loads,
+          help='mock json object option')
 
   def test_status_server(self):
 
@@ -85,6 +91,20 @@ class SdkWorkerMainTest(unittest.TestCase):
                      sdk_worker_main._parse_pipeline_options(
                          '{"options": {"eam:option:m_option:v":"mock_val"}}').
                      get_all_options(drop_default=True))
+
+  @unittest.skip(
+      'BEAM-10274: type=json.loads pipeline options cannot be parsed in the python SDK harness'
+  )
+  def test_parse_json_object(self):
+    # Note parsing is deferred, so the error isn't thrown until we try to access
+    # m_json_object, or call get_all_options()
+    self.assertEqual(
+        {'m_json_obect': {
+            'foo': 'bar'
+        }},
+        sdk_worker_main._parse_pipeline_options(
+            '{"options": {"beam_services":{"foo":"bar"}}}').get_all_options(
+                drop_default=True))
 
 
 if __name__ == '__main__':

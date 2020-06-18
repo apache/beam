@@ -112,9 +112,13 @@ def main(unused_argv):
   thread.start()
 
   if 'PIPELINE_OPTIONS' in os.environ:
+    _LOGGER.info(
+        "Initializing pipeline options from PIPELINE_OPTIONS env var: '%s'" %
+        os.environ['PIPELINE_OPTIONS'])
     sdk_pipeline_options = _parse_pipeline_options(
         os.environ['PIPELINE_OPTIONS'])
   else:
+    _LOGGER.info("PIPELINE_OPTIONS not set, creating empty pipeline options")
     sdk_pipeline_options = PipelineOptions.from_dictionary({})
 
   if 'SEMI_PERSISTENT_DIRECTORY' in os.environ:
@@ -133,9 +137,7 @@ def main(unused_argv):
         'Could not load main session: %s', exception_details, exc_info=True)
 
   try:
-    _LOGGER.info(
-        'Python sdk harness started with pipeline_options: %s',
-        sdk_pipeline_options.get_all_options(drop_default=True))
+    _LOGGER.info('Python sdk harness started.')
     control_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     status_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(
