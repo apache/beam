@@ -72,8 +72,7 @@ import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperatorRewriter;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperators;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlWindowTableFunction;
-import org.apache.beam.sdk.extensions.sql.zetasql.TypeUtils;
-import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlUtils;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnitRange;
@@ -451,7 +450,8 @@ public class ExpressionConverter {
         isCastingSupported(fromType, toType);
 
         RelDataType outputType =
-            TypeUtils.toSimpleRelDataType(toType, rexBuilder(), operand.getType().isNullable());
+            ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(
+                toType, rexBuilder(), operand.getType().isNullable());
 
         if (isZetaSQLCast(fromType, toType)) {
           ret = rexBuilder().makeCall(outputType, ZETASQL_CAST_OP, ImmutableList.of(operand));
@@ -633,7 +633,9 @@ public class ExpressionConverter {
     for (int i = 0; i < inputTableColumns.size(); i++) {
       if (inputTableColumns.get(i).equals(column)) {
         return rexBuilder()
-            .makeInputRef(TypeUtils.toRelDataType(rexBuilder(), column.getType(), false), i);
+            .makeInputRef(
+                ZetaSqlCalciteTranslationUtils.toRelDataType(rexBuilder(), column.getType(), false),
+                i);
       }
     }
 
@@ -695,7 +697,8 @@ public class ExpressionConverter {
 
   private RexNode convertSimpleValueToRexNode(TypeKind kind, Value value) {
     if (value.isNull()) {
-      return rexBuilder().makeNullLiteral(TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
+      return rexBuilder()
+          .makeNullLiteral(ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(kind, rexBuilder()));
     }
 
     RexNode ret;
@@ -708,21 +711,21 @@ public class ExpressionConverter {
             rexBuilder()
                 .makeExactLiteral(
                     new BigDecimal(value.getInt32Value()),
-                    TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
+                    ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(kind, rexBuilder()));
         break;
       case TYPE_INT64:
         ret =
             rexBuilder()
                 .makeExactLiteral(
                     new BigDecimal(value.getInt64Value()),
-                    TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
+                    ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(kind, rexBuilder()));
         break;
       case TYPE_FLOAT:
         ret =
             rexBuilder()
                 .makeApproxLiteral(
                     new BigDecimal(value.getFloatValue()),
-                    TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
+                    ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(kind, rexBuilder()));
         break;
       case TYPE_DOUBLE:
         double val = value.getDoubleValue();
@@ -732,7 +735,8 @@ public class ExpressionConverter {
         ret =
             rexBuilder()
                 .makeApproxLiteral(
-                    new BigDecimal(val), TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
+                    new BigDecimal(val),
+                    ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(kind, rexBuilder()));
         break;
       case TYPE_STRING:
         // has to allow CAST because Calcite create CHAR type first and does a CAST to VARCHAR.
@@ -774,7 +778,8 @@ public class ExpressionConverter {
 
   private RexNode convertArrayValueToRexNode(ArrayType arrayType, Value value) {
     // TODO: should the nullable be false for a array?
-    RelDataType outputType = TypeUtils.toArrayRelDataType(rexBuilder(), arrayType, false);
+    RelDataType outputType =
+        ZetaSqlCalciteTranslationUtils.toArrayRelDataType(rexBuilder(), arrayType, false);
 
     if (value.isNull()) {
       return rexBuilder().makeNullLiteral(outputType);
@@ -790,7 +795,8 @@ public class ExpressionConverter {
   private RexNode convertStructValueToRexNode(StructType structType, Value value) {
     if (value.isNull()) {
       return rexBuilder()
-          .makeNullLiteral(TypeUtils.toStructRelDataType(rexBuilder(), structType, false));
+          .makeNullLiteral(
+              ZetaSqlCalciteTranslationUtils.toStructRelDataType(rexBuilder(), structType, false));
     }
 
     List<RexNode> operands = new ArrayList<>();
@@ -842,7 +848,7 @@ public class ExpressionConverter {
     // TODO: can join key be NULL?
     return rexBuilder()
         .makeInputRef(
-            TypeUtils.toRelDataType(rexBuilder(), columnRef.getType(), false),
+            ZetaSqlCalciteTranslationUtils.toRelDataType(rexBuilder(), columnRef.getType(), false),
             (int) columnRef.getColumn().getId() - 1);
   }
 
@@ -907,7 +913,7 @@ public class ExpressionConverter {
         if (returnType != null) {
           op =
               SqlOperators.createSimpleSqlFunction(
-                  funName, ZetaSqlUtils.zetaSqlTypeToCalciteTypeName(returnType));
+                  funName, ZetaSqlCalciteTranslationUtils.toCalciteTypeName(returnType.getKind()));
         } else {
           throw new UnsupportedOperationException("Does not support ZetaSQL function: " + funName);
         }
@@ -1030,7 +1036,7 @@ public class ExpressionConverter {
         convertRexNodeFromResolvedExpr(resolvedCast.getExpr(), columnList, fieldList);
     // nullability of the output type should match that of the input node's type
     RelDataType outputType =
-        TypeUtils.toSimpleRelDataType(
+        ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(
             resolvedCast.getType().getKind(), rexBuilder(), inputNode.getType().isNullable());
 
     if (isZetaSQLCast(fromType, toType)) {
@@ -1070,7 +1076,7 @@ public class ExpressionConverter {
         return Optional.of(
             rexBuilder()
                 .makeInputRef(
-                    TypeUtils.toSimpleRelDataType(
+                    ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(
                         columnRef.getType().getKind(), rexBuilder(), nullable),
                     off));
       }

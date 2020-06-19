@@ -121,17 +121,21 @@ public class ZetaSqlUtilsTest {
 
   @Test
   public void testBeamFieldTypeToZetaSqlType() {
-    assertEquals(ZetaSqlUtils.beamFieldTypeToZetaSqlType(TEST_FIELD_TYPE), TEST_TYPE);
+    assertEquals(
+        ZetaSqlBeamTranslationUtils.beamFieldTypeToZetaSqlType(TEST_FIELD_TYPE), TEST_TYPE);
   }
 
   @Test
   public void testJavaObjectToZetaSqlValue() {
-    assertEquals(ZetaSqlUtils.javaObjectToZetaSqlValue(TEST_ROW, TEST_FIELD_TYPE), TEST_VALUE);
+    assertEquals(
+        ZetaSqlBeamTranslationUtils.javaObjectToZetaSqlValue(TEST_ROW, TEST_FIELD_TYPE),
+        TEST_VALUE);
   }
 
   @Test
   public void testZetaSqlValueToJavaObject() {
     assertEquals(
-        ZetaSqlUtils.zetaSqlValueToJavaObject(TEST_VALUE, TEST_FIELD_TYPE, true), TEST_ROW);
+        ZetaSqlBeamTranslationUtils.zetaSqlValueToJavaObject(TEST_VALUE, TEST_FIELD_TYPE, true),
+        TEST_ROW);
   }
 }
