@@ -39,6 +39,7 @@ func joinFn(person Person, citiesToCountriesIter func(*string, *string) bool, em
 				City:    city,
 				Country: country,
 			})
+			break
 		}
 	}
 }
