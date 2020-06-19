@@ -131,7 +131,7 @@ class JobServiceHandle(object):
         except grpc.FutureTimeoutError:
           # no retry for timeout errors
           raise
-        except grpc._channel._Rendezvous as e:
+        except grpc.RpcError as e:
           num_retries += 1
           if num_retries > max_retries:
             raise e
