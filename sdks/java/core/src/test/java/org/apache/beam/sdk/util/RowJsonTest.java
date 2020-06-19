@@ -319,7 +319,6 @@ public class RowJsonTest {
     }
   }
 
-
   @RunWith(JUnit4.class)
   public static class DeserializerTests {
     private static final Boolean BOOLEAN_TRUE_VALUE = true;
