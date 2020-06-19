@@ -21,12 +21,8 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BOOL;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BYTES;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DATE;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DOUBLE;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_FLOAT;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_INT32;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_INT64;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_NUMERIC;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIME;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
 import static java.util.stream.Collectors.toList;
 
@@ -43,59 +39,37 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
-/** Utility to convert types from Calcite Schema types. */
+/**
+ * Utility methods for ZetaSQL <=> Calcite translation.
+ *
+ * <p>Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
+ * TODO[BEAM-10238]: support ZetaSQL types: TIME, DATETIME, NUMERIC
+ */
 @Internal
-public class TypeUtils {
+public final class ZetaSqlCalciteTranslationUtils {
 
-  private static final ImmutableMap<SqlTypeName, Type> CALCITE_TO_ZETA_SIMPLE_TYPES =
-      ImmutableMap.<SqlTypeName, Type>builder()
-          .put(SqlTypeName.BIGINT, TypeFactory.createSimpleType(TYPE_INT64))
-          .put(SqlTypeName.INTEGER, TypeFactory.createSimpleType(TYPE_INT32))
-          .put(SqlTypeName.VARCHAR, TypeFactory.createSimpleType(TYPE_STRING))
-          .put(SqlTypeName.BOOLEAN, TypeFactory.createSimpleType(TYPE_BOOL))
-          .put(SqlTypeName.FLOAT, TypeFactory.createSimpleType(TYPE_FLOAT))
-          .put(SqlTypeName.DOUBLE, TypeFactory.createSimpleType(TYPE_DOUBLE))
-          .put(SqlTypeName.VARBINARY, TypeFactory.createSimpleType(TYPE_BYTES))
-          .put(SqlTypeName.TIMESTAMP, TypeFactory.createSimpleType(TYPE_TIMESTAMP))
-          .put(SqlTypeName.DATE, TypeFactory.createSimpleType(TYPE_DATE))
-          .put(SqlTypeName.TIME, TypeFactory.createSimpleType(TYPE_TIME))
-          .build();
+  private ZetaSqlCalciteTranslationUtils() {}
 
-  private static final ImmutableMap<TypeKind, Function<RexBuilder, RelDataType>>
-      ZETA_TO_CALCITE_SIMPLE_TYPES =
-          ImmutableMap.<TypeKind, Function<RexBuilder, RelDataType>>builder()
-              .put(TYPE_NUMERIC, relDataTypeFactory(SqlTypeName.DECIMAL))
-              .put(TYPE_INT32, relDataTypeFactory(SqlTypeName.INTEGER))
-              .put(TYPE_INT64, relDataTypeFactory(SqlTypeName.BIGINT))
-              .put(TYPE_FLOAT, relDataTypeFactory(SqlTypeName.FLOAT))
-              .put(TYPE_DOUBLE, relDataTypeFactory(SqlTypeName.DOUBLE))
-              .put(TYPE_STRING, relDataTypeFactory(SqlTypeName.VARCHAR))
-              .put(TYPE_BOOL, relDataTypeFactory(SqlTypeName.BOOLEAN))
-              .put(TYPE_BYTES, relDataTypeFactory(SqlTypeName.VARBINARY))
-              .put(TYPE_DATE, relDataTypeFactory(SqlTypeName.DATE))
-              .put(TYPE_TIME, relDataTypeFactory(SqlTypeName.TIME))
-              // TODO: handle timestamp with time zone.
-              .put(TYPE_TIMESTAMP, relDataTypeFactory(SqlTypeName.TIMESTAMP))
-              .build();
-
-  /** Returns a type matching the corresponding Calcite type. */
-  static Type toZetaType(RelDataType calciteType) {
-
-    if (CALCITE_TO_ZETA_SIMPLE_TYPES.containsKey(calciteType.getSqlTypeName())) {
-      return CALCITE_TO_ZETA_SIMPLE_TYPES.get(calciteType.getSqlTypeName());
-    }
-
+  // Type conversion: Calcite => ZetaSQL
+  public static Type toZetaType(RelDataType calciteType) {
     switch (calciteType.getSqlTypeName()) {
+      case BIGINT:
+        return TypeFactory.createSimpleType(TYPE_INT64);
+      case DOUBLE:
+        return TypeFactory.createSimpleType(TYPE_DOUBLE);
+      case BOOLEAN:
+        return TypeFactory.createSimpleType(TYPE_BOOL);
+      case VARCHAR:
+        return TypeFactory.createSimpleType(TYPE_STRING);
+      case VARBINARY:
+        return TypeFactory.createSimpleType(TYPE_BYTES);
+      case DATE:
+        return TypeFactory.createSimpleType(TYPE_DATE);
+      case TIMESTAMP:
+        return TypeFactory.createSimpleType(TYPE_TIMESTAMP);
       case ARRAY:
         return TypeFactory.createArrayType(toZetaType(calciteType.getComponentType()));
-      case MAP:
-
-        // it is ok to return a simple type for MAP because MAP only exists in pubsub table which
-        // used to save table attribute.
-        // TODO: have a better way to handle MAP given the fact that ZetaSQL has no MAP type.
-        return TypeFactory.createSimpleType(TypeKind.TYPE_STRING);
       case ROW:
         List<StructField> structFields =
             calciteType.getFieldList().stream()
@@ -105,6 +79,30 @@ public class TypeUtils {
         return TypeFactory.createStructType(structFields);
       default:
         throw new UnsupportedOperationException("Unsupported RelDataType: " + calciteType);
+    }
+  }
+
+  // Type conversion: ZetaSQL => Calcite
+  public static SqlTypeName toCalciteTypeName(TypeKind type) {
+    switch (type) {
+      case TYPE_INT64:
+        return SqlTypeName.BIGINT;
+      case TYPE_DOUBLE:
+        return SqlTypeName.DOUBLE;
+      case TYPE_BOOL:
+        return SqlTypeName.BOOLEAN;
+      case TYPE_STRING:
+        return SqlTypeName.VARCHAR;
+      case TYPE_BYTES:
+        return SqlTypeName.VARBINARY;
+      case TYPE_DATE:
+        return SqlTypeName.DATE;
+      case TYPE_TIMESTAMP:
+        // TODO: handle timestamp with time zone.
+        return SqlTypeName.TIMESTAMP;
+        // TODO[BEAM-9179] Add conversion code for ARRAY and ROW types
+      default:
+        throw new UnsupportedOperationException("Unknown ZetaSQL type: " + type.name());
     }
   }
 
@@ -134,7 +132,7 @@ public class TypeUtils {
     for (int i = 0; i < fields.size(); i++) {
       String name = fields.get(i).getName();
       if ("".equals(name)) {
-        name = "$col" + String.valueOf(i);
+        name = "$col" + i;
       }
       b.add(name);
     }
@@ -161,11 +159,7 @@ public class TypeUtils {
 
   public static RelDataType toSimpleRelDataType(
       TypeKind kind, RexBuilder rexBuilder, boolean isNullable) {
-    if (!ZETA_TO_CALCITE_SIMPLE_TYPES.containsKey(kind)) {
-      throw new UnsupportedOperationException("Unsupported column type: " + kind);
-    }
-
-    RelDataType relDataType = ZETA_TO_CALCITE_SIMPLE_TYPES.get(kind).apply(rexBuilder);
+    RelDataType relDataType = relDataTypeFactory(toCalciteTypeName(kind)).apply(rexBuilder);
     return nullable(rexBuilder, relDataType, isNullable);
   }
 
