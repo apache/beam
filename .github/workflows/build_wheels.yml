@@ -150,6 +150,26 @@ jobs:
         service_account_key: ${{ secrets.GCP_SA_KEY }}
     - name: Copy wheels to GCS bucket
       run: gsutil cp -r -a public-read wheelhouse/* gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/
+    - name: Create github action information file on GCS bucket
+      run: |
+        cat > github_action_info <<EOF
+        GITHUB_WORKFLOW=$GITHUB_WORKFLOW
+        GITHUB_RUN_ID=$GITHUB_RUN_ID
+        GITHUB_RUN_NUMBER=$GITHUB_RUN_NUMBER
+        GITHUB_ACTION=$GITHUB_ACTION
+        GITHUB_ACTOR=$GITHUB_ACTOR
+        GITHUB_REPOSITORY=$GITHUB_REPOSITORY
+        GITHUB_EVENT_NAME=$GITHUB_EVENT_NAME
+        GITHUB_SHA=$GITHUB_SHA
+        GITHUB_REF=$GITHUB_REF
+        # only for forked repositiories
+        GITHUB_HEAD_REF=$GITHUB_HEAD_REF
+        GITHUB_BASE_REF=$GITHUB_BASE_REF
+        EOF
+        echo $(cat github_action_info)
+        gsutil cp -a public-read github_action_info gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/
+    - name: Upload GitHub event file to GCS bucket
+      run: gsutil cp -a public-read ${GITHUB_EVENT_PATH} gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/
 
   list_files_on_gcs:
     name: List files on Google Cloud Storage Bucket
