@@ -70,19 +70,23 @@ class ReadModifyWriteRuntimeState(DirectRuntimeState,
     self._modified = False
 
   def read(self):
+    if self._cleared:
+      return None
     if self._value is UNREAD_VALUE:
       self._value = self._current_value_accessor()
-    return self._decode(self._value)
+    if not self._value:
+      return None
+    return self._decode(self._value[0])
 
   def write(self, value):
     self._cleared = False
     self._modified = True
-    self._value = self._encode(value)
+    self._value = [self._encode(value)]
 
   def clear(self):
     self._cleared = True
     self._modified = False
-    self._value = UNREAD_VALUE
+    self._value = []
 
   def is_cleared(self):
     return self._cleared

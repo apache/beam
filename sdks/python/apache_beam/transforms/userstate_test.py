@@ -468,8 +468,14 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         yield last_element.read()
 
     with TestPipeline() as p:
+      test_stream = (
+          TestStream().advance_watermark_to(0).add_elements([
+              ('a', 1)
+          ]).advance_watermark_to(10).add_elements([
+              ('a', 3)
+          ]).advance_watermark_to(20).add_elements([('a', 5)]))
       (
-          p | beam.Create([('a', 1), ('a', 3), ('a', 5)])
+          p | test_stream
           | beam.ParDo(SimpleTestReadModifyWriteStatefulDoFn())
           | beam.ParDo(self.record_dofn()))
     self.assertEqual(['a:1', 'a:3', 'a:5'],
@@ -489,8 +495,14 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
           yield last_element.read()
 
     with TestPipeline() as p:
+      test_stream = (
+          TestStream().advance_watermark_to(0).add_elements([
+              ('a', 1)
+          ]).advance_watermark_to(10).add_elements([
+              ('a', 3)
+          ]).advance_watermark_to(20).add_elements([('a', 5)]))
       (
-          p | beam.Create([('a', 1), ('a', 3), ('a', 5)])
+          p | test_stream
           | beam.ParDo(SimpleClearingReadModifyWriteStatefulDoFn())
           | beam.ParDo(self.record_dofn()))
     self.assertEqual(['None:1', 'None:3', 'None:5'],
