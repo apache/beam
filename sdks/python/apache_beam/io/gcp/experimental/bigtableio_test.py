@@ -19,14 +19,13 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from collections import namedtuple
-from mock import patch
+from __future__ import absolute_import, division, print_function
 
 import logging
 import unittest
+from collections import namedtuple
+
+from mock import patch
 
 # Protect against environments where bigtable library is not available.
 try:

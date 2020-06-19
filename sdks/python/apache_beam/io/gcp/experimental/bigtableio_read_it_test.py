@@ -16,19 +16,16 @@
 #
 
 """ Integration test for GC Bigtable connector [read]."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-import apache_beam as beam
 import argparse
 import logging
 import unittest
 
+import apache_beam as beam
 from apache_beam.io.gcp.experimental.bigtableio import ReadFromBigtable
 from apache_beam.metrics.metric import MetricsFilter
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 from apache_beam.runners.runner import PipelineState
 from nose.plugins.attrib import attr
 
@@ -62,8 +59,8 @@ class BigtableReadTest(unittest.TestCase):
   def test_bigtable_read(self):
     logging.info(
         'Reading table "%s" of %d rows...',
-        options['table'], options['row_count']
-    )
+        options['table'],
+        options['row_count'])
 
     p = beam.Pipeline(options=self._p_options)
     _ = (
@@ -85,8 +82,8 @@ class BigtableReadTest(unittest.TestCase):
       assert final_count == options['row_count']
       logging.info(
           '%d out of %d rows were read successfully.',
-          final_count, options['row_count']
-      )
+          final_count,
+          options['row_count'])
 
     logging.info('DONE!')
 
