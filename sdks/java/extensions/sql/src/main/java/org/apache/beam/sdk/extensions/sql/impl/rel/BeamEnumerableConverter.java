@@ -179,6 +179,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       // Check pipeline state in every second
       state = result.waitUntilFinish(Duration.standardSeconds(1));
       if (state != null && state.isTerminal()) {
+        if (PipelineResult.State.FAILED.equals(state)) {
+          throw new RuntimeException("Pipeline failed for unknown reason");
+        }
         break;
       }
 
@@ -201,7 +204,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     PCollection<Row> resultCollection = BeamSqlRelUtils.toPCollection(pipeline, node);
     resultCollection.apply(ParDo.of(new Collector()));
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    if (PipelineResult.State.FAILED.equals(result.waitUntilFinish())) {
+      throw new RuntimeException("Pipeline failed for unknown reason");
+    }
   }
 
   private static Queue<Row> collectRows(PipelineOptions options, BeamRelNode node) {
@@ -362,7 +367,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     long count = 0;
     if (!containsUnboundedPCollection(pipeline)) {
-      result.waitUntilFinish();
+      if (PipelineResult.State.FAILED.equals(result.waitUntilFinish())) {
+        throw new RuntimeException("Pipeline failed for unknown reason");
+      }
       MetricQueryResults metrics =
           result
               .metrics()
