@@ -43,6 +43,7 @@ def smokeTestConfigurations = { datasetName -> [
                         project          : 'apache-beam-testing',
                         region           : 'us-central1',
                         tempLocation     : 'gs://temp-storage-for-perf-tests/smoketests',
+                        tempRoot         : 'gs://temp-storage-for-perf-tests/smoketests',
                         publishToBigQuery: true,
                         bigQueryDataset  : datasetName,
                         bigQueryTable    : 'dataflow_gbk',

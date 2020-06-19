@@ -34,6 +34,7 @@ def smokeTestConfigurations = { datasetName ->
             appName 'smoke-dsl-java'
             project 'apache-beam-testing'
             tempLocation 'gs://temp-storage-for-perf-tests/smoketests'
+            tempRoot 'gs://temp-storage-for-perf-tests/smoketests'
             publishToBigQuery true
             bigQueryDataset datasetName
             bigQueryTable 'dataflow_combine'
