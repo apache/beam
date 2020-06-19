@@ -23,24 +23,20 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import logging
 import unittest
 
 from collections import namedtuple
 from mock import patch
 
-# Protect against environments where datastore library is not available.
+# Protect against environments where bigtable library is not available.
 try:
   import apache_beam as beam
   from apache_beam.metrics import Metrics
-  from apache_beam.transforms.util import Reshuffle
   from google.cloud.bigtable import client
-  from google.cloud.bigtable import row_data
-  from google.cloud.bigtable.client import Client
-  from google.cloud.bigtable.table import Table
   from google.cloud.bigtable.row_filters import ValueRangeFilter
+  from google.cloud.bigtable.table import Table
   from apache_beam.io.gcp.experimental import bigtableio
-  from google.api_core import exceptions
-  import bigtableio
 except (ImportError, TypeError):
   client = None
 
@@ -53,13 +49,13 @@ class BigtableioTest(unittest.TestCase):
   _FILTER = ValueRangeFilter()
 
   def setUp(self):
-    self._row_limit = 100000 # 100k, for argument's sake
+    self._row_limit = 100000  # 100k, for argument's sake
     self._read_rows = iter(i for i in range(self._row_limit))
     self._row_key_count = 100
 
   def _make_read_xform(self):
     return bigtableio.ReadFromBigtable(
-      self._PROJECT, self._INSTANCE, self._TABLE, self._FILTER)
+        self._PROJECT, self._INSTANCE, self._TABLE, self._FILTER)
 
   def _mock_row_keys(self, key_count):
     key = namedtuple('key', 'row_key')
@@ -68,18 +64,18 @@ class BigtableioTest(unittest.TestCase):
   def test_BigtableReadFn_constructor(self):
     counter = Metrics.counter(bigtableio._BigtableReadFn.__class__, 'Rows Read')
     read_fn = bigtableio._BigtableReadFn(
-      self._PROJECT, self._INSTANCE, self._TABLE, self._FILTER)
+        self._PROJECT, self._INSTANCE, self._TABLE, self._FILTER)
 
     self.assertEqual(read_fn._options['project_id'], self._PROJECT)
     self.assertEqual(read_fn._options['instance_id'], self._INSTANCE)
     self.assertEqual(read_fn._options['table_id'], self._TABLE)
     self.assertEqual(read_fn._options['filter_'], self._FILTER)
-    self.assertEqual(read_fn._counter.metric_name.name,
-                     counter.metric_name.name)
+    self.assertEqual(
+        read_fn._counter.metric_name.name, counter.metric_name.name)
 
   def test_BigtableReadFn_start_bundle(self):
     read_fn = bigtableio._BigtableReadFn(
-      self._PROJECT, self._INSTANCE, self._TABLE)
+        self._PROJECT, self._INSTANCE, self._TABLE)
     read_fn.start_bundle()
 
     self.assertEqual(read_fn._table._instance.instance_id, self._INSTANCE)
@@ -88,12 +84,12 @@ class BigtableioTest(unittest.TestCase):
   def test_BigtableReadFn_process(self):
     with patch.object(Table, 'read_rows', return_value=self._read_rows):
       read_fn = bigtableio._BigtableReadFn(
-        self._PROJECT, self._INSTANCE, self._TABLE)
+          self._PROJECT, self._INSTANCE, self._TABLE)
       read_fn.start_bundle()
       row_count = 0
       for _ in read_fn.process([None, None]):
         row_count += 1
-      self.assertEqual(row_count, self._row_lomit)
+      self.assertEqual(row_count, self._row_limit)
 
   def test_ReadFromBigtable_constructor(self):
     read_xform = self._make_read_xform()
@@ -112,13 +108,16 @@ class BigtableioTest(unittest.TestCase):
     self.assertEqual(len(list(chunks)), len(row_keys) - 1)
     for i, key_pair in enumerate(chunks):
       self.assertEqual(key_pair[0], row_keys[i].row_key)
-      self.assertEqual(key_pair[1], row_keys[i+1].row_key)
+      self.assertEqual(key_pair[1], row_keys[i + 1].row_key)
 
   def test_ReadFromBigtable_expand(self):
     key_list = self._mock_row_keys(self._row_key_count)
-    with patch.object(beam.ptransform.PTransform, '__init__', return_value=None):
+    with patch.object(beam.ptransform.PTransform, '__init__',
+                      return_value=None):
       read_xform = self._make_read_xform()
-      with patch.object(beam.ptransform.PTransform, '__ror__', return_value=None):
+      with patch.object(beam.ptransform.PTransform,
+                        '__ror__',
+                        return_value=None):
         with patch.object(Table, 'sample_row_keys', return_value=[]):
           with self.assertRaises(ValueError):
             read_xform.expand(None)
@@ -129,4 +128,5 @@ class BigtableioTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.DEBUG)
   unittest.main()

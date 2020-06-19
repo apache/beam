@@ -62,27 +62,31 @@ class BigtableReadTest(unittest.TestCase):
 
   @attr('IT')
   def test_bigtable_read(self):
-    logging.info('Reading table "{}" of {} rows...'
-                 .format(options['table'], options['row_count']))
+    logging.info(
+        'Reading table "{}" of {} rows...'.format(
+            options['table'], options['row_count']))
 
     p = beam.Pipeline(options=self._p_options)
-    _ = (p | 'Read Test' >> ReadFromBigtable(project_id=options['project'],
-                                             instance_id=options['instance'],
-                                             table_id=options['table'],
-                                             filter_=options['filter']))
+    _ = (
+        p | 'Read Test' >> ReadFromBigtable(
+            project_id=options['project'],
+            instance_id=options['instance'],
+            table_id=options['table'],
+            filter_=options['filter']))
     self.result = p.run()
     self.result.wait_until_finish()
     assert self.result.state == PipelineState.DONE
 
     query_result = self.result.metrics().query(
-      MetricsFilter().with_name('Rows Read'))
+        MetricsFilter().with_name('Rows Read'))
 
     if query_result['counters']:
       read_counter = query_result['counters'][0]
       final_count = read_counter.committed
       assert final_count == options['row_count']
-      logging.info('{} out of {} rows were read successfully.'
-                   .format(final_count, options['row_count']))
+      logging.info(
+          '{} out of {} rows were read successfully.'.format(
+              final_count, options['row_count']))
 
     logging.info('DONE!')
 
@@ -111,24 +115,25 @@ def parse_commane_line_arguments():
   args, argv = parser.parse_known_args()
 
   return {
-    'project' : args.project,
-    'instance' : args.instance,
-    'table' : args.table,
-    'filter' : args.filter,
-    'region' : args.region,
-    'staging_location' : args.staging_location,
-    'temp_location' : args.temp_location,
-    'setup_file' : args.setup_file,
-    'extra_package' : args.extra_package,
-    'runner' : args.runner,
-    'num_workers' : args.num_workers,
-    'autoscaling_algorithm' : args.autoscaling_algorithm,
-    'disk_size_gb' : args.disk_size_gb,
-    'row_count' : args.row_count,
-    'job_name' : args.job_name,
-    'log_level' : args.log_level,
-    'log_directory' : args.log_dir,
+      'project': args.project,
+      'instance': args.instance,
+      'table': args.table,
+      'filter': args.filter,
+      'region': args.region,
+      'staging_location': args.staging_location,
+      'temp_location': args.temp_location,
+      'setup_file': args.setup_file,
+      'extra_package': args.extra_package,
+      'runner': args.runner,
+      'num_workers': args.num_workers,
+      'autoscaling_algorithm': args.autoscaling_algorithm,
+      'disk_size_gb': args.disk_size_gb,
+      'row_count': args.row_count,
+      'job_name': args.job_name,
+      'log_level': args.log_level,
+      'log_directory': args.log_dir,
   }
+
 
 def setup_log_file():
   if options['log_directory']:
@@ -140,11 +145,12 @@ def setup_log_file():
 
     # Forward all the logs to a file
     fh = logging.FileHandler(
-      filename='{}test_log_{}_RUNNER={}.log'.format(options['log_directory'],
-                                                    options['table'][-15:],
-                                                    options['runner']))
+        filename='{}test_log_{}_RUNNER={}.log'.format(
+            options['log_directory'], options['table'][-15:],
+            options['runner']))
     fh.setLevel(logging.DEBUG)
     logging.getLogger().addHandler(fh)
+
 
 if __name__ == '__main__':
   options = parse_commane_line_arguments()

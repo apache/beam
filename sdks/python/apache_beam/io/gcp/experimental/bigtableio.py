@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-""" This module implements IO classes to read and write data on Cloud Bigtable.
+"""This module implements IO classes to read and write data on Cloud Bigtable.
 
 Read from Bigtable
 ------------------
@@ -77,13 +77,15 @@ class _BigtableReadFn(beam.DoFn):
                     each row.
     """
     super(self.__class__, self).__init__()
-    self._initialize({'project_id': project_id,
-                     'instance_id': instance_id,
-                     'table_id': table_id,
-                     'filter_': filter_})
+    self._initialize({
+        'project_id': project_id,
+        'instance_id': instance_id,
+        'table_id': table_id,
+        'filter_': filter_
+    })
 
   def _initialize(self, options):
-    """ The defaults initializer, to assist with pickling
+    """The defaults initializer, to assist with pickling
 
     :return: None
     """
@@ -111,17 +113,19 @@ class _BigtableReadFn(beam.DoFn):
       yield row
 
   def display_data(self):
-    return {'projectId': DisplayDataItem(self._options['project_id'],
-                                         label='Bigtable Project Id'),
-            'instanceId': DisplayDataItem(self._options['instance_id'],
-                                          label='Bigtable Instance Id'),
-            'tableId': DisplayDataItem(self._options['table_id'],
-                                       label='Bigtable Table Id')}
+    return {
+        'projectId': DisplayDataItem(
+            self._options['project_id'], label='Bigtable Project Id'),
+        'instanceId': DisplayDataItem(
+            self._options['instance_id'], label='Bigtable Instance Id'),
+        'tableId': DisplayDataItem(
+            self._options['table_id'], label='Bigtable Table Id')
+    }
 
 
 class ReadFromBigtable(beam.PTransform):
   def __init__(self, project_id, instance_id, table_id, filter_=None):
-    """ A PTransform wrapper for parallel reading rows from s Bigtable table.
+    """A PTransform wrapper for parallel reading rows from s Bigtable table.
 
     :type project_id: str
     :param project_id: The ID of the project used for Bigtable access
@@ -139,10 +143,12 @@ class ReadFromBigtable(beam.PTransform):
     """
     super(self.__class__, self).__init__()
     self._keys = []
-    self._options = {'project_id': project_id,
-                     'instance_id': instance_id,
-                     'table_id': table_id,
-                     'filter_': filter_}
+    self._options = {
+        'project_id': project_id,
+        'instance_id': instance_id,
+        'table_id': table_id,
+        'filter_': filter_
+    }
 
   def __getstate__(self):
     return self._options
@@ -163,24 +169,28 @@ class ReadFromBigtable(beam.PTransform):
 
     self._keys = list(table.sample_row_keys())
     if len(self._keys) < 1:
-      raise ValueError('The list of Table.sample_row_keys is empty. A Bigtable'
-                       ' table must have at least one valid sample row key.')
+      raise ValueError(
+          'The list of Table.sample_row_keys is empty. A Bigtable'
+          ' table must have at least one valid sample row key.')
 
     # Creating sample row key to define starting read position of '0th' chunk
     SampleRowKey = namedtuple("SampleRowKey", "row_key offset_bytes")
     self._keys.insert(0, SampleRowKey(b'', 0))
 
-    return (pbegin
-            | 'Bundles' >> beam.Create(iter(self._chunks()))
-            | 'Reshuffle' >> util.Reshuffle()
-            | 'Read' >> beam.ParDo(_BigtableReadFn(self._options['project_id'],
-                                                   self._options['instance_id'],
-                                                   self._options['table_id'],
-                                                   self._options['filter_'])))
+    return (
+        pbegin
+        | 'Bundles' >> beam.Create(iter(self._chunks()))
+        | 'Reshuffle' >> util.Reshuffle()
+        | 'Read' >> beam.ParDo(
+            _BigtableReadFn(
+                self._options['project_id'],
+                self._options['instance_id'],
+                self._options['table_id'],
+                self._options['filter_'])))
 
 
 class _BigTableWriteFn(beam.DoFn):
-  """ Creates the connector can call and add_row to the batcher using each
+  """Creates the connector can call and add_row to the batcher using each
   row in beam pipe line
   Args:
     project_id(str): GCP Project ID
