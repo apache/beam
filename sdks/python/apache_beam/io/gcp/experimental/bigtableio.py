@@ -44,11 +44,12 @@ Everything in this module is experimental.
 
 from __future__ import absolute_import
 
+from collections import namedtuple
+
 import apache_beam as beam
 from apache_beam.metrics import Metrics
 from apache_beam.transforms import util
 from apache_beam.transforms.display import DisplayDataItem
-from collections import namedtuple
 
 try:
   from google.cloud.bigtable import Client

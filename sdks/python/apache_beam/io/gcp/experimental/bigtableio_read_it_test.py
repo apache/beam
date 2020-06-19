@@ -22,12 +22,13 @@ import argparse
 import logging
 import unittest
 
+from nose.plugins.attrib import attr
+
 import apache_beam as beam
 from apache_beam.io.gcp.experimental.bigtableio import ReadFromBigtable
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 from apache_beam.runners.runner import PipelineState
-from nose.plugins.attrib import attr
 
 try:
   from google.cloud.bigtable import Client
