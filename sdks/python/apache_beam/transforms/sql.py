@@ -32,7 +32,8 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 __all__ = ['SqlTransform']
 
 SqlTransformSchema = typing.NamedTuple(
-    'SqlTransformSchema', [('query', unicode)])
+    'SqlTransformSchema', [('query', unicode),
+                           ('dialect', typing.Optional[unicode])])
 
 
 class SqlTransform(ExternalTransform):
@@ -66,9 +67,10 @@ class SqlTransform(ExternalTransform):
   """
   URN = 'beam:external:java:sql:v1'
 
-  def __init__(self, query):
+  def __init__(self, query, dialect=None):
     super(SqlTransform, self).__init__(
         self.URN,
-        NamedTupleBasedPayloadBuilder(SqlTransformSchema(query=query)),
+        NamedTupleBasedPayloadBuilder(
+            SqlTransformSchema(query=query, dialect=dialect)),
         BeamJarExpansionService(
             ':sdks:java:extensions:sql:expansion-service:shadowJar'))

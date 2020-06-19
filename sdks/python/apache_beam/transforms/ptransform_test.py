@@ -52,7 +52,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import WindowInto
 from apache_beam.transforms import window
-from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
@@ -680,7 +679,7 @@ class PTransformTest(unittest.TestCase):
     with self.assertRaises(typehints.TypeCheckError) as cm:
       with TestPipeline() as pipeline:
         pcolls = pipeline | 'A' >> beam.Create(['a', 'b', 'f'])
-        pcolls | 'D' >> _GroupByKeyOnly()
+        pcolls | 'D' >> beam.GroupByKey()
 
     expected_error_prefix = (
         'Input type hint violation at D: expected '
@@ -882,33 +881,38 @@ class PTransformLabelsTest(unittest.TestCase):
     self.assertEqual(expected_label, re.sub(r'\d{3,}', '#', actual_label))
 
   def test_default_labels(self):
-    self.check_label(beam.Map(len), r'Map(len)')
+    def my_function(*args):
+      pass
+
+    self.check_label(beam.Map(len), 'Map(len)')
+    self.check_label(beam.Map(my_function), 'Map(my_function)')
     self.check_label(
-        beam.Map(lambda x: x), r'Map(<lambda at ptransform_test.py:#>)')
-    self.check_label(beam.FlatMap(list), r'FlatMap(list)')
-    self.check_label(beam.Filter(sum), r'Filter(sum)')
-    self.check_label(beam.CombineGlobally(sum), r'CombineGlobally(sum)')
-    self.check_label(beam.CombinePerKey(sum), r'CombinePerKey(sum)')
+        beam.Map(lambda x: x), 'Map(<lambda at ptransform_test.py:#>)')
+    self.check_label(beam.FlatMap(list), 'FlatMap(list)')
+    self.check_label(beam.FlatMap(my_function), 'FlatMap(my_function)')
+    self.check_label(beam.Filter(sum), 'Filter(sum)')
+    self.check_label(beam.CombineGlobally(sum), 'CombineGlobally(sum)')
+    self.check_label(beam.CombinePerKey(sum), 'CombinePerKey(sum)')
 
     class MyDoFn(beam.DoFn):
       def process(self, unused_element):
         pass
 
-    self.check_label(beam.ParDo(MyDoFn()), r'ParDo(MyDoFn)')
+    self.check_label(beam.ParDo(MyDoFn()), 'ParDo(MyDoFn)')
 
   def test_label_propogation(self):
-    self.check_label('TestMap' >> beam.Map(len), r'TestMap')
-    self.check_label('TestLambda' >> beam.Map(lambda x: x), r'TestLambda')
-    self.check_label('TestFlatMap' >> beam.FlatMap(list), r'TestFlatMap')
-    self.check_label('TestFilter' >> beam.Filter(sum), r'TestFilter')
-    self.check_label('TestCG' >> beam.CombineGlobally(sum), r'TestCG')
-    self.check_label('TestCPK' >> beam.CombinePerKey(sum), r'TestCPK')
+    self.check_label('TestMap' >> beam.Map(len), 'TestMap')
+    self.check_label('TestLambda' >> beam.Map(lambda x: x), 'TestLambda')
+    self.check_label('TestFlatMap' >> beam.FlatMap(list), 'TestFlatMap')
+    self.check_label('TestFilter' >> beam.Filter(sum), 'TestFilter')
+    self.check_label('TestCG' >> beam.CombineGlobally(sum), 'TestCG')
+    self.check_label('TestCPK' >> beam.CombinePerKey(sum), 'TestCPK')
 
     class MyDoFn(beam.DoFn):
       def process(self, unused_element):
         pass
 
-    self.check_label('TestParDo' >> beam.ParDo(MyDoFn()), r'TestParDo')
+    self.check_label('TestParDo' >> beam.ParDo(MyDoFn()), 'TestParDo')
 
 
 class PTransformTestDisplayData(unittest.TestCase):
@@ -1233,7 +1237,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         | (
             'Pair' >> beam.Map(lambda x: (x, ord(x))).with_output_types(
                 typing.Tuple[str, str]))
-        | _GroupByKeyOnly())
+        | beam.GroupByKey())
 
     # Output type should correctly be deduced.
     # GBK-only should deduce that Tuple[A, B] is turned into
@@ -1261,7 +1265,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       (
           self.p
           | beam.Create([1, 2, 3]).with_output_types(int)
-          | 'F' >> _GroupByKeyOnly())
+          | 'F' >> beam.GroupByKey())
 
     self.assertStartswith(
         e.exception.args[0],
@@ -1309,7 +1313,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           self.p
           | 'Nums' >> beam.Create(range(5)).with_output_types(int)
           | 'ModDup' >> beam.Map(lambda x: (x % 2, x))
-          | _GroupByKeyOnly())
+          | beam.GroupByKey())
 
     self.assertEqual(
         'Pipeline type checking is enabled, however no output '
@@ -2244,7 +2248,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_gbk_type_inference(self):
     self.assertEqual(
         typehints.Tuple[str, typehints.Iterable[int]],
-        _GroupByKeyOnly().infer_output_type(typehints.KV[str, int]))
+        beam.GroupByKey().infer_output_type(typehints.KV[str, int]))
 
   def test_pipeline_inference(self):
     created = self.p | beam.Create(['a', 'b', 'c'])

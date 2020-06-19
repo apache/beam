@@ -95,6 +95,12 @@ def default_encoder(obj):
     # on python 3 base64-encoded bytes are decoded to strings
     # before being sent to BigQuery
     return obj.decode('utf-8')
+  elif isinstance(obj, (datetime.date, datetime.time)):
+    return str(obj)
+  elif isinstance(obj, datetime.datetime):
+    return obj.isoformat()
+
+  _LOGGER.error("Unable to serialize %r to JSON", obj)
   raise TypeError(
       "Object of type '%s' is not JSON serializable" % type(obj).__name__)
 
@@ -720,6 +726,7 @@ class BigQueryWrapper(object):
       project=None,
       include_header=True,
       compression=ExportCompression.NONE,
+      use_avro_logical_types=False,
       job_labels=None):
     """Starts a job to export data from BigQuery.
 
@@ -738,6 +745,7 @@ class BigQueryWrapper(object):
                     printHeader=include_header,
                     destinationFormat=destination_format,
                     compression=compression,
+                    useAvroLogicalTypes=use_avro_logical_types,
                 ),
                 labels=_build_job_labels(job_labels),
             ),
@@ -1205,7 +1213,8 @@ class RowAsDictJsonCoder(coders.Coder):
       return json.dumps(
           table_row, allow_nan=False, default=default_encoder).encode('utf-8')
     except ValueError as e:
-      raise ValueError('%s. %s' % (e, JSON_COMPLIANCE_ERROR))
+      raise ValueError(
+          '%s. %s. Row: %r' % (e, JSON_COMPLIANCE_ERROR, table_row))
 
   def decode(self, encoded_table_row):
     return json.loads(encoded_table_row.decode('utf-8'))

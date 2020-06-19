@@ -31,7 +31,7 @@ from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as instr
 from apache_beam.runners.interactive import interactive_runner
-from apache_beam.runners.interactive.caching import streaming_cache
+from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_equal
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_proto_contain_top_level_transform
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_proto_equal
@@ -69,7 +69,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     _, ctx = p.to_runner_api(use_fake_coders=True, return_context=True)
     self.assertEqual(
         instr.cacheable_key(init_pcoll, instr.pcolls_to_pcoll_id(p, ctx)),
-        str(id(init_pcoll)) + '_ref_PCollection_PCollection_10')
+        str(id(init_pcoll)) + '_ref_PCollection_PCollection_8')
 
   def test_cacheable_key_with_version_map(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
@@ -94,8 +94,8 @@ class PipelineInstrumentTest(unittest.TestCase):
         instr.cacheable_key(
             init_pcoll_2,
             instr.pcolls_to_pcoll_id(p2, ctx),
-            {'ref_PCollection_PCollection_10': str(id(init_pcoll))}),
-        str(id(init_pcoll)) + '_ref_PCollection_PCollection_10')
+            {'ref_PCollection_PCollection_8': str(id(init_pcoll))}),
+        str(id(init_pcoll)) + '_ref_PCollection_PCollection_8')
 
   def test_cache_key(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
@@ -131,19 +131,19 @@ class PipelineInstrumentTest(unittest.TestCase):
             pipeline_instrument._cacheable_key(init_pcoll): instr.Cacheable(
                 var='init_pcoll',
                 version=str(id(init_pcoll)),
-                pcoll_id='ref_PCollection_PCollection_10',
+                pcoll_id='ref_PCollection_PCollection_8',
                 producer_version=str(id(init_pcoll.producer)),
                 pcoll=init_pcoll),
             pipeline_instrument._cacheable_key(squares): instr.Cacheable(
                 var='squares',
                 version=str(id(squares)),
-                pcoll_id='ref_PCollection_PCollection_11',
+                pcoll_id='ref_PCollection_PCollection_9',
                 producer_version=str(id(squares.producer)),
                 pcoll=squares),
             pipeline_instrument._cacheable_key(cubes): instr.Cacheable(
                 var='cubes',
                 version=str(id(cubes)),
-                pcoll_id='ref_PCollection_PCollection_12',
+                pcoll_id='ref_PCollection_PCollection_10',
                 producer_version=str(id(cubes.producer)),
                 pcoll=cubes)
         })
@@ -162,7 +162,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     self.assertFalse(instr.has_unbounded_sources(p))
 
   def test_background_caching_pipeline_proto(self):
-    ie.new_env(cache_manager=streaming_cache.StreamingCache(cache_dir=None))
+    ie.new_env(cache_manager=StreamingCache(cache_dir=None))
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
 
     # Test that the two ReadFromPubSub are correctly cut out.
@@ -309,7 +309,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     """Tests that the instrumenter works for a single unbounded source.
     """
     # Create a new interactive environment to make the test idempotent.
-    ie.new_env(cache_manager=streaming_cache.StreamingCache(cache_dir=None))
+    ie.new_env(cache_manager=StreamingCache(cache_dir=None))
 
     # Create the pipeline that will be instrumented.
     p_original = beam.Pipeline(interactive_runner.InteractiveRunner())
@@ -338,11 +338,9 @@ class PipelineInstrumentTest(unittest.TestCase):
     # a TestStream.
     source_1_cache_key = self.cache_key_of('source_1', source_1)
     p_expected = beam.Pipeline()
-    test_stream = (
-        p_expected
-        | TestStream(output_tags=[self.cache_key_of('source_1', source_1)]))
+    test_stream = (p_expected | TestStream(output_tags=[source_1_cache_key]))
     # pylint: disable=expression-not-assigned
-    test_stream | 'square1' >> beam.Map(lambda x: x * x)
+    test_stream[source_1_cache_key] | 'square1' >> beam.Map(lambda x: x * x)
 
     # Test that the TestStream is outputting to the correct PCollection.
     class TestStreamVisitor(PipelineVisitor):
@@ -377,7 +375,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     is taken care of.
     """
     # Create a new interactive environment to make the test idempotent.
-    ie.new_env(cache_manager=streaming_cache.StreamingCache(cache_dir=None))
+    ie.new_env(cache_manager=StreamingCache(cache_dir=None))
 
     # Create the pipeline that will be instrumented.
     from apache_beam.options.pipeline_options import StandardOptions
@@ -428,7 +426,7 @@ class PipelineInstrumentTest(unittest.TestCase):
         | TestStream(output_tags=[intermediate_source_pcoll_cache_key]))
     # pylint: disable=expression-not-assigned
     (
-        test_stream
+        test_stream[intermediate_source_pcoll_cache_key]
         | 'square1' >> beam.Map(lambda e: e)
         | 'reify' >> beam.Map(lambda _: _)
         | cache.WriteCache(ie.current_env().cache_manager(), 'unused'))
@@ -465,7 +463,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     TestStream.
     """
     # Create a new interactive environment to make the test idempotent.
-    ie.new_env(cache_manager=streaming_cache.StreamingCache(cache_dir=None))
+    ie.new_env(cache_manager=StreamingCache(cache_dir=None))
 
     # Create the pipeline that will be instrumented.
     from apache_beam.options.pipeline_options import StandardOptions
@@ -544,7 +542,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     """Tests that the it caches PCollections from a source.
     """
     # Create a new interactive environment to make the test idempotent.
-    ie.new_env(cache_manager=streaming_cache.StreamingCache(cache_dir=None))
+    ie.new_env(cache_manager=StreamingCache(cache_dir=None))
 
     # Create the pipeline that will be instrumented.
     from apache_beam.options.pipeline_options import StandardOptions
@@ -607,7 +605,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     """Tests that the instrumenter works when the PCollection is not cached.
     """
     # Create a new interactive environment to make the test idempotent.
-    ie.new_env(cache_manager=streaming_cache.StreamingCache(cache_dir=None))
+    ie.new_env(cache_manager=StreamingCache(cache_dir=None))
 
     # Create the pipeline that will be instrumented.
     from apache_beam.options.pipeline_options import StandardOptions
@@ -636,12 +634,10 @@ class PipelineInstrumentTest(unittest.TestCase):
     # a TestStream.
     source_1_cache_key = self.cache_key_of('source_1', source_1)
     p_expected = beam.Pipeline()
-    test_stream = (
-        p_expected
-        | TestStream(output_tags=[self.cache_key_of('source_1', source_1)]))
+    test_stream = (p_expected | TestStream(output_tags=[source_1_cache_key]))
     # pylint: disable=expression-not-assigned
     (
-        test_stream
+        test_stream[source_1_cache_key]
         | 'square1' >> beam.Map(lambda x: x * x)
         | 'reify' >> beam.Map(lambda _: _)
         | cache.WriteCache(ie.current_env().cache_manager(), 'unused'))
@@ -675,7 +671,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     """Tests that the instrumenter works for multiple unbounded sources.
     """
     # Create a new interactive environment to make the test idempotent.
-    ie.new_env(cache_manager=streaming_cache.StreamingCache(cache_dir=None))
+    ie.new_env(cache_manager=StreamingCache(cache_dir=None))
 
     # Create the pipeline that will be instrumented.
     p_original = beam.Pipeline(interactive_runner.InteractiveRunner())

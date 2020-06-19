@@ -41,6 +41,7 @@ from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import equal_to_per_window
+from apache_beam.transforms import WindowInto
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombineGlobally
@@ -52,8 +53,10 @@ from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.trigger import AfterAll
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import AfterWatermark
+from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampCombiner
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import TypeCheckError
 from apache_beam.utils.timestamp import Timestamp
 
@@ -97,6 +100,7 @@ class CombineTest(unittest.TestCase):
       vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
       mean = sum(vals) / float(len(vals))
       size = len(vals)
+      timestamp = 0
 
       # First for global combines.
       pcoll = pipeline | 'start' >> Create(vals)
@@ -104,6 +108,17 @@ class CombineTest(unittest.TestCase):
       result_count = pcoll | 'count' >> combine.Count.Globally()
       assert_that(result_mean, equal_to([mean]), label='assert:mean')
       assert_that(result_count, equal_to([size]), label='assert:size')
+
+      # Now for global combines without default
+      timestamped = pcoll | Map(lambda x: TimestampedValue(x, timestamp))
+      windowed = timestamped | 'window' >> WindowInto(FixedWindows(60))
+      result_windowed_mean = (
+          windowed
+          | 'mean-wo-defaults' >> combine.Mean.Globally().without_defaults())
+      assert_that(
+          result_windowed_mean,
+          equal_to([mean]),
+          label='assert:mean-wo-defaults')
 
       # Again for per-key combines.
       pcoll = pipeline | 'start-perkey' >> Create([('a', x) for x in vals])

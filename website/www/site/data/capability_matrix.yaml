@@ -24,8 +24,6 @@ capability-matrix:
       name: Apache Spark Structured Streaming (Dataset based)
     - class: apex
       name: Apache Apex
-    - class: gearpump
-      name: Apache Gearpump
     - class: mapreduce
       name: Apache Hadoop MapReduce
     - class: jstorm
@@ -73,10 +71,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: Supported through Apex operator that wraps the function and processes data as single element bundles.
-            - class: gearpump
-              l1: "Yes"
-              l2: fully supported
-              l3: Gearpump wraps the per-element transformation function into processor execution.
             - class: mapreduce
               l1: "Yes"
               l2: fully supported
@@ -127,10 +121,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: "Apex runner uses the Beam code for grouping by window and thereby has support for all windowing and triggering mechanisms. Runner does not implement partitioning yet (BEAM-838)"
-            - class: gearpump
-              l1: "Yes"
-              l2: fully supported
-              l3: "Use Gearpump's groupBy and window for key grouping and translate Beam's windowing and triggering to Gearpump's internal implementation."
             - class: mapreduce
               l1: "Yes"
               l2: fully supported
@@ -178,10 +168,6 @@ capability-matrix:
               l2: fully supported in batch mode
               l3: Some corner cases like flatten on empty collections are not yet supported.
             - class: apex
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
-            - class: gearpump
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -235,10 +221,6 @@ capability-matrix:
               l1: "Yes"
               l2: "fully supported"
               l3: "Default Beam translation. Currently no efficient pre-aggregation (BEAM-935)."
-            - class: gearpump
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: mapreduce
               l1: "Yes"
               l2: fully supported
@@ -286,10 +268,6 @@ capability-matrix:
               l2: supported via inlining only in batch mode
               l3: ""
             - class: apex
-              l1: "Partially"
-              l2: supported via inlining
-              l3: ""
-            - class: gearpump
               l1: "Partially"
               l2: supported via inlining
               l3: ""
@@ -343,10 +321,6 @@ capability-matrix:
               l1: "Yes"
               l2: size restrictions
               l3: No distributed implementation and therefore size restrictions.
-            - class: gearpump
-              l1: "Yes"
-              l2: fully supported
-              l3: Implemented by merging side input as a normal stream in Gearpump
             - class: mapreduce
               l1: "Yes"
               l2: fully supported
@@ -397,10 +371,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3:
-            - class: gearpump
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: mapreduce
               l1: "Partially"
               l2: bounded source only
@@ -451,10 +421,6 @@ capability-matrix:
               l1: "Partially"
               l2: supports bounded-per-element SDFs
               l3: implementation in streaming mode coming soon
-            - class: gearpump
-              l1: "Partially"
-              l2: supports bounded-per-element SDFs
-              l3:
             - class: mapreduce
               l1: "No"
               l2: not implemented
@@ -505,10 +471,6 @@ capability-matrix:
               l1: "No"
               l2: Not implemented in runner.
               l3:
-            - class: gearpump
-              l1: "No"
-              l2: ""
-              l3: not implemented
             - class: mapreduce
               l1: "Partially"
               l2: Only attempted counters are supported
@@ -559,10 +521,6 @@ capability-matrix:
               l1: "Partially"
               l2: non-merging windows
               l3: State is supported for non-merging windows. SetState and MapState are not yet supported.
-            - class: gearpump
-              l1: "No"
-              l2: not implemented
-              l3: ""
             - class: mapreduce
               l1: "Partially"
               l2: non-merging windows
@@ -620,10 +578,6 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
-            - class: gearpump
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: mapreduce
               l1: "Yes"
               l2: supported
@@ -671,10 +625,6 @@ capability-matrix:
               l2: fully supported in batch mode
               l3: ""
             - class: apex
-              l1: "Yes"
-              l2: supported
-              l3: ""
-            - class: gearpump
               l1: "Yes"
               l2: supported
               l3: ""
@@ -728,10 +678,6 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
-            - class: gearpump
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: mapreduce
               l1: "Yes"
               l2: supported
@@ -779,10 +725,6 @@ capability-matrix:
               l2: fully supported in batch mode
               l3: ""
             - class: apex
-              l1: "Yes"
-              l2: supported
-              l3: ""
-            - class: gearpump
               l1: "Yes"
               l2: supported
               l3: ""
@@ -836,10 +778,6 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
-            - class: gearpump
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: mapreduce
               l1: "Yes"
               l2: supported
@@ -890,10 +828,6 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
-            - class: gearpump
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: mapreduce
               l1: "Yes"
               l2: supported
@@ -941,10 +875,6 @@ capability-matrix:
               l2: fully supported in batch mode
               l3: ""
             - class: apex
-              l1: "Yes"
-              l2: supported
-              l3: ""
-            - class: gearpump
               l1: "Yes"
               l2: supported
               l3: ""
@@ -1006,10 +936,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-            - class: gearpump
-              l1: "No"
-              l2: ""
-              l3: ""
             - class: mapreduce
               l1: "No"
               l2: batch-only runner
@@ -1058,10 +984,6 @@ capability-matrix:
               l2: fully supported in batch mode
               l3: ""
             - class: apex
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
-            - class: gearpump
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1116,10 +1038,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-            - class: gearpump
-              l1: "No"
-              l2: ""
-              l3: ""
             - class: mapreduce
               l1: "No"
               l2: ""
@@ -1171,10 +1089,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-            - class: gearpump
-              l1: "No"
-              l2: ""
-              l3: ""
             - class: mapreduce
               l1: "No"
               l2: ""
@@ -1224,10 +1138,6 @@ capability-matrix:
               l2: pending model support
               l3:
             - class: apex
-              l1: "No"
-              l2: pending model support
-              l3:
-            - class: gearpump
               l1: "No"
               l2: pending model support
               l3:
@@ -1282,10 +1192,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-            - class: gearpump
-              l1: "No"
-              l2: ""
-              l3: ""
             - class: mapreduce
               l1: "No"
               l2: ""
@@ -1337,10 +1243,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-            - class: gearpump
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: mapreduce
               l1: "No"
               l2: ""
@@ -1389,10 +1291,6 @@ capability-matrix:
               l2: not implemented
               l3: ""
             - class: apex
-              l1: "No"
-              l2: not implemented
-              l3: ""
-            - class: gearpump
               l1: "No"
               l2: not implemented
               l3: ""
@@ -1454,10 +1352,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-            - class: gearpump
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: mapreduce
               l1: "No"
               l2: batch-only runner
@@ -1509,10 +1403,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: "Size restriction, see combine support."
-            - class: gearpump
-              l1: "No"
-              l2: ""
-              l3: ""
             - class: mapreduce
               l1: "No"
               l2: ""
@@ -1562,10 +1452,6 @@ capability-matrix:
               l2: pending model support
               l3: ""
             - class: apex
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: gearpump
               l1: "No"
               l2: pending model support
               l3: ""
@@ -1626,10 +1512,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: gearpump
-              l1:
-              l2:
-              l3:
             - class: mapreduce
               l1:
               l2:
@@ -1673,10 +1555,6 @@ capability-matrix:
               l2:
               l3: not implemented
             - class: apex
-              l1:
-              l2:
-              l3:
-            - class: gearpump
               l1:
               l2:
               l3:

@@ -25,12 +25,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HL7v2MessagePages;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
@@ -59,7 +56,7 @@ class HL7v2IOTestUtil {
               + "AL1|2|allergy|Z91.013^Personal history of allergy to sea food^ZAL|SEVERE|Swollen face|\r"
               + "AL1|3|allergy|Z91.040^Latex allergy^ZAL|MODERATE|Raised, itchy, red rash|",
           // Another ADT Message
-          "MSH|^~\\&|hl7Integration|hl7Integration|||||ADT^A08|||2.5|\r"
+          "MSH|^~\\&|hl7Integration|hl7Integration|||20190309132544||ADT^A08|||2.5|\r"
               + "EVN|A01|20130617154644||foo\r"
               + "PID|1|465 306 5961||407623|Wood^Patrick^^^MR||19700101|1|||High Street^^Oxford^^Ox1 4DP~George St^^Oxford^^Ox1 5AP|||||||\r"
               + "NK1|1|Wood^John^^^MR|Father||999-9999\r"
@@ -67,7 +64,7 @@ class HL7v2IOTestUtil {
               + "PV1|1||Location||||||||||||||||261938_6_201306171546|||||||||||||||||||||||||20130617134644|||||||||",
 
           // Not an ADT message.
-          "MSH|^~\\&|ULTRA|TML|OLIS|OLIS|200905011130||ORU^R01|20169838-v25|T|2.5\r"
+          "MSH|^~\\&|ULTRA|TML|OLIS|OLIS|201905011130||ORU^R01|20169838-v25|T|2.5\r"
               + "PID|||7005728^^^TML^MR||TEST^RACHEL^DIAMOND||19310313|F|||200 ANYWHERE ST^^TORONTO^ON^M6G 2T9||(416)888-8888||||||1014071185^KR\r"
               + "PV1|1||OLIS||||OLIST^BLAKE^DONALD^THOR^^^^^921379^^^^OLIST\r"
               + "ORC|RE||T09-100442-RET-0^^OLIS_Site_ID^ISO|||||||||OLIST^BLAKE^DONALD^THOR^^^^L^921379\r"
@@ -90,8 +87,8 @@ class HL7v2IOTestUtil {
   /** Clear all messages from the HL7v2 store. */
   static void deleteAllHL7v2Messages(HealthcareApiClient client, String hl7v2Store)
       throws IOException {
-    for (Stream<HL7v2Message> page : new HL7v2MessagePages(client, hl7v2Store)) {
-      for (String msgId : page.map(HL7v2Message::getName).collect(Collectors.toList())) {
+    for (List<HL7v2Message> page : new HL7v2MessagePages(client, hl7v2Store, null, null)) {
+      for (String msgId : page.stream().map(HL7v2Message::getName).collect(Collectors.toList())) {
         client.deleteHL7v2Message(msgId);
       }
     }
@@ -108,9 +105,9 @@ class HL7v2IOTestUtil {
     while (new Duration(start, Instant.now()).isShorterThan(timeout)) {
       numListedMessages = 0;
       // count messages in HL7v2 Store.
-      for (Stream<HL7v2Message> page :
-          new HttpHealthcareApiClient.HL7v2MessagePages(client, hl7v2Store)) {
-        numListedMessages += page.count();
+      for (List<HL7v2Message> page :
+          new HttpHealthcareApiClient.HL7v2MessagePages(client, hl7v2Store, null, null)) {
+        numListedMessages += page.size();
       }
       if (numListedMessages == expectedNumMessages) {
         return;
@@ -218,9 +215,10 @@ class HL7v2IOTestUtil {
       String hl7v2Store = context.element();
       // Output all elements of all pages.
       HttpHealthcareApiClient.HL7v2MessagePages pages =
-          new HttpHealthcareApiClient.HL7v2MessagePages(client, hl7v2Store, this.filter);
-      for (Stream<HL7v2Message> page : pages) {
-        page.map(HL7v2Message::getName).forEach(context::output);
+          new HttpHealthcareApiClient.HL7v2MessagePages(
+              client, hl7v2Store, null, null, this.filter, "sendTime");
+      for (List<HL7v2Message> page : pages) {
+        page.stream().map(HL7v2Message::getName).forEach(context::output);
       }
     }
   }

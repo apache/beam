@@ -71,19 +71,7 @@ func (fn *StringSplitFn) CreateInitialRestriction(s string) offsetrange.Restrict
 // SplitRestriction performs initial splits so that each restriction is split
 // into 5.
 func (fn *StringSplitFn) SplitRestriction(s string, rest offsetrange.Restriction) []offsetrange.Restriction {
-	size := rest.End - rest.Start
-	splitPts := []int64{
-		rest.Start,
-		rest.Start + (size / 5),
-		rest.Start + (size * 2 / 5),
-		rest.Start + (size * 3 / 5),
-		rest.Start + (size * 4 / 5),
-		rest.End,
-	}
-	var splits []offsetrange.Restriction
-	for i := 0; i < len(splitPts)-1; i++ {
-		splits = append(splits, offsetrange.Restriction{Start: splitPts[i], End: splitPts[i+1]})
-	}
+	splits := rest.EvenSplits(5)
 	log.Debugf(context.Background(), "StringSplit SplitRestrictions: %v -> %v", rest, splits)
 	return splits
 }
@@ -91,7 +79,7 @@ func (fn *StringSplitFn) SplitRestriction(s string, rest offsetrange.Restriction
 // RestrictionSize returns the size as the difference between the restriction's
 // start and end.
 func (fn *StringSplitFn) RestrictionSize(s string, rest offsetrange.Restriction) float64 {
-	size := float64(rest.End - rest.Start)
+	size := rest.Size()
 	log.Debugf(context.Background(), "StringSplit RestrictionSize: %v -> %v", rest, size)
 	return size
 }

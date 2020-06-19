@@ -235,6 +235,7 @@ public class BeamFnDataReadRunnerTest {
               bundleId::get,
               COMPONENTS.getCodersMap(),
               mockBeamFnDataClient,
+              null /* beamFnStateClient */,
               (PTransformRunnerFactory.ProgressRequestCallback callback) -> {
                 progressCallbacks.add(callback);
               },
@@ -663,15 +664,17 @@ public class BeamFnDataReadRunnerTest {
     @Override
     public SplitResult trySplit(double fractionOfRemainder) {
       return SplitResult.of(
-          BundleApplication.newBuilder()
-              .setInputId(String.format("primary%.1f", fractionOfRemainder))
-              .build(),
-          DelayedBundleApplication.newBuilder()
-              .setApplication(
-                  BundleApplication.newBuilder()
-                      .setInputId(String.format("residual%.1f", 1 - fractionOfRemainder))
-                      .build())
-              .build());
+          Collections.singletonList(
+              BundleApplication.newBuilder()
+                  .setInputId(String.format("primary%.1f", fractionOfRemainder))
+                  .build()),
+          Collections.singletonList(
+              DelayedBundleApplication.newBuilder()
+                  .setApplication(
+                      BundleApplication.newBuilder()
+                          .setInputId(String.format("residual%.1f", 1 - fractionOfRemainder))
+                          .build())
+                  .build()));
     }
   }
 

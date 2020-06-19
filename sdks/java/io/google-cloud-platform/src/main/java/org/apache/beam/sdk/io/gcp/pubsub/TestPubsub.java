@@ -162,7 +162,9 @@ public class TestPubsub implements TestRule {
     }
 
     if (description.getMethodName() != null) {
-      topicName.append(description.getMethodName()).append("-");
+      // Remove braces (which are illegal in pubsub naming restrictions) in dynamic method names
+      // when using parameterized tests.
+      topicName.append(description.getMethodName().replaceAll("[\\[\\]]", "")).append("-");
     }
 
     DATETIME_FORMAT.printTo(topicName, Instant.now());

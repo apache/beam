@@ -34,7 +34,6 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -52,7 +51,7 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.MoreFutures;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteSource;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
@@ -360,13 +359,8 @@ public class PackageUtil implements Closeable {
 
   @AutoValue
   public abstract static class StagedFile {
-    public static PackageUtil.StagedFile of(
-        String source, String sha256, @Nullable String destination) {
+    public static PackageUtil.StagedFile of(String source, String sha256, String destination) {
       return new AutoValue_PackageUtil_StagedFile(source, sha256, destination);
-    }
-
-    public static PackageUtil.StagedFile of(String source, String sha256) {
-      return new AutoValue_PackageUtil_StagedFile(source, sha256, null);
     }
 
     /** The file to stage. */
@@ -374,7 +368,6 @@ public class PackageUtil implements Closeable {
     /** The SHA-256 hash of the source file. */
     public abstract String getSha256();
     /** Staged target for this file. */
-    @Nullable
     public abstract String getDestination();
   }
 
@@ -404,26 +397,40 @@ public class PackageUtil implements Closeable {
             String.format("Non-existent file to stage: %s", file.getAbsolutePath()));
       }
       checkState(!file.isDirectory(), "Source file must not be a directory.");
+      String target;
+      // Dataflow worker jar and windmill binary can be overridden by providing files with
+      // predefined file names. Normally, we can use the artifact file name as same as
+      // the last component of GCS object resource path. However, we need special handling
+      // for those predefined names since they also need to be unique even in the same
+      // staging directory.
+      switch (dest) {
+        case "dataflow-worker.jar":
+        case "windmill_main":
+          target =
+              Environments.createStagingFileName(
+                  file, Files.asByteSource(file).hash(Hashing.sha256()));
+          LOG.info("Staging custom {} as {}", dest, target);
+          break;
+        default:
+          target = dest;
+      }
       DataflowPackage destination = new DataflowPackage();
-      String target = dest == null ? Environments.createStagingFileName(file) : dest;
       String resourcePath =
           FileSystems.matchNewResource(stagingPath, true)
               .resolve(target, StandardResolveOptions.RESOLVE_FILE)
               .toString();
       destination.setLocation(resourcePath);
-      destination.setName(target);
+      destination.setName(dest);
       return new AutoValue_PackageUtil_PackageAttributes(
           file, null, destination, file.length(), hash);
     }
 
     public static PackageAttributes forBytesToStage(
         byte[] bytes, String targetName, String stagingPath) {
-
-      Hasher hasher = Hashing.sha256().newHasher();
-      String hash = hasher.putBytes(bytes).hash().toString();
+      HashCode hashCode = Hashing.sha256().newHasher().putBytes(bytes).hash();
       long size = bytes.length;
 
-      String target = targetName == null ? UUID.randomUUID().toString() : targetName;
+      String target = Environments.createStagingFileName(new File(targetName), hashCode);
 
       String resourcePath =
           FileSystems.matchNewResource(stagingPath, true)
@@ -433,7 +440,8 @@ public class PackageUtil implements Closeable {
       targetPackage.setName(target);
       targetPackage.setLocation(resourcePath);
 
-      return new AutoValue_PackageUtil_PackageAttributes(null, bytes, targetPackage, size, hash);
+      return new AutoValue_PackageUtil_PackageAttributes(
+          null, bytes, targetPackage, size, hashCode.toString());
     }
 
     public PackageAttributes withPackageName(String overridePackageName) {

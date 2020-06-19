@@ -68,7 +68,7 @@ $(document).ready(function() {
             },
             /**
              * @desc Search next sibling and if it's also a code block, then store
-                    it's type and move onto the next element. It will keep
+                    its type and move on to the next element. It will keep
                     looking until there is no direct code block descendant left.
              * @param object $el - jQuery object, from where to start searching.
              * @param array $lang - list to hold types, found while searching.

@@ -17,11 +17,18 @@ package synthetic
 
 import (
 	"fmt"
+	"math/rand"
+	"reflect"
+	"time"
+
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
-	"math/rand"
-	"time"
 )
+
+func init() {
+	beam.RegisterType(reflect.TypeOf((*stepFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*sdfStepFn)(nil)).Elem())
+}
 
 // Step creates a synthetic step transform that receives KV<[]byte, []byte>
 // elements from other synthetic transforms, and outputs KV<[]byte, []byte>
@@ -40,9 +47,8 @@ func Step(s beam.Scope, cfg StepConfig, col beam.PCollection) beam.PCollection {
 	s = s.Scope("synthetic.Step")
 	if cfg.Splittable {
 		return beam.ParDo(s, &sdfStepFn{cfg: cfg}, col)
-	} else {
-		return beam.ParDo(s, &stepFn{cfg: cfg}, col)
 	}
+	return beam.ParDo(s, &stepFn{cfg: cfg}, col)
 }
 
 // stepFn is a DoFn implementing behavior for synthetic steps. For usage
@@ -98,35 +104,13 @@ func (fn *sdfStepFn) CreateInitialRestriction(key, val []byte) offsetrange.Restr
 // method will contain at least one element, so the number of splits will not
 // exceed the number of elements.
 func (fn *sdfStepFn) SplitRestriction(key, val []byte, rest offsetrange.Restriction) (splits []offsetrange.Restriction) {
-	if fn.cfg.InitialSplits <= 1 {
-		// Don't split, just return original restriction.
-		return append(splits, rest)
-	}
-
-	// TODO(BEAM-9978) Move this implementation of the offset range restriction
-	// splitting to the restriction itself, and add testing.
-	num := int64(fn.cfg.InitialSplits)
-	offset := rest.Start
-	size := rest.End - rest.Start
-	for i := int64(0); i < num; i++ {
-		split := offsetrange.Restriction{
-			Start: offset + (i * size / num),
-			End:   offset + ((i + 1) * size / num),
-		}
-		// Skip restrictions that end up empty.
-		if split.End-split.Start <= 0 {
-			continue
-		}
-		splits = append(splits, split)
-	}
-	return splits
+	return rest.EvenSplits(int64(fn.cfg.InitialSplits))
 }
 
 // RestrictionSize outputs the size of the restriction as the number of elements
 // that restriction will output.
 func (fn *sdfStepFn) RestrictionSize(key, val []byte, rest offsetrange.Restriction) float64 {
-	// TODO(BEAM-9978) Move this size implementation to the offset range restriction itself.
-	return float64(rest.End - rest.Start)
+	return rest.Size()
 }
 
 // CreateTracker creates an offset range restriction tracker for the
@@ -165,7 +149,7 @@ type StepConfigBuilder struct {
 	cfg StepConfig
 }
 
-// DefaultSourceConfig creates a StepConfig with intended defaults for the
+// DefaultStepConfig creates a StepConfig with intended defaults for the
 // StepConfig fields. This function is the intended starting point for
 // initializing a StepConfig and should always be used to create
 // StepConfigBuilders.

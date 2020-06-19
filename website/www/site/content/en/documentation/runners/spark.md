@@ -37,7 +37,7 @@ The Spark runner comes in three flavors:
 1. A *legacy Runner* which supports only Java (and other JVM-based languages) and that is based on Spark RDD/DStream
 2. An *Structured Streaming Spark Runner* which supports only Java (and other JVM-based languages) and that is based on Spark Datasets and the [Apache Spark Structured Streaming](https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html) framework.
 > **Note:** It is still experimental, its coverage of the Beam model is partial. As for now it only supports batch mode.
-2. A *portable Runner* which supports Java, Python, and Go
+3. A *portable Runner* which supports Java, Python, and Go
 
 This guide is split into two parts to document the non-portable and
 the portable functionality of the Spark Runner. Please use the switcher below to

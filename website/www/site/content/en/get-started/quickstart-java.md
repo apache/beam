@@ -33,6 +33,7 @@ If you're interested in contributing to the Apache Beam Java codebase, see the [
 
 1. Download and install [Apache Maven](https://maven.apache.org/download.cgi) by following Maven's [installation guide](https://maven.apache.org/install.html) for your specific operating system.
 
+1. Optional: Install [Gradle](https://gradle.org/install/) if you would like to convert your Maven project into Gradle.
 
 ## Get the WordCount Code
 
@@ -103,6 +104,41 @@ d-----        7/19/2018  11:00 PM                subprocess
 
 For a detailed introduction to the Beam concepts used in these examples, see the [WordCount Example Walkthrough](/get-started/wordcount-example). Here, we'll just focus on executing `WordCount.java`.
 
+## Optional: Convert from Maven to Gradle Project
+
+Ensure you are in the same directory as the `pom.xml` file generated from the previous step. Automatically convert your project from Maven to Gradle by running:
+{{< highlight >}}
+$ gradle init
+{{< /highlight >}}
+
+After you have converted the project to Gradle:
+
+1. Edit the generated `build.gradle` file by adding `mavenCentral()` under `repositories`:
+{{< highlight >}}
+repositories {
+    mavenCentral()
+    maven {
+        url = uri('https://repository.apache.org/content/repositories/snapshots/')
+    }
+
+    maven {
+        url = uri('http://repo.maven.apache.org/maven2')
+    }
+}
+{{< /highlight >}}
+1. Add the following task in `build.gradle` to allow you to execute pipelines with Gradle:
+{{< highlight >}}
+task execute (type:JavaExec) {
+    main = System.getProperty("mainClass")
+    classpath = sourceSets.main.runtimeClasspath
+    systemProperties System.getProperties()
+    args System.getProperty("exec.args").split()
+}
+{{< /highlight >}}
+1. Rebuild your project by running:
+{{< highlight >}}
+$ gradle build
+{{< /highlight >}}
 
 ## Run WordCount
 
@@ -116,6 +152,8 @@ After you've chosen which runner you'd like to use:
     1. Adding any runner-specific required options
     1. Choosing input files and an output location are accessible on the chosen runner. (For example, you can't access a local file if you are running the pipeline on an external cluster.)
 1.  Run your first WordCount pipeline.
+
+### Run WordCount Using Maven
 
 For Unix shells:
 
@@ -231,6 +269,50 @@ PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.Wor
 PS> mvn package -P jet-runner
 PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
       --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/pom.xml --output=counts
+{{< /highlight >}}
+
+### Run WordCount Using Gradle
+
+For Unix shells (Instructions currently only available for Direct, Spark, and Dataflow):
+
+{{< highlight class="runner-direct">}}
+$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+    -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+{{< /highlight >}}
+
+{{< highlight class="runner-apex">}}
+We are working on adding the instruction for this runner!
+{{< /highlight >}}
+
+{{< highlight class="runner-flink-local">}}
+We are working on adding the instruction for this runner!
+{{< /highlight >}}
+
+{{< highlight class="runner-flink-cluster">}}
+We are working on adding the instruction for this runner!
+{{< /highlight >}}
+
+{{< highlight class="runner-spark" >}}
+$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+    -Dexec.args="--inputFile=pom.xml --output=counts" -Pspark-runner
+{{< /highlight >}}
+
+{{< highlight class="runner-dataflow" >}}
+$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+    -Dexec.args="--project=<your-gcp-project> --inputFile=gs://apache-beam-samples/shakespeare/* \
+    --output=gs://<your-gcs-bucket>/counts" -Pdataflow-runner
+{{< /highlight >}}
+
+{{< highlight class="runner-samza-local">}}
+We are working on adding the instruction for this runner!
+{{< /highlight >}}
+
+{{< highlight class="runner-nemo">}}
+We are working on adding the instruction for this runner!
+{{< /highlight >}}
+
+{{< highlight class="runner-jet">}}
+We are working on adding the instruction for this runner!
 {{< /highlight >}}
 
 ## Inspect the results

@@ -17,10 +17,9 @@ package beam
 
 import (
 	"fmt"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
@@ -37,12 +36,14 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 		return nil, addParDoCtx(err, s)
 	}
 
-	num := graph.MainSingle
+	doFnOpt := graph.NumMainInputs(graph.MainSingle)
 	// Check the PCollection for any keyed type (not just KV specifically).
-	if typex.IsKV(col.Type()) || typex.IsCoGBK(col.Type()) {
-		num = graph.MainKv
+	if typex.IsKV(col.Type()) {
+		doFnOpt = graph.NumMainInputs(graph.MainKv)
+	} else if typex.IsCoGBK(col.Type()) {
+		doFnOpt = graph.CoGBKMainInput(len(col.Type().Components()))
 	}
-	fn, err := graph.NewDoFn(dofn, graph.NumMainInputs(num))
+	fn, err := graph.NewDoFn(dofn, doFnOpt)
 	if err != nil {
 		return nil, addParDoCtx(err, s)
 	}
@@ -84,7 +85,7 @@ func ParDoN(s Scope, dofn interface{}, col PCollection, opts ...Option) []PColle
 func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 0 {
-		panic(fmt.Sprintf("expected 0 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 0))
 	}
 }
 
@@ -355,7 +356,7 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 func ParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) PCollection {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 1 {
-		panic(fmt.Sprintf("expected 1 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 1))
 	}
 	return ret[0]
 }
@@ -366,7 +367,7 @@ func ParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) PCollecti
 func ParDo2(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 2 {
-		panic(fmt.Sprintf("expected 2 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 2))
 	}
 	return ret[0], ret[1]
 }
@@ -375,7 +376,7 @@ func ParDo2(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo3(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 3 {
-		panic(fmt.Sprintf("expected 3 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 3))
 	}
 	return ret[0], ret[1], ret[2]
 }
@@ -384,7 +385,7 @@ func ParDo3(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo4(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 4 {
-		panic(fmt.Sprintf("expected 4 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 4))
 	}
 	return ret[0], ret[1], ret[2], ret[3]
 }
@@ -393,7 +394,7 @@ func ParDo4(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo5(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 5 {
-		panic(fmt.Sprintf("expected 5 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 5))
 	}
 	return ret[0], ret[1], ret[2], ret[3], ret[4]
 }
@@ -402,7 +403,7 @@ func ParDo5(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo6(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 6 {
-		panic(fmt.Sprintf("expected 6 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 6))
 	}
 	return ret[0], ret[1], ret[2], ret[3], ret[4], ret[5]
 }
@@ -411,7 +412,36 @@ func ParDo6(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo7(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 7 {
-		panic(fmt.Sprintf("expected 7 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 7))
 	}
 	return ret[0], ret[1], ret[2], ret[3], ret[4], ret[5], ret[6]
+}
+
+// formatParDoError is a helper function to provide a more concise error
+// message to the users when a DoFn and its ParDo pairing is incorrect.
+//
+// We construct a new graph.Fn using the doFn which is passed. We explicitly
+// ignore the error since we already know that its already a DoFn type as
+// TryParDo would have panicked otherwise.
+func formatParDoError(doFn interface{}, emitSize int, parDoSize int) string {
+	doFun, _ := graph.NewFn(doFn)
+	doFnName := doFun.Name()
+
+	thisParDo := parDoForSize(parDoSize) // Conveniently keeps the API slim.
+	correctParDo := parDoForSize(emitSize)
+
+	return fmt.Sprintf("DoFn %v has %v outputs, but %v requires %v outputs, use %v instead.", doFnName, emitSize, thisParDo, parDoSize, correctParDo)
+}
+
+// parDoForSize takes a in a DoFns emit dimension and recommends the correct
+// ParDo to use.
+func parDoForSize(emitDim int) string {
+	switch emitDim {
+	case 0, 2, 3, 4, 5, 6, 7:
+		return fmt.Sprintf("ParDo%d", emitDim)
+	case 1:
+		return "ParDo"
+	default:
+		return "ParDoN"
+	}
 }

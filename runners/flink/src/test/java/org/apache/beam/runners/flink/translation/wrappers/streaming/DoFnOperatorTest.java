@@ -57,6 +57,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.PCollectionViewTesting;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -696,11 +697,20 @@ public class DoFnOperatorTest {
         new StreamRecord<>(
             new RawUnionValue(
                 1,
-                valuesInWindow(ImmutableList.of("hello", "ciao"), new Instant(0), firstWindow))));
+                valuesInWindow(
+                    PCollectionViewTesting.materializeValuesFor(
+                        view1.getPipeline().getOptions(), View.asIterable(), "hello", "ciao"),
+                    new Instant(0),
+                    firstWindow))));
     testHarness.processElement2(
         new StreamRecord<>(
             new RawUnionValue(
-                2, valuesInWindow(ImmutableList.of("foo", "bar"), new Instant(0), secondWindow))));
+                2,
+                valuesInWindow(
+                    PCollectionViewTesting.materializeValuesFor(
+                        view2.getPipeline().getOptions(), View.asIterable(), "foo", "bar"),
+                    new Instant(0),
+                    secondWindow))));
 
     // push in a regular elements
     WindowedValue<String> helloElement = valueInWindow("Hello", new Instant(0), firstWindow);
@@ -714,12 +724,19 @@ public class DoFnOperatorTest {
             new RawUnionValue(
                 1,
                 valuesInWindow(
-                    ImmutableList.of("hello", "ciao"), new Instant(1000), firstWindow))));
+                    PCollectionViewTesting.materializeValuesFor(
+                        view1.getPipeline().getOptions(), View.asIterable(), "hello", "ciao"),
+                    new Instant(1000),
+                    firstWindow))));
     testHarness.processElement2(
         new StreamRecord<>(
             new RawUnionValue(
                 2,
-                valuesInWindow(ImmutableList.of("foo", "bar"), new Instant(1000), secondWindow))));
+                valuesInWindow(
+                    PCollectionViewTesting.materializeValuesFor(
+                        view2.getPipeline().getOptions(), View.asIterable(), "foo", "bar"),
+                    new Instant(1000),
+                    secondWindow))));
 
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
@@ -921,7 +938,8 @@ public class DoFnOperatorTest {
             new RawUnionValue(
                 1,
                 valuesInWindow(
-                    ImmutableList.of(KV.of((Void) null, "hello"), KV.of((Void) null, "ciao")),
+                    PCollectionViewTesting.materializeValuesFor(
+                        view1.getPipeline().getOptions(), View.asIterable(), "hello", "ciao"),
                     new Instant(0),
                     firstWindow))));
     testHarness.processElement2(
@@ -929,7 +947,8 @@ public class DoFnOperatorTest {
             new RawUnionValue(
                 2,
                 valuesInWindow(
-                    ImmutableList.of(KV.of((Void) null, "foo"), KV.of((Void) null, "bar")),
+                    PCollectionViewTesting.materializeValuesFor(
+                        view2.getPipeline().getOptions(), View.asIterable(), "foo", "bar"),
                     new Instant(0),
                     secondWindow))));
 
@@ -1074,7 +1093,8 @@ public class DoFnOperatorTest {
             new RawUnionValue(
                 1,
                 valuesInWindow(
-                    ImmutableList.of(KV.of((Void) null, "hello"), KV.of((Void) null, "ciao")),
+                    PCollectionViewTesting.materializeValuesFor(
+                        view1.getPipeline().getOptions(), View.asIterable(), "hello", "ciao"),
                     new Instant(0),
                     firstWindow))));
     testHarness.processElement2(
@@ -1082,7 +1102,8 @@ public class DoFnOperatorTest {
             new RawUnionValue(
                 2,
                 valuesInWindow(
-                    ImmutableList.of(KV.of((Void) null, "foo"), KV.of((Void) null, "bar")),
+                    PCollectionViewTesting.materializeValuesFor(
+                        view2.getPipeline().getOptions(), View.asIterable(), "foo", "bar"),
                     new Instant(0),
                     secondWindow))));
 

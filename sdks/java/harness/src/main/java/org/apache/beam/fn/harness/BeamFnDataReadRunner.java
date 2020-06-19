@@ -34,6 +34,7 @@ import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest.DesiredSplit;
@@ -120,6 +121,7 @@ public class BeamFnDataReadRunner<OutputT> {
               processBundleInstructionId,
               coders,
               beamFnDataClient,
+              beamFnStateClient,
               addProgressRequestCallback,
               consumer);
       startFunctionRegistry.register(pTransformId, runner::registerInputLocation);
@@ -149,6 +151,7 @@ public class BeamFnDataReadRunner<OutputT> {
       Supplier<String> processBundleInstructionIdSupplier,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClient,
+      BeamFnStateClient beamFnStateClient,
       Consumer<PTransformRunnerFactory.ProgressRequestCallback> addProgressRequestCallback,
       FnDataReceiver<WindowedValue<OutputT>> consumer)
       throws IOException {
@@ -163,7 +166,20 @@ public class BeamFnDataReadRunner<OutputT> {
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
     this.coder =
         (Coder<WindowedValue<OutputT>>)
-            CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
+            CoderTranslation.fromProto(
+                coders.get(port.getCoderId()),
+                components,
+                new StateBackedIterableTranslationContext() {
+                  @Override
+                  public BeamFnStateClient getStateClient() {
+                    return beamFnStateClient;
+                  }
+
+                  @Override
+                  public Supplier<String> getCurrentInstructionId() {
+                    return processBundleInstructionIdSupplier;
+                  }
+                });
 
     addProgressRequestCallback.accept(
         () -> {
@@ -276,8 +292,8 @@ public class BeamFnDataReadRunner<OutputT> {
           if (splitResult != null) {
             stopIndex = index + 1;
             response
-                .addPrimaryRoots(splitResult.getPrimaryRoot())
-                .addResidualRoots(splitResult.getResidualRoot())
+                .addAllPrimaryRoots(splitResult.getPrimaryRoots())
+                .addAllResidualRoots(splitResult.getResidualRoots())
                 .addChannelSplitsBuilder()
                 .setLastPrimaryElement(index - 1)
                 .setFirstResidualElement(stopIndex);

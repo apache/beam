@@ -45,7 +45,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HL7v2IOReadIT {
   private transient HealthcareApiClient client;
-  // TODO(jaketf) replace with real project id.
   private static String healthcareDataset;
   private static final String HL7V2_STORE_NAME =
       "hl7v2_store_"
@@ -93,7 +92,7 @@ public class HL7v2IOReadIT {
     PCollection<HL7v2Message> result =
         pipeline.apply(HL7v2IO.read(healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME));
     PCollection<Long> numReadMessages =
-        result.setCoder(new HL7v2MessageCoder()).apply(Count.globally());
+        result.setCoder(HL7v2MessageCoder.of()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo((long) MESSAGES.size());
 
     PAssert.that(result)
@@ -120,7 +119,7 @@ public class HL7v2IOReadIT {
             HL7v2IO.readWithFilter(
                 healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME, adtFilter));
     PCollection<Long> numReadMessages =
-        result.setCoder(new HL7v2MessageCoder()).apply(Count.globally());
+        result.setCoder(HL7v2MessageCoder.of()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo(NUM_ADT);
 
     PAssert.that(result)

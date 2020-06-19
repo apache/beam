@@ -17,8 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+
 /** Provides static constants or utils for TVF streaming. */
 public class TVFStreamingUtils {
   public static final String WINDOW_START = "window_start";
   public static final String WINDOW_END = "window_end";
+
+  public static final String FIXED_WINDOW_TVF = "TUMBLE";
+  public static final String SLIDING_WINDOW_TVF = "HOP";
+  public static final String SESSION_WINDOW_TVF = "SESSION";
+
+  public static final ImmutableSet<String> WINDOWING_TVF =
+      ImmutableSet.of(FIXED_WINDOW_TVF, SLIDING_WINDOW_TVF, SESSION_WINDOW_TVF);
 }

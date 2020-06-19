@@ -19,3 +19,8 @@
 
 content:
 - Map
+- GroupByKey
+- CoGroupByKey
+- Combine
+- Flatten
+- Partition

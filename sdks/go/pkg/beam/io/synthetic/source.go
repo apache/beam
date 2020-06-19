@@ -24,11 +24,17 @@ package synthetic
 
 import (
 	"fmt"
+	"math/rand"
+	"reflect"
+	"time"
+
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
-	"math/rand"
-	"time"
 )
+
+func init() {
+	beam.RegisterType(reflect.TypeOf((*sourceFn)(nil)).Elem())
+}
 
 // Source creates a synthetic source transform that emits randomly
 // generated KV<[]byte, []byte> elements.
@@ -95,35 +101,13 @@ func (fn *sourceFn) CreateInitialRestriction(config SourceConfig) offsetrange.Re
 // method will contain at least one element, so the number of splits will not
 // exceed the number of elements.
 func (fn *sourceFn) SplitRestriction(config SourceConfig, rest offsetrange.Restriction) (splits []offsetrange.Restriction) {
-	if config.InitialSplits <= 1 {
-		// Don't split, just return original restriction.
-		return append(splits, rest)
-	}
-
-	// TODO(BEAM-9978) Move this implementation of the offset range restriction
-	// splitting to the restriction itself, and add testing.
-	num := int64(config.InitialSplits)
-	offset := rest.Start
-	size := rest.End - rest.Start
-	for i := int64(0); i < num; i++ {
-		split := offsetrange.Restriction{
-			Start: offset + (i * size / num),
-			End:   offset + ((i + 1) * size / num),
-		}
-		// Skip restrictions that end up empty.
-		if split.End-split.Start <= 0 {
-			continue
-		}
-		splits = append(splits, split)
-	}
-	return splits
+	return rest.EvenSplits(int64(config.InitialSplits))
 }
 
 // RestrictionSize outputs the size of the restriction as the number of elements
 // that restriction will output.
 func (fn *sourceFn) RestrictionSize(config SourceConfig, rest offsetrange.Restriction) float64 {
-	// TODO(BEAM-9978) Move this size implementation to the offset range restriction itself.
-	return float64(rest.End - rest.Start)
+	return rest.Size()
 }
 
 // CreateTracker just creates an offset range restriction tracker for the

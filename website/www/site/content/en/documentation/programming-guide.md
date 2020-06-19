@@ -109,7 +109,7 @@ sets as `PCollection`s and its operations as `Transform`s.
 To use Beam, your driver program must first create an instance of the Beam SDK
 class `Pipeline` (typically in the `main()` function). When you create your
 `Pipeline`, you'll also need to set some **configuration options**. You can set
-your pipeline's configuration options programatically, but it's often easier to
+your pipeline's configuration options programmatically, but it's often easier to
 set the options ahead of time (or read them from the command line) and pass them
 to the `Pipeline` object when you create the object.
 
@@ -122,7 +122,7 @@ Pipeline p = Pipeline.create(options);
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_creating >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_creating >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -157,7 +157,7 @@ PipelineOptions options =
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_creating >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_creating >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -199,7 +199,7 @@ public interface MyOptions extends PipelineOptions {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_options_define_custom >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_options_define_custom >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -229,7 +229,7 @@ public interface MyOptions extends PipelineOptions {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_options_define_custom_with_help_and_default >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_options_define_custom_with_help_and_default >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -316,7 +316,7 @@ public static void main(String[] args) {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_reading >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_reading >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -369,15 +369,15 @@ public static void main(String[] args) {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_pcollection >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_pcollection >}}
 {{< /highlight >}}
 
 ### 3.2. PCollection characteristics {#pcollection-characteristics}
 
 A `PCollection` is owned by the specific `Pipeline` object for which it is
-created; multiple pipelines cannot share a `PCollection`. In some respects, a
-`PCollection` functions like a collection class. However, a `PCollection` can
-differ in a few key ways:
+created; multiple pipelines cannot share a `PCollection`. <span language="java">
+In some respects, a `PCollection` functions like a `Collection` class. However,
+a `PCollection` can differ in a few key ways:</span>
 
 #### 3.2.1. Element type {#element-type}
 
@@ -505,7 +505,10 @@ nested within (called [composite transforms](#composite-transforms) in the Beam
 SDKs).
 
 How you apply your pipeline's transforms determines the structure of your
-pipeline. The best way to think of your pipeline is as a directed acyclic graph, where `PTransform` nodes are subroutines that accept `PCollection` nodes as inputs and emit `PCollection` nodes as outputs. For example, you can chain together transforms to create a pipeline that successively modifies input data:
+pipeline. The best way to think of your pipeline is as a directed acyclic graph,
+where `PTransform` nodes are subroutines that accept `PCollection` nodes as
+inputs and emit `PCollection` nodes as outputs. For example, you can chain
+together transforms to create a pipeline that successively modifies input data:
 
 {{< highlight java >}}
 [Final Output PCollection] = [Initial Input PCollection].apply([First Transform])
@@ -527,7 +530,7 @@ The graph of this pipeline looks like the following:
 *Figure 1: A linear pipeline with three sequential transforms.*
 
 However, note that a transform *does not consume or otherwise alter* the input
-collection--remember that a `PCollection` is immutable by definition. This means
+collection — remember that a `PCollection` is immutable by definition. This means
 that you can apply multiple transforms to the same input `PCollection` to create
 a branching pipeline, like so:
 
@@ -552,7 +555,7 @@ The graph of this branching pipeline looks like the following:
 PCollection of database table rows.*
 
 You can also build your own [composite transforms](#composite-transforms) that
-nest multiple sub-steps inside a single, larger transform. Composite transforms
+nest multiple transforms inside a single, larger transform. Composite transforms
 are particularly useful for building a reusable sequence of simple steps that
 get used in a lot of different places.
 
@@ -571,7 +574,8 @@ processing paradigm:
 #### 4.2.1. ParDo {#pardo}
 
 `ParDo` is a Beam transform for generic parallel processing. The `ParDo`
-processing paradigm is similar to the "Map" phase of a Map/Shuffle/Reduce-style
+processing paradigm is similar to the "Map" phase of a
+[Map/Shuffle/Reduce](https://en.wikipedia.org/wiki/MapReduce)-style
 algorithm: a `ParDo` transform considers each element in the input
 `PCollection`, performs some processing function (your user code) on that
 element, and emits zero, one, or multiple elements to an output `PCollection`.
@@ -579,7 +583,7 @@ element, and emits zero, one, or multiple elements to an output `PCollection`.
 `ParDo` is useful for a variety of common data processing operations, including:
 
 * **Filtering a data set.** You can use `ParDo` to consider each element in a
-  `PCollection` and either output that element to a new collection, or discard
+  `PCollection` and either output that element to a new collection or discard
   it.
 * **Formatting or type-converting each element in a data set.** If your input
   `PCollection` contains elements that are of a different type or format than
@@ -631,8 +635,8 @@ PCollection<Integer> wordLengths = words.apply(
 words = ...
 
 # The DoFn to perform on each element in the input PCollection.
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_pardo >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_apply >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_pardo >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_apply >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -655,7 +659,7 @@ the length of each string, and outputs the result to a new `PCollection` of
 
 The `DoFn` object that you pass to `ParDo` contains the processing logic that
 gets applied to the elements in the input collection. When you use Beam, often
-the most important pieces of code you'll write are these `DoFn`s--they're what
+the most important pieces of code you'll write are these `DoFn`s - they're what
 define your pipeline's exact data processing tasks.
 
 > **Note:** When you create your `DoFn`, be mindful of the [Requirements
@@ -683,18 +687,19 @@ that for you. Your `@ProcessElement` method should accept a parameter tagged wit
 `@Element`, which will be populated with the input element. In order to output
 elements, the method can also take a parameter of type `OutputReceiver` which
 provides a method for emitting elements. The parameter types must match the input
-and output types of your `DoFn` or the framework will raise an error. Note: @Element and
-OutputReceiver were introduced in Beam 2.5.0; if using an earlier release of Beam, a
-ProcessContext parameter should be used instead.
+and output types of your `DoFn` or the framework will raise an error. Note: `@Element` and
+`OutputReceiver` were introduced in Beam 2.5.0; if using an earlier release of Beam, a
+`ProcessContext` parameter should be used instead.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 Inside your `DoFn` subclass, you'll write a method `process` where you provide
 the actual processing logic. You don't need to manually extract the elements
-from the input collection; the Beam SDKs handle that for you. Your `process`
-method should accept an object of type `element`. This is the input element and
-output is emitted by using `yield` or `return` statement inside `process`
-method.
+from the input collection; the Beam SDKs handle that for you. Your `process` method
+should accept an argument `element`, which is the input element, and return an
+iterable with its output values. You can accomplish this by emitting individual 
+elements with `yield` statements. You can also use a `return` statement
+with an iterable, like a list or a generator.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -708,7 +713,7 @@ static class ComputeWordLengthFn extends DoFn<String, Integer> {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_pardo >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_pardo >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -734,6 +739,13 @@ following requirements:
   the `@Element` annotation or `ProcessContext.sideInput()` (the incoming
   elements from the input collection).
 * Once you output a value using `OutputReceiver.output()` you should not modify
+  that value in any way.
+{{< /paragraph >}}
+
+{{< paragraph class="language-python" >}}
+* You should not in any way modify the `element` argument provided to the
+  `process` method, or any side inputs.
+* Once you output a value using `yield` or `return`, you should not modify
   that value in any way.
 {{< /paragraph >}}
 
@@ -771,7 +783,7 @@ words = ...
 
 # Apply a lambda function to the PCollection words.
 # Save the result as the PCollection word_lengths.
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_using_flatmap >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_using_flatmap >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -810,7 +822,7 @@ words = ...
 
 # Apply a Map with a lambda function to the PCollection words.
 # Save the result as the PCollection word_lengths.
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_using_map >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_using_map >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -966,22 +978,22 @@ data contains names and phone numbers.
 </span>
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleInputs >}}
+{{< code_sample "examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleInputs >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_inputs >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_inputs >}}
 {{< /highlight >}}
 
 After `CoGroupByKey`, the resulting data contains all data associated with each
 unique key from any of the input collections.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleOutputs >}}
+{{< code_sample "examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleOutputs >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_outputs >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_outputs >}}
 {{< /highlight >}}
 
 The following code example joins the two `PCollection`s with `CoGroupByKey`,
@@ -989,21 +1001,21 @@ followed by a `ParDo` to consume the result. Then, the code uses tags to look up
 and format data from each collection.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CoGroupByKeyTuple >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CoGroupByKeyTuple >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_group_by_key_cogroupbykey_tuple >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_group_by_key_cogroupbykey_tuple >}}
 {{< /highlight >}}
 
 The formatted data looks like this:
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleFormattedOutputs >}}
+{{< code_sample "examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleFormattedOutputs >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_formatted_outputs >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_formatted_outputs >}}
 {{< /highlight >}}
 
 #### 4.2.4. Combine {#combine}
@@ -1048,7 +1060,7 @@ public static class SumInts implements SerializableFunction<Iterable<Integer>, I
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_bounded_sum >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_bounded_sum >}}
 {{< /highlight >}}
 
 ##### 4.2.4.2. Advanced combinations using CombineFn {#advanced-combines}
@@ -1121,7 +1133,7 @@ public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
 
 {{< highlight py >}}
 pc = ...
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_custom_average_define >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_custom_average_define >}}
 {{< /highlight >}}
 
 ##### 4.2.4.3. Combining a PCollection into a single value {#combining-pcollection}
@@ -1145,7 +1157,7 @@ PCollection<Integer> sum = pc.apply(
 # The resulting PCollection, called result, contains one value: the sum of all
 # the elements in the input PCollection.
 pc = ...
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_custom_average_execute >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_custom_average_execute >}}
 {{< /highlight >}}
 
 ##### 4.2.4.4. Combine and global windowing {#combine-global-windowing}
@@ -1229,7 +1241,7 @@ PCollection<KV<String, Double>> avgAccuracyPerPlayer =
 # PCollection is grouped by key and the numeric values associated with each key
 # are averaged into a float.
 player_accuracies = ...
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_per_key >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_per_key >}}
 {{< /highlight >}}
 
 #### 4.2.5. Flatten {#flatten}
@@ -1258,7 +1270,7 @@ PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 {{< highlight py >}}
 # Flatten takes a tuple of PCollection objects.
 # Returns a single PCollection that contains all of the elements in the PCollection objects in that tuple.
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten >}}
 {{< /highlight >}}
 
 ##### 4.2.5.1. Data encoding in merged collections {#data-encoding-merged-collections}
@@ -1321,10 +1333,10 @@ PCollection<Student> fortiethPercentile = studentsByPercentile.get(4);
 # Provide an int value with the desired number of result partitions, and a partitioning function (partition_fn in this example).
 # Returns a tuple of PCollection objects containing each of the resulting partitions as individual PCollection objects.
 students = ...
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_partition >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_partition >}}
 
 # You can extract each partition from the tuple of PCollection objects as follows:
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_partition_40th >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_partition_40th >}}
 {{< /highlight >}}
 
 ### 4.3. Requirements for writing user code for Beam transforms {#requirements-for-writing-user-code-for-beam-transforms}
@@ -1448,12 +1460,12 @@ determined by the input data, or depend on a different branch of your pipeline.
 # of the actual elements of pcoll being passed into each process invocation. In this example, side inputs are
 # passed to a FlatMap transform as extra arguments and consumed by filter_using_length.
 words = ...
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_side_input >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_side_input >}}
 
 # We can also pass side inputs to a ParDo transform, which will get passed to its process method.
 # The first two arguments for the process method would be self and element.
 
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_side_input_dofn >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_side_input_dofn >}}
 ...
 {{< /highlight >}}
 
@@ -1550,12 +1562,12 @@ together.
 # with_outputs are attributes on the returned DoOutputsTuple object. The tags give access to the
 # corresponding output PCollections.
 
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_tagged_outputs >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_tagged_outputs >}}
 
 # The result is also iterable, ordered in the same order that the tags were passed to with_outputs(),
 # the main tag (if specified) first.
 
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_tagged_outputs_iter >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_tagged_outputs_iter >}}
 {{< /highlight >}}
 
 #### 4.5.2. Emitting to multiple outputs in your DoFn {#multiple-outputs-dofn}
@@ -1588,12 +1600,12 @@ together.
 # using the pvalue.OutputValue wrapper class.
 # Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.
 
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_emitting_values_on_tagged_outputs >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_emitting_values_on_tagged_outputs >}}
 
 # Producing multiple outputs is also available in Map and FlatMap.
 # Here is an example that uses FlatMap and shows that the tags do not need to be specified ahead of time.
 
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_undeclared_outputs >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_undeclared_outputs >}}
 {{< /highlight >}}
 
 #### 4.5.3. Accessing additional parameters in your DoFn {#other-dofn-parameters}
@@ -1663,7 +1675,7 @@ import apache_beam as beam
 class ProcessRecord(beam.DoFn):
 
   def process(self, element, window=beam.DoFn.WindowParam):
-     # access window e.g window.end.micros
+     # access window e.g. window.end.micros
      pass  
   
 {{< /highlight >}}
@@ -1678,7 +1690,7 @@ you can determine whether this is an early or a late firing, and how many times 
 **PaneInfo:**
 When triggers are used, Beam provides a `DoFn.PaneInfoParam` object that contains information about the current firing. Using `DoFn.PaneInfoParam`
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key. 
-This feature implementation in python sdk is not fully completed, see more at [BEAM-3759](https://issues.apache.org/jira/browse/BEAM-3759).
+This feature implementation in Python SDK is not fully completed; see more at [BEAM-3759](https://issues.apache.org/jira/browse/BEAM-3759).
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -1693,7 +1705,7 @@ import apache_beam as beam
 class ProcessRecord(beam.DoFn):
 
   def process(self, element, pane_info=beam.DoFn.PaneInfoParam):
-     # access pane info e.g pane_info.is_first, pane_info.is_last, pane_info.timing
+     # access pane info, e.g. pane_info.is_first, pane_info.is_last, pane_info.timing
      pass  
   
 {{< /highlight >}}
@@ -1720,7 +1732,7 @@ Timers are explained in more detail in the
 
 {{< paragraph class="language-py" >}}
 **Timer and State:**
-In addition to aforementioned parameters, user defined Timer and State parameters can be used in a Stateful DoFn.
+In addition to aforementioned parameters, user defined Timer and State parameters can be used in a stateful DoFn.
 Timers and States are explained in more detail in the
 [Timely (and Stateful) Processing with Apache Beam](/blog/2017/08/28/timely-processing.html) blog post.
 {{< /paragraph >}}
@@ -1742,7 +1754,7 @@ class StatefulDoFn(beam.DoFn):
               buffer_2=beam.DoFn.StateParam(BUFFER_STATE_2),
               watermark_timer=beam.DoFn.TimerParam(WATERMARK_TIMER)):
 
-    # Do you processing here
+    # Do your processing here
     key, value = element
     # Read all the data from buffer1
     all_values_in_buffer_1 = [x for x in buffer_1.read()]
@@ -1812,13 +1824,6 @@ transform operations:
      word in the text, and each value represents the number of times that word
      appeared in the original data.
 
-Note that this is also an example of nested composite transforms, as `Count`
-is, by itself, a composite transform.
-
-Your composite transform's parameters and return value must match the initial
-input type and final return type for the entire transform, even if the
-transform's intermediate data changes type multiple times.
-
 {{< highlight java >}}
   public static class CountWords extends PTransform<PCollection<String>,
       PCollection<KV<String, Long>>> {
@@ -1839,8 +1844,11 @@ transform's intermediate data changes type multiple times.
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_monitoring_composite >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_monitoring_composite >}}
 {{< /highlight >}}
+
+> **Note:** Because `Count` is itself a composite transform,
+> `CountWords` is also a nested composite transform.
 
 #### 4.6.2. Creating a composite transform {#composite-transform-creation}
 
@@ -1867,7 +1875,7 @@ The following code sample shows how to declare a `PTransform` that accepts a
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_transform >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_transform >}}
 {{< /highlight >}}
 
 Within your `PTransform` subclass, you'll need to override the `expand` method.
@@ -1891,7 +1899,7 @@ The following code sample shows how to override `expand` for the
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_transform >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_transform >}}
 {{< /highlight >}}
 
 As long as you override the `expand` method in your `PTransform` subclass to
@@ -1899,6 +1907,10 @@ accept the appropriate input `PCollection`(s) and return the corresponding
 output `PCollection`(s), you can include as many transforms as you want. These
 transforms can include core transforms, composite transforms, or the transforms
 included in the Beam SDK libraries.
+
+Your composite transform's parameters and return value must match the initial
+input type and final return type for the entire transform, even if the
+transform's intermediate data changes type multiple times.
 
 **Note:** The `expand` method of a `PTransform` is not meant to be invoked
 directly by the user of a transform. Instead, you should call the `apply` method
@@ -1960,7 +1972,7 @@ output | beam.io.WriteToText('gs://some/outputData')
 Many read transforms support reading from multiple input files matching a glob
 operator you provide. Note that glob operators are filesystem-specific and obey
 filesystem-specific consistency models. The following TextIO example uses a glob
-operator (\*) to read all matching input files that have prefix "input-" and the
+operator (`*`) to read all matching input files that have prefix "input-" and the
 suffix ".csv" in the given location:
 
 {{< highlight java >}}
@@ -1969,7 +1981,7 @@ p.apply("ReadFromText",
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_pipelineio_read >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_pipelineio_read >}}
 {{< /highlight >}}
 
 To read data from disparate sources into a single `PCollection`, read each one
@@ -1994,7 +2006,7 @@ records.apply("WriteToText",
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_pipelineio_write >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_pipelineio_write >}}
 {{< /highlight >}}
 
 ### 5.4. Beam-provided I/O transforms {#provided-io-transforms}
@@ -2011,7 +2023,7 @@ structures that can often be determined by examining the type. Even within a SDK
  clear structure that can be inferred by inspecting the class. By understanding the structure of a pipeline’s 
  records, we can provide much more concise APIs for data processing.
  
-### 6.1. What is a schema {#what-is-a-schema}
+### 6.1. What is a schema? {#what-is-a-schema}
 
 Most structured records share some common characteristics: 
 * They can be subdivided into separate named fields. Fields usually have string names, but sometimes - as in the case of indexed
@@ -2020,8 +2032,8 @@ Most structured records share some common characteristics:
  languages: int, long, string, etc.
 * Often a field type can be marked as optional (sometimes referred to as nullable) or required.
 
-Oten records have a nested structure. A nested structure occurs when a field itself has subfields so the 
-type of the field itself has a schema. Fields that are  array or map types is also a common feature of these structured 
+Often records have a nested structure. A nested structure occurs when a field itself has subfields so the 
+type of the field itself has a schema. Fields that are array or map types is also a common feature of these structured 
 records.
 
 For example, consider the following schema, representing actions in a fictitious e-commerce company:
@@ -2362,7 +2374,7 @@ This logical type allows creating an enumeration type consisting of a set of nam
 {{< highlight java >}}
 Schema schema = Schema.builder()
                …
-     .addLogicalTypeField(“color”, EnumerationType.create(“RED”, “GREEN”, “BLUE”))
+     .addLogicalTypeField("color", EnumerationType.create("RED", "GREEN", "BLUE"))
      .build();
 {{< /highlight >}}
 
@@ -2370,15 +2382,15 @@ The value of this field is stored in the row as an INT32 type, however the logic
 you access the enumeration either as a string or a value. For example:
 
 {{< highlight java >}}
-EnumerationType.Value enumValue = enumType.valueOf(“RED”);
+EnumerationType.Value enumValue = enumType.valueOf("RED");
 enumValue.getValue();  // Returns 0, the integer value of the constant.
-enumValue.toString();  // Returns “RED”, the string value of the constant
+enumValue.toString();  // Returns "RED", the string value of the constant
 {{< /highlight >}}
 
 Given a row object with an enumeration field, you can also extract the field as the enumeration value.
 
 {{< highlight java >}}
-EnumerationType.Value enumValue = row.getLogicalTypeValue(“color”, EnumerationType.Value.class);
+EnumerationType.Value enumValue = row.getLogicalTypeValue("color", EnumerationType.Value.class);
 {{< /highlight >}}
 
 Automatic schema inference from Java POJOs and JavaBeans automatically converts Java enums to EnumerationType logical 
@@ -2391,10 +2403,10 @@ OneOfType allows creating a disjoint union type over a set of schema fields. For
 {{< highlight java >}}
 Schema schema = Schema.builder()
                …
-     .addLogicalTypeField(“oneOfField”, 
-        OneOfType.create(Field.of(“intField”, FieldType.INT32),
-                         Field.of(“stringField”, FieldType.STRING),
-                         Field.of(“bytesField”, FieldType.BYTES)))
+     .addLogicalTypeField("oneOfField", 
+        OneOfType.create(Field.of("intField", FieldType.INT32),
+                         Field.of("stringField", FieldType.STRING),
+                         Field.of("bytesField", FieldType.BYTES)))
       .build();
 {{< /highlight >}}
 
@@ -2405,19 +2417,19 @@ logical type however defines a Value object that contains an enumeration value i
 {{< highlight java >}}
 // Returns an enumeration indicating all possible case values for the enum.
 // For the above example, this will be 
-// EnumerationType.create(“intField”, “stringField”, “bytesField”);
+// EnumerationType.create("intField", "stringField", "bytesField");
 EnumerationType oneOfEnum = onOfType.getCaseEnumType();
 
 // Creates an instance of the union with the string field set.
-OneOfType.Value oneOfValue = oneOfType.createValue(“stringField”, “foobar”);
+OneOfType.Value oneOfValue = oneOfType.createValue("stringField", "foobar");
 
 // Handle the oneof
 switch (oneOfValue.getCaseEnumType().toString()) {
-  case “intField”:  
+  case "intField":  
     return processInt(oneOfValue.getValue(Integer.class));
-  case “stringField”:
+  case "stringField":
     return processString(oneOfValue.getValue(String.class));
-  case “bytesField”:
+  case "bytesField":
     return processBytes(oneOfValue.getValue(bytes[].class));
 }
 {{< /highlight >}}
@@ -2565,7 +2577,7 @@ In order to select a field at the top level of a schema, the name of the field i
 the user ids from a `PCollection` of purchases one would write (using the `Select` transform)
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“userId”));
+purchases.apply(Select.fieldNames("userId"));
 {{< /highlight >}}
 
 ##### **Nested fields**
@@ -2574,7 +2586,7 @@ Individual nested fields can be specified using the dot operator. For example, t
  shipping address one would write
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“shippingAddress.postCode”));
+purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 {{< /highlight >}}
 
 ##### **Wildcards**
@@ -2583,7 +2595,7 @@ The * operator can be specified at any nesting level to represent all fields at 
 shipping-address fields one would write
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“shippingAddress.*”));
+purchases.apply(Select.fieldNames("shippingAddress.*"));
 {{< /highlight >}}
 
 ##### **Arrays**
@@ -2592,7 +2604,7 @@ An array field, where the array element type is a row, can also have subfields o
 selected, the result is an array of the selected subfield type. For example
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“transactions[].bank”));
+purchases.apply(Select.fieldNames("transactions[].bank"));
 {{< /highlight >}}
 
 Will result in a row containing an array field with element-type string, containing the list of banks for each 
@@ -2631,7 +2643,7 @@ specific keys from the map. For example, given the following schema:
 The following 
 
 {{< highlight java >}}
-purchasesByType.apply(Select.fieldNames(“purchases{}.userId”));
+purchasesByType.apply(Select.fieldNames("purchases{}.userId"));
 {{< /highlight >}}
 
 Will result in a row containing an map field with key-type string and value-type string. The selected map will contain
@@ -2655,7 +2667,7 @@ field as a top-level field. Both top-level and nested fields can be selected. Fo
 could select only the userId and streetAddress fields as follows
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“userId”, shippingAddress.streetAddress”));
+purchases.apply(Select.fieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
 The resulting `PCollection` will have the following schema
@@ -2683,7 +2695,7 @@ The resulting `PCollection` will have the following schema
 The same is true for wildcard selections. The following
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“userId”, shippingAddress.*”));
+purchases.apply(Select.fieldNames("userId", "shippingAddress.*"));
 {{< /highlight >}}
 
 Will result in the following schema
@@ -2729,7 +2741,7 @@ top-level field in the resulting row. This means that if multiple fields are sel
 selected field will appear as its own array field. For example
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames( “transactions.bank”, transactions.purchaseAmount”));
+purchases.apply(Select.fieldNames( "transactions.bank", "transactions.purchaseAmount"));
 {{< /highlight >}}
 
 Will result in the following schema
@@ -2832,7 +2844,7 @@ The simplest usage of `Group` specifies no aggregations, in which case all input
 are grouped together into an `ITERABLE` field. For example
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames(“userId”, shippingAddress.streetAddress”));
+purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
 The output schema of this is:
@@ -2863,9 +2875,9 @@ The names of the key and values fields in the output schema can be controlled us
 builders, as follows:
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames(“userId”, shippingAddress.streetAddress”)
-    .withKeyField(“userAndStreet”)
-    .withValueField(“matchingPurchases”));
+purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress")
+    .withKeyField("userAndStreet")
+    .withValueField("matchingPurchases"));
 {{< /highlight >}}
 
 It is quite common to apply one or more aggregations to the grouped result. Each aggregation can  specify one or more fields 
@@ -2874,10 +2886,10 @@ following application computes three aggregations grouped by userId, with all ag
 output schema:
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames(“userId”)
-    .aggregateField(“itemId”, Count.combineFn(), “numPurchases”)
-    .aggregateField(“costCents”, Sum.ofLongs(), “totalSpendCents”)
-    .aggregateField(“costCents”, Top.<Long>largestLongsFn(10), “topPurchases”));
+purchases.apply(Group.byFieldNames("userId")
+    .aggregateField("itemId", Count.combineFn(), "numPurchases")
+    .aggregateField("costCents", Sum.ofLongs(), "totalSpendCents")
+    .aggregateField("costCents", Top.<Long>largestLongsFn(10), "topPurchases"));
 {{< /highlight >}}
 
 The result of this aggregation will have the following schema:
@@ -2915,7 +2927,7 @@ and is specified with the `using` keyword:
 PCollection<Transaction> transactions = readTransactions();
 PCollection<Review> reviews = readReviews();
 PCollection<Row> joined = transactions.apply(
-    Join.innerJoin(reviews).using(“userId”, “productId”));
+    Join.innerJoin(reviews).using("userId", "productId"));
 {{< /highlight >}}
 
 The resulting schema is the following:
@@ -2948,8 +2960,8 @@ Review schema named those fields differently than the Transaction schema, then w
 PCollection<Row> joined = transactions.apply(
     Join.innerJoin(reviews).on(
       FieldsEqual
-         .left(“userId”, “productId”)
-         .right(“reviewUserId”, “reviewProductId”)));
+         .left("userId", "productId")
+         .right("reviewUserId", "reviewProductId")));
 {{< /highlight >}}
 
 In addition to inner joins, the Join transform supports full outer joins, left outer joins, and right outer joins.
@@ -2971,8 +2983,8 @@ which all predicates return true will pass the filter. For example the following
 
 {{< highlight java >}}
 purchases.apply(Filter
-    .whereFieldName(“costCents”, c -> c > 100 * 20)
-    .whereFieldName(“shippingAddress.country”, c -> c.equals(“de”));
+    .whereFieldName("costCents", c -> c > 100 * 20)
+    .whereFieldName("shippingAddress.country", c -> c.equals("de"));
 {{< /highlight >}}
 
 Will produce all purchases made from Germany with a purchase price of greater than twenty cents.
@@ -2989,9 +3001,9 @@ For example, the following application
 
 {{< highlight java >}}
 purchases.apply(AddFields.<PurchasePojo>create()
-    .field(“timeOfDaySeconds”, FieldType.INT32)
-    .field(“shippingAddress.deliveryNotes”, FieldType.STRING)
-    .field(“transactions.isFlagged, FieldType.BOOLEAN, false));
+    .field("timeOfDaySeconds", FieldType.INT32)
+    .field("shippingAddress.deliveryNotes", FieldType.STRING)
+    .field("transactions.isFlagged, FieldType.BOOLEAN, false));
 {{< /highlight >}}
 
 Results in a `PCollection` with an expanded schema. All of the rows and fields of the input, but also with the specified 
@@ -3007,7 +3019,7 @@ syntax.
 For example, the following snippet
 
 {{< highlight java >}}
-purchases.apply(DropFields.fields(“userId”, “shippingAddress.streetAddress”));
+purchases.apply(DropFields.fields("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
 Results in a copy of the input with those two fields and their corresponding values removed.
@@ -3024,8 +3036,8 @@ For example, the following snippet
 
 {{< highlight java >}}
 purchases.apply(RenameFields.<PurchasePojo>create()
-  .rename(“userId”, “userIdentifier”)
-  .rename(“shippingAddress.streetAddress”, “shippingAddress.street”));
+  .rename("userId", "userIdentifier")
+  .rename("shippingAddress.streetAddress", "shippingAddress.street"));
 {{< /highlight >}}
 
 Results in the same set of unmodified input elements, however the schema on the PCollection has been changed to rename 
@@ -3113,7 +3125,7 @@ using the above-described selection expressions, as follows:
 {{< highlight java >}}
 purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
   @ProcessElement public void process(
-     @FieldAccess(“userId”) String userId, @FieldAccess(“itemId”) long itemId) {
+     @FieldAccess("userId") String userId, @FieldAccess("itemId") long itemId) {
       ...
   }
 }));
@@ -3124,7 +3136,7 @@ You can also select nested fields, as follows.
 {{< highlight java >}}
 purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
   @ProcessElement public void process(
-    @FieldAccess(“shippingAddress.street”) String street) {
+    @FieldAccess("shippingAddress.street") String street) {
       ...
   }
 }));
@@ -3660,7 +3672,7 @@ into fixed windows, each 60 seconds in length:
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_fixed_windows >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_fixed_windows >}}
 {{< /highlight >}}
 
 #### 8.3.2. Sliding time windows {#using-sliding-time-windows}
@@ -3676,7 +3688,7 @@ begins every five seconds:
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_sliding_windows >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_sliding_windows >}}
 {{< /highlight >}}
 
 #### 8.3.3. Session windows {#using-session-windows}
@@ -3692,7 +3704,7 @@ least 10 minutes (600 seconds):
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_session_windows >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_session_windows >}}
 {{< /highlight >}}
 
 Note that the sessions are per-key — each key in the collection will have its
@@ -3711,7 +3723,7 @@ a single global window for a `PCollection`:
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_global_window >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_global_window >}}
 {{< /highlight >}}
 
 ### 8.4. Watermarks and late data {#watermarks-and-late-data}
@@ -3822,7 +3834,7 @@ with a `DoFn` to attach the timestamps to each element in your `PCollection`.
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_timestamp >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_timestamp >}}
 {{< /highlight >}}
 
 ## 9. Triggers {#triggers}
@@ -3911,7 +3923,7 @@ firings:
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_early_late_triggers >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_early_late_triggers >}}
 {{< /highlight >}}
 
 #### 9.1.1. Default trigger {#default-trigger}
@@ -3953,8 +3965,8 @@ It is important to note that if, for example, you specify
 <span class="language-py">AfterCount(50)</span> and only 32 elements arrive,
 those 32 elements sit around forever. If the 32 elements are important to you,
 consider using [composite triggers](#composite-triggers) to combine multiple
-conditions. This allows you to specify multiple firing conditions such as “fire
-either when I receive 50 elements, or every 1 second”.
+conditions. This allows you to specify multiple firing conditions such as "fire
+either when I receive 50 elements, or every 1 second".
 
 ### 9.4. Setting a trigger {#setting-a-trigger}
 
@@ -3988,7 +4000,7 @@ sets the window's **accumulation mode**.
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_setting_trigger >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_setting_trigger >}}
 {{< /highlight >}}
 
 #### 9.4.1. Window accumulation modes {#window-accumulation-modes}
@@ -4155,7 +4167,7 @@ example trigger code fires on the following conditions:
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_triggers >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_triggers >}}
 {{< /highlight >}}
 
 #### 9.5.3. Other composite triggers {#other-composite-triggers}
@@ -4171,7 +4183,7 @@ elements, or after a minute.
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_other_composite_triggers >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_other_composite_triggers >}}
 {{< /highlight >}}
 
 ## 10. Metrics {#metrics}
@@ -4337,7 +4349,7 @@ written for that key. State is always fully scoped only to the current processin
 
 Windowing can still be used together with stateful processing. All state for a key is scoped to the current window. This
 means that the first time a key is seen for a given window any state reads will return empty, and that a runner can
-garbage collect state when a window is completed. It's also often useful to use Beam's windowed aggegations prior to
+garbage collect state when a window is completed. It's also often useful to use Beam's windowed aggregations prior to
 the stateful operator. For example, using a combiner to preaggregate data, and then storing aggregated data inside of
 state. Merging windows are not currently supported when using state and timers.
 
@@ -4346,9 +4358,17 @@ care must be taken to remember that the elements in input PCollection have no gu
 program logic is resilient to this. Unit tests written using the DirectRunner will shuffle the order of element
 processing, and are recommended to test for correctness.
 
+{{< paragraph class="language-java" >}}
 In Java DoFn declares states to be accessed by creating final `StateSpec` member variables representing each state. Each
 state must be named using the `StateId` annotation; this name is unique to a ParDo in the graph and has no relation
 to other nodes in the graph. A `DoFn` can declare multiple state variables.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+In Python DoFn declares states to be accessed by creating `StateSpec` class member variables representing each state. Each 
+`StateSpec` is initialized with a name, this name is unique to a ParDo in the graph and has no relation
+to other nodes in the graph. A `DoFn` can declare multiple state variables.
+{{< /paragraph >}}
 
 ### 11.1 Types of state {#types-of-state}
 
@@ -4404,6 +4424,17 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
+{{< highlight python >}}
+class CombiningStateDoFn(DoFn):
+  SUM_TOTAL = CombiningValueStateSpec('total', sum)
+  
+  def process(self, element, state=SoFn.StateParam(SUM_TOTAL)):
+    state.add(1)
+    
+_ = (p | 'Read per user' >> ReadPerUser()
+       | 'Combine state pardo' >> beam.ParDo(CombiningStateDofn()))
+{{< /highlight >}}
+
 #### BagState
 
 A common use case for state is to accumulate multiple elements. `BagState` allows for accumulating an unordered set
@@ -4429,6 +4460,21 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
     }
   }
 }));
+{{< /highlight >}}
+
+{{< highlight python >}}
+class BagStateDoFn(DoFn):
+  ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
+  
+  def process(self, element_pair, state=DoFn.StateParam(ALL_ELEMENTS)):
+    state.add(element_pair[1])
+    if should_fetch():
+      all_elements = list(state.read())
+      process_values(all_elements)
+      state.clear()
+    
+_ = (p | 'Read per user' >> ReadPerUser()
+       | 'Bag state pardo' >> beam.ParDo(BagStateDoFn()))
 {{< /highlight >}}
 
 ### 11.2 Deferred state reads {#deferred-state-reads}
@@ -4478,7 +4524,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
     }
    
     // The runner can now batch all three states into a single read, reducing latency.
-     processState1(state1.read());
+    processState1(state1.read());
     processState2(state2.read());
     processState3(state3.read());
   }
@@ -4520,6 +4566,28 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
+{{< highlight python >}}
+class EventTimerDoFn(DoFn):
+  ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
+  TIMER = TimerSpec('timer', TimeDomain.WATERMARK)
+  
+  def process(self, 
+              element_pair, 
+              t = DoFn.TimestampParam,
+              buffer = DoFn.StateParam(ALL_ELEMENTS), 
+              timer = DoFn.TimerParam(TIMER)):
+    buffer.add(element_pair[1])
+    # Set an event-time timer to the element timestamp.
+    timer.set(t)
+  
+  @on_timer(TIMER)
+  def expiry_callback(self, buffer = DoFn.StateParam(ALL_ELEMENTS)):
+    state.clear()
+    
+_ = (p | 'Read per user' >> ReadPerUser()
+       | 'EventTime timer pardo' >> beam.ParDo(EventTimerDoFn()))
+{{< /highlight >}}
+
 #### 11.3.2 Processing-time timers {#processing-time-timers}
 
 Processing-time timers fire when the real wall-clock time passes. This is often used to create larger batches of data
@@ -4527,7 +4595,7 @@ before processing. It can also be used to schedule events that should occur at a
 event-time timers, processing-time timers are per key - each key has a separate copy of the timer.
 
 While processing-time timers can be set to an absolute timestamp, it is very common to set them to an offset relative 
-to the current time. The `Timer.offset` and `Timer.setRelative` methods can be used to accomplish this.
+to the current time. In Java, the `Timer.offset` and `Timer.setRelative` methods can be used to accomplish this.
 
 {{< highlight java >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
@@ -4544,6 +4612,28 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
       //Process timer.
    }
 }));
+{{< /highlight >}}
+
+{{< highlight python >}}
+class ProcessingTimerDoFn(DoFn):
+  ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
+  TIMER = TimerSpec('timer', TimeDomain.REAL_TIME)
+  
+  def process(self, 
+              element_pair, 
+              buffer = DoFn.StateParam(ALL_ELEMENTS), 
+              timer = DoFn.TimerParam(TIMER)):
+    buffer.add(element_pair[1])
+    # Set a timer to go off 30 seconds in the future.
+    timer.set(Timestamp.now() + Duration(seconds=30))
+  
+  @on_timer(TIMER)
+  def expiry_callback(self, buffer = DoFn.StateParam(ALL_ELEMENTS)):
+    # Process timer.
+    state.clear()
+    
+_ = (p | 'Read per user' >> ReadPerUser()
+       | 'ProcessingTime timer pardo' >> beam.ParDo(ProcessingTimerDoFn()))
 {{< /highlight >}}
 
 #### 11.3.3 Dynamic timer tags {#dynamic-timer-tags}
@@ -4573,6 +4663,9 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
+{{< highlight python >}}
+To be supported, See BEAM-9602
+{{< /highlight >}}
 #### 11.3.4 Timer output timestamps {#timer-output-timestamps}
 
 By default, event-time timers will hold the output watermark of the `ParDo` to the timestamp of the timer. This means
@@ -4684,7 +4777,7 @@ performance. There are two common strategies for garbage collecting state.
 All state and timers for a key is scoped to the window it is in. This means that depending on the timestamp of the 
 input element the ParDo will see different values for the state depending on the window that element falls into. In
 addition, once the input watermark passes the end of the window, the runner should garbage collect all state for that
-window. (note: if allowed lateness is set to a positive value for the window, the runner must wait for the watemark to
+window. (note: if allowed lateness is set to a positive value for the window, the runner must wait for the watermark to
 pass the end of the window plus the allowed lateness before garbage collecting state). This can be used as a 
 garbage-collection strategy.
 
@@ -4702,6 +4795,20 @@ perUser.apply(Window.into(CalendarWindows.days(1)
               // midnight PST, then a new copy of the state will be seen for the next day.
            }
          }));
+{{< /highlight >}}
+
+{{< highlight python >}}
+class StateDoFn(DoFn):
+  ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
+  
+  def process(self, 
+              element_pair, 
+              buffer = DoFn.StateParam(ALL_ELEMENTS)):
+    ...
+    
+_ = (p | 'Read per user' >> ReadPerUser()
+       | 'Windowing' >> beam.WindowInto(FixedWindows(60 * 60 * 24))
+       | 'DoFn' >> beam.ParDo(StateDoFn()))
 {{< /highlight >}}
 
 This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
@@ -4749,6 +4856,39 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
        maxTimestamp.clear();
     }
  }
+{{< /highlight >}}
+
+{{< highlight python >}}
+class UserDoFn(DoFn):
+  ALL_ELEMENTS = BagStateSpec('state', coders.VarIntCoder())
+  MAX_TIMESTAMP = CombiningValueStateSpec('max_timestamp_seen', max)
+  TIMER = TimerSpec('gc-timer', TimeDomain.WATERMARK)
+  
+  def process(self, 
+              element, 
+              t = DoFn.TimestampParam,
+              state = DoFn.StateParam(ALL_ELEMENTS), 
+              max_timestamp = DoFn.StateParam(MAX_TIMESTAMP),
+              timer = DoFn.TimerParam(TIMER)):
+    update_state(state, element)
+    max_timestamp.add(t.micros)
+    
+    # Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so 
+    # as long as there is activity on this key the state will stay active. Once the key goes inactive for one hour's
+    # worth of event time (as measured by the watermark), then the gc timer will fire.
+    expiration_time = Timestamp(micros=max_timestamp.read()) + Duration(seconds=60*60)
+    timer.set(expiration_time)
+  
+  @on_timer(TIMER)
+  def expiry_callback(self, 
+                      state = DoFn.StateParam(ALL_ELEMENTS),
+                      max_timestamp = DoFn.StateParam(MAX_TIMESTAMP)):
+    state.clear()
+    max_timestamp.clear()
+  
+    
+_ = (p | 'Read per user' >> ReadPerUser()
+       | 'User DoFn' >> beam.ParDo(UserDoFn()))
 {{< /highlight >}}
 
 ### 11.5 State and timers examples {#state-timers-examples}

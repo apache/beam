@@ -37,10 +37,10 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms.sql import SqlTransform
 
 SimpleRow = typing.NamedTuple(
-    "SimpleRow", [("int", int), ("str", unicode), ("flt", float)])
+    "SimpleRow", [("id", int), ("str", unicode), ("flt", float)])
 coders.registry.register_coder(SimpleRow, coders.RowCoder)
 
-Enrich = typing.NamedTuple("Enrich", [("int", int), ("metadata", unicode)])
+Enrich = typing.NamedTuple("Enrich", [("id", int), ("metadata", unicode)])
 coders.registry.register_coder(Enrich, coders.RowCoder)
 
 
@@ -71,7 +71,7 @@ class SqlTransformTest(unittest.TestCase):
     with TestPipeline() as p:
       out = p | SqlTransform(
           """SELECT
-            CAST(1 AS INT) AS `int`,
+            CAST(1 AS INT) AS `id`,
             CAST('foo' AS VARCHAR) AS `str`,
             CAST(3.14  AS DOUBLE) AS `flt`""")
       assert_that(out, equal_to([(1, "foo", 3.14)]))
@@ -80,7 +80,7 @@ class SqlTransformTest(unittest.TestCase):
     with TestPipeline() as p:
       out = (
           p | beam.Create([SimpleRow(1, "foo", 3.14)])
-          | SqlTransform("SELECT `int`, `flt` FROM PCOLLECTION"))
+          | SqlTransform("SELECT `id`, `flt` FROM PCOLLECTION"))
       assert_that(out, equal_to([(1, 3.14)]))
 
   def test_filter(self):
@@ -109,7 +109,7 @@ class SqlTransformTest(unittest.TestCase):
               SELECT
                 `str`,
                 COUNT(*) AS `count`,
-                SUM(`int`) AS `sum`,
+                SUM(`id`) AS `sum`,
                 AVG(`flt`) AS `avg`
               FROM PCOLLECTION GROUP BY `str`"""))
       assert_that(out, equal_to([("foo", 3, 3, 2), ("bar", 4, 8, 1.414)]))
@@ -131,12 +131,31 @@ class SqlTransformTest(unittest.TestCase):
              | SqlTransform(
                  """
               SELECT
-                simple.`int` AS `int`,
+                simple.`id` AS `id`,
                 enrich.metadata AS metadata
               FROM simple
               JOIN enrich
-              ON simple.`int` = enrich.`int`"""))
+              ON simple.`id` = enrich.`id`"""))
       assert_that(out, equal_to([(1, "a"), (26, "z"), (1, "a")]))
+
+  def test_row(self):
+    with TestPipeline() as p:
+      out = (
+          p
+          | beam.Create([1, 2, 10])
+          | beam.Map(lambda x: beam.Row(a=x, b=unicode(x)))
+          | SqlTransform("SELECT a*a as s, LENGTH(b) AS c FROM PCOLLECTION"))
+      assert_that(out, equal_to([(1, 1), (4, 1), (100, 2)]))
+
+  def test_zetasql_generate_data(self):
+    with TestPipeline() as p:
+      out = p | SqlTransform(
+          """SELECT
+            CAST(1 AS INT64) AS `int`,
+            CAST('foo' AS STRING) AS `str`,
+            CAST(3.14  AS FLOAT64) AS `flt`""",
+          dialect="zetasql")
+      assert_that(out, equal_to([(1, "foo", 3.14)]))
 
 
 if __name__ == "__main__":
