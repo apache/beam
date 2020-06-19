@@ -29,6 +29,11 @@ on:
     tags: 'v*'
     paths: ['sdks/python/**', 'model/**', 'release/**']
 
+
+env:
+  GCP_PATH: "gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
+
+
 jobs:
 
   build_source:
@@ -77,7 +82,7 @@ jobs:
           service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
       - name: Remove existing files on GCS bucket
-        run: gsutil rm -r "gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/" || true
+        run: gsutil rm -r ${{ env.GCP_PATH }} || true
 
   upload_source_to_gcs:
     name: Upload source to GCS bucket
@@ -95,7 +100,7 @@ jobs:
           service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
       - name: Copy sources to GCS bucket
-        run: gsutil cp -r -a public-read source/* gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/
+        run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
 
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
@@ -149,7 +154,7 @@ jobs:
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}
     - name: Copy wheels to GCS bucket
-      run: gsutil cp -r -a public-read wheelhouse/* gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/
+      run: gsutil cp -r -a public-read wheelhouse/* ${{ env.GCP_PATH }}
     - name: Create github action information file on GCS bucket
       run: |
         cat > github_action_info <<EOF
@@ -167,9 +172,9 @@ jobs:
         GITHUB_BASE_REF=$GITHUB_BASE_REF
         EOF
         echo $(cat github_action_info)
-        gsutil cp -a public-read github_action_info gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/
+        gsutil cp -a public-read github_action_info ${{ env.GCP_PATH }}
     - name: Upload GitHub event file to GCS bucket
-      run: gsutil cp -a public-read ${GITHUB_EVENT_PATH} gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/
+      run: gsutil cp -a public-read ${GITHUB_EVENT_PATH} ${{ env.GCP_PATH }}
 
   list_files_on_gcs:
     name: List files on Google Cloud Storage Bucket
@@ -183,7 +188,7 @@ jobs:
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}
     - name: List file on Google Cloud Storage Bucket
-      run: gsutil ls "gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/*"
+      run: gsutil ls "${{ env.GCP_PATH }}*"
 
   tag_repo_nightly:
     name: Tag repo nightly
