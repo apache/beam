@@ -516,6 +516,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             FnApiControlClientPoolService.offeringClientsToPool(
                 clientPool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
             serverFactory);
+    LOG.info("Started control server on port {}", controlServer.getServer().getPort());
+
     GrpcFnServer<GrpcLoggingService> loggingServer =
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
@@ -529,8 +531,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             GrpcDataService.create(
                 portableOptions, executor, OutboundObserverFactory.serverDirect()),
             serverFactory);
+    LOG.info("Started data server on port {}", dataServer.getServer().getPort());
+
     GrpcFnServer<GrpcStateService> stateServer =
         GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
+    LOG.info("Started state server on port {}", stateServer.getServer().getPort());
 
     ServerInfo serverInfo =
         new AutoValue_DefaultJobBundleFactory_ServerInfo.Builder()

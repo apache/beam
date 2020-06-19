@@ -33,6 +33,7 @@ import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineTrimmer;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
+import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineJarUtils;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
@@ -91,6 +92,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
                 .anyMatch(proto -> ExecutableStage.URN.equals(proto.getSpec().getUrn()))
             ? trimmedPipeline
             : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
+    LOG.info(PipelineDotRenderer.toDotString(fusedPipeline));
 
     if (pipelineOptions.getFilesToStage() == null) {
       pipelineOptions.setFilesToStage(

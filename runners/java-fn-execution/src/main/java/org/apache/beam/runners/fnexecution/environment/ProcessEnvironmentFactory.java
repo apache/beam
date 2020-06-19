@@ -123,7 +123,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
       argsBuilder.add(String.format("--semi_persist_dir=%s", semiPersistDir));
     }
 
-    LOG.debug("Creating Process for worker ID {}", workerId);
+    LOG.info("Creating Process for worker ID {}", workerId);
     // Wrap the blocking call to clientSource.get in case an exception is thrown.
     InstructionRequestHandler instructionHandler = null;
     try {
