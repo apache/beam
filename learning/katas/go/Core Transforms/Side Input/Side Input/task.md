@@ -53,16 +53,16 @@ your pipeline.
 <div class="hint">
     A ParDo that has a PCollection KV as side input expects a DoFn that looks like the following.    
     
-    ```
-    func doFn(element X, kvIterator func(*K, *V) bool, emit func(Y)) {
-        // element of type X comes from your PCollection input
-        // from your KV side input:     
-        var key K   // expect a key of type K 
-        var value V // expect a value of type V 
-        for kvIterator(&key, &value) {
-            // do something with key and value
-            // emit(some result)
-        }
-    } 
-    ``` 
+```
+func doFn(element X, kvIterator func(*K, *V) bool, emit func(Y)) {
+    // element of type X comes from your PCollection input
+    // from your KV side input:     
+    var key K   // expect a key of type K 
+    var value V // expect a value of type V 
+    for kvIterator(&key, &value) {
+        // do something with key and value
+        // emit(some result)
+    }
+} 
+``` 
 </div>
