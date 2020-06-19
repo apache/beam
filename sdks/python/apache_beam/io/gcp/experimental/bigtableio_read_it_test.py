@@ -34,8 +34,6 @@ from nose.plugins.attrib import attr
 
 try:
   from google.cloud.bigtable import Client
-  from google.cloud.bigtable import column_family
-  from google.cloud.bigtable import row
 except ImportError:
   Client = None
 
@@ -49,9 +47,9 @@ class BigtableReadTest(unittest.TestCase):
   count known a priori.
   """
   def setUp(self):
-    logging.info('\nProject ID:  {}'.format(options['project']))
-    logging.info('\nInstance ID: {}'.format(options['instance']))
-    logging.info('\nTable ID:    {}'.format(options['table']))
+    logging.info('\nProject ID:  %s', options['project'])
+    logging.info('\nInstance ID: %s', options['instance'])
+    logging.info('\nTable ID:    %s', options['table'])
 
     self._p_options = PipelineOptions(**options)
     self._p_options.view_as(SetupOptions).save_main_session = True
@@ -63,8 +61,9 @@ class BigtableReadTest(unittest.TestCase):
   @attr('IT')
   def test_bigtable_read(self):
     logging.info(
-        'Reading table "{}" of {} rows...'.format(
-            options['table'], options['row_count']))
+        'Reading table "%s" of %d rows...',
+        options['table'], options['row_count']
+    )
 
     p = beam.Pipeline(options=self._p_options)
     _ = (
@@ -85,8 +84,9 @@ class BigtableReadTest(unittest.TestCase):
       final_count = read_counter.committed
       assert final_count == options['row_count']
       logging.info(
-          '{} out of {} rows were read successfully.'.format(
-              final_count, options['row_count']))
+          '%d out of %d rows were read successfully.',
+          final_count, options['row_count']
+      )
 
     logging.info('DONE!')
 
@@ -112,7 +112,7 @@ def parse_commane_line_arguments():
   parser.add_argument('--log_level', type=int, default=logging.INFO)
   parser.add_argument('--log_dir', type=str)
 
-  args, argv = parser.parse_known_args()
+  args, _ = parser.parse_known_args()
 
   return {
       'project': args.project,
