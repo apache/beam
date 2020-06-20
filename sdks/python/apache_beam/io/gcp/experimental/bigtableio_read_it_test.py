@@ -160,6 +160,7 @@ if __name__ == '__main__':
   # [OPTIONAL] Uncomment to save logs into a file
   # setup_log_file()
 
-  test_suite = unittest.TestSuite()
-  test_suite.addTest(BigtableReadTest('test_bigtable_read'))
-  unittest.TextTestRunner(verbosity=2).run(test_suite)
+  # test_suite = unittest.TestSuite()
+  # test_suite.addTest(BigtableReadTest('test_bigtable_read'))
+  # unittest.TextTestRunner(verbosity=2).run(test_suite)
+  unittest.main()
