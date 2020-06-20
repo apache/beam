@@ -386,9 +386,7 @@ class IOTypeHints(NamedTuple(
 
     return self._replace(
         input_types=((input_type, ), {}),
-        origin=self._make_origin([self],
-                                 tb=False,
-                                 msg=['strip_pcoll_input()']))
+        origin=self._make_origin([self], tb=False, msg=['strip_pcoll_input()']))
 
   def strip_pcoll_output(self):
     # type: () -> IOTypeHints
@@ -397,8 +395,7 @@ class IOTypeHints(NamedTuple(
 
     return self._replace(
         output_types=((output_type, ), {}),
-        origin=self._make_origin([self],
-                                 tb=False,
+        origin=self._make_origin([self], tb=False,
                                  msg=['strip_pcoll_output()']))
 
   def strip_iterable(self):
