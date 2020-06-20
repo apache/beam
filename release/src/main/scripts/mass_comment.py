@@ -33,7 +33,6 @@ COMMENTS_TO_ADD = [
     "Run Java PostCommit",
     "Run Java Flink PortableValidatesRunner Batch",
     "Run Java Flink PortableValidatesRunner Streaming",
-    "Run Apex ValidatesRunner",
     "Run Dataflow ValidatesRunner",
     "Run Flink ValidatesRunner",
     "Run Samza ValidatesRunner",
