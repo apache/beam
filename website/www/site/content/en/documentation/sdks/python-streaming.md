@@ -126,10 +126,6 @@ python -m apache_beam.examples.streaming_wordcount \
   --streaming
 {{< /highlight >}}
 
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Python SDK.
-{{< /highlight >}}
-
 {{< highlight class="runner-flink-local" >}}
 See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
 {{< /highlight >}}

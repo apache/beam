@@ -178,7 +178,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // and also for the script name, ${type}-java-${runner}.toLowerCase().
     String type
 
-    // runner [Direct, Dataflow, Spark, Flink, FlinkLocal, Apex]
+    // runner [Direct, Dataflow, Spark, Flink, FlinkLocal]
     String runner
 
     // gcpProject sets the gcpProject argument when executing examples.
@@ -378,8 +378,6 @@ class BeamModulePlugin implements Plugin<Project> {
     // These versions are defined here because they represent
     // a dependency version which should match across multiple
     // Maven artifacts.
-    def apex_core_version = "3.7.0"
-    def apex_malhar_version = "3.4.0"
     def aws_java_sdk_version = "1.11.718"
     def aws_java_sdk2_version = "2.10.61"
     def cassandra_driver_version = "3.8.0"
@@ -426,8 +424,6 @@ class BeamModulePlugin implements Plugin<Project> {
         activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:5.13.1",
         antlr                                       : "org.antlr:antlr4:4.7",
         antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
-        apex_common                                 : "org.apache.apex:apex-common:$apex_core_version",
-        apex_engine                                 : "org.apache.apex:apex-engine:$apex_core_version",
         args4j                                      : "args4j:args4j:2.33",
         avro                                        : "org.apache.avro:avro:1.8.2",
         avro_tests                                  : "org.apache.avro:avro:1.8.2:tests",
@@ -528,7 +524,6 @@ class BeamModulePlugin implements Plugin<Project> {
         junit                                       : "junit:junit:4.13-beta-3",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
-        malhar_library                              : "org.apache.apex:malhar-library:$apex_malhar_version",
         mockito_core                                : "org.mockito:mockito-core:3.0.0",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
