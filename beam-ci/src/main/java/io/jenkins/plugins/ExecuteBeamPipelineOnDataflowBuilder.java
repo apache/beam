@@ -9,6 +9,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
+import jenkins.util.SystemProperties;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -20,6 +21,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import jenkins.tasks.SimpleBuildStep;
 
@@ -75,12 +77,14 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
             command.add(this.pipelineOptions);
         if (!this.buildReleaseOptions.equals(""))
             command.add(this.buildReleaseOptions);
+
+        System.out.println(Arrays.toString(command.toArray()));
         processBuilder.command(command);
     }
 
     @Override
     public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener) throws InterruptedException, IOException {
-        //ProcessBuilder processBuilder = new ProcessBuilder();
+        ProcessBuilder processBuilder = new ProcessBuilder();
 
         // right now just testing to see that all configurations are received correctly
         listener.getLogger().println("path to main class : " + this.pathToMainClass);
@@ -89,21 +93,25 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         listener.getLogger().println("use java: " + this.useJava);
         listener.getLogger().println("use gradle: " + this.useGradle);
 
-        // todo ensure we're in the right directory to run the following command
-        // thinking that this could mean JENKINS_HOME/workspace/JOB_NAME
-        // todo eventually call buildCommand
-//        processBuilder.command(list);
-//        Process process = processBuilder.start();
+        // set correct directory to be running command
+        processBuilder.directory(new File(workspace.toURI()));
+        // todo WIP buildCommand
+        buildCommand(processBuilder);
+        Process process = processBuilder.start();
 
-        // logging results from the command
-//        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-//        String line;
-//        while((line = reader.readLine()) != null) {
-//            listener.getLogger().println(line);
-//        }
-//
-//        int exitCode = process.waitFor();
-//        listener.getLogger().println("\n Exited with error code : " + exitCode);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        String line;
+        while((line = reader.readLine()) != null) {
+            listener.getLogger().println(line);
+        }
+
+        BufferedReader reader2 = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+        while((line = reader2.readLine()) != null) {
+            listener.getLogger().println(line);
+        }
+
+        int exitCode = process.waitFor();
+        listener.getLogger().println("\n Exited with error code : " + exitCode);
     }
 
     @Extension
