@@ -158,10 +158,6 @@ class PCollection(PValue, Generic[T]):
   def __hash__(self):
     return hash((self.tag, self.producer))
 
-  def __class_getitem__(cls, type_param):
-    from apache_beam.typehints import PCollectionTypeConstraint
-    return PCollectionTypeConstraint(type_param)
-
   @property
   def windowing(self):
     # type: () -> Windowing

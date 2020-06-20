@@ -1114,15 +1114,6 @@ class GeneratorHint(IteratorHint):
     return self.IteratorTypeConstraint(yield_type)
 
 
-class PCollectionTypeConstraint(SequenceTypeConstraint):
-    def __init__(self, type_param):
-        validate_composite_type_param(type_param, error_msg_prefix='Parameter to a PCollection hint')
-        super(PCollectionTypeConstraint, self).__init__(type_param, PCollection)
-
-    def __repr__(self):
-      return 'PCollection[%s]' % _unified_repr(self.inner_type)
-
-
 # Create the actual instances for all defined type-hints above.
 Any = AnyTypeConstraint()
 Union = UnionHint()

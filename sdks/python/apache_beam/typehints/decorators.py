@@ -382,34 +382,24 @@ class IOTypeHints(NamedTuple(
   def strip_pcoll_input(self):
     # type: () -> IOTypeHints
 
-    input_type = self.input_types[0][0]
-    if isinstance(input_type, PCollectionTypeConstraint):
-      return self._replace(
-          input_types=((input_type.inner_type, ), {}),
-          origin=self._make_origin([self],
-                                   tb=False,
-                                   msg=['strip_pcoll_input()']))
+    input_type = self.input_types[0][0].__args__
 
-    if not isinstance(input_type, typehints.AnyTypeConstraint):
-      raise ValueError("Input type must be wrapped by a PCollection")
-
-    return self
+    return self._replace(
+        input_types=((input_type, ), {}),
+        origin=self._make_origin([self],
+                                 tb=False,
+                                 msg=['strip_pcoll_input()']))
 
   def strip_pcoll_output(self):
     # type: () -> IOTypeHints
 
-    output_type = self.output_types[0][0]
-    if isinstance(output_type, PCollectionTypeConstraint):
-      return self._replace(
-          output_types=((output_type.inner_type, ), {}),
-          origin=self._make_origin([self],
-                                   tb=False,
-                                   msg=['strip_pcoll_output()']))
+    output_type = self.output_types[0][0].__args__
 
-    if not isinstance(output_type, typehints.AnyTypeConstraint):
-      raise ValueError("Output type must be wrapped by a PCollection")
-
-    return self
+    return self._replace(
+        output_types=((output_type, ), {}),
+        origin=self._make_origin([self],
+                                 tb=False,
+                                 msg=['strip_pcoll_output()']))
 
   def strip_iterable(self):
     # type: () -> IOTypeHints
