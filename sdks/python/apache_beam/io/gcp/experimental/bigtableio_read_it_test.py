@@ -69,17 +69,19 @@ class BigtableReadTest(unittest.TestCase):
   def _setup_log_file(self):
     if self.options['log_directory']:
       # logging.basicConfig(
-      #   filename='{}{}.log'.format(options['log_directory'], options['table']),
+      #   filename='{}{}.log'.format(
+      #       options['log_directory'], options['table']
+      #   ),
       #   filemode='w',
       #   level=logging.DEBUG
       # )
 
       # Forward all the logs to a file
       fh = logging.FileHandler(
-        filename='{}test_log_{}_RUNNER={}.log'.format(
-          self.options['log_directory'],
-          self.options['table'][-15:],
-          self.options['runner']))
+          filename='{}test_log_{}_RUNNER={}.log'.format(
+              self.options['log_directory'],
+              self.options['table'][-15:],
+              self.options['runner']))
       fh.setLevel(logging.DEBUG)
       logging.getLogger().addHandler(fh)
 
