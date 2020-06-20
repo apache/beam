@@ -29,7 +29,8 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 from apache_beam.io.gcp.experimental.bigtableio import ReadFromBigtable
 from apache_beam.metrics.metric import MetricsFilter
-from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineState
 
 try:
