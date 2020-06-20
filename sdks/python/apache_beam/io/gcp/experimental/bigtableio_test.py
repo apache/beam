@@ -35,7 +35,6 @@ try:
   from apache_beam.io.gcp.experimental import bigtableio
   from apache_beam.metrics import Metrics
   from google.cloud.bigtable import client
-  from google.cloud.bigtable.row_filters import ValueRangeFilter
   from google.cloud.bigtable.table import Table
 except (ImportError, TypeError):
   client = None
@@ -46,7 +45,7 @@ class BigtableioTest(unittest.TestCase):
   _PROJECT = 'project'
   _INSTANCE = 'instance'
   _TABLE = 'table'
-  _FILTER = ValueRangeFilter()
+  _FILTER = 'filter'
 
   def setUp(self):
     self._row_limit = 100000  # 100k, for argument's sake
