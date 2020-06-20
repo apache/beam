@@ -48,31 +48,55 @@ class BigtableReadTest(unittest.TestCase):
   count known a priori.
   """
   def setUp(self):
-    logging.info('\nProject ID:  %s', options['project'])
-    logging.info('\nInstance ID: %s', options['instance'])
-    logging.info('\nTable ID:    %s', options['table'])
+    self.options = parse_commane_line_arguments()
 
-    self._p_options = PipelineOptions(**options)
+    logging.info('\nProject ID:  %s', self.options['project'])
+    logging.info('\nInstance ID: %s', self.options['instance'])
+    logging.info('\nTable ID:    %s', self.options['table'])
+
+    self._p_options = PipelineOptions(**self.options)
     self._p_options.view_as(SetupOptions).save_main_session = True
+
+    logging.getLogger().setLevel(self.options['log_level'])
+
+    # [OPTIONAL] Uncomment to save logs into a file
+    # self._setup_log_file()
 
     # [OPTIONAL] Uncomment this to allow logging the pipeline options
     # for key, value in self.p_options.get_all_options().items():
     #   logging.info('Pipeline option {:32s} : {}'.format(key, value))
 
+  def _setup_log_file(self):
+    if self.options['log_directory']:
+      # logging.basicConfig(
+      #   filename='{}{}.log'.format(options['log_directory'], options['table']),
+      #   filemode='w',
+      #   level=logging.DEBUG
+      # )
+
+      # Forward all the logs to a file
+      fh = logging.FileHandler(
+        filename='{}test_log_{}_RUNNER={}.log'.format(
+          self.options['log_directory'],
+          self.options['table'][-15:],
+          self.options['runner']))
+      fh.setLevel(logging.DEBUG)
+      logging.getLogger().addHandler(fh)
+
   @attr('IT')
   def test_bigtable_read(self):
     logging.info(
         'Reading table "%s" of %d rows...',
-        options['table'],
-        options['row_count'])
+        self.options['table'],
+        self.options['row_count'])
 
     p = beam.Pipeline(options=self._p_options)
     _ = (
         p | 'Read Test' >> ReadFromBigtable(
-            project_id=options['project'],
-            instance_id=options['instance'],
-            table_id=options['table'],
-            filter_=options['filter']))
+            project_id=self.options['project'],
+            instance_id=self.options['instance'],
+            table_id=self.options['table'],
+            filter_=self.options['filter']))
     self.result = p.run()
     self.result.wait_until_finish()
     assert self.result.state == PipelineState.DONE
@@ -83,11 +107,11 @@ class BigtableReadTest(unittest.TestCase):
     if query_result['counters']:
       read_counter = query_result['counters'][0]
       final_count = read_counter.committed
-      assert final_count == options['row_count']
+      assert final_count == self.options['row_count']
       logging.info(
           '%d out of %d rows were read successfully.',
           final_count,
-          options['row_count'])
+          self.options['row_count'])
 
     logging.info('DONE!')
 
@@ -136,30 +160,7 @@ def parse_commane_line_arguments():
   }
 
 
-def setup_log_file():
-  if options['log_directory']:
-    # logging.basicConfig(
-    #   filename='{}{}.log'.format(options['log_directory'], options['table']),
-    #   filemode='w',
-    #   level=logging.DEBUG
-    # )
-
-    # Forward all the logs to a file
-    fh = logging.FileHandler(
-        filename='{}test_log_{}_RUNNER={}.log'.format(
-            options['log_directory'], options['table'][-15:],
-            options['runner']))
-    fh.setLevel(logging.DEBUG)
-    logging.getLogger().addHandler(fh)
-
-
 if __name__ == '__main__':
-  options = parse_commane_line_arguments()
-
-  logging.getLogger().setLevel(options['log_level'])
-  # [OPTIONAL] Uncomment to save logs into a file
-  # setup_log_file()
-
   # test_suite = unittest.TestSuite()
   # test_suite.addTest(BigtableReadTest('test_bigtable_read'))
   # unittest.TextTestRunner(verbosity=2).run(test_suite)
