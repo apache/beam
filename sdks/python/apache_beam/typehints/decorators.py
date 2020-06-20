@@ -106,11 +106,10 @@ from typing import Optional
 from typing import Tuple
 from typing import TypeVar
 
-from apache_beam.pvalue import PCollection
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
-from apache_beam.typehints.typehints import CompositeTypeHintError, PCollectionTypeConstraint
+from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
 from apache_beam.typehints.typehints import validate_composite_type_param

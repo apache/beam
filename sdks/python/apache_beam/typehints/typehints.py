@@ -94,7 +94,6 @@ __all__ = [
     'Generator',
     'WindowedValue',
     'TypeVariable',
-    'PCollectionTypeConstraint'
 ]
 
 # A set of the built-in Python types we don't support, guiding the users
