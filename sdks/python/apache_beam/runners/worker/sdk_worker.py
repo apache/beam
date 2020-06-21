@@ -575,11 +575,11 @@ class SdkWorker(object):
           stack_trace)
 
       if self._should_log_full_thread_dump():
-        id2name = {th.ident:th.name for th in threading.enumerate()}
+        id2name = {th.ident: th.name for th in threading.enumerate()}
         for ident, frame in sys._current_frames().items():  # pylint: disable=protected-access
           stack_trace = ''.join(traceback.format_stack(frame))
-          _LOGGER.info('Thread %s(%d):\n%s', id2name.get(ident, ''), ident,
-                       stack_trace)
+          _LOGGER.info(
+              'Thread %s(%d):\n%s', id2name.get(ident, ''), ident, stack_trace)
 
   def _should_log_full_thread_dump(self):
     now = time.time()
