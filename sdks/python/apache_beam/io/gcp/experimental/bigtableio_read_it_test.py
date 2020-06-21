@@ -90,7 +90,7 @@ class BigtableReadTest(unittest.TestCase):
     logging.info(
         'Reading table "%s" of %d rows...',
         self.options['table'],
-        self.options['row_count'])
+        self.options['row_count'] or 0)
 
     p = beam.Pipeline(options=self._p_options)
     _ = (
