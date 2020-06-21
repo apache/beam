@@ -75,10 +75,13 @@ _LOGGER = logging.getLogger(__name__)
 
 # This SDK harness will (by default), log a "lull" in processing if it sees no
 # transitions in over 5 minutes.
-# 5 minutes * 60 seconds * 1020 millis * 1000 micros * 1000 nanoseconds
+# 5 minutes * 60 seconds * 1000 millis * 1000 micros * 1000 nanoseconds
 DEFAULT_LOG_LULL_TIMEOUT_NS = 5 * 60 * 1000 * 1000 * 1000
 
 DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S = 60
+
+# Full thread dump is performed at most every 20 minutes.
+LOG_LULL_FULL_THREAD_DUMP_S = 20 * 60
 
 
 class ShortIdCache(object):
@@ -465,6 +468,7 @@ class SdkWorker(object):
     self.profiler_factory = profiler_factory
     self.log_lull_timeout_ns = (
         log_lull_timeout_ns or DEFAULT_LOG_LULL_TIMEOUT_NS)
+    self._last_full_thread_dump_secs = 0
 
   def do_instruction(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse
@@ -569,6 +573,21 @@ class SdkWorker(object):
           state_lull_log,
           step_name_log,
           stack_trace)
+
+      if self._should_log_full_thread_dump():
+        id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
+        for ident, frame in sys._current_frames().items():  # pylint: disable=protected-access
+          stack_trace = ''.join(traceback.format_stack(frame))
+          _LOGGER.info('Thread %s(%d):\n%s', id2name.get(ident, ''), ident,
+                       stack_trace)
+
+  def _should_log_full_thread_dump(self):
+    now = time.time()
+    if self._last_full_thread_dump_secs + LOG_LULL_FULL_THREAD_DUMP_S < now:
+      self._last_full_thread_dump_secs = now
+      return True
+    return False
+
 
   def process_bundle_progress(self,
                               request,  # type: beam_fn_api_pb2.ProcessBundleProgressRequest
