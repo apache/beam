@@ -588,7 +588,6 @@ class SdkWorker(object):
       return True
     return False
 
-
   def process_bundle_progress(self,
                               request,  # type: beam_fn_api_pb2.ProcessBundleProgressRequest
                               instruction_id  # type: str
