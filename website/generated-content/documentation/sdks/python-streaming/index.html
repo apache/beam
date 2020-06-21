@@ -62,7 +62,7 @@ example streaming pipeline. Specify your Cloud Pub/Sub project and input topic
 python -m apache_beam.examples.streaming_wordcount \
   --input_topic &#34;projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC&#34; \
   --output_topic &#34;projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC&#34; \
-  --streaming</code></pre></div><div class=runner-apex><pre><code>This runner is not yet available for the Python SDK.</code></pre></div><div class=runner-flink-local><pre><code>See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.</code></pre></div><div class=runner-flink-cluster><pre><code>See https://beam.apache.org/documentation/runners/flink/ for more information.</code></pre></div><div class=runner-spark><pre><code>See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.</code></pre></div><div class=runner-dataflow><pre><code># As part of the initial setup, install Google Cloud Platform specific extra components.
+  --streaming</code></pre></div><div class=runner-flink-local><pre><code>See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.</code></pre></div><div class=runner-flink-cluster><pre><code>See https://beam.apache.org/documentation/runners/flink/ for more information.</code></pre></div><div class=runner-spark><pre><code>See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.</code></pre></div><div class=runner-dataflow><pre><code># As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
 
 # DataflowRunner requires the --streaming option

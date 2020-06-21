@@ -1092,7 +1092,7 @@ Thanks everyone!
 &lt;li>
 &lt;p>Tasks included&lt;/p>
 &lt;ol>
-&lt;li>Run Java quickstart with Direct Runner, Apex local runner, Flink local runner, Spark local runner and Dataflow runner.&lt;/li>
+&lt;li>Run Java quickstart with Direct Runner, Flink local runner, Spark local runner and Dataflow runner.&lt;/li>
 &lt;li>Run Java Mobile Games(UserScore, HourlyTeamScore, Leaderboard) with Dataflow runner.&lt;/li>
 &lt;li>Create a PR to trigger python validation job, including
 &lt;ul>
@@ -1128,10 +1128,6 @@ Thanks everyone!
 &lt;p>Java Quickstart Validation&lt;/p>
 &lt;p>Direct Runner:&lt;/p>
 &lt;pre>&lt;code>./gradlew :runners:direct-java:runQuickstartJavaDirect \
--Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
--Pver=${RELEASE_VERSION}
-&lt;/code>&lt;/pre>&lt;p>Apex Local Runner&lt;/p>
-&lt;pre>&lt;code>./gradlew :runners:apex:runQuickstartJavaApex \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
 &lt;/code>&lt;/pre>&lt;p>Flink Local Runner&lt;/p>
@@ -2226,7 +2222,7 @@ One advantage of putting a parameter into transform configuration is, it can be 
 For a user, a transform that logged an error but succeeded is silent data loss.&lt;/li>
 &lt;/ul>
 &lt;h3 id="performance">Performance&lt;/h3>
-&lt;p>Many runners optimize chains of &lt;code>ParDo&lt;/code>s in ways that improve performance if the &lt;code>ParDo&lt;/code>s emit a small to moderate number of elements per input element, or have relatively cheap per-element processing (e.g. Dataflow&amp;rsquo;s &amp;ldquo;fusion&amp;rdquo;, Apex &amp;ldquo;compute locality&amp;rdquo;), but limit parallelization if these assumptions are violated. In that case you may need a &amp;ldquo;fusion break&amp;rdquo; (&lt;code>Reshuffle.of()&lt;/code>) to improve the parallelizability of processing the output &lt;code>PCollection&lt;/code> of the &lt;code>ParDo&lt;/code>.&lt;/p>
+&lt;p>Many runners optimize chains of &lt;code>ParDo&lt;/code>s in ways that improve performance if the &lt;code>ParDo&lt;/code>s emit a small to moderate number of elements per input element, or have relatively cheap per-element processing (e.g. Dataflow&amp;rsquo;s &amp;ldquo;fusion&amp;rdquo;), but limit parallelization if these assumptions are violated. In that case you may need a &amp;ldquo;fusion break&amp;rdquo; (&lt;code>Reshuffle.of()&lt;/code>) to improve the parallelizability of processing the output &lt;code>PCollection&lt;/code> of the &lt;code>ParDo&lt;/code>.&lt;/p>
 &lt;ul>
 &lt;li>If the transform includes a &lt;code>ParDo&lt;/code> that outputs a potentially large number of elements per input element, apply a fusion break after this &lt;code>ParDo&lt;/code> to make sure downstream transforms can process its output in parallel.&lt;/li>
 &lt;li>If the transform includes a &lt;code>ParDo&lt;/code> that takes a very long time to process an element, insert a fusion break before this &lt;code>ParDo&lt;/code> to make sure all or most elements can be processed in parallel regardless of how its input &lt;code>PCollection&lt;/code> was produced.&lt;/li>

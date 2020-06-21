@@ -851,7 +851,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="apache-beam-overview">Apache Beam Overview&lt;/h1>
-&lt;p>Apache Beam is an open source, unified model for defining both batch and streaming data-parallel processing pipelines. Using one of the open source Beam SDKs, you build a program that defines the pipeline. The pipeline is then executed by one of Beam&amp;rsquo;s supported &lt;strong>distributed processing back-ends&lt;/strong>, which include &lt;a href="https://apex.apache.org">Apache Apex&lt;/a>, &lt;a href="https://flink.apache.org">Apache Flink&lt;/a>, &lt;a href="http://spark.apache.org">Apache Spark&lt;/a>, and &lt;a href="https://cloud.google.com/dataflow">Google Cloud Dataflow&lt;/a>.&lt;/p>
+&lt;p>Apache Beam is an open source, unified model for defining both batch and streaming data-parallel processing pipelines. Using one of the open source Beam SDKs, you build a program that defines the pipeline. The pipeline is then executed by one of Beam&amp;rsquo;s supported &lt;strong>distributed processing back-ends&lt;/strong>, which include &lt;a href="https://flink.apache.org">Apache Flink&lt;/a>, &lt;a href="http://spark.apache.org">Apache Spark&lt;/a>, and &lt;a href="https://cloud.google.com/dataflow">Google Cloud Dataflow&lt;/a>.&lt;/p>
 &lt;p>Beam is particularly useful for &lt;a href="https://en.wikipedia.org/wiki/Embarassingly_parallel">Embarrassingly Parallel&lt;/a> data processing tasks, in which the problem can be decomposed into many smaller bundles of data that can be processed independently and in parallel. You can also use Beam for Extract, Transform, and Load (ETL) tasks and pure data integration. These tasks are useful for moving data between different storage media and data sources, transforming data into a more desirable format, or loading data onto a new system.&lt;/p>
 &lt;h2 id="apache-beam-sdks">Apache Beam SDKs&lt;/h2>
 &lt;p>The Beam SDKs provide a unified programming model that can represent and transform data sets of any size, whether the input is a finite data set from a batch data source, or an infinite data set from a streaming data source. The Beam SDKs use the same classes to represent both bounded and unbounded data, and the same transforms to operate on that data. You use the Beam SDK of your choice to build a program that defines your data processing pipeline.&lt;/p>
@@ -866,7 +866,6 @@ limitations under the License.
 &lt;p>The Beam Pipeline Runners translate the data processing pipeline you define with your Beam program into the API compatible with the distributed processing back-end of your choice. When you run your Beam program, you&amp;rsquo;ll need to specify an &lt;a href="/documentation/runners/capability-matrix">appropriate runner&lt;/a> for the back-end where you want to execute your pipeline.&lt;/p>
 &lt;p>Beam currently supports Runners that work with the following distributed processing back-ends:&lt;/p>
 &lt;ul>
-&lt;li>Apache Apex &lt;img src="/images/logos/runners/apex.png" alt="Apache Apex logo">&lt;/li>
 &lt;li>Apache Flink &lt;img src="/images/logos/runners/flink.png" alt="Apache Flink logo">&lt;/li>
 &lt;li>Apache Samza &lt;img src="/images/logos/runners/samza.png" height="20px" alt="Apache Samza logo">&lt;/li>
 &lt;li>Apache Spark &lt;img src="/images/logos/runners/spark.png" alt="Apache Spark logo">&lt;/li>
@@ -1085,7 +1084,7 @@ args System.getProperty(&amp;#34;exec.args&amp;#34;).split()
 &lt;/li>
 &lt;/ol>
 &lt;h2 id="run-wordcount">Run WordCount&lt;/h2>
-&lt;p>A single Beam pipeline can run on multiple Beam &lt;a href="/documentation#runners">runners&lt;/a>, including the &lt;a href="/documentation/runners/apex">ApexRunner&lt;/a>, &lt;a href="/documentation/runners/flink">FlinkRunner&lt;/a>, &lt;a href="/documentation/runners/spark">SparkRunner&lt;/a>, &lt;a href="/documentation/runners/nemo">NemoRunner&lt;/a>, &lt;a href="/documentation/runners/jet">JetRunner&lt;/a>, or &lt;a href="/documentation/runners/dataflow">DataflowRunner&lt;/a>. The &lt;a href="/documentation/runners/direct">DirectRunner&lt;/a> is a common runner for getting started, as it runs locally on your machine and requires no specific setup.&lt;/p>
+&lt;p>A single Beam pipeline can run on multiple Beam &lt;a href="/documentation#runners">runners&lt;/a>, including the &lt;a href="/documentation/runners/flink">FlinkRunner&lt;/a>, &lt;a href="/documentation/runners/spark">SparkRunner&lt;/a>, &lt;a href="/documentation/runners/nemo">NemoRunner&lt;/a>, &lt;a href="/documentation/runners/jet">JetRunner&lt;/a>, or &lt;a href="/documentation/runners/dataflow">DataflowRunner&lt;/a>. The &lt;a href="/documentation/runners/direct">DirectRunner&lt;/a> is a common runner for getting started, as it runs locally on your machine and requires no specific setup.&lt;/p>
 &lt;p>After you&amp;rsquo;ve chosen which runner you&amp;rsquo;d like to use:&lt;/p>
 &lt;ol>
 &lt;li>Ensure you&amp;rsquo;ve done any runner-specific setup.&lt;/li>
@@ -1103,10 +1102,6 @@ args System.getProperty(&amp;#34;exec.args&amp;#34;).split()
 &lt;div class=runner-direct>
 &lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--inputFile=pom.xml --output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
--Dexec.args=&amp;#34;--inputFile=pom.xml --output=counts --runner=ApexRunner&amp;#34; -Papex-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-flink-local>
 &lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
@@ -1148,10 +1143,6 @@ $ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordC
 &lt;div class=runner-direct>
 &lt;pre>&lt;code>PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 -D exec.args=&amp;#34;--inputFile=pom.xml --output=counts&amp;#34; -P direct-runner&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
--D exec.args=&amp;#34;--inputFile=pom.xml --output=counts --runner=ApexRunner&amp;#34; -P apex-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-flink-local>
 &lt;pre>&lt;code>PS&amp;gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
@@ -1228,9 +1219,6 @@ PS&amp;gt; java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examp
 &lt;div class=runner-direct>
 &lt;pre>&lt;code>$ ls counts*&lt;/code>&lt;/pre>
 &lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>$ ls counts*&lt;/code>&lt;/pre>
-&lt;/div>
 &lt;div class=runner-flink-local>
 &lt;pre>&lt;code>$ ls counts*&lt;/code>&lt;/pre>
 &lt;/div>
@@ -1262,15 +1250,6 @@ Apache: 2
 The: 1
 limitations: 1
 Foundation: 1
-...&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>$ cat counts*
-BEAM: 1
-have: 1
-simple: 1
-skip: 4
-PAssert: 1
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-flink-local>
@@ -1509,9 +1488,6 @@ environment&amp;rsquo;s directories.&lt;/p>
 &lt;p>For example, run &lt;code>wordcount.py&lt;/code> with the following command:&lt;/p>
 &lt;div class=runner-direct>
 &lt;pre>&lt;code>python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-flink-local>
 &lt;pre>&lt;code>Currently, running wordcount.py on Flink requires a full download of the Beam source code.
@@ -1775,7 +1751,6 @@ limitations under the License.
 &lt;li>&lt;a href="#cloud-dataflow-runner">Cloud Dataflow Runner&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#apache-spark-runner">Apache Spark Runner&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#apache-flink-runner">Apache Flink Runner&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#apache-apex-runner">Apache Apex Runner&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#apache-nemo-runner">Apache Nemo Runner&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
@@ -2053,10 +2028,6 @@ above section, &lt;a href="#minimalwordcount-example">MinimalWordCount&lt;/a>.&l
 &lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--inputFile=pom.xml --output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
 &lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
--Dexec.args=&amp;#34;--inputFile=pom.xml --output=counts --runner=ApexRunner&amp;#34; -Papex-runner&lt;/code>&lt;/pre>
-&lt;/div>
 &lt;div class=runner-flink-local>
 &lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 -Dexec.args=&amp;#34;--runner=FlinkRunner --inputFile=pom.xml --output=counts&amp;#34; -Pflink-runner&lt;/code>&lt;/pre>
@@ -2096,9 +2067,6 @@ You can monitor the running job by visiting the Flink dashboard at http://&amp;l
 &lt;div class=runner-direct>
 &lt;pre>&lt;code>python -m apache_beam.examples.wordcount --input YOUR_INPUT_FILE --output counts&lt;/code>&lt;/pre>
 &lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
-&lt;/div>
 &lt;div class=runner-flink-local>
 &lt;pre>&lt;code>Currently, running wordcount.py on Flink requires a full download of the Beam source code.
 See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.&lt;/code>&lt;/pre>
@@ -2136,9 +2104,6 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 &lt;div class=runner-direct>
 &lt;pre>&lt;code>$ go install github.com/apache/beam/sdks/go/examples/wordcount
 $ wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-flink-local>
 &lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
@@ -2332,10 +2297,6 @@ instrumenting your pipeline code.&lt;/p>
 &lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
 -Dexec.args=&amp;#34;--output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
 &lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
--Dexec.args=&amp;#34;--output=counts --runner=ApexRunner&amp;#34; -Papex-runner&lt;/code>&lt;/pre>
-&lt;/div>
 &lt;div class=runner-flink-local>
 &lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
 -Dexec.args=&amp;#34;--runner=FlinkRunner --output=counts&amp;#34; -Pflink-runner&lt;/code>&lt;/pre>
@@ -2375,9 +2336,6 @@ You can monitor the running job by visiting the Flink dashboard at http://&amp;l
 &lt;div class=runner-direct>
 &lt;pre>&lt;code>python -m apache_beam.examples.wordcount_debugging --input YOUR_INPUT_FILE --output counts&lt;/code>&lt;/pre>
 &lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
-&lt;/div>
 &lt;div class=runner-flink-local>
 &lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
@@ -2411,9 +2369,6 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
 &lt;div class=runner-direct>
 &lt;pre>&lt;code>$ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
 $ debugging_wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-flink-local>
 &lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
@@ -2558,11 +2513,6 @@ or DEBUG significantly increases the amount of logs output.&lt;/p>
 &lt;p>&lt;strong>Note:&lt;/strong> This section is yet to be added. There is an open issue for this
 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-791">BEAM-791&lt;/a>).&lt;/p>
 &lt;/blockquote>
-&lt;h4 id="apache-apex-runner">Apache Apex Runner&lt;/h4>
-&lt;blockquote>
-&lt;p>&lt;strong>Note:&lt;/strong> This section is yet to be added. There is an open issue for this
-(&lt;a href="https://issues.apache.org/jira/browse/BEAM-2285">BEAM-2285&lt;/a>).&lt;/p>
-&lt;/blockquote>
 &lt;h4 id="apache-nemo-runner">Apache Nemo Runner&lt;/h4>
 &lt;p>When executing your pipeline with the &lt;code>NemoRunner&lt;/code>, most log messages are printed
 directly to your local console. You should add &lt;code>Slf4j&lt;/code> to your class path to make
@@ -2624,10 +2574,6 @@ pipeline code into smaller sections.&lt;/p>
 &lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
 -Dexec.args=&amp;#34;--inputFile=pom.xml --output=counts&amp;#34; -Pdirect-runner&lt;/code>&lt;/pre>
 &lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
--Dexec.args=&amp;#34;--inputFile=pom.xml --output=counts --runner=ApexRunner&amp;#34; -Papex-runner&lt;/code>&lt;/pre>
-&lt;/div>
 &lt;div class=runner-flink-local>
 &lt;pre>&lt;code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
 -Dexec.args=&amp;#34;--runner=FlinkRunner --inputFile=pom.xml --output=counts&amp;#34; -Pflink-runner&lt;/code>&lt;/pre>
@@ -2670,9 +2616,6 @@ parameter. using the format &lt;code>PROJECT:DATASET.TABLE&lt;/code> or
 &lt;div class=runner-direct>
 &lt;pre>&lt;code>python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE --output_table PROJECT:DATASET.TABLE&lt;/code>&lt;/pre>
 &lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
-&lt;/div>
 &lt;div class=runner-flink-local>
 &lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
@@ -2706,9 +2649,6 @@ python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
 &lt;div class=runner-direct>
 &lt;pre>&lt;code>$ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
 $ windowed_wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; --output counts&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-flink-local>
 &lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
@@ -2911,9 +2851,6 @@ frequency count of the words seen in each 15 second window.&lt;/p>
 --input_topic &amp;#34;projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC&amp;#34; \
 --output_topic &amp;#34;projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC&amp;#34; \
 --streaming&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;div class=runner-apex>
-&lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-flink-local>
 &lt;pre>&lt;code>This runner is not yet available for the Python SDK.&lt;/code>&lt;/pre>
