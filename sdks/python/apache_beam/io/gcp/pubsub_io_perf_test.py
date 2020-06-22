@@ -47,8 +47,8 @@ python -m apache_beam.io.gcp.pubsub_io_perf_test \
 from __future__ import absolute_import
 
 import logging
-import uuid
 import sys
+import uuid
 
 from hamcrest import all_of
 
