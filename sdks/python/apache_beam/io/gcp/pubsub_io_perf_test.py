@@ -48,7 +48,6 @@ from __future__ import absolute_import
 
 import logging
 import sys
-import uuid
 
 from hamcrest import all_of
 
@@ -81,6 +80,7 @@ MATCHER_PULL_TIMEOUT = 60 * 5
 
 class PubsubIOPerfTest(LoadTest):
   def _setup_env(self):
+    import uuid
     if not self.pipeline.get_option('pubsub_namespace_prefix'):
       logging.error('--pubsub_namespace_prefix argument is required.')
       sys.exit(1)
@@ -122,6 +122,7 @@ class PubsubWritePerfTest(PubsubIOPerfTest):
   def test(self):
     def to_pubsub_message(element):
       from apache_beam.io import PubsubMessage
+      import uuid
       return PubsubMessage(
           data=element[1],
           attributes={'id': str(uuid.uuid1()).encode('utf-8')},
