@@ -17,11 +17,25 @@
 # under the License.
 #
 
-content:
-- Map
-- GroupByKey
-- CoGroupByKey
-- Combine
-- Flatten
-- Partition
-- Side Input
+type: edu
+files:
+- name: test/task_test.go
+  visible: false
+- name: cmd/main.go
+  visible: true
+- name: go.mod
+  visible: false
+- name: go.sum
+  visible: false
+- name: pkg/task/task.go
+  visible: true
+  placeholders:
+  - offset: 1059
+    length: 46
+    placeholder_text: TODO()
+  - offset: 1185
+    length: 83
+    placeholder_text: TODO()
+  - offset: 1273
+    length: 202
+    placeholder_text: TODO()
