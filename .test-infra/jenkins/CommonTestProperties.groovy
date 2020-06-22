@@ -45,7 +45,7 @@ class CommonTestProperties {
                 ],
                 PYTHON: [
                         DATAFLOW: "DataflowRunner",
-                        TEST_DATAFLOW: "DataflowRunner",
+                        TEST_DATAFLOW: "TestDataflowRunner",
                         DIRECT: "DirectRunner",
                         PORTABLE: "PortableRunner"
                 ],
