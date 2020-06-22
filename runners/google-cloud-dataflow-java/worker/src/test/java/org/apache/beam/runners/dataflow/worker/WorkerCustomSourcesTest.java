@@ -51,6 +51,7 @@ import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.DerivedSource;
+import com.google.api.services.dataflow.model.DynamicSourceSplit;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ReportedParallelism;
 import com.google.api.services.dataflow.model.Source;
@@ -171,6 +172,30 @@ public class WorkerCustomSourcesTest {
           contains(valueInGlobalWindow(0L + 2 * i), valueInGlobalWindow(1L + 2 * i)));
       assertTrue(bundle.getSource().getMetadata().getEstimatedSizeBytes() > 0);
     }
+  }
+
+  private static class SourceProducingNegativeEstimatedSizes extends MockSource {
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) {
+      return -100;
+    }
+
+    @Override
+    public String toString() {
+      return "Some description";
+    }
+  }
+
+  @Test
+  public void testNegativeEstimatedSizesNotSet() throws Exception {
+    WorkerCustomSources.BoundedSourceSplit<Integer> boundedSourceSplit =
+        new WorkerCustomSources.BoundedSourceSplit<Integer>(
+            new SourceProducingNegativeEstimatedSizes(),
+            new SourceProducingNegativeEstimatedSizes());
+    DynamicSourceSplit dynamicSourceSplit = WorkerCustomSources.toSourceSplit(boundedSourceSplit);
+    assertNull(dynamicSourceSplit.getPrimary().getSource().getMetadata().getEstimatedSizeBytes());
+    assertNull(dynamicSourceSplit.getResidual().getSource().getMetadata().getEstimatedSizeBytes());
   }
 
   @Test

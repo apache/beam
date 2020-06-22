@@ -147,7 +147,13 @@ public class WorkerCustomSources {
     SourceMetadata metadata = new SourceMetadata();
     // Size estimation is best effort so we continue even if it fails here.
     try {
-      metadata.setEstimatedSizeBytes(source.getEstimatedSizeBytes(PipelineOptionsFactory.create()));
+      long estimatedSize = source.getEstimatedSizeBytes(PipelineOptionsFactory.create());
+      if (estimatedSize >= 0) {
+        metadata.setEstimatedSizeBytes(estimatedSize);
+      } else {
+        LOG.warn(
+            "Ignoring negative estimated size {} produced by source {}", estimatedSize, source);
+      }
     } catch (Exception e) {
       LOG.warn("Size estimation of the source failed: " + source, e);
     }
