@@ -29,7 +29,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /** SqlStdOperatorMappingTable. */
 @Internal
 public class SqlStdOperatorMappingTable {
-  static final List<FunctionSignatureId> ZETASQL_BUILTIN_FUNCTION_WHITELIST =
+  static final List<FunctionSignatureId> ZETASQL_BUILTIN_FUNCTION_ALLOWLIST =
       ImmutableList.of(
           FunctionSignatureId.FN_AND,
           FunctionSignatureId.FN_ANY_VALUE,
