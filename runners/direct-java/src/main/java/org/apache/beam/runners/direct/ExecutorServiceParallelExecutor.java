@@ -245,9 +245,15 @@ final class ExecutorServiceParallelExecutor
       VisibleExecutorUpdate update = visibleUpdates.tryNext(Duration.millis(25L));
 
       if (update == null && pipelineState.get().isTerminal()) {
-        // there are no updates to process and no updates will ever be published because the
-        // executor is shutdown
-        return pipelineState.get();
+        // state and updates have seperate locks so it is possible for an update
+        // to be posted in a race. updates should arrive before the status is set
+        // to a terminal state, so if there is one we should see it immediately.
+        update = visibleUpdates.tryNext(Duration.millis(1L));
+        if (update == null) {
+          // there are no updates to process and no updates will ever be published because the
+          // executor is shutdown
+          return pipelineState.get();
+        }
       }
 
       if (update != null) {
