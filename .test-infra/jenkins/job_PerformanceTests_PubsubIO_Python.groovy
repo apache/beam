@@ -31,7 +31,7 @@ def withDataflowWorkerJar = true
 def psio_test = [
         title          : 'PubsubIO Write Performance Test Python 2GB',
         test           : 'apache_beam.io.gcp.pubsub_io_perf_test',
-        runner         : CommonTestProperties.Runner.DATAFLOW,
+        runner         : CommonTestProperties.Runner.TEST_DATAFLOW,
         pipelineOptions: [
                 job_name                  : 'performance-tests-psio-python-2gb' + now,
                 project                   : 'apache-beam-testing',
