@@ -47,6 +47,7 @@ python -m apache_beam.io.gcp.pubsub_io_perf_test \
 from __future__ import absolute_import
 
 import logging
+import uuid
 import sys
 
 from hamcrest import all_of
@@ -80,15 +81,16 @@ MATCHER_PULL_TIMEOUT = 60 * 5
 
 class PubsubIOPerfTest(LoadTest):
   def _setup_env(self):
-    if not self.pipeline.get_option('pubsub_namespace'):
-      logging.error('--pubsub_namespace argument is required.')
+    if not self.pipeline.get_option('pubsub_namespace_prefix'):
+      logging.error('--pubsub_namespace_prefix argument is required.')
       sys.exit(1)
     if not self.pipeline.get_option('wait_until_finish_duration'):
       logging.error('--wait_until_finish_duration argument is required.')
       sys.exit(1)
 
     self.num_of_messages = int(self.input_options.get('num_records'))
-    self.pubsub_namespace = self.pipeline.get_option('pubsub_namespace')
+    self.pubsub_namespace_prefix = self.pipeline.get_option('pubsub_namespace_prefix')
+    self.pubsub_namespace = self.pubsub_namespace_prefix + str(uuid.uuid4())
 
   def _setup_pubsub(self):
     self.pub_client = pubsub.PublisherClient()

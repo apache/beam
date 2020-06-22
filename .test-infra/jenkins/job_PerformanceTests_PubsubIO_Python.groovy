@@ -24,8 +24,7 @@ import static java.util.UUID.randomUUID
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def pubsubId = randomUUID()
-def pubsubNamespace = "pubsub_io_performance_${pubsubId}"
+def pubsubNamespacePrefix = "pubsub_io_performance_"
 def withDataflowWorkerJar = true
 
 def psio_test = [
@@ -49,7 +48,7 @@ def psio_test = [
                         '"value_size": 1024}\'',
                 num_workers               : 5,
                 autoscaling_algorithm     : 'NONE',  // Disable autoscale the worker pool.
-                pubsub_namespace          : pubsubNamespace,
+                pubsub_namespace_prefix   : pubsubNamespacePrefix,
                 wait_until_finish_duration: 1000 * 60 * 10, // in milliseconds
         ]
 ]
