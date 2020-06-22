@@ -490,7 +490,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
     private void checkString(String context, TypeDescriptor<?> type) {
       // For types that are encoded as strings, we need to make sure they're in an approved
-      // whitelist. For other types that are annotated @Stringable, Avro will just use the
+      // list. For other types that are annotated @Stringable, Avro will just use the
       // #toString() methods, which has no guarantees of determinism.
       if (!DETERMINISTIC_STRINGABLE_CLASSES.contains(type.getRawType())) {
         reportError(context, "%s may not have deterministic #toString()", type);
