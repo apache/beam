@@ -80,7 +80,7 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         if (!this.buildReleaseOptions.equals(""))
             command.add(this.buildReleaseOptions);
 
-        System.out.println(Arrays.toString(command.toArray()));
+//        System.out.println(Arrays.toString(command.toArray()));
         processBuilder.command(command);
     }
 
@@ -100,17 +100,10 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         env.put("GOOGLE_APPLICATION_CREDENTIALS", this.pathToCreds);
         //processBuilder.command("bash", "-c", "echo $GOOGLE_APPLICATION_CREDENTIALS");
 
-        // comparing environment variables (appear to be identical)
-//        Map<String, String> environment = processBuilder.environment();
-//        System.out.println("PROCESS BUILDER ENV");
-//        environment.forEach((key, value) -> System.out.println(key + ":" + value));
-//
-//        System.out.println("SYSTEM ENV");
-//        Map<String, String> env = System.getenv();
-//        env.forEach((k, v) -> System.out.println(k + ":" + v));
         // set correct directory to be running command
         processBuilder.directory(new File(workspace.toURI()));
-        // todo WIP buildCommand
+
+        // build and set command to processBuilder based on configurations
         buildCommand(processBuilder);
         Process process = processBuilder.start();
 

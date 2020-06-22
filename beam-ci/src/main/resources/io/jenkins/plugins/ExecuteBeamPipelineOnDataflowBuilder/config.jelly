@@ -8,7 +8,7 @@
         <f:textbox />
     </f:entry>
     <f:entry title="Pipeline Options" field="pipelineOptions">
-        <f:expandableTextbox />
+        <f:textarea />
     </f:entry>
     <f:entry title="[Optional] Build Release Options" field="buildReleaseOptions">
         <f:textbox />
