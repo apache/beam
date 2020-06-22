@@ -20,25 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.planner;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregateProjectMergeRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregationRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamBasicAggregationRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCoGBKJoinRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamEnumerableConverterRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOPushDownRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIntersectRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinAssociateRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinPushThroughJoinRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamMinusRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputJoinRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputLookupJoinRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSortRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamTableFunctionScanRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUncollectRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnionRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamValuesRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.*;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
@@ -158,7 +140,8 @@ public class BeamRuleSets {
           BeamUnnestRule.INSTANCE,
           BeamSideInputJoinRule.INSTANCE,
           BeamCoGBKJoinRule.INSTANCE,
-          BeamSideInputLookupJoinRule.INSTANCE);
+          BeamSideInputLookupJoinRule.INSTANCE,
+          BeamMatchRule.INSTANCE);
 
   private static final List<RelOptRule> BEAM_TO_ENUMERABLE =
       ImmutableList.of(BeamEnumerableConverterRule.INSTANCE);
