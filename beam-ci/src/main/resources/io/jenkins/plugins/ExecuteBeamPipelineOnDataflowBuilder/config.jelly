@@ -8,7 +8,7 @@
         <f:expandableTextbox />
     </f:entry>
     <f:entry title="[Optional] Build Release Options" field="buildReleaseOptions">
-        <f:expandableTextbox />
+        <f:textbox />
     </f:entry>
     <f:block>
       <table>

@@ -66,15 +66,13 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
     private void buildCommand(ProcessBuilder processBuilder) {
         ArrayList<String> command;
         if (this.useJava && this.useGradle) { // gradle
-            command = new ArrayList<>(Arrays.asList("gradle", "clean", "execute", "-DmainClass=" + this.pathToMainClass));
+            command = new ArrayList<>(Arrays.asList("gradle", "clean", "execute", "-DmainClass=" + this.pathToMainClass, "-Dexec.args=" + this.pipelineOptions));
         } else if (this.useJava) { // maven
-            command = new ArrayList<>(Arrays.asList("mvn", "compile", "exec:java", "-Dexec.mainClass=" + this.pathToMainClass));
-        } else { // python
+            command = new ArrayList<>(Arrays.asList("mvn", "compile", "exec:java", "-Dexec.mainClass=" + this.pathToMainClass, "-Dexec.args=" + this.pipelineOptions));
+        } else { // todo python
             command = new ArrayList<>(Arrays.asList("python", "-m", this.pathToMainClass));
         }
         // Add pipeline and build release options if included
-        if (!this.pipelineOptions.equals(""))
-            command.add(this.pipelineOptions);
         if (!this.buildReleaseOptions.equals(""))
             command.add(this.buildReleaseOptions);
 
@@ -93,6 +91,18 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         listener.getLogger().println("use java: " + this.useJava);
         listener.getLogger().println("use gradle: " + this.useGradle);
 
+        Map<String, String> env = processBuilder.environment();
+        env.put("GOOGLE_APPLICATION_CREDENTIALS", "/usr/local/google/home/justinekoa/testingDataflow-a1b20617309e.json");
+        //processBuilder.command("bash", "-c", "echo $GOOGLE_APPLICATION_CREDENTIALS");
+
+        // comparing environment variables (appear to be identical)
+//        Map<String, String> environment = processBuilder.environment();
+//        System.out.println("PROCESS BUILDER ENV");
+//        environment.forEach((key, value) -> System.out.println(key + ":" + value));
+//
+//        System.out.println("SYSTEM ENV");
+//        Map<String, String> env = System.getenv();
+//        env.forEach((k, v) -> System.out.println(k + ":" + v));
         // set correct directory to be running command
         processBuilder.directory(new File(workspace.toURI()));
         // todo WIP buildCommand
