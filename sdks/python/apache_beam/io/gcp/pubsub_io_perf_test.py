@@ -89,7 +89,8 @@ class PubsubIOPerfTest(LoadTest):
       sys.exit(1)
 
     self.num_of_messages = int(self.input_options.get('num_records'))
-    self.pubsub_namespace_prefix = self.pipeline.get_option('pubsub_namespace_prefix')
+    self.pubsub_namespace_prefix = self.pipeline.get_option(
+        'pubsub_namespace_prefix')
     self.pubsub_namespace = self.pubsub_namespace_prefix + str(uuid.uuid4())
 
   def _setup_pubsub(self):
