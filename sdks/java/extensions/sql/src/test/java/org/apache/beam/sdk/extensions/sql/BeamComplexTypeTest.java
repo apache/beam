@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -375,38 +376,6 @@ public class BeamComplexTypeTest {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 
-  private static class DummySqlTimeType implements Schema.LogicalType<Long, Instant> {
-    @Override
-    public String getIdentifier() {
-      return "SqlTimeType";
-    }
-
-    @Override
-    public FieldType getArgumentType() {
-      return FieldType.STRING;
-    }
-
-    @Override
-    public String getArgument() {
-      return "";
-    }
-
-    @Override
-    public Schema.FieldType getBaseType() {
-      return Schema.FieldType.DATETIME;
-    }
-
-    @Override
-    public Instant toBaseType(Long input) {
-      return (input == null ? null : new Instant((long) input));
-    }
-
-    @Override
-    public Long toInputType(Instant base) {
-      return (base == null ? null : base.getMillis());
-    }
-  }
-
   @Test
   public void testNullDatetimeFields() {
     Instant current = new Instant(1561671380000L); // Long value corresponds to 27/06/2019
@@ -416,16 +385,15 @@ public class BeamComplexTypeTest {
         Schema.builder()
             .addField("dateTimeField", FieldType.DATETIME)
             .addNullableField("nullableDateTimeField", FieldType.DATETIME)
-            .addField("timeTypeField", FieldType.logicalType(new DummySqlTimeType()))
-            .addNullableField(
-                "nullableTimeTypeField", FieldType.logicalType(new DummySqlTimeType()))
+            .addField("timeTypeField", FieldType.logicalType(SqlTypes.TIME))
+            .addNullableField("nullableTimeTypeField", FieldType.logicalType(SqlTypes.TIME))
             .addField("dateTypeField", FieldType.logicalType(SqlTypes.DATE))
             .addNullableField("nullableDateTypeField", FieldType.logicalType(SqlTypes.DATE))
             .build();
 
     Row dateTimeRow =
         Row.withSchema(dateTimeFieldSchema)
-            .addValues(current, null, date.getMillis(), null, LocalDate.of(2019, 6, 27), null)
+            .addValues(current, null, LocalTime.of(15, 50, 0), null, LocalDate.of(2019, 6, 27), null)
             .build();
 
     PCollection<Row> outputRow =

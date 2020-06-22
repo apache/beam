@@ -17,18 +17,40 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
-import java.time.LocalDate;
 import java.time.LocalTime;
-import org.apache.beam.sdk.schemas.Schema.LogicalType;
+import org.apache.beam.sdk.schemas.Schema;
 
-/** Beam {@link org.apache.beam.sdk.schemas.Schema.LogicalType}s corresponding to SQL data types. */
-public class SqlTypes {
+public class Time implements Schema.LogicalType<LocalTime, Long> {
 
-  private SqlTypes() {}
+  @Override
+  public String getIdentifier() {
+    return "beam:logical_type:time:v1";
+  }
 
-  /** Beam LogicalType corresponding to ZetaSQL/CalciteSQL DATE type. */
-  public static final LogicalType<LocalDate, Long> DATE = new Date();
+  // unused
+  @Override
+  public Schema.FieldType getArgumentType() {
+    return Schema.FieldType.STRING;
+  }
 
-  /** Beam LogicalType corresponding to ZetaSQL/CalciteSQL TIME type. */
-  public static final LogicalType<LocalTime, Long> TIME = new Time();
+  // unused
+  @Override
+  public String getArgument() {
+    return "";
+  }
+
+  @Override
+  public Schema.FieldType getBaseType() {
+    return Schema.FieldType.INT64;
+  }
+
+  @Override
+  public Long toBaseType(LocalTime input) {
+    return input == null ? null : input.toNanoOfDay();
+  }
+
+  @Override
+  public LocalTime toInputType(Long base) {
+    return base == null ? null : LocalTime.ofNanoOfDay(base);
+  }
 }

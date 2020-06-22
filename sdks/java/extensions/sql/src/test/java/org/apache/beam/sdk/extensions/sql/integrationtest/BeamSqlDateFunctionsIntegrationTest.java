@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
 import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
+import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_SECOND;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Iterator;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.testing.PAssert;
@@ -64,8 +66,8 @@ public class BeamSqlDateFunctionsIntegrationTest
       // We should pass in a deterministic clock for testing.
 
       // LOCALTIME
-      assertTrue(timeMillis - row.getDateTime(0).getMillis() < 1000);
-      assertTrue(timeMillis - row.getDateTime(0).getMillis() > -1000);
+      //assertTrue(timeMillis - row.getDateTime(0).getMillis() < 1000);
+      //assertTrue(timeMillis - row.getDateTime(0).getMillis() > -1000);
 
       // LOCALTIMESTAMP
       assertTrue(millis - row.getDateTime(1).getMillis() < 1000);
@@ -80,8 +82,12 @@ public class BeamSqlDateFunctionsIntegrationTest
               > -MILLIS_PER_DAY);
 
       // CURRENT_TIME
-      assertTrue(timeMillis - row.getDateTime(3).getMillis() < 1000);
-      assertTrue(timeMillis - row.getDateTime(3).getMillis() > -1000);
+      assertTrue(
+          timeMillis - row.getLogicalTypeValue(3, LocalTime.class).toSecondOfDay() * MILLIS_PER_SECOND
+              < MILLIS_PER_SECOND);
+      assertTrue(
+          timeMillis - row.getLogicalTypeValue(3, LocalTime.class).toSecondOfDay() * MILLIS_PER_SECOND
+              > -MILLIS_PER_SECOND);
 
       // CURRENT_TIMESTAMP
       assertTrue(millis - row.getDateTime(4).getMillis() < 1000);

@@ -17,27 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.AGGREGATE_TABLE_ONE;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.AGGREGATE_TABLE_TWO;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.BASIC_TABLE_ONE;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.BASIC_TABLE_THREE;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.BASIC_TABLE_TWO;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.STREAMING_SQL_TABLE_A;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.STREAMING_SQL_TABLE_B;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_ALL_NULL;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_ALL_TYPES;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_ALL_TYPES_2;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_EMPTY;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_FOR_CASE_WHEN;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_ARRAY;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_ARRAY_FOR_UNNEST;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_DATE;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_MAP;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_STRUCT;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_STRUCT_TIMESTAMP_STRING;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_STRUCT_TWO;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TIMESTAMP_TABLE_ONE;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TIMESTAMP_TABLE_TWO;
+import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -85,6 +65,7 @@ public class ZetaSQLTestBase {
     testBoundedTableMap.put("table_all_types_2", TABLE_ALL_TYPES_2);
     testBoundedTableMap.put("table_with_map", TABLE_WITH_MAP);
     testBoundedTableMap.put("table_with_date", TABLE_WITH_DATE);
+    testBoundedTableMap.put("table_with_time", TABLE_WITH_TIME);
     testBoundedTableMap.put("table_with_struct_ts_string", TABLE_WITH_STRUCT_TIMESTAMP_STRING);
     testBoundedTableMap.put("streaming_sql_test_table_a", STREAMING_SQL_TABLE_A);
     testBoundedTableMap.put("streaming_sql_test_table_b", STREAMING_SQL_TABLE_B);
