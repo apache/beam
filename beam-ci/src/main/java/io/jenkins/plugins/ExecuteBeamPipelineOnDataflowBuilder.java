@@ -27,6 +27,7 @@ import jenkins.tasks.SimpleBuildStep;
 
 public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements SimpleBuildStep {
 
+    private final String pathToCreds;
     private final String pathToMainClass;
     private final String pipelineOptions;
     private final String buildReleaseOptions;
@@ -35,13 +36,16 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
     // todo more configurations may be needed for credentials and getting into the right directory with the pom file
 
     @DataBoundConstructor
-    public ExecuteBeamPipelineOnDataflowBuilder(String pathToMainClass, String pipelineOptions, String buildReleaseOptions, boolean useJava, boolean useGradle) {
+    public ExecuteBeamPipelineOnDataflowBuilder(String pathToCreds, String pathToMainClass, String pipelineOptions, String buildReleaseOptions, boolean useJava, boolean useGradle) {
+        this.pathToCreds = pathToCreds;
         this.pathToMainClass = pathToMainClass;
         this.pipelineOptions = pipelineOptions;
         this.buildReleaseOptions = buildReleaseOptions;
         this.useJava = useJava;
         this.useGradle = useGradle;
     }
+
+    public String getPathToCreds() { return pathToCreds; }
 
     public String getPathToMainClass() {
         return pathToMainClass;
@@ -85,6 +89,7 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         ProcessBuilder processBuilder = new ProcessBuilder();
 
         // right now just testing to see that all configurations are received correctly
+        listener.getLogger().println("path to google app creds : " + this.pathToCreds);
         listener.getLogger().println("path to main class : " + this.pathToMainClass);
         listener.getLogger().println("pipeline options : " + this.pipelineOptions);
         listener.getLogger().println("build release options : " + this.buildReleaseOptions);
@@ -92,7 +97,7 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         listener.getLogger().println("use gradle: " + this.useGradle);
 
         Map<String, String> env = processBuilder.environment();
-        env.put("GOOGLE_APPLICATION_CREDENTIALS", "/usr/local/google/home/justinekoa/testingDataflow-a1b20617309e.json");
+        env.put("GOOGLE_APPLICATION_CREDENTIALS", this.pathToCreds);
         //processBuilder.command("bash", "-c", "echo $GOOGLE_APPLICATION_CREDENTIALS");
 
         // comparing environment variables (appear to be identical)

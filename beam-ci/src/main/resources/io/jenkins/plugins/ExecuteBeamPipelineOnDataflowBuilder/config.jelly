@@ -1,6 +1,9 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:g="glide" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:g2="null" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
     <p>Make sure you complete the setup steps at <a href="https://beam.apache.org/documentation/runners/dataflow/#setup" target="_blank">https://beam.apache.org/documentation/runners/dataflow/#setup</a></p>
+    <f:entry title="Path to Google Application Credentials" field="pathToCreds">
+        <f:textbox />
+    </f:entry>
     <f:entry title="Path to Main Class" field="pathToMainClass">
         <f:textbox />
     </f:entry>
