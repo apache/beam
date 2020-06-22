@@ -1,4 +1,4 @@
-package org.apache.beam.sdk.extensions.sql.utils;
+package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -8,7 +8,7 @@ import org.apache.beam.sdk.values.Row;
 import org.junit.Test;
 import org.apache.beam.sdk.schemas.Schema;
 
-public class BeamSqlDslMatchTest {
+public class BeamMatchRelTest {
 
   public static final TestPipeline pipeline = TestPipeline.create();
 
