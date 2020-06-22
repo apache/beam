@@ -79,7 +79,7 @@ def batchScenarios = { datasetName -> [
                         environment_type     : 'DOCKER',
                 ]
         ],
-// TODO(BEAM-10270): Takes too long time to execute (currently more than 2 hours). Re-enable
+// TODO(BEAM-10270): Takes too long time to execute (currently more than 3 hours). Re-enable
 // the test after its overhead is reduced.
 //         [
 //                 title          : 'ParDo Python Load test: 20M 100 byte records 200 times',
