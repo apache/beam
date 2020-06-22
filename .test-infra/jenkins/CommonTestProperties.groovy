@@ -37,13 +37,15 @@ class CommonTestProperties {
         def RUNNER_DEPENDENCY_MAP = [
                 JAVA: [
                         DATAFLOW: ":runners:google-cloud-dataflow-java",
+                        TEST_DATAFLOW: ":runners:google-cloud-dataflow-java",
                         SPARK: ":runners:spark",
                         SPARK_STRUCTURED_STREAMING: ":runners:spark",
                         FLINK: ":runners:flink:1.10",
                         DIRECT: ":runners:direct-java"
                 ],
                 PYTHON: [
-                        DATAFLOW: "TestDataflowRunner",
+                        DATAFLOW: "DataflowRunner",
+                        TEST_DATAFLOW: "DataflowRunner",
                         DIRECT: "DirectRunner",
                         PORTABLE: "PortableRunner"
                 ],
