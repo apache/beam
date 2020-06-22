@@ -32,7 +32,7 @@ import org.junit.Test;
 public class BeamAnalyticFunctionsExperimentTest extends BeamSqlDslBase {
 
   /**
-   * Table schema and data taken from:
+   * Table schema and data taken from.
    * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#produce_table
    */
   private PCollection<Row> inputData() {
@@ -70,7 +70,7 @@ public class BeamAnalyticFunctionsExperimentTest extends BeamSqlDslBase {
   }
 
   /**
-   * Compute a cumulative sum query taken from:
+   * Compute a cumulative sum query taken from.
    * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#compute_a_cumulative_sum
    */
   @Test
@@ -130,7 +130,7 @@ public class BeamAnalyticFunctionsExperimentTest extends BeamSqlDslBase {
   }
 
   /**
-   * Basic analytic function query taken from:
+   * Basic analytic function query taken from.
    * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#compute_a_grand_total
    */
   @Test
