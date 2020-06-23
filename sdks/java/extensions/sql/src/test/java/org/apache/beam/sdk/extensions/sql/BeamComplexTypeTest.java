@@ -393,7 +393,7 @@ public class BeamComplexTypeTest {
 
     Row dateTimeRow =
         Row.withSchema(dateTimeFieldSchema)
-            .addValues(current, null, LocalTime.of(15, 50, 0), null, LocalDate.of(2019, 6, 27), null)
+            .addValues(current, null, LocalTime.of(1, 0, 0), null, LocalDate.of(2019, 6, 27), null)
             .build();
 
     PCollection<Row> outputRow =
@@ -420,21 +420,31 @@ public class BeamComplexTypeTest {
             .addNullableField("year_with_null", FieldType.INT64)
             .addField("mm", FieldType.INT64)
             .addNullableField("month_with_null", FieldType.INT64)
-            .addField("time_with_hour_added", FieldType.DATETIME)
-            .addNullableField("hour_added_with_null", FieldType.DATETIME)
-            .addField("time_with_seconds_added", FieldType.DATETIME)
-            .addNullableField("seconds_added_with_null", FieldType.DATETIME)
+            .addField("time_with_hour_added", FieldType.logicalType(SqlTypes.TIME))
+            .addNullableField("hour_added_with_null", FieldType.logicalType(SqlTypes.TIME))
+            .addField("time_with_seconds_added", FieldType.logicalType(SqlTypes.TIME))
+            .addNullableField("seconds_added_with_null", FieldType.logicalType(SqlTypes.TIME))
             .addField("dd", FieldType.INT64)
             .addNullableField("day_with_null", FieldType.INT64)
             .build();
 
-    Instant futureTime = date.toInstant().plus(3600 * 1000);
-    Instant pastTime = date.toInstant().minus(60 * 1000);
+    // Instant futureTime = date.toInstant().plus(3600 * 1000);
+    // Instant pastTime = date.toInstant().minus(60 * 1000);
 
     PAssert.that(outputRow)
         .containsInAnyOrder(
             Row.withSchema(outputRowSchema)
-                .addValues(2019L, null, 06L, null, futureTime, null, pastTime, null, 27L, null)
+                .addValues(
+                    2019L,
+                    null,
+                    06L,
+                    null,
+                    LocalTime.of(2, 0, 0),
+                    null,
+                    LocalTime.of(0, 59, 0),
+                    null,
+                    27L,
+                    null)
                 .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));

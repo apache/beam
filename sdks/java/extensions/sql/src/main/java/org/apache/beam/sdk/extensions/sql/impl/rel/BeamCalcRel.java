@@ -339,9 +339,16 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     // (LocalDate for DATE type)
     // (LocalTime for TIME type)
     if (CalciteUtils.DATE.typesEqual(toType) || CalciteUtils.NULLABLE_DATE.typesEqual(toType)) {
+      if (value.getType() == Long.class) {
+        valueDateTime = Expressions.unbox(valueDateTime);
+      }
       valueDateTime = Expressions.call(LocalDate.class, "ofEpochDay", valueDateTime);
     } else if (CalciteUtils.TIME.typesEqual(toType)
         || CalciteUtils.NULLABLE_TIME.typesEqual(toType)) {
+      if (value.getType() == Long.class) {
+        valueDateTime = Expressions.unbox(valueDateTime);
+      }
+      valueDateTime = Expressions.multiply(valueDateTime, Expressions.constant(1000000L));
       valueDateTime = Expressions.call(LocalTime.class, "ofNanoOfDay", valueDateTime);
     } else {
       valueDateTime = Expressions.new_(Instant.class, valueDateTime);
@@ -438,7 +445,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         String logicalId = type.getLogicalType().getIdentifier();
         if (SqlTypes.TIME.getIdentifier().equals(logicalId)
             || SqlTypes.DATE.getIdentifier().equals(logicalId)) {
-          value = nullOr(value, value);
+          return value;
         } else if (!CharType.IDENTIFIER.equals(logicalId)) {
           throw new UnsupportedOperationException(
               "Unknown LogicalType " + type.getLogicalType().getIdentifier());

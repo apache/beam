@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import java.math.BigDecimal;
 import java.time.LocalTime;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;

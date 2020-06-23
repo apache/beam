@@ -66,8 +66,14 @@ public class BeamSqlDateFunctionsIntegrationTest
       // We should pass in a deterministic clock for testing.
 
       // LOCALTIME
-      //assertTrue(timeMillis - row.getDateTime(0).getMillis() < 1000);
-      //assertTrue(timeMillis - row.getDateTime(0).getMillis() > -1000);
+      assertTrue(
+          timeMillis
+                  - row.getLogicalTypeValue(0, LocalTime.class).toSecondOfDay() * MILLIS_PER_SECOND
+              < MILLIS_PER_SECOND);
+      assertTrue(
+          timeMillis
+                  - row.getLogicalTypeValue(0, LocalTime.class).toSecondOfDay() * MILLIS_PER_SECOND
+              > -MILLIS_PER_SECOND);
 
       // LOCALTIMESTAMP
       assertTrue(millis - row.getDateTime(1).getMillis() < 1000);
@@ -83,10 +89,12 @@ public class BeamSqlDateFunctionsIntegrationTest
 
       // CURRENT_TIME
       assertTrue(
-          timeMillis - row.getLogicalTypeValue(3, LocalTime.class).toSecondOfDay() * MILLIS_PER_SECOND
+          timeMillis
+                  - row.getLogicalTypeValue(3, LocalTime.class).toSecondOfDay() * MILLIS_PER_SECOND
               < MILLIS_PER_SECOND);
       assertTrue(
-          timeMillis - row.getLogicalTypeValue(3, LocalTime.class).toSecondOfDay() * MILLIS_PER_SECOND
+          timeMillis
+                  - row.getLogicalTypeValue(3, LocalTime.class).toSecondOfDay() * MILLIS_PER_SECOND
               > -MILLIS_PER_SECOND);
 
       // CURRENT_TIMESTAMP

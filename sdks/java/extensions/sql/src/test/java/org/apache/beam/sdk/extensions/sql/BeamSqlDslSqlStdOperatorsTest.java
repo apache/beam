@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTime;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
