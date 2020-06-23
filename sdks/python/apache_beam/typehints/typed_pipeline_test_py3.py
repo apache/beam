@@ -265,7 +265,7 @@ class MainInputTest(unittest.TestCase):
     result = [1, 2, 3] | beam.FlatMap(fn) | beam.Map(fn2)
     self.assertCountEqual([4, 6], result)
 
-  def test_correctly_typed_ptransform(self):
+  def test_typed_ptransform_with_no_error(self):
     class StrToInt(beam.PTransform):
       def expand(self, pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[int]:
         return pcoll | beam.Map(lambda x: int(x))

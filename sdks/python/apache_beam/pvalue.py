@@ -84,14 +84,14 @@ class PValue(object):
     (2) Has a transform that can compute the value if executed.
     (3) Has a value which is meaningful if the transform was executed.
   """
-  def __init__(
-      self,
-      pipeline,  # type: Pipeline
-      tag=None,  # type: Optional[str]
-      element_type=None,  # type: Optional[object]
-      windowing=None,  # type: Optional[Windowing]
-      is_bounded=True,
-  ):
+
+  def __init__(self,
+               pipeline,  # type: Pipeline
+               tag=None,  # type: Optional[str]
+               element_type=None,  # type: Optional[object]
+               windowing=None,  # type: Optional[Windowing]
+               is_bounded=True,
+              ):
     """Initializes a PValue with all arguments hidden behind keyword arguments.
 
     Args:
@@ -240,13 +240,13 @@ class PDone(PValue):
 
 class DoOutputsTuple(object):
   """An object grouping the multiple outputs of a ParDo or FlatMap transform."""
-  def __init__(
-      self,
-      pipeline,  # type: Pipeline
-      transform,  # type: ParDo
-      tags,  # type: Sequence[str]
-      main_tag  # type: Optional[str]
-  ):
+
+  def __init__(self,
+               pipeline,  # type: Pipeline
+               transform,  # type: ParDo
+               tags,  # type: Sequence[str]
+               main_tag  # type: Optional[str]
+              ):
     self._pipeline = pipeline
     self._tags = tags
     self._main_tag = main_tag
@@ -399,10 +399,9 @@ class AsSideInput(object):
     return self._side_input_data().to_runner_api(context)
 
   @staticmethod
-  def from_runner_api(
-      proto,  # type: beam_runner_api_pb2.SideInput
-      context  # type: PipelineContext
-  ):
+  def from_runner_api(proto,  # type: beam_runner_api_pb2.SideInput
+                      context  # type: PipelineContext
+                     ):
     # type: (...) -> _UnpickledSideInput
     return _UnpickledSideInput(SideInputData.from_runner_api(proto, context))
 
@@ -426,7 +425,8 @@ class _UnpickledSideInput(AsSideInput):
 
   def _view_options(self):
     return {
-        'data': self._data,  # For non-fn-api runners.
+        'data': self._data,
+        # For non-fn-api runners.
         'window_mapping_fn': self._data.window_mapping_fn,
         'coder': self._windowed_coder(),
     }
@@ -437,11 +437,11 @@ class _UnpickledSideInput(AsSideInput):
 
 class SideInputData(object):
   """All of the data about a side input except for the bound PCollection."""
-  def __init__(
-      self,
-      access_pattern,  # type: str
-      window_mapping_fn,  # type: sideinputs.WindowMappingFn
-      view_fn):
+  def __init__(self,
+               access_pattern,  # type: str
+               window_mapping_fn,  # type: sideinputs.WindowMappingFn
+               view_fn
+              ):
     self.access_pattern = access_pattern
     self.window_mapping_fn = window_mapping_fn
     self.view_fn = view_fn

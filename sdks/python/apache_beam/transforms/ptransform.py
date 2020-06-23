@@ -72,7 +72,9 @@ from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
-from apache_beam.typehints.decorators import TypeCheckError, IOTypeHints, get_type_hints
+from apache_beam.typehints.decorators import get_type_hints
+from apache_beam.typehints.decorators import IOTypeHints
+from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.decorators import getcallargs_forhints
@@ -613,22 +615,21 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   @classmethod
   @overload
-  def register_urn(
-      cls,
-      urn,  # type: str
-      parameter_type,  # type: None
-  ):
+  def register_urn(cls,
+                   urn,  # type: str
+                   parameter_type,  # type: Type[T]
+                   constructor  # type: Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]
+                  ):
     # type: (...) -> Callable[[Union[type, Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]]], Callable[[bytes, PipelineContext], Any]]
     pass
 
   @classmethod
   @overload
-  def register_urn(
-      cls,
-      urn,  # type: str
-      parameter_type,  # type: Type[T]
-      constructor  # type: Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]
-  ):
+  def register_urn(cls,
+                   urn,  # type: str
+                   parameter_type,  # type: None
+                   constructor  # type: Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]
+                  ):
     # type: (...) -> None
     pass
 
@@ -674,11 +675,10 @@ class PTransform(WithTypeHints, HasDisplayData):
         if isinstance(typed_param, str) else typed_param)
 
   @classmethod
-  def from_runner_api(
-      cls,
-      proto,  # type: Optional[beam_runner_api_pb2.PTransform]
-      context  # type: PipelineContext
-  ):
+  def from_runner_api(cls,
+                      proto,  # type: Optional[beam_runner_api_pb2.PTransform]
+                      context  # type: PipelineContext
+                     ):
     # type: (...) -> Optional[PTransform]
     if proto is None or proto.spec is None or not proto.spec.urn:
       return None

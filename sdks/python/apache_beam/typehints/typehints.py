@@ -76,7 +76,6 @@ import typing
 from builtins import next
 from builtins import zip
 
-from apache_beam.pvalue import PCollection
 from future.utils import with_metaclass
 
 __all__ = [
