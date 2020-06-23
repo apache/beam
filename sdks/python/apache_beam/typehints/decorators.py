@@ -381,7 +381,16 @@ class IOTypeHints(NamedTuple(
   def strip_pcoll_input(self):
     # type: () -> IOTypeHints
 
-    input_type = self.input_types[0][0].__args__
+    input_type = self.input_types[0][0]
+    if isinstance(input_type, typehints.AnyTypeConstraint):
+      return self
+
+    try:
+      input_type = input_type.__args__[0]
+    except:
+      raise TypeCheckError(
+          'An input typehint to a PTransform must be a single (or nested) type wrapped by a PCollection.'
+      )
 
     return self._replace(
         input_types=((input_type, ), {}),
@@ -390,7 +399,16 @@ class IOTypeHints(NamedTuple(
   def strip_pcoll_output(self):
     # type: () -> IOTypeHints
 
-    output_type = self.output_types[0][0].__args__
+    output_type = self.output_types[0][0]
+    if isinstance(output_type, typehints.AnyTypeConstraint):
+      return self
+
+    try:
+      output_type = output_type.__args__[0]
+    except:
+      raise TypeCheckError(
+          'An output typehint to a PTransform must be a single (or nested) type wrapped by a PCollection. '
+      )
 
     return self._replace(
         output_types=((output_type, ), {}),
