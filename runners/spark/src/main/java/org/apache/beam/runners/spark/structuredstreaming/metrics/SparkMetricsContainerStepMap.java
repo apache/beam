@@ -23,7 +23,7 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
  * Sole purpose of this class is to override {@link #toString()} of {@link MetricsContainerStepMap}
  * in order to show meaningful metrics in Spark Web Interface.
  */
-class SparkMetricsContainerStepMap extends MetricsContainerStepMap {
+public class SparkMetricsContainerStepMap extends MetricsContainerStepMap {
 
   @Override
   public String toString() {
