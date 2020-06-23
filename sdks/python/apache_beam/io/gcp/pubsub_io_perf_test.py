@@ -30,7 +30,7 @@ python -m apache_beam.io.gcp.pubsub_io_perf_test \
     --temp_location=gs://<BUCKET_NAME>/tmp
     --staging_location=gs://<BUCKET_NAME>/staging
     --wait_until_finish_duration=<TIME_IN_MS>
-    --pubsub_namespace=<PUBSUB_NAMESPACE>
+    --pubsub_namespace_prefix=<PUBSUB_NAMESPACE_PREFIX>
     --publish_to_big_query=<OPTIONAL><true/false>
     --metrics_dataset=<OPTIONAL>
     --metrics_table=<OPTIONAL>
