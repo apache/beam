@@ -49,6 +49,48 @@ if TYPE_CHECKING:
   from apache_beam.coders.coder_impl import IterableStateWriter
 
 
+class _UniqueRefAssigner(object):
+  """Utility for assigning unique refs to proto messages for use in components.
+
+  Instances of _UniqueRefAssigner are global (scoped by the base string). That
+  way once a unique ref is assigned it will be used consistently across
+  PipelineContext instances.
+  """
+  _INSTANCES = {}  # type: Dict[str, _UniqueRefAssigner]
+
+  def __init__(self, base):
+    self._base = base
+    self._counter = 0
+    self._obj_to_id = {}  # type: Dict[Any, str]
+
+  def get_or_assign(self, obj=None, label=None):
+    """Retrieve the unique ref for the given object.
+
+    Generates and assigns a unique ref if one hasn't been assigned yet. label
+    will be incorporated into the unique ref when assigning a new unique ref,
+    otherwise it is ignored."""
+    # type: (Optional[Any], Optional[str]) -> str
+    if obj not in self._obj_to_id:
+      self._obj_to_id[obj] = self._unique_ref(obj, label)
+
+    return self._obj_to_id[obj]
+
+  def _unique_ref(self, obj=None, label=None):
+    self._counter += 1
+    return "%s_%s_%d" % (self._base, label or type(obj).__name__, self._counter)
+
+  @classmethod
+  def with_base(cls, base):
+    """Return the _UniqueRefAssigner with the given base string.
+
+    Creates one if it doesn't already exist."""
+    # type: (str) -> _UniqueRefAssigner
+    if not base in cls._INSTANCES:
+      cls._INSTANCES[base] = _UniqueRefAssigner(base)
+
+    return cls._INSTANCES[base]
+
+
 class _PipelineContextMap(object):
   """This is a bi-directional map between objects and ids.
 
@@ -64,19 +106,11 @@ class _PipelineContextMap(object):
     self._pipeline_context = context
     self._obj_type = obj_type
     self._namespace = namespace
+    self._unique_ref_assigner = _UniqueRefAssigner.with_base(
+        "%s_%s" % (self._namespace, self._obj_type.__name__))
     self._obj_to_id = {}  # type: Dict[Any, str]
     self._id_to_obj = {}  # type: Dict[str, Any]
     self._id_to_proto = dict(proto_map) if proto_map else {}
-    self._counter = 0
-
-  def _unique_ref(self, obj=None, label=None):
-    # type: (Optional[Any], Optional[str]) -> str
-    self._counter += 1
-    return "%s_%s_%s_%d" % (
-        self._namespace,
-        self._obj_type.__name__,
-        label or type(obj).__name__,
-        self._counter)
 
   def populate_map(self, proto_map):
     # type: (Mapping[str, message.Message]) -> None
@@ -86,7 +120,7 @@ class _PipelineContextMap(object):
   def get_id(self, obj, label=None):
     # type: (Any, Optional[str]) -> str
     if obj not in self._obj_to_id:
-      id = self._unique_ref(obj, label)
+      id = self._unique_ref_assigner.get_or_assign(obj, label)
       self._id_to_obj[id] = obj
       self._obj_to_id[obj] = id
       self._id_to_proto[id] = obj.to_runner_api(self._pipeline_context)
@@ -109,7 +143,8 @@ class _PipelineContextMap(object):
       for id, proto in self._id_to_proto.items():
         if proto == maybe_new_proto:
           return id
-    return self.put_proto(self._unique_ref(label), maybe_new_proto)
+    return self.put_proto(
+        self._unique_ref_assigner.get_or_assign(label), maybe_new_proto)
 
   def get_id_to_proto_map(self):
     # type: () -> Dict[str, message.Message]
