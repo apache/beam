@@ -277,6 +277,7 @@ from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.annotations import experimental
 
 __all__ = [
     'TableRowJsonCoder',

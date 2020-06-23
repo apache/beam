@@ -42,7 +42,7 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
     self.initial_range_source = RangeSource(
         self.initial_range_start, self.initial_range_stop)
     self.sdf_restriction_provider = (
-        iobase._SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionProvider(
+        iobase._SDFBoundedSourceRestrictionProvider(
             self.initial_range_source, desired_chunk_size=2))
 
   def test_initial_restriction(self):
@@ -50,9 +50,7 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
     restriction = (
         self.sdf_restriction_provider.initial_restriction(unused_element))
     self.assertTrue(
-        isinstance(
-            restriction,
-            iobase._SDFBoundedSourceWrapper._SDFBoundedSourceRestriction))
+        isinstance(restriction, iobase._SDFBoundedSourceRestriction))
     self.assertTrue(isinstance(restriction._source_bundle, SourceBundle))
     self.assertEqual(
         self.initial_range_start, restriction._source_bundle.start_position)
@@ -71,13 +69,10 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
         expected_stop)
     restriction_tracker = (
         self.sdf_restriction_provider.create_tracker(
-            iobase._SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
-                source_bundle)))
+            iobase._SDFBoundedSourceRestriction(source_bundle)))
     self.assertTrue(
         isinstance(
-            restriction_tracker,
-            iobase._SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionTracker)
-    )
+            restriction_tracker, iobase._SDFBoundedSourceRestrictionTracker))
     self.assertEqual(expected_start, restriction_tracker.start_pos())
     self.assertEqual(expected_stop, restriction_tracker.stop_pos())
 
@@ -103,7 +98,7 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
     unused_element = None
     initial_concat_source = ConcatSource([self.initial_range_source])
     sdf_concat_restriction_provider = (
-        iobase._SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionProvider(
+        iobase._SDFBoundedSourceRestrictionProvider(
             initial_concat_source, desired_chunk_size=2))
     restriction = (
         self.sdf_restriction_provider.initial_restriction(unused_element))
@@ -144,9 +139,8 @@ class SDFBoundedSourceRestrictionTrackerTest(unittest.TestCase):
         self.initial_start_pos,
         self.initial_stop_pos)
     self.sdf_restriction_tracker = (
-        iobase._SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionTracker(
-            iobase._SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
-                source_bundle)))
+        iobase._SDFBoundedSourceRestrictionTracker(
+            iobase._SDFBoundedSourceRestriction(source_bundle)))
 
   def test_current_restriction_before_split(self):
     current_restriction = (self.sdf_restriction_tracker.current_restriction())
