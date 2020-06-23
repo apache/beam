@@ -1980,9 +1980,8 @@ class ReadAllFromBigQuery(PTransform):
     GlobalWindow, since it will not be able to cleanup snapshots.
 
   Args:
-    gcs_location (str, ValueProvider): The name of the Google Cloud Storage
-      bucket where the extracted table should be written as a string or
-      a :class:`~apache_beam.options.value_provider.ValueProvider`. If
+    gcs_location (str): The name of the Google Cloud Storage
+      bucket where the extracted table should be written as a string. If
       :data:`None`, then the temp_location parameter is used.
     project (str): The ID of the project containing this table.
     validate (bool): If :data:`True`, various checks will be done when source
@@ -2009,9 +2008,6 @@ class ReadAllFromBigQuery(PTransform):
             ' or ValueProvider; got %r instead' %
             (self.__class__.__name__, type(gcs_location)))
 
-      if isinstance(gcs_location, (str, unicode)):
-        gcs_location = StaticValueProvider(str, gcs_location)
-
     self.gcs_location = gcs_location
     self.project = project
     self.validate = validate
@@ -2026,7 +2022,7 @@ class ReadAllFromBigQuery(PTransform):
     file_pattern = '{}/bigquery-table-dump-*.json'
 
     if self.gcs_location is not None:
-      gcs_base = self.gcs_location.get()
+      gcs_base = self.gcs_location
     elif temp_location is not None:
       gcs_base = temp_location
       logging.debug("gcs_location is empty, using temp_location instead")
