@@ -113,8 +113,6 @@ public class PTransformTranslation {
   // SplittableParDoComponents
   public static final String SPLITTABLE_PAIR_WITH_RESTRICTION_URN =
       "beam:transform:sdf_pair_with_restriction:v1";
-  public static final String SPLITTABLE_SPLIT_RESTRICTION_URN =
-      "beam:transform:sdf_split_restriction:v1";
   /**
    * @deprecated runners should move away from using `SplittableProcessKeyedElements` and prefer to
    *     internalize any necessary SplittableDoFn expansion.
@@ -122,9 +120,14 @@ public class PTransformTranslation {
   @Deprecated
   public static final String SPLITTABLE_PROCESS_KEYED_URN =
       "beam:transform:sdf_process_keyed_elements:v1";
-
+  /**
+   * @deprecated runners should move away from using `SplittableProcessElements` and prefer to
+   *     internalize any necessary SplittableDoFn expansion.
+   */
+  @Deprecated
   public static final String SPLITTABLE_PROCESS_ELEMENTS_URN =
       "beam:transform:sdf_process_elements:v1";
+
   public static final String SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN =
       "beam:transform:sdf_split_and_size_restrictions:v1";
   public static final String SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN =
@@ -184,14 +187,6 @@ public class PTransformTranslation {
     checkState(
         SPLITTABLE_PAIR_WITH_RESTRICTION_URN.equals(
             getUrn(SplittableParDoComponents.PAIR_WITH_RESTRICTION)));
-    checkState(
-        SPLITTABLE_SPLIT_RESTRICTION_URN.equals(
-            getUrn(SplittableParDoComponents.SPLIT_RESTRICTION)));
-    checkState(
-        SPLITTABLE_PROCESS_KEYED_URN.equals(
-            getUrn(SplittableParDoComponents.PROCESS_KEYED_ELEMENTS)));
-    checkState(
-        SPLITTABLE_PROCESS_ELEMENTS_URN.equals(getUrn(SplittableParDoComponents.PROCESS_ELEMENTS)));
     checkState(
         SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN.equals(
             getUrn(SplittableParDoComponents.SPLIT_AND_SIZE_RESTRICTIONS)));
