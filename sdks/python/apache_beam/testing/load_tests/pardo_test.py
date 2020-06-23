@@ -76,6 +76,7 @@ from __future__ import absolute_import
 
 import logging
 import os
+import time
 from typing import Tuple
 
 import apache_beam as beam
@@ -84,6 +85,8 @@ from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.testing.load_tests.load_test import LoadTest
+from apache_beam.testing.load_tests.load_test_metrics_utils import AssignTimestamps
+from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureLatency
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
 from apache_beam.transforms import userstate
@@ -138,7 +141,8 @@ class ParDoTest(LoadTest):
     pc = (
         source
         | 'Measure time: Start' >> beam.ParDo(
-            MeasureTime(self.metrics_namespace)))
+            MeasureTime(self.metrics_namespace))
+        | 'Assign timestamps' >> beam.ParDo(AssignTimestamps()))
 
     for i in range(self.iterations):
       pc = (
@@ -150,6 +154,8 @@ class ParDoTest(LoadTest):
     # pylint: disable=expression-not-assigned
     (
         pc
+        |
+        'Measure latency' >> beam.ParDo(MeasureLatency(self.metrics_namespace))
         |
         'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
@@ -181,6 +187,7 @@ class StatefulLoadGenerator(beam.PTransform):
       self.num_records_per_key = num_records_per_key
       self.payload = os.urandom(value_size)
       self.bundle_size = bundle_size
+      self.time_fn = time.time
 
     def process(
         self,
