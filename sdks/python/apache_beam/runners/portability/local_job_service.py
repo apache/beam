@@ -127,7 +127,11 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     return 'localhost'
 
   def start_grpc_server(self, port=0):
-    self._server = grpc.server(thread_pool_executor.shared_unbounded_instance())
+    no_max_message_sizes = [("grpc.max_receive_message_length", -1),
+                            ("grpc.max_send_message_length", -1)]
+    self._server = grpc.server(
+        thread_pool_executor.shared_unbounded_instance(),
+        options=no_max_message_sizes)
     port = self._server.add_insecure_port(
         '%s:%d' % (self.get_bind_address(), port))
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
