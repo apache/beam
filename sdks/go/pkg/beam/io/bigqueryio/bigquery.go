@@ -100,9 +100,11 @@ type QueryOptions struct {
 }
 
 // UseStandardSQL enables BigQuery's Standard SQL dialect when executing a query.
-func UseStandardSQL(qo *QueryOptions) error {
-	qo.UseStandardSQL = true
-	return nil
+func UseStandardSQL() func(qo *QueryOptions) error {
+	return func(qo *QueryOptions) error {
+		qo.UseStandardSQL = true
+		return nil
+	}
 }
 
 // Query executes a query. The output must have a schema compatible with the given
