@@ -36,7 +36,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
@@ -46,6 +45,7 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
+import org.apache.beam.runners.spark.metrics.SparkMetricsContainerStepMap;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -64,7 +64,7 @@ public class SparkExecutableStageFunctionTest {
   @Mock private StageBundleFactory stageBundleFactory;
   @Mock private RemoteBundle remoteBundle;
   @Mock private MetricsContainerStepMapAccumulator metricsAccumulator;
-  @Mock private MetricsContainerStepMap stepMap;
+  @Mock private SparkMetricsContainerStepMap stepMap;
   @Mock private MetricsContainerImpl container;
 
   private final String inputId = "input-id";

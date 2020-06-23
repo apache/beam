@@ -51,11 +51,12 @@ class SparkBeamMetric implements Metric {
     }
     for (MetricResult<DistributionResult> metricResult : metricQueryResults.getDistributions()) {
       DistributionResult result = metricResult.getAttempted();
-      metrics.put(renderName(metricResult) + ".count", result.getCount());
-      metrics.put(renderName(metricResult) + ".sum", result.getSum());
-      metrics.put(renderName(metricResult) + ".min", result.getMin());
-      metrics.put(renderName(metricResult) + ".max", result.getMax());
-      metrics.put(renderName(metricResult) + ".mean", result.getMean());
+      String name = renderName(metricResult);
+      metrics.put(name + ".count", result.getCount());
+      metrics.put(name + ".sum", result.getSum());
+      metrics.put(name + ".min", result.getMin());
+      metrics.put(name + ".max", result.getMax());
+      metrics.put(name + ".mean", result.getMean());
     }
     for (MetricResult<GaugeResult> metricResult : metricQueryResults.getGauges()) {
       metrics.put(renderName(metricResult), metricResult.getAttempted().getValue());

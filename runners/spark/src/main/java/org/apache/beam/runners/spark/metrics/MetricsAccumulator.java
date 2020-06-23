@@ -18,7 +18,6 @@
 package org.apache.beam.runners.spark.metrics;
 
 import java.io.IOException;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
@@ -58,13 +57,13 @@ public class MetricsAccumulator {
               opts.isStreaming()
                   ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
                   : Optional.absent();
-          MetricsContainerStepMap metricsContainerStepMap = new MetricsContainerStepMap();
+          SparkMetricsContainerStepMap metricsContainerStepMap = new SparkMetricsContainerStepMap();
           MetricsContainerStepMapAccumulator accumulator =
               new MetricsContainerStepMapAccumulator(metricsContainerStepMap);
           jsc.sc().register(accumulator, ACCUMULATOR_NAME);
 
           if (maybeCheckpointDir.isPresent()) {
-            Optional<MetricsContainerStepMap> maybeRecoveredValue =
+            Optional<SparkMetricsContainerStepMap> maybeRecoveredValue =
                 recoverValueFromCheckpoint(jsc, maybeCheckpointDir.get());
             if (maybeRecoveredValue.isPresent()) {
               accumulator = new MetricsContainerStepMapAccumulator(maybeRecoveredValue.get());
@@ -87,13 +86,13 @@ public class MetricsAccumulator {
     }
   }
 
-  private static Optional<MetricsContainerStepMap> recoverValueFromCheckpoint(
+  private static Optional<SparkMetricsContainerStepMap> recoverValueFromCheckpoint(
       JavaSparkContext jsc, CheckpointDir checkpointDir) {
     try {
       Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();
       checkpointFilePath = new Path(beamCheckpointPath, ACCUMULATOR_CHECKPOINT_FILENAME);
       fileSystem = checkpointFilePath.getFileSystem(jsc.hadoopConfiguration());
-      MetricsContainerStepMap recoveredValue =
+      SparkMetricsContainerStepMap recoveredValue =
           Checkpoint.readObject(fileSystem, checkpointFilePath);
       if (recoveredValue != null) {
         LOG.info("Recovered metrics from checkpoint.");
@@ -121,7 +120,8 @@ public class MetricsAccumulator {
   }
 
   /**
-   * Spark Listener which checkpoints {@link MetricsContainerStepMap} values for fault-tolerance.
+   * Spark Listener which checkpoints {@link SparkMetricsContainerStepMap} values for
+   * fault-tolerance.
    */
   public static class AccumulatorCheckpointingSparkListener extends JavaStreamingListener {
     @Override

@@ -17,17 +17,16 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.spark.util.AccumulatorV2;
 
-/** {@link AccumulatorV2} implementation for {@link MetricsContainerStepMap}. */
+/** {@link AccumulatorV2} implementation for {@link SparkMetricsContainerStepMap}. */
 public class MetricsContainerStepMapAccumulator
-    extends AccumulatorV2<MetricsContainerStepMap, MetricsContainerStepMap> {
-  private static final MetricsContainerStepMap empty = new MetricsContainerStepMap();
+    extends AccumulatorV2<SparkMetricsContainerStepMap, SparkMetricsContainerStepMap> {
+  private static final SparkMetricsContainerStepMap empty = new SparkMetricsContainerStepMap();
 
-  private MetricsContainerStepMap value;
+  private SparkMetricsContainerStepMap value;
 
-  public MetricsContainerStepMapAccumulator(MetricsContainerStepMap value) {
+  public MetricsContainerStepMapAccumulator(SparkMetricsContainerStepMap value) {
     this.value = value;
   }
 
@@ -38,28 +37,29 @@ public class MetricsContainerStepMapAccumulator
 
   @Override
   public MetricsContainerStepMapAccumulator copy() {
-    MetricsContainerStepMap newContainer = new MetricsContainerStepMap();
+    SparkMetricsContainerStepMap newContainer = new SparkMetricsContainerStepMap();
     newContainer.updateAll(value);
     return new MetricsContainerStepMapAccumulator(newContainer);
   }
 
   @Override
   public void reset() {
-    this.value = new MetricsContainerStepMap();
+    this.value = new SparkMetricsContainerStepMap();
   }
 
   @Override
-  public void add(MetricsContainerStepMap other) {
+  public void add(SparkMetricsContainerStepMap other) {
     this.value.updateAll(other);
   }
 
   @Override
-  public void merge(AccumulatorV2<MetricsContainerStepMap, MetricsContainerStepMap> other) {
+  public void merge(
+      AccumulatorV2<SparkMetricsContainerStepMap, SparkMetricsContainerStepMap> other) {
     this.value.updateAll(other.value());
   }
 
   @Override
-  public MetricsContainerStepMap value() {
+  public SparkMetricsContainerStepMap value() {
     return this.value;
   }
 }

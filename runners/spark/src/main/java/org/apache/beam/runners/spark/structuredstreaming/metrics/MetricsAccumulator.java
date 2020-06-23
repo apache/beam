@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.util.AccumulatorV2;
@@ -42,7 +41,7 @@ public class MetricsAccumulator {
     if (instance == null) {
       synchronized (MetricsAccumulator.class) {
         if (instance == null) {
-          MetricsContainerStepMap metricsContainerStepMap = new MetricsContainerStepMap();
+          SparkMetricsContainerStepMap metricsContainerStepMap = new SparkMetricsContainerStepMap();
           MetricsContainerStepMapAccumulator accumulator =
               new MetricsContainerStepMapAccumulator(metricsContainerStepMap);
           jsc.sc().register(accumulator, ACCUMULATOR_NAME);
