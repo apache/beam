@@ -80,7 +80,6 @@ MATCHER_PULL_TIMEOUT = 60 * 5
 
 class PubsubIOPerfTest(LoadTest):
   def _setup_env(self):
-    import uuid
     if not self.pipeline.get_option('pubsub_namespace_prefix'):
       logging.error('--pubsub_namespace_prefix argument is required.')
       sys.exit(1)
@@ -89,9 +88,9 @@ class PubsubIOPerfTest(LoadTest):
       sys.exit(1)
 
     self.num_of_messages = int(self.input_options.get('num_records'))
-    self.pubsub_namespace_prefix = self.pipeline.get_option(
+    pubsub_namespace_prefix = self.pipeline.get_option(
         'pubsub_namespace_prefix')
-    self.pubsub_namespace = self.pubsub_namespace_prefix + str(uuid.uuid4())
+    self.pubsub_namespace = pubsub_namespace_prefix + unique_id
 
   def _setup_pubsub(self):
     self.pub_client = pubsub.PublisherClient()
@@ -121,8 +120,8 @@ class PubsubWritePerfTest(PubsubIOPerfTest):
 
   def test(self):
     def to_pubsub_message(element):
-      from apache_beam.io import PubsubMessage
       import uuid
+      from apache_beam.io import PubsubMessage
       return PubsubMessage(
           data=element[1],
           attributes={'id': str(uuid.uuid1()).encode('utf-8')},
@@ -218,6 +217,9 @@ class PubsubReadPerfTest(PubsubIOPerfTest):
 
 
 if __name__ == '__main__':
+  import uuid
+  unique_id = str(uuid.uuid4())
+
   logging.basicConfig(level=logging.INFO)
   PubsubWritePerfTest().run()
   PubsubReadPerfTest().run()
