@@ -9,10 +9,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
- 
-- title: APEX
-  image_url: /images/logo_apex.png
-  url: https://apex.apache.org
+
 - title: Flink
   image_url: /images/logo_flink.png
   url: https://flink.apache.org
@@ -22,9 +19,6 @@
 - title: Google Cloud Dataflow
   image_url: /images/logo_google_cloud.png
   url: https://cloud.google.com/dataflow/
-- title: Gearpump
-  image_url: /images/logo_gearpump.png
-  url: https://gearpump.apache.org/
 - title: Samza
   image_url: /images/logo_samza.png
   url: https://samza.apache.org/

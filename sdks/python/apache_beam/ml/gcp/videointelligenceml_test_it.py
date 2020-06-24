@@ -63,8 +63,8 @@ class VideoIntelligenceMlTestIT(unittest.TestCase):
               self.VIDEO_PATH,
               types.VideoContext(
                   label_detection_config=types.LabelDetectionConfig(
-                      label_detection_mode=enums.LabelDetectionMode.SHOT_MODE)))
-                         ])
+                      label_detection_mode=enums.LabelDetectionMode.SHOT_MODE,
+                      model='builtin/latest')))])
           | AnnotateVideoWithContext(features=[enums.Feature.LABEL_DETECTION])
           | beam.ParDo(extract_entities_descriptions)
           | beam.combiners.ToList())

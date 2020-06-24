@@ -64,8 +64,6 @@ class PubsubMessage(object):
   Message payload includes the data and attributes fields. For the payload to be
   valid, at least one of its fields must be non-empty.
 
-  This interface is experimental. No backwards compatibility guarantees.
-
   Attributes:
     data: (bytes) Message data. May be None.
     attributes: (dict) Key-value map of str to str, containing both user-defined

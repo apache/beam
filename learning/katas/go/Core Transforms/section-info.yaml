@@ -23,3 +23,5 @@ content:
 - CoGroupByKey
 - Combine
 - Flatten
+- Partition
+- Side Input

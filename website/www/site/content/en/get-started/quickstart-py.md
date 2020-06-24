@@ -157,10 +157,6 @@ For example, run `wordcount.py` with the following command:
 python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts
 {{< /highlight >}}
 
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Python SDK.
-{{< /highlight >}}
-
 {{< highlight class="runner-flink-local" >}}
 Currently, running wordcount.py on Flink requires a full download of the Beam source code.
 See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.

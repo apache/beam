@@ -728,11 +728,8 @@ class PipelineInstrument(object):
       if output_tags:
         output_pcolls = pipeline | test_stream.TestStream(
             output_tags=output_tags, coder=self._cache_manager._default_pcoder)
-        if len(output_tags) == 1:
-          self._cached_pcoll_read[list(output_tags)[0]] = output_pcolls
-        else:
-          for tag, pcoll in output_pcolls.items():
-            self._cached_pcoll_read[tag] = pcoll
+        for tag, pcoll in output_pcolls.items():
+          self._cached_pcoll_read[tag] = pcoll
 
     class ReadCacheWireVisitor(PipelineVisitor):
       """Visitor wires cache read as inputs to replace corresponding original

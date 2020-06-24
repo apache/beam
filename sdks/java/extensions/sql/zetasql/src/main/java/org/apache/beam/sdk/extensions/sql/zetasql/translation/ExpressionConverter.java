@@ -28,6 +28,7 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertDa
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertTimeValueToTimeString;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.safeMicrosToMillis;
 import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLCastFunctionImpl.ZETASQL_CAST_OP;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Ascii;
 import com.google.common.base.Preconditions;
@@ -66,12 +67,12 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
+import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperatorRewriter;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperators;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlWindowTableFunction;
-import org.apache.beam.sdk.extensions.sql.zetasql.TypeUtils;
-import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlUtils;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnitRange;
@@ -449,7 +450,8 @@ public class ExpressionConverter {
         isCastingSupported(fromType, toType);
 
         RelDataType outputType =
-            TypeUtils.toSimpleRelDataType(toType, rexBuilder(), operand.getType().isNullable());
+            ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(
+                toType, rexBuilder(), operand.getType().isNullable());
 
         if (isZetaSQLCast(fromType, toType)) {
           ret = rexBuilder().makeCall(outputType, ZETASQL_CAST_OP, ImmutableList.of(operand));
@@ -567,37 +569,73 @@ public class ExpressionConverter {
       TableValuedFunction tvf,
       List<ResolvedNodes.ResolvedTVFArgument> argumentList,
       List<ResolvedColumn> inputTableColumns) {
+    ResolvedColumn wmCol;
     switch (tvf.getName()) {
-      case "TUMBLE":
+      case TVFStreamingUtils.FIXED_WINDOW_TVF:
         // TUMBLE tvf's second argument is descriptor.
-        ResolvedColumn wmCol =
-            extractWatermarkColumnFromDescriptor(argumentList.get(1).getDescriptorArg());
-        if (wmCol.getType().getKind() != TYPE_TIMESTAMP) {
-          throw new IllegalArgumentException(
-              "Watermarked column should be TIMESTAMP type: "
-                  + extractWatermarkColumnNameFromDescriptor(
-                      argumentList.get(1).getDescriptorArg()));
-        }
+        wmCol = extractWatermarkColumnFromDescriptor(argumentList.get(1).getDescriptorArg());
+
         return (RexCall)
             rexBuilder()
                 .makeCall(
                     new SqlWindowTableFunction(SqlKind.TUMBLE.name()),
                     convertRelNodeToRexRangeRef(input),
-                    convertWatermarkedResolvedColumnToRexInputRef(wmCol, inputTableColumns),
+                    convertResolvedColumnToRexInputRef(wmCol, inputTableColumns),
                     convertIntervalToRexIntervalLiteral(
                         (ResolvedLiteral) argumentList.get(2).getExpr()));
+
+      case TVFStreamingUtils.SLIDING_WINDOW_TVF:
+        // HOP tvf's second argument is descriptor.
+        wmCol = extractWatermarkColumnFromDescriptor(argumentList.get(1).getDescriptorArg());
+        return (RexCall)
+            rexBuilder()
+                .makeCall(
+                    new SqlWindowTableFunction(SqlKind.HOP.name()),
+                    convertRelNodeToRexRangeRef(input),
+                    convertResolvedColumnToRexInputRef(wmCol, inputTableColumns),
+                    convertIntervalToRexIntervalLiteral(
+                        (ResolvedLiteral) argumentList.get(2).getExpr()),
+                    convertIntervalToRexIntervalLiteral(
+                        (ResolvedLiteral) argumentList.get(3).getExpr()));
+
+      case TVFStreamingUtils.SESSION_WINDOW_TVF:
+        // SESSION tvf's second argument is descriptor.
+        wmCol = extractWatermarkColumnFromDescriptor(argumentList.get(1).getDescriptorArg());
+        // SESSION tvf's third argument is descriptor.
+        List<ResolvedColumn> keyCol =
+            extractSessionKeyColumnFromDescriptor(argumentList.get(2).getDescriptorArg());
+        List<RexNode> operands = new ArrayList<>();
+        operands.add(convertRelNodeToRexRangeRef(input));
+        operands.add(convertResolvedColumnToRexInputRef(wmCol, inputTableColumns));
+        operands.add(
+            convertIntervalToRexIntervalLiteral((ResolvedLiteral) argumentList.get(3).getExpr()));
+        operands.addAll(convertResolvedColumnsToRexInputRef(keyCol, inputTableColumns));
+        return (RexCall)
+            rexBuilder().makeCall(new SqlWindowTableFunction(SqlKind.SESSION.name()), operands);
+
       default:
         throw new UnsupportedOperationException(
             "Does not support table-valued function: " + tvf.getName());
     }
   }
 
-  private RexInputRef convertWatermarkedResolvedColumnToRexInputRef(
-      ResolvedColumn wmCol, List<ResolvedColumn> inputTableColumns) {
+  private List<RexInputRef> convertResolvedColumnsToRexInputRef(
+      List<ResolvedColumn> columns, List<ResolvedColumn> inputTableColumns) {
+    List<RexInputRef> ret = new ArrayList<>();
+    for (ResolvedColumn column : columns) {
+      ret.add(convertResolvedColumnToRexInputRef(column, inputTableColumns));
+    }
+    return ret;
+  }
+
+  private RexInputRef convertResolvedColumnToRexInputRef(
+      ResolvedColumn column, List<ResolvedColumn> inputTableColumns) {
     for (int i = 0; i < inputTableColumns.size(); i++) {
-      if (inputTableColumns.get(i).equals(wmCol)) {
+      if (inputTableColumns.get(i).equals(column)) {
         return rexBuilder()
-            .makeInputRef(TypeUtils.toRelDataType(rexBuilder(), wmCol.getType(), false), i);
+            .makeInputRef(
+                ZetaSqlCalciteTranslationUtils.toRelDataType(rexBuilder(), column.getType(), false),
+                i);
       }
     }
 
@@ -607,12 +645,21 @@ public class ExpressionConverter {
 
   private ResolvedColumn extractWatermarkColumnFromDescriptor(
       ResolvedNodes.ResolvedDescriptor descriptor) {
-    return descriptor.getDescriptorColumnList().get(0);
+    ResolvedColumn wmCol = descriptor.getDescriptorColumnList().get(0);
+    checkArgument(
+        wmCol.getType().getKind() == TYPE_TIMESTAMP,
+        "Watermarked column should be TIMESTAMP type: %s",
+        descriptor.getDescriptorColumnNameList().get(0));
+    return wmCol;
   }
 
-  private String extractWatermarkColumnNameFromDescriptor(
+  private List<ResolvedColumn> extractSessionKeyColumnFromDescriptor(
       ResolvedNodes.ResolvedDescriptor descriptor) {
-    return descriptor.getDescriptorColumnNameList().get(0);
+    checkArgument(
+        descriptor.getDescriptorColumnNameList().size() > 0,
+        "Session key descriptor should not be empty");
+
+    return descriptor.getDescriptorColumnList();
   }
 
   private RexNode convertValueToRexNode(Type type, Value value) {
@@ -650,7 +697,8 @@ public class ExpressionConverter {
 
   private RexNode convertSimpleValueToRexNode(TypeKind kind, Value value) {
     if (value.isNull()) {
-      return rexBuilder().makeNullLiteral(TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
+      return rexBuilder()
+          .makeNullLiteral(ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(kind, rexBuilder()));
     }
 
     RexNode ret;
@@ -663,21 +711,21 @@ public class ExpressionConverter {
             rexBuilder()
                 .makeExactLiteral(
                     new BigDecimal(value.getInt32Value()),
-                    TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
+                    ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(kind, rexBuilder()));
         break;
       case TYPE_INT64:
         ret =
             rexBuilder()
                 .makeExactLiteral(
                     new BigDecimal(value.getInt64Value()),
-                    TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
+                    ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(kind, rexBuilder()));
         break;
       case TYPE_FLOAT:
         ret =
             rexBuilder()
                 .makeApproxLiteral(
                     new BigDecimal(value.getFloatValue()),
-                    TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
+                    ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(kind, rexBuilder()));
         break;
       case TYPE_DOUBLE:
         double val = value.getDoubleValue();
@@ -687,7 +735,8 @@ public class ExpressionConverter {
         ret =
             rexBuilder()
                 .makeApproxLiteral(
-                    new BigDecimal(val), TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
+                    new BigDecimal(val),
+                    ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(kind, rexBuilder()));
         break;
       case TYPE_STRING:
         // has to allow CAST because Calcite create CHAR type first and does a CAST to VARCHAR.
@@ -729,7 +778,8 @@ public class ExpressionConverter {
 
   private RexNode convertArrayValueToRexNode(ArrayType arrayType, Value value) {
     // TODO: should the nullable be false for a array?
-    RelDataType outputType = TypeUtils.toArrayRelDataType(rexBuilder(), arrayType, false);
+    RelDataType outputType =
+        ZetaSqlCalciteTranslationUtils.toArrayRelDataType(rexBuilder(), arrayType, false);
 
     if (value.isNull()) {
       return rexBuilder().makeNullLiteral(outputType);
@@ -745,7 +795,8 @@ public class ExpressionConverter {
   private RexNode convertStructValueToRexNode(StructType structType, Value value) {
     if (value.isNull()) {
       return rexBuilder()
-          .makeNullLiteral(TypeUtils.toStructRelDataType(rexBuilder(), structType, false));
+          .makeNullLiteral(
+              ZetaSqlCalciteTranslationUtils.toStructRelDataType(rexBuilder(), structType, false));
     }
 
     List<RexNode> operands = new ArrayList<>();
@@ -797,7 +848,7 @@ public class ExpressionConverter {
     // TODO: can join key be NULL?
     return rexBuilder()
         .makeInputRef(
-            TypeUtils.toRelDataType(rexBuilder(), columnRef.getType(), false),
+            ZetaSqlCalciteTranslationUtils.toRelDataType(rexBuilder(), columnRef.getType(), false),
             (int) columnRef.getColumn().getId() - 1);
   }
 
@@ -862,7 +913,7 @@ public class ExpressionConverter {
         if (returnType != null) {
           op =
               SqlOperators.createSimpleSqlFunction(
-                  funName, ZetaSqlUtils.zetaSqlTypeToCalciteTypeName(returnType.getKind()));
+                  funName, ZetaSqlCalciteTranslationUtils.toCalciteTypeName(returnType.getKind()));
         } else {
           throw new UnsupportedOperationException("Does not support ZetaSQL function: " + funName);
         }
@@ -985,7 +1036,7 @@ public class ExpressionConverter {
         convertRexNodeFromResolvedExpr(resolvedCast.getExpr(), columnList, fieldList);
     // nullability of the output type should match that of the input node's type
     RelDataType outputType =
-        TypeUtils.toSimpleRelDataType(
+        ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(
             resolvedCast.getType().getKind(), rexBuilder(), inputNode.getType().isNullable());
 
     if (isZetaSQLCast(fromType, toType)) {
@@ -1025,7 +1076,7 @@ public class ExpressionConverter {
         return Optional.of(
             rexBuilder()
                 .makeInputRef(
-                    TypeUtils.toSimpleRelDataType(
+                    ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(
                         columnRef.getType().getKind(), rexBuilder(), nullable),
                     off));
       }

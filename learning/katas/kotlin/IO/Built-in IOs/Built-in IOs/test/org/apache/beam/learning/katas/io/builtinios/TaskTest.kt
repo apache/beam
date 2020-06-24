@@ -17,4 +17,12 @@
  */
 package org.apache.beam.learning.katas.io.builtinios
 
-class TaskTest
+import org.junit.Test
+
+class TaskTest {
+
+  @Test
+  fun nothing() {
+  }
+
+}

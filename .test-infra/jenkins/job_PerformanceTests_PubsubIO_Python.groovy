@@ -24,14 +24,12 @@ import static java.util.UUID.randomUUID
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def pubsubId = randomUUID()
-def pubsubNamespace = "pubsub_io_performance_${pubsubId}"
 def withDataflowWorkerJar = true
 
 def psio_test = [
         title          : 'PubsubIO Write Performance Test Python 2GB',
         test           : 'apache_beam.io.gcp.pubsub_io_perf_test',
-        runner         : CommonTestProperties.Runner.DATAFLOW,
+        runner         : CommonTestProperties.Runner.TEST_DATAFLOW,
         pipelineOptions: [
                 job_name                  : 'performance-tests-psio-python-2gb' + now,
                 project                   : 'apache-beam-testing',
@@ -49,7 +47,7 @@ def psio_test = [
                         '"value_size": 1024}\'',
                 num_workers               : 5,
                 autoscaling_algorithm     : 'NONE',  // Disable autoscale the worker pool.
-                pubsub_namespace          : pubsubNamespace,
+                pubsub_namespace_prefix   : 'pubsub_io_performance_',
                 wait_until_finish_duration: 1000 * 60 * 10, // in milliseconds
         ]
 ]

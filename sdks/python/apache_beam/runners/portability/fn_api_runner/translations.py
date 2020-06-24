@@ -67,10 +67,8 @@ COMBINE_URNS = frozenset([
 PAR_DO_URNS = frozenset([
     common_urns.primitives.PAR_DO.urn,
     common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
-    common_urns.sdf_components.SPLIT_RESTRICTION.urn,
     common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
     common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
-    common_urns.sdf_components.PROCESS_ELEMENTS.urn,
 ])
 
 IMPULSE_BUFFER = b'impulse'

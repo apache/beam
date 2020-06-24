@@ -37,7 +37,6 @@ import grpc
 from google.protobuf import text_format  # type: ignore # not in typeshed
 
 from apache_beam.metrics import monitoring_infos
-from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
@@ -79,8 +78,6 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     super(LocalJobServicer, self).__init__()
     self._cleanup_staging_dir = staging_dir is None
     self._staging_dir = staging_dir or tempfile.mkdtemp()
-    self._legacy_artifact_service = (
-        artifact_service.BeamFilesystemArtifactService(self._staging_dir))
     self._artifact_service = artifact_service.ArtifactStagingService(
         artifact_service.BeamFilesystemHandler(self._staging_dir).file_writer)
     self._artifact_staging_endpoint = None  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
@@ -92,15 +89,6 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
                       options  # type: struct_pb2.Struct
                      ):
     # type: (...) -> BeamJob
-    # TODO(angoenka): Pass an appropriate staging_session_token. The token can
-    # be obtained in PutArtifactResponse from JobService
-    if not self._artifact_staging_endpoint:
-      # The front-end didn't try to stage anything, but the worker may
-      # request what's here so we should at least store an empty manifest.
-      self._legacy_artifact_service.CommitManifest(
-          beam_artifact_api_pb2.CommitManifestRequest(
-              staging_session_token=preparation_id,
-              manifest=beam_artifact_api_pb2.Manifest()))
     self._artifact_service.register_job(
         staging_token=preparation_id,
         dependency_sets={
@@ -108,10 +96,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
             for (id, env) in pipeline.components.environments.items()
         })
     provision_info = fn_runner.ExtendedProvisionInfo(
-        beam_provision_api_pb2.ProvisionInfo(
-            pipeline_options=options,
-            retrieval_token=self._legacy_artifact_service.retrieval_token(
-                preparation_id)),
+        beam_provision_api_pb2.ProvisionInfo(pipeline_options=options),
         self._staging_dir,
         job_name=job_name)
     return BeamJob(
@@ -145,8 +130,6 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     port = self._server.add_insecure_port(
         '%s:%d' % (self.get_bind_address(), port))
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
-    beam_artifact_api_pb2_grpc.add_LegacyArtifactStagingServiceServicer_to_server(
-        self._legacy_artifact_service, self._server)
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
         self._artifact_service, self._server)
     hostname = self.get_service_address()
@@ -276,10 +259,12 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     with JobLogHandler(self._log_queues):
       self._update_dependencies()
       try:
+        start = time.time()
         result = fn_runner.FnApiRunner(
             provision_info=self._provision_info).run_via_runner_api(
                 self._pipeline_proto)
-        _LOGGER.info('Successfully completed job.')
+        _LOGGER.info(
+            'Successfully completed job in %s seconds.', time.time() - start)
         self.set_state(beam_job_api_pb2.JobState.DONE)
         self.result = result
       except:  # pylint: disable=bare-except

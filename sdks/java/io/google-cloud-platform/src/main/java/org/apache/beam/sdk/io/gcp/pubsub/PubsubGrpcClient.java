@@ -66,7 +66,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 public class PubsubGrpcClient extends PubsubClient {
   private static final int LIST_BATCH_SIZE = 1000;
 
-  private static final int DEFAULT_TIMEOUT_S = 15;
+  private static final int DEFAULT_TIMEOUT_S = 60;
 
   private static ManagedChannel channelForRootUrl(String urlString) throws IOException {
     URL url;

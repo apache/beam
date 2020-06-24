@@ -730,6 +730,12 @@ class ToStringTest(unittest.TestCase):
           p | beam.Create([("one", 1), ("two", 2)]) | util.ToString.Kvs("\t"))
       assert_that(result, equal_to(["one\t1", "two\t2"]))
 
+  def test_tostring_kvs_empty_delimeter(self):
+    with TestPipeline() as p:
+      result = (
+          p | beam.Create([("one", 1), ("two", 2)]) | util.ToString.Kvs(""))
+      assert_that(result, equal_to(["one1", "two2"]))
+
 
 class ReifyTest(unittest.TestCase):
   def test_timestamp(self):

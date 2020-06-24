@@ -218,11 +218,11 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions {
   /**
    * Specifies whether worker pools should be started with public IP addresses.
    *
-   * <p>WARNING: This feature is experimental. You must be whitelisted to use it.
+   * <p>WARNING: This feature is experimental. You must be allowlisted to use it.
    */
   @Description(
       "Specifies whether worker pools should be started with public IP addresses. WARNING:"
-          + "This feature is experimental. You must be whitelisted to use it.")
+          + "This feature is experimental. You must be allowlisted to use it.")
   @Experimental
   @JsonIgnore
   @Nullable
