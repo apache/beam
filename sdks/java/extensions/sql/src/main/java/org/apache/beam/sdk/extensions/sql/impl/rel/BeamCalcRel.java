@@ -91,6 +91,8 @@ import org.joda.time.ReadableInstant;
 /** BeamRelNode to replace {@code Project} and {@code Filter} node. */
 public class BeamCalcRel extends AbstractBeamCalcRel {
 
+  private static final long NANOS_PER_MILLISECOND = 1000000L;
+
   private static final ParameterExpression outputSchemaParam =
       Expressions.parameter(Schema.class, "outputSchema");
   private static final ParameterExpression processContextParam =
@@ -348,7 +350,8 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       if (value.getType() == Long.class) {
         valueDateTime = Expressions.unbox(valueDateTime);
       }
-      valueDateTime = Expressions.multiply(valueDateTime, Expressions.constant(1000000L));
+      valueDateTime =
+          Expressions.multiply(valueDateTime, Expressions.constant(NANOS_PER_MILLISECOND));
       valueDateTime = Expressions.call(LocalTime.class, "ofNanoOfDay", valueDateTime);
     } else {
       valueDateTime = Expressions.new_(Instant.class, valueDateTime);
@@ -443,9 +446,11 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     private static Expression value(Expression value, Schema.FieldType type) {
       if (type.getTypeName().isLogicalType()) {
         String logicalId = type.getLogicalType().getIdentifier();
-        if (SqlTypes.TIME.getIdentifier().equals(logicalId)
-            || SqlTypes.DATE.getIdentifier().equals(logicalId)) {
-          return value;
+        if (SqlTypes.TIME.getIdentifier().equals(logicalId)) {
+          return nullOr(
+              value, Expressions.divide(value, Expressions.constant(NANOS_PER_MILLISECOND)));
+        } else if (SqlTypes.DATE.getIdentifier().equals(logicalId)) {
+          return nullOr(value, value);
         } else if (!CharType.IDENTIFIER.equals(logicalId)) {
           throw new UnsupportedOperationException(
               "Unknown LogicalType " + type.getLogicalType().getIdentifier());
