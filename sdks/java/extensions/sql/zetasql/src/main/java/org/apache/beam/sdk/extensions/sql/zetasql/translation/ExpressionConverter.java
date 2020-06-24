@@ -38,7 +38,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.zetasql.ArrayType;
 import com.google.zetasql.EnumType;
-import com.google.zetasql.SimpleCatalog;
 import com.google.zetasql.StructType;
 import com.google.zetasql.TableValuedFunction;
 import com.google.zetasql.Type;
@@ -48,7 +47,6 @@ import com.google.zetasql.functions.ZetaSQLDateTime.DateTimestampPart;
 import com.google.zetasql.resolvedast.ResolvedColumn;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAggregateScan;
-import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedArgument;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedArgumentRef;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCast;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedColumnRef;
@@ -65,7 +63,6 @@ import java.math.BigDecimal;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -192,7 +189,10 @@ public class ExpressionConverter {
   private final QueryParameters queryParams;
   private final Map<String, ResolvedCreateFunctionStmt> userDefinedFunctions;
 
-  public ExpressionConverter(RelOptCluster cluster, QueryParameters params, Map<String, ResolvedCreateFunctionStmt> userDefinedFunctions) {
+  public ExpressionConverter(
+      RelOptCluster cluster,
+      QueryParameters params,
+      Map<String, ResolvedCreateFunctionStmt> userDefinedFunctions) {
     this.cluster = cluster;
     this.queryParams = params;
     this.userDefinedFunctions = userDefinedFunctions;
@@ -304,7 +304,10 @@ public class ExpressionConverter {
 
   /** Create a RexNode for a corresponding resolved expression node. */
   public RexNode convertRexNodeFromResolvedExpr(
-      ResolvedExpr expr, List<ResolvedColumn> columnList, List<RelDataTypeField> fieldList, Map<String, RexNode> functionArguments) {
+      ResolvedExpr expr,
+      List<ResolvedColumn> columnList,
+      List<RelDataTypeField> fieldList,
+      Map<String, RexNode> functionArguments) {
     if (columnList == null || fieldList == null) {
       return convertRexNodeFromResolvedExpr(expr);
     }
@@ -319,7 +322,9 @@ public class ExpressionConverter {
         ret = convertResolvedColumnRef((ResolvedColumnRef) expr, columnList, fieldList);
         break;
       case RESOLVED_FUNCTION_CALL:
-        ret = convertResolvedFunctionCall((ResolvedFunctionCall) expr, columnList, fieldList, functionArguments);
+        ret =
+            convertResolvedFunctionCall(
+                (ResolvedFunctionCall) expr, columnList, fieldList, functionArguments);
         break;
       case RESOLVED_CAST:
         ret = convertResolvedCast((ResolvedCast) expr, columnList, fieldList, functionArguments);
@@ -329,7 +334,8 @@ public class ExpressionConverter {
         break;
       case RESOLVED_GET_STRUCT_FIELD:
         ret =
-            convertResolvedStructFieldAccess((ResolvedGetStructField) expr, columnList, fieldList, functionArguments);
+            convertResolvedStructFieldAccess(
+                (ResolvedGetStructField) expr, columnList, fieldList, functionArguments);
         break;
       case RESOLVED_ARGUMENT_REF:
         ret = convertResolvedArgumentRef((ResolvedArgumentRef) expr, functionArguments);
@@ -481,7 +487,8 @@ public class ExpressionConverter {
       List<RelDataTypeField> fieldList,
       int windowFieldIndex) {
     if (column.getExpr().nodeKind() != RESOLVED_FUNCTION_CALL) {
-      return convertRexNodeFromResolvedExpr(column.getExpr(), columnList, fieldList, null); // TODO(ibzib) check
+      return convertRexNodeFromResolvedExpr(
+          column.getExpr(), columnList, fieldList, null); // TODO(ibzib) check
     }
 
     ResolvedFunctionCall functionCall = (ResolvedFunctionCall) column.getExpr();
@@ -496,7 +503,8 @@ public class ExpressionConverter {
 
     if (!functionCall.getFunction().getGroup().equals(PRE_DEFINED_WINDOW_FUNCTIONS)) {
       // non-window function should still go through normal FunctionCall conversion process.
-      return convertRexNodeFromResolvedExpr(column.getExpr(), columnList, fieldList, null); // TODO(ibzib) check
+      return convertRexNodeFromResolvedExpr(
+          column.getExpr(), columnList, fieldList, null); // TODO(ibzib) check
     }
 
     // ONLY window_start and window_end should arrive here.
@@ -843,7 +851,10 @@ public class ExpressionConverter {
           // Add ts column reference to operands.
           operands.add(
               convertRexNodeFromResolvedExpr(
-                  functionCall.getArgumentList().get(0), columnList, fieldList, outerFunctionArguments));
+                  functionCall.getArgumentList().get(0),
+                  columnList,
+                  fieldList,
+                  outerFunctionArguments));
           // Add fixed window size or session window gap to operands.
           operands.add(
               convertIntervalToRexIntervalLiteral(
@@ -853,7 +864,10 @@ public class ExpressionConverter {
           // Add ts column reference to operands.
           operands.add(
               convertRexNodeFromResolvedExpr(
-                  functionCall.getArgumentList().get(0), columnList, fieldList, outerFunctionArguments));
+                  functionCall.getArgumentList().get(0),
+                  columnList,
+                  fieldList,
+                  outerFunctionArguments));
           // add sliding window emit frequency to operands.
           operands.add(
               convertIntervalToRexIntervalLiteral(
@@ -880,7 +894,8 @@ public class ExpressionConverter {
       }
 
       for (ResolvedExpr expr : functionCall.getArgumentList()) {
-        operands.add(convertRexNodeFromResolvedExpr(expr, columnList, fieldList, outerFunctionArguments));
+        operands.add(
+            convertRexNodeFromResolvedExpr(expr, columnList, fieldList, outerFunctionArguments));
       }
     } else if (funGroup.equals(USER_DEFINED_FUNCTIONS)) {
       String fullName = functionCall.getFunction().getFullName();
@@ -890,10 +905,12 @@ public class ExpressionConverter {
       for (int i = 0; i < functionCall.getArgumentList().size(); i++) {
         String argName = createFunctionStmt.getArgumentNameList().get(i);
         ResolvedExpr argExpr = functionCall.getArgumentList().get(i);
-        RexNode argNode = convertRexNodeFromResolvedExpr(argExpr, columnList, fieldList, outerFunctionArguments);
+        RexNode argNode =
+            convertRexNodeFromResolvedExpr(argExpr, columnList, fieldList, outerFunctionArguments);
         innerFunctionArguments.put(argName, argNode);
       }
-      return this.convertRexNodeFromResolvedExpr(functionExpression, columnList, fieldList, innerFunctionArguments.build());
+      return this.convertRexNodeFromResolvedExpr(
+          functionExpression, columnList, fieldList, innerFunctionArguments.build());
     } else {
       throw new UnsupportedOperationException("Does not support function group: " + funGroup);
     }
@@ -1006,7 +1023,8 @@ public class ExpressionConverter {
     isCastingSupported(fromType, toType);
 
     RexNode inputNode =
-        convertRexNodeFromResolvedExpr(resolvedCast.getExpr(), columnList, fieldList, functionArguments);
+        convertRexNodeFromResolvedExpr(
+            resolvedCast.getExpr(), columnList, fieldList, functionArguments);
     // nullability of the output type should match that of the input node's type
     RelDataType outputType =
         TypeUtils.toSimpleRelDataType(
@@ -1075,7 +1093,8 @@ public class ExpressionConverter {
     return convertValueToRexNode(value.getType(), value);
   }
 
-  private RexNode convertResolvedArgumentRef(ResolvedArgumentRef resolvedArgumentRef, Map<String, RexNode> functionArguments) {
+  private RexNode convertResolvedArgumentRef(
+      ResolvedArgumentRef resolvedArgumentRef, Map<String, RexNode> functionArguments) {
     return functionArguments.get(resolvedArgumentRef.getName());
   }
 
@@ -1091,7 +1110,8 @@ public class ExpressionConverter {
       List<RelDataTypeField> fieldList,
       Map<String, RexNode> functionArguments) {
     RexNode referencedExpr =
-        convertRexNodeFromResolvedExpr(resolvedGetStructField.getExpr(), columnList, fieldList, functionArguments);
+        convertRexNodeFromResolvedExpr(
+            resolvedGetStructField.getExpr(), columnList, fieldList, functionArguments);
     return convertResolvedStructFieldAccessInternal(
         referencedExpr, (int) resolvedGetStructField.getFieldIdx());
   }

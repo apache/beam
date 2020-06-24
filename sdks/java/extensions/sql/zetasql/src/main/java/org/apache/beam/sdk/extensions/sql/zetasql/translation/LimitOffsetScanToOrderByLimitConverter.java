@@ -70,7 +70,10 @@ class LimitOffsetScanToOrderByLimitConverter extends RelConverter<ResolvedLimitO
     RexNode fetch =
         getExpressionConverter()
             .convertRexNodeFromResolvedExpr(
-                zetaNode.getLimit(), zetaNode.getColumnList(), input.getRowType().getFieldList(), null); // TODO(ibzib) check
+                zetaNode.getLimit(),
+                zetaNode.getColumnList(),
+                input.getRowType().getFieldList(),
+                null); // TODO(ibzib) check
 
     if (RexLiteral.isNullLiteral(offset) || RexLiteral.isNullLiteral(fetch)) {
       throw new UnsupportedOperationException("Limit requires non-null count and offset");

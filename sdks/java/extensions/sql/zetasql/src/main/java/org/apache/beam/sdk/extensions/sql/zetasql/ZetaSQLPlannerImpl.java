@@ -18,29 +18,29 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_FUNCTION_STMT;
+import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_TABLE_FUNCTION_STMT;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import com.google.zetasql.Analyzer;
 import com.google.zetasql.AnalyzerOptions;
-import com.google.zetasql.Function;
 import com.google.zetasql.LanguageOptions;
 import com.google.zetasql.ParseResumeLocation;
 import com.google.zetasql.SimpleCatalog;
-import com.google.zetasql.ZetaSQLFunctions.FunctionEnums.Mode;
+import com.google.zetasql.TVFRelation;
+import com.google.zetasql.TableValuedFunction;
+import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateTableFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
 import java.io.Reader;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ExpressionConverter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.QueryStatementConverter;
-import org.apache.beam.sdk.io.AvroIO.Parse;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
@@ -146,23 +146,26 @@ public class ZetaSQLPlannerImpl implements Planner {
 
     QueryTrait trait = new QueryTrait();
 
-    SqlAnalyzer analyzer = SqlAnalyzer.getBuilder()
-        .withQueryParams(params)
-        .withQueryTrait(trait)
-        .withCalciteContext(config.getContext())
-        .withTopLevelSchema(defaultSchemaPlus)
-        .withTypeFactory((JavaTypeFactory) cluster.getTypeFactory())
-        .build();
+    SqlAnalyzer analyzer =
+        SqlAnalyzer.getBuilder()
+            .withQueryParams(params)
+            .withQueryTrait(trait)
+            .withCalciteContext(config.getContext())
+            .withTopLevelSchema(defaultSchemaPlus)
+            .withTypeFactory((JavaTypeFactory) cluster.getTypeFactory())
+            .build();
 
     // Set up table providers that need to be pre-registered
     // List<List<String>> tables = Analyzer.extractTableNamesFromStatement(sql);
-    List<List<String>> tables = ImmutableList.of();
+    List<List<String>> tables = ImmutableList.of(ImmutableList.of("KeyValue"));
     TableResolution.registerTables(this.defaultSchemaPlus, tables);
 
     AnalyzerOptions options = SqlAnalyzer.initAnalyzerOptions(params);
-    SimpleCatalog catalog = analyzer.createPopulatedCatalog(defaultSchemaPlus.getName(), options, tables);
+    SimpleCatalog catalog =
+        analyzer.createPopulatedCatalog(defaultSchemaPlus.getName(), options, tables);
 
     ImmutableMap.Builder<String, ResolvedCreateFunctionStmt> udfBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<List<String>, ResolvedNode> udtvfBuilder = ImmutableMap.builder();
 
     ResolvedStatement statement;
     ParseResumeLocation parseResumeLocation = new ParseResumeLocation(sql);
@@ -171,15 +174,30 @@ public class ZetaSQLPlannerImpl implements Planner {
       if (statement.nodeKind() == RESOLVED_CREATE_FUNCTION_STMT) {
         ResolvedCreateFunctionStmt createFunctionStmt = (ResolvedCreateFunctionStmt) statement;
         // ResolvedCreateFunctionStmt does not include the full function name, so build it here.
-        String functionFullName = String.format("%s:%s",
-            SqlAnalyzer.USER_DEFINED_FUNCTIONS,
-            String.join(".", createFunctionStmt.getNamePath()));
+        String functionFullName =
+            String.format(
+                "%s:%s",
+                SqlAnalyzer.USER_DEFINED_FUNCTIONS,
+                String.join(".", createFunctionStmt.getNamePath()));
         udfBuilder.put(functionFullName, createFunctionStmt);
       } else if (statement.nodeKind() == RESOLVED_QUERY_STMT) {
         if (!isEndOfInput(parseResumeLocation)) {
-          throw new UnsupportedOperationException("Statement list must end in a SELECT statement, and cannot contain more than one SELECT statement.");
+          throw new UnsupportedOperationException(
+              "Statement list must end in a SELECT statement, and cannot contain more than one SELECT statement.");
         }
         break;
+      } else if (statement.nodeKind() == RESOLVED_CREATE_TABLE_FUNCTION_STMT) {
+        ResolvedCreateTableFunctionStmt createTableFunctionStmt =
+            (ResolvedCreateTableFunctionStmt) statement;
+        catalog.addTableValuedFunction(
+            new TableValuedFunction.FixedOutputSchemaTVF(
+                createTableFunctionStmt.getNamePath(),
+                createTableFunctionStmt.getSignature(),
+                TVFRelation.createColumnBased(
+                    createTableFunctionStmt.getQuery().getColumnList().stream()
+                        .map(c -> TVFRelation.Column.create(c.getName(), c.getType()))
+                        .collect(Collectors.toList()))));
+        udtvfBuilder.put(createTableFunctionStmt.getNamePath(), createTableFunctionStmt.getQuery());
       }
     } while (!isEndOfInput(parseResumeLocation));
 
@@ -189,8 +207,10 @@ public class ZetaSQLPlannerImpl implements Planner {
           "Statement list must end in a SELECT statement." + statement.getClass().getSimpleName());
     }
 
-    ExpressionConverter expressionConverter = new ExpressionConverter(cluster, params, udfBuilder.build());
-    ConversionContext context = ConversionContext.of(config, expressionConverter, cluster, trait);
+    ExpressionConverter expressionConverter =
+        new ExpressionConverter(cluster, params, udfBuilder.build());
+    ConversionContext context =
+        ConversionContext.of(config, expressionConverter, cluster, trait, udtvfBuilder.build());
 
     RelNode convertedNode =
         QueryStatementConverter.convertRootQuery(context, (ResolvedQueryStmt) statement);
@@ -241,6 +261,7 @@ public class ZetaSQLPlannerImpl implements Planner {
 
   private static boolean isEndOfInput(ParseResumeLocation parseResumeLocation) {
     // TODO(ibzib) is utf-8 a safe assumption?
-    return parseResumeLocation.getBytePosition() >= parseResumeLocation.getInput().getBytes(UTF_8).length;
+    return parseResumeLocation.getBytePosition()
+        >= parseResumeLocation.getInput().getBytes(UTF_8).length;
   }
 }

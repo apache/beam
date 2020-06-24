@@ -85,7 +85,10 @@ class JoinScanConverter extends RelConverter<ResolvedJoinScan> {
       condition =
           getExpressionConverter()
               .convertRexNodeFromResolvedExpr(
-                  zetaNode.getJoinExpr(), combinedZetaFieldsList, combinedCalciteFieldsList, null); // TODO(ibzib) check
+                  zetaNode.getJoinExpr(),
+                  combinedZetaFieldsList,
+                  combinedCalciteFieldsList,
+                  null); // TODO(ibzib) check
     }
 
     return LogicalJoin.create(

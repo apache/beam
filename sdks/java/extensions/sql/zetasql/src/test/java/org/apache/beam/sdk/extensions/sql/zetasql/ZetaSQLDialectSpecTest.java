@@ -54,7 +54,6 @@ import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import com.google.zetasql.ZetaSQLValue.ValueProto;
-import io.grpc.StatusException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -2769,7 +2768,8 @@ public class ZetaSQLDialectSpecTest {
     String sql = "SELECT 1; SELECT 2;";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage("Statement list must end in a SELECT statement, and cannot contain more than one SELECT statement.");
+    thrown.expectMessage(
+        "Statement list must end in a SELECT statement, and cannot contain more than one SELECT statement.");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
@@ -2799,8 +2799,9 @@ public class ZetaSQLDialectSpecTest {
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    PAssert.that(stream).containsInAnyOrder(
-        Row.withSchema(Schema.builder().addInt64Field("x").build()).addValue(0L).build());
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addInt64Field("x").build()).addValue(0L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -2812,8 +2813,9 @@ public class ZetaSQLDialectSpecTest {
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    PAssert.that(stream).containsInAnyOrder(
-        Row.withSchema(Schema.builder().addStringField("x").build()).addValue("uwu").build());
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addStringField("x").build()).addValue("uwu").build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -2826,8 +2828,9 @@ public class ZetaSQLDialectSpecTest {
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    PAssert.that(stream).containsInAnyOrder(
-        Row.withSchema(Schema.builder().addStringField("x").build()).addValue("uwu").build());
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addStringField("x").build()).addValue("uwu").build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -2839,31 +2842,35 @@ public class ZetaSQLDialectSpecTest {
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    PAssert.that(stream).containsInAnyOrder(
-        Row.withSchema(Schema.builder().addInt64Field("x").build()).addValue(9L).build());
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addInt64Field("x").build()).addValue(9L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testUdfWithinUdf() {
-    String sql = "CREATE FUNCTION triple(x INT64) AS (3 * x);"
-        + " CREATE FUNCTION nonuple(x INT64) as (triple(triple(x)));"
-        + " SELECT nonuple(1);";
+    String sql =
+        "CREATE FUNCTION triple(x INT64) AS (3 * x);"
+            + " CREATE FUNCTION nonuple(x INT64) as (triple(triple(x)));"
+            + " SELECT nonuple(1);";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    PAssert.that(stream).containsInAnyOrder(
-        Row.withSchema(Schema.builder().addInt64Field("x").build()).addValue(9L).build());
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addInt64Field("x").build()).addValue(9L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testUndefinedUdfThrowsException() {
-    String sql = "CREATE FUNCTION foo() AS (bar()); "
-        + "CREATE FUNCTION bar() AS (foo()); "
-        + "SELECT foo();";
+    String sql =
+        "CREATE FUNCTION foo() AS (bar()); "
+            + "CREATE FUNCTION bar() AS (foo()); "
+            + "SELECT foo();";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(SqlException.class);
     thrown.expectMessage("Function not found: bar");
@@ -2872,8 +2879,7 @@ public class ZetaSQLDialectSpecTest {
 
   @Test
   public void testRecursiveUdfThrowsException() {
-    String sql = "CREATE FUNCTION omega() AS (omega()); "
-        + "SELECT omega();";
+    String sql = "CREATE FUNCTION omega() AS (omega()); " + "SELECT omega();";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(SqlException.class);
     thrown.expectMessage("Function not found: omega");
@@ -2884,19 +2890,20 @@ public class ZetaSQLDialectSpecTest {
   public void testUdaf() {
     String sql =
         "CREATE TEMP AGGREGATE FUNCTION scaled_sum(dividend FLOAT64, divisor FLOAT64 NOT AGGREGATE)\n"
-        + "AS (SUM(dividend) / divisor);\n"
-        + "SELECT scaled_sum(col1, 2) AS scaled_sum\n"
-        + "FROM (SELECT 1 AS col1 UNION ALL\n"
-        + "      SELECT 3 AS col1 UNION ALL\n"
-        + "      SELECT 5 AS col1\n"
-        + ");";
+            + "AS (SUM(dividend) / divisor);\n"
+            + "SELECT scaled_sum(col1, 2) AS scaled_sum\n"
+            + "FROM (SELECT 1 AS col1 UNION ALL\n"
+            + "      SELECT 3 AS col1 UNION ALL\n"
+            + "      SELECT 5 AS col1\n"
+            + ");";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    PAssert.that(stream).containsInAnyOrder(
-        Row.withSchema(Schema.builder().addDoubleField("x").build()).addValue(4.5).build());
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addDoubleField("x").build()).addValue(4.5).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -4978,6 +4985,28 @@ public class ZetaSQLDialectSpecTest {
   @Test
   public void testSimpleTableName() {
     String sql = "SELECT Key FROM KeyValue";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema singleField = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(singleField).addValues(14L).build(),
+            Row.withSchema(singleField).addValues(15L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTVFCFSTM() {
+    String sql =
+        "CREATE TABLE FUNCTION CustomerRange(MinID INT64, MaxID INT64)\n"
+            + "  AS\n"
+            + "    SELECT *\n"
+            + "    FROM KeyValue\n"
+            + "    WHERE key >= MinId AND key <= MaxId; \n"
+            + " SELECT key FROM CustomerRange(10, 20)";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);

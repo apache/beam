@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_FUNCTION_STMT;
+import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_TABLE_FUNCTION_STMT;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable.ZETASQL_BUILTIN_FUNCTION_WHITELIST;
 import static org.apache.beam.sdk.extensions.sql.zetasql.TypeUtils.toZetaType;
@@ -26,7 +27,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.zetasql.Analyzer;
 import com.google.zetasql.AnalyzerOptions;
-import com.google.zetasql.Catalog;
 import com.google.zetasql.Function;
 import com.google.zetasql.FunctionArgumentType;
 import com.google.zetasql.FunctionProtos.FunctionArgumentTypeOptionsProto;
@@ -44,7 +44,6 @@ import com.google.zetasql.ZetaSQLOptions.ErrorMessageMode;
 import com.google.zetasql.ZetaSQLOptions.LanguageFeature;
 import com.google.zetasql.ZetaSQLOptions.ParameterMode;
 import com.google.zetasql.ZetaSQLOptions.ProductMode;
-import com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
@@ -64,7 +63,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Context;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParseException;
 
 /** Adapter for {@link Analyzer} to simplify the API for parsing the query and resolving the AST. */
 public class SqlAnalyzer {
@@ -114,37 +112,45 @@ public class SqlAnalyzer {
   }
 
   /**
-   * Accepts the ParseResumeLocation for the current position in the SQL string.
-   * Advances the ParseResumeLocation to the start of the next statement.
-   * Adds user-defined functions to the catalog for use in following statements.
-   * Returns the resolved AST.
+   * Accepts the ParseResumeLocation for the current position in the SQL string. Advances the
+   * ParseResumeLocation to the start of the next statement. Adds user-defined functions to the
+   * catalog for use in following statements. Returns the resolved AST.
    */
-  ResolvedStatement analyzeNextStatement(ParseResumeLocation parseResumeLocation, AnalyzerOptions options, SimpleCatalog catalog) {
+  ResolvedStatement analyzeNextStatement(
+      ParseResumeLocation parseResumeLocation, AnalyzerOptions options, SimpleCatalog catalog) {
 
     // TODO(ibzib) extract table names
     // int startBytePosition = parseResumeLocation.getBytePosition();
     // List<List<String>> tables = Analyzer.extractTableNamesFromStatement(parseResumeLocation);
-    List<List<String>> tables = ImmutableList.of();
 
-    ResolvedStatement resolvedStatement = Analyzer.analyzeNextStatement(parseResumeLocation, options, catalog);
+    ResolvedStatement resolvedStatement =
+        Analyzer.analyzeNextStatement(parseResumeLocation, options, catalog);
     if (resolvedStatement.nodeKind() == RESOLVED_CREATE_FUNCTION_STMT) {
-      ResolvedCreateFunctionStmt createFunctionStmt = (ResolvedCreateFunctionStmt) resolvedStatement;
-      Function userFunction = new Function(
-          createFunctionStmt.getNamePath(),
-          USER_DEFINED_FUNCTIONS,
-          // TODO(BEAM-9954) handle UDAF
-          Mode.SCALAR,
-          com.google.common.collect.ImmutableList.of(createFunctionStmt.getSignature()));
+      ResolvedCreateFunctionStmt createFunctionStmt =
+          (ResolvedCreateFunctionStmt) resolvedStatement;
+      Function userFunction =
+          new Function(
+              createFunctionStmt.getNamePath(),
+              USER_DEFINED_FUNCTIONS,
+              // TODO(BEAM-9954) handle UDAF
+              Mode.SCALAR,
+              com.google.common.collect.ImmutableList.of(createFunctionStmt.getSignature()));
       try {
         catalog.addFunction(userFunction);
       } catch (IllegalArgumentException e) {
-        throw new ParseException(String.format("Failed to define function %s", String.join(".", createFunctionStmt.getNamePath())), e);
+        throw new ParseException(
+            String.format(
+                "Failed to define function %s", String.join(".", createFunctionStmt.getNamePath())),
+            e);
       }
       return resolvedStatement;
     } else if (resolvedStatement.nodeKind() == RESOLVED_QUERY_STMT) {
       return resolvedStatement;
+    } else if (resolvedStatement.nodeKind() == RESOLVED_CREATE_TABLE_FUNCTION_STMT) {
+      return resolvedStatement;
     } else {
-      throw new UnsupportedOperationException("Unrecognized statement type " + resolvedStatement.nodeKindString());
+      throw new UnsupportedOperationException(
+          "Unrecognized statement type " + resolvedStatement.nodeKindString());
     }
   }
 
@@ -163,12 +169,17 @@ public class SqlAnalyzer {
                     LanguageFeature.FEATURE_V_1_2_CIVIL_TIME,
                     LanguageFeature.FEATURE_V_1_1_SELECT_STAR_EXCEPT_REPLACE,
                     LanguageFeature.FEATURE_TABLE_VALUED_FUNCTIONS,
-                    LanguageFeature.FEATURE_CREATE_AGGREGATE_FUNCTION)));
+                    LanguageFeature.FEATURE_CREATE_AGGREGATE_FUNCTION,
+                    LanguageFeature.FEATURE_CREATE_TABLE_FUNCTION,
+                    LanguageFeature.FEATURE_TEMPLATE_FUNCTIONS)));
 
     options
         .getLanguageOptions()
         .setSupportedStatementKinds(
-            ImmutableSet.of(RESOLVED_QUERY_STMT, RESOLVED_CREATE_FUNCTION_STMT));
+            ImmutableSet.of(
+                RESOLVED_QUERY_STMT,
+                RESOLVED_CREATE_FUNCTION_STMT,
+                RESOLVED_CREATE_TABLE_FUNCTION_STMT));
 
     return options;
   }

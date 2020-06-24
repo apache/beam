@@ -23,6 +23,7 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedTVFScan;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalTableFunctionScan;
@@ -39,34 +40,52 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
     super(context);
   }
 
+  private String udtvfName = null;
+
   @Override
   public RelNode convert(ResolvedTVFScan zetaNode, List<RelNode> inputs) {
-    RelNode input = inputs.get(0);
-    RelNode tableFunctionScan =
-        LogicalTableFunctionScan.create(
-            getCluster(),
-            inputs,
-            getExpressionConverter()
-                .convertTableValuedFunction(
-                    input,
-                    zetaNode.getTvf(),
-                    zetaNode.getArgumentList(),
-                    zetaNode.getArgumentList().get(0).getScan().getColumnList()),
-            null,
-            createRowTypeWithWindowStartAndEnd(input.getRowType()),
-            Collections.EMPTY_SET);
+    if (zetaNode.getTvf().getName().equals("TUMBLE")
+        || zetaNode.getTvf().getName().equals("HOP")
+        || zetaNode.getTvf().getName().equals("SESSION")
+        || udtvfName != null) {
+      RelNode input = inputs.get(0);
+      RelNode tableFunctionScan =
+          LogicalTableFunctionScan.create(
+              getCluster(),
+              inputs,
+              getExpressionConverter()
+                  .convertTableValuedFunction(
+                      input,
+                      zetaNode.getTvf(),
+                      zetaNode.getArgumentList(),
+                      zetaNode.getArgumentList().get(0).getScan().getColumnList()),
+              null,
+              createRowTypeWithWindowStartAndEnd(input.getRowType()),
+              Collections.EMPTY_SET);
 
-    return tableFunctionScan;
+      return tableFunctionScan;
+    }
+
+    throw new UnsupportedOperationException("Does not support TVF: " + zetaNode.getTvf().getName());
   }
 
   @Override
   public List<ResolvedNode> getInputs(ResolvedTVFScan zetaNode) {
-    List<ResolvedNode> inputs = new ArrayList();
-    for (ResolvedTVFArgument argument : zetaNode.getArgumentList()) {
-      if (argument.getScan() != null) {
-        inputs.add(argument.getScan());
+    List<ResolvedNode> inputs = new ArrayList<>();
+    if (context.getSqlUDTVF().size() > 0) {
+      Map<List<String>, ResolvedNode> udtvfMap = context.getSqlUDTVF();
+      if (udtvfMap.containsKey(zetaNode.getTvf().getNamePath())) {
+        udtvfName = zetaNode.getTvf().getName();
+        inputs.add(udtvfMap.get(zetaNode.getTvf().getNamePath()));
+      }
+    } else if (zetaNode.getArgumentList().size() != 0) {
+      for (ResolvedTVFArgument argument : zetaNode.getArgumentList()) {
+        if (argument.getScan() != null) {
+          inputs.add(argument.getScan());
+        }
       }
     }
+
     return inputs;
   }
 

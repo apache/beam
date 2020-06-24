@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
+import com.google.zetasql.resolvedast.ResolvedNode;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.zetasql.QueryTrait;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
@@ -27,28 +30,36 @@ public class ConversionContext {
   private final ExpressionConverter expressionConverter;
   private final RelOptCluster cluster;
   private final QueryTrait trait;
+  private final Map<List<String>, ResolvedNode> sqlUDTVF;
 
   public static ConversionContext of(
       FrameworkConfig config,
       ExpressionConverter expressionConverter,
       RelOptCluster cluster,
-      QueryTrait trait) {
-    return new ConversionContext(config, expressionConverter, cluster, trait);
+      QueryTrait trait,
+      Map<List<String>, ResolvedNode> sqlUDTVF) {
+    return new ConversionContext(config, expressionConverter, cluster, trait, sqlUDTVF);
   }
 
   private ConversionContext(
       FrameworkConfig config,
       ExpressionConverter expressionConverter,
       RelOptCluster cluster,
-      QueryTrait trait) {
+      QueryTrait trait,
+      Map<List<String>, ResolvedNode> sqlUDTVF) {
     this.config = config;
     this.expressionConverter = expressionConverter;
     this.cluster = cluster;
     this.trait = trait;
+    this.sqlUDTVF = sqlUDTVF;
   }
 
   FrameworkConfig getConfig() {
     return config;
+  }
+
+  Map<List<String>, ResolvedNode> getSqlUDTVF() {
+    return sqlUDTVF;
   }
 
   ExpressionConverter getExpressionConverter() {
