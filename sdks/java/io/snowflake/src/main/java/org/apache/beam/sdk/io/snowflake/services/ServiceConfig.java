@@ -15,14 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.snowflake.test.unit;
+package org.apache.beam.sdk.io.snowflake.services;
 
-import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
-import org.apache.beam.sdk.options.Description;
-
-public interface BatchTestPipelineOptions extends SnowflakePipelineOptions {
-  @Description("Table name to connect to.")
-  String getTable();
-
-  void setTable(String table);
-}
+public abstract class ServiceConfig {}
