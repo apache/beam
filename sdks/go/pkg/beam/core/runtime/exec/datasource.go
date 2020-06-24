@@ -326,7 +326,7 @@ func splitHelper(currIdx, splitIdx int64, splits []int64, frac float64) (int64, 
 	if fracIdx < safeStart {
 		fracIdx = safeStart
 	}
-	if splits == nil {
+	if len(splits) == 0 {
 		// All split points are valid so just split at fraction.
 		return fracIdx, nil
 	} else {
