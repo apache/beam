@@ -78,10 +78,6 @@ class Mean(object):
   """Combiners for computing arithmetic means of elements."""
   class Globally(CombinerWithoutDefaults):
     """combiners.Mean.Globally computes the arithmetic mean of the elements."""
-    def __init__(self, has_defaults=True):
-      super(Mean.Globally, self).__init__()
-      self.has_defaults = has_defaults
-
     def expand(self, pcoll):
       if self.has_defaults:
         return pcoll | core.CombineGlobally(MeanCombineFn())
