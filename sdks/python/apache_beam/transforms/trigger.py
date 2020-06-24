@@ -1419,8 +1419,8 @@ class InMemoryUnmergedState(UnmergedState):
 
   Used for batch and testing.
   """
-  def __init__(self, defensive_copy=True):
-    # TODO(robertwb): Skip defensive_copy in production if it's too expensive.
+  def __init__(self, defensive_copy=False):
+    # TODO(robertwb): Clean defensive_copy. It is too expensive in production.
     self.timers = collections.defaultdict(dict)
     self.state = collections.defaultdict(lambda: collections.defaultdict(list))
     self.global_state = {}
