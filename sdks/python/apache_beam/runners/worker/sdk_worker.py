@@ -56,6 +56,7 @@ from apache_beam.coders import coder_impl
 from apache_beam.metrics import monitoring_infos
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.portability.api import endpoints_pb2
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
@@ -69,7 +70,6 @@ from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.utils import thread_pool_executor
 
 if TYPE_CHECKING:
-  from apache_beam.portability.api import endpoints_pb2
   from apache_beam.utils.profiler import Profile
 
 _LOGGER = logging.getLogger(__name__)
@@ -718,7 +718,8 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
 
   def create_state_handler(self, api_service_descriptor):
     # type: (endpoints_pb2.ApiServiceDescriptor) -> CachingStateHandler
-    if not api_service_descriptor:
+    if (not api_service_descriptor or
+        api_service_descriptor == endpoints_pb2.ApiServiceDescriptor()):
       return self._throwing_state_handler
     url = api_service_descriptor.url
     if url not in self._state_handler_cache:
