@@ -357,13 +357,8 @@ class TriggerCopyJobs(beam.DoFn):
       copy_from_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
 
-    copy_job_name = '%s_copy_%s_to_%s' % (
+    copy_job_name = '%s_%s' % (
         job_name_prefix,
-        _bq_uuid(
-            '%s:%s.%s' % (
-                copy_from_reference.projectId,
-                copy_from_reference.datasetId,
-                copy_from_reference.tableId)),
         _bq_uuid(
             '%s:%s.%s' % (
                 copy_to_reference.projectId,
