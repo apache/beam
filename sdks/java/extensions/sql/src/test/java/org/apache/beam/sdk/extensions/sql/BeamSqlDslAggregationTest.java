@@ -314,7 +314,39 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<Row> inputRows =
         pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
     PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
     PAssert.that(result).containsInAnyOrder(rowResult);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testBitAndFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+        Schema.builder().addInt64Field("f_long").addInt32Field("f_int2").build();
+
+    Schema resultType = Schema.builder().addInt64Field("finalAnswer").build();
+
+    List<Row> rowsInTableA =
+        TestUtils.RowsBuilder.of(schemaInTableA)
+            .addRows(
+                0xF001L, 0,
+                0x00A1L, 0)
+            .getRows();
+
+    String sql = "SELECT bit_and(f_long) as bitand " + "FROM PCOLLECTION GROUP BY f_int2";
+
+    Row rowResult = Row.withSchema(resultType).addValues(1L).build();
+
+    PCollection<Row> inputRows =
+        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result).containsInAnyOrder(rowResult);
+
+    pipeline.run().waitUntilFinish();
   }
 
   private static class CheckerBigDecimalDivide
