@@ -246,7 +246,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                 .binaryDecoder(
                     currentResponse.getAvroRows().getSerializedBinaryRows().toByteArray(), decoder);
 
-        // Since we now have a new repsonse, reset the row counter for the current response.
+        // Since we now have a new response, reset the row counter for the current response.
         rowsReadFromCurrentResponse = 0L;
 
         totalRowCountFromCurrentResponse = currentResponse.getAvroRows().getRowCount();
