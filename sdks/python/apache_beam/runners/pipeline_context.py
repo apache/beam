@@ -64,12 +64,12 @@ class _UniqueRefAssigner(object):
     self._obj_to_id = {}  # type: Dict[Any, str]
 
   def get_or_assign(self, obj=None, label=None):
+    # type: (Optional[Any], Optional[str]) -> str
     """Retrieve the unique ref for the given object.
 
     Generates and assigns a unique ref if one hasn't been assigned yet. label
     will be incorporated into the unique ref when assigning a new unique ref,
     otherwise it is ignored."""
-    # type: (Optional[Any], Optional[str]) -> str
     if obj not in self._obj_to_id:
       self._obj_to_id[obj] = self._unique_ref(obj, label)
 
@@ -81,10 +81,10 @@ class _UniqueRefAssigner(object):
 
   @classmethod
   def with_base(cls, base):
+    # type: (str) -> _UniqueRefAssigner
     """Return the _UniqueRefAssigner with the given base string.
 
-    Creates one if it doesn't already exist."""
-    # type: (str) -> _UniqueRefAssigner
+    Creates a new instance if one doesn't already exist for this base string."""
     if not base in cls._INSTANCES:
       cls._INSTANCES[base] = _UniqueRefAssigner(base)
 
