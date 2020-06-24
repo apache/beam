@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.TimeUnit;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
@@ -46,11 +47,13 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.BigQueryServerStream;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -153,6 +156,17 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
   @Experimental(Kind.SOURCE_SINK)
   public static class BigQueryStorageStreamReader<T> extends BoundedSource.BoundedReader<T> {
 
+    private final Counter streamingResponseCount =
+        Metrics.counter(
+            BigQueryStorageStreamReader.class, "bq_storage_read_streaming_response_count");
+    private final Counter streamingResponseTotalLatencyMs =
+        Metrics.counter(
+            BigQueryStorageStreamReader.class, "bq_storage_read_streaming_response_latency_ms");
+    private final Counter decoderTotalLatencyMs =
+        Metrics.counter(BigQueryStorageStreamReader.class, "bq_storage_read_decoder_latency_ms");
+    private final Counter parseFnTotalLatencyMs =
+        Metrics.counter(BigQueryStorageStreamReader.class, "bq_storage_read_parse_latency_ms");
+
     private final DatumReader<GenericRecord> datumReader;
     private final SerializableFunction<SchemaAndRecord, T> parseFn;
     private final StorageClient storageClient;
@@ -218,18 +232,24 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
           return false;
         }
 
+        ReadRowsResponse currentResponse;
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        try {
+          currentResponse = responseIterator.next();
+        } finally {
+          streamingResponseCount.inc();
+          streamingResponseTotalLatencyMs.inc(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        }
+
         fractionConsumedFromPreviousResponse = fractionConsumedFromCurrentResponse;
-        ReadRowsResponse currentResponse = responseIterator.next();
+        fractionConsumedFromCurrentResponse = getFractionConsumed(currentResponse);
+        totalRowCountFromCurrentResponse = currentResponse.getRowCount();
+        rowsReadFromCurrentResponse = 0;
+
         decoder =
             DecoderFactory.get()
                 .binaryDecoder(
                     currentResponse.getAvroRows().getSerializedBinaryRows().toByteArray(), decoder);
-
-        // Since we now have a new response, reset the row counter for the current response.
-        rowsReadFromCurrentResponse = 0L;
-
-        totalRowCountFromCurrentResponse = currentResponse.getAvroRows().getRowCount();
-        fractionConsumedFromCurrentResponse = getFractionConsumed(currentResponse);
 
         Preconditions.checkArgument(
             totalRowCountFromCurrentResponse >= 0L,
@@ -247,8 +267,19 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
             fractionConsumedFromPreviousResponse);
       }
 
-      record = datumReader.read(record, decoder);
-      current = parseFn.apply(new SchemaAndRecord(record, tableSchema));
+      Stopwatch stopwatch = Stopwatch.createStarted();
+      try {
+        record = datumReader.read(record, decoder);
+      } finally {
+        decoderTotalLatencyMs.inc(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+      }
+
+      stopwatch.reset();
+      try {
+        current = parseFn.apply(new SchemaAndRecord(record, tableSchema));
+      } finally {
+        parseFnTotalLatencyMs.inc(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+      }
 
       // Updates the fraction consumed value. This value is calculated by interpolating between
       // the fraction consumed value from the previous server response (or zero if we're consuming
