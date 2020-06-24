@@ -15,22 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.snowflake;
+package org.apache.beam.sdk.io.snowflake.services;
 
 import java.io.Serializable;
-import java.sql.SQLException;
-import javax.sql.DataSource;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 
-/** Interface which defines common methods for interacting with SnowFlake. */
-public interface SnowflakeService extends Serializable {
+/** Interface which defines common methods for interacting with Snowflake. */
+public interface SnowflakeService<T extends ServiceConfig> extends Serializable {
   String CSV_QUOTE_CHAR_FOR_COPY = "''";
 
-  String copyIntoStage(
-      SerializableFunction<Void, DataSource> dataSourceProviderFn,
-      String query,
-      String table,
-      String integrationName,
-      String stagingBucketDir)
-      throws SQLException;
+  String read(T config) throws Exception;
+
+  void write(T config) throws Exception;
 }
