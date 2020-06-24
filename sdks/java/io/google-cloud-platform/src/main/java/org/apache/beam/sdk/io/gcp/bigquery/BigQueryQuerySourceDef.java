@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.JobStatistics;
@@ -31,6 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -129,7 +129,8 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
     TableReference tableToRemove =
         createTempTableReference(
             bqOptions.getProject(),
-            createJobIdToken(bqOptions.getJobName(), stepUuid),
+            BigQueryResourceNaming.createJobIdPrefix(
+                bqOptions.getJobName(), stepUuid, JobType.EXPORT),
             queryTempDatasetOpt);
 
     BigQueryServices.DatasetService tableService = bqServices.getDatasetService(bqOptions);

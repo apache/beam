@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
@@ -77,6 +75,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSche
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TimePartitioningToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
@@ -1153,7 +1152,9 @@ public class BigQueryIO {
               JobReference jobRef =
                   new JobReference()
                       .setProjectId(executingProject)
-                      .setJobId(getExtractJobId(createJobIdToken(bqOptions.getJobName(), jobUuid)));
+                      .setJobId(
+                          BigQueryResourceNaming.createJobIdPrefix(
+                              bqOptions.getJobName(), jobUuid, JobType.EXPORT));
 
               Job extractJob = getBigQueryServices().getJobService(bqOptions).getJob(jobRef);
 
@@ -1362,7 +1363,8 @@ public class BigQueryIO {
               TableReference tempTable =
                   createTempTableReference(
                       options.getProject(),
-                      createJobIdToken(options.getJobName(), jobUuid),
+                      BigQueryResourceNaming.createJobIdPrefix(
+                          options.getJobName(), jobUuid, JobType.EXPORT),
                       queryTempDataset);
 
               DatasetService datasetService = getBigQueryServices().getDatasetService(options);

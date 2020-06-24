@@ -126,7 +126,7 @@ def get_hashable_destination(destination):
 
 
 def parse_table_schema_from_json(schema_string):
-  """Parse the Table Schema provided as string.
+   """Parse the Table Schema provided as string.
 
   Args:
     schema_string: String serialized table schema, should be a valid JSON.
@@ -1481,3 +1481,22 @@ bigquery_v2_messages.TableSchema):
   dict_table_schema = get_dict_table_schema(schema)
   return bigquery_avro_tools.get_record_schema_from_dict_table_schema(
       "root", dict_table_schema)
+
+
+class BigQueryJobTypes:
+  EXPORT = 'EXPORT'
+  COPY = 'COPY'
+  LOAD = 'LOAD'
+  QUERY = 'QUERY'
+
+
+_BQ_JOB_NAME_TEMPLATE = "beam_bq_job_{job_type}_{job_id}_{step_id}_{random}"
+
+def generate_bq_job_name(job_name, step_id, job_type, random=None):
+  random = random or ""
+  return str.format(
+      _BQ_JOB_NAME_TEMPLATE,
+      job_type=job_type,
+      job_name=job_name.replace("-", ""),
+      step_id=step_id,
+      random=random)

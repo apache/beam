@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.FileSystems.match;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -39,6 +37,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -120,7 +119,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
 
     TableSchema schema = table.getSchema();
     JobService jobService = bqServices.getJobService(bqOptions);
-    String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
+    String extractJobId = BigQueryResourceNaming.createJobIdPrefix(
+        options.getJobName(), stepUuid, JobType.EXPORT);
     final String extractDestinationDir =
         resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
     String bqLocation =

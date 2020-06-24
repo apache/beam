@@ -39,6 +39,7 @@ import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -263,7 +264,8 @@ class BatchLoads<DestinationT, ElementT>
   private WriteResult expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
     checkArgument(numFileShards > 0);
     Pipeline p = input.getPipeline();
-    final PCollectionView<String> loadJobIdPrefixView = createLoadJobIdPrefixView(p);
+    final PCollectionView<String> loadJobIdPrefixView = createJobIdPrefixView(p, JobType.LOAD);
+    final PCollectionView<String> copyJobIdPrefixView = createJobIdPrefixView(p, JobType.COPY);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);
     // The user-supplied triggeringDuration is often chosen to control how many BigQuery load
@@ -342,12 +344,12 @@ class BatchLoads<DestinationT, ElementT>
             ParDo.of(
                     new WriteRename(
                         bigQueryServices,
-                        loadJobIdPrefixView,
+                        copyJobIdPrefixView,
                         writeDisposition,
                         createDisposition,
                         maxRetryJobs,
                         kmsKey))
-                .withSideInputs(loadJobIdPrefixView));
+                .withSideInputs(copyJobIdPrefixView));
     writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);
   }
@@ -355,7 +357,7 @@ class BatchLoads<DestinationT, ElementT>
   // Expand the pipeline when the user has not requested periodically-triggered file writes.
   public WriteResult expandUntriggered(PCollection<KV<DestinationT, ElementT>> input) {
     Pipeline p = input.getPipeline();
-    final PCollectionView<String> loadJobIdPrefixView = createLoadJobIdPrefixView(p);
+    final PCollectionView<String> loadJobIdPrefixView = createJobIdPrefixView(p, JobType.LOAD);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
@@ -416,7 +418,7 @@ class BatchLoads<DestinationT, ElementT>
   }
 
   // Generate the base job id string.
-  private PCollectionView<String> createLoadJobIdPrefixView(Pipeline p) {
+  private PCollectionView<String> createJobIdPrefixView(Pipeline p, final JobType type) {
     // Create a singleton job ID token at execution time. This will be used as the base for all
     // load jobs issued from this instance of the transform.
     return p.apply("JobIdCreationRoot", Create.of((Void) null))
@@ -426,11 +428,10 @@ class BatchLoads<DestinationT, ElementT>
                 new DoFn<Void, String>() {
                   @ProcessElement
                   public void process(ProcessContext c) {
-                    c.output(
-                        String.format(
-                            "beam_load_%s_%s",
-                            c.getPipelineOptions().getJobName().replaceAll("-", ""),
-                            BigQueryHelpers.randomUUIDString()));
+                    c.output(BigQueryResourceNaming.createJobIdPrefix(
+                        c.getPipelineOptions().getJobName(),
+                        BigQueryHelpers.randomUUIDString(),
+                        type));
                   }
                 }))
         .apply(View.asSingleton());
