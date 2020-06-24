@@ -28,6 +28,7 @@ from tempfile import mkdtemp
 
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
+from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
 
@@ -43,8 +44,8 @@ if __name__ == '__main__':
       '--spark_job_server_jar', help='Job server jar to submit jobs.')
   parser.add_argument(
       '--environment_type',
-      default='docker',
-      help='Environment type. docker or process')
+      default='loopback',
+      help='Environment type. docker, process, or loopback')
   parser.add_argument('--environment_config', help='Environment config.')
   parser.add_argument(
       '--environment_cache_millis',
@@ -57,7 +58,10 @@ if __name__ == '__main__':
   known_args, args = parser.parse_known_args(sys.argv)
   sys.argv = args
 
-  spark_job_server_jar = known_args.spark_job_server_jar
+  spark_job_server_jar = (
+      known_args.spark_job_server_jar or
+      job_server.JavaJarJobServer.path_to_beam_jar(
+          'runners:spark:job-server:shadowJar'))
   environment_type = known_args.environment_type.lower()
   environment_config = (
       known_args.environment_config if known_args.environment_config else None)
