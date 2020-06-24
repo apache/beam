@@ -69,10 +69,9 @@ _MAXIMUM_SOURCE_URIS = 10 * 1000
 _FILE_TRIGGERING_RECORD_COUNT = 500000
 
 
-def _generate_load_job_name():
-  datetime_component = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S")
-  # TODO(pabloem): include job id / pipeline component?
-  return 'beam_load_%s_%s' % (datetime_component, random.randint(0, 100))
+def _generate_job_name(job_name, job_type, step_name):
+  return bigquery_tools.generate_bq_job_name(
+      job_name, 'TODO', job_type, random.randint(0, 1000))
 
 
 def file_prefix_generator(
@@ -788,6 +787,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       partitions_using_temp_tables,
       partitions_direct_to_destination,
       load_job_name_pcv,
+      copy_job_name_pcv,
       singleton_pc):
     """Load data to BigQuery
 
@@ -833,7 +833,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 create_disposition=self.create_disposition,
                 write_disposition=self.write_disposition,
                 test_client=self.test_client),
-            load_job_name_pcv))
+            copy_job_name_pcv))
 
     finished_copy_jobs_pc = (
         singleton_pc
@@ -884,13 +884,21 @@ class BigQueryBatchFileLoads(beam.PTransform):
     p = pcoll.pipeline
 
     temp_location = p.options.view_as(GoogleCloudOptions).temp_location
+    job_name = (p.options.view_as(GoogleCloudOptions).job_name
+                or 'AUTOMATIC_JOB_NAME')
 
     empty_pc = p | "ImpulseEmptyPC" >> beam.Create([])
     singleton_pc = p | "ImpulseSingleElementPC" >> beam.Create([None])
 
     load_job_name_pcv = pvalue.AsSingleton(
         singleton_pc
-        | beam.Map(lambda _: _generate_load_job_name()))
+        | beam.Map(lambda _: _generate_job_name(
+            job_name, bigquery_tools.BigQueryJobTypes.LOAD, 'LOAD_NAME_STEP')))
+
+    copy_job_name_pcv = pvalue.AsSingleton(
+        singleton_pc
+        | beam.Map(lambda _: _generate_job_name(
+            job_name, bigquery_tools.BigQueryJobTypes.COPY, 'COPY_NAME_STEP')))
 
     file_prefix_pcv = pvalue.AsSingleton(
         singleton_pc
@@ -934,14 +942,17 @@ class BigQueryBatchFileLoads(beam.PTransform):
           multiple_partitions_per_destination_pc,
           single_partition_per_destination_pc)
                         | "FlattenPartitions" >> beam.Flatten())
-      destination_load_job_ids_pc, destination_copy_job_ids_pc = self.\
-        _load_data(all_partitions, empty_pc, load_job_name_pcv,
-                   singleton_pc)
+      destination_load_job_ids_pc, destination_copy_job_ids_pc = (
+          self._load_data(all_partitions,
+                          empty_pc,
+                          load_job_name_pcv,
+                          copy_job_name_pcv,
+                          singleton_pc))
     else:
-      destination_load_job_ids_pc, destination_copy_job_ids_pc = self.\
-        _load_data(multiple_partitions_per_destination_pc,
-                   single_partition_per_destination_pc,
-                   load_job_name_pcv, singleton_pc)
+      destination_load_job_ids_pc, destination_copy_job_ids_pc = (
+          self._load_data(multiple_partitions_per_destination_pc,
+                         single_partition_per_destination_pc,
+                         load_job_name_pcv, copy_job_name_pcv, singleton_pc))
 
     return {
         self.DESTINATION_JOBID_PAIRS: destination_load_job_ids_pc,
