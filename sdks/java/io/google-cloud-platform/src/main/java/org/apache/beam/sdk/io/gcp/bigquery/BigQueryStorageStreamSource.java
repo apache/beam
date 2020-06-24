@@ -48,6 +48,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.BigQueryServerStream;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -157,15 +158,13 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
   public static class BigQueryStorageStreamReader<T> extends BoundedSource.BoundedReader<T> {
 
     private final Counter streamingResponseCount =
-        Metrics.counter(
-            BigQueryStorageStreamReader.class, "bq_storage_read_streaming_response_count");
-    private final Counter streamingResponseTotalLatencyMs =
-        Metrics.counter(
-            BigQueryStorageStreamReader.class, "bq_storage_read_streaming_response_latency_ms");
-    private final Counter decoderTotalLatencyMs =
-        Metrics.counter(BigQueryStorageStreamReader.class, "bq_storage_read_decoder_latency_ms");
-    private final Counter parseFnTotalLatencyMs =
-        Metrics.counter(BigQueryStorageStreamReader.class, "bq_storage_read_parse_latency_ms");
+        Metrics.counter(BigQueryStorageStreamReader.class, "streaming_response_count");
+    private final Distribution streamingResponseLatenciesMs =
+        Metrics.distribution(BigQueryStorageStreamReader.class, "streaming_response_latencies_ms");
+    private final Distribution decodeLatenciesMs =
+        Metrics.distribution(BigQueryStorageStreamReader.class, "decode_latencies_ms");
+    private final Distribution parseLatenciesMs =
+        Metrics.distribution(BigQueryStorageStreamReader.class, "parse_latencies_ms");
 
     private final DatumReader<GenericRecord> datumReader;
     private final SerializableFunction<SchemaAndRecord, T> parseFn;
@@ -232,24 +231,26 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
           return false;
         }
 
+        fractionConsumedFromPreviousResponse = fractionConsumedFromCurrentResponse;
         ReadRowsResponse currentResponse;
         Stopwatch stopwatch = Stopwatch.createStarted();
         try {
           currentResponse = responseIterator.next();
         } finally {
           streamingResponseCount.inc();
-          streamingResponseTotalLatencyMs.inc(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+          streamingResponseLatenciesMs.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
         }
-
-        fractionConsumedFromPreviousResponse = fractionConsumedFromCurrentResponse;
-        fractionConsumedFromCurrentResponse = getFractionConsumed(currentResponse);
-        totalRowCountFromCurrentResponse = currentResponse.getRowCount();
-        rowsReadFromCurrentResponse = 0;
 
         decoder =
             DecoderFactory.get()
                 .binaryDecoder(
                     currentResponse.getAvroRows().getSerializedBinaryRows().toByteArray(), decoder);
+
+        // Since we now have a new repsonse, reset the row counter for the current response.
+        rowsReadFromCurrentResponse = 0L;
+
+        totalRowCountFromCurrentResponse = currentResponse.getAvroRows().getRowCount();
+        fractionConsumedFromCurrentResponse = getFractionConsumed(currentResponse);
 
         Preconditions.checkArgument(
             totalRowCountFromCurrentResponse >= 0L,
@@ -271,14 +272,14 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       try {
         record = datumReader.read(record, decoder);
       } finally {
-        decoderTotalLatencyMs.inc(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        decodeLatenciesMs.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
       }
 
       stopwatch.reset().start();
       try {
         current = parseFn.apply(new SchemaAndRecord(record, tableSchema));
       } finally {
-        parseFnTotalLatencyMs.inc(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        parseLatenciesMs.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
       }
 
       // Updates the fraction consumed value. This value is calculated by interpolating between
