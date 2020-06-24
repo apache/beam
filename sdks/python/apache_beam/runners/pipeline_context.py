@@ -65,6 +65,7 @@ class _UniqueRefAssigner(object):
 
   def get_or_assign(self, obj=None, label=None):
     # type: (Optional[Any], Optional[str]) -> str
+
     """Retrieve the unique ref for the given object.
 
     Generates and assigns a unique ref if one hasn't been assigned yet. label
@@ -82,6 +83,7 @@ class _UniqueRefAssigner(object):
   @classmethod
   def with_base(cls, base):
     # type: (str) -> _UniqueRefAssigner
+
     """Return the _UniqueRefAssigner with the given base string.
 
     Creates a new instance if one doesn't already exist for this base string."""
