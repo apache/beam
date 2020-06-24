@@ -76,7 +76,7 @@ import org.apache.beam.sdk.transforms.Partition;
  * </ul>
  * In an effort to improve developer visibility into potential problems, this test suite validates a
  * cross-language runner against <i>5 Core Beam transforms</i> from any foreign language — {@link ParDo},
- * {@link GroupByKey}, {@link CoGroupByKey}, {@link Combine}, {@link Flatten}, {@link Partition}.
+ * {@link GroupByKey}, {@link CoGroupByKey}, {@link Combine}, {@link Flatten} and {@link Partition}.
  * <p></p>
  * See <a href="https://docs.google.com/document/d/1xQp0ElIV84b8OCVz8CD2hvbiWdR8w4BvWxPTZJZA6NA">Runner Validation Test
  * Plan for Cross-language transforms</a>for further details.
