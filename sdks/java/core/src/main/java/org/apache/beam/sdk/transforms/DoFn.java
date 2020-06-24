@@ -812,8 +812,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * ascending order. The time ordering is defined by element's timestamp, ordering of elements with
    * equal timestamps is not defined.
    *
-   * <p>Note that this annotation makes sense only for stateful {@code ParDo}s, because outcome of
-   * stateless functions cannot depend on the ordering.
+   * <p>Note that this annotation makes a {@link DoFn} stateful, requiring to be keyed (typed of
+   * {@code KV<K, V>}.
    *
    * <p>This annotation respects specified <i>allowedLateness</i> defined in {@link
    * WindowingStrategy}. All data is emitted <b>after</b> input watermark passes element's timestamp
