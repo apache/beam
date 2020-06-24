@@ -274,7 +274,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         decoderTotalLatencyMs.inc(stopwatch.elapsed(TimeUnit.MILLISECONDS));
       }
 
-      stopwatch.reset();
+      stopwatch.reset().start();
       try {
         current = parseFn.apply(new SchemaAndRecord(record, tableSchema));
       } finally {
