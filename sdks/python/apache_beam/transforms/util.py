@@ -741,6 +741,7 @@ def WithKeys(pcoll, k):
 
 @experimental()
 @typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(Tuple[K, List[V]])
 class GroupIntoBatches(PTransform):
   """PTransform that batches the input into desired batch size. Elements are
   buffered until they are equal to batch size provided in the argument at which
