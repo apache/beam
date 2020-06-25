@@ -99,7 +99,7 @@ public abstract class TriggerStateMachine implements Serializable {
    * Interface for accessing information about the trigger being executed and other triggers in the
    * same tree.
    */
-  public interface TriggerInfo {
+  public interface TriggerInfoDSdadsadadas {
 
     /**
      * Returns true if the windowing strategy of the current {@code PCollection} is a merging {@link
