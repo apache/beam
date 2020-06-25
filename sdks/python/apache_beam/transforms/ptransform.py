@@ -615,12 +615,22 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   @classmethod
   @overload
+  def register_urn(
+      cls,
+      urn,  # type: str
+      parameter_type,  # type: None
+  ):
+    # type: (...) -> Callable[[Union[type, Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]]], Callable[[bytes, PipelineContext], Any]]
+    pass
+
+  @classmethod
+  @overload
   def register_urn(cls,
                    urn,  # type: str
                    parameter_type,  # type: Type[T]
                    constructor  # type: Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]
                   ):
-    # type: (...) -> Callable[[Union[type, Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]]], Callable[[bytes, PipelineContext], Any]]
+    # type: (...) -> None
     pass
 
   @classmethod
@@ -630,17 +640,6 @@ class PTransform(WithTypeHints, HasDisplayData):
                    parameter_type,  # type: None
                    constructor  # type: Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]
                   ):
-    # type: (...) -> None
-    pass
-
-  @classmethod
-  @overload
-  def register_urn(
-      cls,
-      urn,  # type: str
-      parameter_type,  # type: None
-      constructor  # type: Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]
-  ):
     # type: (...) -> None
     pass
 
