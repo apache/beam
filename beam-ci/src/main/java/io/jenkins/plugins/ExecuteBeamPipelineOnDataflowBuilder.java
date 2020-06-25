@@ -66,27 +66,28 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         return useGradle;
     }
 
-    private void buildCommand(ProcessBuilder processBuilder) {
+    private void buildCommand(String workspace, ProcessBuilder processBuilder) {
         ArrayList<String> command;
-        if (this.useJava && this.useGradle) { // gradle
+        if (this.useJava) {
             String pipelineOptions = this.pipelineOptions.replaceAll("[\\t\\n]+"," ");
-            command = new ArrayList<>(Arrays.asList("gradle", "clean", "execute", "-DmainClass=" + this.pathToMainClass, "-Dexec.args=" + pipelineOptions));
-        } else if (this.useJava) { // maven
-            String pipelineOptions = this.pipelineOptions.replaceAll("[\\t\\n]+"," ");
-            command = new ArrayList<>(Arrays.asList("mvn", "compile", "exec:java", "-Dexec.mainClass=" + this.pathToMainClass, "-Dexec.args=" + pipelineOptions));
-        } else { // python
-            command = new ArrayList<>(Arrays.asList("python", "-m", this.pathToMainClass));
-            String[] pipelineOptions = this.pipelineOptions.split("\\s+");
-            command.addAll(Arrays.asList(pipelineOptions)); // add pipeline options as separate list elements
-        }
+            if (this.useGradle) { // gradle
+                command = new ArrayList<>(Arrays.asList("gradle", "clean", "execute", "-DmainClass=" + this.pathToMainClass, "-Dexec.args=" + pipelineOptions));
+            } else { // maven
+                command = new ArrayList<>(Arrays.asList("mvn", "compile", "exec:java", "-Dexec.mainClass=" + this.pathToMainClass, "-Dexec.args=" + pipelineOptions));
+            }
 
-        // add pipeline and build release options if included
-        if (!this.buildReleaseOptions.equals("")) {
-            String[] buildReleaseOptions = this.buildReleaseOptions.split("\\s+"); // split build release options by whitespace
-            command.addAll(Arrays.asList(buildReleaseOptions)); // add build release options as separate list elements
+            // add pipeline and build release options if included
+            if (!this.buildReleaseOptions.equals("")) {
+                String[] buildReleaseOptions = this.buildReleaseOptions.split("\\s+"); // split build release options by whitespace
+                command.addAll(Arrays.asList(buildReleaseOptions)); // add build release options as separate list elements
+            }
+            //        System.out.println(Arrays.toString(command.toArray()));
+            processBuilder.command(command);
+        } else { // python
+            // Execute Bash Script
+            // todo figure out how to locate the bash script file from the workspace directory
+            processBuilder.command("executePythonBeamPipeline.sh", workspace, this.pathToMainClass, this.pipelineOptions, this.buildReleaseOptions);
         }
-//        System.out.println(Arrays.toString(command.toArray()));
-        processBuilder.command(command);
     }
 
     @Override
@@ -106,10 +107,10 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
 
         // set correct directory to be running command
         processBuilder.directory(new File(workspace.toURI()));
-        listener.getLogger().println("workspace : " + workspace.toURI());
+        listener.getLogger().println("workspace : " + workspace.toURI().toString());
 
         // build and set command to processBuilder based on configurations
-        buildCommand(processBuilder);
+        buildCommand(workspace.toURI().toString(), processBuilder);
         Process process = processBuilder.start();
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
