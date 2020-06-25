@@ -20,6 +20,15 @@ package org.apache.beam.sdk.schemas.logicaltypes;
 import java.time.LocalTime;
 import org.apache.beam.sdk.schemas.Schema;
 
+/**
+ * A time without a time-zone.
+ *
+ * <p>It cannot represent an instant on the time-line without additional information such as an
+ * offset or time-zone.
+ *
+ * <p>Its input type is a {@link LocalTime}, and base type is a {@link Long} that represents a count
+ * of time in nanoseconds.
+ */
 public class Time implements Schema.LogicalType<LocalTime, Long> {
 
   @Override

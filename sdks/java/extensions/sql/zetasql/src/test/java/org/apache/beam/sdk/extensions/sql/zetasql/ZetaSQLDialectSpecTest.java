@@ -2464,7 +2464,7 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
 
   @Test
   public void testTimeLiteral() {
-    String sql = "SELECT TIME '15:30:00'";
+    String sql = "SELECT TIME '15:30:00', TIME '15:30:00.135246' ";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -2472,8 +2472,13 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addLogicalTypeField("f_time", SqlTypes.TIME).build())
-                .addValues(LocalTime.of(15, 30, 0, 0))
+            Row.withSchema(
+                    Schema.builder()
+                        .addLogicalTypeField("f_time1", SqlTypes.TIME)
+                        .addLogicalTypeField("f_time2", SqlTypes.TIME)
+                        .build())
+                .addValues(LocalTime.of(15, 30, 0))
+                .addValues(LocalTime.of(15, 30, 0, 135246000))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -2503,11 +2508,11 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
   public void testExtractTime() {
     String sql =
         "SELECT "
-            + "EXTRACT(HOUR FROM TIME '15:30:35') as hour, "
-            + "EXTRACT(MINUTE FROM TIME '15:30:35') as minute, "
-            + "EXTRACT(SECOND FROM TIME '15:30:35') as second, "
-            + "EXTRACT(MILLISECOND FROM TIME '15:30:35') as millisecond, "
-            + "EXTRACT(MICROSECOND FROM TIME '15:30:35') as microsecond ";
+            + "EXTRACT(HOUR FROM TIME '15:30:35.123456') as hour, "
+            + "EXTRACT(MINUTE FROM TIME '15:30:35.123456') as minute, "
+            + "EXTRACT(SECOND FROM TIME '15:30:35.123456') as second, "
+            + "EXTRACT(MILLISECOND FROM TIME '15:30:35.123456') as millisecond, "
+            + "EXTRACT(MICROSECOND FROM TIME '15:30:35.123456') as microsecond ";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -2522,7 +2527,7 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
             .addField("microsecond", FieldType.INT64)
             .build();
     PAssert.that(stream)
-        .containsInAnyOrder(Row.withSchema(schema).addValues(15L, 30L, 35L, 0L, 0L).build());
+        .containsInAnyOrder(Row.withSchema(schema).addValues(15L, 30L, 35L, 123L, 123456L).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -2538,7 +2543,7 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addLogicalTypeField("f_time", SqlTypes.TIME).build())
-                .addValues(LocalTime.of(15, 30, 0, 0))
+                .addValues(LocalTime.of(15, 30, 0))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -2554,7 +2559,7 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addLogicalTypeField("f_time", SqlTypes.TIME).build())
-                .addValues(LocalTime.of(23, 30, 0, 0))
+                .addValues(LocalTime.of(23, 30, 0))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -2671,7 +2676,7 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
         .containsInAnyOrder(
             Row.withSchema(
                     Schema.builder().addLogicalTypeField("f_time_trunc", SqlTypes.TIME).build())
-                .addValues(LocalTime.of(15, 0, 0, 0))
+                .addValues(LocalTime.of(15, 0, 0))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -2703,7 +2708,7 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addLogicalTypeField("f_time", SqlTypes.TIME).build())
-                .addValues(LocalTime.of(15, 0, 0, 0))
+                .addValues(LocalTime.of(15, 0, 0))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

@@ -36,7 +36,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
-import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Ignore;
@@ -58,14 +57,6 @@ public class BeamComplexTypeTest {
       Schema.builder()
           .addNullableField("inner_row_field", FieldType.row(innerRowSchema))
           .addNullableField("array_field", FieldType.array(FieldType.row(innerRowSchema)))
-          .build();
-
-  private static final Schema nestedRowWithArraySchema =
-      Schema.builder()
-          .addStringField("field1")
-          .addRowField("field2", innerRowWithArraySchema)
-          .addInt64Field("field3")
-          .addArrayField("field4", FieldType.array(FieldType.STRING))
           .build();
 
   private static final Schema nullableNestedRowWithArraySchema =
@@ -379,7 +370,6 @@ public class BeamComplexTypeTest {
   @Test
   public void testNullDatetimeFields() {
     Instant current = new Instant(1561671380000L); // Long value corresponds to 27/06/2019
-    DateTime date = new DateTime(3600000);
 
     Schema dateTimeFieldSchema =
         Schema.builder()
@@ -407,11 +397,13 @@ public class BeamComplexTypeTest {
                         + " EXTRACT(MONTH from dateTimeField) as mm, "
                         + " EXTRACT(MONTH from nullableDateTimeField) as month_with_null, "
                         + " timeTypeField + interval '1' hour as time_with_hour_added, "
-                        + " nullableTimeTypeField + interval '1' hour as hour_added_with_null,  "
+                        + " nullableTimeTypeField + interval '1' hour as hour_added_with_null, "
                         + " timeTypeField - INTERVAL '60' SECOND as time_with_seconds_added, "
-                        + " nullableTimeTypeField - INTERVAL '60' SECOND as seconds_added_with_null,  "
+                        + " nullableTimeTypeField - INTERVAL '60' SECOND as seconds_added_with_null, "
                         + " EXTRACT(DAY from dateTypeField) as dd, "
-                        + " EXTRACT(DAY from nullableDateTypeField) as day_with_null  "
+                        + " EXTRACT(DAY from nullableDateTypeField) as day_with_null, "
+                        + " dateTypeField + interval '1' day as date_with_day_added, "
+                        + " nullableDateTypeField + interval '1' day as day_added_with_null "
                         + " from PCOLLECTION"));
 
     Schema outputRowSchema =
@@ -426,10 +418,9 @@ public class BeamComplexTypeTest {
             .addNullableField("seconds_added_with_null", FieldType.logicalType(SqlTypes.TIME))
             .addField("dd", FieldType.INT64)
             .addNullableField("day_with_null", FieldType.INT64)
+            .addField("date_with_day_added", FieldType.logicalType(SqlTypes.DATE))
+            .addNullableField("day_added_with_null", FieldType.logicalType(SqlTypes.DATE))
             .build();
-
-    // Instant futureTime = date.toInstant().plus(3600 * 1000);
-    // Instant pastTime = date.toInstant().minus(60 * 1000);
 
     PAssert.that(outputRow)
         .containsInAnyOrder(
@@ -444,6 +435,8 @@ public class BeamComplexTypeTest {
                     LocalTime.of(0, 59, 0),
                     null,
                     27L,
+                    null,
+                    LocalDate.of(2019, 6, 28),
                     null)
                 .build());
 

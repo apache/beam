@@ -317,47 +317,38 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
   private static Expression castOutputTime(Expression value, FieldType toType) {
     Expression valueDateTime = value;
 
-    // First, convert to millis (except for DATE/TIME type)
+    // Convert TIMESTAMP to joda Instant
+    // Convert DATE to LocalDate
+    // Convert TIME to LocalTime
     if (CalciteUtils.TIMESTAMP.typesEqual(toType)
         || CalciteUtils.NULLABLE_TIMESTAMP.typesEqual(toType)) {
       if (value.getType() == java.sql.Timestamp.class) {
         valueDateTime = Expressions.call(BuiltInMethod.TIMESTAMP_TO_LONG.method, valueDateTime);
       }
+      valueDateTime = Expressions.new_(Instant.class, valueDateTime);
     } else if (CalciteUtils.TIME.typesEqual(toType)
         || CalciteUtils.NULLABLE_TIME.typesEqual(toType)) {
       if (value.getType() == java.sql.Time.class) {
         valueDateTime = Expressions.call(BuiltInMethod.TIME_TO_INT.method, valueDateTime);
-      }
-    } else if (CalciteUtils.DATE.typesEqual(toType)
-        || CalciteUtils.NULLABLE_DATE.typesEqual(toType)) {
-      if (value.getType() == java.sql.Date.class) {
-        valueDateTime = Expressions.call(BuiltInMethod.DATE_TO_INT.method, valueDateTime);
-      }
-    } else {
-      throw new UnsupportedOperationException("Unknown DateTime type " + toType);
-    }
-
-    // Second, convert to joda Instant
-    // (LocalDate for DATE type)
-    // (LocalTime for TIME type)
-    if (CalciteUtils.DATE.typesEqual(toType) || CalciteUtils.NULLABLE_DATE.typesEqual(toType)) {
-      if (value.getType() == Long.class) {
-        valueDateTime = Expressions.unbox(valueDateTime);
-      }
-      valueDateTime = Expressions.call(LocalDate.class, "ofEpochDay", valueDateTime);
-    } else if (CalciteUtils.TIME.typesEqual(toType)
-        || CalciteUtils.NULLABLE_TIME.typesEqual(toType)) {
-      if (value.getType() == Long.class) {
+      } else if (value.getType() == Long.class) {
         valueDateTime = Expressions.unbox(valueDateTime);
       }
       valueDateTime =
           Expressions.multiply(valueDateTime, Expressions.constant(NANOS_PER_MILLISECOND));
       valueDateTime = Expressions.call(LocalTime.class, "ofNanoOfDay", valueDateTime);
+    } else if (CalciteUtils.DATE.typesEqual(toType)
+        || CalciteUtils.NULLABLE_DATE.typesEqual(toType)) {
+      if (value.getType() == java.sql.Date.class) {
+        valueDateTime = Expressions.call(BuiltInMethod.DATE_TO_INT.method, valueDateTime);
+      } else if (value.getType() == Long.class) {
+        valueDateTime = Expressions.unbox(valueDateTime);
+      }
+      valueDateTime = Expressions.call(LocalDate.class, "ofEpochDay", valueDateTime);
     } else {
-      valueDateTime = Expressions.new_(Instant.class, valueDateTime);
+      throw new UnsupportedOperationException("Unknown DateTime type " + toType);
     }
 
-    // Third, make conversion conditional on non-null input.
+    // make conversion conditional on non-null input.
     if (!((Class) value.getType()).isPrimitive()) {
       valueDateTime =
           Expressions.condition(

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -49,6 +50,7 @@ public class BeamSqlRowCoderTest {
             .add("col_decimal", SqlTypeName.DECIMAL)
             .add("col_string_varchar", SqlTypeName.VARCHAR)
             .add("col_time", SqlTypeName.TIME)
+            .add("col_date", SqlTypeName.DATE)
             .add("col_timestamp", SqlTypeName.TIMESTAMP)
             .add("col_boolean", SqlTypeName.BOOLEAN)
             .build();
@@ -67,6 +69,7 @@ public class BeamSqlRowCoderTest {
                 BigDecimal.ZERO,
                 "hello",
                 LocalTime.now(),
+                LocalDate.now(),
                 DateTime.now().toInstant(),
                 true)
             .build();
