@@ -61,11 +61,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
+ * Runner Validation Test Suite for Cross-language Transforms.
  *
- *
- * <h1>Runner Validation Test Suite for Cross-language Transforms</h1>
- *
- * As per Beams's Portability Framework design, Cross-language transforms should work out of the
+ * <p>As per Beams's Portability Framework design, Cross-language transforms should work out of the
  * box. In spite of this, there always exists a possibility of rough edges existing. It could be
  * caused due to unpolished implementation of any part of the execution code path, for example:
  *
@@ -77,10 +75,10 @@ import org.junit.runners.JUnit4;
  *       [Runner/SDK]
  * </ul>
  *
- * In an effort to improve developer visibility into potential problems, this test suite validates a
- * cross-language runner against <i>5 Core Beam transforms</i> from any foreign language — {@link
- * ParDo}, {@link GroupByKey}, {@link CoGroupByKey}, {@link Combine}, {@link Flatten} and {@link
- * Partition}.
+ * <p>In an effort to improve developer visibility into potential problems, this test suite
+ * validates a cross-language runner against <i>5 Core Beam transforms</i> from any foreign language
+ * — {@link ParDo}, {@link GroupByKey}, {@link CoGroupByKey}, {@link Combine}, {@link Flatten} and
+ * {@link Partition}.
  *
  * <p>See <a
  * href="https://docs.google.com/document/d/1xQp0ElIV84b8OCVz8CD2hvbiWdR8w4BvWxPTZJZA6NA">Runner
@@ -140,7 +138,7 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   *
+   * Motivation behind <i>singleInputOutputTest</i>.
    *
    * <ul>
    *   <li><b>Target transform</b> – {@link ParDo}
@@ -164,7 +162,7 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   *
+   * Motivation behind <i>multiInputOutputWithSideInputTest</i>.
    *
    * <ul>
    *   <li><b>Target transform</b> – {@link ParDo}
@@ -193,7 +191,7 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   *
+   * Motivation behind <i>groupByKeyTest</i>.
    *
    * <ul>
    *   <li><b>Target transform</b> – {@link GroupByKey}
@@ -226,7 +224,7 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   *
+   * Motivation behind <i>coGroupByKeyTest</i>.
    *
    * <ul>
    *   <li><b>Target transform</b> – {@link CoGroupByKey}
@@ -263,7 +261,7 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   *
+   * Motivation behind <i>combineGloballyTest</i>.
    *
    * <ul>
    *   <li><b>Target transform</b> – {@link Combine}
@@ -286,7 +284,7 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   *
+   * Motivation behind <i>combinePerKeyTest</i>.
    *
    * <ul>
    *   <li><b>Target transform</b> – {@link Combine}
@@ -310,7 +308,7 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   *
+   * Motivation behind <i>flattenTest</i>.
    *
    * <ul>
    *   <li><b>Target transform</b> – {@link Flatten}
@@ -335,7 +333,7 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   *
+   * Motivation behind <i>partitionTest</i>.
    *
    * <ul>
    *   <li><b>Target transform</b> – {@link Partition}

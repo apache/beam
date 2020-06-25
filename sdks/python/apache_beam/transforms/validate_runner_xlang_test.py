@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """
 ###########################################################
 Runner Validation Test Suite for Cross-language Transforms
@@ -32,7 +31,7 @@ part of the execution code path, for example:
 
  In an effort to improve developer visibility into potential problems,
  this test suite validates a cross-language
- runner against *5 Core Beam transforms* from any foreign language —
+ runner against *5 Core Beam transforms* from any foreign language -
  :class:`~apache_beam.transforms.core.ParDo`,
  :class:`~apache_beam.transforms.core.GroupByKey`,
  :class:`~apache_beam.transforms.util.CoGroupByKey`,
@@ -79,10 +78,10 @@ class CrossLanguageTestPipelines(object):
 
   def run_prefix(self, pipeline):
     """
-    * **Target transform** – :class:`~apache_beam.transforms.core.ParDo`
-    * **Test scenario** – Mapping elements from a single input collection to
+    * **Target transform** - :class:`~apache_beam.transforms.core.ParDo`
+    * **Test scenario** - Mapping elements from a single input collection to
       a single output collection
-    * **Boundary conditions checked** –
+    * **Boundary conditions checked** -
 
       * PCollection<?> to external transforms
       * PCollection<?> from external transforms
@@ -99,10 +98,10 @@ class CrossLanguageTestPipelines(object):
 
   def run_multi_input_output_with_sideinput(self, pipeline):
     """
-    * **Target transform** – :class:`~apache_beam.transforms.core.ParDo`
-    * **Test scenario** – Mapping elements from multiple input collections (
+    * **Target transform** - :class:`~apache_beam.transforms.core.ParDo`
+    * **Test scenario** - Mapping elements from multiple input collections (
       main and side) to multiple output collections (main and side)
-    * **Boundary conditions checked** –
+    * **Boundary conditions checked** -
 
       * PCollectionTuple to external transforms
       * PCollectionTuple from external transforms
@@ -121,10 +120,10 @@ class CrossLanguageTestPipelines(object):
 
   def run_group_by_key(self, pipeline):
     """
-    * **Target transform** – :class:`~apache_beam.transforms.core.GroupByKey`
-    * **Test scenario** – Grouping a collection of KV<K,V> to a collection of
+    * **Target transform** - :class:`~apache_beam.transforms.core.GroupByKey`
+    * **Test scenario** - Grouping a collection of KV<K,V> to a collection of
       KV<K, Iterable<V>> by key
-    * **Boundary conditions checked** –
+    * **Boundary conditions checked** -
 
       * PCollection<KV<?, ?>> to external transforms
       * PCollection<KV<?, Iterable<?>>> from external transforms
@@ -141,10 +140,10 @@ class CrossLanguageTestPipelines(object):
 
   def run_cogroup_by_key(self, pipeline):
     """
-    * **Target transform** – :class:`~apache_beam.transforms.util.CoGroupByKey`
-    * **Test scenario** – Grouping multiple input collections with keys to a
+    * **Target transform** - :class:`~apache_beam.transforms.util.CoGroupByKey`
+    * **Test scenario** - Grouping multiple input collections with keys to a
       collection of KV<K, CoGbkResult> by key
-    * **Boundary conditions checked** –
+    * **Boundary conditions checked** -
 
       * KeyedPCollectionTuple<?> to external transforms
       * PCollection<KV<?, Iterable<?>>> from external transforms
@@ -164,11 +163,11 @@ class CrossLanguageTestPipelines(object):
 
   def run_combine_globally(self, pipeline):
     """
-    * **Target transform** –
+    * **Target transform** -
       :class:`~apache_beam.transforms.core.CombineGlobally`
-    * **Test scenario** – Combining elements globally with a predefined
+    * **Test scenario** - Combining elements globally with a predefined
       simple CombineFn
-    * **Boundary conditions checked** –
+    * **Boundary conditions checked** -
 
       * PCollection<?> to external transforms
       * PCollection<?> from external transforms
@@ -183,10 +182,10 @@ class CrossLanguageTestPipelines(object):
 
   def run_combine_per_key(self, pipeline):
     """
-    * **Target transform** – :class:`~apache_beam.transforms.core.CombinePerKey`
-    * **Test scenario** – Combining elements per key with a predefined simple
+    * **Target transform** - :class:`~apache_beam.transforms.core.CombinePerKey`
+    * **Test scenario** - Combining elements per key with a predefined simple
       merging function
-    * **Boundary conditions checked** –
+    * **Boundary conditions checked** -
 
       * PCollection<?> to external transforms
       * PCollection<?> from external transforms
@@ -202,9 +201,9 @@ class CrossLanguageTestPipelines(object):
 
   def run_flatten(self, pipeline):
     """
-    * **Target transform** – :class:`~apache_beam.transforms.core.Flatten`
-    * **Test scenario** – Merging multiple collections into a single collection
-    * **Boundary conditions checked** –
+    * **Target transform** - :class:`~apache_beam.transforms.core.Flatten`
+    * **Test scenario** - Merging multiple collections into a single collection
+    * **Boundary conditions checked** -
 
       * PCollectionList<?> to external transforms
       * PCollection<?> from external transforms
@@ -219,10 +218,10 @@ class CrossLanguageTestPipelines(object):
 
   def run_partition(self, pipeline):
     """
-    * **Target transform** – :class:`~apache_beam.transforms.core.Partition`
-    * **Test scenario** – Splitting a single collection into multiple
+    * **Target transform** - :class:`~apache_beam.transforms.core.Partition`
+    * **Test scenario** - Splitting a single collection into multiple
       collections with a predefined simple PartitionFn
-    * **Boundary conditions checked** –
+    * **Boundary conditions checked** -
 
       * PCollection<?> to external transforms
       * PCollectionList<?> from external transforms
