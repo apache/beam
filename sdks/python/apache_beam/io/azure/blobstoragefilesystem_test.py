@@ -51,6 +51,28 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     self.assertEqual(self.fs.scheme(), 'azfs')
     self.assertEqual(blobstoragefilesystem.BlobStorageFileSystem.scheme(), 'azfs')
 
+  def test_join(self):
+    self.assertEqual(
+        'azfs://account-name/container/path/to/file',
+        self.fs.join('azfs://account-name/container/path', 'to', 'file'))
+    self.assertEqual(
+        'azfs://account-name/container/path/to/file', self.fs.join('azfs://account-name/container/path', 'to/file'))
+    self.assertEqual(
+        'azfs://account-name/container/path/to/file',
+        self.fs.join('azfs://account-name/container/path', '/to/file'))
+    self.assertEqual(
+        'azfs://account-name/container/path/to/file',
+        self.fs.join('azfs://account-name/container/path', 'to', 'file'))
+    self.assertEqual(
+        'azfs://account-name/container/path/to/file',
+        self.fs.join('azfs://account-name/container/path', 'to/file'))
+    self.assertEqual(
+        'azfs://account-name/container/path/to/file',
+        self.fs.join('azfs://account-name/container/path', '/to/file'))
+    with self.assertRaises(ValueError):
+      self.fs.join('account-name/container/path', '/to/file')
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
+

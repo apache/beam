@@ -239,3 +239,4 @@ class BlobStorageFileSystem(FileSystem):
       ``BeamIOError``: if any of the delete operations fail
     """
     raise NotImplementedError
+  
