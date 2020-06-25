@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
+import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseAdminClient;
@@ -25,7 +27,6 @@ import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
-import com.google.cloud.spanner.spi.v1.SpannerInterceptorProvider;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
@@ -63,23 +64,17 @@ class SpannerAccessor implements AutoCloseable {
     ValueProvider<Duration> commitDeadline = spannerConfig.getCommitDeadline();
     if (commitDeadline != null && commitDeadline.get().getMillis() > 0) {
 
-      // In Spanner API version 1.21 or above, we can set the deadline / total Timeout on an API
-      // call using the following code:
-      //
-      // UnaryCallSettings.Builder commitSettings =
-      // builder.getSpannerStubSettingsBuilder().commitSettings();
-      // RetrySettings.Builder commitRetrySettings = commitSettings.getRetrySettings().toBuilder()
-      // commitSettings.setRetrySettings(
-      //     commitRetrySettings.setTotalTimeout(
-      //         Duration.ofMillis(getCommitDeadlineMillis().get()))
-      //     .build());
-      //
-      // However, at time of this commit, the Spanner API is at only at v1.6.0, where the only
-      // method to set a deadline is with GRPC Interceptors, so we have to use that...
-      SpannerInterceptorProvider interceptorProvider =
-          SpannerInterceptorProvider.createDefault()
-              .with(new CommitDeadlineSettingInterceptor(commitDeadline.get()));
-      builder.setInterceptorProvider(interceptorProvider);
+      // Set the GRPC deadline on the Commit API call.
+      UnaryCallSettings.Builder commitSettings =
+          builder.getSpannerStubSettingsBuilder().commitSettings();
+      RetrySettings.Builder commitRetrySettings = commitSettings.getRetrySettings().toBuilder();
+      commitSettings.setRetrySettings(
+          commitRetrySettings
+              .setTotalTimeout(org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setMaxRpcTimeout(org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setInitialRpcTimeout(
+                  org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .build());
     }
 
     ValueProvider<String> projectId = spannerConfig.getProjectId();
