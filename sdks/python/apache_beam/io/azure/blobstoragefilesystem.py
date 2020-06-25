@@ -41,7 +41,7 @@ class BlobStorageFileSystem(FileSystem):
   def scheme(cls):
     """URI scheme for the FileSystem
     """
-    raise NotImplementedError
+    return 'azfs'
 
 
   def join(self, basepath, *paths):
@@ -86,9 +86,8 @@ class BlobStorageFileSystem(FileSystem):
     Raises:
       IOError: if leaf directory already exists.
     """
-    raise NotImplementedError
-
+    pass
   
   def has_dirs(self):
     """Whether this FileSystem supports directories."""
-    raise NotImplementedError
+    return False
