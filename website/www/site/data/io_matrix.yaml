@@ -255,7 +255,7 @@ categories:
             name: org.apache.beam.sdk.io.hcatalog.HCatalogIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hcatalog/HCatalogIO.html
       - transform: KuduIO
-        description: A bounded source and sink for (Kudu)[https://kudu.apache.org/].
+        description: A bounded source and sink for [Kudu](https://kudu.apache.org/).
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.kudu
