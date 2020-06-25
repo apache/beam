@@ -28,13 +28,5 @@ except ImportError:
   azure = None
 
 class BlobStorageClient(object):
-  """Azure Blob Storage client wrapper"""
-  def __init__(self):
-    assert azure is not None, 'Missing azure.storage.blob requirement'
-    connect_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-    # Create the BlobServiceClient object
-    self.client = BlobServiceClient.from_connection_str(connect_str)
 
-  def get_object_metadata(self, request):
-    
 
