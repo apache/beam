@@ -47,7 +47,9 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     pipeline_options = PipelineOptions()
     self.fs = blobstoragefilesystem.BlobStorageFileSystem(pipeline_options=pipeline_options)
 
-
+  def test_scheme(self):
+    self.assertEqual(self.fs.scheme(), 'azfs')
+    self.assertEqual(blobstoragefilesystem.BlobStorageFileSystem.scheme(), 'azfs')
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

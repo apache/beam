@@ -82,7 +82,6 @@ class BlobStorageFileSystem(FileSystem):
     """
     raise NotImplementedError
 
-
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
 
@@ -93,7 +92,150 @@ class BlobStorageFileSystem(FileSystem):
       IOError: if leaf directory already exists.
     """
     pass
-  
+
   def has_dirs(self):
     """Whether this FileSystem supports directories."""
     return False
+
+  def _list(self, dir_or_prefix):
+    """List files in a location.
+    Listing is non-recursive (for filesystems that support directories).
+    
+    Args:
+      dir_or_prefix: (string) A directory or location prefix (for filesystems
+        that don't have directories).
+    
+    Returns:
+      Generator of ``FileMetadata`` objects.
+    
+    Raises:
+      ``BeamIOError``: if listing fails, but not if no files were found.
+    """
+    raise NotImplementedError
+
+  def create(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
+
+    """Returns a write channel for the given file path.
+    
+    Args:
+      path: string path of the file object to be written to the system
+      mime_type: MIME type to specify the type of content in the file object
+      compression_type: Type of compression to be used for this object
+    
+    Returns: file handle with a close function for the user to use
+    """
+    raise NotImplementedError
+
+  def open(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
+
+    """Returns a read channel for the given file path.
+    
+    Args:
+      path: string path of the file object to be read
+      mime_type: MIME type to specify the type of content in the file object
+      compression_type: Type of compression to be used for this object
+    
+    Returns: file handle with a close function for the user to use
+    """
+    raise NotImplementedError
+
+  def copy(self, source_file_names, destination_file_names):
+    """Recursively copy the file tree from the source to the destination
+    
+    Args:
+      source_file_names: list of source file objects that needs to be copied
+      destination_file_names: list of destination of the new object
+    
+    Raises:
+      ``BeamIOError``: if any of the copy operations fail
+    """
+    raise NotImplementedError
+
+  def rename(self, source_file_names, destination_file_names):
+    """Rename the files at the source list to the destination list.
+    Source and destination lists should be of the same size.
+    
+    Args:
+      source_file_names: List of file paths that need to be moved
+      destination_file_names: List of destination_file_names for the files
+    
+    Raises:
+      ``BeamIOError``: if any of the rename operations fail
+    """
+    raise NotImplementedError
+
+  def exists(self, path):
+    # type: (str) -> bool
+
+    """Check if the provided path exists on the FileSystem.
+    
+    Args:
+      path: string path that needs to be checked.
+    
+    Returns: boolean flag indicating if path exists
+    """
+    raise NotImplementedError
+
+  def size(self, path):
+    # type: (str) -> int
+
+    """Get size in bytes of a file on the FileSystem.
+    
+    Args:
+      path: string filepath of file.
+    
+    Returns: int size of file according to the FileSystem.
+    
+    Raises:
+      ``BeamIOError``: if path doesn't exist.
+    """
+    raise NotImplementedError
+
+  def last_updated(self, path):
+    """Get UNIX Epoch time in seconds on the FileSystem.
+    
+    Args:
+      path: string path of file.
+    
+    Returns: float UNIX Epoch time
+    
+    Raises:
+      ``BeamIOError``: if path doesn't exist.
+    """
+    raise NotImplementedError
+
+  def checksum(self, path):
+    """Fetch checksum metadata of a file on the
+    :class:`~apache_beam.io.filesystem.FileSystem`.
+
+    Args:
+      path: string path of a file.
+
+    Returns: string containing checksum
+
+    Raises:
+      ``BeamIOError``: if path isn't a file or doesn't exist.
+    """
+    raise NotImplementedError
+
+  def delete(self, paths):
+    """Deletes files or directories at the provided paths.
+    Directories will be deleted recursively.
+
+    Args:
+      paths: list of paths that give the file objects to be deleted
+
+    Raises:
+      ``BeamIOError``: if any of the delete operations fail
+    """
+    raise NotImplementedError
