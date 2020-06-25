@@ -3818,15 +3818,15 @@ public class ParDoTest implements Serializable {
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
               // See GlobalWindow,
               // END_OF_GLOBAL_WINDOW is TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))
-              .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1)))
+              .advanceWatermarkTo(GlobalWindow.INSTANCE.maxTimestamp())
               .addElements(KV.of("hello", 37))
               .advanceWatermarkToInfinity();
 
       PCollection<KV<Integer, Instant>> output = pipeline.apply(stream).apply(ParDo.of(fn));
       PAssert.that(output)
           .containsInAnyOrder(
-              KV.of(3, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))),
-              KV.of(42, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))));
+              KV.of(3, GlobalWindow.INSTANCE.maxTimestamp()),
+              KV.of(42, GlobalWindow.INSTANCE.maxTimestamp()));
       pipeline.run();
     }
 
