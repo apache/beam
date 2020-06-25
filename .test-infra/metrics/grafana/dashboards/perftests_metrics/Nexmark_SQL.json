@@ -16,8 +16,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 23,
-  "iteration": 1591733564168,
+  "iteration": 1593082724950,
   "links": [],
   "panels": [
     {
@@ -70,7 +69,7 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "ms"
         },
         "overrides": []
       },
@@ -99,11 +98,11 @@
                 },
                 {
                   "color": "red",
-                  "value": 10
+                  "value": 10000
                 }
               ]
             },
-            "unit": "s"
+            "unit": "ms"
           },
           "overrides": [],
           "values": false
@@ -146,7 +145,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -184,7 +183,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series",
@@ -230,7 +229,7 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "ms"
         },
         "overrides": []
       },
@@ -259,11 +258,11 @@
                 },
                 {
                   "color": "red",
-                  "value": 10
+                  "value": 10000
                 }
               ]
             },
-            "unit": "s"
+            "unit": "ms"
           },
           "overrides": [],
           "values": false
@@ -280,7 +279,7 @@
       "pluginVersion": "6.7.3",
       "repeat": null,
       "repeatDirection": "h",
-      "repeatIteration": 1591733564168,
+      "repeatIteration": 1593082724950,
       "repeatPanelId": 20,
       "scopedVars": {
         "ID": {
@@ -308,7 +307,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -346,7 +345,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series",
@@ -392,7 +391,7 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "ms"
         },
         "overrides": []
       },
@@ -421,11 +420,11 @@
                 },
                 {
                   "color": "red",
-                  "value": 10
+                  "value": 10000
                 }
               ]
             },
-            "unit": "s"
+            "unit": "ms"
           },
           "overrides": [],
           "values": false
@@ -442,7 +441,7 @@
       "pluginVersion": "6.7.3",
       "repeat": null,
       "repeatDirection": "h",
-      "repeatIteration": 1591733564168,
+      "repeatIteration": 1593082724950,
       "repeatPanelId": 20,
       "scopedVars": {
         "ID": {
@@ -470,7 +469,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -508,7 +507,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series",
@@ -554,7 +553,7 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "ms"
         },
         "overrides": []
       },
@@ -583,11 +582,11 @@
                 },
                 {
                   "color": "red",
-                  "value": 10
+                  "value": 10000
                 }
               ]
             },
-            "unit": "s"
+            "unit": "ms"
           },
           "overrides": [],
           "values": false
@@ -604,7 +603,7 @@
       "pluginVersion": "6.7.3",
       "repeat": null,
       "repeatDirection": "h",
-      "repeatIteration": 1591733564168,
+      "repeatIteration": 1593082724950,
       "repeatPanelId": 20,
       "scopedVars": {
         "ID": {
@@ -632,7 +631,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -670,7 +669,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series",
@@ -716,7 +715,7 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "ms"
         },
         "overrides": []
       },
@@ -745,11 +744,11 @@
                 },
                 {
                   "color": "red",
-                  "value": 10
+                  "value": 10000
                 }
               ]
             },
-            "unit": "s"
+            "unit": "ms"
           },
           "overrides": [],
           "values": false
@@ -766,7 +765,7 @@
       "pluginVersion": "6.7.3",
       "repeat": null,
       "repeatDirection": "h",
-      "repeatIteration": 1591733564168,
+      "repeatIteration": 1593082724950,
       "repeatPanelId": 20,
       "scopedVars": {
         "ID": {
@@ -794,7 +793,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -832,7 +831,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series",
@@ -878,7 +877,7 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "ms"
         },
         "overrides": []
       },
@@ -907,11 +906,11 @@
                 },
                 {
                   "color": "red",
-                  "value": 10
+                  "value": 10000
                 }
               ]
             },
-            "unit": "s"
+            "unit": "ms"
           },
           "overrides": [],
           "values": false
@@ -928,7 +927,7 @@
       "pluginVersion": "6.7.3",
       "repeat": null,
       "repeatDirection": "h",
-      "repeatIteration": 1591733564168,
+      "repeatIteration": 1593082724950,
       "repeatPanelId": 20,
       "scopedVars": {
         "ID": {
@@ -956,7 +955,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -994,7 +993,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series",
@@ -1040,7 +1039,7 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "ms"
         },
         "overrides": []
       },
@@ -1069,11 +1068,11 @@
                 },
                 {
                   "color": "red",
-                  "value": 10
+                  "value": 10000
                 }
               ]
             },
-            "unit": "s"
+            "unit": "ms"
           },
           "overrides": [],
           "values": false
@@ -1090,7 +1089,7 @@
       "pluginVersion": "6.7.3",
       "repeat": null,
       "repeatDirection": "h",
-      "repeatIteration": 1591733564168,
+      "repeatIteration": 1593082724950,
       "repeatPanelId": 20,
       "scopedVars": {
         "ID": {
@@ -1118,7 +1117,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -1156,7 +1155,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" = 'SparkStructuredStreamingRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series",
@@ -1286,7 +1285,7 @@
           "measurement": "",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND $timeFilter GROUP BY \"runner\"",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND $timeFilter GROUP BY \"runner\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -1326,7 +1325,7 @@
         {
           "$$hashKey": "object:589",
           "decimals": null,
-          "format": "s",
+          "format": "ms",
           "label": "",
           "logBase": 2,
           "max": null,
@@ -1402,7 +1401,7 @@
       "renderer": "flot",
       "repeat": null,
       "repeatDirection": "h",
-      "repeatIteration": 1591733564168,
+      "repeatIteration": 1593082724950,
       "repeatPanelId": 2,
       "scopedVars": {
         "ID": {
@@ -1422,7 +1421,7 @@
           "measurement": "",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND $timeFilter GROUP BY \"runner\"",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND $timeFilter GROUP BY \"runner\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -1538,7 +1537,7 @@
       "renderer": "flot",
       "repeat": null,
       "repeatDirection": "h",
-      "repeatIteration": 1591733564168,
+      "repeatIteration": 1593082724950,
       "repeatPanelId": 2,
       "scopedVars": {
         "ID": {
@@ -1558,7 +1557,7 @@
           "measurement": "",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND $timeFilter GROUP BY \"runner\"",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND $timeFilter GROUP BY \"runner\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -1674,7 +1673,7 @@
       "renderer": "flot",
       "repeat": null,
       "repeatDirection": "h",
-      "repeatIteration": 1591733564168,
+      "repeatIteration": 1593082724950,
       "repeatPanelId": 2,
       "scopedVars": {
         "ID": {
@@ -1694,7 +1693,7 @@
           "measurement": "",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND $timeFilter GROUP BY \"runner\"",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND $timeFilter GROUP BY \"runner\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -1810,7 +1809,7 @@
       "renderer": "flot",
       "repeat": null,
       "repeatDirection": "h",
-      "repeatIteration": 1591733564168,
+      "repeatIteration": 1593082724950,
       "repeatPanelId": 2,
       "scopedVars": {
         "ID": {
@@ -1830,7 +1829,7 @@
           "measurement": "",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND $timeFilter GROUP BY \"runner\"",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND $timeFilter GROUP BY \"runner\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -1946,7 +1945,7 @@
       "renderer": "flot",
       "repeat": null,
       "repeatDirection": "h",
-      "repeatIteration": 1591733564168,
+      "repeatIteration": 1593082724950,
       "repeatPanelId": 2,
       "scopedVars": {
         "ID": {
@@ -1966,7 +1965,7 @@
           "measurement": "",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND $timeFilter GROUP BY \"runner\"",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND $timeFilter GROUP BY \"runner\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -2082,7 +2081,7 @@
       "renderer": "flot",
       "repeat": null,
       "repeatDirection": "h",
-      "repeatIteration": 1591733564168,
+      "repeatIteration": 1593082724950,
       "repeatPanelId": 2,
       "scopedVars": {
         "ID": {
@@ -2102,7 +2101,7 @@
           "measurement": "",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND $timeFilter GROUP BY \"runner\"",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_${processingType}\" WHERE \"runner\" =~ /^$runner$/ AND $timeFilter GROUP BY \"runner\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -2357,5 +2356,5 @@
   "variables": {
     "list": []
   },
-  "version": 1
+  "version": 2
 }
