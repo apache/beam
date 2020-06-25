@@ -71,6 +71,15 @@ class BlobStorageFileSystemTest(unittest.TestCase):
         self.fs.join('azfs://account-name/container/path', '/to/file'))
     with self.assertRaises(ValueError):
       self.fs.join('account-name/container/path', '/to/file')
+      
+  def test_split(self):
+    self.assertEqual(('azfs://foo/bar', 'baz'), self.fs.split('azfs://foo/bar/baz'))
+    self.assertEqual(('azfs://foo', ''), self.fs.split('azfs://foo/'))
+    self.assertEqual(('azfs://foo', ''), self.fs.split('azfs://foo'))
+
+    with self.assertRaises(ValueError):
+      self.fs.split('/no/azfs/prefix')
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -80,7 +80,23 @@ class BlobStorageFileSystem(FileSystem):
     Returns:
       a pair of path components as strings.
     """
-    raise NotImplementedError
+    path = path.strip()
+    if not path.startswith(BlobStorageFileSystem.AZURE_FILE_SYSTEM_PREFIX):
+      raise ValueError('Path %r must be Azure Blob Storage path.' % path)
+
+    prefix_len = len(BlobStorageFileSystem.AZURE_FILE_SYSTEM_PREFIX)
+    last_sep = path[prefix_len:].rfind('/')
+    
+    if last_sep >= 0:
+      last_sep += prefix_len
+
+    if last_sep > 0:
+      return (path[:last_sep], path[last_sep + 1:])
+    elif last_sep < 0:
+      return (path, '')
+    else:
+      raise ValueError('Invalid path: %s' % path)
+
 
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
@@ -239,4 +255,3 @@ class BlobStorageFileSystem(FileSystem):
       ``BeamIOError``: if any of the delete operations fail
     """
     raise NotImplementedError
-  
