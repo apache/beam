@@ -43,7 +43,7 @@ REQUEST_FAILED_ERROR_MSG = "HTTP request failed for URL {}: {}"
 UNEXPECTED_STATUS_CODE_ERROR_MSG = "Unexpected status code received for URL {}: {} {}"
 
 
-class HttpIO(object):
+class HttpIO:
   """HTTP I/O."""
 
   def __init__(self, client=None):
