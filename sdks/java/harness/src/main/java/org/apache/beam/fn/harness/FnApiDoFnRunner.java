@@ -482,7 +482,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         }
         break;
       case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
-        if (doFnSignature.splitRestriction().observesWindow()
+        if ((doFnSignature.splitRestriction() != null
+                && doFnSignature.splitRestriction().observesWindow())
             || (doFnSignature.newTracker() != null && doFnSignature.newTracker().observesWindow())
             || (doFnSignature.getSize() != null && doFnSignature.getSize().observesWindow())
             || !sideInputMapping.isEmpty()) {

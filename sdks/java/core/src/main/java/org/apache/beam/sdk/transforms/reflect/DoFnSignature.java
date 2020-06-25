@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Restrictio
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerFamilyParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -247,6 +248,7 @@ public abstract class DoFnSignature {
               Predicates.or(
                       Predicates.instanceOf(WindowParameter.class),
                       Predicates.instanceOf(TimerParameter.class),
+                      Predicates.instanceOf(TimerFamilyParameter.class),
                       Predicates.instanceOf(StateParameter.class))
                   ::apply);
     }
