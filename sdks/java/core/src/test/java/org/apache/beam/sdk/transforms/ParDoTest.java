@@ -3803,7 +3803,7 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
               // This aligned time will exceed the END_OF_GLOBAL_WINDOW
-              timer.align(Duration.standardDays(2)).setRelative();
+              timer.align(Duration.standardDays(1)).setRelative();
               context.output(KV.of(3, context.timestamp()));
             }
 
@@ -3817,24 +3817,15 @@ public class ParDoTest implements Serializable {
       TestStream<KV<String, Integer>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
               // See GlobalWindow,
-              // END_OF_GLOBAL_WINDOW is TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1)),
-              // minus 775 milliseconds to make the grainularity to second as required by dataflow
-              // for TestStream.
-              .advanceWatermarkTo(
-                  BoundedWindow.TIMESTAMP_MAX_VALUE
-                      .minus(Duration.standardDays(1))
-                      .minus(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis() % 1000))
+              // END_OF_GLOBAL_WINDOW is TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))
+              .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1)))
               .addElements(KV.of("hello", 37))
               .advanceWatermarkToInfinity();
 
       PCollection<KV<Integer, Instant>> output = pipeline.apply(stream).apply(ParDo.of(fn));
       PAssert.that(output)
           .containsInAnyOrder(
-              KV.of(
-                  3,
-                  BoundedWindow.TIMESTAMP_MAX_VALUE
-                      .minus(Duration.standardDays(1))
-                      .minus(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis() % 1000)),
+              KV.of(3, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))),
               KV.of(42, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))));
       pipeline.run();
     }
