@@ -234,6 +234,23 @@ public abstract class DoFnSignature {
      */
     List<Parameter> extraParameters();
 
+    /**
+     * Whether this method observes - directly or indirectly - the window that an element resides
+     * in.
+     *
+     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because they are
+     * each scoped to a single window.
+     */
+    default boolean observesWindow() {
+      return extraParameters().stream()
+          .anyMatch(
+              Predicates.or(
+                      Predicates.instanceOf(WindowParameter.class),
+                      Predicates.instanceOf(TimerParameter.class),
+                      Predicates.instanceOf(StateParameter.class))
+                  ::apply);
+    }
+
     /** The type of window expected by this method, if any. */
     @Nullable
     TypeDescriptor<? extends BoundedWindow> windowT();
@@ -991,23 +1008,6 @@ public abstract class DoFnSignature {
           watermarkEstimatorT,
           windowT,
           hasReturnValue);
-    }
-
-    /**
-     * Whether this {@link DoFn} observes - directly or indirectly - the window that an element
-     * resides in.
-     *
-     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because they are
-     * each scoped to a single window.
-     */
-    public boolean observesWindow() {
-      return extraParameters().stream()
-          .anyMatch(
-              Predicates.or(
-                      Predicates.instanceOf(WindowParameter.class),
-                      Predicates.instanceOf(TimerParameter.class),
-                      Predicates.instanceOf(StateParameter.class))
-                  ::apply);
     }
 
     @Nullable
