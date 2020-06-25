@@ -55,7 +55,13 @@ class BlobStorageFileSystem(FileSystem):
 
     Returns: full path after combining all the passed components
     """
-    raise NotImplementedError
+    if not basepath.startswith(BlobStorageFileSystem.AZURE_FILE_SYSTEM_PREFIX):
+      raise ValueError('Basepath %r must be an Azure Blob Storage path.' % basepath)
+
+    path = basepath
+    for p in paths:
+      path = path.rstrip('/') + '/' + p.lstrip('/')
+    return path
 
 
   def split(self, path):
