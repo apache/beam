@@ -20,10 +20,13 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
 import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
-import NexmarkBigqueryProperties
 import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
+import InfluxDBCredentialsHelper
+
+import static NexmarkDatabaseProperties.nexmarkBigQueryArgs
+import static NexmarkDatabaseProperties.nexmarkInfluxDBArgs
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Flink',
@@ -32,6 +35,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'beam-perf')
+  InfluxDBCredentialsHelper.useCredentials(delegate)
 
   // Gradle goals for this job.
   steps {
@@ -42,7 +46,8 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       commonJobProperties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":runners:flink:1.10"' +
               ' -Pnexmark.args="' +
-              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              [commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
+              commonJobProperties.mapToArgString(nexmarkInfluxDBArgs),
               '--runner=FlinkRunner',
               '--streaming=false',
               '--suite=SMOKE',
@@ -58,7 +63,8 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       commonJobProperties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":runners:flink:1.10"' +
               ' -Pnexmark.args="' +
-              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              [commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
+              commonJobProperties.mapToArgString(nexmarkInfluxDBArgs),
               '--runner=FlinkRunner',
               '--streaming=true',
               '--suite=SMOKE',
@@ -74,7 +80,8 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       commonJobProperties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":runners:flink:1.10"' +
               ' -Pnexmark.args="' +
-              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              [commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
+              commonJobProperties.mapToArgString(nexmarkInfluxDBArgs),
               '--runner=FlinkRunner',
               '--queryLanguage=sql',
               '--streaming=false',
@@ -90,7 +97,8 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       commonJobProperties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":runners:flink:1.10"' +
               ' -Pnexmark.args="' +
-              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              [commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
+              commonJobProperties.mapToArgString(nexmarkInfluxDBArgs),
               '--runner=FlinkRunner',
               '--queryLanguage=sql',
               '--streaming=true',
