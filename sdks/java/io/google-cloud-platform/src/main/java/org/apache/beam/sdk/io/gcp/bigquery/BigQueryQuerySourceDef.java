@@ -130,7 +130,7 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
         createTempTableReference(
             bqOptions.getProject(),
             BigQueryResourceNaming.createJobIdPrefix(
-                bqOptions.getJobName(), stepUuid, JobType.EXPORT),
+                bqOptions.getJobName(), stepUuid, JobType.QUERY),
             queryTempDatasetOpt);
 
     BigQueryServices.DatasetService tableService = bqServices.getDatasetService(bqOptions);

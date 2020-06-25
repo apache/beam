@@ -112,7 +112,8 @@ class BigQueryQueryHelper {
 
     // Step 2: Create a temporary dataset in the query location only if the user has not specified a
     // temp dataset.
-    String queryJobId = BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY);
+    String queryJobId =
+        BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY);
     Optional<String> queryTempDatasetOpt = Optional.ofNullable(queryTempDatasetId);
     TableReference queryResultTable =
         createTempTableReference(options.getProject(), queryJobId, queryTempDatasetOpt);

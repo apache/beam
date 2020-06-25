@@ -119,8 +119,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
 
     TableSchema schema = table.getSchema();
     JobService jobService = bqServices.getJobService(bqOptions);
-    String extractJobId = BigQueryResourceNaming.createJobIdPrefix(
-        options.getJobName(), stepUuid, JobType.EXPORT);
+    String extractJobId =
+        BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.EXPORT);
     final String extractDestinationDir =
         resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
     String bqLocation =

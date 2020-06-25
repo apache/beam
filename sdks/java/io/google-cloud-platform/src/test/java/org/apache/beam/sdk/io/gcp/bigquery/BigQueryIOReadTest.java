@@ -757,7 +757,7 @@ public class BigQueryIOReadTest implements Serializable {
     TableReference tempTableReference =
         createTempTableReference(
             bqOptions.getProject(),
-            BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.EXPORT),
+            BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY),
             Optional.empty());
 
     fakeJobService.expectDryRunQuery(

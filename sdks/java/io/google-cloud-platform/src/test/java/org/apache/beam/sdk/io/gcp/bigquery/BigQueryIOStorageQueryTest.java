@@ -384,8 +384,7 @@ public class BigQueryIOStorageQueryTest {
     TableReference tempTableReference =
         createTempTableReference(
             options.getProject(),
-            BigQueryResourceNaming.createJobIdPrefix(
-                options.getJobName(), stepUuid, JobType.EXPORT),
+            BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY),
             Optional.empty());
 
     CreateReadSessionRequest expectedRequest =
@@ -476,8 +475,7 @@ public class BigQueryIOStorageQueryTest {
     TableReference tempTableReference =
         createTempTableReference(
             options.getProject(),
-            BigQueryResourceNaming.createJobIdPrefix(
-                options.getJobName(), stepUuid, JobType.EXPORT),
+            BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY),
             Optional.empty());
 
     CreateReadSessionRequest expectedRequest =
@@ -625,8 +623,7 @@ public class BigQueryIOStorageQueryTest {
     TableReference tempTableReference =
         createTempTableReference(
             options.getProject(),
-            BigQueryResourceNaming.createJobIdPrefix(
-                options.getJobName(), stepUuid, JobType.EXPORT),
+            BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY),
             Optional.empty());
 
     CreateReadSessionRequest expectedRequest =

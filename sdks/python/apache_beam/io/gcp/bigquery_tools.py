@@ -126,7 +126,7 @@ def get_hashable_destination(destination):
 
 
 def parse_table_schema_from_json(schema_string):
-   """Parse the Table Schema provided as string.
+  """Parse the Table Schema provided as string.
 
   Args:
     schema_string: String serialized table schema, should be a valid JSON.
@@ -1490,13 +1490,12 @@ class BigQueryJobTypes:
   QUERY = 'QUERY'
 
 
-_BQ_JOB_NAME_TEMPLATE = "beam_bq_job_{job_type}_{job_id}_{step_id}_{random}"
-
 def generate_bq_job_name(job_name, step_id, job_type, random=None):
-  random = random or ""
+  from apache_beam.io.gcp.bigquery import BQ_JOB_NAME_TEMPLATE
+  random = ("_%s" % random) if random else ""
   return str.format(
-      _BQ_JOB_NAME_TEMPLATE,
+      BQ_JOB_NAME_TEMPLATE,
       job_type=job_type,
-      job_name=job_name.replace("-", ""),
+      job_id=job_name.replace("-", ""),
       step_id=step_id,
       random=random)
