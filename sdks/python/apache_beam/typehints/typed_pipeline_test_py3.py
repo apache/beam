@@ -40,18 +40,6 @@ class MainInputTest(unittest.TestCase):
     with self.assertRaisesRegex(typehints.TypeCheckError,
                                 r'requires.*int.*got.*str'):
       _ = ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
-  def test_pardo_dofn(self):
-    class MyDoFn(beam.DoFn):
-      def process(self, element: int) -> typehints.Generator[str]:
-        yield str(element)
-
-    th = beam.ParDo(MyDoFn()).get_type_hints()
-    self.assertEqual(th.input_types, ((int, ), {}))
-    self.assertEqual(th.output_types, ((str, ), {}))
-
-    with self.assertRaisesRegex(typehints.TypeCheckError,
-                                r'requires.*int.*got.*str'):
-      _ = [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
   def test_typed_dofn_method_with_class_decorators(self):
     # Class decorators take precedence over PEP 484 hints.
@@ -274,10 +262,7 @@ class MainInputTest(unittest.TestCase):
       def expand(self, pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
         return pcoll | beam.Map(lambda x: str(x))
 
-    try:
-      _ = ['1', '2', '3'] | StrToInt() | IntToStr()
-    except Exception:
-      self.fail('An unexpected error was raised during a pipeline with correct typehints.')
+    _ = ['1', '2', '3'] | StrToInt() | IntToStr()
 
   def test_typed_ptransform_with_bad_typehints(self):
     class StrToInt(beam.PTransform):
@@ -288,11 +273,8 @@ class MainInputTest(unittest.TestCase):
       def expand(self, pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[str]:
         return pcoll | beam.Map(lambda x: str(x))
 
-    with self.assertRaises(typehints.TypeCheckError) as error:
-      # raises error because of mismatched typehints between StrToInt and IntToStr
+    with self.assertRaisesRegex(typehints.TypeCheckError, "Input type hint violation at IntToStr: expected <class 'str'>, got <class 'int'>"):
       _ = ['1', '2', '3'] | StrToInt() | IntToStr()
-
-    self.assertTrue("Input type hint violation at IntToStr: expected <class 'str'>, got <class 'int'>" in str(error.exception))
 
   def test_typed_ptransform_with_bad_input(self):
     class StrToInt(beam.PTransform):
@@ -303,11 +285,9 @@ class MainInputTest(unittest.TestCase):
       def expand(self, pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
         return pcoll | beam.Map(lambda x: str(x))
 
-    with self.assertRaises(typehints.TypeCheckError) as error:
+    with self.assertRaisesRegex(typehints.TypeCheckError, "Input type hint violation at StrToInt: expected <class 'str'>, got <class 'int'>"):
       # Feed integers to a PTransform that expects strings
       _ = [1, 2, 3] | StrToInt() | IntToStr()
-
-    self.assertTrue("Input type hint violation at StrToInt: expected <class 'str'>, got <class 'int'>" in str(error.exception))
 
   def test_typed_ptransform_with_partial_typehints(self):
     class StrToInt(beam.PTransform):
@@ -318,11 +298,8 @@ class MainInputTest(unittest.TestCase):
       def expand(self, pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
         return pcoll | beam.Map(lambda x: str(x))
 
-    try:
-      # Feed integers to a PTransform that should expect strings but has no typehints so it expects any
-      _ = [1, 2, 3] | StrToInt() | IntToStr()
-    except Exception:
-      self.fail('An unexpected error was raised during a pipeline with correct typehints.')
+    # Feed integers to a PTransform that should expect strings but has no typehints so it expects any
+    _ = [1, 2, 3] | StrToInt() | IntToStr()
 
 
 class AnnotationsTest(unittest.TestCase):

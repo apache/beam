@@ -32,7 +32,7 @@ from apache_beam.typehints import KV
 from apache_beam import Map
 from apache_beam.pvalue import PCollection
 from apache_beam import PTransform
-from apache_beam.typehints.decorators import TypeCheckError
+from apache_beam.typehints import TypeCheckError
 
 
 class TestParDoAnnotations(unittest.TestCase):
@@ -71,22 +71,20 @@ class TestPTransformAnnotations(unittest.TestCase):
       def expand(self, pcoll: int) -> str:
         return pcoll | Map(lambda num: str(num))
 
-    with self.assertRaises(TypeCheckError) as error:
-      _th = MyPTransform().get_type_hints()
+    error_str = 'An input typehint to a PTransform must be a single (or nested) type wrapped by a PCollection or PBegin. '
 
-    self.assertEqual(str(error.exception), 'An input typehint to a PTransform must be a single (or nested) type '
-                                           'wrapped by a PCollection.')
+    with self.assertRaisesRegex(TypeCheckError, error_str):
+      _th = MyPTransform().get_type_hints()
 
   def test_annotations_without_internal_type(self):
     class MyPTransform(PTransform):
       def expand(self, pcoll: PCollection) -> PCollection:
         return pcoll | Map(lambda num: str(num))
 
-    with self.assertRaises(TypeCheckError) as error:
-      _th = MyPTransform().get_type_hints()
+    error_str = 'An input typehint to a PTransform must be a single (or nested) type wrapped by a PCollection or PBegin. '
 
-    self.assertEqual(str(error.exception), 'An input typehint to a PTransform must be a single (or nested) type '
-                                           'wrapped by a PCollection.')
+    with self.assertRaisesRegex(TypeCheckError, error_str):
+      _th = MyPTransform().get_type_hints()
 
   def test_annotations_without_input_typehint(self):
     class MyPTransform(PTransform):
