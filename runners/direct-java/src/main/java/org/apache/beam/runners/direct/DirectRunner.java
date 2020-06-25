@@ -267,6 +267,10 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
             .add(
                 PTransformOverride.of(
                     PTransformMatchers.stateOrTimerParDo(), new ParDoMultiOverrideFactory()))
+            // time sorted ParDo wrapped in StatefulDoFnRunner
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.timeSortedParDo(), new ParDoMultiOverrideFactory()))
             .add(
                 PTransformOverride.of(
                     PTransformMatchers.urnEqualTo(

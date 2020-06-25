@@ -737,9 +737,7 @@ public class ParDoTranslation {
 
   public static boolean usesStateOrTimers(AppliedPTransform<?, ?, ?> transform) throws IOException {
     ParDoPayload payload = getParDoPayload(transform);
-    return payload.getStateSpecsCount() > 0
-        || payload.getTimerFamilySpecsCount() > 0
-        || payload.getRequiresTimeSortedInput();
+    return payload.getStateSpecsCount() > 0 || payload.getTimerFamilySpecsCount() > 0;
   }
 
   public static boolean isSplittable(AppliedPTransform<?, ?, ?> transform) throws IOException {

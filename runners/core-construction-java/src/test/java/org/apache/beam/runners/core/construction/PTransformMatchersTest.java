@@ -210,6 +210,12 @@ public class PTransformMatchersTest implements Serializable {
           context.output(42);
         }
       };
+  private DoFn<KV<String, Integer>, Integer> doFnTimeSorted =
+      new DoFn<KV<String, Integer>, Integer>() {
+        @RequiresTimeSortedInput
+        @ProcessElement
+        public void process(ProcessContext context) {}
+      };
 
   /** Demonstrates that a {@link ParDo.SingleOutput} does not match any ParDo matcher. */
   @Test
@@ -310,6 +316,14 @@ public class PTransformMatchersTest implements Serializable {
         getAppliedTransform(
             ParDo.of(splittableDoFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
     assertThat(PTransformMatchers.stateOrTimerParDo().matches(splittableApplication), is(false));
+  }
+
+  @Test
+  public void parDoTimeSorted() {
+    AppliedPTransform<?, ?, ?> timeSortedApplication =
+        getAppliedTransform(ParDo.of(doFnTimeSorted));
+    assertThat(PTransformMatchers.stateOrTimerParDo().matches(timeSortedApplication), is(false));
+    assertThat(PTransformMatchers.timeSortedParDo().matches(timeSortedApplication), is(true));
   }
 
   @Test

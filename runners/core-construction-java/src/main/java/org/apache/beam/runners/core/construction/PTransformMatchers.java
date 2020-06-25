@@ -228,6 +228,35 @@ public class PTransformMatchers {
   }
 
   /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo.SingleOutput} or {@link
+   * ParDo.MultiOutput} whose {@link DoFn.ProcessElement} is annotated by {@link
+   * DoFn.RequiresTimeSortedInput}
+   */
+  public static PTransformMatcher timeSortedParDo() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        PTransform<?, ?> transform = application.getTransform();
+        final DoFn<?, ?> fn;
+        if (transform instanceof ParDo.SingleOutput) {
+          fn = ((ParDo.SingleOutput<?, ?>) transform).getFn();
+        } else if (transform instanceof ParDo.MultiOutput) {
+          fn = ((ParDo.MultiOutput<?, ?>) transform).getFn();
+        } else {
+          return false;
+        }
+        DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
+        return signature.processElement().requiresTimeSortedInput();
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("TimeSortedParDoMatcher").toString();
+      }
+    };
+  }
+
+  /**
    * A {@link PTransformMatcher} that matches a {@link ParDo.MultiOutput} containing a {@link DoFn}
    * that is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
    */
