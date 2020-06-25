@@ -421,20 +421,21 @@ class BatchLoads<DestinationT, ElementT>
   private PCollectionView<String> createJobIdPrefixView(Pipeline p, final JobType type) {
     // Create a singleton job ID token at execution time. This will be used as the base for all
     // load jobs issued from this instance of the transform.
-    return p.apply("JobIdCreationRoot", Create.of((Void) null))
+    return p.apply("JobIdCreationRoot_" + type.toString(), Create.of((Void) null))
         .apply(
-            "CreateJobId",
+            "CreateJobId_" + type.toString(),
             ParDo.of(
                 new DoFn<Void, String>() {
                   @ProcessElement
                   public void process(ProcessContext c) {
-                    c.output(BigQueryResourceNaming.createJobIdPrefix(
-                        c.getPipelineOptions().getJobName(),
-                        BigQueryHelpers.randomUUIDString(),
-                        type));
+                    c.output(
+                        BigQueryResourceNaming.createJobIdPrefix(
+                            c.getPipelineOptions().getJobName(),
+                            BigQueryHelpers.randomUUIDString(),
+                            type));
                   }
                 }))
-        .apply(View.asSingleton());
+        .apply("JobIdSideInput_" + type.toString(), View.asSingleton());
   }
 
   // Generate the temporary-file prefix.

@@ -30,7 +30,6 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 
 from __future__ import absolute_import
 
-import datetime
 import hashlib
 import logging
 import random
@@ -71,7 +70,7 @@ _FILE_TRIGGERING_RECORD_COUNT = 500000
 
 def _generate_job_name(job_name, job_type, step_name):
   return bigquery_tools.generate_bq_job_name(
-      job_name, 'TODO', job_type, random.randint(0, 1000))
+      job_name, step_name, job_type, random.randint(0, 1000))
 
 
 def file_prefix_generator(
@@ -879,21 +878,27 @@ class BigQueryBatchFileLoads(beam.PTransform):
     p = pcoll.pipeline
 
     temp_location = p.options.view_as(GoogleCloudOptions).temp_location
-    job_name = (p.options.view_as(GoogleCloudOptions).job_name
-                or 'AUTOMATIC_JOB_NAME')
+    job_name = (
+        p.options.view_as(GoogleCloudOptions).job_name or 'AUTOMATIC_JOB_NAME')
 
     empty_pc = p | "ImpulseEmptyPC" >> beam.Create([])
     singleton_pc = p | "ImpulseSingleElementPC" >> beam.Create([None])
 
     load_job_name_pcv = pvalue.AsSingleton(
         singleton_pc
-        | beam.Map(lambda _: _generate_job_name(
-            job_name, bigquery_tools.BigQueryJobTypes.LOAD, 'LOAD_NAME_STEP')))
+        | "LoadJobNamePrefix" >> beam.Map(
+            lambda _: _generate_job_name(
+                job_name,
+                bigquery_tools.BigQueryJobTypes.LOAD,
+                'LOAD_NAME_STEP')))
 
     copy_job_name_pcv = pvalue.AsSingleton(
         singleton_pc
-        | beam.Map(lambda _: _generate_job_name(
-            job_name, bigquery_tools.BigQueryJobTypes.COPY, 'COPY_NAME_STEP')))
+        | "CopyJobNamePrefix" >> beam.Map(
+            lambda _: _generate_job_name(
+                job_name,
+                bigquery_tools.BigQueryJobTypes.COPY,
+                'COPY_NAME_STEP')))
 
     file_prefix_pcv = pvalue.AsSingleton(
         singleton_pc

@@ -1631,7 +1631,8 @@ public class BigQueryIOWriteTest implements Serializable {
       String tableName = String.format("project-id:dataset-id.table%05d", i);
       TableDestination tableDestination = new TableDestination(tableName, tableName);
       for (int j = 0; j < numPartitions; ++j) {
-        String tempTableId = BigQueryResourceNaming.createJobIdWithDestination(jobIdToken, tableDestination, j, 0);
+        String tempTableId =
+            BigQueryResourceNaming.createJobIdWithDestination(jobIdToken, tableDestination, j, 0);
         List<String> filesPerPartition = Lists.newArrayList();
         for (int k = 0; k < numFilesPerPartition; ++k) {
           String filename =
