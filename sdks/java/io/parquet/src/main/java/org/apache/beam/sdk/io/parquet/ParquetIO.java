@@ -26,6 +26,7 @@ import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -347,8 +348,14 @@ public class ParquetIO {
     }
 
     /** Specifies configuration to be passed into the sink's writer. */
-    public Sink withConfiguration(Configuration configuration) {
-      return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
+    public Sink withConfiguration(Map<String, String> configuration) {
+      Configuration hadoopConfiguration = new Configuration();
+      for (Map.Entry<String, String> entry : configuration.entrySet()) {
+        hadoopConfiguration.set(entry.getKey(), entry.getValue());
+      }
+      return toBuilder()
+          .setConfiguration(new SerializableConfiguration(hadoopConfiguration))
+          .build();
     }
 
     @Nullable private transient ParquetWriter<GenericRecord> writer;
