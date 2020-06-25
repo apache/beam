@@ -31,7 +31,7 @@ on:
 
 
 env:
-  GCP_PATH: "gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
+  GCP_PATH: "gs://beam-wheels-staging/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
 
 
 jobs:
