@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
+package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.transforms.DropFields;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -38,29 +37,28 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * <p>Currently only supports writing a flat schema into a JSON payload. This means that all Row
  * field values are written to the {@link PubsubMessage} JSON payload, except for {@code
  * event_timestamp}, which is either ignored or written to the message attributes, depending on
- * whether {@link PubsubJsonTableProvider.PubsubIOTableConfiguration#getTimestampAttribute()} is
- * set.
+ * whether config.getValue("timestampAttributeKey") is set.
  */
 @Experimental
 public class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<PubsubMessage>> {
-  private final PubsubJsonTableProvider.PubsubIOTableConfiguration config;
+  private final Row config;
 
-  private RowToPubsubMessage(PubsubJsonTableProvider.PubsubIOTableConfiguration config) {
+  private RowToPubsubMessage(Row config) {
     checkArgument(
-        config.getUseFlatSchema(), "RowToPubsubMessage is only supported for flattened schemas.");
+        config.getBoolean("useFlatSchema"),
+        "RowToPubsubMessage is only supported for flattened schemas.");
 
     this.config = config;
   }
 
-  public static RowToPubsubMessage fromTableConfig(
-      PubsubJsonTableProvider.PubsubIOTableConfiguration config) {
+  public static RowToPubsubMessage fromTableConfig(Row config) {
     return new RowToPubsubMessage(config);
   }
 
   @Override
   public PCollection<PubsubMessage> expand(PCollection<Row> input) {
     PCollection<Row> withTimestamp =
-        (config.useTimestampAttribute())
+        (useTimestampAttribute(config))
             ? input.apply(
                 WithTimestamps.of((row) -> row.getDateTime("event_timestamp").toInstant()))
             : input;
@@ -74,5 +72,9 @@ public class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection
                     (String json) ->
                         new PubsubMessage(
                             json.getBytes(StandardCharsets.ISO_8859_1), ImmutableMap.of())));
+  }
+
+  private boolean useTimestampAttribute(Row config) {
+    return config.getValue("timestampAttributeKey") != null;
   }
 }

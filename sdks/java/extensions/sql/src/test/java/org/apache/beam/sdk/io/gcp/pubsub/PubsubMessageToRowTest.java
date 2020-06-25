@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
+package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
-import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.DLQ_TAG;
-import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.MAIN_TAG;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Iterables.size;
 import static org.junit.Assert.assertEquals;
 
@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.StreamSupport;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
@@ -48,7 +47,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-/** Unit tests for {@link PubsubMessageToRow}. */
+/** Unit tests for {@link org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow}. */
 public class PubsubMessageToRowTest implements Serializable {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
