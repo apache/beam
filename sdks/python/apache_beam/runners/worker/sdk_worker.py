@@ -870,7 +870,11 @@ class GrpcStateHandler(StateHandler):
 
 
 class CachingStateHandler(object):
-  """ A State handler which retrieves and caches state. """
+  """ A State handler which retrieves and caches state.
+   If caching is activated, caches across bundles using a supplied cache token.
+   If activated but no cache token is supplied, caching is done at the bundle
+   level.
+  """
 
   def __init__(self,
                global_state_cache,  # type: StateCache
