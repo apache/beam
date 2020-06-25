@@ -6410,7 +6410,7 @@ HCatalogIO
 &lt;td>
 KuduIO
 &lt;/td>
-&lt;td>A bounded source and sink for (Kudu)[https://kudu.apache.org/].&lt;/td>
+&lt;td>A bounded source and sink for &lt;a href="https://kudu.apache.org/">Kudu&lt;/a>.&lt;/td>
 &lt;td style="word-break: break-all;">
 &lt;div>&lt;a target="_blank" href="https://github.com/apache/beam/blob/master/sdks/java/io/kudu/src/main/java/org/apache/beam/sdk/io/kudu/KuduIO.java">org.apache.beam.sdk.io.kudu&lt;/a>&lt;/div>
 &lt;/td>
