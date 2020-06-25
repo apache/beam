@@ -21,11 +21,11 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.protobuf.ByteString;
 import com.google.zetasql.ArrayType;
+import com.google.zetasql.CivilTimeEncoder;
 import com.google.zetasql.StructType;
 import com.google.zetasql.StructType.StructField;
 import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
-import com.google.zetasql.CivilTimeEncoder;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import java.time.LocalDate;
 import java.time.LocalTime;
