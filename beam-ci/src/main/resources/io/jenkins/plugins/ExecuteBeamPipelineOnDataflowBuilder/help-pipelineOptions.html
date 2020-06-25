@@ -17,12 +17,12 @@
     </pre>
     <b>Python Example</b>:
     <pre>
-        --input gs://dataflow-samples/shakespeare/kinglear.txt
-        --output gs://&lt;your-gcs-bucket&gt;/counts
         --runner DataflowRunner
         --project your-gcp-project
         --region your-gcp-region
         --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/
+        --input gs://dataflow-samples/shakespeare/*
+        --output gs://&lt;your-gcs-bucket&gt;/counts
     </pre>
 </div>
 </div>

@@ -33,7 +33,6 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
     private final String buildReleaseOptions;
     private boolean useJava; // if false, use Python
     private boolean useGradle; // if false, use Maven
-    // todo more configurations may be needed for credentials and getting into the right directory with the pom file
 
     @DataBoundConstructor
     public ExecuteBeamPipelineOnDataflowBuilder(String pathToCreds, String pathToMainClass, String pipelineOptions, String buildReleaseOptions, boolean useJava, boolean useGradle) {
@@ -70,16 +69,22 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
     private void buildCommand(ProcessBuilder processBuilder) {
         ArrayList<String> command;
         if (this.useJava && this.useGradle) { // gradle
-            command = new ArrayList<>(Arrays.asList("gradle", "clean", "execute", "-DmainClass=" + this.pathToMainClass, "-Dexec.args=" + this.pipelineOptions));
+            String pipelineOptions = this.pipelineOptions.replaceAll("[\\t\\n]+"," ");
+            command = new ArrayList<>(Arrays.asList("gradle", "clean", "execute", "-DmainClass=" + this.pathToMainClass, "-Dexec.args=" + pipelineOptions));
         } else if (this.useJava) { // maven
-            command = new ArrayList<>(Arrays.asList("mvn", "compile", "exec:java", "-Dexec.mainClass=" + this.pathToMainClass, "-Dexec.args=" + this.pipelineOptions));
-        } else { // todo python
+            String pipelineOptions = this.pipelineOptions.replaceAll("[\\t\\n]+"," ");
+            command = new ArrayList<>(Arrays.asList("mvn", "compile", "exec:java", "-Dexec.mainClass=" + this.pathToMainClass, "-Dexec.args=" + pipelineOptions));
+        } else { // python
             command = new ArrayList<>(Arrays.asList("python", "-m", this.pathToMainClass));
+            String[] pipelineOptions = this.pipelineOptions.split("\\s+");
+            command.addAll(Arrays.asList(pipelineOptions)); // add pipeline options as separate list elements
         }
-        // Add pipeline and build release options if included
-        if (!this.buildReleaseOptions.equals(""))
-            command.add(this.buildReleaseOptions);
 
+        // add pipeline and build release options if included
+        if (!this.buildReleaseOptions.equals("")) {
+            String[] buildReleaseOptions = this.buildReleaseOptions.split("\\s+"); // split build release options by whitespace
+            command.addAll(Arrays.asList(buildReleaseOptions)); // add build release options as separate list elements
+        }
 //        System.out.println(Arrays.toString(command.toArray()));
         processBuilder.command(command);
     }
@@ -88,7 +93,7 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
     public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener) throws InterruptedException, IOException {
         ProcessBuilder processBuilder = new ProcessBuilder();
 
-        // right now just testing to see that all configurations are received correctly
+        // see that all configurations are received correctly
         listener.getLogger().println("path to google app creds : " + this.pathToCreds);
         listener.getLogger().println("path to main class : " + this.pathToMainClass);
         listener.getLogger().println("pipeline options : " + this.pipelineOptions);
@@ -98,10 +103,10 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
 
         Map<String, String> env = processBuilder.environment();
         env.put("GOOGLE_APPLICATION_CREDENTIALS", this.pathToCreds);
-        //processBuilder.command("bash", "-c", "echo $GOOGLE_APPLICATION_CREDENTIALS");
 
         // set correct directory to be running command
         processBuilder.directory(new File(workspace.toURI()));
+        listener.getLogger().println("workspace : " + workspace.toURI());
 
         // build and set command to processBuilder based on configurations
         buildCommand(processBuilder);
