@@ -63,6 +63,8 @@
   is experimental. It reads data from BigQuery by exporting data to Avro files, and reading those files. It also supports
   reading data by exporting to JSON files. This has small differences in behavior for Time and Date-related fields. See
   Pydoc for more information.
+* New overloads for BigtableIO.Read.withKeyRange() and BigtableIO.Read.withRowFilter()
+  methods that take ValueProvider as a parameter (Java) ([BEAM-10283](https://issues.apache.org/jira/browse/BEAM-10283)).
 
 ## New Features / Improvements
 
