@@ -222,7 +222,7 @@ class _InvalidUnpickledPCollection(object):
   pass
 
 
-class PBegin(PValue):
+class PBegin(PValue, Generic[T]):
   """A pipeline begin marker used as input to create/read transforms.
 
   The class is used internally to represent inputs to Create and Read
@@ -232,7 +232,7 @@ class PBegin(PValue):
   pass
 
 
-class PDone(PValue):
+class PDone(PValue, Generic[T]):
   """PDone is the output of a transform that has a trivial result such as Write.
   """
   pass

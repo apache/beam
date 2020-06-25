@@ -355,8 +355,7 @@ class PTransform(WithTypeHints, HasDisplayData):
   def default_type_hints(self):
     fn_type_hints = IOTypeHints.from_callable(self.expand)
     if fn_type_hints is not None:
-      fn_type_hints = fn_type_hints.strip_pcoll_input()
-      fn_type_hints = fn_type_hints.strip_pcoll_output()
+      fn_type_hints = fn_type_hints.strip_pcoll_input().strip_pcoll_output()
 
     # Prefer class decorator type hints for backwards compatibility.
     return get_type_hints(self.__class__).with_defaults(fn_type_hints)
