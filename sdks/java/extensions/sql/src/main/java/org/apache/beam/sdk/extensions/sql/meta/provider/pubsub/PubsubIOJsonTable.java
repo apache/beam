@@ -24,9 +24,9 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -115,15 +115,15 @@ import org.apache.beam.sdk.values.Row;
 @Experimental
 class PubsubIOJsonTable extends BaseBeamTable implements Serializable {
 
-  protected final PubsubSchemaIO pubsubSchemaIO;
+  protected final SchemaIO pubsubSchemaIO;
   protected final Schema schema;
 
-  private PubsubIOJsonTable(PubsubSchemaIO pubsubSchemaIO, Schema schema) {
+  private PubsubIOJsonTable(SchemaIO pubsubSchemaIO, Schema schema) {
     this.pubsubSchemaIO = pubsubSchemaIO;
     this.schema = schema;
   }
 
-  static PubsubIOJsonTable withConfiguration(PubsubSchemaIO pubsubSchemaIO, Schema schema) {
+  static PubsubIOJsonTable withConfiguration(SchemaIO pubsubSchemaIO, Schema schema) {
     return new PubsubIOJsonTable(pubsubSchemaIO, schema);
   }
 

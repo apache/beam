@@ -49,7 +49,7 @@ import org.joda.time.Instant;
 @Internal
 @Experimental
 @AutoValue
-public abstract class PubsubMessageToRow
+abstract class PubsubMessageToRow
     extends PTransform<PCollection<PubsubMessage>, PCollectionTuple> implements Serializable {
   static final String TIMESTAMP_FIELD = "event_timestamp";
   static final String ATTRIBUTES_FIELD = "attributes";

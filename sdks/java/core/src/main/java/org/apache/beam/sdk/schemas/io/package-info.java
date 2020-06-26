@@ -16,5 +16,9 @@
  * limitations under the License.
  */
 
-/** Provides a new schema aware IO abstraction interface. */
+/** Provides abstractions for schema-aware IOs. */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.schemas.io;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

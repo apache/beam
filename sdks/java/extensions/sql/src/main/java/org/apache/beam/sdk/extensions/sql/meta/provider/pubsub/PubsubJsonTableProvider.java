@@ -17,10 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
-import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TIMESTAMP;
-import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
-
 import com.alibaba.fastjson.JSONObject;
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -32,8 +28,8 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaCapableIOProvider;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIO;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -44,9 +40,6 @@ import org.apache.beam.sdk.values.Row;
 @Experimental
 @AutoService(TableProvider.class)
 public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
-  static final String TIMESTAMP_FIELD = "event_timestamp";
-  static final String ATTRIBUTES_FIELD = "attributes";
-  static final String PAYLOAD_FIELD = "payload";
 
   @Override
   public String getTableType() {
@@ -63,9 +56,6 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
     String location = tableDefinition.getLocation();
     Schema dataSchema = tableDefinition.getSchema();
 
-    validateDlq(deadLetterQueue);
-    validateEventTimestamp(schema);
-
     PubsubSchemaCapableIOProvider ioProvider = new PubsubSchemaCapableIOProvider();
     Schema configurationSchema = ioProvider.configurationSchema();
 
@@ -73,38 +63,14 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
         Row.withSchema(configurationSchema)
             .withFieldValue("timestampAttributeKey", timestampAttributeKey)
             .withFieldValue("deadLetterQueue", deadLetterQueue)
-            .withFieldValue("useFlatSchema", !definesAttributeAndPayload(schema))
             .build();
 
-    PubsubSchemaIO pubsubSchemaIO = ioProvider.from(location, configurationRow, dataSchema);
-    return PubsubIOJsonTable.withConfiguration(pubsubSchemaIO, schema);
-  }
-
-  private void validateEventTimestamp(Schema schema) {
-    if (!fieldPresent(schema, TIMESTAMP_FIELD, TIMESTAMP)) {
-      throw new InvalidTableException(
-          "Unsupported schema specified for Pubsub source in CREATE TABLE."
-              + "CREATE TABLE for Pubsub topic must include at least 'event_timestamp' field of "
-              + "type 'TIMESTAMP'");
+    try {
+      SchemaIO pubsubSchemaIO = ioProvider.from(location, configurationRow, dataSchema);
+      return PubsubIOJsonTable.withConfiguration(pubsubSchemaIO, schema);
     }
-  }
-
-  private boolean definesAttributeAndPayload(Schema schema) {
-    return fieldPresent(
-            schema, ATTRIBUTES_FIELD, Schema.FieldType.map(VARCHAR.withNullable(false), VARCHAR))
-        && (schema.hasField(PAYLOAD_FIELD)
-            && ROW.equals(schema.getField(PAYLOAD_FIELD).getType().getTypeName()));
-  }
-
-  private boolean fieldPresent(Schema schema, String field, Schema.FieldType expectedType) {
-    return schema.hasField(field)
-        && expectedType.equivalent(
-            schema.getField(field).getType(), Schema.EquivalenceNullablePolicy.IGNORE);
-  }
-
-  private void validateDlq(String deadLetterQueue) {
-    if (deadLetterQueue != null && deadLetterQueue.isEmpty()) {
-      throw new InvalidTableException("Dead letter queue topic name is not specified");
+    catch(Exception InvalidConfigurationException) {
+      throw new InvalidTableException("Invalid configuration of table");
     }
   }
 }
