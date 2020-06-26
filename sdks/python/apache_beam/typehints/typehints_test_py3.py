@@ -71,7 +71,8 @@ class TestPTransformAnnotations(unittest.TestCase):
       def expand(self, pcoll: int) -> str:
         return pcoll | Map(lambda num: str(num))
 
-    error_str = 'An input typehint to a PTransform must be a single (or nested) type wrapped by a PCollection or PBegin. '
+    error_str = 'An input typehint to a PTransform must be a single \(or nested\) type wrapped by a PCollection or ' \
+                'PBegin. '
 
     with self.assertRaisesRegex(TypeCheckError, error_str):
       _th = MyPTransform().get_type_hints()
@@ -81,7 +82,8 @@ class TestPTransformAnnotations(unittest.TestCase):
       def expand(self, pcoll: PCollection) -> PCollection:
         return pcoll | Map(lambda num: str(num))
 
-    error_str = 'An input typehint to a PTransform must be a single (or nested) type wrapped by a PCollection or PBegin. '
+    error_str = 'An input typehint to a PTransform must be a single \(or nested\) type wrapped by a PCollection or ' \
+                'PBegin. '
 
     with self.assertRaisesRegex(TypeCheckError, error_str):
       _th = MyPTransform().get_type_hints()

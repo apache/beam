@@ -379,60 +379,41 @@ class IOTypeHints(NamedTuple(
         self.output_types and len(self.output_types[0]) == 1 and
         not self.output_types[1])
 
-  def strip_pcoll_input(self):
-    # type: () -> IOTypeHints
+  def strip_pcoll(self):
+      return self.strip_pcoll_helper(self.input_types,
+                                     self._has_input_types,
+                                     {'input_types': None},
+                                     ['apache_beam.pvalue.PBegin'],
+                                     'An input typehint to a PTransform must be a single (or nested) type wrapped by '
+                                     'a PCollection or PBegin. ',
+                                     'strip_pcoll_input()').\
+                  strip_pcoll_helper(self.output_types,
+                                     self.has_simple_output_type,
+                                     {'output_types': None},
+                                     ['apache_beam.pvalue.PDone'],
+                                     'An input typehint to a PTransform must be a single (or nested) type wrapped by '
+                                     'a PCollection or PDone. ',
+                                     'strip_pcoll_output()')
 
-    error_str = 'An input typehint to a PTransform must be a single (or nested) type wrapped by a PCollection or ' \
-                'PBegin. '
+  def strip_pcoll_helper(self, my_type, has_my_type, kwarg_dict, my_valid_classes, error_str, source_str):
+    # type: (any, Callable[[], bool], Dict[str, any], List[str], str, str) -> IOTypeHints
 
-    if any(element is None for element in [self.input_types, self.input_types[0], self.input_types[0][0]]):
-      raise TypeCheckError(error_str, 'Your input typehint is corrupt - part of it evaluated to None.')
-
-    input_type = self.input_types[0][0]
-
-    if isinstance(input_type, typehints.AnyTypeConstraint):
+    if not has_my_type() or len(my_type[0]) != 1:
       return self
 
-    valid_classes = ['apache_beam.pvalue.PCollection', 'apache_beam.pvalue.PBegin']
-    if not any(str(input_type).startswith(valid_class) for valid_class in valid_classes):
-      raise TypeCheckError(error_str)
+    my_type = my_type[0][0]
 
-
-    try:
-      input_type = input_type.__args__[0]
-    except IndexError:
-      raise TypeCheckError(error_str, 'You provided no type.')
-
-    return self._replace(
-        input_types=((input_type, ), {}),
-        origin=self._make_origin([self], tb=False, msg=['strip_pcoll_input()']))
-
-  def strip_pcoll_output(self):
-    # type: () -> IOTypeHints
-
-    error_str = 'An output typehint to a PTransform must be a single (or nested) type wrapped by a PCollection or ' \
-                'PDone. '
-
-    if any(element is None for element in [self.output_types, self.output_types[0], self.output_types[0][0]]):
-      raise TypeCheckError(error_str, 'Your output typehint is corrupt - part of it evaluated to None.')
-
-    output_type = self.output_types[0][0]
-
-    if isinstance(output_type, typehints.AnyTypeConstraint):
+    if isinstance(my_type, typehints.AnyTypeConstraint):
       return self
 
-    valid_classes = ['apache_beam.pvalue.PCollection', 'apache_beam.pvalue.PDone']
-    if not any(str(output_type).startswith(valid_class) for valid_class in valid_classes):
+    valid_classes = ['apache_beam.pvalue.PCollection'] + my_valid_classes
+
+    if not any(str(my_type).startswith(valid_class) for valid_class in valid_classes):
       raise TypeCheckError(error_str)
 
-    try:
-      output_type = output_type.__args__[0]
-    except IndexError:
-      raise TypeCheckError(error_str, 'You provided no type.')
-
-    return self._replace(
-        output_types=((output_type, ), {}),
-        origin=self._make_origin([self], tb=False, msg=['strip_pcoll_output()']))
+    # performs variable kwarg assignment for the first key (either 'input_types' or 'output_types')
+    kwarg_dict[next(iter(kwarg_dict))] = ((my_type.__args__[0], ), {})
+    return self._replace(**kwarg_dict, origin=self._make_origin([self], tb=False, msg=[source_str]))
 
   def strip_iterable(self):
     # type: () -> IOTypeHints
