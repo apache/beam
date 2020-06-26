@@ -31,12 +31,15 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /** Integration test for date functions. */
 public class BeamSqlDateFunctionsIntegrationTest
     extends BeamSqlBuiltinFunctionsIntegrationTestBase {
+
   @Test
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-10328")
   public void testDateTimeFunctions_currentTime() throws Exception {
     String sql =
         "SELECT "

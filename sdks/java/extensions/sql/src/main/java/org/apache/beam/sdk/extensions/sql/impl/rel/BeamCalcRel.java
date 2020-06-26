@@ -317,17 +317,16 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
   private static Expression castOutputTime(Expression value, FieldType toType) {
     Expression valueDateTime = value;
 
-    // Convert TIMESTAMP to joda Instant
-    // Convert DATE to LocalDate
-    // Convert TIME to LocalTime
     if (CalciteUtils.TIMESTAMP.typesEqual(toType)
         || CalciteUtils.NULLABLE_TIMESTAMP.typesEqual(toType)) {
+      // Convert TIMESTAMP to joda Instant
       if (value.getType() == java.sql.Timestamp.class) {
         valueDateTime = Expressions.call(BuiltInMethod.TIMESTAMP_TO_LONG.method, valueDateTime);
       }
       valueDateTime = Expressions.new_(Instant.class, valueDateTime);
     } else if (CalciteUtils.TIME.typesEqual(toType)
         || CalciteUtils.NULLABLE_TIME.typesEqual(toType)) {
+      // Convert TIME to LocalTime
       if (value.getType() == java.sql.Time.class) {
         valueDateTime = Expressions.call(BuiltInMethod.TIME_TO_INT.method, valueDateTime);
       } else if (value.getType() == Long.class) {
@@ -338,6 +337,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       valueDateTime = Expressions.call(LocalTime.class, "ofNanoOfDay", valueDateTime);
     } else if (CalciteUtils.DATE.typesEqual(toType)
         || CalciteUtils.NULLABLE_DATE.typesEqual(toType)) {
+      // Convert DATE to LocalDate
       if (value.getType() == java.sql.Date.class) {
         valueDateTime = Expressions.call(BuiltInMethod.DATE_TO_INT.method, valueDateTime);
       } else if (value.getType() == Long.class) {
@@ -441,7 +441,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           return nullOr(
               value, Expressions.divide(value, Expressions.constant(NANOS_PER_MILLISECOND)));
         } else if (SqlTypes.DATE.getIdentifier().equals(logicalId)) {
-          return nullOr(value, value);
+          return value;
         } else if (!CharType.IDENTIFIER.equals(logicalId)) {
           throw new UnsupportedOperationException(
               "Unknown LogicalType " + type.getLogicalType().getIdentifier());
