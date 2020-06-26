@@ -195,5 +195,25 @@ class ProgressIndicatorTest(unittest.TestCase):
     mocked_javascript.assert_called_once()
 
 
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
+@unittest.skipIf(
+    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
+class MessagingUtilTest(unittest.TestCase):
+  def setUp(self):
+    ie.new_env()
+
+  def test_as_json_decorator(self):
+    @utils.as_json
+    def dummy():
+      return {'a': [1, 2, 3], 'b': 4, 'c': '5', 'd': {'e': 'f'}}
+
+    # As of Python 3.6, for the CPython implementation of Python,
+    # dictionaries remember the order of items inserted.
+    self.assertEqual(
+        dummy(), '{"a": [1, 2, 3], "b": 4, "c": "5", "d": {"e": "f"}}')
+
+
 if __name__ == '__main__':
   unittest.main()
