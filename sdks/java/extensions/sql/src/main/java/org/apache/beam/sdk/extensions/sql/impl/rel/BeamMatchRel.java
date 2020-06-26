@@ -1,13 +1,12 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -127,55 +126,48 @@ public class BeamMatchRel extends Match implements BeamRelNode {
             PCollection<KV<Row, Row>> keyedUpstream = upstream
                 .apply(ParDo.of(new MapKeys(mySchema)));
 
-            // sort within each partition
-            PCollection<KV<Row, ArrayList<Row>>> orderedUpstream = keyedUpstream
-                .apply(Combine.<Row, Row, ArrayList<Row>>perKey(new SortParts(mySchema, orderKeys)));
+            // group by keys
+            PCollection<KV<Row, Iterable<Row>>> groupedUpstream = keyedUpstream
+                .setCoder(KvCoder.of(RowCoder.of(mySchema), RowCoder.of(collectionSchema)))
+                .apply(GroupByKey.create());
+                //.apply(Combine.perKey(new SortParts(mySchema, orderKeys)));
+                //.apply(GroupByKey.create());
+
+            // sort within each keyed partition
+            PCollection<KV<Row, Iterable<Row>>> orderedUpstream = groupedUpstream
+                .apply(ParDo.of(new SortPerKey(mySchema, orderKeys)));
 
             return null;
         }
 
-        private static class SortParts extends Combine.CombineFn<Row, ArrayList<Row>, ArrayList<Row>> {
+        private static class SortPerKey extends DoFn<KV<Row, Iterable<Row>>, KV<Row, Iterable<Row>>> {
 
             private final Schema mySchema;
             private final List<RelFieldCollation> orderKeys;
 
-            public SortParts(Schema mySchema, RelCollation orderKeys) {
+            public SortPerKey(Schema mySchema, RelCollation orderKeys) {
                 this.mySchema = mySchema;
                 List<RelFieldCollation> revOrderKeys = orderKeys.getFieldCollations();
                 Collections.reverse(revOrderKeys);
                 this.orderKeys = revOrderKeys;
             }
 
-            @Override
-            public ArrayList<Row> createAccumulator() {
-                return new ArrayList<Row>();
-            }
-
-            @Override
-            public ArrayList<Row> addInput(ArrayList<Row> Accum, Row inRow) {
-                Accum.add(inRow);
-                return Accum;
-            }
-
-            @Override
-            public ArrayList<Row> mergeAccumulators(Iterable<ArrayList<Row>> Accums) {
-                ArrayList<Row> aggAccum = new ArrayList<Row>();
-                for (ArrayList<Row> i : Accums) {
-                    aggAccum.addAll(i);
+            @ProcessElement
+            public void processElement(@Element KV<Row, Iterable<Row>> keyRows,
+                                       OutputReceiver<KV<Row, Iterable<Row>>> out) {
+                ArrayList<Row> rows = new ArrayList<Row>();
+                for(Row i : keyRows.getValue()) {
+                    rows.add(i);
                 }
-                return aggAccum;
-            }
-
-            @Override
-            public ArrayList<Row> extractOutput(ArrayList<Row> rawRows) {
-                for (RelFieldCollation i : orderKeys) {
+                for(RelFieldCollation i : orderKeys) {
                     int fIndex = i.getFieldIndex();
                     RelFieldCollation.Direction dir = i.getDirection();
                     if (dir == RelFieldCollation.Direction.ASCENDING) {
-                        Collections.sort(rawRows, new sortComparator(fIndex, true));
+                        rows.sort(new sortComparator(fIndex, true));
                     }
                 }
-                return rawRows;
+
+                out.output(KV.of(keyRows.getKey(), rows));
             }
 
             private class sortComparator implements Comparator<Row> {
