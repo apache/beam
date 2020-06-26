@@ -17,7 +17,17 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.ATTRIBUTES_FIELD;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.PAYLOAD_FIELD;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.TIMESTAMP_FIELD;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import com.google.auto.service.AutoService;
+import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -29,19 +39,13 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ToJson;
 import org.apache.beam.sdk.transforms.WithTimestamps;
-import org.apache.beam.sdk.values.*;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-
-import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
-
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.ATTRIBUTES_FIELD;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.PAYLOAD_FIELD;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.TIMESTAMP_FIELD;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 /**
  * {@link org.apache.beam.sdk.schemas.io.SchemaCapableIOProvider} to create {@link PubsubSchemaIO}
@@ -79,15 +83,15 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
   public PubsubSchemaIO from(String location, Row configuration, Schema dataSchema) {
     validateDlq(configuration.getValue("deadLetterQueue"));
     validateEventTimestamp(dataSchema);
-    return PubsubSchemaIO.withConfiguration(location,configuration,dataSchema);
+    return PubsubSchemaIO.withConfiguration(location, configuration, dataSchema);
   }
 
   private void validateEventTimestamp(Schema schema) {
     if (!PubsubSchemaIO.fieldPresent(schema, TIMESTAMP_FIELD, TIMESTAMP)) {
       throw new InvalidConfigurationException(
-              "Unsupported schema specified for Pubsub source in CREATE TABLE."
-                      + "CREATE TABLE for Pubsub topic must include at least 'event_timestamp' field of "
-                      + "type 'TIMESTAMP'");
+          "Unsupported schema specified for Pubsub source in CREATE TABLE."
+              + "CREATE TABLE for Pubsub topic must include at least 'event_timestamp' field of "
+              + "type 'TIMESTAMP'");
     }
   }
 
@@ -127,15 +131,15 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
         @Override
         public PCollection<Row> expand(PBegin begin) {
           PCollectionTuple rowsWithDlq =
-                  begin
-                          .apply("ReadFromPubsub", readMessagesWithAttributes())
-                          .apply(
-                                  "PubsubMessageToRow",
-                                  PubsubMessageToRow.builder()
-                                          .messageSchema(dataSchema)
-                                          .useDlq(useDlqCheck(config))
-                                          .useFlatSchema(useFlatSchema)
-                                          .build());
+              begin
+                  .apply("ReadFromPubsub", readMessagesWithAttributes())
+                  .apply(
+                      "PubsubMessageToRow",
+                      PubsubMessageToRow.builder()
+                          .messageSchema(dataSchema)
+                          .useDlq(useDlqCheck(config))
+                          .useFlatSchema(useFlatSchema)
+                          .build());
           rowsWithDlq.get(MAIN_TAG).setRowSchema(dataSchema);
 
           if (useDlqCheck(config)) {
@@ -151,15 +155,15 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
     public PTransform<PCollection<Row>, POutput> buildWriter() {
       if (!useFlatSchema) {
         throw new UnsupportedOperationException(
-                "Writing to a Pubsub topic is only supported for flattened schemas");
+            "Writing to a Pubsub topic is only supported for flattened schemas");
       }
 
       return new PTransform<PCollection<Row>, POutput>() {
         @Override
         public POutput expand(PCollection<Row> input) {
           return input
-                  .apply(RowToPubsubMessage.fromTableConfig(config, useFlatSchema))
-                  .apply(createPubsubMessageWrite());
+              .apply(RowToPubsubMessage.fromTableConfig(config, useFlatSchema))
+              .apply(createPubsubMessageWrite());
         }
       };
     }
@@ -168,8 +172,8 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
       PubsubIO.Read<PubsubMessage> read = PubsubIO.readMessagesWithAttributes().fromTopic(location);
 
       return useTimestampAttribute(config)
-              ? read.withTimestampAttribute(config.getValue("timestampAttributeKey"))
-              : read;
+          ? read.withTimestampAttribute(config.getValue("timestampAttributeKey"))
+          : read;
     }
 
     private PubsubIO.Write<PubsubMessage> createPubsubMessageWrite() {
@@ -182,11 +186,11 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
 
     private PubsubIO.Write<PubsubMessage> writeMessagesToDlq() {
       PubsubIO.Write<PubsubMessage> write =
-              PubsubIO.writeMessages().to(config.getString("deadLetterQueue"));
+          PubsubIO.writeMessages().to(config.getString("deadLetterQueue"));
 
       return useTimestampAttribute(config)
-              ? write.withTimestampAttribute(config.getString("timestampAttributeKey"))
-              : write;
+          ? write.withTimestampAttribute(config.getString("timestampAttributeKey"))
+          : write;
     }
 
     private boolean useDlqCheck(Row config) {
@@ -200,75 +204,61 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
     private boolean definesAttributeAndPayload(Schema schema) {
       return fieldPresent(
               schema, ATTRIBUTES_FIELD, Schema.FieldType.map(VARCHAR.withNullable(false), VARCHAR))
-              && (schema.hasField(PAYLOAD_FIELD)
+          && (schema.hasField(PAYLOAD_FIELD)
               && ROW.equals(schema.getField(PAYLOAD_FIELD).getType().getTypeName()));
     }
 
-    private static boolean fieldPresent(Schema schema, String field, Schema.FieldType expectedType) {
+    private static boolean fieldPresent(
+        Schema schema, String field, Schema.FieldType expectedType) {
       return schema.hasField(field)
-              && expectedType.equivalent(
+          && expectedType.equivalent(
               schema.getField(field).getType(), Schema.EquivalenceNullablePolicy.IGNORE);
     }
-
   }
 
-    /**
-     * A {@link PTransform} to convert {@link Row} to {@link PubsubMessage} with JSON payload.
-     *
-     * <p>Currently only supports writing a flat schema into a JSON payload. This means that all Row
-     * field values are written to the {@link PubsubMessage} JSON payload, except for {@code
-     * event_timestamp}, which is either ignored or written to the message attributes, depending on
-     * whether config.getValue("timestampAttributeKey") is set.
-     */
-    private static class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<PubsubMessage>> {
-      private final Row config;
+  /**
+   * A {@link PTransform} to convert {@link Row} to {@link PubsubMessage} with JSON payload.
+   *
+   * <p>Currently only supports writing a flat schema into a JSON payload. This means that all Row
+   * field values are written to the {@link PubsubMessage} JSON payload, except for {@code
+   * event_timestamp}, which is either ignored or written to the message attributes, depending on
+   * whether config.getValue("timestampAttributeKey") is set.
+   */
+  private static class RowToPubsubMessage
+      extends PTransform<PCollection<Row>, PCollection<PubsubMessage>> {
+    private final Row config;
 
-      private RowToPubsubMessage(Row config, Boolean useFlatSchema) {
-        checkArgument(
-                useFlatSchema,
-                "RowToPubsubMessage is only supported for flattened schemas.");
+    private RowToPubsubMessage(Row config, Boolean useFlatSchema) {
+      checkArgument(useFlatSchema, "RowToPubsubMessage is only supported for flattened schemas.");
 
-        this.config = config;
-      }
-
-      public static RowToPubsubMessage fromTableConfig(Row config, Boolean useFlatSchema) {
-        return new RowToPubsubMessage(config, useFlatSchema);
-      }
-
-      @Override
-      public PCollection<PubsubMessage> expand(PCollection<Row> input) {
-        PCollection<Row> withTimestamp =
-                (useTimestampAttribute(config))
-                        ? input.apply(
-                        WithTimestamps.of((row) -> row.getDateTime("event_timestamp").toInstant()))
-                        : input;
-
-        return withTimestamp
-                .apply(DropFields.fields("event_timestamp"))
-                .apply(ToJson.of())
-                .apply(
-                        MapElements.into(TypeDescriptor.of(PubsubMessage.class))
-                                .via(
-                                        (String json) ->
-                                                new PubsubMessage(
-                                                        json.getBytes(StandardCharsets.ISO_8859_1), ImmutableMap.of())));
-      }
-
-      private boolean useTimestampAttribute(Row config) {
-        return config.getValue("timestampAttributeKey") != null;
-      }
+      this.config = config;
     }
 
-  private static boolean definesAttributeAndPayload(Schema schema) {
-    return fieldPresent(
-            schema, ATTRIBUTES_FIELD, Schema.FieldType.map(VARCHAR.withNullable(false), VARCHAR))
-            && (schema.hasField(PAYLOAD_FIELD)
-            && ROW.equals(schema.getField(PAYLOAD_FIELD).getType().getTypeName()));
-  }
+    public static RowToPubsubMessage fromTableConfig(Row config, Boolean useFlatSchema) {
+      return new RowToPubsubMessage(config, useFlatSchema);
+    }
 
-  private static boolean fieldPresent(Schema schema, String field, Schema.FieldType expectedType) {
-    return schema.hasField(field)
-            && expectedType.equivalent(
-            schema.getField(field).getType(), Schema.EquivalenceNullablePolicy.IGNORE);
+    @Override
+    public PCollection<PubsubMessage> expand(PCollection<Row> input) {
+      PCollection<Row> withTimestamp =
+          (useTimestampAttribute(config))
+              ? input.apply(
+                  WithTimestamps.of((row) -> row.getDateTime("event_timestamp").toInstant()))
+              : input;
+
+      return withTimestamp
+          .apply(DropFields.fields("event_timestamp"))
+          .apply(ToJson.of())
+          .apply(
+              MapElements.into(TypeDescriptor.of(PubsubMessage.class))
+                  .via(
+                      (String json) ->
+                          new PubsubMessage(
+                              json.getBytes(StandardCharsets.ISO_8859_1), ImmutableMap.of())));
+    }
+
+    private boolean useTimestampAttribute(Row config) {
+      return config.getValue("timestampAttributeKey") != null;
+    }
   }
 }

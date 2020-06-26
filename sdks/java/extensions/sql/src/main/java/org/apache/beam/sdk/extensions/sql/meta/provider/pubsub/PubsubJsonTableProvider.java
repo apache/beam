@@ -68,8 +68,7 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
     try {
       SchemaIO pubsubSchemaIO = ioProvider.from(location, configurationRow, dataSchema);
       return PubsubIOJsonTable.withConfiguration(pubsubSchemaIO, schema);
-    }
-    catch(Exception InvalidConfigurationException) {
+    } catch (Exception InvalidConfigurationException) {
       throw new InvalidTableException("Invalid configuration of table");
     }
   }
