@@ -55,8 +55,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.transforms.Join;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
@@ -921,72 +919,33 @@ public class Snippets {
   }
 
   public static class SchemaJoinPattern {
-    public static void main(String[] args) {
+    public static PCollection<String> main(
+        Pipeline p,
+        final List<Row> emailUsers,
+        final List<Row> phoneUsers,
+        Schema emailSchema,
+        Schema phoneSchema) {
       // [START SchemaJoinPatternJoin]
-      Pipeline p = Pipeline.create();
-
-      // Define the Schemas
-      Schema emailSchema =
-          Schema.of(Field.of("name", FieldType.STRING), Field.of("email", FieldType.STRING));
-
-      Schema phoneSchema =
-          Schema.of(Field.of("name", FieldType.STRING), Field.of("phone", FieldType.STRING));
-
       // Create/Read Schema PCollections
       PCollection<Row> emailList =
-          p.apply(
-              "CreateEmails",
-              Create.of(
-                      Row.withSchema(emailSchema)
-                          .addValue("person1")
-                          .addValue("person1@example.com")
-                          .build(),
-                      Row.withSchema(emailSchema)
-                          .addValue("person2")
-                          .addValue("person2@example.com")
-                          .build(),
-                      Row.withSchema(emailSchema)
-                          .addValue("person3")
-                          .addValue("person3@example.com")
-                          .build(),
-                      Row.withSchema(emailSchema)
-                          .addValue("person4")
-                          .addValue("person4@example.com")
-                          .build())
-                  .withRowSchema(emailSchema));
+          p.apply("CreateEmails", Create.of(emailUsers).withRowSchema(emailSchema));
 
       PCollection<Row> phoneList =
-          p.apply(
-              "CreatePhones",
-              Create.of(
-                      Row.withSchema(phoneSchema)
-                          .addValue("person1")
-                          .addValue("111-222-3333")
-                          .build(),
-                      Row.withSchema(phoneSchema)
-                          .addValue("person2")
-                          .addValue("222-333-4444")
-                          .build(),
-                      Row.withSchema(phoneSchema)
-                          .addValue("person3")
-                          .addValue("444-333-4444")
-                          .build(),
-                      Row.withSchema(phoneSchema)
-                          .addValue("person4")
-                          .addValue("555-333-4444")
-                          .build())
-                  .withRowSchema(phoneSchema));
+          p.apply("CreatePhones", Create.of(phoneUsers).withRowSchema(phoneSchema));
 
       // Perform Join
-      emailList
-          .apply(Join.<Row, Row>innerJoin(phoneList).using("name"))
-          .apply(
-              MapElements.into(TypeDescriptors.strings())
-                  .via(
-                      x -> {
-                        System.out.println(x);
-                        return "";
-                      }));
+      PCollection<Row> resultRow =
+          emailList.apply("Apply Join", Join.<Row, Row>innerJoin(phoneList).using("name"));
+
+      // Preview Result
+      resultRow.apply(
+          "Preview Result",
+          MapElements.into(TypeDescriptors.strings())
+              .via(
+                  x -> {
+                    System.out.println(x);
+                    return "";
+                  }));
 
       /* Sample Output From the pipeline:
        Row:[Row:[person1, person1@example.com], Row:[person1, 111-222-3333]]
@@ -997,20 +956,21 @@ public class Snippets {
       // [END SchemaJoinPatternJoin]
 
       // [START SchemaJoinPatternFormat]
-      emailList
-          .apply(Join.<Row, Row>innerJoin(phoneList).using("name"))
-          .apply(
+      PCollection<String> result =
+          resultRow.apply(
+              "Format Output",
               MapElements.into(TypeDescriptors.strings())
                   .via(
                       x -> {
-                        System.out.println(
+                        String userInfo =
                             "Name: "
                                 + x.getRow(0).getValue("name")
                                 + " Email: "
                                 + x.getRow(0).getValue("email")
                                 + " Phone: "
-                                + x.getRow(1).getValue("phone"));
-                        return "";
+                                + x.getRow(1).getValue("phone");
+                        System.out.println(userInfo);
+                        return userInfo;
                       }));
 
       /* Sample output From the pipeline
@@ -1021,7 +981,7 @@ public class Snippets {
        */
       // [END SchemaJoinPatternFormat]
 
-      p.run().waitUntilFinish();
+      return result;
     }
   }
 }
