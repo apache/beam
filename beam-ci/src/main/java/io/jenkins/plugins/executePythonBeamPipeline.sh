@@ -1,11 +1,14 @@
 #!/bin/bash
 # Script to install virtual environment, set up virtual environment, and run Python command to execute Beam pipeline on Dataflow
 
-#cd "${0%/*}" # Set directory to be directory it was executed in
-cd $1
-MAIN_CLASS=$2
-PIPELINE_OPTIONS=$3
-BUILD_RELEASE_OPTIONS=$4
+WORKSPACE=$1
+BUILD_DIRECTORY=$2
+MAIN_CLASS=$3
+PIPELINE_OPTIONS=$4
+BUILD_RELEASE_OPTIONS=$5
+
+# Set directory to be inside current build folder
+cd "$BUILD_DIRECTORY" || exit
 
 # Install Python Virtual Environment
 pip3 install --upgrade virtualenv
@@ -21,6 +24,9 @@ pip3 install apache-beam
 pip3 install apache-beam[gcp]
 pip3 install six==1.12.0
 
+# Set directory to be inside workspace to access Beam pipeline code
+cd "$WORKSPACE" || exit
+
 if [ "$BUILD_RELEASE_OPTIONS" != "" ]; then
   echo "Build Release Options included."
   python3 $MAIN_CLASS $PIPELINE_OPTIONS $BUILD_RELEASE_OPTIONS
@@ -28,8 +34,5 @@ else
   echo "No Build Release Options."
   python3 $MAIN_CLASS $PIPELINE_OPTIONS
 fi
-
-# Deactivate Virtual Environment when job is finished
-deactivate
 
 

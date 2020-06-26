@@ -18,10 +18,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import jenkins.tasks.SimpleBuildStep;
 
@@ -66,7 +63,10 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         return useGradle;
     }
 
-    private void buildCommand(String workspace, ProcessBuilder processBuilder) {
+    /**
+     * Builds and sets the command on the ProcessBuilder depending on configurations set by the user
+     * */
+    private void buildCommand(Run<?, ?> run, String workspace, ProcessBuilder processBuilder) {
         ArrayList<String> command;
         if (this.useJava) {
             String pipelineOptions = this.pipelineOptions.replaceAll("[\\t\\n]+"," ");
@@ -84,10 +84,26 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
             //        System.out.println(Arrays.toString(command.toArray()));
             processBuilder.command(command);
         } else { // python
+            // Get Path to the Bash Script
+            String dir = System.getProperty("user.dir"); // Get the directory the plugin is located
+            String pathToScript = dir + "/src/main/java/io/jenkins/plugins/executePythonBeamPipeline.sh";
+
+            // Get Path to the current build directory to create Virtual Environment in
+            String jobBuildPathDirectory = getJobBuildDirectory(run);
+
             // Execute Bash Script
-            // todo figure out how to locate the bash script file from the workspace directory
-            processBuilder.command("executePythonBeamPipeline.sh", workspace, this.pathToMainClass, this.pipelineOptions, this.buildReleaseOptions);
+            processBuilder.command(pathToScript, workspace, jobBuildPathDirectory, this.pathToMainClass, this.pipelineOptions, this.buildReleaseOptions);
         }
+    }
+
+    /**
+     * @return absolute path to current build folder
+     * */
+    private String getJobBuildDirectory(Run<?, ?> run) {
+        String jenkinsHome = System.getProperty("JENKINS_HOME");
+        String jobName = run.getFullDisplayName().split(" ")[0];
+        int buildNumber = run.getNumber();
+        return jenkinsHome + "/jobs/" + jobName + "/builds/" + buildNumber;
     }
 
     @Override
@@ -107,10 +123,9 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
 
         // set correct directory to be running command
         processBuilder.directory(new File(workspace.toURI()));
-        listener.getLogger().println("workspace : " + workspace.toURI().toString());
 
         // build and set command to processBuilder based on configurations
-        buildCommand(workspace.toURI().toString(), processBuilder);
+        buildCommand(run, workspace.toURI().getPath(), processBuilder);
         Process process = processBuilder.start();
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
@@ -133,7 +148,13 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
 
         public FormValidation doCheckPathToMainClass(@QueryParameter String value) {
             if (value.length() == 0)
-                return FormValidation.error("Missing path to main class.");
+                return FormValidation.error("Missing Path to Main Class");
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckPipelineOptions(@QueryParameter String value) {
+            if (value.length() == 0)
+                return FormValidation.error("Missing Pipeline Options");
             return FormValidation.ok();
         }
 
