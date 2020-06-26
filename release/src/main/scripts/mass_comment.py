@@ -42,6 +42,7 @@ COMMENTS_TO_ADD = [
     "Run Python Dataflow ValidatesContainer",
     "Run Python Dataflow ValidatesRunner",
     "Run Python 3.5 Flink ValidatesRunner",
+    "Run Twister2 ValidatesRunner",
     "Run Python 2 PostCommit",
     "Run Python 3.5 PostCommit",
     "Run Python 3.6 PostCommit",
