@@ -62,6 +62,7 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -76,7 +77,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
@@ -795,12 +795,12 @@ class BigQueryServicesImpl implements BigQueryServices {
                               String.format(
                                   "BigQuery insertAll error, retrying: %s",
                                   ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
-                          GoogleJsonError.ErrorInfo errorInfo= getErrorInfo(e);
-                          if(errorInfo==null){
+                          GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
+                          if (errorInfo == null) {
                             return insert.execute().getInsertErrors();
                           }
-                          if(!ApiErrorExtractor.INSTANCE.rateLimited(e)
-                          && !errorInfo.getReason().equals("quotaExceeded")){
+                          if (!ApiErrorExtractor.INSTANCE.rateLimited(e)
+                              && !errorInfo.getReason().equals("quotaExceeded")) {
                             return insert.execute().getInsertErrors();
                           }
                           try {
@@ -902,18 +902,18 @@ class BigQueryServicesImpl implements BigQueryServices {
           ignoreUnknownValues,
           ignoreInsertIds);
     }
-    private  GoogleJsonError.ErrorInfo getErrorInfo(IOException e){
-      GoogleJsonResponseException JsonCause=null;
-      Throwable eCause=e;
+
+    private GoogleJsonError.ErrorInfo getErrorInfo(IOException e) {
+      GoogleJsonResponseException JsonCause = null;
+      Throwable eCause = e;
       if (eCause instanceof GoogleJsonResponseException) {
-        JsonCause= (GoogleJsonResponseException) eCause;
-      }
-      else{
+        JsonCause = (GoogleJsonResponseException) eCause;
+      } else {
         return null;
       }
-      GoogleJsonError jsonError=JsonCause.getDetails();
+      GoogleJsonError jsonError = JsonCause.getDetails();
       List<GoogleJsonError.ErrorInfo> errors = jsonError.getErrors();
-      GoogleJsonError.ErrorInfo errorInfo= Iterables.getFirst(errors, null);
+      GoogleJsonError.ErrorInfo errorInfo = Iterables.getFirst(errors, null);
       return errorInfo;
     }
 
