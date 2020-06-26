@@ -150,11 +150,11 @@ class SdkHarness(object):
     if credentials is None:
       _LOGGER.info('Creating insecure control channel for %s.', control_address)
       self._control_channel = GRPCChannelFactory.insecure_channel(
-          control_address, options = options)
+          control_address, options=options)
     else:
       _LOGGER.info('Creating secure control channel for %s.', control_address)
       self._control_channel = GRPCChannelFactory.secure_channel(
-          control_address, credentials, options = options)
+          control_address, credentials, options=options)
     grpc.channel_ready_future(self._control_channel).result(timeout=60)
     _LOGGER.info('Control channel established.')
 
