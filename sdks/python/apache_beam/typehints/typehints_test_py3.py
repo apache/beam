@@ -66,9 +66,9 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertEqual(th.input_types, ((int, ), {}))
     self.assertEqual(th.output_types, ((str, ), {}))
 
-  def test_annotations_without_pcollection_wrapper(self):
+  def test_annotations_without_input_pcollection_wrapper(self):
     class MyPTransform(PTransform):
-      def expand(self, pcoll: int) -> str:
+      def expand(self, pcoll: int) -> PCollection[str]:
         return pcoll | Map(lambda num: str(num))
 
     error_str = 'An input typehint to a PTransform must be a single \(or nested\) type wrapped by a PCollection or ' \
@@ -77,16 +77,43 @@ class TestPTransformAnnotations(unittest.TestCase):
     with self.assertRaisesRegex(TypeCheckError, error_str):
       _th = MyPTransform().get_type_hints()
 
-  def test_annotations_without_internal_type(self):
+  def test_annotations_without_output_pcollection_wrapper(self):
+    class MyPTransform(PTransform):
+      def expand(self, pcoll: PCollection[int]) -> str:
+        return pcoll | Map(lambda num: str(num))
+
+    error_str = 'An output typehint to a PTransform must be a single \(or nested\) type wrapped by a PCollection or ' \
+                'PDone. '
+
+    with self.assertRaisesRegex(TypeCheckError, error_str):
+      _th = MyPTransform().get_type_hints()
+
+  def test_annotations_without_input_internal_type(self):
+    class MyPTransform(PTransform):
+      def expand(self, pcoll: PCollection) -> PCollection[str]:
+        return pcoll | Map(lambda num: str(num))
+
+    th = MyPTransform().get_type_hints()
+    self.assertEqual(th.input_types, ((Any, ), {}))
+    self.assertEqual(th.output_types, ((str, ), {}))
+
+  def test_annotations_without_output_internal_type(self):
+    class MyPTransform(PTransform):
+      def expand(self, pcoll: PCollection[int]) -> PCollection:
+        return pcoll | Map(lambda num: str(num))
+
+    th = MyPTransform().get_type_hints()
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.output_types, ((Any, ), {}))
+
+  def test_annotations_without_any_internal_type(self):
     class MyPTransform(PTransform):
       def expand(self, pcoll: PCollection) -> PCollection:
         return pcoll | Map(lambda num: str(num))
 
-    error_str = 'An input typehint to a PTransform must be a single \(or nested\) type wrapped by a PCollection or ' \
-                'PBegin. '
-
-    with self.assertRaisesRegex(TypeCheckError, error_str):
-      _th = MyPTransform().get_type_hints()
+    th = MyPTransform().get_type_hints()
+    self.assertEqual(th.input_types, ((Any, ), {}))
+    self.assertEqual(th.output_types, ((Any, ), {}))
 
   def test_annotations_without_input_typehint(self):
     class MyPTransform(PTransform):
@@ -105,6 +132,15 @@ class TestPTransformAnnotations(unittest.TestCase):
     th = MyPTransform().get_type_hints()
     self.assertEqual(th.input_types, ((int, ), {}))
     self.assertEqual(th.output_types, ((Any, ), {}))
+
+  def test_annotations_without_any_typehints(self):
+    class MyPTransform(PTransform):
+      def expand(self, pcoll):
+        return pcoll | Map(lambda num: str(num))
+
+    th = MyPTransform().get_type_hints()
+    self.assertEqual(th.input_types, None)
+    self.assertEqual(th.output_types, None)
 
 
 if __name__ == '__main__':

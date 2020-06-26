@@ -391,7 +391,7 @@ class IOTypeHints(NamedTuple(
                                      self.has_simple_output_type,
                                      {'output_types': None},
                                      ['apache_beam.pvalue.PDone'],
-                                     'An input typehint to a PTransform must be a single (or nested) type wrapped by '
+                                     'An output typehint to a PTransform must be a single (or nested) type wrapped by '
                                      'a PCollection or PDone. ',
                                      'strip_pcoll_output()')
 
@@ -408,11 +408,13 @@ class IOTypeHints(NamedTuple(
 
     valid_classes = ['apache_beam.pvalue.PCollection'] + my_valid_classes
 
-    if not any(str(my_type).startswith(valid_class) for valid_class in valid_classes):
+    if not any(valid_class in str(my_type) for valid_class in valid_classes):
       raise TypeCheckError(error_str)
 
-    # performs variable kwarg assignment for the first key (either 'input_types' or 'output_types')
-    kwarg_dict[next(iter(kwarg_dict))] = ((my_type.__args__[0], ), {})
+    if not hasattr(my_type, '__args__'):    # e.g. PCollection
+      kwarg_dict[next(iter(kwarg_dict))] = ((typehints.Any,), {})
+    else:                                   # e.g. PCollection[type]
+      kwarg_dict[next(iter(kwarg_dict))] = ((my_type.__args__[0], ), {})
     return self._replace(**kwarg_dict, origin=self._make_origin([self], tb=False, msg=[source_str]))
 
   def strip_iterable(self):
