@@ -797,19 +797,10 @@ class BigQueryServicesImpl implements BigQueryServices {
                               String.format(
                                   "BigQuery insertAll error, retrying: %s",
                                   ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
-
-                          GoogleJsonResponseException JsonCause=null;
-                          Throwable eCause=e;
-                          if (eCause instanceof GoogleJsonResponseException) {
-                              JsonCause= (GoogleJsonResponseException) eCause;
-                          }
-                          else{
+                          GoogleJsonError.ErrorInfo errorInfo= getErrorInfo(e);
+                          if(errorInfo==null){
                             return insert.execute().getInsertErrors();
                           }
-                          GoogleJsonError jsonError=JsonCause.getDetails();
-                          List<GoogleJsonError.ErrorInfo> errors = jsonError.getErrors();
-                          GoogleJsonError.ErrorInfo errorInfo= Iterables.getFirst(errors, null);
-
                           if(!ApiErrorExtractor.INSTANCE.rateLimited(e)
                           && !errorInfo.getReason().equals("quotaExceeded")){
                             return insert.execute().getInsertErrors();
@@ -912,6 +903,20 @@ class BigQueryServicesImpl implements BigQueryServices {
           skipInvalidRows,
           ignoreUnknownValues,
           ignoreInsertIds);
+    }
+    private  GoogleJsonError.ErrorInfo getErrorInfo(IOException e){
+      GoogleJsonResponseException JsonCause=null;
+      Throwable eCause=e;
+      if (eCause instanceof GoogleJsonResponseException) {
+        JsonCause= (GoogleJsonResponseException) eCause;
+      }
+      else{
+        return null;
+      }
+      GoogleJsonError jsonError=JsonCause.getDetails();
+      List<GoogleJsonError.ErrorInfo> errors = jsonError.getErrors();
+      GoogleJsonError.ErrorInfo errorInfo= Iterables.getFirst(errors, null);
+      return errorInfo;
     }
 
     @Override
