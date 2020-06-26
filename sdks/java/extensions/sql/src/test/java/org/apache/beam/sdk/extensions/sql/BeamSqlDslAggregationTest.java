@@ -332,8 +332,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     List<Row> rowsInTableA =
         TestUtils.RowsBuilder.of(schemaInTableA)
             .addRows(
-                0xF001L, 0,
-                0x00A1L, 0)
+                    0xF001L, 0,
+                    0x00A1L, 0)
             .getRows();
 
     String sql = "SELECT bit_and(f_long) as bitand " + "FROM PCOLLECTION GROUP BY f_int2";
