@@ -7,6 +7,13 @@ MAIN_CLASS=$3
 PIPELINE_OPTIONS=$4
 BUILD_RELEASE_OPTIONS=$5
 
+PYTHON_VERSION3="python3 -c 'import sys; print(sys.version_info.major == 3 and sys.version_info.minor>=5)'"
+echo temp
+if [[ "$PYTHON_VERSION3" == *"command not found"* || "$PYTHON_VERSION3" == "False" ]]; then
+  echo "Must have Python 3.5 or greater to run pipeline on Dataflow."
+  exit
+fi
+
 # Set directory to be inside current build folder
 cd "$BUILD_DIRECTORY" || exit
 
