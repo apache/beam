@@ -264,7 +264,9 @@ public class RowJsonTest {
     public void testRoundTrip_KeepNulls_RequireNulls() throws IOException {
       ObjectMapper objectMapper =
           newObjectMapperWith(
-              RowJsonSerializer.forSchema(schema), RowJsonDeserializer.forSchema(schema));
+              RowJsonSerializer.forSchema(schema),
+              RowJsonDeserializer.forSchema(schema)
+                  .withMissingFieldBehavior(NullBehavior.REQUIRE_NULL));
       Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
 
       assertThat(row, equalTo(parsedRow));
@@ -276,7 +278,7 @@ public class RowJsonTest {
           newObjectMapperWith(
               RowJsonSerializer.forSchema(schema).withDropNullsOnWrite(true),
               RowJsonDeserializer.forSchema(schema)
-                  .withMissingFieldBehavior(NullBehavior.ALLOW_MISSING_OR_NULL));
+                  .withMissingFieldBehavior(NullBehavior.ACCEPT_MISSING_OR_NULL));
       Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
 
       assertThat(row, equalTo(parsedRow));
@@ -288,7 +290,7 @@ public class RowJsonTest {
           newObjectMapperWith(
               RowJsonSerializer.forSchema(schema).withDropNullsOnWrite(false),
               RowJsonDeserializer.forSchema(schema)
-                  .withMissingFieldBehavior(NullBehavior.ALLOW_MISSING_OR_NULL));
+                  .withMissingFieldBehavior(NullBehavior.ACCEPT_MISSING_OR_NULL));
       Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
 
       assertThat(row, equalTo(parsedRow));

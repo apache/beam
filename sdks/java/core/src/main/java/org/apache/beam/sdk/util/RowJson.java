@@ -159,15 +159,35 @@ public class RowJson {
 
     private static final boolean SEQUENTIAL = false;
 
-    // Configure how we should attempt to parse null values when deserializing JSON
+    /**
+     * An enumeration type for specifying how {@link RowJsonDeserializer} should expect null values
+     * to be represented.
+     *
+     * <p>For example, when parsing JSON for the Schema {@code (str: REQUIRED STRING, int: NULLABLE
+     * INT64)}:
+     *
+     * <ul>
+     *   <li>If configured with {@code REQUIRE_NULL}, {@code {"str": "foo", "int": null}} would be
+     *       accepted.
+     *   <li>If configured with {@code REQUIRE_MISSING}, {@code {"str": "bar"}} would be accepted,
+     *       and would yield a {@link Row} with {@code null} for the {@code int} field.
+     *   <li>If configured with {@code ALLOW_MISSING_OR_NULL}, either JSON string would be accepted.
+     */
     public enum NullBehavior {
-      // Interpret either a missing field or a null value is a null
-      ALLOW_MISSING_OR_NULL,
-      // Require nulls to be represented as a null value. If the key is missing for a nullable field
-      // an error will be thrown.
+      /**
+       * Specifies that a null value may be represented as either a missing field or a null value in
+       * the input JSON.
+       */
+      ACCEPT_MISSING_OR_NULL,
+      /**
+       * Specifies that a null value must be represented with a null value in JSON. If the field is
+       * missing an {@link UnsupportedRowJsonException} will be thrown.
+       */
       REQUIRE_NULL,
-      // Require nulls to be represented as a missing field. If the key exists with a null value an
-      // error will be thrown.
+      /**
+       * Specifies that a null value must be represented with a missing field in JSON. If the field
+       * has a null value an {@link UnsupportedRowJsonException} will be thrown.
+       */
       REQUIRE_MISSING,
     }
 
@@ -185,7 +205,7 @@ public class RowJson {
             .build();
 
     private final Schema schema;
-    private NullBehavior nullBehavior = NullBehavior.REQUIRE_NULL;
+    private NullBehavior nullBehavior = NullBehavior.ACCEPT_MISSING_OR_NULL;
 
     /** Creates a deserializer for a {@link Row} {@link Schema}. */
     public static RowJsonDeserializer forSchema(Schema schema) {
@@ -199,10 +219,9 @@ public class RowJson {
     }
 
     /**
-     * Sets the behaviour of the deserializer with when retrieving null values. If set to the
-     * default, REQUIRE_NULL, nulls must be explicitly defined as "fieldName": null. If set to
-     * REQUIRE_MISSING, a null value must be expressed by omitting the field. If set to
-     * ALLOW_MISSING_OR_NULL, both missing fields and null values will be interpreted as null.
+     * Sets the behaviour of the deserializer when retrieving null values in the input JSON. See
+     * {@link NullBehavior} for a description of the options. Default value is {@code
+     * ACCEPT_MISSING_OR_NULL}.
      */
     public RowJsonDeserializer withMissingFieldBehavior(NullBehavior behavior) {
       this.nullBehavior = behavior;
@@ -220,25 +239,36 @@ public class RowJson {
     }
 
     private Object extractJsonNodeValue(FieldValue fieldValue) {
-      if (!fieldValue.isJsonValuePresent()) {
-        switch (this.nullBehavior) {
-          case ALLOW_MISSING_OR_NULL:
-          case REQUIRE_MISSING:
-            return null;
-          case REQUIRE_NULL:
-            throw new UnsupportedRowJsonException(
-                "Field '" + fieldValue.name() + "' is not present in the JSON object.");
+      if (fieldValue.type().getNullable()) {
+        if (!fieldValue.isJsonValuePresent()) {
+          switch (this.nullBehavior) {
+            case ACCEPT_MISSING_OR_NULL:
+            case REQUIRE_MISSING:
+              return null;
+            case REQUIRE_NULL:
+              throw new UnsupportedRowJsonException(
+                  "Field '" + fieldValue.name() + "' is not present in the JSON object.");
+          }
         }
-      }
 
-      if (fieldValue.isJsonNull()) {
-        switch (this.nullBehavior) {
-          case ALLOW_MISSING_OR_NULL:
-          case REQUIRE_NULL:
-            return null;
-          case REQUIRE_MISSING:
-            throw new UnsupportedRowJsonException(
-                "Field '" + fieldValue.name() + "' has a null value in the JSON object.");
+        if (fieldValue.isJsonNull()) {
+          switch (this.nullBehavior) {
+            case ACCEPT_MISSING_OR_NULL:
+            case REQUIRE_NULL:
+              return null;
+            case REQUIRE_MISSING:
+              throw new UnsupportedRowJsonException(
+                  "Field '" + fieldValue.name() + "' has a null value in the JSON object.");
+          }
+        }
+      } else {
+        // field is not nullable
+        if (!fieldValue.isJsonValuePresent()) {
+          throw new UnsupportedRowJsonException(
+              "Non-nullable field '" + fieldValue.name() + "' is not present in the JSON object.");
+        } else if (fieldValue.isJsonNull()) {
+          throw new UnsupportedRowJsonException(
+              "Non-nullable field '" + fieldValue.name() + "' has value null in the JSON object.");
         }
       }
 
