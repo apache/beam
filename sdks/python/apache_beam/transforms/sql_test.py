@@ -157,6 +157,21 @@ class SqlTransformTest(unittest.TestCase):
           dialect="zetasql")
       assert_that(out, equal_to([(1, "foo", 3.14)]))
 
+  def test_windowing_before_sql(self):
+    with TestPipeline() as p:
+      out = (
+          p | beam.Create([
+              SimpleRow(5, "foo", 1.),
+              SimpleRow(15, "bar", 2.),
+              SimpleRow(25, "baz", 3.)
+          ])
+          | beam.Map(lambda v: beam.window.TimestampedValue(v, v.id)).
+          with_output_types(SimpleRow)
+          | beam.WindowInto(
+              beam.window.FixedWindows(10)).with_output_types(SimpleRow)
+          | SqlTransform("SELECT COUNT(*) as `count` FROM PCOLLECTION"))
+      assert_that(out, equal_to([(1, ), (1, ), (1, )]))
+
 
 if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)
