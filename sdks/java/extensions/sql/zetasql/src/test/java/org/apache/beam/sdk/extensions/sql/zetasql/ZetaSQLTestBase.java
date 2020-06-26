@@ -36,6 +36,7 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_MA
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_STRUCT;
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_STRUCT_TIMESTAMP_STRING;
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_STRUCT_TWO;
+import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TABLE_WITH_TIME;
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TIMESTAMP_TABLE_ONE;
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TIMESTAMP_TABLE_TWO;
 
@@ -85,6 +86,7 @@ public class ZetaSQLTestBase {
     testBoundedTableMap.put("table_all_types_2", TABLE_ALL_TYPES_2);
     testBoundedTableMap.put("table_with_map", TABLE_WITH_MAP);
     testBoundedTableMap.put("table_with_date", TABLE_WITH_DATE);
+    testBoundedTableMap.put("table_with_time", TABLE_WITH_TIME);
     testBoundedTableMap.put("table_with_struct_ts_string", TABLE_WITH_STRUCT_TIMESTAMP_STRING);
     testBoundedTableMap.put("streaming_sql_test_table_a", STREAMING_SQL_TABLE_A);
     testBoundedTableMap.put("streaming_sql_test_table_b", STREAMING_SQL_TABLE_B);
