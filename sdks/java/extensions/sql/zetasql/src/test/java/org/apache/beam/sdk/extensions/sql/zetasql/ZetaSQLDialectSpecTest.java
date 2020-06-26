@@ -2713,6 +2713,29 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
+  @Test
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-10340")
+  public void testCastBetweenTimeAndString() {
+    String sql =
+        "SELECT CAST(s1 as TIME) as t2, CAST(t1 as STRING) as s2 FROM "
+            + "(SELECT '12:34:56.123456' as s1, TIME '12:34:56.123456' as t1)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder()
+                        .addLogicalTypeField("t2", SqlTypes.TIME)
+                        .addStringField("s2")
+                        .build())
+                .addValues(LocalTime.of(12, 34, 56, 123456000), "12:34:56.123456")
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
   /////////////////////////////////////////////////////////////////////////////
   // TIMESTAMP type tests
   /////////////////////////////////////////////////////////////////////////////
