@@ -43,6 +43,7 @@ include ":runners:flink:1.10"
 include ":runners:flink:1.10:job-server"
 include ":runners:flink:1.10:job-server-container"
 /* End Flink Runner related settings */
+include ":runners:twister2"
 include ":runners:google-cloud-dataflow-java"
 include ":runners:google-cloud-dataflow-java:examples"
 include ":runners:google-cloud-dataflow-java:examples-streaming"
