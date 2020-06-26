@@ -1373,9 +1373,11 @@ public class SpannerIO {
   @VisibleForTesting
   static class WriteToSpannerFn extends DoFn<Iterable<MutationGroup>, Void> {
 
-    private transient SpannerAccessor spannerAccessor;
     private final SpannerConfig spannerConfig;
     private final FailureMode failureMode;
+
+    // SpannerAccessor can not be serialized so must be initialized at runtime in setup().
+    private transient SpannerAccessor spannerAccessor;
 
     /* Number of times an aborted write to spanner could be retried */
     private static final int ABORTED_RETRY_ATTEMPTS = 5;
@@ -1413,7 +1415,8 @@ public class SpannerIO {
 
     private final TupleTag<MutationGroup> failedTag;
 
-    private FluentBackoff bundleWriteBackoff;
+    // Fluent Backoff is not serializable so create at runtime in setup().
+    private transient FluentBackoff bundleWriteBackoff;
 
     WriteToSpannerFn(
         SpannerConfig spannerConfig, FailureMode failureMode, TupleTag<MutationGroup> failedTag) {
@@ -1423,9 +1426,8 @@ public class SpannerIO {
     }
 
     @Setup
-    public void setup() throws Exception {
-      // set up non-serializable values here.
-      spannerAccessor = SpannerAccessor.create(spannerConfig);
+    public void setup() {
+      spannerAccessor = SpannerAccessor.getOrCreate(spannerConfig);
       bundleWriteBackoff =
           FluentBackoff.DEFAULT
               .withMaxCumulativeBackoff(spannerConfig.getMaxCumulativeBackoff().get())
@@ -1433,7 +1435,7 @@ public class SpannerIO {
     }
 
     @Teardown
-    public void teardown() throws Exception {
+    public void teardown() {
       spannerAccessor.close();
     }
 

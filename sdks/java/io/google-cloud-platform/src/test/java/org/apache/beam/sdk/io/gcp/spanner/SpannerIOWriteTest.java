@@ -25,6 +25,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doNothing;
@@ -35,6 +36,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeyRange;
@@ -58,6 +60,7 @@ import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.FailureMode;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.GatherBundleAndSortFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteGrouped;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteToSpannerFn;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -1141,6 +1144,84 @@ public class SpannerIOWriteTest implements Serializable {
     assertThat(batches.get(1), contains(g(m(5L), m(6L), m(7L), m(8L), m(9L))));
     assertThat(batches.get(2), contains(g(m(3L)), g(m(10L)), g(m(11L))));
     assertThat(batches.get(3), contains(g(m(2L))));
+  }
+
+  @Test
+  public void testRefCountedSpannerAccessorOnlyOnce() {
+    SpannerConfig config1 =
+        SpannerConfig.create()
+            .toBuilder()
+            .setServiceFactory(serviceFactory)
+            .setProjectId(StaticValueProvider.of("project"))
+            .setInstanceId(StaticValueProvider.of("test1"))
+            .setDatabaseId(StaticValueProvider.of("test1"))
+            .build();
+
+    SpannerIO.WriteToSpannerFn test1Fn =
+        new SpannerIO.WriteToSpannerFn(config1, FailureMode.REPORT_FAILURES, null /* failedTag */);
+    SpannerIO.WriteToSpannerFn test2Fn =
+        new SpannerIO.WriteToSpannerFn(config1, FailureMode.REPORT_FAILURES, null /* failedTag */);
+    SpannerIO.WriteToSpannerFn test3Fn =
+        new SpannerIO.WriteToSpannerFn(config1, FailureMode.REPORT_FAILURES, null /* failedTag */);
+
+    test1Fn.setup();
+    test2Fn.setup();
+    test3Fn.setup();
+
+    test2Fn.teardown();
+    test3Fn.teardown();
+    test1Fn.teardown();
+
+    // getDatabaseClient and close() only called once.
+    verify(serviceFactory.mockSpanner(), times(1))
+        .getDatabaseClient(DatabaseId.of("project", "test1", "test1"));
+    verify(serviceFactory.mockSpanner(), times(1)).close();
+  }
+
+  @Test
+  public void testRefCountedSpannerAccessorDifferentDbsOnlyOnce() {
+    SpannerConfig config1 =
+        SpannerConfig.create()
+            .toBuilder()
+            .setServiceFactory(serviceFactory)
+            .setMaxCumulativeBackoff(StaticValueProvider.of(Duration.standardSeconds(10)))
+            .setProjectId(StaticValueProvider.of("project"))
+            .setInstanceId(StaticValueProvider.of("test1"))
+            .setDatabaseId(StaticValueProvider.of("test1"))
+            .build();
+    SpannerConfig config2 =
+        config1
+            .toBuilder()
+            .setInstanceId(StaticValueProvider.of("test2"))
+            .setDatabaseId(StaticValueProvider.of("test2"))
+            .build();
+
+    SpannerIO.WriteToSpannerFn test1Fn =
+        new SpannerIO.WriteToSpannerFn(config1, FailureMode.REPORT_FAILURES, null /* failedTag */);
+    SpannerIO.WriteToSpannerFn test2Fn =
+        new SpannerIO.WriteToSpannerFn(config1, FailureMode.REPORT_FAILURES, null /* failedTag */);
+
+    SpannerIO.WriteToSpannerFn test3Fn =
+        new SpannerIO.WriteToSpannerFn(config2, FailureMode.REPORT_FAILURES, null /* failedTag */);
+    SpannerIO.WriteToSpannerFn test4Fn =
+        new SpannerIO.WriteToSpannerFn(config2, FailureMode.REPORT_FAILURES, null /* failedTag */);
+
+    test1Fn.setup();
+    test2Fn.setup();
+    test3Fn.setup();
+    test4Fn.setup();
+
+    test2Fn.teardown();
+    test3Fn.teardown();
+    test4Fn.teardown();
+    test1Fn.teardown();
+
+    // getDatabaseClient called once each for the separate instances.
+    verify(serviceFactory.mockSpanner(), times(1))
+        .getDatabaseClient(eq(DatabaseId.of("project", "test1", "test1")));
+    verify(serviceFactory.mockSpanner(), times(1))
+        .getDatabaseClient(eq(DatabaseId.of("project", "test2", "test2")));
+    verify(serviceFactory.mockSpanner(), times(2)).close();
   }
 
   private static MutationGroup g(Mutation m, Mutation... other) {
