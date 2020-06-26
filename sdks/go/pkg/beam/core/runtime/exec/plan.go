@@ -115,6 +115,9 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 		}
 		p.status = Up
 	}
+	if p.source != nil {
+		p.source.InitSplittable()
+	}
 
 	if p.status != Up {
 		return errors.Errorf("invalid status for plan %v: %v", p.id, p.status)
