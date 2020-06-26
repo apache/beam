@@ -25,4 +25,4 @@ content:
 - Flatten
 - Partition
 - Side Input
-- Side Output
+- Additional Outputs

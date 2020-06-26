@@ -16,12 +16,10 @@
   ~ limitations under the License.
   -->
 
-# Side Output
+# Additional Outputs
 
-While ParDo always produces a main output PCollection (as the return value from apply), you can 
-also have your ParDo produce any number of additional output PCollections. If you choose to have 
-multiple outputs, your ParDo returns all of the output PCollections (including the main output) 
-bundled together.
+In previous lessons, we mainly applied a DoFn to a ParDo that outputted a single PCollection.  Optionally, a ParDo 
+transform can produce zero or multiple output PCollections which we will explore in this lesson. 
 
 **Kata:** Implement additional output to your ParDo for numbers bigger than 100.
 
