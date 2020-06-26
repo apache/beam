@@ -301,6 +301,28 @@ class MainInputTest(unittest.TestCase):
     # Feed integers to a PTransform that should expect strings but has no typehints so it expects any
     _ = [1, 2, 3] | StrToInt() | IntToStr()
 
+  def test_typed_ptransform_with_bare_wrappers(self):
+    class StrToInt(beam.PTransform):
+      def expand(self, pcoll: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
+        return pcoll | beam.Map(lambda x: int(x))
+
+    class IntToStr(beam.PTransform):
+      def expand(self, pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
+        return pcoll | beam.Map(lambda x: str(x))
+
+    _ = [1, 2, 3] | StrToInt() | IntToStr()
+
+  def test_typed_ptransform_with_no_typehints(self):
+    class StrToInt(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll | beam.Map(lambda x: int(x))
+
+    class IntToStr(beam.PTransform):
+      def expand(self, pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
+        return pcoll | beam.Map(lambda x: str(x))
+
+    # Feed integers to a PTransform that should expect strings but has no typehints so it expects any
+    _ = [1, 2, 3] | StrToInt() | IntToStr()
 
 class AnnotationsTest(unittest.TestCase):
   def test_pardo_dofn(self):
