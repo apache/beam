@@ -904,14 +904,14 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     private GoogleJsonError.ErrorInfo getErrorInfo(IOException e) {
-      GoogleJsonResponseException JsonCause = null;
+      GoogleJsonResponseException jsonCause = null;
       Throwable eCause = e;
       if (eCause instanceof GoogleJsonResponseException) {
-        JsonCause = (GoogleJsonResponseException) eCause;
+        jsonCause = (GoogleJsonResponseException) eCause;
       } else {
         return null;
       }
-      GoogleJsonError jsonError = JsonCause.getDetails();
+      GoogleJsonError jsonError = jsonCause.getDetails();
       List<GoogleJsonError.ErrorInfo> errors = jsonError.getErrors();
       GoogleJsonError.ErrorInfo errorInfo = Iterables.getFirst(errors, null);
       return errorInfo;
