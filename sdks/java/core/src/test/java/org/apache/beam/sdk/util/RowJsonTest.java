@@ -261,36 +261,24 @@ public class RowJsonTest {
     }
 
     @Test
-    public void testRoundTrip_KeepNulls_RequireNulls() throws IOException {
-      ObjectMapper objectMapper =
-          newObjectMapperWith(
-              RowJsonSerializer.forSchema(schema),
-              RowJsonDeserializer.forSchema(schema)
-                  .withMissingFieldBehavior(NullBehavior.REQUIRE_NULL));
-      Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
-
-      assertThat(row, equalTo(parsedRow));
-    }
-
-    @Test
-    public void testRoundTrip_DropNulls_AllowMissingOrNull() throws IOException {
-      ObjectMapper objectMapper =
-          newObjectMapperWith(
-              RowJsonSerializer.forSchema(schema).withDropNullsOnWrite(true),
-              RowJsonDeserializer.forSchema(schema)
-                  .withMissingFieldBehavior(NullBehavior.ACCEPT_MISSING_OR_NULL));
-      Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
-
-      assertThat(row, equalTo(parsedRow));
-    }
-
-    @Test
-    public void testRoundTrip_KeepNulls_AllowMissingOrNull() throws IOException {
+    public void testRoundTrip_KeepNulls_AcceptMissingOrNull() throws IOException {
       ObjectMapper objectMapper =
           newObjectMapperWith(
               RowJsonSerializer.forSchema(schema).withDropNullsOnWrite(false),
               RowJsonDeserializer.forSchema(schema)
-                  .withMissingFieldBehavior(NullBehavior.ACCEPT_MISSING_OR_NULL));
+                  .withNullBehavior(NullBehavior.ACCEPT_MISSING_OR_NULL));
+      Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
+
+      assertThat(row, equalTo(parsedRow));
+    }
+
+    @Test
+    public void testRoundTrip_DropNulls_AcceptMissingOrNull() throws IOException {
+      ObjectMapper objectMapper =
+          newObjectMapperWith(
+              RowJsonSerializer.forSchema(schema).withDropNullsOnWrite(true),
+              RowJsonDeserializer.forSchema(schema)
+                  .withNullBehavior(NullBehavior.ACCEPT_MISSING_OR_NULL));
       Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
 
       assertThat(row, equalTo(parsedRow));
@@ -301,8 +289,7 @@ public class RowJsonTest {
       ObjectMapper objectMapper =
           newObjectMapperWith(
               RowJsonSerializer.forSchema(schema).withDropNullsOnWrite(true),
-              RowJsonDeserializer.forSchema(schema)
-                  .withMissingFieldBehavior(NullBehavior.REQUIRE_MISSING));
+              RowJsonDeserializer.forSchema(schema).withNullBehavior(NullBehavior.REQUIRE_MISSING));
       Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
 
       assertThat(row, equalTo(parsedRow));
@@ -313,8 +300,7 @@ public class RowJsonTest {
       ObjectMapper objectMapper =
           newObjectMapperWith(
               RowJsonSerializer.forSchema(schema).withDropNullsOnWrite(false),
-              RowJsonDeserializer.forSchema(schema)
-                  .withMissingFieldBehavior(NullBehavior.REQUIRE_NULL));
+              RowJsonDeserializer.forSchema(schema).withNullBehavior(NullBehavior.REQUIRE_NULL));
       Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
 
       assertThat(row, equalTo(parsedRow));
@@ -408,7 +394,9 @@ public class RowJsonTest {
       thrown.expect(UnsupportedRowJsonException.class);
       thrown.expectMessage("'f_string'");
 
-      newObjectMapperWith(RowJsonDeserializer.forSchema(schema)).readValue(rowString, Row.class);
+      newObjectMapperWith(
+              RowJsonDeserializer.forSchema(schema).withNullBehavior(NullBehavior.REQUIRE_NULL))
+          .readValue(rowString, Row.class);
     }
 
     @Test
@@ -422,7 +410,8 @@ public class RowJsonTest {
       String rowString = "{\"f_byte\": 12, \"f_string\": null}";
 
       assertThat(
-          newObjectMapperWith(RowJsonDeserializer.forSchema(schema))
+          newObjectMapperWith(
+                  RowJsonDeserializer.forSchema(schema).withNullBehavior(NullBehavior.REQUIRE_NULL))
               .readValue(rowString, Row.class),
           equalTo(
               Row.withSchema(schema)
@@ -445,8 +434,7 @@ public class RowJsonTest {
       thrown.expectMessage("'f_string'");
 
       newObjectMapperWith(
-              RowJsonDeserializer.forSchema(schema)
-                  .withMissingFieldBehavior(NullBehavior.REQUIRE_MISSING))
+              RowJsonDeserializer.forSchema(schema).withNullBehavior(NullBehavior.REQUIRE_MISSING))
           .readValue(rowString, Row.class);
     }
 
@@ -463,7 +451,7 @@ public class RowJsonTest {
       assertThat(
           newObjectMapperWith(
                   RowJsonDeserializer.forSchema(schema)
-                      .withMissingFieldBehavior(NullBehavior.REQUIRE_MISSING))
+                      .withNullBehavior(NullBehavior.REQUIRE_MISSING))
               .readValue(rowString, Row.class),
           equalTo(
               Row.withSchema(schema)

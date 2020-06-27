@@ -223,7 +223,7 @@ public class RowJson {
      * {@link NullBehavior} for a description of the options. Default value is {@code
      * ACCEPT_MISSING_OR_NULL}.
      */
-    public RowJsonDeserializer withMissingFieldBehavior(NullBehavior behavior) {
+    public RowJsonDeserializer withNullBehavior(NullBehavior behavior) {
       this.nullBehavior = behavior;
       return this;
     }
