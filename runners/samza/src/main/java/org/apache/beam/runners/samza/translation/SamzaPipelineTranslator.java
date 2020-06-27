@@ -181,6 +181,7 @@ public class SamzaPipelineTranslator {
           .put(SamzaPublishView.SAMZA_PUBLISH_VIEW_URN, new SamzaPublishViewTranslator<>())
           .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
           .put(ExecutableStage.URN, new ParDoBoundMultiTranslator<>())
+          .put(PTransformTranslation.TEST_STREAM_TRANSFORM_URN, new SamzaTestStreamTranslator())
           .build();
     }
   }
