@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
@@ -46,7 +47,21 @@ type DataSource struct {
 	splitIdx  int64
 	start     time.Time
 
+	// rt is non-nil if this DataSource feeds directly to a splittable unit,
+	// and receives the current restriction tracker being processed.
+	rt chan sdf.RTracker
+
 	mu sync.Mutex
+}
+
+// Initializes the rt channel from the following unit when applicable.
+func (n *DataSource) InitSplittable() {
+	if n.Out == nil {
+		return
+	}
+	if u, ok := n.Out.(*ProcessSizedElementsAndRestrictions); ok == true {
+		n.rt = u.Rt
+	}
 }
 
 // ID returns the UnitID for this node.

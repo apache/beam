@@ -26,7 +26,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemLegacyArtifactStagingService;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.jobsubmission.JobInvocation;
@@ -92,14 +91,7 @@ public class SamzaJobServerDriver {
         };
     return InMemoryJobService.create(
         null,
-        (String session) -> {
-          try {
-            return BeamFileSystemLegacyArtifactStagingService.generateStagingSessionToken(
-                session, "/tmp/beam-artifact-staging");
-          } catch (Exception exn) {
-            throw new RuntimeException(exn);
-          }
-        },
+        session -> session,
         stagingSessionToken -> {},
         jobInvoker,
         InMemoryJobService.DEFAULT_MAX_INVOCATION_HISTORY);

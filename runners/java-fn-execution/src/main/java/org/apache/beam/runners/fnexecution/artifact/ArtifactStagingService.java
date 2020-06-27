@@ -329,6 +329,13 @@ public class ArtifactStagingService
             stagingToken = responseWrapper.getStagingToken();
             LOG.info("Staging artifacts for {}.", stagingToken);
             toResolve = toStage.get(stagingToken);
+            if (toResolve == null) {
+              responseObserver.onError(
+                  new StatusException(
+                      Status.INVALID_ARGUMENT.withDescription(
+                          "Unknown staging token " + stagingToken)));
+              return;
+            }
             stagedFutures = new ConcurrentHashMap<>();
             pendingResolves = new ArrayDeque<>();
             pendingResolves.addAll(toResolve.keySet());

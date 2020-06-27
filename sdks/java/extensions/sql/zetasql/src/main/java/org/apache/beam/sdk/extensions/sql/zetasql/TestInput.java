@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTime
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -244,6 +245,16 @@ class TestInput {
       TestBoundedTable.of(TABLE_WTH_DATE_SCHEMA)
           .addRows(LocalDate.of(2008, 12, 25), "str1")
           .addRows(LocalDate.of(2020, 04, 07), "str2");
+
+  private static final Schema TABLE_WTH_TIME_SCHEMA =
+      Schema.builder()
+          .addLogicalTypeField("time_field", SqlTypes.TIME)
+          .addStringField("str_field")
+          .build();
+  public static final TestBoundedTable TABLE_WITH_TIME =
+      TestBoundedTable.of(TABLE_WTH_TIME_SCHEMA)
+          .addRows(LocalTime.of(15, 30, 0), "str1")
+          .addRows(LocalTime.of(23, 35, 59), "str2");
 
   public static byte[] stringToBytes(String s) {
     return s.getBytes(StandardCharsets.UTF_8);
