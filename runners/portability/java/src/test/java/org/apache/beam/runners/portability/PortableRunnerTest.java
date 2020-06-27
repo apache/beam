@@ -31,9 +31,9 @@ import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
-import org.apache.beam.runners.core.construction.InMemoryArtifactStagerService;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 import org.apache.beam.runners.portability.testing.TestJobService;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -44,8 +44,11 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -160,13 +163,28 @@ public class PortableRunnerTest implements Serializable {
 
   private static CloseableResource<Server> createJobServer(
       JobState.Enum jobState, JobApi.MetricResults metricResults) throws IOException {
+    ArtifactStagingService stagingService =
+        new ArtifactStagingService(
+            new ArtifactStagingService.ArtifactDestinationProvider() {
+
+              @Override
+              public ArtifactStagingService.ArtifactDestination getDestination(
+                  String stagingToken, String name) throws IOException {
+                return ArtifactStagingService.ArtifactDestination.create(
+                    "/dev/null", ByteString.EMPTY, ByteStreams.nullOutputStream());
+              }
+
+              @Override
+              public void removeStagedArtifacts(String stagingToken) {}
+            });
+    stagingService.registerJob("TestStagingToken", ImmutableMap.of());
     CloseableResource<Server> server =
         CloseableResource.of(
             InProcessServerBuilder.forName(ENDPOINT_URL)
                 .addService(
                     new TestJobService(
                         ENDPOINT_DESCRIPTOR, "prepId", "jobId", jobState, metricResults))
-                .addService(new InMemoryArtifactStagerService())
+                .addService(stagingService)
                 .build(),
             Server::shutdown);
     server.get().start();
