@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import static com.sun.tools.doclint.Entity.times;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
