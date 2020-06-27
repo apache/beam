@@ -24,11 +24,9 @@ import com.google.api.core.ApiService.Listener;
 import com.google.api.core.ApiService.State;
 import com.google.cloud.pubsublite.Message;
 import com.google.cloud.pubsublite.PublishMetadata;
-import com.google.cloud.pubsublite.internal.CloseableMonitor;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.Publisher;
-import com.google.common.util.concurrent.Monitor.Guard;
-import com.google.common.util.concurrent.MoreExecutors;
+import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.grpc.StatusException;
 import java.io.IOException;
@@ -36,22 +34,23 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 import org.apache.beam.sdk.io.gcp.pubsublite.PublisherOrError.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 
 /** A sink which publishes messages to Pub/Sub Lite. */
-class PubsubLiteSink extends DoFn<Message, Void> {
+class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
   private final PublisherOptions options;
 
-  private transient CloseableMonitor monitor;
-
-  @GuardedBy("monitor.monitor")
+  @GuardedBy("this")
   private transient PublisherOrError publisherOrError;
 
-  @GuardedBy("monitor.monitor")
+  // Whenever outstanding is decremented, notify() must be called.
+  @GuardedBy("this")
   private transient int outstanding;
 
-  @GuardedBy("monitor.monitor")
+  @GuardedBy("this")
   private transient Deque<StatusException> errorsSinceLastFinish;
 
   private static final Executor executor = Executors.newCachedThreadPool();
@@ -68,19 +67,23 @@ class PubsubLiteSink extends DoFn<Message, Void> {
     } else {
       publisher = options.getPublisher();
     }
-    monitor = new CloseableMonitor();
-    try (CloseableMonitor.Hold h = monitor.enter()) {
+    synchronized (this) {
       outstanding = 0;
       errorsSinceLastFinish = new ArrayDeque<>();
       publisherOrError = PublisherOrError.ofPublisher(publisher);
     }
+    // cannot declare in inner class since 'this' means something different.
+    Consumer<Throwable> onFailure =
+        t -> {
+          synchronized (this) {
+            publisherOrError = PublisherOrError.ofError(ExtractStatus.toCanonical(t));
+          }
+        };
     publisher.addListener(
         new Listener() {
           @Override
           public void failed(State s, Throwable t) {
-            try (CloseableMonitor.Hold h = monitor.enter()) {
-              publisherOrError = PublisherOrError.ofError(ExtractStatus.toCanonical(t));
-            }
+            onFailure.accept(t);
           }
         },
         MoreExecutors.directExecutor());
@@ -89,33 +92,38 @@ class PubsubLiteSink extends DoFn<Message, Void> {
     }
   }
 
+  private synchronized void decrementOutstanding() {
+    --outstanding;
+    notify();
+  }
+
   @ProcessElement
-  public void processElement(@Element Message message) throws StatusException {
-    ApiFuture<PublishMetadata> future;
-    try (CloseableMonitor.Hold h = monitor.enter()) {
-      ++outstanding;
-      if (publisherOrError.getKind() == Kind.ERROR) {
-        throw publisherOrError.error();
-      }
-      future = publisherOrError.publisher().publish(message);
+  public synchronized void processElement(@Element PubSubMessage message) throws StatusException {
+    ++outstanding;
+    if (publisherOrError.getKind() == Kind.ERROR) {
+      throw publisherOrError.error();
     }
-    // Add outside of monitor in case future is completed inline.
+    ApiFuture<PublishMetadata> future =
+        publisherOrError.publisher().publish(Message.fromProto(message));
+    // cannot declare in inner class since 'this' means something different.
+    Consumer<Throwable> onFailure =
+        t -> {
+          synchronized (this) {
+            decrementOutstanding();
+            errorsSinceLastFinish.push(ExtractStatus.toCanonical(t));
+          }
+        };
     ApiFutures.addCallback(
         future,
         new ApiFutureCallback<PublishMetadata>() {
           @Override
           public void onSuccess(PublishMetadata publishMetadata) {
-            try (CloseableMonitor.Hold h = monitor.enter()) {
-              --outstanding;
-            }
+            decrementOutstanding();
           }
 
           @Override
           public void onFailure(Throwable t) {
-            try (CloseableMonitor.Hold h = monitor.enter()) {
-              --outstanding;
-              errorsSinceLastFinish.push(ExtractStatus.toCanonical(t));
-            }
+            onFailure.accept(t);
           }
         },
         executor);
@@ -123,25 +131,20 @@ class PubsubLiteSink extends DoFn<Message, Void> {
 
   // Intentionally don't flush on bundle finish to allow multi-sink client reuse.
   @FinishBundle
-  public void finishBundle() throws StatusException, IOException {
-    try (CloseableMonitor.Hold h =
-        monitor.enterWhenUninterruptibly(
-            new Guard(monitor.monitor) {
-              @Override
-              public boolean isSatisfied() {
-                return outstanding == 0;
-              }
-            })) {
-      if (!errorsSinceLastFinish.isEmpty()) {
-        StatusException canonical = errorsSinceLastFinish.pop();
-        while (!errorsSinceLastFinish.isEmpty()) {
-          canonical.addSuppressed(errorsSinceLastFinish.pop());
-        }
-        throw canonical;
+  public synchronized void finishBundle()
+      throws StatusException, IOException, InterruptedException {
+    while (outstanding > 0) {
+      wait();
+    }
+    if (!errorsSinceLastFinish.isEmpty()) {
+      StatusException canonical = errorsSinceLastFinish.pop();
+      while (!errorsSinceLastFinish.isEmpty()) {
+        canonical.addSuppressed(errorsSinceLastFinish.pop());
       }
-      if (publisherOrError.getKind() == Kind.ERROR) {
-        throw publisherOrError.error();
-      }
+      throw canonical;
+    }
+    if (publisherOrError.getKind() == Kind.ERROR) {
+      throw publisherOrError.error();
     }
   }
 }

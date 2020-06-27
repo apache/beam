@@ -47,16 +47,17 @@ import com.google.cloud.pubsublite.internal.Publisher;
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.StatusException;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -102,7 +103,8 @@ public class PubsubLiteSinkTest {
 
   private void runWith(Message... messages) {
     pipeline
-        .apply(Create.of(ImmutableList.copyOf(messages)).withCoder(new MessageCoder()))
+        .apply(
+            Create.of(Arrays.stream(messages).map(Message::toProto).collect(Collectors.toList())))
         .apply(ParDo.of(sink));
     pipeline.run();
   }

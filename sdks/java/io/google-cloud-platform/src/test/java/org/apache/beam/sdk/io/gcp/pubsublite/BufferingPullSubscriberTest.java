@@ -32,16 +32,17 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.core.ApiFutures;
 import com.google.api.core.ApiService.Listener;
-import com.google.cloud.pubsublite.Message;
 import com.google.cloud.pubsublite.Offset;
-import com.google.cloud.pubsublite.SequencedMessage;
 import com.google.cloud.pubsublite.cloudpubsub.FlowControlSettings;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.internal.wire.SubscriberFactory;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.FlowControlRequest;
+import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.cloud.pubsublite.proto.SeekRequest;
+import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.common.collect.ImmutableList;
+import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
 import io.grpc.Status.Code;
@@ -74,9 +75,22 @@ public class BufferingPullSubscriberTest {
               })
           .get();
   // Initialized in setUp.
-  private PullSubscriber<SequencedMessage> subscriber;
-  private Consumer<ImmutableList<SequencedMessage>> messageConsumer;
+  private PullSubscriber subscriber;
+  private Consumer<ImmutableList<com.google.cloud.pubsublite.SequencedMessage>> messageConsumer;
   private Listener errorListener;
+
+  private static SequencedMessage newMessage(Timestamp publishTime, Offset offset, long sizeBytes) {
+    return SequencedMessage.newBuilder()
+        .setMessage(PubSubMessage.getDefaultInstance())
+        .setPublishTime(publishTime)
+        .setCursor(Cursor.newBuilder().setOffset(offset.value()))
+        .setSizeBytes(sizeBytes)
+        .build();
+  }
+
+  private static com.google.cloud.pubsublite.SequencedMessage toWrapper(SequencedMessage proto) {
+    return com.google.cloud.pubsublite.SequencedMessage.fromProto(proto);
+  }
 
   @Before
   public void setUp() throws Exception {
@@ -137,25 +151,20 @@ public class BufferingPullSubscriberTest {
 
   @Test
   public void pullEmptiesForNext() throws StatusException {
-    SequencedMessage message1 =
-        SequencedMessage.of(Message.builder().build(), Timestamps.EPOCH, Offset.of(10), 10);
-    SequencedMessage message2 =
-        SequencedMessage.of(Message.builder().build(), Timestamps.EPOCH, Offset.of(11), 10);
-    messageConsumer.accept(ImmutableList.of(message1, message2));
+    SequencedMessage message1 = newMessage(Timestamps.EPOCH, Offset.of(10), 10);
+    SequencedMessage message2 = newMessage(Timestamps.EPOCH, Offset.of(11), 10);
+    messageConsumer.accept(ImmutableList.of(toWrapper(message1), toWrapper(message2)));
     assertThat(subscriber.pull(), containsInAnyOrder(message1, message2));
     assertThat(subscriber.pull(), empty());
   }
 
   @Test
   public void multipleBatchesAggregatedReturnsTokens() throws StatusException {
-    SequencedMessage message1 =
-        SequencedMessage.of(Message.builder().build(), Timestamps.EPOCH, Offset.of(10), 10);
-    SequencedMessage message2 =
-        SequencedMessage.of(Message.builder().build(), Timestamps.EPOCH, Offset.of(11), 20);
-    SequencedMessage message3 =
-        SequencedMessage.of(Message.builder().build(), Timestamps.EPOCH, Offset.of(12), 30);
-    messageConsumer.accept(ImmutableList.of(message1, message2));
-    messageConsumer.accept(ImmutableList.of(message3));
+    SequencedMessage message1 = newMessage(Timestamps.EPOCH, Offset.of(10), 10);
+    SequencedMessage message2 = newMessage(Timestamps.EPOCH, Offset.of(11), 20);
+    SequencedMessage message3 = newMessage(Timestamps.EPOCH, Offset.of(12), 30);
+    messageConsumer.accept(ImmutableList.of(toWrapper(message1), toWrapper(message2)));
+    messageConsumer.accept(ImmutableList.of(toWrapper(message3)));
     assertThat(subscriber.pull(), containsInAnyOrder(message1, message2, message3));
     assertThat(subscriber.pull(), empty());
 

@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
+import com.google.cloud.pubsublite.proto.SequencedMessage;
 import io.grpc.StatusException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import java.util.List;
 
 /** A PullSubscriber exposes a "pull" mechanism for retrieving messages. */
-interface PullSubscriber<T> extends AutoCloseable {
+interface PullSubscriber extends AutoCloseable {
   /** Pull currently available messages from this subscriber. Does not block. */
-  ImmutableList<T> pull() throws StatusException;
+  List<SequencedMessage> pull() throws StatusException;
 }

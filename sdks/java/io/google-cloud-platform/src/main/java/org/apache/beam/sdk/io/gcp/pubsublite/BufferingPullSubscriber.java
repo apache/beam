@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 import com.google.api.core.ApiService.Listener;
 import com.google.api.core.ApiService.State;
 import com.google.cloud.pubsublite.Offset;
-import com.google.cloud.pubsublite.SequencedMessage;
 import com.google.cloud.pubsublite.cloudpubsub.FlowControlSettings;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
@@ -28,11 +27,14 @@ import com.google.cloud.pubsublite.internal.wire.SubscriberFactory;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.FlowControlRequest;
 import com.google.cloud.pubsublite.proto.SeekRequest;
+import com.google.cloud.pubsublite.proto.SequencedMessage;
 import io.grpc.StatusException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
@@ -41,14 +43,21 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
  * A Pub/Sub Lite subscriber that transforms the streaming message delivery to a pull-based one
  * through buffering, enabling easier use from a beam source.
  */
-class BufferingPullSubscriber implements PullSubscriber<SequencedMessage> {
+class BufferingPullSubscriber implements PullSubscriber {
   private final Subscriber underlying;
   private final AtomicReference<StatusException> error = new AtomicReference<>();
   private final LinkedBlockingQueue<SequencedMessage> messages = new LinkedBlockingQueue<>();
 
   BufferingPullSubscriber(SubscriberFactory factory, FlowControlSettings settings)
       throws StatusException {
-    underlying = factory.New(messages::addAll);
+    underlying =
+        factory.New(
+            newMessages -> {
+              messages.addAll(
+                  newMessages.stream()
+                      .map(message -> message.toProto())
+                      .collect(Collectors.toList()));
+            });
     underlying.addListener(
         new Listener() {
           @Override
@@ -84,14 +93,14 @@ class BufferingPullSubscriber implements PullSubscriber<SequencedMessage> {
   }
 
   @Override
-  public ImmutableList<SequencedMessage> pull() throws StatusException {
+  public List<SequencedMessage> pull() throws StatusException {
     @Nullable StatusException maybeError = error.get();
     if (maybeError != null) {
       throw maybeError;
     }
     ArrayList<SequencedMessage> collection = new ArrayList<>();
     messages.drainTo(collection);
-    long bytes = collection.stream().mapToLong(SequencedMessage::byteSize).sum();
+    long bytes = collection.stream().mapToLong(SequencedMessage::getSizeBytes).sum();
     underlying.allowFlow(
         FlowControlRequest.newBuilder()
             .setAllowedBytes(bytes)

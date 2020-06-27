@@ -17,19 +17,20 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import com.google.cloud.pubsublite.Message;
-import com.google.cloud.pubsublite.Offset;
-import com.google.cloud.pubsublite.SequencedMessage;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableListMultimap;
-import com.google.common.collect.Iterables;
+import com.google.cloud.pubsublite.proto.AttributeValues;
+import com.google.cloud.pubsublite.proto.Cursor;
+import com.google.cloud.pubsublite.proto.PubSubMessage;
+import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.util.Timestamps;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -44,13 +45,16 @@ public class UuidDeduplicationTransformTest {
 
   private static SequencedMessage newMessage() {
     Uuid uuid = Uuid.random();
-    return SequencedMessage.of(
-        Message.builder()
-            .setAttributes(ImmutableListMultimap.of(Uuid.DEFAULT_ATTRIBUTE, uuid.value()))
-            .build(),
-        Timestamps.EPOCH,
-        Offset.of(10),
-        10000);
+    return SequencedMessage.newBuilder()
+        .setMessage(
+            PubSubMessage.newBuilder()
+                .putAttributes(
+                    Uuid.DEFAULT_ATTRIBUTE,
+                    AttributeValues.newBuilder().addValues(uuid.value()).build()))
+        .setSizeBytes(10000)
+        .setPublishTime(Timestamps.EPOCH)
+        .setCursor(Cursor.newBuilder().setOffset(10))
+        .build();
   }
 
   @Test
@@ -59,7 +63,7 @@ public class UuidDeduplicationTransformTest {
     SequencedMessage message2 = newMessage();
 
     TestStream<SequencedMessage> messageStream =
-        TestStream.create(new SequencedMessageCoder())
+        TestStream.create(ProtoCoder.of(SequencedMessage.class))
             .advanceWatermarkTo(START)
             .addElements(message1)
             .advanceWatermarkTo(START.plus(Deduplicate.DEFAULT_DURATION.dividedBy(2)))
@@ -80,7 +84,7 @@ public class UuidDeduplicationTransformTest {
     SequencedMessage message = newMessage();
 
     TestStream<SequencedMessage> messageStream =
-        TestStream.create(new SequencedMessageCoder())
+        TestStream.create(ProtoCoder.of(SequencedMessage.class))
             .advanceWatermarkTo(START)
             .addElements(message)
             .advanceWatermarkTo(START.plus(Deduplicate.DEFAULT_DURATION.dividedBy(2)))
@@ -100,7 +104,7 @@ public class UuidDeduplicationTransformTest {
     SequencedMessage message1 = newMessage();
 
     TestStream<SequencedMessage> messageStream =
-        TestStream.create(new SequencedMessageCoder())
+        TestStream.create(ProtoCoder.of(SequencedMessage.class))
             .advanceWatermarkTo(START)
             .addElements(message1)
             .advanceWatermarkTo(
@@ -127,7 +131,7 @@ public class UuidDeduplicationTransformTest {
     SequencedMessage message2 = newMessage();
 
     TestStream<SequencedMessage> messageStream =
-        TestStream.create(new SequencedMessageCoder())
+        TestStream.create(ProtoCoder.of(SequencedMessage.class))
             .advanceWatermarkTo(START)
             .addElements(message1, message2)
             .advanceWatermarkToInfinity();

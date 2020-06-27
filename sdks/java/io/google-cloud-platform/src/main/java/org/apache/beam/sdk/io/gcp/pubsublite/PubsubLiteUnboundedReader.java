@@ -21,11 +21,11 @@ import com.google.api.core.ApiFuture;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
-import com.google.cloud.pubsublite.SequencedMessage;
 import com.google.cloud.pubsublite.internal.CloseableMonitor;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.ProxyService;
 import com.google.cloud.pubsublite.internal.wire.Committer;
+import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
@@ -139,7 +139,7 @@ class PubsubLiteUnboundedReader extends UnboundedReader<SequencedMessage>
   static class SubscriberState {
     Instant lastDeliveredPublishTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
     Optional<Offset> lastDelivered = Optional.empty();
-    PullSubscriber<SequencedMessage> subscriber;
+    PullSubscriber subscriber;
     Committer committer;
   }
 
@@ -191,8 +191,9 @@ class PubsubLiteUnboundedReader extends UnboundedReader<SequencedMessage>
   @GuardedBy("monitor.monitor")
   private void setLastDelivered(PartitionedSequencedMessage message) {
     SubscriberState state = subscriberMap.get(message.partition());
-    state.lastDelivered = Optional.of(message.sequencedMessage().offset());
-    Timestamp timestamp = message.sequencedMessage().publishTime();
+    state.lastDelivered =
+        Optional.of(Offset.of(message.sequencedMessage().getCursor().getOffset()));
+    Timestamp timestamp = message.sequencedMessage().getPublishTime();
     state.lastDeliveredPublishTimestamp = new Instant(Timestamps.toMillis(timestamp));
   }
 
@@ -221,7 +222,7 @@ class PubsubLiteUnboundedReader extends UnboundedReader<SequencedMessage>
       if (messages.isEmpty()) {
         throw new NoSuchElementException();
       }
-      return new Instant(Timestamps.toMillis(messages.peek().sequencedMessage().publishTime()));
+      return new Instant(Timestamps.toMillis(messages.peek().sequencedMessage().getPublishTime()));
     }
   }
 

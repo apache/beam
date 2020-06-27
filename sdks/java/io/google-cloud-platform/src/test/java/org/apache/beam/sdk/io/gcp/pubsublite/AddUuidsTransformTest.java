@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import com.google.cloud.pubsublite.Message;
+import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.protobuf.ByteString;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -38,23 +39,26 @@ import org.junit.runners.JUnit4;
 public final class AddUuidsTransformTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
-  private static Message newMessage(int identifier) {
-    return Message.builder().setKey(ByteString.copyFromUtf8(Integer.toString(identifier))).build();
+  private static PubSubMessage newMessage(int identifier) {
+    return PubSubMessage.newBuilder()
+        .setKey(ByteString.copyFromUtf8(Integer.toString(identifier)))
+        .build();
   }
 
-  private static SerializableFunction<Iterable<Message>, Void> identifiersInAnyOrder(
+  private static SerializableFunction<Iterable<PubSubMessage>, Void> identifiersInAnyOrder(
       Set<Integer> identifiers) {
     return messages -> {
       Set<Uuid> uuids = new HashSet<>();
       messages.forEach(
           message -> {
-            int identifier = Integer.parseInt(message.key().toStringUtf8());
+            int identifier = Integer.parseInt(message.getKey().toStringUtf8());
             if (!identifiers.remove(identifier)) {
               throw new IllegalStateException("Duplicate element " + identifier);
             }
             if (!uuids.add(
                 Uuid.of(
-                    Iterables.getOnlyElement(message.attributes().get(Uuid.DEFAULT_ATTRIBUTE))))) {
+                    Iterables.getOnlyElement(
+                        message.getAttributesMap().get(Uuid.DEFAULT_ATTRIBUTE).getValuesList())))) {
               throw new IllegalStateException("Invalid duplicate Uuid: " + message.toString());
             }
           });
@@ -67,24 +71,26 @@ public final class AddUuidsTransformTest {
 
   @Test
   public void messagesSameBatch() {
-    TestStream<Message> messageStream =
-        TestStream.create(new MessageCoder())
+    TestStream<PubSubMessage> messageStream =
+        TestStream.create(ProtoCoder.of(PubSubMessage.class))
             .addElements(newMessage(1), newMessage(2), newMessage(85))
             .advanceWatermarkToInfinity();
-    PCollection<Message> outputs = pipeline.apply(messageStream).apply(new AddUuidsTransform());
+    PCollection<PubSubMessage> outputs =
+        pipeline.apply(messageStream).apply(new AddUuidsTransform());
     PAssert.that(outputs).satisfies(identifiersInAnyOrder(Sets.newHashSet(1, 2, 85)));
     pipeline.run();
   }
 
   @Test
   public void messagesTimeDelayed() {
-    TestStream<Message> messageStream =
-        TestStream.create(new MessageCoder())
+    TestStream<PubSubMessage> messageStream =
+        TestStream.create(ProtoCoder.of(PubSubMessage.class))
             .addElements(newMessage(1), newMessage(2))
             .advanceProcessingTime(Duration.standardDays(1))
             .addElements(newMessage(85))
             .advanceWatermarkToInfinity();
-    PCollection<Message> outputs = pipeline.apply(messageStream).apply(new AddUuidsTransform());
+    PCollection<PubSubMessage> outputs =
+        pipeline.apply(messageStream).apply(new AddUuidsTransform());
     PAssert.that(outputs).satisfies(identifiersInAnyOrder(Sets.newHashSet(1, 2, 85)));
     pipeline.run();
   }
