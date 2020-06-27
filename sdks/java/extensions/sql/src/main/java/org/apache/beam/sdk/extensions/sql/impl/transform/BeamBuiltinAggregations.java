@@ -394,49 +394,51 @@ public class BeamBuiltinAggregations {
   }
 
   static class BitAnd<T extends Number> extends CombineFn<T, BitAnd.Accum, Long> {
-      public static class Accum {
-        long val = -1L;
-        boolean isEmpty = true;
-        boolean seenNull = false;
-      }
+    public static class Accum {
+      long val = -1L;
+      boolean isEmpty = true;
+      boolean seenNull = false;
+    }
 
-      @Override
-      public Accum createAccumulator() {
-        return new Accum();
-      }
+    @Override
+    public Accum createAccumulator() {
+      return new Accum();
+    }
 
-      @Override
-      public Accum addInput(Accum accum, T input) {
-        if (input == null) {
-          accum.seenNull = true;
-        } else {
-          accum.isEmpty = false;
-          accum.val = accum.val & input.longValue();
+    @Override
+    public Accum addInput(Accum accum, T input) {
+      if (input == null) {
+        accum.seenNull = true;
+      } else {
+        accum.isEmpty = false;
+        accum.val = accum.val & input.longValue();
+      }
+      return accum;
+    }
+
+    @Override
+    public Accum mergeAccumulators(Iterable<Accum> accums) {
+      Accum merged = createAccumulator();
+      for (Accum accum : accums) {
+        if (accum.isEmpty) {
+          merged.isEmpty = true;
+          break;
         }
-        return accum;
-      }
-
-      @Override
-      public Accum mergeAccumulators(Iterable<Accum> accums) {
-        Accum merged = createAccumulator();
-        for (Accum accum : accums) {
-          if (accum.isEmpty) {
-            merged.isEmpty = true;
-            break;
-          }
-          if (accum.seenNull) {
-            merged.seenNull = true;
-            break;
-          }
-          merged.val = merged.val & accum.val;
+        if (accum.seenNull) {
+          merged.seenNull = true;
+          break;
         }
-        return merged;
+        merged.val = merged.val & accum.val;
       }
+      return merged;
+    }
 
-      @Override
-      public Long extractOutput(Accum accum) {
-        if (accum.isEmpty || accum.seenNull) return null;
-        return accum.val;
+    @Override
+    public Long extractOutput(Accum accum) {
+      if (accum.isEmpty || accum.seenNull) {
+        return null;
       }
+      return accum.val;
+    }
   }
 }
