@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 import static com.google.cloud.pubsublite.internal.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.cloud.pubsublite.SequencedMessage;
+import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import java.util.List;
@@ -36,9 +36,10 @@ public abstract class UuidDeduplicationOptions implements Serializable {
   public static final SerializableStatusFunction<SequencedMessage, Uuid> DEFAULT_UUID_EXTRACTOR =
       message -> {
         checkArgument(
-            message.message().attributes().containsKey(Uuid.DEFAULT_ATTRIBUTE),
+            message.getMessage().getAttributesMap().containsKey(Uuid.DEFAULT_ATTRIBUTE),
             "Uuid attribute missing.");
-        List<ByteString> attributes = message.message().attributes().get(Uuid.DEFAULT_ATTRIBUTE);
+        List<ByteString> attributes =
+            message.getMessage().getAttributesMap().get(Uuid.DEFAULT_ATTRIBUTE).getValuesList();
         checkArgument(attributes.size() == 1, "Duplicate Uuid attribute values exist.");
         return Uuid.of(attributes.get(0));
       };

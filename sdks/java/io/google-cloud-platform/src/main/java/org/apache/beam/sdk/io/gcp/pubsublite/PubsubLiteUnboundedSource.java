@@ -21,9 +21,9 @@ import static com.google.cloud.pubsublite.internal.Preconditions.checkState;
 
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
-import com.google.cloud.pubsublite.SequencedMessage;
 import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.internal.wire.SubscriberFactory;
+import com.google.cloud.pubsublite.proto.SequencedMessage;
 import io.grpc.StatusException;
 import java.io.IOException;
 import java.util.List;
@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -111,6 +112,6 @@ class PubsubLiteUnboundedSource extends UnboundedSource<SequencedMessage, Offset
 
   @Override
   public Coder<SequencedMessage> getOutputCoder() {
-    return new SequencedMessageCoder();
+    return ProtoCoder.of(SequencedMessage.class);
   }
 }

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 import static com.google.cloud.pubsublite.cloudpubsub.MessageTransforms.toCpsPublishTransformer;
 
 import com.google.cloud.pubsublite.Message;
+import com.google.cloud.pubsublite.proto.PubSubMessage;
 import io.grpc.StatusException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -39,14 +40,15 @@ public final class CloudPubsubChecks {
    *
    * <p>Will fail the pipeline if a message has multiple attributes per key.
    */
-  public static PTransform<PCollection<? extends Message>, PCollection<Message>>
+  public static PTransform<PCollection<? extends PubSubMessage>, PCollection<PubSubMessage>>
       ensureUsableAsCloudPubsub() {
     return ParDo.of(
-        new DoFn<Message, Message>() {
+        new DoFn<PubSubMessage, PubSubMessage>() {
           @ProcessElement
-          public void processElement(@Element Message message, OutputReceiver<Message> output)
+          public void processElement(
+              @Element PubSubMessage message, OutputReceiver<PubSubMessage> output)
               throws StatusException {
-            Object unused = toCpsPublishTransformer().transform(message);
+            Object unused = toCpsPublishTransformer().transform(Message.fromProto(message));
             output.output(message);
           }
         });

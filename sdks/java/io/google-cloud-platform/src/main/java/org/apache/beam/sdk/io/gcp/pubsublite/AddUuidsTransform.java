@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import com.google.cloud.pubsublite.Message;
-import com.google.common.collect.ImmutableListMultimap;
-import com.google.protobuf.ByteString;
+import com.google.cloud.pubsublite.proto.AttributeValues;
+import com.google.cloud.pubsublite.proto.PubSubMessage;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -27,25 +26,24 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** A transform to add UUIDs to each message to be written to Pub/Sub Lite. */
-class AddUuidsTransform extends PTransform<PCollection<Message>, PCollection<Message>> {
-  private static Message addUuid(Message message) {
-    ImmutableListMultimap.Builder<String, ByteString> attributesBuilder =
-        ImmutableListMultimap.builder();
-    message.attributes().entries().stream()
-        .filter(entry -> !entry.getKey().equals(Uuid.DEFAULT_ATTRIBUTE))
-        .forEach(attributesBuilder::put);
-    attributesBuilder.put(Uuid.DEFAULT_ATTRIBUTE, Uuid.random().value());
-    return message.toBuilder().setAttributes(attributesBuilder.build()).build();
+class AddUuidsTransform extends PTransform<PCollection<PubSubMessage>, PCollection<PubSubMessage>> {
+  private static PubSubMessage addUuid(PubSubMessage message) {
+    PubSubMessage.Builder builder = message.toBuilder();
+    builder.putAttributes(
+        Uuid.DEFAULT_ATTRIBUTE,
+        AttributeValues.newBuilder().addValues(Uuid.random().value()).build());
+    return builder.build();
   }
 
   @Override
-  public PCollection<Message> expand(PCollection<Message> input) {
-    PCollection<Message> withUuids =
+  public PCollection<PubSubMessage> expand(PCollection<PubSubMessage> input) {
+    PCollection<PubSubMessage> withUuids =
         input.apply(
             "AddUuids",
-            MapElements.into(new TypeDescriptor<Message>() {}).via(AddUuidsTransform::addUuid));
+            MapElements.into(new TypeDescriptor<PubSubMessage>() {})
+                .via(AddUuidsTransform::addUuid));
     // Reshuffle into 1000 buckets to avoid having unit-sized bundles under high throughput.
     return withUuids.apply(
-        "ShuffleToPersist", Reshuffle.<Message>viaRandomKey().withNumBuckets(1000));
+        "ShuffleToPersist", Reshuffle.<PubSubMessage>viaRandomKey().withNumBuckets(1000));
   }
 }

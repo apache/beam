@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import com.google.cloud.pubsublite.SequencedMessage;
+import com.google.cloud.pubsublite.proto.SequencedMessage;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ProcessFunction;

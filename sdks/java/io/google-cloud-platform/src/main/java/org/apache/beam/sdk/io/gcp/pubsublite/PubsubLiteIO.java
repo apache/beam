@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import com.google.cloud.pubsublite.Message;
-import com.google.cloud.pubsublite.SequencedMessage;
+import com.google.cloud.pubsublite.proto.PubSubMessage;
+import com.google.cloud.pubsublite.proto.SequencedMessage;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -26,6 +26,12 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
+/**
+ * I/O transforms for reading from Google Pub/Sub Lite.
+ *
+ * <p>For the differences between this and Google Pub/Sub, please refer to the <a
+ * href="https://cloud.google.com/pubsub/docs/choosing-pubsub-or-lite">product documentation</a>.
+ */
 @Experimental
 public final class PubsubLiteIO {
   private PubsubLiteIO() {}
@@ -87,7 +93,7 @@ public final class PubsubLiteIO {
    *
    * }</pre>
    */
-  public static PTransform<PCollection<Message>, PCollection<Message>> addUuids() {
+  public static PTransform<PCollection<PubSubMessage>, PCollection<PubSubMessage>> addUuids() {
     return new AddUuidsTransform();
   }
 
@@ -108,10 +114,10 @@ public final class PubsubLiteIO {
    *
    * }</pre>
    */
-  public static PTransform<PCollection<Message>, PDone> write(PublisherOptions options) {
-    return new PTransform<PCollection<Message>, PDone>("PubsubLiteIO") {
+  public static PTransform<PCollection<PubSubMessage>, PDone> write(PublisherOptions options) {
+    return new PTransform<PCollection<PubSubMessage>, PDone>("PubsubLiteIO") {
       @Override
-      public PDone expand(PCollection<Message> input) {
+      public PDone expand(PCollection<PubSubMessage> input) {
         PubsubLiteSink sink = new PubsubLiteSink(options);
         input.apply("Write", ParDo.of(sink));
         return PDone.in(input.getPipeline());

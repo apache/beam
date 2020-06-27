@@ -30,12 +30,12 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.api.core.ApiFutures;
-import com.google.cloud.pubsublite.Message;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
-import com.google.cloud.pubsublite.SequencedMessage;
 import com.google.cloud.pubsublite.internal.FakeApiService;
 import com.google.cloud.pubsublite.internal.wire.Committer;
+import com.google.cloud.pubsublite.proto.Cursor;
+import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.StatusException;
@@ -54,16 +54,15 @@ import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 
 @RunWith(JUnit4.class)
 public class PubsubLiteUnboundedReaderTest {
-  @SuppressWarnings("unchecked")
-  private final PullSubscriber<SequencedMessage> subscriber5 = mock(PullSubscriber.class);
+  @Mock private PullSubscriber subscriber5;
 
-  @SuppressWarnings("unchecked")
-  private final PullSubscriber<SequencedMessage> subscriber8 = mock(PullSubscriber.class);
+  @Mock private PullSubscriber subscriber8;
 
   abstract static class CommitterFakeService extends FakeApiService implements Committer {}
 
@@ -76,7 +75,11 @@ public class PubsubLiteUnboundedReaderTest {
   private final PubsubLiteUnboundedReader reader;
 
   private static SequencedMessage exampleMessage(Offset offset, Timestamp publishTime) {
-    return SequencedMessage.of(Message.builder().build(), publishTime, offset, 100);
+    return SequencedMessage.newBuilder()
+        .setPublishTime(publishTime)
+        .setCursor(Cursor.newBuilder().setOffset(offset.value()))
+        .setSizeBytes(100)
+        .build();
   }
 
   private static Timestamp randomMilliAllignedTimestamp() {
@@ -148,13 +151,13 @@ public class PubsubLiteUnboundedReaderTest {
     messages.add(reader.getCurrent());
     assertThat(reader.getWatermark(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
     // This could be either original message, but is the current message from the reader.
-    assertThat(reader.getCurrentTimestamp(), equalTo(toInstant(messages.get(0).publishTime())));
+    assertThat(reader.getCurrentTimestamp(), equalTo(toInstant(messages.get(0).getPublishTime())));
     assertTrue(reader.advance());
     messages.add(reader.getCurrent());
     assertThat(
         reader.getWatermark(),
         equalTo(Collections.min(Arrays.asList(toInstant(ts1), toInstant(ts2)))));
-    assertThat(reader.getCurrentTimestamp(), equalTo(toInstant(messages.get(1).publishTime())));
+    assertThat(reader.getCurrentTimestamp(), equalTo(toInstant(messages.get(1).getPublishTime())));
     // Second pull yields no more messages.
     when(subscriber5.pull()).thenReturn(ImmutableList.of());
     when(subscriber8.pull()).thenReturn(ImmutableList.of());
