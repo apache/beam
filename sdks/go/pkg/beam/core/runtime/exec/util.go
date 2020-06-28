@@ -17,6 +17,7 @@ package exec
 
 import (
 	"context"
+	"fmt"
 	"runtime/debug"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -25,6 +26,29 @@ import (
 // GenID is a simple UnitID generator.
 type GenID struct {
 	last int
+}
+
+// doFnError is a helpful error where DoFns with emitters have failed.
+//
+// Golang SDK uses errors returned by DoFns to signal failures to process
+// bundles and terminate bundle processing. However, in the case of  emitters,
+// a panic is used as a means of bundle process termination, which  in turn is
+// wrapped by callNoPanic to recover the panicking code and return golang error
+// instead. However, formatting this error yields the stack trace a message
+// which is both long, and unhelpful the user.
+//
+// This error enables to create a more helpful user error where a panic is
+// caught where the origin is due to a failed DoFn execution in process bundle
+// execution.
+type doFnError struct {
+	doFn string
+	err  error
+	uid  UnitID
+	pid  string
+}
+
+func (e *doFnError) Error() string {
+	return fmt.Sprintf("%v caused error %v, uid is %v pid is %v", e.doFn, e.err, e.uid, e.pid)
 }
 
 // New returns a fresh ID.
