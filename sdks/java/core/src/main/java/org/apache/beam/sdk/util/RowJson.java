@@ -172,6 +172,7 @@ public class RowJson {
      *   <li>If configured with {@code REQUIRE_MISSING}, {@code {"str": "bar"}} would be accepted,
      *       and would yield a {@link Row} with {@code null} for the {@code int} field.
      *   <li>If configured with {@code ALLOW_MISSING_OR_NULL}, either JSON string would be accepted.
+     * </ul>
      */
     public enum NullBehavior {
       /**
