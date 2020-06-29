@@ -24,7 +24,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
-/** An abstraction to create schema aware IOs. */
+/**
+ * An abstraction to create schema capable and aware IOs. The interface is intended to be used in
+ * conjunction with the interface {@link SchemaCapableIOProvider}.
+ *
+ * <p>The interfaces can be implemented to enable IOs for SDKs in addition to Beam SQL.
+ */
 public interface SchemaIO {
   /** Returns the schema of the data. */
   Schema schema();

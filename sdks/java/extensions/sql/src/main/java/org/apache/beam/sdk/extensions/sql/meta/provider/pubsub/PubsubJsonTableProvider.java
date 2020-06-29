@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
+import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
+
 import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
@@ -28,10 +31,10 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaCapableIOProvider;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 import org.apache.beam.sdk.schemas.io.InvalidSchemaException;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
+import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -51,24 +54,25 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
   @Override
   public BeamSqlTable buildBeamSqlTable(Table tableDefinition) {
     JSONObject tableProperties = tableDefinition.getProperties();
-
     PubsubSchemaCapableIOProvider ioProvider = new PubsubSchemaCapableIOProvider();
-    Schema configurationSchema = ioProvider.configurationSchema();
-
-    Row configurationRow =
-        Row.withSchema(configurationSchema)
-            .withFieldValue(
-                "timestampAttributeKey", tableProperties.getString("timestampAttributeKey"))
-            .withFieldValue("deadLetterQueue", tableProperties.getString("deadLetterQueue"))
-            .build();
 
     try {
+      RowJsonDeserializer deserializer =
+          RowJsonDeserializer.forSchema(ioProvider.configurationSchema())
+              .withMissingFieldBehavior(RowJsonDeserializer.MissingFieldBehavior.ALLOW_MISSING);
+
+      Row configurationRow =
+          newObjectMapperWith(deserializer).readValue(tableProperties.toString(), Row.class);
+
       SchemaIO pubsubSchemaIO =
           ioProvider.from(
               tableDefinition.getLocation(), configurationRow, tableDefinition.getSchema());
+
       return PubsubIOJsonTable.fromSchemaIO(pubsubSchemaIO);
     } catch (InvalidConfigurationException | InvalidSchemaException e) {
       throw new InvalidTableException(e.getMessage());
+    } catch (JsonProcessingException e) {
+      throw new AssertionError();
     }
   }
 }

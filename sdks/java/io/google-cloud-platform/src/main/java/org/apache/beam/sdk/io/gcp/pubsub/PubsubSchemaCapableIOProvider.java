@@ -54,7 +54,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *
  * <p>If useFlatSchema of {@link PubsubSchemaIO} is not set, schema must contain exactly fields
  * 'event_timestamp', 'attributes, and 'payload'. Else, it must contain just 'event_timestamp'. See
- * {@linkA PubsubMessageToRow} for details.
+ * {@link PubsubMessageToRow} for details.
  *
  * <p>{@link #configurationSchema()} consists of two attributes, timestampAttributeKey and
  * deadLetterQueue.
@@ -105,6 +105,7 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
    */
   @Override
   public PubsubSchemaIO from(String location, Row configuration, Schema dataSchema) {
+    validateConfigurationSchema(configuration);
     validateDlq(configuration.getValue("deadLetterQueue"));
     validateEventTimestamp(dataSchema);
     return new PubsubSchemaIO(location, configuration, dataSchema);
@@ -122,6 +123,13 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
   private void validateDlq(String deadLetterQueue) {
     if (deadLetterQueue != null && deadLetterQueue.isEmpty()) {
       throw new InvalidConfigurationException("Dead letter queue topic name is not specified");
+    }
+  }
+
+  private void validateConfigurationSchema(Row configuration) {
+    if (!configuration.getSchema().equals(configurationSchema())) {
+      throw new InvalidConfigurationException(
+          "Configuration schema provided does not match expected");
     }
   }
 
