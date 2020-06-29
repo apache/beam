@@ -631,8 +631,8 @@ class _IdentityWindowFn(NonMergingWindowFn):
 class ReshufflePerKey(PTransform):
   """PTransform that returns a PCollection equivalent to its input,
   but operationally provides some of the side effects of a GroupByKey,
-  in particular preventing fusion of the surrounding transforms,
-  checkpointing, and deduplication by id.
+  in particular checkpointing, and preventing fusion of the surrounding
+  transforms.
 
   ReshufflePerKey is experimental. No backwards compatibility guarantees.
   """
@@ -657,7 +657,6 @@ class ReshufflePerKey(PTransform):
             window.GlobalWindows.windowed_value((key, value), timestamp)
             for (value, timestamp) in values
         ]
-
     else:
 
       def reify_timestamps(
@@ -693,8 +692,8 @@ class ReshufflePerKey(PTransform):
 class Reshuffle(PTransform):
   """PTransform that returns a PCollection equivalent to its input,
   but operationally provides some of the side effects of a GroupByKey,
-  in particular preventing fusion of the surrounding transforms,
-  checkpointing, and deduplication by id.
+  in particular checkpointing, and preventing fusion of the surrounding
+  transforms.
 
   Reshuffle adds a temporary random key to each element, performs a
   ReshufflePerKey, and finally removes the temporary key.
