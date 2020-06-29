@@ -29,6 +29,8 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaCapableIOProvider;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
+import org.apache.beam.sdk.schemas.io.InvalidSchemaException;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.values.Row;
 
@@ -49,27 +51,24 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
   @Override
   public BeamSqlTable buildBeamSqlTable(Table tableDefinition) {
     JSONObject tableProperties = tableDefinition.getProperties();
-    String timestampAttributeKey = tableProperties.getString("timestampAttributeKey");
-    String deadLetterQueue = tableProperties.getString("deadLetterQueue");
-
-    Schema schema = tableDefinition.getSchema();
-    String location = tableDefinition.getLocation();
-    Schema dataSchema = tableDefinition.getSchema();
 
     PubsubSchemaCapableIOProvider ioProvider = new PubsubSchemaCapableIOProvider();
     Schema configurationSchema = ioProvider.configurationSchema();
 
     Row configurationRow =
         Row.withSchema(configurationSchema)
-            .withFieldValue("timestampAttributeKey", timestampAttributeKey)
-            .withFieldValue("deadLetterQueue", deadLetterQueue)
+            .withFieldValue(
+                "timestampAttributeKey", tableProperties.getString("timestampAttributeKey"))
+            .withFieldValue("deadLetterQueue", tableProperties.getString("deadLetterQueue"))
             .build();
 
     try {
-      SchemaIO pubsubSchemaIO = ioProvider.from(location, configurationRow, dataSchema);
-      return PubsubIOJsonTable.withConfiguration(pubsubSchemaIO, schema);
-    } catch (Exception InvalidConfigurationException) {
-      throw new InvalidTableException("Invalid configuration of table");
+      SchemaIO pubsubSchemaIO =
+          ioProvider.from(
+              tableDefinition.getLocation(), configurationRow, tableDefinition.getSchema());
+      return PubsubIOJsonTable.fromSchemaIO(pubsubSchemaIO);
+    } catch (InvalidConfigurationException | InvalidSchemaException e) {
+      throw new InvalidTableException(e.getMessage());
     }
   }
 }

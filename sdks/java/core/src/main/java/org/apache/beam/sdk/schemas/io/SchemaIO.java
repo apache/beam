@@ -24,10 +24,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
+/** An abstraction to create schema aware IOs. */
 public interface SchemaIO {
+  /** Returns the schema of the data. */
   Schema schema();
 
+  /** Returns a schema aware reader. */
   PTransform<PBegin, PCollection<Row>> buildReader();
 
+  /** Returns a schema aware writer. */
   PTransform<PCollection<Row>, POutput> buildWriter();
 }

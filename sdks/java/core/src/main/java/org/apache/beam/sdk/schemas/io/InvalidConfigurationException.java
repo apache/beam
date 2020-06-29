@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.io;
 
-/** Exception thrown when the request for a table is invalid, such as invalid metadata. */
+/** Exception thrown when the configuration for a {@link SchemaIO} is invalid. */
 public class InvalidConfigurationException extends IllegalArgumentException {
   public InvalidConfigurationException(String msg) {
     super(msg);

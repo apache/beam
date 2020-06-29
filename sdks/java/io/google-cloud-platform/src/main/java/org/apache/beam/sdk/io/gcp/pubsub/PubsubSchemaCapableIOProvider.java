@@ -32,6 +32,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
+import org.apache.beam.sdk.schemas.io.InvalidSchemaException;
 import org.apache.beam.sdk.schemas.io.SchemaCapableIOProvider;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.schemas.transforms.DropFields;
@@ -48,8 +49,31 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * {@link org.apache.beam.sdk.schemas.io.SchemaCapableIOProvider} to create {@link PubsubSchemaIO}
- * that implements {@link org.apache.beam.sdk.schemas.io.SchemaIO}.
+ * {@link SchemaCapableIOProvider} to create {@link PubsubSchemaIO} that implements {@link
+ * SchemaIO}.
+ *
+ * <p>If useFlatSchema of {@link PubsubSchemaIO} is not set, schema must contain exactly fields
+ * 'event_timestamp', 'attributes, and 'payload'. Else, it must contain just 'event_timestamp'. See
+ * {@linkA PubsubMessageToRow} for details.
+ *
+ * <p>{@link #configurationSchema()} consists of two attributes, timestampAttributeKey and
+ * deadLetterQueue.
+ *
+ * <p>timestampAttributeKey is an optional attribute key of the Pubsub message from which to extract
+ * the event timestamp.
+ *
+ * <p>This attribute has to conform to the same requirements as in {@link
+ * PubsubIO.Read.Builder#withTimestampAttribute}.
+ *
+ * <p>Short version: it has to be either millis since epoch or string in RFC 3339 format.
+ *
+ * <p>If the attribute is specified then event timestamps will be extracted from the specified
+ * attribute. If it is not specified then message publish timestamp will be used.
+ *
+ * <p>deadLetterQueue is an optional topic path which will be used as a dead letter queue.
+ *
+ * <p>Messages that cannot be processed will be sent to this topic. If it is not specified then
+ * exception will be thrown for errors during processing causing the pipeline to crash.
  */
 @Internal
 @AutoService(SchemaCapableIOProvider.class)
@@ -83,12 +107,12 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
   public PubsubSchemaIO from(String location, Row configuration, Schema dataSchema) {
     validateDlq(configuration.getValue("deadLetterQueue"));
     validateEventTimestamp(dataSchema);
-    return PubsubSchemaIO.withConfiguration(location, configuration, dataSchema);
+    return new PubsubSchemaIO(location, configuration, dataSchema);
   }
 
   private void validateEventTimestamp(Schema schema) {
     if (!PubsubSchemaIO.fieldPresent(schema, TIMESTAMP_FIELD, TIMESTAMP)) {
-      throw new InvalidConfigurationException(
+      throw new InvalidSchemaException(
           "Unsupported schema specified for Pubsub source in CREATE TABLE."
               + "CREATE TABLE for Pubsub topic must include at least 'event_timestamp' field of "
               + "type 'TIMESTAMP'");
@@ -114,10 +138,6 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
       this.dataSchema = dataSchema;
       this.location = location;
       this.useFlatSchema = !definesAttributeAndPayload(dataSchema);
-    }
-
-    static PubsubSchemaIO withConfiguration(String location, Row config, Schema dataSchema) {
-      return new PubsubSchemaIO(location, config, dataSchema);
     }
 
     @Override
@@ -162,7 +182,7 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
         @Override
         public POutput expand(PCollection<Row> input) {
           return input
-              .apply(RowToPubsubMessage.fromTableConfig(config, useFlatSchema))
+              .apply(new RowToPubsubMessage(config, useFlatSchema, useTimestampAttribute(config)))
               .apply(createPubsubMessageWrite());
         }
       };
@@ -227,27 +247,25 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
   private static class RowToPubsubMessage
       extends PTransform<PCollection<Row>, PCollection<PubsubMessage>> {
     private final Row config;
+    private final Boolean useTimestampAttribute;
 
-    private RowToPubsubMessage(Row config, Boolean useFlatSchema) {
+    private RowToPubsubMessage(Row config, Boolean useFlatSchema, Boolean useTimestampAttribute) {
       checkArgument(useFlatSchema, "RowToPubsubMessage is only supported for flattened schemas.");
 
       this.config = config;
-    }
-
-    public static RowToPubsubMessage fromTableConfig(Row config, Boolean useFlatSchema) {
-      return new RowToPubsubMessage(config, useFlatSchema);
+      this.useTimestampAttribute = useTimestampAttribute;
     }
 
     @Override
     public PCollection<PubsubMessage> expand(PCollection<Row> input) {
       PCollection<Row> withTimestamp =
-          (useTimestampAttribute(config))
+          useTimestampAttribute
               ? input.apply(
-                  WithTimestamps.of((row) -> row.getDateTime("event_timestamp").toInstant()))
+                  WithTimestamps.of((row) -> row.getDateTime(TIMESTAMP_FIELD).toInstant()))
               : input;
 
       return withTimestamp
-          .apply(DropFields.fields("event_timestamp"))
+          .apply(DropFields.fields(TIMESTAMP_FIELD))
           .apply(ToJson.of())
           .apply(
               MapElements.into(TypeDescriptor.of(PubsubMessage.class))
@@ -255,10 +273,6 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
                       (String json) ->
                           new PubsubMessage(
                               json.getBytes(StandardCharsets.ISO_8859_1), ImmutableMap.of())));
-    }
-
-    private boolean useTimestampAttribute(Row config) {
-      return config.getValue("timestampAttributeKey") != null;
     }
   }
 }

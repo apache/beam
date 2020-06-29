@@ -116,15 +116,13 @@ import org.apache.beam.sdk.values.Row;
 class PubsubIOJsonTable extends BaseBeamTable implements Serializable {
 
   protected final SchemaIO pubsubSchemaIO;
-  protected final Schema schema;
 
-  private PubsubIOJsonTable(SchemaIO pubsubSchemaIO, Schema schema) {
+  private PubsubIOJsonTable(SchemaIO pubsubSchemaIO) {
     this.pubsubSchemaIO = pubsubSchemaIO;
-    this.schema = schema;
   }
 
-  static PubsubIOJsonTable withConfiguration(SchemaIO pubsubSchemaIO, Schema schema) {
-    return new PubsubIOJsonTable(pubsubSchemaIO, schema);
+  static PubsubIOJsonTable fromSchemaIO(SchemaIO pubsubSchemaIO) {
+    return new PubsubIOJsonTable(pubsubSchemaIO);
   }
 
   @Override
@@ -134,19 +132,19 @@ class PubsubIOJsonTable extends BaseBeamTable implements Serializable {
 
   @Override
   public Schema getSchema() {
-    return schema;
+    return pubsubSchemaIO.schema();
   }
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
     PTransform<PBegin, PCollection<Row>> readerTransform = pubsubSchemaIO.buildReader();
-    return readerTransform.expand(begin);
+    return begin.apply(readerTransform);
   }
 
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
     PTransform<PCollection<Row>, POutput> writerTransform = pubsubSchemaIO.buildWriter();
-    return writerTransform.expand(input);
+    return input.apply(writerTransform);
   }
 
   @Override
