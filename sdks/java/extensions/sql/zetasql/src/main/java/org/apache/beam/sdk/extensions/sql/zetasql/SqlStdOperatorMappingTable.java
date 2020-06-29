@@ -35,7 +35,8 @@ public class SqlStdOperatorMappingTable {
           FunctionSignatureId.FN_ANY_VALUE,
           FunctionSignatureId.FN_STRING_AGG_STRING,
           FunctionSignatureId.FN_BIT_OR_INT64,
-          FunctionSignatureId.FN_BIT_AND_INT64,
+          // JIRA link: https://issues.apache.org/jira/browse/BEAM-10379
+          // FunctionSignatureId.FN_BIT_AND_INT64,
           FunctionSignatureId.FN_OR,
           FunctionSignatureId.FN_NOT,
           FunctionSignatureId.FN_MULTIPLY_DOUBLE,
@@ -235,11 +236,13 @@ public class SqlStdOperatorMappingTable {
           .put("any_value", SqlStdOperatorTable.ANY_VALUE)
           .put("count", SqlStdOperatorTable.COUNT)
 
+          // .put("bit_and", SqlStdOperatorTable.BIT_AND) //JIRA link:
+          // https://issues.apache.org/jira/browse/BEAM-10379
+
           // aggregate UDF
           // .put("array_agg", )
           // .put("array_concat_agg")
           .put("string_agg", SqlOperators.STRING_AGG_STRING_FN) // NULL values not supported
-          .put("bit_and", SqlStdOperatorTable.BIT_AND)
           // .put("bit_xor")
           // .put("logical_and")
           // .put("logical_or")
