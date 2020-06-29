@@ -167,7 +167,7 @@ class TestInput {
                   .build())
           .addRows(1L, null, null, null, null);
 
-  public static final Schema TABLE_WITH_STRUCT_ROW_SCHEMA =
+  private static final Schema TABLE_WITH_STRUCT_ROW_SCHEMA =
       Schema.builder().addInt64Field("struct_col_long").addStringField("struct_col_str").build();
 
   public static final TestBoundedTable TABLE_WITH_STRUCT =
@@ -241,22 +241,24 @@ class TestInput {
           .addLogicalTypeField("date_field", SqlTypes.DATE)
           .addStringField("str_field")
           .build();
+
   public static final TestBoundedTable TABLE_WITH_DATE =
       TestBoundedTable.of(TABLE_WTH_DATE_SCHEMA)
-          .addRows(LocalDate.of(2008, 12, 25), "str1")
-          .addRows(LocalDate.of(2020, 04, 07), "str2");
+          .addRows(LocalDate.of(2008, 12, 25), "s")
+          .addRows(LocalDate.of(2020, 4, 7), "s");
 
   private static final Schema TABLE_WTH_TIME_SCHEMA =
       Schema.builder()
           .addLogicalTypeField("time_field", SqlTypes.TIME)
           .addStringField("str_field")
           .build();
+
   public static final TestBoundedTable TABLE_WITH_TIME =
       TestBoundedTable.of(TABLE_WTH_TIME_SCHEMA)
-          .addRows(LocalTime.of(15, 30, 0), "str1")
-          .addRows(LocalTime.of(23, 35, 59), "str2");
+          .addRows(LocalTime.of(15, 30, 0), "s")
+          .addRows(LocalTime.of(23, 35, 59), "s");
 
-  public static byte[] stringToBytes(String s) {
+  private static byte[] stringToBytes(String s) {
     return s.getBytes(StandardCharsets.UTF_8);
   }
 
