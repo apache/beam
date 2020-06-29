@@ -53,6 +53,8 @@ import org.apache.beam.sdk.io.snowflake.credentials.KeyPairSnowflakeCredentials;
 import org.apache.beam.sdk.io.snowflake.credentials.OAuthTokenSnowflakeCredentials;
 import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentials;
 import org.apache.beam.sdk.io.snowflake.credentials.UsernamePasswordSnowflakeCredentials;
+import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
+import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeServiceConfig;
@@ -155,7 +157,7 @@ import org.slf4j.LoggerFactory;
  * items.apply(
  *     SnowflakeIO.<KV<Integer, String>>write()
  *         .withDataSourceConfiguration(dataSourceConfiguration)
- *         .withTable(table)
+ *         .toTable(table)
  *         .withStagingBucketName(...)
  *         .withStorageIntegrationName(...)
  *         .withUserDataMapper(maper);
@@ -222,6 +224,7 @@ public class SnowflakeIO {
   public static <T> Write<T> write() {
     return new AutoValue_SnowflakeIO_Write.Builder<T>()
         .setFileNameTemplate("output")
+        .setCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
         .setWriteDisposition(WriteDisposition.APPEND)
         .build();
   }
@@ -538,6 +541,12 @@ public class SnowflakeIO {
     abstract WriteDisposition getWriteDisposition();
 
     @Nullable
+    abstract CreateDisposition getCreateDisposition();
+
+    @Nullable
+    abstract SnowflakeTableSchema getTableSchema();
+
+    @Nullable
     abstract UserDataMapper getUserDataMapper();
 
     @Nullable
@@ -563,6 +572,10 @@ public class SnowflakeIO {
       abstract Builder<T> setUserDataMapper(UserDataMapper userDataMapper);
 
       abstract Builder<T> setWriteDisposition(WriteDisposition writeDisposition);
+
+      abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
+
+      abstract Builder<T> setTableSchema(SnowflakeTableSchema tableSchema);
 
       abstract Builder<T> setSnowflakeService(SnowflakeService snowflakeService);
 
@@ -593,7 +606,7 @@ public class SnowflakeIO {
      *
      * @param table - String with the name of the table.
      */
-    public Write<T> withTable(String table) {
+    public Write<T> toTable(String table) {
       return toBuilder().setTable(table).build();
     }
 
@@ -654,6 +667,24 @@ public class SnowflakeIO {
     }
 
     /**
+     * A disposition to be used during table preparation.
+     *
+     * @param createDisposition - an instance of {@link CreateDisposition}.
+     */
+    public Write<T> withCreateDisposition(CreateDisposition createDisposition) {
+      return toBuilder().setCreateDisposition(createDisposition).build();
+    }
+
+    /**
+     * Table schema to be used during creating table.
+     *
+     * @param tableSchema - an instance of {@link SnowflakeTableSchema}.
+     */
+    public Write<T> withTableSchema(SnowflakeTableSchema tableSchema) {
+      return toBuilder().setTableSchema(tableSchema).build();
+    }
+
+    /**
      * A snowflake service which is supposed to be used. Note: Currently we have {@link
      * SnowflakeServiceImpl} with corresponding {@link FakeSnowflakeServiceImpl} used for testing.
      *
@@ -684,7 +715,7 @@ public class SnowflakeIO {
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
-      checkArgument(getTable() != null, "withTable() is required");
+      checkArgument(getTable() != null, "toTable() is required");
     }
 
     private PCollection<String> write(PCollection<T> input, String stagingBucketDir) {
@@ -747,7 +778,9 @@ public class SnowflakeIO {
               getQuery(),
               stagingBucketDir,
               getStorageIntegrationName(),
+              getCreateDisposition(),
               getWriteDisposition(),
+              getTableSchema(),
               snowflakeService));
     }
   }
@@ -816,9 +849,11 @@ public class SnowflakeIO {
     private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
     private final String table;
     private final String query;
+    private final SnowflakeTableSchema tableSchema;
     private final String stagingBucketDir;
     private final String storageIntegrationName;
     private final WriteDisposition writeDisposition;
+    private final CreateDisposition createDisposition;
     private final SnowflakeService snowflakeService;
 
     CopyToTableFn(
@@ -827,7 +862,9 @@ public class SnowflakeIO {
         String query,
         String stagingBucketDir,
         String storageIntegrationName,
+        CreateDisposition createDisposition,
         WriteDisposition writeDisposition,
+        SnowflakeTableSchema tableSchema,
         SnowflakeService snowflakeService) {
       this.dataSourceProviderFn = dataSourceProviderFn;
       this.table = table;
@@ -835,6 +872,8 @@ public class SnowflakeIO {
       this.stagingBucketDir = stagingBucketDir;
       this.storageIntegrationName = storageIntegrationName;
       this.writeDisposition = writeDisposition;
+      this.createDisposition = createDisposition;
+      this.tableSchema = tableSchema;
       this.snowflakeService = snowflakeService;
     }
 
@@ -846,6 +885,8 @@ public class SnowflakeIO {
               (List<String>) context.element(),
               table,
               query,
+              tableSchema,
+              createDisposition,
               writeDisposition,
               storageIntegrationName,
               stagingBucketDir);

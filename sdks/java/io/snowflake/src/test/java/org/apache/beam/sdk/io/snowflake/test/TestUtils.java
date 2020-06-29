@@ -97,6 +97,24 @@ public class TestUtils {
         && actual.containsAll(expected);
   }
 
+  public static String toSnowflakeRow(String[] strings) {
+    int iMax = strings.length - 1;
+    StringBuilder b = new StringBuilder();
+    for (int i = 0; ; i++) {
+      if (strings[i] != null) {
+        b.append(String.format("'%s'", strings[i]));
+      }
+      if (i == iMax) {
+        return b.toString();
+      }
+      b.append(",");
+    }
+  }
+
+  public static SnowflakeIO.UserDataMapper<Long> getCsvMapper() {
+    return (SnowflakeIO.UserDataMapper<Long>) recordLine -> new String[] {recordLine.toString()};
+  }
+
   public static SnowflakeIO.UserDataMapper<KV<String, Long>> getLongCsvMapperKV() {
     return (SnowflakeIO.UserDataMapper<KV<String, Long>>)
         recordLine -> new Long[] {recordLine.getValue()};
@@ -114,6 +132,10 @@ public class TestUtils {
   public static SnowflakeIO.UserDataMapper<TestRow> getTestRowDataMapper() {
     return (SnowflakeIO.UserDataMapper<TestRow>)
         (TestRow element) -> new Object[] {element.id(), element.name()};
+  }
+
+  public static SnowflakeIO.UserDataMapper<String[]> getLStringCsvMapper() {
+    return (SnowflakeIO.UserDataMapper<String[]>) recordLine -> recordLine;
   }
 
   public static class ParseToKv extends DoFn<Long, KV<String, Long>> {
