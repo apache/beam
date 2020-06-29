@@ -56,7 +56,6 @@ class ComponentIdContext(object):
   Component ID assignments are only guaranteed to be unique and consistent
   within the scope of a ComponentIdContext instance.
   """
-
   def __init__(self, namespace="ref"):
     self.namespace = namespace
     self._counters = defaultdict(lambda: 0)  # type: Dict[type, int]
