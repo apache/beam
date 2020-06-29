@@ -58,7 +58,8 @@ public class BeamBuiltinAggregations {
               .put("$SUM0", BeamBuiltinAggregations::createSum)
               .put("AVG", BeamBuiltinAggregations::createAvg)
               .put("BIT_OR", BeamBuiltinAggregations::createBitOr)
-              .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
+              // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
+              // .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
               .put("COVAR_POP", t -> CovarianceFn.newPopulation(t.getTypeName()))
@@ -186,13 +187,13 @@ public class BeamBuiltinAggregations {
         String.format("[%s] is not supported in BIT_OR", fieldType));
   }
 
-  static CombineFn createBitAnd(Schema.FieldType fieldType) {
-    if (fieldType.getTypeName() == TypeName.INT64) {
-      return new BitAnd();
-    }
-    throw new UnsupportedOperationException(
-        String.format("[%s] is not supported in BIT_AND", fieldType));
-  }
+  //  static CombineFn createBitAnd(Schema.FieldType fieldType) {
+  //    if (fieldType.getTypeName() == TypeName.INT64) {
+  //      return new BitAnd();
+  //    }
+  //    throw new UnsupportedOperationException(
+  //        String.format("[%s] is not supported in BIT_AND", fieldType));
+  //  }
 
   static class CustMax<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
     @Override
@@ -393,42 +394,47 @@ public class BeamBuiltinAggregations {
     }
   }
 
-  static class BitAnd<T extends Number> extends CombineFn<T, Long, Long> {
-    // Indicate if input only contains null value.
-    private boolean isEmpty = true;
-
-    @Override
-    public Long createAccumulator() {
-      return -1L;
-    }
-
-    @Override
-    public Long addInput(Long accum, T input) {
-      if (input != null) {
-        this.isEmpty = false;
-        return accum & input.longValue();
-      } else {
-        return null;
-      }
-    }
-
-    @Override
-    public Long mergeAccumulators(Iterable<Long> accums) {
-      Long merged = createAccumulator();
-      for (Long accum : accums) {
-        merged = merged & accum;
-      }
-      return merged;
-    }
-
-    @Override
-    public Long extractOutput(Long accum) {
-      if (this.isEmpty) {
-        return null;
-      }
-      return accum;
-    }
-  }
+  /**
+   * NULL values don't work correctly. (https://issues.apache.org/jira/browse/BEAM-10379)
+   *
+   * <p>Comment the following implementation for BitAnd class for now.
+   */
+  //  static class BitAnd<T extends Number> extends CombineFn<T, Long, Long> {
+  //    // Indicate if input only contains null value.
+  //    private boolean isEmpty = true;
+  //
+  //    @Override
+  //    public Long createAccumulator() {
+  //      return -1L;
+  //    }
+  //
+  //    @Override
+  //    public Long addInput(Long accum, T input) {
+  //      if (input != null) {
+  //        this.isEmpty = false;
+  //        return accum & input.longValue();
+  //      } else {
+  //        return null;
+  //      }
+  //    }
+  //
+  //    @Override
+  //    public Long mergeAccumulators(Iterable<Long> accums) {
+  //      Long merged = createAccumulator();
+  //      for (Long accum : accums) {
+  //        merged = merged & accum;
+  //      }
+  //      return merged;
+  //    }
+  //
+  //    @Override
+  //    public Long extractOutput(Long accum) {
+  //      if (this.isEmpty) {
+  //        return null;
+  //      }
+  //      return accum;
+  //    }
+  //  }
 
   //  static class BitAnd<T extends Number> extends CombineFn<T, BitAnd.Accum, Long> {
   //    public static class Accum {
