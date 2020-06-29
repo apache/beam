@@ -177,9 +177,10 @@ public class SnippetsTest implements Serializable {
             Row.withSchema(emailSchema).addValue("person1").addValue("person1@example.com").build(),
             Row.withSchema(emailSchema).addValue("person2").addValue("person2@example.com").build(),
             Row.withSchema(emailSchema).addValue("person3").addValue("person3@example.com").build(),
+            Row.withSchema(emailSchema).addValue("person4").addValue("person4@example.com").build(),
             Row.withSchema(emailSchema)
-                .addValue("person4")
-                .addValue("person4@example.com")
+                .addValue("person6")
+                .addValue("person6@example.com")
                 .build());
 
     final List<Row> phoneUsers =
@@ -187,7 +188,8 @@ public class SnippetsTest implements Serializable {
             Row.withSchema(phoneSchema).addValue("person1").addValue("111-222-3333").build(),
             Row.withSchema(phoneSchema).addValue("person2").addValue("222-333-4444").build(),
             Row.withSchema(phoneSchema).addValue("person3").addValue("444-333-4444").build(),
-            Row.withSchema(phoneSchema).addValue("person4").addValue("555-333-4444").build());
+            Row.withSchema(phoneSchema).addValue("person4").addValue("555-333-4444").build(),
+            Row.withSchema(phoneSchema).addValue("person5").addValue("777-333-4444").build());
 
     // [END SchemaJoinPatternCreate]
 
