@@ -591,26 +591,28 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 @Override
                 public void outputWithTimestamp(OutputT output, Instant timestamp) {
                   double size =
-                      doFnInvoker.invokeGetSize(
-                          new DelegatingArgumentProvider<InputT, OutputT>(
-                              this,
-                              PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN
-                                  + "/GetSize") {
-                            @Override
-                            public Object restriction() {
-                              return output;
-                            }
+                      output == null
+                          ? 0.0
+                          : doFnInvoker.invokeGetSize(
+                              new DelegatingArgumentProvider<InputT, OutputT>(
+                                  this,
+                                  PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN
+                                      + "/GetSize") {
+                                @Override
+                                public Object restriction() {
+                                  return output;
+                                }
 
-                            @Override
-                            public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                              return timestamp;
-                            }
+                                @Override
+                                public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                                  return timestamp;
+                                }
 
-                            @Override
-                            public RestrictionTracker<?, ?> restrictionTracker() {
-                              return doFnInvoker.invokeNewTracker(this);
-                            }
-                          });
+                                @Override
+                                public RestrictionTracker<?, ?> restrictionTracker() {
+                                  return doFnInvoker.invokeNewTracker(this);
+                                }
+                              });
 
                   outputTo(
                       mainOutputConsumers,
