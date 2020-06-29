@@ -4892,23 +4892,6 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
   }
 
   @Test
-  public void testZetaSQLBitAnd() {
-    String sql = "SELECT BIT_AND(row_id) FROM table_all_types GROUP BY bool_col";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    final Schema schema = Schema.builder().addInt64Field("field1").build();
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(schema).addValue(1L).build(),
-            Row.withSchema(schema).addValue(0L).build());
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
   public void testSimpleTableName() {
     String sql = "SELECT Key FROM KeyValue";
 
