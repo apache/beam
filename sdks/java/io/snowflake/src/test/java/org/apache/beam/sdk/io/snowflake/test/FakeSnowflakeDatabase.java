@@ -71,6 +71,10 @@ public class FakeSnowflakeDatabase implements Serializable {
     FakeSnowflakeDatabase.tables.put(table, rows);
   }
 
+  public static void clean() {
+    FakeSnowflakeDatabase.tables = new HashMap<>();
+  }
+
   public static void truncateTable(String table) {
     FakeSnowflakeDatabase.createTable(table);
   }
