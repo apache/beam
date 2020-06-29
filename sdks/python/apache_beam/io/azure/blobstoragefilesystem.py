@@ -43,7 +43,6 @@ class BlobStorageFileSystem(FileSystem):
     """
     return 'azfs'
 
-
   def join(self, basepath, *paths):
     # type: (str, *str) -> str
 
@@ -62,7 +61,6 @@ class BlobStorageFileSystem(FileSystem):
     for p in paths:
       path = path.rstrip('/') + '/' + p.lstrip('/')
     return path
-
 
   def split(self, path):
     # type: (str) -> Tuple[str, str]
@@ -86,7 +84,6 @@ class BlobStorageFileSystem(FileSystem):
 
     prefix_len = len(BlobStorageFileSystem.AZURE_FILE_SYSTEM_PREFIX)
     last_sep = path[prefix_len:].rfind('/')
-    
     if last_sep >= 0:
       last_sep += prefix_len
 
@@ -96,7 +93,6 @@ class BlobStorageFileSystem(FileSystem):
       return (path, '')
     else:
       raise ValueError('Invalid path: %s' % path)
-
 
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
