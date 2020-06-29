@@ -34,10 +34,6 @@
     <name>Beam CI</name>
     <licenses>
         <license>
-            <name>MIT License</name>
-            <url>https://opensource.org/licenses/MIT</url>
-        </license>
-        <license>
             <name>Apache Beam License</name>
             <url>http://www.apache.org/licenses/LICENSE-2.0</url>
         </license>
