@@ -25,6 +25,7 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 
 from builtins import object
+from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -49,48 +50,31 @@ if TYPE_CHECKING:
   from apache_beam.coders.coder_impl import IterableStateWriter
 
 
-class _UniqueRefAssigner(object):
-  """Utility for assigning unique refs to proto messages for use in components.
+class ComponentIdContext(object):
+  """A utility for assigning unique component ids to Beam components.
 
-  Instances of _UniqueRefAssigner are global (scoped by the base string). That
-  way once a unique ref is assigned it will be used consistently across
-  PipelineContext instances.
+  Component ID assignments are only guaranteed to be unique and consistent
+  within the scope of a ComponentIdContext instance.
   """
-  _INSTANCES = {}  # type: Dict[str, _UniqueRefAssigner]
 
-  def __init__(self, base):
-    self._base = base
-    self._counter = 0
+  def __init__(self, namespace="ref"):
+    self.namespace = namespace
+    self._counters = defaultdict(lambda: 0)  # type: Dict[type, int]
     self._obj_to_id = {}  # type: Dict[Any, str]
 
-  def get_or_assign(self, obj=None, label=None):
-    # type: (Optional[Any], Optional[str]) -> str
-
-    """Retrieve the unique ref for the given object.
-
-    Generates and assigns a unique ref if one hasn't been assigned yet. label
-    will be incorporated into the unique ref when assigning a new unique ref,
-    otherwise it is ignored."""
+  def get_or_assign(self, obj=None, obj_type=None, label=None):
     if obj not in self._obj_to_id:
-      self._obj_to_id[obj] = self._unique_ref(obj, label)
+      self._obj_to_id[obj] = self._unique_ref(obj, obj_type, label)
 
     return self._obj_to_id[obj]
 
-  def _unique_ref(self, obj=None, label=None):
-    self._counter += 1
-    return "%s_%s_%d" % (self._base, label or type(obj).__name__, self._counter)
-
-  @classmethod
-  def with_base(cls, base):
-    # type: (str) -> _UniqueRefAssigner
-
-    """Return the _UniqueRefAssigner with the given base string.
-
-    Creates a new instance if one doesn't already exist for this base string."""
-    if not base in cls._INSTANCES:
-      cls._INSTANCES[base] = _UniqueRefAssigner(base)
-
-    return cls._INSTANCES[base]
+  def _unique_ref(self, obj=None, obj_type=None, label=None):
+    self._counters[obj_type] += 1
+    return "%s_%s_%s_%d" % (
+        self.namespace,
+        obj_type.__name__,
+        label or type(obj).__name__,
+        self._counters[obj_type])
 
 
 class _PipelineContextMap(object):
@@ -108,9 +92,6 @@ class _PipelineContextMap(object):
     self._pipeline_context = context
     self._obj_type = obj_type
     self._namespace = namespace
-    self._unique_ref_assigner = _UniqueRefAssigner.with_base(
-        "%s_%s" % (self._namespace, self._obj_type.__name__))
-    self._obj_to_id = {}  # type: Dict[Any, str]
     self._id_to_obj = {}  # type: Dict[str, Any]
     self._id_to_proto = dict(proto_map) if proto_map else {}
 
@@ -121,12 +102,13 @@ class _PipelineContextMap(object):
 
   def get_id(self, obj, label=None):
     # type: (Any, Optional[str]) -> str
-    if obj not in self._obj_to_id:
-      id = self._unique_ref_assigner.get_or_assign(obj, label)
+    assert isinstance(obj, self._obj_type)
+    id = self._pipeline_context.component_id_context.get_or_assign(
+        obj, self._obj_type, label)
+    if obj not in self._id_to_obj.values():
       self._id_to_obj[id] = obj
-      self._obj_to_id[obj] = id
       self._id_to_proto[id] = obj.to_runner_api(self._pipeline_context)
-    return self._obj_to_id[obj]
+    return id
 
   def get_proto(self, obj, label=None):
     # type: (Any, Optional[str]) -> message.Message
@@ -146,7 +128,9 @@ class _PipelineContextMap(object):
         if proto == maybe_new_proto:
           return id
     return self.put_proto(
-        self._unique_ref_assigner.get_or_assign(label), maybe_new_proto)
+        self._pipeline_context.component_id_context.get_or_assign(
+            label, obj_type=self._obj_type),
+        maybe_new_proto)
 
   def get_id_to_proto_map(self):
     # type: () -> Dict[str, message.Message]
@@ -186,6 +170,7 @@ class PipelineContext(object):
 
   def __init__(self,
                proto=None,  # type: Optional[Union[beam_runner_api_pb2.Components, beam_fn_api_pb2.ProcessBundleDescriptor]]
+               component_id_context=None,
                default_environment=None,  # type: Optional[environments.Environment]
                use_fake_coders=False,
                iterable_state_read=None,  # type: Optional[IterableStateReader]
@@ -199,6 +184,10 @@ class PipelineContext(object):
           coders=dict(proto.coders.items()),
           windowing_strategies=dict(proto.windowing_strategies.items()),
           environments=dict(proto.environments.items()))
+
+    self.component_id_context = component_id_context or ComponentIdContext(
+        namespace)
+    assert self.component_id_context.namespace == namespace
 
     self.transforms = _PipelineContextMap(
         self,

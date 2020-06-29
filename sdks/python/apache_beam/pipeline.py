@@ -221,6 +221,14 @@ class Pipeline(object):
     # then the transform will have to be cloned with a new label.
     self.applied_labels = set()  # type: Set[str]
 
+    # Create a context for assigning IDs to components. Ensures that any
+    # components that receive an ID during pipeline construction (for example in
+    # ExternalTransform), will receive the same component ID when generating the
+    # full pipeline proto.
+    from apache_beam.runners import pipeline_context
+    self._component_id_context = pipeline_context.ComponentIdContext()
+
+
   @property  # type: ignore[misc]  # decorated property not supported
   @deprecated(
       since='First stable release',
@@ -811,6 +819,7 @@ class Pipeline(object):
     if context is None:
       context = pipeline_context.PipelineContext(
           use_fake_coders=use_fake_coders,
+          component_id_context=self._component_id_context,
           default_environment=default_environment)
     elif default_environment is not None:
       raise ValueError(
