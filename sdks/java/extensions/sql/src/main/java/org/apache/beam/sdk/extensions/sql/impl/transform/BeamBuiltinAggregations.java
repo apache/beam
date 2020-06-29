@@ -393,52 +393,90 @@ public class BeamBuiltinAggregations {
     }
   }
 
-  static class BitAnd<T extends Number> extends CombineFn<T, BitAnd.Accum, Long> {
-    public static class Accum {
-      long val = -1L;
-      boolean isEmpty = true;
-      boolean seenNull = false;
+  static class BitAnd<T extends Number> extends CombineFn<T, Long, Long> {
+    // Indicate if input only contains null value.
+    private boolean isEmpty = true;
+
+    @Override
+    public Long createAccumulator() {
+      return -1L;
     }
 
     @Override
-    public Accum createAccumulator() {
-      return new Accum();
-    }
-
-    @Override
-    public Accum addInput(Accum accum, T input) {
-      if (input == null) {
-        accum.seenNull = true;
+    public Long addInput(Long accum, T input) {
+      if (input != null) {
+        this.isEmpty = false;
+        return accum & input.longValue();
       } else {
-        accum.isEmpty = false;
-        accum.val = accum.val & input.longValue();
+        return null;
       }
-      return accum;
     }
 
     @Override
-    public Accum mergeAccumulators(Iterable<Accum> accums) {
-      Accum merged = createAccumulator();
-      for (Accum accum : accums) {
-        if (accum.isEmpty) {
-          merged.isEmpty = true;
-          break;
-        }
-        if (accum.seenNull) {
-          merged.seenNull = true;
-          break;
-        }
-        merged.val = merged.val & accum.val;
+    public Long mergeAccumulators(Iterable<Long> accums) {
+      Long merged = createAccumulator();
+      for (Long accum : accums) {
+        merged = merged & accum;
       }
       return merged;
     }
 
     @Override
-    public Long extractOutput(Accum accum) {
-      if (accum.isEmpty || accum.seenNull) {
+    public Long extractOutput(Long accum) {
+      if (this.isEmpty) {
         return null;
       }
-      return accum.val;
+      return accum;
     }
   }
+
+  //  static class BitAnd<T extends Number> extends CombineFn<T, BitAnd.Accum, Long> {
+  //    public static class Accum {
+  //      long val = -1L;
+  //      boolean isEmpty = true;
+  //      boolean seenNull = false;
+  //    }
+  //
+  //    @Override
+  //    public Accum createAccumulator() {
+  //      return new Accum();
+  //    }
+  //
+  //    @Override
+  //    public Accum addInput(Accum accum, T input) {
+  //      if (input == null) {
+  //        accum.seenNull = true;
+  //      } else {
+  //        accum.isEmpty = false;
+  //        accum.val = accum.val & input.longValue();
+  //      }
+  //      return accum;
+  //    }
+  //
+  //    @Override
+  //    public Accum mergeAccumulators(Iterable<Accum> accums) {
+  //      Accum merged = createAccumulator();
+  //      for (Accum accum : accums) {
+  //        if (accum.isEmpty) {
+  //          merged.isEmpty = true;
+  //          break;
+  //        }
+  //        if (accum.seenNull) {
+  //          merged.seenNull = true;
+  //          break;
+  //        }
+  //        merged.val = merged.val & accum.val;
+  //      }
+  //      return merged;
+  //    }
+  //
+  //    @Override
+  //    @Nullable
+  //    public Long extractOutput(Accum accum) {
+  //      if (accum.isEmpty || accum.seenNull) {
+  //        return null;
+  //      }
+  //      return accum.val;
+  //    }
+  //  }
 }
