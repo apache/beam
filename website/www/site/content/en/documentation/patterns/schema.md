@@ -18,7 +18,8 @@ limitations under the License.
 # Schema Patterns
 
 The samples on this page describe common patterns using Schemas. 
-Schemas provide us a type-system for Beam records that is independent of any specific programming-language type. There might be multiple Java classes that all have the same schema (for example a Protocol-Buffer class or a POJO class), and Beam will allow us to seamlessly convert between these types. Schemas also provide a simple way to reason about types across different programming-language APIs.
+Schemas provide us a type-system for Beam records that is independent of any specific programming-language type. There might be multiple Java classes that all have the same schema (for example a Protocol-Buffer class or a POJO class), and Beam will allow us to seamlessly convert between these types.
+Schemas also provide a simple way to reason about types across different programming-language APIs.
 For more information, see the [programming guide section on Schemas](/documentation/programming-guide/#what-is-a-schema).
 
 {{< language-switcher java >}}
