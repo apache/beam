@@ -97,8 +97,8 @@ def has_urn_and_labels(mi, urn, labels):
 
 
 class FnApiRunnerTest(unittest.TestCase):
-  def create_pipeline(self):
-    return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
+  def create_pipeline(self, is_drain=False):
+    return beam.Pipeline(runner=fn_api_runner.FnApiRunner(is_drain=is_drain))
 
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
@@ -589,6 +589,57 @@ class FnApiRunnerTest(unittest.TestCase):
       counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
+
+  def test_sdf_default_truncate_when_bounded(self):
+    class SimleSDF(beam.DoFn):
+      def process(
+          self,
+          element,
+          restriction_tracker=beam.DoFn.RestrictionParam(
+              OffsetRangeProvider(use_bounded_offset_range=True))):
+        assert isinstance(restriction_tracker, RestrictionTrackerView)
+        cur = restriction_tracker.current_restriction().start
+        while restriction_tracker.try_claim(cur):
+          yield cur
+          cur += 1
+
+    with self.create_pipeline(is_drain=True) as p:
+      actual = (p | beam.Create([10]) | beam.ParDo(SimleSDF()))
+      assert_that(actual, equal_to(range(10)))
+
+  def test_sdf_default_truncate_when_unbounded(self):
+    class SimleSDF(beam.DoFn):
+      def process(
+          self,
+          element,
+          restriction_tracker=beam.DoFn.RestrictionParam(
+              OffsetRangeProvider(use_bounded_offset_range=False))):
+        assert isinstance(restriction_tracker, RestrictionTrackerView)
+        cur = restriction_tracker.current_restriction().start
+        while restriction_tracker.try_claim(cur):
+          yield cur
+          cur += 1
+
+    with self.create_pipeline(is_drain=True) as p:
+      actual = (p | beam.Create([10]) | beam.ParDo(SimleSDF()))
+      assert_that(actual, equal_to([]))
+
+  def test_sdf_with_truncate(self):
+    class SimleSDF(beam.DoFn):
+      def process(
+          self,
+          element,
+          restriction_tracker=beam.DoFn.RestrictionParam(
+              OffsetRangeProviderWithTruncate())):
+        assert isinstance(restriction_tracker, RestrictionTrackerView)
+        cur = restriction_tracker.current_restriction().start
+        while restriction_tracker.try_claim(cur):
+          yield cur
+          cur += 1
+
+    with self.create_pipeline(is_drain=True) as p:
+      actual = (p | beam.Create([10]) | beam.ParDo(SimleSDF()))
+      assert_that(actual, equal_to(range(5)))
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:
@@ -1613,12 +1664,47 @@ class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
     return restriction.size()
 
 
+class SimpleUnboundedOffsetRangeRestrictionTracker(
+    restriction_trackers.OffsetRestrictionTracker):
+  def is_bounded(self):
+    return False
+
+
+class OffsetRangeProvider(beam.transforms.core.RestrictionProvider):
+  def __init__(self, use_bounded_offset_range):
+    self.use_bounded_offset_range = use_bounded_offset_range
+
+  def initial_restriction(self, element):
+    return restriction_trackers.OffsetRange(0, element)
+
+  def create_tracker(self, restriction):
+    if self.use_bounded_offset_range:
+      return restriction_trackers.OffsetRestrictionTracker(restriction)
+    return SimpleUnboundedOffsetRangeRestrictionTracker(restriction)
+
+  def split(self, element, restriction):
+    return [restriction]
+
+  def restriction_size(self, element, restriction):
+    return restriction.size()
+
+
+class OffsetRangeProviderWithTruncate(OffsetRangeProvider):
+  def __init__(self):
+    super(OffsetRangeProviderWithTruncate, self).__init__(True)
+
+  def truncate(self, element, restriction):
+    return restriction_trackers.OffsetRange(
+        restriction.start, restriction.stop // 2)
+
+
 class FnApiBasedLullLoggingTest(unittest.TestCase):
-  def create_pipeline(self):
+  def create_pipeline(self, is_drain=False):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=environments.EmbeddedPythonGrpcEnvironment(),
-            progress_request_frequency=0.5))
+            progress_request_frequency=0.5,
+            is_drain=is_drain))
 
   def test_lull_logging(self):
 
