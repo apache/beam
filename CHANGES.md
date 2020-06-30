@@ -71,7 +71,13 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* `RowJson.RowJsonDeserializer`, `JsonToRow`, and `PubsubJsonTableProvider` now accept "implicit
+  nulls" by default when deserializing JSON (Java) ([BEAM-10220](https://issues.apache.org/jira/browse/BEAM-10220)).
+  Previously nulls could only be represented with explicit null values, as in
+  `{"foo": "bar", "baz": null}`, whereas an implicit null like `{"foo": "bar"}` would raise an
+  exception. Now both JSON strings will yield the same result by default. This behavior can be
+  overriden with `RowJson.RowJsonDeserializer#withNullBehavior`.
+
 
 ## Deprecations
 
