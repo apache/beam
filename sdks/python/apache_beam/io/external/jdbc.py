@@ -61,9 +61,9 @@ WriteToJdbcSchema = typing.NamedTuple(
         ('jdbc_url', unicode),
         ('username', unicode),
         ('password', unicode),
-        ('statement', unicode),
-        ('connection_properties', unicode),
+        ('connection_properties', typing.Optional[unicode]),
         ('connection_init_sqls', typing.Optional[typing.List[unicode]]),
+        ('statement', unicode),
     ],
 )
 
@@ -101,10 +101,7 @@ class WriteToJdbc(ExternalTransform):
       username,
       password,
       statement,
-      connection_properties='',
-      connection_init_sqls=None,
-      expansion_service=None,
-  ):
+      **kwargs):
     """
     Initializes a write operation to Jdbc.
 
@@ -117,6 +114,10 @@ class WriteToJdbc(ExternalTransform):
     :param connection_init_sqls: required only for MySql and MariaDB
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
+    connection_properties = kwargs.get('connection_properties')
+    connection_init_sqls = kwargs.get('connection_init_sqls')
+    expansion_service = kwargs.get('expansion_service')
+
     super(WriteToJdbc, self).__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
