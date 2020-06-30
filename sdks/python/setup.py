@@ -195,6 +195,8 @@ REQUIRED_TEST_PACKAGES = [
     'pytest-xdist>=1.29.0,<2',
     'pytest-timeout>=1.3.3,<2',
     'rsa<4.1; python_version < "3.0"',
+    'sqlalchemy>=1.3,<2.0; python_version >= "3.5"',
+    'testcontainers>=3.0.3,<4.0.0; python_version >= "3.5"',
     ]
 
 GCP_REQUIREMENTS = [
