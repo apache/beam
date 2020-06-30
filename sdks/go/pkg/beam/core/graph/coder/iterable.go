@@ -16,7 +16,6 @@
 package coder
 
 import (
-	"fmt"
 	"io"
 	"reflect"
 
@@ -68,7 +67,6 @@ func iterableDecoderForSlice(rt reflect.Type, decodeToElem func(reflect.Value, i
 			}
 			rv := reflect.MakeSlice(rt, 0, int(chunk))
 			for chunk != 0 {
-				fmt.Printf("chunk: %d\n", chunk)
 				rvi := reflect.MakeSlice(rt, int(chunk), int(chunk))
 				if err := decodeToIterable(rvi, r, decodeToElem); err != nil {
 					return err
