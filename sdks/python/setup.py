@@ -21,7 +21,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import os
-import platform
 import sys
 import warnings
 from distutils.errors import DistutilsError
