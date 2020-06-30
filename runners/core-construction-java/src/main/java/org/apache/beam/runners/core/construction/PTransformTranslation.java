@@ -195,6 +195,9 @@ public class PTransformTranslation {
     checkState(
         SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN.equals(
             getUrn(SplittableParDoComponents.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS)));
+    checkState(
+        SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN.equals(
+            getUrn(SplittableParDoComponents.TRUNCATE_SIZED_RESTRICTION)));
   }
 
   private static final Collection<TransformTranslator<?>> KNOWN_TRANSLATORS =
