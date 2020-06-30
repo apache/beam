@@ -35,16 +35,16 @@ from multiprocessing.pool import ThreadPool
 from queue import Queue
 from tenacity import retry
 from tenacity import stop_after_attempt
-from tenacity import wait_exponential
+from tenacity import wait_fixed
 from urllib.request import urlopen, URLError, HTTPError
 
 SOURCE_CODE_REQUIRED_LICENSES = ['lgpl', 'glp', 'cddl', 'mpl']
-RETRY_NUM = 3
+RETRY_NUM = 9
 THREADS = 16
 
 
 @retry(reraise=True,
-       wait=wait_exponential(multiplier=2),
+       wait=wait_fixed(5),
        stop=stop_after_attempt(RETRY_NUM))
 def pull_from_url(file_name, url, dep, no_list):
     if url == 'skip':
