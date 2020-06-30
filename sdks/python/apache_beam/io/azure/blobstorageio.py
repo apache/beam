@@ -23,4 +23,45 @@
 
 from __future__ import absolute_import
 
+import re
+import threading
+import time
+import os
+from builtins import object
+
+from apache_beam.utils import retry
+
+try:
+  # pylint: disable=wrong-import-order, wrong-import-position
+  # pylint: disable=ungrouped-imports
+  from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+except ImportError:
+  raise ImportError('Missing `azure` requirement')
+
+MAX_BATCH_OPERATION_SIZE = 100
+
+
+def parse_azfs_path(azfs_path, object_optional=False):
+  """Return the storage account, the container and blob names of the given azfs:// path."""
+  match = re.match('^azfs://([a-z0-9]{3,24})/([a-z0-9](?![a-z0-9-]*--[a-z0-9-]*)[a-z0-9-]{1,61}[a-z0-9])/(.+)$', azfs_path)
+  if match is None or (match.group(3) == '' and not object_optional):
+    raise ValueError('Azure Blob Storage path must be in the form azfs://<storage-account>/<container>/<path>.')
+  return match.group(1), match.group(2), match.group(3)
+
+
+class BlobStorageIOError(IOError, retry.PermanentException):
+  """Blob Strorage IO error that should not be retried."""
+  pass
+
+
+class GcsIO(object):
+  """Azure Blob Storage I/O client."""
+
+  def __init__(self, client=None):
+    connect_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+    if client is None:
+      self.client = BlobServiceClient.from_connection_string(connect_str)
+    else:
+      self.client = client
+
 
