@@ -27,9 +27,7 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) (beam.PCollection, bea
 }
 
 func reverseString(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return beam.ParDo(s, func(element string) string {
-		return reverseFn(element)
-	}, input)
+	return beam.ParDo(s, reverseFn, input)
 }
 
 func toUpperString(s beam.Scope, input beam.PCollection) beam.PCollection {

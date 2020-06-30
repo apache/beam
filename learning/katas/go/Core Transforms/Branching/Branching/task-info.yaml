@@ -34,14 +34,14 @@ files:
   - offset: 1021
     length: 23
     placeholder_text: TODO()
-  - offset: 1158
-    length: 82
-    placeholder_text: TODO()
-  - offset: 1328
-    length: 37
-    placeholder_text: TODO()
   - offset: 1053
     length: 17
+    placeholder_text: TODO()
+  - offset: 1158
+    length: 31
+    placeholder_text: TODO()
+  - offset: 1277
+    length: 37
     placeholder_text: TODO()
 - name: go.sum
   visible: false
