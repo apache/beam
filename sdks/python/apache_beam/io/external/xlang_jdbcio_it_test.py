@@ -78,13 +78,6 @@ class JdbcExternalTransformTest(unittest.TestCase):
   """
   ROW_COUNT = 10
 
-  pipeline_options = {
-      'runner': 'FlinkRunner',
-      'flink_version': '1.10',
-      'experiment': 'beam_fn_api',
-      'environment_type': 'LOOPBACK'
-  }
-
   def test_xlang_jdbc_write(self):
     table_name = 'jdbc_external_test_write'
     self.engine.execute(
