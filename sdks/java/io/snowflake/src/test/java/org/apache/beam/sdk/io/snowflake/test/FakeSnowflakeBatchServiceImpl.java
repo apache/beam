@@ -28,23 +28,24 @@ import net.snowflake.client.jdbc.SnowflakeSQLException;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeBatchServiceConfig;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
-import org.apache.beam.sdk.io.snowflake.services.SnowflakeServiceConfig;
 
 /** Fake implementation of {@link SnowflakeService} used in tests. */
-public class FakeSnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceConfig> {
+public class FakeSnowflakeBatchServiceImpl
+    implements SnowflakeService<SnowflakeBatchServiceConfig> {
 
   @Override
-  public void write(SnowflakeServiceConfig config) throws Exception {
+  public void write(SnowflakeBatchServiceConfig config) throws Exception {
     copyToTable(config);
   }
 
   @Override
-  public String read(SnowflakeServiceConfig config) throws Exception {
+  public String read(SnowflakeBatchServiceConfig config) throws Exception {
     return copyIntoStage(config);
   }
 
-  public String copyIntoStage(SnowflakeServiceConfig config) throws SQLException {
+  public String copyIntoStage(SnowflakeBatchServiceConfig config) throws SQLException {
     String table = config.getTable();
     String query = config.getQuery();
 
@@ -60,7 +61,7 @@ public class FakeSnowflakeServiceImpl implements SnowflakeService<SnowflakeServi
     return String.format("./%s/*", stagingBucketDir);
   }
 
-  public void copyToTable(SnowflakeServiceConfig config) throws SQLException {
+  public void copyToTable(SnowflakeBatchServiceConfig config) throws SQLException {
     List<String> filesList = config.getFilesList();
     String table = config.getTable();
     SnowflakeTableSchema tableSchema = config.getTableSchema();
