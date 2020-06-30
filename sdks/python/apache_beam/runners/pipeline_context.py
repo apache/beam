@@ -91,6 +91,7 @@ class _PipelineContextMap(object):
     self._pipeline_context = context
     self._obj_type = obj_type
     self._namespace = namespace
+    self._obj_to_id = {}  # type: Dict[Any, str]
     self._id_to_obj = {}  # type: Dict[str, Any]
     self._id_to_proto = dict(proto_map) if proto_map else {}
 
@@ -101,13 +102,13 @@ class _PipelineContextMap(object):
 
   def get_id(self, obj, label=None):
     # type: (Any, Optional[str]) -> str
-    assert isinstance(obj, self._obj_type)
-    id = self._pipeline_context.component_id_context.get_or_assign(
-        obj, self._obj_type, label)
-    if obj not in set(self._id_to_obj.values()):
+    if obj not in self._obj_to_id:
+      id = self._pipeline_context.component_id_context.get_or_assign(
+          obj, self._obj_type, label)
       self._id_to_obj[id] = obj
+      self._obj_to_id[obj] = id
       self._id_to_proto[id] = obj.to_runner_api(self._pipeline_context)
-    return id
+    return self._obj_to_id[obj]
 
   def get_proto(self, obj, label=None):
     # type: (Any, Optional[str]) -> message.Message
