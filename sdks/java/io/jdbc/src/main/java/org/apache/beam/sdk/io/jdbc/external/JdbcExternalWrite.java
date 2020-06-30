@@ -23,8 +23,6 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
@@ -51,65 +49,19 @@ public class JdbcExternalWrite implements ExternalTransformRegistrar {
   }
 
   /** Parameters class to expose the Write transform to an external SDK. */
-  public static class Configuration {
+  public static class WriteConfiguration extends Configuration {
     private String statement;
-    private String driverClassName;
-    private String jdbcUrl;
-    private String username;
-    private String password;
-    private String connectionProperties;
-    private Iterable<String> connectionInitSqls;
 
     public void setStatement(String statement) {
       this.statement = statement;
     }
-
-    public void setDriverClassName(String driverClassName) {
-      this.driverClassName = driverClassName;
-    }
-
-    public void setJdbcUrl(String jdbcUrl) {
-      this.jdbcUrl = jdbcUrl;
-    }
-
-    public void setUsername(String username) {
-      this.username = username;
-    }
-
-    public void setPassword(String password) {
-      this.password = password;
-    }
-
-    public void setConnectionProperties(String connectionProperties) {
-      this.connectionProperties = connectionProperties;
-    }
-
-    public void setConnectionInitSqls(Iterable<String> connectionInitSqls) {
-      this.connectionInitSqls = connectionInitSqls;
-    }
   }
 
   public static class Builder
-      implements ExternalTransformBuilder<
-          JdbcExternalWrite.Configuration, PCollection<Row>, PDone> {
+      implements ExternalTransformBuilder<WriteConfiguration, PCollection<Row>, PDone> {
     @Override
-    public PTransform<PCollection<Row>, PDone> buildExternal(
-        JdbcExternalWrite.Configuration configuration) {
-      DataSourceConfiguration dataSourceConfiguration =
-          DataSourceConfiguration.create(configuration.driverClassName, configuration.jdbcUrl)
-              .withUsername(configuration.username)
-              .withPassword(configuration.password)
-              .withConnectionProperties(configuration.connectionProperties);
-
-      if (configuration.connectionInitSqls != null) {
-        List<String> connectionInitSqls =
-            StreamSupport.stream(configuration.connectionInitSqls.spliterator(), false)
-                .collect(Collectors.toList());
-        dataSourceConfiguration =
-            dataSourceConfiguration.withConnectionInitSqls(connectionInitSqls);
-      }
-
-      JdbcIO.PreparedStatementSetter<Row> preparedStatementSetter = new PrepareStatementXlangRow();
+    public PTransform<PCollection<Row>, PDone> buildExternal(WriteConfiguration configuration) {
+      DataSourceConfiguration dataSourceConfiguration = configuration.getDataSourceConfiguration();
 
       return JdbcIO.<Row>write()
           .withDataSourceConfiguration(dataSourceConfiguration)
