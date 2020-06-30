@@ -24,6 +24,7 @@ import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.io.Closeable;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import javax.annotation.Nullable;
@@ -33,6 +34,7 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingHandler;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
@@ -239,13 +241,7 @@ public class DataflowOperationContext implements OperationContext {
           .append(getStateName());
       message.append("\n");
 
-      StackTraceElement[] fullTrace = trackedThread.getStackTrace();
-      for (StackTraceElement e : fullTrace) {
-        if (FRAMEWORK_CLASSES.contains(e.getClassName())) {
-          break;
-        }
-        message.append("  at ").append(e).append("\n");
-      }
+      message.append(getStackTraceForLullMessage(trackedThread.getStackTrace()));
       return message.toString();
     }
 
@@ -264,7 +260,49 @@ public class DataflowOperationContext implements OperationContext {
       logRecord.setLoggerName(DataflowOperationContext.LOG.getName());
 
       // Publish directly in the context of this specific ExecutionState.
-      DataflowWorkerLoggingInitializer.getLoggingHandler().publish(this, logRecord);
+      DataflowWorkerLoggingHandler dataflowLoggingHandler =
+          DataflowWorkerLoggingInitializer.getLoggingHandler();
+      dataflowLoggingHandler.publish(this, logRecord);
+
+      if (shouldLogFullThreadDump()) {
+        Map<Thread, StackTraceElement[]> threadSet = Thread.getAllStackTraces();
+        for (Map.Entry<Thread, StackTraceElement[]> entry : threadSet.entrySet()) {
+          Thread thread = entry.getKey();
+          StackTraceElement[] stackTrace = entry.getValue();
+          StringBuilder message = new StringBuilder();
+          message.append(thread.toString()).append(":\n");
+          message.append(getStackTraceForLullMessage(stackTrace));
+          logRecord = new LogRecord(Level.INFO, message.toString());
+          logRecord.setLoggerName(DataflowOperationContext.LOG.getName());
+          dataflowLoggingHandler.publish(this, logRecord);
+        }
+      }
+    }
+
+    // A full thread dump is performed at most once every 20 minutes.
+    private static final long LOG_LULL_FULL_THREAD_DUMP_MS = 20 * 60 * 1000;
+
+    // Last time when a full thread dump was performed.
+    private long lastFullThreadDumpMillis = 0;
+
+    private boolean shouldLogFullThreadDump() {
+      long now = System.currentTimeMillis();
+      if (lastFullThreadDumpMillis + LOG_LULL_FULL_THREAD_DUMP_MS < now) {
+        lastFullThreadDumpMillis = now;
+        return true;
+      }
+      return false;
+    }
+
+    private String getStackTraceForLullMessage(StackTraceElement[] stackTrace) {
+      StringBuilder message = new StringBuilder();
+      for (StackTraceElement e : stackTrace) {
+        if (FRAMEWORK_CLASSES.contains(e.getClassName())) {
+          break;
+        }
+        message.append("  at ").append(e).append("\n");
+      }
+      return message.toString();
     }
 
     @Nullable

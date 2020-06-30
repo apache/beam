@@ -34,6 +34,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
@@ -47,6 +48,7 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileSc
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.After;
@@ -172,7 +174,6 @@ public class DataflowOperationContextTest {
   }
 
   /** Tests for the lull logging in {@link DataflowOperationContext}. */
-  @RunWith(JUnit4.class)
   public static class LullLoggingTest {
 
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -223,32 +224,65 @@ public class DataflowOperationContextTest {
             }
           };
 
+      StackTraceElement[] doFnStackTrace =
+          new StackTraceElement[]{
+              new StackTraceElement(
+                  "userpackage.SomeUserDoFn", "helperMethod", "SomeUserDoFn.java", 250),
+              new StackTraceElement(
+                  "userpackage.SomeUserDoFn", "process", "SomeUserDoFn.java", 450),
+              new StackTraceElement(
+                  SimpleDoFnRunner.class.getName(), "processElement", "SimpleDoFnRunner.java", 500),
+          };
       when(mockThread.getStackTrace())
-          .thenReturn(
-              new StackTraceElement[] {
-                new StackTraceElement(
-                    "userpackage.SomeUserDoFn", "helperMethod", "SomeUserDoFn.java", 250),
-                new StackTraceElement(
-                    "userpackage.SomeUserDoFn", "process", "SomeUserDoFn.java", 450),
-                new StackTraceElement(
-                    SimpleDoFnRunner.class.getName(),
-                    "processElement",
-                    "SimpleDoFnRunner.java",
-                    500),
-              });
-      executionState.reportLull(mockThread, 6000);
+          .thenReturn(doFnStackTrace);
 
-      File[] files = logFolder.listFiles();
-      assertThat(files, Matchers.arrayWithSize(1));
-      String contents = Joiner.on("\n").join(Files.readAllLines(files[0].toPath()));
-      assertThat(
-          contents,
-          Matchers.allOf(
-              Matchers.containsString(
-                  "Operation ongoing in step " + NameContextsForTests.USER_NAME),
-              Matchers.containsString(" without outputting or completing in state somestate"),
-              Matchers.containsString("userpackage.SomeUserDoFn.helperMethod"),
-              Matchers.not(Matchers.containsString(SimpleDoFnRunner.class.getName()))));
+      // Adding test for the full thread dump, but since we can't mock
+      // Thread.getAllStackTraces(), we are starting a background thread
+      // to verify the full thread dump.
+      Thread backgroundThread = new Thread("backgroundThread") {
+        @Override
+        public void run() {
+          try {
+            Thread.sleep(Long.MAX_VALUE);
+          } catch (InterruptedException e) {
+            // exiting the thread
+          }
+        }
+      };
+
+      backgroundThread.start();
+      try {
+        executionState.reportLull(mockThread, 6000);
+
+        File[] files = logFolder.listFiles();
+        assertThat(files, Matchers.arrayWithSize(1));
+        List<String> lines = Files.readAllLines(files[0].toPath());
+
+        String warnLines =
+            Joiner.on("\n").join(Iterables.filter(lines, line -> line.contains("\"WARN\"")));
+        assertThat(
+            warnLines,
+            Matchers.allOf(
+                Matchers.containsString(
+                    "Operation ongoing in step " + NameContextsForTests.USER_NAME),
+                Matchers.containsString(" without outputting or completing in state somestate"),
+                Matchers.containsString("userpackage.SomeUserDoFn.helperMethod"),
+                Matchers.not(Matchers.containsString(SimpleDoFnRunner.class.getName()))));
+
+        String infoLines =
+            Joiner.on("\n").join(Iterables.filter(lines, line -> line.contains("\"INFO\"")));
+        assertThat(
+            infoLines,
+            Matchers.allOf(
+                Matchers.containsString("Thread[backgroundThread,"),
+                Matchers.containsString(
+                    "org.apache.beam.runners.dataflow.worker.DataflowOperationContext"),
+                Matchers.not(Matchers.containsString(SimpleDoFnRunner.class.getName()))));
+      } finally {
+        // Cleaning up the background thread.
+        backgroundThread.interrupt();
+        backgroundThread.join();
+      }
     }
 
     @Test
