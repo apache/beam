@@ -209,7 +209,7 @@ func decoderForStructReflect(t reflect.Type) func(reflect.Value, io.Reader) erro
 // and can be skipped in decoding.
 func isFieldNil(nils []byte, f int) bool {
 	i, b := f/8, f%8
-	return len(nils) != 0 && (nils[i]>>b)&0x1 == 1
+	return len(nils) != 0 && (nils[i]>>uint8(b))&0x1 == 1
 }
 
 // encoderForType returns an encoder function for the struct or pointer to struct type.
@@ -333,7 +333,7 @@ func writeRowHeader(rv reflect.Value, w io.Writer) error {
 		// Other types can be nil, but they aren't encodable.
 		case reflect.Ptr, reflect.Map, reflect.Slice:
 			if rvf.IsNil() {
-				curByte |= (1 << shift)
+				curByte |= (uint8(1) << shift)
 				nils = true
 			}
 		}
