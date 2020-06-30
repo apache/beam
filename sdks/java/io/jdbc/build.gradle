@@ -25,8 +25,10 @@ description = "Apache Beam :: SDKs :: Java :: IO :: JDBC"
 ext.summary = "IO to read and write on JDBC datasource."
 
 dependencies {
+  compile library.java.postgres
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:expansion-service")
   compile "org.apache.commons:commons-dbcp2:2.6.0"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
@@ -35,7 +37,6 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_api
-  testCompile library.java.postgres
   testCompile "org.apache.derby:derby:10.14.2.0"
   testCompile "org.apache.derby:derbyclient:10.14.2.0"
   testCompile "org.apache.derby:derbynet:10.14.2.0"
