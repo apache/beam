@@ -28,9 +28,12 @@ from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import coders
+from apache_beam.io.external.jdbc import ReadFromJdbc
 from apache_beam.io.external.jdbc import WriteToJdbc
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -47,6 +50,14 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 ROW_COUNT = 10
+
+JdbcReadTestRow = typing.NamedTuple(
+    "JdbcReadTestRow",
+    [
+        ("f_int", int),
+    ],
+)
+coders.registry.register_coder(JdbcReadTestRow, coders.RowCoder)
 
 JdbcWriteTestRow = typing.NamedTuple(
     "JdbcWriteTestRow",
@@ -97,11 +108,11 @@ class JdbcExternalTransformTest(unittest.TestCase):
     self.engine.execute(
         "CREATE TABLE {}(f_id INTEGER, f_real REAL, f_string VARCHAR)".
         format(table_name))
-
     inserted_rows = [
         JdbcWriteTestRow(i, i + 0.1, 'Test{}'.format(i))
         for i in range(ROW_COUNT)
     ]
+
     with TestPipeline() as p:
       p.not_use_test_runner_api = True
       _ = (
@@ -126,6 +137,28 @@ class JdbcExternalTransformTest(unittest.TestCase):
         set(inserted_rows),
         'Inserted data does not fit data fetched from table',
     )
+
+  def test_xlang_jdbc_read(self):
+    table_name = 'jdbc_external_test_read'
+    self.engine.execute("CREATE TABLE {}(f_int INTEGER)".format(table_name))
+
+    for i in range(ROW_COUNT):
+      self.engine.execute("INSERT INTO {} VALUES({})".format(table_name, i))
+
+    with TestPipeline(options=PipelineOptions(**self.pipeline_options)) as p:
+      p.not_use_test_runner_api = True
+      result = (
+          p
+          | 'Read from jdbc' >> ReadFromJdbc(
+              driver_class_name=self.driver_class_name,
+              jdbc_url=self.jdbc_url,
+              username=self.username,
+              password=self.password,
+              query='SELECT f_int FROM {}'.format(table_name),
+          ))
+
+      assert_that(
+          result, equal_to([JdbcReadTestRow(i) for i in range(ROW_COUNT)]))
 
 
 if __name__ == '__main__':

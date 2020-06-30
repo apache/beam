@@ -47,7 +47,7 @@ from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
-__all__ = ['WriteToJdbc']
+__all__ = ['WriteToJdbc', 'ReadFromJdbc']
 
 
 def default_io_expansion_service():
@@ -127,6 +127,83 @@ class WriteToJdbc(ExternalTransform):
                 username=username,
                 password=password,
                 statement=statement,
+                connection_properties=connection_properties,
+                connection_init_sqls=connection_init_sqls,
+            ),
+        ),
+        expansion_service or default_io_expansion_service(),
+    )
+
+
+ReadFromJdbcSchema = typing.NamedTuple(
+    'ReadFromJdbcSchema',
+    [
+        ('driver_class_name', unicode),
+        ('jdbc_url', unicode),
+        ('username', unicode),
+        ('password', unicode),
+        ('connection_properties', typing.Optional[unicode]),
+        ('connection_init_sqls', typing.Optional[typing.List[unicode]]),
+        ('query', unicode),
+        ('fetch_size', typing.Optional[int]),
+        ('output_parallelization', typing.Optional[bool]),
+    ],
+)
+
+
+class ReadFromJdbc(ExternalTransform):
+  """
+  An external PTransform which reads Rows from the specified database.
+
+  This transform outputs Rows defined as NamedTuple like in WriteToJdbc
+  transform.
+
+  Experimental; no backwards compatibility guarantees.  It requires special
+  preparation of the Java SDK.  See BEAM-7870.
+  """
+
+  URN = 'beam:external:java:jdbc:read:v1'
+
+  def __init__(
+      self,
+      driver_class_name,
+      jdbc_url,
+      username,
+      password,
+      query,
+      **kwargs,
+  ):
+    """
+    Initializes a write operation to Jdbc.
+
+    :param driver_class_name: name of the jdbc driver class
+    :param jdbc_url: full jdbc url to the database.
+    :param username: database username
+    :param password: database password
+    :param query: sql query to be executed
+    :param output_parallelization (optional): is output parallelization on
+    :param fetch_size (optional): how many rows to fetch
+    :param connection_init_sqls (optional): required only for MySql and MariaDB
+    :param expansion_service (optional): The address (host:port) of the ExpansionService
+    """
+
+    output_parallelization = kwargs.get('output_parallelization')
+    fetch_size = kwargs.get('fetch_size')
+    connection_properties = kwargs.get('connection_properties')
+    connection_init_sqls = kwargs.get('connection_init_sqls')
+    expansion_service = kwargs.get('expansion_service')
+
+    super(ReadFromJdbc, self).__init__(
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            ReadFromJdbcSchema(
+                driver_class_name=driver_class_name,
+                jdbc_url=jdbc_url,
+                username=username,
+                password=password,
+                query=query,
+                output_parallelization=output_parallelization,
+                fetch_size=fetch_size,
                 connection_properties=connection_properties,
                 connection_init_sqls=connection_init_sqls,
             ),
