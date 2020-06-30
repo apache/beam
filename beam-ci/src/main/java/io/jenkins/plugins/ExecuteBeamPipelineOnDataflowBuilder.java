@@ -31,22 +31,22 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
 import javax.servlet.ServletException;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.*;
 
 import jenkins.tasks.SimpleBuildStep;
 
 public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements SimpleBuildStep {
 
+    private ProcessBuilder processBuilder;
     private final String pathToCreds;
     private final String pathToMainClass;
     private final String pipelineOptions;
     private final String buildReleaseOptions;
     private boolean useJava; // if false, use Python
     private boolean useGradle; // if false, use Maven
+    private ArrayList<String> command;
+    private boolean test; // if we are testing, the mock ProcessBuilder never starts
 
     @DataBoundConstructor
     public ExecuteBeamPipelineOnDataflowBuilder(String pathToCreds, String pathToMainClass, String pipelineOptions, String buildReleaseOptions, boolean useJava, boolean useGradle) {
@@ -56,6 +56,12 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         this.buildReleaseOptions = buildReleaseOptions;
         this.useJava = useJava;
         this.useGradle = useGradle;
+        this.test = false;
+    }
+
+    public void setProcessBuilder(ProcessBuilder processBuilder) {
+        this.processBuilder = processBuilder;
+        this.test = true;
     }
 
     public String getPathToCreds() { return pathToCreds; }
@@ -80,11 +86,13 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         return useGradle;
     }
 
+    public ArrayList<String> getCommand() { return command; }
+
     /**
      * Builds and sets the command on the ProcessBuilder depending on configurations set by the user
      * */
-    private void buildCommand(Run<?, ?> run, String workspace, ProcessBuilder processBuilder) {
-        ArrayList<String> command;
+    private void buildCommand(Run<?, ?> run, String workspace, PrintStream logger) {
+//        ArrayList<String> command;
         if (this.useJava) {
             String pipelineOptions = this.pipelineOptions.replaceAll("[\\t\\n]+"," ");
             if (this.useGradle) { // gradle
@@ -98,8 +106,6 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
                 String[] buildReleaseOptions = this.buildReleaseOptions.split("\\s+"); // split build release options by whitespace
                 command.addAll(Arrays.asList(buildReleaseOptions)); // add build release options as separate list elements
             }
-            //        System.out.println(Arrays.toString(command.toArray()));
-            processBuilder.command(command);
         } else { // python
             // Get Path to the Bash Script
             String dir = System.getProperty("user.dir"); // Get the directory the plugin is located
@@ -109,8 +115,9 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
             String jobBuildPathDirectory = getJobBuildDirectory(run);
 
             // Execute Bash Script
-            processBuilder.command(pathToScript, workspace, jobBuildPathDirectory, this.pathToMainClass, this.pipelineOptions, this.buildReleaseOptions);
+            command = new ArrayList<>(Arrays.asList(pathToScript, workspace, jobBuildPathDirectory, this.pathToMainClass, this.pipelineOptions, this.buildReleaseOptions));
         }
+        this.processBuilder.command(command);
     }
 
     /**
@@ -125,7 +132,10 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
 
     @Override
     public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener) throws InterruptedException, IOException {
-        ProcessBuilder processBuilder = new ProcessBuilder();
+//        ProcessBuilder processBuilder = new ProcessBuilder();
+        if (processBuilder == null) {
+            this.processBuilder = new ProcessBuilder();
+        }
 
         // see that all configurations are received correctly
         listener.getLogger().println("path to google cloud credentials : " + this.pathToCreds);
@@ -135,15 +145,21 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         listener.getLogger().println("use java: " + this.useJava);
         listener.getLogger().println("use gradle: " + this.useGradle);
 
-        Map<String, String> env = processBuilder.environment();
+        Map<String, String> env = this.processBuilder.environment();
         env.put("GOOGLE_APPLICATION_CREDENTIALS", this.pathToCreds);
 
         // set correct directory to be running command
-        processBuilder.directory(new File(workspace.toURI()));
+        this.processBuilder.directory(new File(workspace.toURI()));
 
         // build and set command to processBuilder based on configurations
-        buildCommand(run, workspace.toURI().getPath(), processBuilder);
-        Process process = processBuilder.start();
+        buildCommand(run, workspace.toURI().getPath(), listener.getLogger());
+
+        if (this.test) { // if we are testing commands only, return before starting process
+            listener.getLogger().println("Test finished successfully.");
+            return;
+        }
+
+        Process process = this.processBuilder.start();
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
         String line;
