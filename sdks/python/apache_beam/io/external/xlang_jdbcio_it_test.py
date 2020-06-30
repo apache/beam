@@ -23,6 +23,7 @@ import logging
 import typing
 import unittest
 
+from nose.plugins.attrib import attr
 from past.builtins import unicode
 
 import apache_beam as beam
@@ -55,7 +56,7 @@ JdbcTestRow = typing.NamedTuple(
 
 coders.registry.register_coder(JdbcTestRow, coders.RowCoder)
 
-
+@attr('UsesCrossLanguageTransforms')
 @unittest.skipIf(sqlalchemy is None, "sql alchemy package is not installed.")
 @unittest.skipIf(
     PostgresContainer is None, "testcontainers package is not installed")
