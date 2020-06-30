@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.aws.options;
 
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
 import com.amazonaws.ClientConfiguration;
@@ -30,6 +31,7 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EC2ContainerCredentialsProviderWrapper;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.PropertiesFileCredentialsProvider;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
@@ -38,7 +40,6 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Field;
 import java.util.List;
-import org.apache.beam.sdk.io.aws.sts.STSCredentialsProviderWrapper;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -120,24 +121,13 @@ public class AwsModuleTest {
 
   @Test
   public void testSTSCredentialsProviderWrapperSerializationDeserialization() throws Exception {
-    String roleArn = "roleArn";
+    String roleArn = "arn:aws:iam::000111222333:role/TestRole";
     String roleSessionName = "roleSessionName";
-    String region = "us-west-2";
+    STSAssumeRoleSessionCredentialsProvider credentialsProvider =
+        AssumeRoleSessionCredentialsProvider.getInstance(roleArn, roleSessionName)
+            .getSessionCredentialsProvider();
 
-    STSCredentialsProviderWrapper credentialsProvider =
-        new STSCredentialsProviderWrapper(roleArn, region, roleSessionName);
-
-    String serializedCredentialsProvider = objectMapper.writeValueAsString(credentialsProvider);
-    AWSCredentialsProvider deserializedCredentialsProvider =
-        objectMapper.readValue(serializedCredentialsProvider, AWSCredentialsProvider.class);
-
-    assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
-    assertEquals(
-        credentialsProvider.getCredentials().getAWSAccessKeyId(),
-        deserializedCredentialsProvider.getCredentials().getAWSAccessKeyId());
-    assertEquals(
-        credentialsProvider.getCredentials().getAWSSecretKey(),
-        deserializedCredentialsProvider.getCredentials().getAWSSecretKey());
+    assertNotNull(credentialsProvider);
   }
 
   @Test

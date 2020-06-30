@@ -26,6 +26,7 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EC2ContainerCredentialsProviderWrapper;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.PropertiesFileCredentialsProvider;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
@@ -50,7 +51,6 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Map;
-import org.apache.beam.sdk.io.aws.sts.STSCredentialsProviderWrapper;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /**
@@ -79,7 +79,6 @@ public class AwsModule extends SimpleModule {
   public static final String PROXY_PASSWORD = "proxyPassword";
   public static final String ROLE_ARN = "roleArn";
   public static final String ROLE_SESSION_NAME = "roleSessionName";
-  public static final String REGION = "region";
 
   public AwsModule() {
     super("AwsModule");
@@ -136,9 +135,9 @@ public class AwsModule extends SimpleModule {
         return new ProfileCredentialsProvider();
       } else if (typeName.equals(EC2ContainerCredentialsProviderWrapper.class.getSimpleName())) {
         return new EC2ContainerCredentialsProviderWrapper();
-      } else if (typeName.equals(STSCredentialsProviderWrapper.class.getSimpleName())) {
-        return new STSCredentialsProviderWrapper(
-            asMap.get(ROLE_ARN), asMap.get(REGION), asMap.get(ROLE_SESSION_NAME));
+      } else if (typeName.equals(STSAssumeRoleSessionCredentialsProvider.class.getSimpleName())) {
+        return AssumeRoleSessionCredentialsProvider.getInstance(
+            asMap.get(ROLE_ARN), asMap.get(ROLE_SESSION_NAME));
       } else {
         throw new IOException(
             String.format("AWS credential provider type '%s' is not supported", typeName));
@@ -156,7 +155,7 @@ public class AwsModule extends SimpleModule {
             SystemPropertiesCredentialsProvider.class,
             ProfileCredentialsProvider.class,
             EC2ContainerCredentialsProviderWrapper.class,
-            STSCredentialsProviderWrapper.class);
+            STSAssumeRoleSessionCredentialsProvider.class);
 
     @Override
     public void serialize(
@@ -211,7 +210,15 @@ public class AwsModule extends SimpleModule {
         } catch (NoSuchFieldException | IllegalAccessException e) {
           throw new IOException("failed to access private field with reflection", e);
         }
-
+      } else if (credentialsProvider
+          .getClass()
+          .equals(STSAssumeRoleSessionCredentialsProvider.class)) {
+        STSAssumeRoleSessionCredentialsProvider specificProvider =
+            (STSAssumeRoleSessionCredentialsProvider) credentialsProvider;
+        jsonGenerator.writeStringField(
+            AWS_ACCESS_KEY_ID, specificProvider.getCredentials().getAWSAccessKeyId());
+        jsonGenerator.writeStringField(
+            AWS_SECRET_KEY, specificProvider.getCredentials().getAWSSecretKey());
       } else if (!SINGLETON_CREDENTIAL_PROVIDERS.contains(credentialsProvider.getClass())) {
         throw new IllegalArgumentException(
             "Unsupported AWS credentials provider type " + credentialsProvider.getClass());
