@@ -51,7 +51,8 @@ class _MockMongoColl(object):
   def __init__(self, docs):
     self.docs = docs
 
-  def _filter(self, filter):
+  def _filter(self, filter, projection):
+    projection = [] if projection is None else projection
     match = []
     if not filter:
       return self
@@ -66,11 +67,13 @@ class _MockMongoColl(object):
         continue
       if end and doc['_id'] >= end:
         continue
+      if len(projection) > 0:
+        doc = {k: v for k, v in doc.items() if k in projection or k == '_id'}
       match.append(doc)
     return match
 
-  def find(self, filter=None, **kwargs):
-    return _MockMongoColl(self._filter(filter))
+  def find(self, filter=None, projection=None, **kwargs):
+    return _MockMongoColl(self._filter(filter, projection))
 
   def sort(self, sort_items):
     key, order = sort_items[0]
@@ -246,13 +249,24 @@ class MongoSourceTest(unittest.TestCase):
 class ReadFromMongoDBTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_read_from_mongodb(self, mock_client):
-    documents = [{'_id': objectid.ObjectId(), 'x': i} for i in range(3)]
+    documents = [{
+        '_id': objectid.ObjectId(), 'x': i, 'selected': 1, 'unselected': 2
+    } for i in range(3)]
     mock_client.return_value = _MockMongoClient(documents)
+
+    projection = ['x', 'selected']
+    projected_documents = [{
+        k: v
+        for k, v in e.items() if k in projection or k == '_id'
+    } for e in documents]
 
     with TestPipeline() as p:
       docs = p | 'ReadFromMongoDB' >> ReadFromMongoDB(
-          uri='mongodb://test', db='db', coll='collection')
-      assert_that(docs, equal_to(documents))
+          uri='mongodb://test',
+          db='db',
+          coll='collection',
+          projection=projection)
+      assert_that(docs, equal_to(projected_documents))
 
 
 class GenerateObjectIdFnTest(unittest.TestCase):
