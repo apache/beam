@@ -104,7 +104,7 @@ class _PipelineContextMap(object):
     assert isinstance(obj, self._obj_type)
     id = self._pipeline_context.component_id_context.get_or_assign(
         obj, self._obj_type, label)
-    if obj not in self._id_to_obj.values():
+    if obj not in set(self._id_to_obj.values()):
       self._id_to_obj[id] = obj
       self._id_to_proto[id] = obj.to_runner_api(self._pipeline_context)
     return id
