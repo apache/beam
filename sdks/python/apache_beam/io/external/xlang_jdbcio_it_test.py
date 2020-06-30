@@ -67,10 +67,6 @@ class JdbcExternalTransformTest(unittest.TestCase):
   """Tests that exercise the cross-language JdbcIO Transform
    (implemented in java).
 
-  It is required to have testcontainers package installed.
-  You can do that e.g. via:
-    pip install testcontainers
-
   To run with the local expansion service, flink job server you need to
   build it, e.g. via command:
     ./gradlew :sdks:java:io:expansion-service:shadowJar
@@ -79,40 +75,6 @@ class JdbcExternalTransformTest(unittest.TestCase):
   Also, beam java sdk container is necessary. You can build it via:
     ./gradlew :sdks:java:container:docker
   """
-  ROW_COUNT = 10
-
-  def test_xlang_jdbc_write(self):
-    table_name = 'jdbc_external_test_write'
-    self.engine.execute(
-        "CREATE TABLE {}(f_id INTEGER, f_real REAL, f_string VARCHAR)".format(
-            table_name))
-    inserted_rows = [
-        JdbcWriteTestRow(i, i + 0.1, 'Test{}'.format(i))
-        for i in range(ROW_COUNT)
-    ]
-    with TestPipeline() as p:
-      p.not_use_test_runner_api = True
-      _ = (
-          p
-          | beam.Create(inserted_rows).with_output_types(JdbcWriteTestRow)
-          | 'Write to jdbc' >> WriteToJdbc(
-              driver_class_name=self.driver_class_name,
-              jdbc_url=self.jdbc_url,
-              username=self.username,
-              password=self.password,
-              statement='insert into {}(f_id, f_real, f_string) values(?, ?, ?)'
-              .format(table_name),
-          ))
-    fetched_data = self.engine.execute("select * from {}".format(table_name))
-    fetched_rows = [
-        JdbcWriteTestRow(int(row[0]), float(row[1]), str(row[2]))
-        for row in fetched_data
-    ]
-
-    self.assertEqual(
-        set(fetched_rows),
-        set(inserted_rows),
-        'Inserted data does not fit data fetched from table')
 
   def setUp(self):
     self.postgres = PostgresContainer('postgres:latest')
@@ -129,6 +91,41 @@ class JdbcExternalTransformTest(unittest.TestCase):
 
   def tearDown(self):
     self.postgres.stop()
+
+  def test_xlang_jdbc_write(self):
+    table_name = 'jdbc_external_test_write'
+    self.engine.execute(
+        "CREATE TABLE {}(f_id INTEGER, f_real REAL, f_string VARCHAR)".
+        format(table_name))
+
+    inserted_rows = [
+        JdbcWriteTestRow(i, i + 0.1, 'Test{}'.format(i))
+        for i in range(ROW_COUNT)
+    ]
+    with TestPipeline() as p:
+      p.not_use_test_runner_api = True
+      _ = (
+          p
+          | beam.Create(inserted_rows).with_output_types(JdbcWriteTestRow)
+          | 'Write to jdbc' >> WriteToJdbc(
+              driver_class_name=self.driver_class_name,
+              jdbc_url=self.jdbc_url,
+              username=self.username,
+              password=self.password,
+              statement='INSERT INTO {} VALUES(?, ?, ?)'.format(table_name),
+          ))
+
+    fetched_data = self.engine.execute("SELECT * FROM {}".format(table_name))
+    fetched_rows = [
+        JdbcWriteTestRow(int(row[0]), float(row[1]), str(row[2]))
+        for row in fetched_data
+    ]
+
+    self.assertEqual(
+        set(fetched_rows),
+        set(inserted_rows),
+        'Inserted data does not fit data fetched from table',
+    )
 
 
 if __name__ == '__main__':
