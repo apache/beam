@@ -505,19 +505,6 @@ public class Read {
       return new UnboundedSourceAsSDFRestrictionTracker(restriction, pipelineOptions);
     }
 
-    @TruncateSizedRestriction
-    public void truncateSizedRestriction(
-        @Restriction UnboundedSourceRestriction<OutputT, CheckpointT> restriction,
-        OutputReceiver<UnboundedSourceRestriction<OutputT, CheckpointT>> receiver) {
-      try {
-        restriction.getCheckpoint().finalizeCheckpoint();
-      } catch (Exception e) {
-        LOG.warn("Failed to finalize CheckpointMark {}", restriction.getWatermark());
-      } finally {
-        receiver.output(null);
-      }
-    }
-
     @ProcessElement
     public ProcessContinuation processElement(
         RestrictionTracker<UnboundedSourceRestriction<OutputT, CheckpointT>, UnboundedSourceValue[]>

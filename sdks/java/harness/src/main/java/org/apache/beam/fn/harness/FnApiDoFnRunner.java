@@ -492,185 +492,32 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             || (doFnSignature.getSize() != null && doFnSignature.getSize().observesWindow())
             || !sideInputMapping.isEmpty()) {
           mainInputConsumer = this::processElementForWindowObservingSplitRestriction;
-          // OutputT == RestrictionT
           this.processContext =
-              new WindowObservingProcessBundleContext() {
-                @Override
-                public void outputWithTimestamp(OutputT output, Instant timestamp) {
-                  double size =
-                      doFnInvoker.invokeGetSize(
-                          new DelegatingArgumentProvider<InputT, OutputT>(
-                              this,
-                              PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN
-                                  + "/GetSize") {
-                            @Override
-                            public Object restriction() {
-                              return output;
-                            }
+              new SizedRestrictionWindowObservingProcessBundleContext(
+                  PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN);
 
-                            @Override
-                            public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                              return timestamp;
-                            }
-
-                            @Override
-                            public RestrictionTracker<?, ?> restrictionTracker() {
-                              return doFnInvoker.invokeNewTracker(this);
-                            }
-                          });
-
-                  outputTo(
-                      mainOutputConsumers,
-                      (WindowedValue<OutputT>)
-                          WindowedValue.of(
-                              KV.of(
-                                  KV.of(
-                                      currentElement.getValue(),
-                                      KV.of(output, currentWatermarkEstimatorState)),
-                                  size),
-                              timestamp,
-                              currentWindow,
-                              currentElement.getPane()));
-                }
-              };
         } else {
           mainInputConsumer = this::processElementForSplitRestriction;
-          // OutputT == RestrictionT
           this.processContext =
-              new NonWindowObservingProcessBundleContext() {
-                @Override
-                public void outputWithTimestamp(OutputT output, Instant timestamp) {
-                  double size =
-                      doFnInvoker.invokeGetSize(
-                          new DelegatingArgumentProvider<InputT, OutputT>(
-                              this,
-                              PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN
-                                  + "/GetSize") {
-                            @Override
-                            public Object restriction() {
-                              return output;
-                            }
-
-                            @Override
-                            public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                              return timestamp;
-                            }
-
-                            @Override
-                            public RestrictionTracker<?, ?> restrictionTracker() {
-                              return doFnInvoker.invokeNewTracker(this);
-                            }
-                          });
-
-                  outputTo(
-                      mainOutputConsumers,
-                      (WindowedValue<OutputT>)
-                          WindowedValue.of(
-                              KV.of(
-                                  KV.of(
-                                      currentElement.getValue(),
-                                      KV.of(output, currentWatermarkEstimatorState)),
-                                  size),
-                              timestamp,
-                              currentElement.getWindows(),
-                              currentElement.getPane()));
-                }
-              };
+              new SizedRestrictionNonWindowObservingProcessBundleContext(
+                  PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN);
         }
         break;
       case PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN:
-        if ((doFnSignature.truncateSizedRestriction() != null
-                && doFnSignature.truncateSizedRestriction().observesWindow())
+        if ((doFnSignature.truncateRestriction() != null
+                && doFnSignature.truncateRestriction().observesWindow())
             || (doFnSignature.newTracker() != null && doFnSignature.newTracker().observesWindow())
             || (doFnSignature.getSize() != null && doFnSignature.getSize().observesWindow())
             || !sideInputMapping.isEmpty()) {
-          mainInputConsumer = this::processElementForWindowObservingTruncateSizedRestriction;
-          // OutputT == RestrictionT
+          mainInputConsumer = this::processElementForWindowObservingTruncateRestriction;
           this.processContext =
-              new WindowObservingProcessBundleContext() {
-                @Override
-                public void outputWithTimestamp(OutputT output, Instant timestamp) {
-                  double size =
-                      output == null
-                          ? 0.0
-                          : doFnInvoker.invokeGetSize(
-                              new DelegatingArgumentProvider<InputT, OutputT>(
-                                  this,
-                                  PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN
-                                      + "/GetSize") {
-                                @Override
-                                public Object restriction() {
-                                  return output;
-                                }
-
-                                @Override
-                                public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                                  return timestamp;
-                                }
-
-                                @Override
-                                public RestrictionTracker<?, ?> restrictionTracker() {
-                                  return doFnInvoker.invokeNewTracker(this);
-                                }
-                              });
-
-                  outputTo(
-                      mainOutputConsumers,
-                      (WindowedValue<OutputT>)
-                          WindowedValue.of(
-                              KV.of(
-                                  KV.of(
-                                      currentElement.getValue(),
-                                      KV.of(output, currentWatermarkEstimatorState)),
-                                  size),
-                              timestamp,
-                              currentWindow,
-                              currentElement.getPane()));
-                }
-              };
+              new SizedRestrictionWindowObservingProcessBundleContext(
+                  PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN);
         } else {
-          mainInputConsumer = this::processElementForTruncateSizedRestriction;
-          // OutputT == RestrictionT
+          mainInputConsumer = this::processElementForTruncateRestriction;
           this.processContext =
-              new NonWindowObservingProcessBundleContext() {
-                @Override
-                public void outputWithTimestamp(OutputT output, Instant timestamp) {
-                  double size =
-                      doFnInvoker.invokeGetSize(
-                          new DelegatingArgumentProvider<InputT, OutputT>(
-                              this,
-                              PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN
-                                  + "/GetSize") {
-                            @Override
-                            public Object restriction() {
-                              return output;
-                            }
-
-                            @Override
-                            public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                              return timestamp;
-                            }
-
-                            @Override
-                            public RestrictionTracker<?, ?> restrictionTracker() {
-                              return doFnInvoker.invokeNewTracker(this);
-                            }
-                          });
-
-                  outputTo(
-                      mainOutputConsumers,
-                      (WindowedValue<OutputT>)
-                          WindowedValue.of(
-                              KV.of(
-                                  KV.of(
-                                      currentElement.getValue(),
-                                      KV.of(output, currentWatermarkEstimatorState)),
-                                  size),
-                              timestamp,
-                              currentElement.getWindows(),
-                              currentElement.getPane()));
-                }
-              };
+              new SizedRestrictionNonWindowObservingProcessBundleContext(
+                  PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN);
         }
         break;
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
@@ -884,12 +731,23 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     currentElement = elem.withValue(elem.getValue().getKey());
     currentRestriction = elem.getValue().getValue().getKey();
     currentWatermarkEstimatorState = elem.getValue().getValue().getValue();
+    currentTracker =
+        RestrictionTrackers.observe(
+            doFnInvoker.invokeNewTracker(processContext),
+            new ClaimObserver<PositionT>() {
+              @Override
+              public void onClaimed(PositionT position) {}
+
+              @Override
+              public void onClaimFailed(PositionT position) {}
+            });
     try {
       doFnInvoker.invokeSplitRestriction(processContext);
     } finally {
       currentElement = null;
       currentRestriction = null;
       currentWatermarkEstimatorState = null;
+      currentTracker = null;
     }
 
     // TODO(BEAM-10212): Support caching state data across bundle boundaries.
@@ -906,6 +764,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
+        currentTracker =
+            RestrictionTrackers.observe(
+                doFnInvoker.invokeNewTracker(processContext),
+                new ClaimObserver<PositionT>() {
+                  @Override
+                  public void onClaimed(PositionT position) {}
+
+                  @Override
+                  public void onClaimFailed(PositionT position) {}
+                });
         doFnInvoker.invokeSplitRestriction(processContext);
       }
     } finally {
@@ -913,13 +781,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentRestriction = null;
       currentWatermarkEstimatorState = null;
       currentWindow = null;
+      currentTracker = null;
     }
 
     // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
-  private void processElementForTruncateSizedRestriction(
+  private void processElementForTruncateRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
     currentRestriction = elem.getValue().getKey().getValue().getKey();
@@ -935,7 +804,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               public void onClaimFailed(PositionT position) {}
             });
     try {
-      doFnInvoker.invokeTruncateSizedRestriction(processContext);
+      doFnInvoker.invokeTruncateRestriction(processContext);
     } finally {
       currentTracker = null;
       currentElement = null;
@@ -947,7 +816,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     this.stateAccessor.finalizeState();
   }
 
-  private void processElementForWindowObservingTruncateSizedRestriction(
+  private void processElementForWindowObservingTruncateRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
     currentRestriction = elem.getValue().getKey().getValue().getKey();
@@ -967,7 +836,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   @Override
                   public void onClaimFailed(PositionT position) {}
                 });
-        doFnInvoker.invokeTruncateSizedRestriction(processContext);
+        doFnInvoker.invokeTruncateRestriction(processContext);
       }
     } finally {
       currentTracker = null;
@@ -1010,10 +879,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private void processElementForWindowObservingSizedElementAndRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
-    // No need to process if current restriction is null.
-    if (elem.getValue().getKey().getValue().getKey() == null) {
-      return;
-    }
     try {
       currentWindowIterator =
           currentElement.getWindows() instanceof List
@@ -1789,6 +1654,96 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
       outputTo(
           consumers, WindowedValue.of(output, timestamp, currentWindow, currentElement.getPane()));
+    }
+  }
+
+  private class SizedRestrictionWindowObservingProcessBundleContext
+      extends WindowObservingProcessBundleContext {
+    private final String errorContextPrefix;
+
+    SizedRestrictionWindowObservingProcessBundleContext(String errorContextPrefix) {
+      this.errorContextPrefix = errorContextPrefix;
+    }
+
+    @Override
+    // OutputT == RestrictionT
+    public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      double size =
+          doFnInvoker.invokeGetSize(
+              new DelegatingArgumentProvider<InputT, OutputT>(
+                  this, this.errorContextPrefix + "/GetSize") {
+                @Override
+                public Object restriction() {
+                  return output;
+                }
+
+                @Override
+                public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                  return timestamp;
+                }
+
+                @Override
+                public RestrictionTracker<?, ?> restrictionTracker() {
+                  return doFnInvoker.invokeNewTracker(this);
+                }
+              });
+
+      outputTo(
+          mainOutputConsumers,
+          (WindowedValue<OutputT>)
+              WindowedValue.of(
+                  KV.of(
+                      KV.of(
+                          currentElement.getValue(), KV.of(output, currentWatermarkEstimatorState)),
+                      size),
+                  timestamp,
+                  currentWindow,
+                  currentElement.getPane()));
+    }
+  }
+
+  private class SizedRestrictionNonWindowObservingProcessBundleContext
+      extends NonWindowObservingProcessBundleContext {
+    private final String errorContextPrefix;
+
+    SizedRestrictionNonWindowObservingProcessBundleContext(String errorContextPrefix) {
+      this.errorContextPrefix = errorContextPrefix;
+    }
+
+    @Override
+    // OutputT == RestrictionT
+    public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      double size =
+          doFnInvoker.invokeGetSize(
+              new DelegatingArgumentProvider<InputT, OutputT>(
+                  this, errorContextPrefix + "/GetSize") {
+                @Override
+                public Object restriction() {
+                  return output;
+                }
+
+                @Override
+                public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                  return timestamp;
+                }
+
+                @Override
+                public RestrictionTracker<?, ?> restrictionTracker() {
+                  return doFnInvoker.invokeNewTracker(this);
+                }
+              });
+
+      outputTo(
+          mainOutputConsumers,
+          (WindowedValue<OutputT>)
+              WindowedValue.of(
+                  KV.of(
+                      KV.of(
+                          currentElement.getValue(), KV.of(output, currentWatermarkEstimatorState)),
+                      size),
+                  timestamp,
+                  currentElement.getWindows(),
+                  currentElement.getPane()));
     }
   }
 

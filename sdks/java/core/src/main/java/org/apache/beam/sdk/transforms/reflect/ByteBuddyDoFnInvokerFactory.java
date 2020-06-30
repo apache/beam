@@ -35,6 +35,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
@@ -308,28 +309,26 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
-  /**
-   * Default implementation of {@link DoFn.TruncateSizedRestriction}, for delegation by bytebuddy.
-   */
-  public static class DefaultTruncateSizedRestriction {
+  /** Default implementation of {@link TruncateRestriction}, for delegation by bytebuddy. */
+  public static class DefaultTruncateRestriction {
+
     private final boolean isBoundedPerElement;
 
-    DefaultTruncateSizedRestriction(DoFnSignature doFnSignature) {
+    DefaultTruncateRestriction(DoFnSignature doFnSignature) {
       this.isBoundedPerElement = doFnSignature.isBoundedPerElement().equals(IsBounded.BOUNDED);
     }
+
     /** Return the current restriction if it's bounded.Otherwise, return null. */
     @SuppressWarnings("unused")
-    public void invokeTruncateSizedRestriction(DoFnInvoker.ArgumentProvider argumentProvider) {
-      boolean isBounded;
+    public void invokeTruncateRestriction(DoFnInvoker.ArgumentProvider argumentProvider) {
+      boolean isBounded = this.isBoundedPerElement;
       try {
         isBounded = argumentProvider.restrictionTracker().isBounded();
       } catch (NotImplementedException expectedException) {
-        isBounded = this.isBoundedPerElement;
+        // No-op.
       }
       if (isBounded) {
         argumentProvider.outputReceiver(null).output(argumentProvider.restriction());
-      } else {
-        argumentProvider.outputReceiver(null).output(null);
       }
     }
   }
@@ -489,8 +488,8 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                     clazzDescription, signature.getInitialRestriction()))
             .method(ElementMatchers.named("invokeSplitRestriction"))
             .intercept(splitRestrictionDelegation(clazzDescription, signature.splitRestriction()))
-            .method(ElementMatchers.named("invokeTruncateSizedRestriction"))
-            .intercept(truncateSizedRestrictionDelegation(clazzDescription, signature))
+            .method(ElementMatchers.named("invokeTruncateRestriction"))
+            .intercept(truncateRestrictionDelegation(clazzDescription, signature))
             .method(ElementMatchers.named("invokeGetRestrictionCoder"))
             .intercept(getRestrictionCoderDelegation(clazzDescription, signature))
             .method(ElementMatchers.named("invokeNewTracker"))
@@ -562,13 +561,12 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
-  private static Implementation truncateSizedRestrictionDelegation(
+  private static Implementation truncateRestrictionDelegation(
       TypeDescription doFnType, DoFnSignature signature) {
-    if (signature.truncateSizedRestriction() == null) {
-      return MethodDelegation.to(new DefaultTruncateSizedRestriction(signature));
+    if (signature.truncateRestriction() == null) {
+      return MethodDelegation.to(new DefaultTruncateRestriction(signature));
     } else {
-      return new DoFnMethodWithExtraParametersDelegation(
-          doFnType, signature.truncateSizedRestriction());
+      return new DoFnMethodWithExtraParametersDelegation(doFnType, signature.truncateRestriction());
     }
   }
 

@@ -1034,6 +1034,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
    *       passed the timestamp of the current element being processed; the argument must be of type
    *       {@link Instant}.
+   *   <li>If one of its arguments is a {@link RestrictionTracker}, then it will be passed a tracker
+   *       that is initialized for the current {@link Restriction}. The argument must be of the
+   *       exact type {@code RestrictionTracker<RestrictionT, PositionT>}.
    *   <li>If one of its arguments is a subtype of {@link BoundedWindow}, then it will be passed the
    *       window of the current element. When applied by {@link ParDo} the subtype of {@link
    *       BoundedWindow} must match the type of windows on the input {@link PCollection}. If the
@@ -1057,7 +1060,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <p>This method is used to perform truncating the restriction before actual processing.
    *
-   * <p>Signature: {@code void truncateSizedRestriction(<arguments>);}
+   * <p>Signature: {@code void truncateRestriction(<arguments>);}
    *
    * <p>This method must satisfy the following constraints:
    *
@@ -1092,7 +1095,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
   @Experimental(Kind.SPLITTABLE_DO_FN)
-  public @interface TruncateSizedRestriction {}
+  public @interface TruncateRestriction {}
 
   /**
    * Annotation for the method that creates a new {@link RestrictionTracker} for the restriction of

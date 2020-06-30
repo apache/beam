@@ -61,6 +61,7 @@ import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.SideInput;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
+import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.GetInitialRestrictionMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.GetInitialWatermarkEstimatorStateMethod;
@@ -520,8 +521,8 @@ public class DoFnSignatures {
         findAnnotatedMethod(errors, DoFn.GetInitialRestriction.class, fnClass, false);
     Method splitRestrictionMethod =
         findAnnotatedMethod(errors, DoFn.SplitRestriction.class, fnClass, false);
-    Method truncateSizedRestrictionMethod =
-        findAnnotatedMethod(errors, DoFn.TruncateSizedRestriction.class, fnClass, false);
+    Method truncateRestrictionMethod =
+        findAnnotatedMethod(errors, TruncateRestriction.class, fnClass, false);
     Method getRestrictionCoderMethod =
         findAnnotatedMethod(errors, DoFn.GetRestrictionCoder.class, fnClass, false);
     Method newTrackerMethod = findAnnotatedMethod(errors, DoFn.NewTracker.class, fnClass, false);
@@ -719,13 +720,12 @@ public class DoFnSignatures {
                 fnContext));
       }
 
-      if (truncateSizedRestrictionMethod != null) {
-        signatureBuilder.setTruncateSizedRestriction(
-            analyzeTruncateSizedRestrictionMethod(
-                errors.forMethod(
-                    DoFn.TruncateSizedRestriction.class, truncateSizedRestrictionMethod),
+      if (truncateRestrictionMethod != null) {
+        signatureBuilder.setTruncateRestriction(
+            analyzeTruncateRestrictionMethod(
+                errors.forMethod(TruncateRestriction.class, truncateRestrictionMethod),
                 fnT,
-                truncateSizedRestrictionMethod,
+                truncateRestrictionMethod,
                 inputT,
                 outputT,
                 restrictionT,
@@ -793,8 +793,8 @@ public class DoFnSignatures {
       if (splitRestrictionMethod != null) {
         forbiddenMethods.add("@" + format(DoFn.SplitRestriction.class));
       }
-      if (truncateSizedRestrictionMethod != null) {
-        forbiddenMethods.add("@" + format(DoFn.TruncateSizedRestriction.class));
+      if (truncateRestrictionMethod != null) {
+        forbiddenMethods.add("@" + format(TruncateRestriction.class));
       }
       if (newTrackerMethod != null) {
         forbiddenMethods.add("@" + format(DoFn.NewTracker.class));
@@ -1813,7 +1813,7 @@ public class DoFnSignatures {
   }
 
   @VisibleForTesting
-  static DoFnSignature.TruncateSizedRestrictionMethod analyzeTruncateSizedRestrictionMethod(
+  static DoFnSignature.TruncateRestrictionMethod analyzeTruncateRestrictionMethod(
       ErrorReporter errors,
       TypeDescriptor<? extends DoFn<?, ?>> fnT,
       Method m,
@@ -1822,8 +1822,8 @@ public class DoFnSignatures {
       TypeDescriptor<?> restrictionT,
       FnAnalysisContext fnContext) {
     // Method is of the form:
-    // @TruncateSizedRestriction
-    // void truncateSizedRestriction(... parameters ...);
+    // @TruncateRestriction
+    // void truncateRestriction(... parameters ...);
     errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
 
     Type[] params = m.getGenericParameterTypes();
@@ -1844,7 +1844,7 @@ public class DoFnSignatures {
         errors.throwIllegalArgument(
             "Schema @%s are not supported for @%s method. Found %s, did you mean to use %s?",
             format(DoFn.Element.class),
-            format(DoFn.TruncateSizedRestriction.class),
+            format(TruncateRestriction.class),
             format(((SchemaElementParameter) extraParam).elementT()),
             format(inputT));
       } else if (extraParam instanceof RestrictionParameter) {
@@ -1862,7 +1862,7 @@ public class DoFnSignatures {
       checkParameterOneOf(errors, parameter, ALLOWED_SPLIT_RESTRICTION_PARAMETERS);
     }
 
-    return DoFnSignature.TruncateSizedRestrictionMethod.create(
+    return DoFnSignature.TruncateRestrictionMethod.create(
         m, windowT, methodContext.getExtraParameters());
   }
 

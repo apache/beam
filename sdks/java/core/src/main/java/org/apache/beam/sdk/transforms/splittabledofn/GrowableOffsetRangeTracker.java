@@ -143,6 +143,10 @@ public class GrowableOffsetRangeTracker extends OffsetRangeTracker {
 
   @Override
   public boolean isBounded() {
-    return false;
+    // If current range has been done, the range should be bounded.
+    if (lastAttemptedOffset != null && lastAttemptedOffset == Long.MAX_VALUE) {
+      return true;
+    }
+    return range.getTo() == Long.MAX_VALUE ? false : true;
   }
 }

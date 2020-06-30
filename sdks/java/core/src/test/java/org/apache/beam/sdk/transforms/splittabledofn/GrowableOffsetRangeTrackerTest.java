@@ -252,4 +252,23 @@ public class GrowableOffsetRangeTrackerTest {
     assertEquals(new OffsetRange(123456789012345681L, 123456789012345682L), res.getPrimary());
     assertEquals(new OffsetRange(123456789012345682L, Long.MAX_VALUE), res.getResidual());
   }
+
+  @Test
+  public void testIsBounded() throws Exception {
+    SimpleEstimator simpleEstimator = new SimpleEstimator();
+    GrowableOffsetRangeTracker tracker = new GrowableOffsetRangeTracker(0L, simpleEstimator);
+    assertFalse(tracker.isBounded());
+    assertTrue(tracker.tryClaim(0L));
+    assertFalse(tracker.isBounded());
+
+    // After split, the restriction should be bounded.
+    simpleEstimator.setEstimateRangeEnd(16L);
+    tracker.trySplit(0.5);
+    assertTrue(tracker.isBounded());
+
+    // The restriction should be bounded after all the work has been claimed.
+    tracker = new GrowableOffsetRangeTracker(0L, simpleEstimator);
+    tracker.tryClaim(Long.MAX_VALUE);
+    assertTrue(tracker.isBounded());
+  }
 }

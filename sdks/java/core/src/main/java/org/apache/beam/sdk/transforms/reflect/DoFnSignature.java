@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
+import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
@@ -112,9 +113,9 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract SplitRestrictionMethod splitRestriction();
 
-  /** Details about this {@link DoFn}'s {@link DoFn.TruncateSizedRestriction} method. */
+  /** Details about this {@link DoFn}'s {@link TruncateRestriction} method. */
   @Nullable
-  public abstract TruncateSizedRestrictionMethod truncateSizedRestriction();
+  public abstract TruncateRestrictionMethod truncateRestriction();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetRestrictionCoder} method. */
   @Nullable
@@ -190,8 +191,7 @@ public abstract class DoFnSignature {
 
     abstract Builder setSplitRestriction(SplitRestrictionMethod splitRestriction);
 
-    abstract Builder setTruncateSizedRestriction(
-        TruncateSizedRestrictionMethod truncateSizedRestriction);
+    abstract Builder setTruncateRestriction(TruncateRestrictionMethod truncateRestriction);
 
     abstract Builder setGetRestrictionCoder(GetRestrictionCoderMethod getRestrictionCoder);
 
@@ -1336,9 +1336,9 @@ public abstract class DoFnSignature {
     }
   }
 
-  /** Describes a {@link DoFn.TruncateSizedRestriction} method. */
+  /** Describes a {@link TruncateRestriction} method. */
   @AutoValue
-  public abstract static class TruncateSizedRestrictionMethod implements MethodWithExtraParameters {
+  public abstract static class TruncateRestrictionMethod implements MethodWithExtraParameters {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
@@ -1352,11 +1352,11 @@ public abstract class DoFnSignature {
     @Override
     public abstract List<Parameter> extraParameters();
 
-    static TruncateSizedRestrictionMethod create(
+    static TruncateRestrictionMethod create(
         Method targetMethod,
         TypeDescriptor<? extends BoundedWindow> windowT,
         List<Parameter> extraParameters) {
-      return new AutoValue_DoFnSignature_TruncateSizedRestrictionMethod(
+      return new AutoValue_DoFnSignature_TruncateRestrictionMethod(
           targetMethod, windowT, extraParameters);
     }
   }
