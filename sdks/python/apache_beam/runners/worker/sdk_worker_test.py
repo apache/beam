@@ -25,12 +25,12 @@ from __future__ import print_function
 
 import contextlib
 import logging
+import mock
 import threading
 import time
 import unittest
 from builtins import range
 from collections import namedtuple
-from unittest import mock
 
 import grpc
 
@@ -154,19 +154,20 @@ class SdkWorkerTest(unittest.TestCase):
           self.assertIn('step_name', step_name_template)
           self.assertIn('test_log_lull_in_bundle_processor', traceback)
 
-          log_full_thread_dump.assert_called()
+          log_full_thread_dump.assert_called_once_with()
 
     with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
       with mock.patch('time.time') as time_mock:
         time_mock.return_value = now + 6 * 60  # 6 minutes
         worker._log_lull_sampler_info(sampler_info)
-        log_full_thread_dump.assert_not_called()
+        assert not log_full_thread_dump.called, (
+            'log_full_thread_dump should not be called.')
 
     with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
       with mock.patch('time.time') as time_mock:
         time_mock.return_value = now + 21 * 60  # 21 minutes
         worker._log_lull_sampler_info(sampler_info)
-        log_full_thread_dump.assert_called()
+        log_full_thread_dump.assert_called_once_with()
 
 
 class CachingStateHandlerTest(unittest.TestCase):
