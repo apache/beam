@@ -25,7 +25,6 @@ from __future__ import print_function
 
 import contextlib
 import logging
-import mock
 import threading
 import time
 import unittest
@@ -33,6 +32,7 @@ from builtins import range
 from collections import namedtuple
 
 import grpc
+import mock
 
 from apache_beam.coders import VarIntCoder
 from apache_beam.portability.api import beam_fn_api_pb2
@@ -160,7 +160,8 @@ class SdkWorkerTest(unittest.TestCase):
       with mock.patch('time.time') as time_mock:
         time_mock.return_value = now + 6 * 60  # 6 minutes
         worker._log_lull_sampler_info(sampler_info)
-        self.assertFalse(log_full_thread_dump.called,
+        self.assertFalse(
+            log_full_thread_dump.called,
             'log_full_thread_dump should not be called.')
 
     with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
