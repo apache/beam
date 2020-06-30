@@ -18,11 +18,16 @@
 
 # Branching
 
-You can use the same PCollection as input for multiple transforms without consuming the input or 
-altering it.
+The Beam SDK allows you to apply multiple transforms, branching an input into multiple resulting outputs.
+A visual representation of this is shown below.  Two transforms are applied to a single PCollection
+of database table rows.
 
-**Kata:** Branch out the strings to two different transforms: one transform should reverse each word
-in the PCollection while the other should convert each word to uppercase.
+![A branching pipeline](https://beam.apache.org/images/design-your-pipeline-multiple-pcollections.svg)
+
+In this lession, we will apply two different transforms to the same string input.
+
+**Kata:** Branch out the strings to two different transforms: the first transform should reverse each word
+in the PCollection while the second should convert each word to uppercase.
 
 <div class="hint">
   Refer to the Beam Design Your Pipeline Guide

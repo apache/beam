@@ -20,10 +20,10 @@ import (
 	"strings"
 )
 
-func ApplyTransform(s beam.Scope, input beam.PCollection) (reversed, toUpper beam.PCollection) {
-	reversed = reverseString(s, input)
-	toUpper = toUpperString(s, input)
-	return
+func ApplyTransform(s beam.Scope, input beam.PCollection) (beam.PCollection, beam.PCollection) {
+	reversed := reverseString(s, input)
+	toUpper := toUpperString(s, input)
+	return reversed, toUpper
 }
 
 func reverseString(s beam.Scope, input beam.PCollection) beam.PCollection {
@@ -33,26 +33,15 @@ func reverseString(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 
 func toUpperString(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return beam.ParDo(s, func(element string) string {
-		return toUpperFn(element)
-	}, input)
+	return beam.ParDo(s, strings.ToUpper, input)
 }
 
 func reverseFn(s string) string {
 	runes := []rune(s)
-	n := len(s)
-	i := -1
-	for {
-		n--
-		i++
-		if n <= i {
-			break
-		}
-		runes[i], runes[n] = runes[n], runes[i]
-	}
-	return string(runes)
-}
 
-func toUpperFn(s string) string {
-	return strings.ToUpper(s)
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+
+	return string(runes)
 }
