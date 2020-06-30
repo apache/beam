@@ -29,6 +29,7 @@ from past.builtins import unicode
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io.external.jdbc import WriteToJdbc
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -45,16 +46,18 @@ except ImportError:
   PostgresContainer = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
-JdbcTestRow = typing.NamedTuple(
-    "JdbcTestRow",
+ROW_COUNT = 10
+
+JdbcWriteTestRow = typing.NamedTuple(
+    "JdbcWriteTestRow",
     [
         ("f_id", int),
         ("f_real", float),
         ("f_string", unicode),
     ],
 )
+coders.registry.register_coder(JdbcWriteTestRow, coders.RowCoder)
 
-coders.registry.register_coder(JdbcTestRow, coders.RowCoder)
 
 @attr('UsesCrossLanguageTransforms')
 @unittest.skipIf(sqlalchemy is None, "sql alchemy package is not installed.")
@@ -84,13 +87,14 @@ class JdbcExternalTransformTest(unittest.TestCase):
         "CREATE TABLE {}(f_id INTEGER, f_real REAL, f_string VARCHAR)".format(
             table_name))
     inserted_rows = [
-        JdbcTestRow(i, float(i + 0.1), str(i)) for i in range(self.ROW_COUNT)
+        JdbcWriteTestRow(i, i + 0.1, 'Test{}'.format(i))
+        for i in range(ROW_COUNT)
     ]
     with TestPipeline() as p:
       p.not_use_test_runner_api = True
       _ = (
           p
-          | beam.Create(inserted_rows).with_output_types(JdbcTestRow)
+          | beam.Create(inserted_rows).with_output_types(JdbcWriteTestRow)
           | 'Write to jdbc' >> WriteToJdbc(
               driver_class_name=self.driver_class_name,
               jdbc_url=self.jdbc_url,
@@ -101,7 +105,7 @@ class JdbcExternalTransformTest(unittest.TestCase):
           ))
     fetched_data = self.engine.execute("select * from {}".format(table_name))
     fetched_rows = [
-        JdbcTestRow(int(row[0]), float(row[1]), str(row[2]))
+        JdbcWriteTestRow(int(row[0]), float(row[1]), str(row[2]))
         for row in fetched_data
     ]
 
