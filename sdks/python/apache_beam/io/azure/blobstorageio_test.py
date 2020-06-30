@@ -36,6 +36,12 @@ class TestAZFSPathParser(unittest.TestCase):
     'azfs:///name'
     'azfs:///'
     'azfs:/blah/container/name'
+    'azfs://ab/container/name'
+    'azfs://accountwithmorethan24chars/container/name'
+    'azfs://***/container/name'
+    'azfs://storageaccount/my--container/name'
+    'azfs://storageaccount/CONTAINER/name'
+    'azfs://storageaccount/ct/name'
   ]
 
 
