@@ -44,6 +44,8 @@ dependencies {
   compile library.java.slf4j_api
   runtimeOnly library.java.slf4j_jdk14
   testCompile library.java.junit
+
+  runtime project(":sdks:java:io:snowflake")
 }
 
 task runExpansionService (type: JavaExec) {

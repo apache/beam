@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.snowflake.credentials;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings.isNullOrEmpty;
+
 import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.xlang.Configuration;
 
@@ -50,20 +52,16 @@ public class SnowflakeCredentialsFactory {
       String username,
       String password) {
 
-    if (isNotEmpty(oAuth)) {
+    if (!isNullOrEmpty(oAuth)) {
       return new OAuthTokenSnowflakeCredentials(oAuth);
-    } else if (isNotEmpty(privateKeyPath)
-        && isNotEmpty(username)
-        && isNotEmpty(privateKeyPassphrase)) {
+    } else if (!isNullOrEmpty(privateKeyPath)
+        && !isNullOrEmpty(username)
+        && !isNullOrEmpty(privateKeyPassphrase)) {
       return new KeyPairSnowflakeCredentials(username, privateKeyPath, privateKeyPassphrase);
-    } else if (isNotEmpty(username) && isNotEmpty(password)) {
+    } else if (!isNullOrEmpty(username) && !isNullOrEmpty(password)) {
       return new UsernamePasswordSnowflakeCredentials(username, password);
     } else {
       throw new RuntimeException("Can't get credentials");
     }
-  }
-
-  private static boolean isNotEmpty(String s) {
-    return s != null && !s.isEmpty();
   }
 }
