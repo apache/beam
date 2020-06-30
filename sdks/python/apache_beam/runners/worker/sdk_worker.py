@@ -549,8 +549,10 @@ class SdkWorker(object):
           error='Instruction not running: %s' % instruction_id)
 
   def _log_lull_in_bundle_processor(self, processor):
-    state_sampler = processor.state_sampler
-    sampler_info = state_sampler.get_info()
+    sampler_info = processor.state_sampler.get_info()
+    self._log_lull_sampler_info(sampler_info)
+
+  def _log_lull_sampler_info(self, sampler_info):
     if (sampler_info and sampler_info.time_since_transition and
         sampler_info.time_since_transition > self.log_lull_timeout_ns):
       step_name = sampler_info.state_name.step_name
@@ -575,11 +577,7 @@ class SdkWorker(object):
           stack_trace)
 
       if self._should_log_full_thread_dump():
-        id2name = {th.ident: th.name for th in threading.enumerate()}
-        for ident, frame in sys._current_frames().items():  # pylint: disable=protected-access
-          stack_trace = ''.join(traceback.format_stack(frame))
-          _LOGGER.info(
-              'Thread %s(%d):\n%s', id2name.get(ident, ''), ident, stack_trace)
+        self._log_full_thread_dump()
 
   def _should_log_full_thread_dump(self):
     now = time.time()
@@ -587,6 +585,13 @@ class SdkWorker(object):
       self._last_full_thread_dump_secs = now
       return True
     return False
+
+  def _log_full_thread_dump(self):
+    id2name = {th.ident: th.name for th in threading.enumerate()}
+    for ident, frame in sys._current_frames().items():  # pylint: disable=protected-access
+      stack_trace = ''.join(traceback.format_stack(frame))
+      _LOGGER.info(
+        'Thread %s(%d):\n%s', id2name.get(ident, ''), ident, stack_trace)
 
   def process_bundle_progress(self,
                               request,  # type: beam_fn_api_pb2.ProcessBundleProgressRequest
