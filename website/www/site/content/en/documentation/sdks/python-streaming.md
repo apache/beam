@@ -126,16 +126,12 @@ python -m apache_beam.examples.streaming_wordcount \
   --streaming
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-local" >}}
-See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
-{{< /highlight >}}
-
-{{< highlight class="runner-flink-cluster" >}}
+{{< highlight class="runner-flink" >}}
 See https://beam.apache.org/documentation/runners/flink/ for more information.
 {{< /highlight >}}
 
 {{< highlight class="runner-spark" >}}
-See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.
+See https://beam.apache.org/documentation/runners/spark/ for more information.
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
@@ -158,17 +154,4 @@ about executing streaming pipelines:
 
 - [DirectRunner streaming execution](/documentation/runners/direct/#streaming-execution)
 - [DataflowRunner streaming execution](/documentation/runners/dataflow/#streaming-execution)
-
-
-## Unsupported features
-
-Python streaming execution does not currently support the following features.
-
-### General Beam features
-
-These unsupported Beam features apply to all runners.
-
-- Custom source API
-- Handling of late data
-- User-defined custom merging `WindowFn` (with fnapi)
-
+- [Portable Flink runner](/documentation/runners/flink/)
