@@ -18,7 +18,10 @@
 
 /** External transforms for reading and writing from JDBC. */
 @Experimental(Kind.PORTABILITY)
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.io.jdbc.external;
 
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
