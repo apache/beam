@@ -41,7 +41,10 @@ except ImportError:
 
 
 @unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
+@unittest.skipIf(
+    sys.version_info < (3, 7), 'The tests require at least Python 3.7 to work.')
 class InteractiveEnvironmentInspectorTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()
