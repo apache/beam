@@ -38,6 +38,7 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Field;
 import java.util.List;
+import org.apache.beam.sdk.io.aws.sts.STSCredentialsProviderWrapper;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -115,6 +116,28 @@ public class AwsModuleTest {
     field.setAccessible(true);
     String deserializedCredentialsFilePath = (String) field.get(deserializedCredentialsProvider);
     assertEquals(credentialsFilePath, deserializedCredentialsFilePath);
+  }
+
+  @Test
+  public void testSTSCredentialsProviderWrapperSerializationDeserialization() throws Exception {
+    String roleArn = "roleArn";
+    String roleSessionName = "roleSessionName";
+    String region = "us-west-2";
+
+    STSCredentialsProviderWrapper credentialsProvider =
+        new STSCredentialsProviderWrapper(roleArn, region, roleSessionName);
+
+    String serializedCredentialsProvider = objectMapper.writeValueAsString(credentialsProvider);
+    AWSCredentialsProvider deserializedCredentialsProvider =
+        objectMapper.readValue(serializedCredentialsProvider, AWSCredentialsProvider.class);
+
+    assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
+    assertEquals(
+        credentialsProvider.getCredentials().getAWSAccessKeyId(),
+        deserializedCredentialsProvider.getCredentials().getAWSAccessKeyId());
+    assertEquals(
+        credentialsProvider.getCredentials().getAWSSecretKey(),
+        deserializedCredentialsProvider.getCredentials().getAWSSecretKey());
   }
 
   @Test

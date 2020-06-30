@@ -50,6 +50,7 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Map;
+import org.apache.beam.sdk.io.aws.sts.STSCredentialsProviderWrapper;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /**
@@ -76,6 +77,9 @@ public class AwsModule extends SimpleModule {
   public static final String PROXY_PORT = "proxyPort";
   public static final String PROXY_USERNAME = "proxyUsername";
   public static final String PROXY_PASSWORD = "proxyPassword";
+  public static final String ROLE_ARN = "roleArn";
+  public static final String ROLE_SESSION_NAME = "roleSessionName";
+  public static final String REGION = "region";
 
   public AwsModule() {
     super("AwsModule");
@@ -132,6 +136,9 @@ public class AwsModule extends SimpleModule {
         return new ProfileCredentialsProvider();
       } else if (typeName.equals(EC2ContainerCredentialsProviderWrapper.class.getSimpleName())) {
         return new EC2ContainerCredentialsProviderWrapper();
+      } else if (typeName.equals(STSCredentialsProviderWrapper.class.getSimpleName())) {
+        return new STSCredentialsProviderWrapper(
+            asMap.get(ROLE_ARN), asMap.get(REGION), asMap.get(ROLE_SESSION_NAME));
       } else {
         throw new IOException(
             String.format("AWS credential provider type '%s' is not supported", typeName));
@@ -148,7 +155,8 @@ public class AwsModule extends SimpleModule {
             EnvironmentVariableCredentialsProvider.class,
             SystemPropertiesCredentialsProvider.class,
             ProfileCredentialsProvider.class,
-            EC2ContainerCredentialsProviderWrapper.class);
+            EC2ContainerCredentialsProviderWrapper.class,
+            STSCredentialsProviderWrapper.class);
 
     @Override
     public void serialize(

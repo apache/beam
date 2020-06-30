@@ -33,6 +33,7 @@ dependencies {
   compile library.java.aws_java_sdk_s3
   compile library.java.aws_java_sdk_sns
   compile library.java.aws_java_sdk_sqs
+  compile library.java.aws_java_sdk_sts
   compile "commons-lang:commons-lang:2.6"
   compile library.java.jackson_core
   compile library.java.jackson_annotations
