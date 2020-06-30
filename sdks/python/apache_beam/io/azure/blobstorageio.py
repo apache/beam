@@ -43,7 +43,7 @@ MAX_BATCH_OPERATION_SIZE = 100
 
 def parse_azfs_path(azfs_path, object_optional=False):
   """Return the storage account, the container and blob names of the given azfs:// path."""
-  match = re.match('^azfs://([a-z0-9]{3,24})/([a-z0-9](?![a-z0-9-]*--[a-z0-9-]*)[a-z0-9-]{1,61}[a-z0-9])/(.+)$', azfs_path)
+  match = re.match('^azfs://([a-z0-9]{3,24})/([a-z0-9](?![a-z0-9-]*--[a-z0-9-]*)[a-z0-9-]{1,61}[a-z0-9])/(.*)$', azfs_path)
   if match is None or (match.group(3) == '' and not object_optional):
     raise ValueError('Azure Blob Storage path must be in the form azfs://<storage-account>/<container>/<path>.')
   return match.group(1), match.group(2), match.group(3)
