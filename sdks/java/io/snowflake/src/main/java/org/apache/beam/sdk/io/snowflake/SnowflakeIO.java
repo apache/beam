@@ -26,7 +26,6 @@ import com.opencsv.CSVParserBuilder;
 import java.io.IOException;
 import java.io.Serializable;
 import java.security.PrivateKey;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -35,6 +34,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -78,7 +78,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -232,22 +231,29 @@ public class SnowflakeIO {
   /** Implementation of {@link #read()}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
+    @Nullable
+    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+    @Nullable
+    abstract String getQuery();
 
-    abstract @Nullable String getQuery();
+    @Nullable
+    abstract String getTable();
 
-    abstract @Nullable String getTable();
+    @Nullable
+    abstract String getStorageIntegrationName();
 
-    abstract @Nullable String getStorageIntegrationName();
+    @Nullable
+    abstract String getStagingBucketName();
 
-    abstract @Nullable String getStagingBucketName();
+    @Nullable
+    abstract CsvMapper<T> getCsvMapper();
 
-    abstract @Nullable CsvMapper<T> getCsvMapper();
+    @Nullable
+    abstract Coder<T> getCoder();
 
-    abstract @Nullable Coder<T> getCoder();
-
-    abstract @Nullable SnowflakeService getSnowflakeService();
+    @Nullable
+    abstract SnowflakeService getSnowflakeService();
 
     abstract Builder<T> toBuilder();
 
@@ -512,28 +518,38 @@ public class SnowflakeIO {
   /** Implementation of {@link #write()}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+    @Nullable
+    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+    @Nullable
+    abstract String getTable();
 
-    abstract @Nullable String getTable();
+    @Nullable
+    abstract String getStorageIntegrationName();
 
-    abstract @Nullable String getStorageIntegrationName();
+    @Nullable
+    abstract String getStagingBucketName();
 
-    abstract @Nullable String getStagingBucketName();
+    @Nullable
+    abstract String getQuery();
 
-    abstract @Nullable String getQuery();
+    @Nullable
+    abstract String getFileNameTemplate();
 
-    abstract @Nullable String getFileNameTemplate();
+    @Nullable
+    abstract WriteDisposition getWriteDisposition();
 
-    abstract @Nullable WriteDisposition getWriteDisposition();
+    @Nullable
+    abstract CreateDisposition getCreateDisposition();
 
-    abstract @Nullable CreateDisposition getCreateDisposition();
+    @Nullable
+    abstract SnowflakeTableSchema getTableSchema();
 
-    abstract @Nullable SnowflakeTableSchema getTableSchema();
+    @Nullable
+    abstract UserDataMapper getUserDataMapper();
 
-    abstract @Nullable UserDataMapper getUserDataMapper();
-
-    abstract @Nullable SnowflakeService getSnowflakeService();
+    @Nullable
+    abstract SnowflakeService getSnowflakeService();
 
     abstract Builder<T> toBuilder();
 
@@ -883,36 +899,47 @@ public class SnowflakeIO {
    */
   @AutoValue
   public abstract static class DataSourceConfiguration implements Serializable {
+    @Nullable
+    public abstract String getUrl();
 
-    public abstract @Nullable String getUrl();
+    @Nullable
+    public abstract String getUsername();
 
-    public abstract @Nullable String getUsername();
+    @Nullable
+    public abstract String getPassword();
 
-    public abstract @Nullable String getPassword();
+    @Nullable
+    public abstract PrivateKey getPrivateKey();
 
-    public abstract @Nullable PrivateKey getPrivateKey();
+    @Nullable
+    public abstract String getOauthToken();
 
-    public abstract @Nullable String getOauthToken();
+    @Nullable
+    public abstract String getDatabase();
 
-    public abstract @Nullable String getDatabase();
+    @Nullable
+    public abstract String getWarehouse();
 
-    public abstract @Nullable String getWarehouse();
+    @Nullable
+    public abstract String getSchema();
 
-    public abstract @Nullable String getSchema();
+    @Nullable
+    public abstract String getServerName();
 
-    public abstract @Nullable String getServerName();
+    @Nullable
+    public abstract Integer getPortNumber();
 
-    public abstract @Nullable Integer getPortNumber();
+    @Nullable
+    public abstract String getRole();
 
-    public abstract @Nullable String getRole();
+    @Nullable
+    public abstract Integer getLoginTimeout();
 
-    public abstract @Nullable Integer getLoginTimeout();
+    @Nullable
+    public abstract Boolean getSsl();
 
-    public abstract @Nullable Boolean getSsl();
-
-    public abstract @Nullable Boolean getValidate();
-
-    public abstract @Nullable DataSource getDataSource();
+    @Nullable
+    public abstract DataSource getDataSource();
 
     abstract Builder builder();
 
@@ -944,8 +971,6 @@ public class SnowflakeIO {
 
       abstract Builder setSsl(Boolean ssl);
 
-      abstract Builder setValidate(Boolean validate);
-
       abstract Builder setDataSource(DataSource dataSource);
 
       abstract DataSourceConfiguration build();
@@ -959,7 +984,6 @@ public class SnowflakeIO {
     public static DataSourceConfiguration create(DataSource dataSource) {
       checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
       return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
-          .setValidate(true)
           .setDataSource(dataSource)
           .build();
     }
@@ -970,26 +994,44 @@ public class SnowflakeIO {
      * @param credentials - an instance of {@link SnowflakeCredentials}.
      */
     public static DataSourceConfiguration create(SnowflakeCredentials credentials) {
-      if (credentials instanceof UsernamePasswordSnowflakeCredentials) {
-        return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
-            .setValidate(true)
-            .setUsername(((UsernamePasswordSnowflakeCredentials) credentials).getUsername())
-            .setPassword(((UsernamePasswordSnowflakeCredentials) credentials).getPassword())
-            .build();
-      } else if (credentials instanceof OAuthTokenSnowflakeCredentials) {
-        return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
-            .setValidate(true)
-            .setOauthToken(((OAuthTokenSnowflakeCredentials) credentials).getToken())
-            .build();
-      } else if (credentials instanceof KeyPairSnowflakeCredentials) {
-        return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
-            .setValidate(true)
-            .setUsername(((KeyPairSnowflakeCredentials) credentials).getUsername())
-            .setPrivateKey(((KeyPairSnowflakeCredentials) credentials).getPrivateKey())
-            .build();
-      }
-      throw new IllegalArgumentException(
-          "Can't create DataSourceConfiguration from given credentials");
+      return credentials.createSnowflakeDataSourceConfiguration();
+    }
+
+    /**
+     * Creates {@link DataSourceConfiguration} from instance of {@link
+     * UsernamePasswordSnowflakeCredentials}.
+     *
+     * @param credentials - an instance of {@link UsernamePasswordSnowflakeCredentials}.
+     */
+    public static DataSourceConfiguration create(UsernamePasswordSnowflakeCredentials credentials) {
+      return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
+          .setUsername(credentials.getUsername())
+          .setPassword(credentials.getPassword())
+          .build();
+    }
+
+    /**
+     * Creates {@link DataSourceConfiguration} from instance of {@link KeyPairSnowflakeCredentials}.
+     *
+     * @param credentials - an instance of {@link KeyPairSnowflakeCredentials}.
+     */
+    public static DataSourceConfiguration create(KeyPairSnowflakeCredentials credentials) {
+      return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
+          .setUsername(credentials.getUsername())
+          .setPrivateKey(credentials.getPrivateKey())
+          .build();
+    }
+
+    /**
+     * Creates {@link DataSourceConfiguration} from instance of {@link
+     * OAuthTokenSnowflakeCredentials}.
+     *
+     * @param credentials - an instance of {@link OAuthTokenSnowflakeCredentials}.
+     */
+    public static DataSourceConfiguration create(OAuthTokenSnowflakeCredentials credentials) {
+      return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
+          .setOauthToken(credentials.getToken())
+          .build();
     }
 
     /**
@@ -1079,15 +1121,6 @@ public class SnowflakeIO {
       return builder().setLoginTimeout(loginTimeout).build();
     }
 
-    /**
-     * Disables validation of connection parameters prior to pipeline submission.
-     *
-     * @return
-     */
-    public DataSourceConfiguration withoutValidation() {
-      return builder().setValidate(false).build();
-    }
-
     void populateDisplayData(DisplayData.Builder builder) {
       if (getDataSource() != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", getDataSource().getClass().getName()));
@@ -1163,15 +1196,6 @@ public class SnowflakeIO {
     private final DataSourceConfiguration config;
 
     private DataSourceProviderFromDataSourceConfiguration(DataSourceConfiguration config) {
-      if (config.getValidate()) {
-        try {
-          Connection connection = config.buildDatasource().getConnection();
-          connection.close();
-        } catch (SQLException e) {
-          throw new IllegalArgumentException(
-              "Invalid DataSourceConfiguration. Underlying cause: " + e);
-        }
-      }
       this.config = config;
     }
 
