@@ -138,7 +138,8 @@ class SdkWorkerTest(unittest.TestCase):
         threading.current_thread())
 
     now = time.time()
-    log_full_thread_dump_fn_name = 'apache_beam.runners.worker.sdk_worker.SdkWorker._log_full_thread_dump'
+    log_full_thread_dump_fn_name = \
+        'apache_beam.runners.worker.sdk_worker.SdkWorker._log_full_thread_dump'
     with mock.patch('logging.Logger.warning') as warn_mock:
       with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
         with mock.patch('time.time') as time_mock:

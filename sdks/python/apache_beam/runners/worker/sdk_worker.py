@@ -591,7 +591,7 @@ class SdkWorker(object):
     for ident, frame in sys._current_frames().items():  # pylint: disable=protected-access
       stack_trace = ''.join(traceback.format_stack(frame))
       _LOGGER.info(
-        'Thread %s(%d):\n%s', id2name.get(ident, ''), ident, stack_trace)
+          'Thread %s(%d):\n%s', id2name.get(ident, ''), ident, stack_trace)
 
   def process_bundle_progress(self,
                               request,  # type: beam_fn_api_pb2.ProcessBundleProgressRequest
