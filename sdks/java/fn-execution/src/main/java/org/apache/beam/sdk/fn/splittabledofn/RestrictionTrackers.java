@@ -78,7 +78,7 @@ public class RestrictionTrackers {
     }
 
     @Override
-    public boolean isBounded() {
+    public RestrictionBoundness isBounded() {
       return delegate.isBounded();
     }
   }

@@ -1346,6 +1346,11 @@ public class RemoteExecutionTest implements Serializable {
     public void checkDone() throws IllegalStateException {
       checkState(!needsSplitting(), "Expected for this restriction to have been split.");
     }
+
+    @Override
+    public RestrictionBoundness isBounded() {
+      return RestrictionBoundness.IS_BOUNDED;
+    }
   }
 
   @Test(timeout = 60000L)

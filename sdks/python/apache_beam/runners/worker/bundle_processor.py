@@ -1435,22 +1435,17 @@ def create_truncate_sized_restriction(*args):
   class TruncateAndSizeRestriction(beam.DoFn):
     def __init__(self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
-      self.dofn_signature = common.DoFnSignature(fn)
 
     def process(self, element_restriction, *args, **kwargs):
       ((element, (restriction, estimator_state)), _) = element_restriction
-      try:
-        truncated_restriction = self.restriction_provider.truncate(
-            element, restriction)
-        if truncated_restriction:
-          truncated_restriction_size = (
-              self.restriction_provider.restriction_size(
-                  element, truncated_restriction))
-          yield ((element, (truncated_restriction, estimator_state)),
-                 truncated_restriction_size)
-      except NotImplementedError:
-        if not self.dofn_signature.is_unbounded_per_element():
-          yield element_restriction
+      truncated_restriction = self.restriction_provider.truncate(
+          element, restriction)
+      if truncated_restriction:
+        truncated_restriction_size = (
+            self.restriction_provider.restriction_size(
+                element, truncated_restriction))
+        yield ((element, (truncated_restriction, estimator_state)),
+               truncated_restriction_size)
 
   return _create_sdf_operation(TruncateAndSizeRestriction, *args)
 

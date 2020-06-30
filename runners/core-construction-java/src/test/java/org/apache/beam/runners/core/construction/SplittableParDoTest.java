@@ -75,6 +75,11 @@ public class SplittableParDoTest {
 
     @Override
     public void checkDone() {}
+
+    @Override
+    public RestrictionBoundness isBounded() {
+      return RestrictionBoundness.IS_BOUNDED;
+    }
   }
 
   private static class BoundedFakeFn extends DoFn<Integer, String> {

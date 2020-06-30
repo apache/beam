@@ -22,7 +22,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.commons.lang3.NotImplementedException;
 
 /**
  * Manages access to the restriction and keeps track of its claimed part for a <a
@@ -100,9 +99,23 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    */
   public abstract void checkDone() throws IllegalStateException;
 
-  public boolean isBounded() throws NotImplementedException {
-    throw new NotImplementedException("isBounded is not implemented.");
+  public enum RestrictionBoundness {
+    IS_BOUNDED,
+    IS_UNBOUNDED
   }
+
+  /**
+   * Return the boundedness of current tracking restriction. If the current restriction produces
+   * finite output, it should return {@link RestrictionBoundness#IS_BOUNDED}. Otherwise, it should
+   * return {@link RestrictionBoundness#IS_UNBOUNDED}.
+   *
+   * <p>The API is called by the system when the pipeline starts to drain and there is no
+   * implementation of {@link DoFn.TruncateRestriction}. Based on the boundness of the restriction,
+   * the system will give the default behavior of truncating restrictions.
+   *
+   * <p>The API is required to be implemented.
+   */
+  public abstract RestrictionBoundness isBounded();
 
   /**
    * All {@link RestrictionTracker}s SHOULD implement this interface to improve auto-scaling and

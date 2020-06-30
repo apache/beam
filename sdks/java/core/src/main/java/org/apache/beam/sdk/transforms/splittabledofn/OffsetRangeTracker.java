@@ -124,8 +124,8 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   }
 
   @Override
-  public boolean isBounded() {
-    return true;
+  public RestrictionBoundness isBounded() {
+    return RestrictionBoundness.IS_BOUNDED;
   }
 
   @Override

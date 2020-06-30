@@ -327,9 +327,6 @@ class RestrictionProvider(object):
     By default, if the restriction is bounded, it will return the entire current
     restriction. If the restriction is unbounded, it will return None.
 
-    The method throws NotImplementError when RestrictionTracker.is_bounded() is
-    not implemented.
-
     It's recommended to implement this API if more granularity is required.
     """
     restriction_tracker = self.create_tracker(restriction)

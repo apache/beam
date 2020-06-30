@@ -611,6 +611,11 @@ public class DoFnInvokersTest {
 
     @Override
     public void checkDone() throws IllegalStateException {}
+
+    @Override
+    public RestrictionBoundness isBounded() {
+      throw new UnsupportedOperationException();
+    }
   }
 
   private static class CoderForDefaultTracker extends AtomicCoder<RestrictionWithDefaultTracker> {

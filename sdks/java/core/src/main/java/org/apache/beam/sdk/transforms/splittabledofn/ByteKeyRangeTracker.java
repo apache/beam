@@ -204,8 +204,8 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   }
 
   @Override
-  public boolean isBounded() {
-    return true;
+  public RestrictionBoundness isBounded() {
+    return RestrictionBoundness.IS_BOUNDED;
   }
 
   @Override

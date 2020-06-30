@@ -432,8 +432,8 @@ public class Read {
       }
 
       @Override
-      public boolean isBounded() {
-        return true;
+      public RestrictionBoundness isBounded() {
+        return RestrictionBoundness.IS_BOUNDED;
       }
     }
   }
@@ -870,8 +870,8 @@ public class Read {
       }
 
       @Override
-      public boolean isBounded() {
-        return false;
+      public RestrictionBoundness isBounded() {
+        return RestrictionBoundness.IS_UNBOUNDED;
       }
 
       @Override

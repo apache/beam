@@ -115,6 +115,11 @@ public class SplittableParDoProcessFnTest {
 
     @Override
     public void checkDone() {}
+
+    @Override
+    public RestrictionBoundness isBounded() {
+      return RestrictionBoundness.IS_BOUNDED;
+    }
   }
 
   @Rule public TestPipeline pipeline = TestPipeline.create();

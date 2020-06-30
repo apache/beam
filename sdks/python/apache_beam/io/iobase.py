@@ -1248,9 +1248,11 @@ class RestrictionTracker(object):
     bounded.
 
     The value is important for the default behavior of truncate when the
-    pipeline starts to drain in streaming. If the current restriction is
+    pipeline starts to drain. If the current restriction is
     bounded, it will be processed completely by default. If the restriction is
     unbounded, it will be truncated into null and finish processing immediately.
+
+    The API is required to be implemented.
     """
     raise NotImplementedError
 

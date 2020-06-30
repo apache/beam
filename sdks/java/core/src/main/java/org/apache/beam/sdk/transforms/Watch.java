@@ -1104,6 +1104,14 @@ public class Watch {
     }
 
     @Override
+    public RestrictionBoundness isBounded() {
+      if (state == EMPTY_STATE || state instanceof NonPollingGrowthState) {
+        return RestrictionBoundness.IS_BOUNDED;
+      }
+      return RestrictionBoundness.IS_UNBOUNDED;
+    }
+
+    @Override
     public boolean tryClaim(KV<Growth.PollResult<OutputT>, TerminationStateT> pollResult) {
       if (shouldStop) {
         return false;

@@ -110,6 +110,11 @@ public class RestrictionTrackersTest {
 
     @Override
     public void checkDone() throws IllegalStateException {}
+
+    @Override
+    public RestrictionBoundness isBounded() {
+      return RestrictionBoundness.IS_BOUNDED;
+    }
   }
 
   @Test
