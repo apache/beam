@@ -72,7 +72,8 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
     } catch (InvalidConfigurationException | InvalidSchemaException e) {
       throw new InvalidTableException(e.getMessage());
     } catch (JsonProcessingException e) {
-      throw new AssertionError();
+      throw new AssertionError(
+          "Failed to re-parse TBLPROPERTIES JSON " + tableProperties.toString());
     }
   }
 }
