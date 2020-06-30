@@ -114,10 +114,11 @@ public class JdbcExternalWrite implements ExternalTransformRegistrar {
       return JdbcIO.<Row>write()
           .withDataSourceConfiguration(dataSourceConfiguration)
           .withStatement(configuration.statement)
-          .withPreparedStatementSetter(preparedStatementSetter);
+          .withPreparedStatementSetter(new XlangPreparedStatementSetter());
     }
 
-    static class PrepareStatementXlangRow implements JdbcIO.PreparedStatementSetter<Row> {
+    private static class XlangPreparedStatementSetter
+        implements JdbcIO.PreparedStatementSetter<Row> {
       @Override
       public void setParameters(Row row, PreparedStatement statement) throws SQLException {
         List<Schema.Field> fieldTypes = row.getSchema().getFields();
