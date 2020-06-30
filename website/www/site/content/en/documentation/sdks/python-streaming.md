@@ -168,9 +168,7 @@ Python streaming execution does not currently support the following features.
 
 These unsupported Beam features apply to all runners.
 
-- `State` and `Timers` APIs
 - Custom source API
-- Splittable `DoFn` API
 - Handling of late data
 - User-defined custom merging `WindowFn` (with fnapi)
 
