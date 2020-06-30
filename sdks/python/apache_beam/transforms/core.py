@@ -334,7 +334,7 @@ class RestrictionProvider(object):
     """
     restriction_tracker = self.create_tracker(restriction)
     if restriction_tracker.is_bounded():
-      return restriction
+      yield restriction
 
 
 def get_function_arguments(obj, func):

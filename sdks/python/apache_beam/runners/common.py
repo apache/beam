@@ -973,8 +973,6 @@ class DoFnRunner:
     (element, (restriction, estimator_state)), _ = windowed_value.value
     watermark_estimator = (
         self.do_fn_invoker.invoke_create_watermark_estimator(estimator_state))
-    if restriction is None:
-      return
 
     return self.do_fn_invoker.invoke_process(
         windowed_value.with_value(element),

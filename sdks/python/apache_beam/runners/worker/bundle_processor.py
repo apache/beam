@@ -1437,23 +1437,20 @@ def create_truncate_sized_restriction(*args):
       self.restriction_provider = restriction_provider
       self.dofn_signature = common.DoFnSignature(fn)
 
-    def process(self, element_restrictin, *args, **kwargs):
-      ((element, (restriction, estimator_state)), _) = element_restrictin
+    def process(self, element_restriction, *args, **kwargs):
+      ((element, (restriction, estimator_state)), _) = element_restriction
       try:
-        truncated_restriciton = self.restriction_provider.truncate(
+        truncated_restriction = self.restriction_provider.truncate(
             element, restriction)
-        if truncated_restriciton:
-          truncated_restriciton_size = self.restriction_provider.restriction_size(
-              element, truncated_restriciton)
-        else:
-          truncated_restriciton_size = 0
-        yield ((element, (truncated_restriciton, estimator_state)),
-               truncated_restriciton_size)
+        if truncated_restriction:
+          truncated_restriction_size = (
+              self.restriction_provider.restriction_size(
+                  element, truncated_restriction))
+          yield ((element, (truncated_restriction, estimator_state)),
+                 truncated_restriction_size)
       except NotImplementedError:
-        if self.dofn_signature.is_unbounded_per_element():
-          yield ((element, (None, estimator_state)), 0)
-        else:
-          yield element_restrictin
+        if not self.dofn_signature.is_unbounded_per_element():
+          yield element_restriction
 
   return _create_sdf_operation(TruncateAndSizeRestriction, *args)
 
