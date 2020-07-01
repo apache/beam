@@ -55,7 +55,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -119,6 +118,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.state.MapState;
@@ -211,8 +211,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @VisibleForTesting static final int GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT = 1024 * 1024;
 
-  @VisibleForTesting static final String PIPELINE_FILE_FORMAT = "pipeline-%s.pb";
-  @VisibleForTesting static final String DATAFLOW_GRAPH_FILE_FORMAT = "dataflow_graph-%s.json";
+  @VisibleForTesting static final String PIPELINE_FILE_NAME = "pipeline.pb";
+  @VisibleForTesting static final String DATAFLOW_GRAPH_FILE_NAME = "dataflow_graph.json";
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -893,10 +893,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     LOG.info("Staging pipeline description to {}", options.getStagingLocation());
     byte[] serializedProtoPipeline = jobSpecification.getPipelineProto().toByteArray();
     DataflowPackage stagedPipeline =
-        options
-            .getStager()
-            .stageToFile(
-                serializedProtoPipeline, String.format(PIPELINE_FILE_FORMAT, UUID.randomUUID()));
+        options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
     dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
 
     if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar())) {
@@ -996,7 +993,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               .getStager()
               .stageToFile(
                   DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8),
-                  String.format(DATAFLOW_GRAPH_FILE_FORMAT, UUID.randomUUID()));
+                  DATAFLOW_GRAPH_FILE_NAME);
       newJob.getSteps().clear();
       newJob.setStepsLocation(stagedGraph.getLocation());
     }
@@ -1357,11 +1354,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PropertyNames.PUBSUB_ID_ATTRIBUTE, overriddenTransform.getIdAttribute());
       }
       // In both cases, the transform needs to read PubsubMessage. However, in case it needs
-      // the attributes, we supply an identity "parse fn" so the worker will read PubsubMessage's
-      // from Windmill and simply pass them around; and in case it doesn't need attributes,
-      // we're already implicitly using a "Coder" that interprets the data as a PubsubMessage's
-      // payload.
-      if (overriddenTransform.getNeedsAttributes()) {
+      // the attributes or messageId, we supply an identity "parse fn" so the worker will
+      // read PubsubMessage's from Windmill and simply pass them around; and in case it
+      // doesn't need attributes, we're already implicitly using a "Coder" that interprets
+      // the data as a PubsubMessage's payload.
+      if (overriddenTransform.getNeedsAttributes() || overriddenTransform.getNeedsMessageId()) {
         stepContext.addInput(
             PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN,
             byteArrayToJsonString(serializeToByteArray(new IdentityMessageFn())));

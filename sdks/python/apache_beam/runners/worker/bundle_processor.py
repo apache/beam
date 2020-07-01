@@ -332,7 +332,6 @@ class _StateBackedIterable(object):
                state_handler,  # type: sdk_worker.CachingStateHandler
                state_key,  # type: beam_fn_api_pb2.StateKey
                coder_or_impl,  # type: Union[coders.Coder, coder_impl.CoderImpl]
-               is_cached=False
               ):
     # type: (...) -> None
     self._state_handler = state_handler
@@ -341,12 +340,11 @@ class _StateBackedIterable(object):
       self._coder_impl = coder_or_impl.get_impl()
     else:
       self._coder_impl = coder_or_impl
-    self._is_cached = is_cached
 
   def __iter__(self):
     # type: () -> Iterator[Any]
-    return self._state_handler.blocking_get(
-        self._state_key, self._coder_impl, is_cached=self._is_cached)
+    return iter(
+        self._state_handler.blocking_get(self._state_key, self._coder_impl))
 
   def __reduce__(self):
     return list, (list(self), )
@@ -435,6 +433,27 @@ class StateBackedSideInputMap(object):
     self._cache = {}
 
 
+class ReadModifyWriteRuntimeState(userstate.ReadModifyWriteRuntimeState):
+  def __init__(self, underlying_bag_state):
+    self._underlying_bag_state = underlying_bag_state
+
+  def read(self):  # type: () -> Any
+    values = list(self._underlying_bag_state.read())
+    if not values:
+      return None
+    return values[0]
+
+  def write(self, value):  # type: (Any) -> None
+    self.clear()
+    self._underlying_bag_state.add(value)
+
+  def clear(self):  # type: () -> None
+    self._underlying_bag_state.clear()
+
+  def commit(self):  # type: () -> None
+    self._underlying_bag_state.commit()
+
+
 class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
   def __init__(self, underlying_bag_state, combinefn):
     self._combinefn = combinefn
@@ -513,10 +532,7 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
     return _ConcatIterable([] if self._cleared else cast(
         'Iterable[Any]',
         _StateBackedIterable(
-            self._state_handler,
-            self._state_key,
-            self._value_coder,
-            is_cached=True)),
+            self._state_handler, self._state_key, self._value_coder)),
                            self._added_elements)
 
   def add(self, value):
@@ -531,13 +547,10 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
   def commit(self):
     to_await = None
     if self._cleared:
-      to_await = self._state_handler.clear(self._state_key, is_cached=True)
+      to_await = self._state_handler.clear(self._state_key)
     if self._added_elements:
       to_await = self._state_handler.extend(
-          self._state_key,
-          self._value_coder.get_impl(),
-          self._added_elements,
-          is_cached=True)
+          self._state_key, self._value_coder.get_impl(), self._added_elements)
     if to_await:
       # To commit, we need to wait on the last state request future to complete.
       to_await.get()
@@ -561,19 +574,13 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     accumulator = set(
         _ConcatIterable(
             set() if self._cleared else _StateBackedIterable(
-                self._state_handler,
-                self._state_key,
-                self._value_coder,
-                is_cached=True),
+                self._state_handler, self._state_key, self._value_coder),
             self._added_elements))
 
     if rewrite and accumulator:
-      self._state_handler.clear(self._state_key, is_cached=True)
+      self._state_handler.clear(self._state_key)
       self._state_handler.extend(
-          self._state_key,
-          self._value_coder.get_impl(),
-          accumulator,
-          is_cached=True)
+          self._state_key, self._value_coder.get_impl(), accumulator)
 
       # Since everthing is already committed so we can safely reinitialize
       # added_elements here.
@@ -589,7 +596,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     # type: (Any) -> None
     if self._cleared:
       # This is a good time explicitly clear.
-      self._state_handler.clear(self._state_key, is_cached=True)
+      self._state_handler.clear(self._state_key)
       self._cleared = False
 
     self._added_elements.add(value)
@@ -605,13 +612,10 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     # type: () -> None
     to_await = None
     if self._cleared:
-      to_await = self._state_handler.clear(self._state_key, is_cached=True)
+      to_await = self._state_handler.clear(self._state_key)
     if self._added_elements:
       to_await = self._state_handler.extend(
-          self._state_key,
-          self._value_coder.get_impl(),
-          self._added_elements,
-          is_cached=True)
+          self._state_key, self._value_coder.get_impl(), self._added_elements)
     if to_await:
       # To commit, we need to wait on the last state request future to complete.
       to_await.get()
@@ -696,8 +700,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
     self._window_coder = window_coder
     # A mapping of {timer_family_id: TimerInfo}
     self._timers_info = {}
-    self._all_states = {
-    }  # type: Dict[tuple, userstate.AccumulatingRuntimeState]
+    self._all_states = {}  # type: Dict[tuple, userstate.RuntimeState]
 
   def add_timer_info(self, timer_family_id, timer_info):
     self._timers_info[timer_family_id] = timer_info
@@ -731,9 +734,11 @@ class FnApiUserStateContext(userstate.UserStateContext):
                     key,
                     window  # type: windowed_value.BoundedWindow
                    ):
-    # type: (...) -> userstate.AccumulatingRuntimeState
+    # type: (...) -> userstate.RuntimeState
     if isinstance(state_spec,
-                  (userstate.BagStateSpec, userstate.CombiningValueStateSpec)):
+                  (userstate.BagStateSpec,
+                   userstate.CombiningValueStateSpec,
+                   userstate.ReadModifyWriteStateSpec)):
       bag_state = SynchronousBagRuntimeState(
           self._state_handler,
           state_key=beam_fn_api_pb2.StateKey(
@@ -746,6 +751,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
           value_coder=state_spec.coder)
       if isinstance(state_spec, userstate.BagStateSpec):
         return bag_state
+      elif isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
+        return ReadModifyWriteRuntimeState(bag_state)
       else:
         return CombiningValueRuntimeState(bag_state, state_spec.combine_fn)
     elif isinstance(state_spec, userstate.SetStateSpec):
@@ -769,7 +776,6 @@ class FnApiUserStateContext(userstate.UserStateContext):
 
   def reset(self):
     # type: () -> None
-    # TODO(BEAM-5428): Implement cross-bundle state caching.
     self._all_states = {}
     self._timer_output_streams = {}
     self._timer_coders_impl = {}
@@ -819,7 +825,7 @@ class BundleProcessor(object):
     # There is no guarantee that the runner only set
     # timer_api_service_descriptor when having timers. So this field cannot be
     # used as an indicator of timers.
-    if self.process_bundle_descriptor.timer_api_service_descriptor:
+    if self.process_bundle_descriptor.timer_api_service_descriptor.url:
       self.timer_data_channel = (
           data_channel_factory.create_data_channel_from_url(
               self.process_bundle_descriptor.timer_api_service_descriptor.url))

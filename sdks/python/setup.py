@@ -151,7 +151,7 @@ REQUIRED_PACKAGES = [
     'funcsigs>=1.0.2,<2; python_version < "3.0"',
     'future>=0.18.2,<1.0.0',
     'futures>=3.2.0,<4.0.0; python_version < "3.0"',
-    'grpcio>=1.12.1,<2',
+    'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.18.0',
     'mock>=1.0.1,<3.0.0',
@@ -168,7 +168,7 @@ REQUIRED_PACKAGES = [
     # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
     # fixes and additions have been made since typing 3.5
-    'typing>=3.7.0,<3.8.0; python_version < "3.5.3"',
+    'typing>=3.7.0,<3.8.0; python_full_version < "3.5.3"',
     'typing-extensions>=3.7.0,<3.8.0',
     ]
 
@@ -182,7 +182,8 @@ REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
-    'pandas>=0.23.4,<0.25',
+    'pandas>=0.24.2,<1; python_full_version < "3.5.3"',
+    'pandas>=0.25.2,<1; python_full_version >= "3.5.3"',
     'parameterized>=0.7.1,<0.8.0',
     # pyhamcrest==1.10.0 doesn't work on Py2. Beam still supports Py2.
     # See: https://github.com/hamcrest/PyHamcrest/issues/131.
@@ -193,6 +194,7 @@ REQUIRED_TEST_PACKAGES = [
     'pytest>=4.4.0,<5.0',
     'pytest-xdist>=1.29.0,<2',
     'pytest-timeout>=1.3.3,<2',
+    'rsa<4.1; python_version < "3.0"',
     ]
 
 GCP_REQUIREMENTS = [
@@ -228,7 +230,7 @@ INTERACTIVE_BEAM_TEST = [
     # headless chrome based integration tests
     'selenium>=3.141.0,<4',
     'needle>=0.5.0,<1',
-    'chromedriver-binary>=80,<81',
+    'chromedriver-binary>=83,<84',
     # use a fixed major version of PIL for different python versions
     'pillow>=7.1.1,<8',
 ]

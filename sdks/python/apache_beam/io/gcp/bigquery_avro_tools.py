@@ -26,13 +26,20 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 from __future__ import absolute_import
 from __future__ import division
 
+# BigQuery types as listed in
+# https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
+# with aliases (RECORD, BOOLEAN, FLOAT, INTEGER) as defined in
+# https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/com/google/api/services/bigquery/model/TableFieldSchema.html#setType-java.lang.String-
 BIG_QUERY_TO_AVRO_TYPES = {
+    "STRUCT": "record",
     "RECORD": "record",
     "STRING": "string",
     "BOOL": "boolean",
     "BOOLEAN": "boolean",
     "BYTES": "bytes",
+    "FLOAT64": "double",
     "FLOAT": "double",
+    "INT64": "long",
     "INTEGER": "long",
     "TIME": {
         "type": "long",

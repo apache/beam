@@ -66,7 +66,7 @@ www/
 │   │   └── js
 │   └── themes
 │       └── docsy
-├── build_github_samples.sh
+├── build_code_samples.sh
 ├── check-links.sh                        # links checker
 └── package.json
 ```
@@ -252,20 +252,20 @@ A table markdown here.
 {{< /table >}}
 ```
 
-### Github sample
+### Code sample
 
-To retrieve a piece of code in github.
+To retrieve a piece of code from Beam project.
 
 Usage:
 
 ```
-{{< github_sample "/path/to/file" selected_tag >}}
+{{< code_sample "path/to/file" selected_tag >}}
 ```
 
 Example:
 
 ```
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/user_score.py" extract_and_sum_score >}}
+{{< code_sample "sdks/python/apache_beam/examples/complete/game/user_score.py" extract_and_sum_score >}}
 ```
 
 ### Others

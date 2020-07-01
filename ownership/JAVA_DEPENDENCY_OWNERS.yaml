@@ -599,21 +599,6 @@ deps:
     artifact: activemq-junit
     owners:
 
-  org.apache.apex:apex-common:
-    group: org.apache.apex
-    artifact: apex-common
-    owners:
-
-  org.apache.apex:apex-engine:
-    group: org.apache.apex
-    artifact: apex-engine
-    owners:
-
-  org.apache.apex:malhar-library:
-    group: org.apache.apex
-    artifact: malhar-library
-    owners:
-
   org.apache.avro:avro:
     group: org.apache.avro
     artifact: avro
@@ -707,16 +692,6 @@ deps:
   org.apache.flink:flink-test-utils_2.11:
     group: org.apache.flink
     artifact: flink-test-utils_2.11
-    owners:
-
-  org.apache.gearpump:gearpump-core_2.11:
-    group: org.apache.gearpump
-    artifact: gearpump-core_2.11
-    owners:
-
-  org.apache.gearpump:gearpump-streaming_2.11:
-    group: org.apache.gearpump
-    artifact: gearpump-streaming_2.11
     owners:
 
   org.apache.hadoop:hadoop-client:

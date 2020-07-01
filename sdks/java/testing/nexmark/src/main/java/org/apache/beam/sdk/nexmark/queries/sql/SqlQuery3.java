@@ -18,6 +18,9 @@
 package org.apache.beam.sdk.nexmark.queries.sql;
 
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
+import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Event;
@@ -29,7 +32,6 @@ import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
 import org.apache.beam.sdk.nexmark.queries.Query3;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.Filter;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
@@ -68,9 +70,7 @@ import org.joda.time.Duration;
  */
 public class SqlQuery3 extends NexmarkQueryTransform<NameCityStateId> {
 
-  private static final String QUERY_NAME = SqlQuery3.class.getSimpleName();
-
-  private static final String QUERY_STRING =
+  private static final String QUERY =
       ""
           + " SELECT "
           + "    P.name, P.city, P.state, A.id "
@@ -80,49 +80,48 @@ public class SqlQuery3 extends NexmarkQueryTransform<NameCityStateId> {
           + "    A.category = 10 "
           + "    AND (P.state = 'OR' OR P.state = 'ID' OR P.state = 'CA')";
 
-  private NexmarkConfiguration configuration;
+  private final NexmarkConfiguration configuration;
+  private final Class<? extends QueryPlanner> plannerClass;
 
-  public SqlQuery3(NexmarkConfiguration configuration) {
-    super(QUERY_NAME);
+  private SqlQuery3(
+      String name, NexmarkConfiguration configuration, Class<? extends QueryPlanner> plannerClass) {
+    super(name);
     this.configuration = configuration;
+    this.plannerClass = plannerClass;
+  }
+
+  public static SqlQuery3 calciteSqlQuery3(NexmarkConfiguration configuration) {
+    return new SqlQuery3("SqlQuery3", configuration, CalciteQueryPlanner.class);
+  }
+
+  public static SqlQuery3 zetaSqlQuery3(NexmarkConfiguration configuration) {
+    return new SqlQuery3("ZetaSqlQuery3", configuration, ZetaSQLQueryPlanner.class);
   }
 
   @Override
   public PCollection<NameCityStateId> expand(PCollection<Event> allEvents) {
-    PCollection<Event> windowed = fixedWindows(allEvents);
+    PCollection<Event> windowed =
+        allEvents.apply(
+            Window.into(FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))));
 
+    String auctionName = Auction.class.getSimpleName();
     PCollection<Row> auctions =
-        filter(windowed, e -> e.newAuction != null, Auction.class, Type.AUCTION);
-    PCollection<Row> people = filter(windowed, e -> e.newPerson != null, Person.class, Type.PERSON);
+        windowed
+            .apply(getName() + ".Filter." + auctionName, Filter.by(e1 -> e1.newAuction != null))
+            .apply(getName() + ".ToRecords." + auctionName, new SelectEvent(Type.AUCTION));
 
-    PCollectionTuple inputStreams = createStreamsTuple(auctions, people);
+    String personName = Person.class.getSimpleName();
+    PCollection<Row> people =
+        windowed
+            .apply(getName() + ".Filter." + personName, Filter.by(e -> e.newPerson != null))
+            .apply(getName() + ".ToRecords." + personName, new SelectEvent(Type.PERSON));
+
+    PCollectionTuple inputStreams =
+        PCollectionTuple.of(new TupleTag<>("Auction"), auctions)
+            .and(new TupleTag<>("Person"), people);
 
     return inputStreams
-        .apply(SqlTransform.query(QUERY_STRING))
+        .apply(SqlTransform.query(QUERY).withQueryPlannerClass(plannerClass))
         .apply(Convert.fromRows(NameCityStateId.class));
-  }
-
-  private PCollection<Event> fixedWindows(PCollection<Event> events) {
-    return events.apply(
-        Window.into(FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))));
-  }
-
-  private PCollectionTuple createStreamsTuple(PCollection<Row> auctions, PCollection<Row> people) {
-
-    return PCollectionTuple.of(new TupleTag<>("Auction"), auctions)
-        .and(new TupleTag<>("Person"), people);
-  }
-
-  private PCollection<Row> filter(
-      PCollection<Event> allEvents,
-      SerializableFunction<Event, Boolean> filter,
-      Class clazz,
-      Event.Type eventType) {
-
-    String modelName = clazz.getSimpleName();
-
-    return allEvents
-        .apply(QUERY_NAME + ".Filter." + modelName, Filter.by(filter))
-        .apply(QUERY_NAME + ".ToRecords." + modelName, new SelectEvent(eventType));
   }
 }

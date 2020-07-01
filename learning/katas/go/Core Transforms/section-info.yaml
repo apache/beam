@@ -20,3 +20,9 @@
 content:
 - Map
 - GroupByKey
+- CoGroupByKey
+- Combine
+- Flatten
+- Partition
+- Side Input
+- Additional Outputs

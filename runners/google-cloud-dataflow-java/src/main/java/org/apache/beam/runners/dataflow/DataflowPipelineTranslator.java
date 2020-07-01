@@ -1084,6 +1084,9 @@ public class DataflowPipelineTranslator {
           private <T> void translateTyped(TestStream<T> transform, TranslationContext context) {
             try {
               StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
+              String ptransformId =
+                  context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
+              stepContext.addInput(PropertyNames.SERIALIZED_FN, ptransformId);
               stepContext.addInput(PropertyNames.FORMAT, "test_stream");
               RunnerApi.TestStreamPayload.Builder payloadBuilder =
                   RunnerApi.TestStreamPayload.newBuilder();

@@ -697,7 +697,6 @@ public class BigQueryIO {
      * <p>Use new template-compatible source implementation. This implementation is compatible with
      * repeated template invocations. It does not support dynamic work rebalancing.
      */
-    @Experimental(Kind.SOURCE_SINK)
     public Read withTemplateCompatibility() {
       return new Read(this.inner.withTemplateCompatibility());
     }
@@ -709,7 +708,6 @@ public class BigQueryIO {
   @AutoValue
   public abstract static class TypedRead<T> extends PTransform<PBegin, PCollection<T>> {
     /** Determines the method used to read data from BigQuery. */
-    @Experimental(Kind.SOURCE_SINK)
     public enum Method {
       /** The default behavior if no method is explicitly set. Currently {@link #EXPORT}. */
       DEFAULT,
@@ -753,7 +751,6 @@ public class BigQueryIO {
 
       abstract Builder<T> setQueryTempDataset(String queryTempDataset);
 
-      @Experimental(Kind.SOURCE_SINK)
       abstract Builder<T> setMethod(Method method);
 
       /**
@@ -764,10 +761,8 @@ public class BigQueryIO {
       @Experimental(Kind.SOURCE_SINK)
       abstract Builder<T> setReadOptions(TableReadOptions readOptions);
 
-      @Experimental(Kind.SOURCE_SINK)
       abstract Builder<T> setSelectedFields(ValueProvider<List<String>> selectedFields);
 
-      @Experimental(Kind.SOURCE_SINK)
       abstract Builder<T> setRowRestriction(ValueProvider<String> rowRestriction);
 
       abstract TypedRead<T> build();
@@ -817,7 +812,6 @@ public class BigQueryIO {
     @Nullable
     abstract String getQueryTempDataset();
 
-    @Experimental(Kind.SOURCE_SINK)
     abstract Method getMethod();
 
     /** @deprecated Use {@link #getSelectedFields()} and {@link #getRowRestriction()} instead. */
@@ -826,11 +820,9 @@ public class BigQueryIO {
     @Nullable
     abstract TableReadOptions getReadOptions();
 
-    @Experimental(Kind.SOURCE_SINK)
     @Nullable
     abstract ValueProvider<List<String>> getSelectedFields();
 
-    @Experimental(Kind.SOURCE_SINK)
     @Nullable
     abstract ValueProvider<String> getRowRestriction();
 
@@ -941,7 +933,8 @@ public class BigQueryIO {
         String tempLocation = bqOptions.getTempLocation();
         checkArgument(
             !Strings.isNullOrEmpty(tempLocation),
-            "BigQueryIO.Read needs a GCS temp location to store temp files.");
+            "BigQueryIO.Read needs a GCS temp location to store temp files."
+                + "This can be set with option --tempLocation.");
         if (getBigQueryServices() == null) {
           try {
             GcsPath.fromUri(tempLocation);
@@ -1561,7 +1554,6 @@ public class BigQueryIO {
     }
 
     /** See {@link Method}. */
-    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withMethod(Method method) {
       return toBuilder().setMethod(method).build();
     }
@@ -1578,7 +1570,6 @@ public class BigQueryIO {
     }
 
     /** See {@link #withSelectedFields(ValueProvider)}. */
-    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withSelectedFields(List<String> selectedFields) {
       return withSelectedFields(StaticValueProvider.of(selectedFields));
     }
@@ -1589,14 +1580,12 @@ public class BigQueryIO {
      *
      * <p>Requires {@link Method#DIRECT_READ}. Not compatible with {@link #fromQuery(String)}.
      */
-    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withSelectedFields(ValueProvider<List<String>> selectedFields) {
       ensureReadOptionsNotSet();
       return toBuilder().setSelectedFields(selectedFields).build();
     }
 
     /** See {@link #withRowRestriction(ValueProvider)}. */
-    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withRowRestriction(String rowRestriction) {
       return withRowRestriction(StaticValueProvider.of(rowRestriction));
     }
@@ -1608,13 +1597,11 @@ public class BigQueryIO {
      *
      * <p>Requires {@link Method#DIRECT_READ}. Not compatible with {@link #fromQuery(String)}.
      */
-    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withRowRestriction(ValueProvider<String> rowRestriction) {
       ensureReadOptionsNotSet();
       return toBuilder().setRowRestriction(rowRestriction).build();
     }
 
-    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withTemplateCompatibility() {
       return toBuilder().setWithTemplateCompatibility(true).build();
     }
@@ -2300,7 +2287,6 @@ public class BigQueryIO {
      * Control how many file shards are written when using BigQuery load jobs. Applicable only when
      * also setting {@link #withTriggeringFrequency}.
      */
-    @Experimental
     public Write<T> withNumFileShards(int numFileShards) {
       checkArgument(numFileShards > 0, "numFileShards must be > 0, but was: %s", numFileShards);
       return toBuilder().setNumFileShards(numFileShards).build();
@@ -2367,7 +2353,6 @@ public class BigQueryIO {
      * If true, enables new codepaths that are expected to use less resources while writing to
      * BigQuery. Not enabled by default in order to maintain backwards compatibility.
      */
-    @Experimental
     public Write<T> optimizedWrites() {
       return toBuilder().setOptimizeWrites(true).build();
     }

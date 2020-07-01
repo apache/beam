@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -127,6 +128,17 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	hooks.SerializeHooksToOptions()
 
 	experiments := jobopts.GetExperiments()
+	// Always use runner v2, unless set already.
+	var v2set bool
+	for _, e := range experiments {
+		if strings.Contains(e, "use_runner_v2") || strings.Contains(e, "use_unified_worker") {
+			v2set = true
+			break
+		}
+	}
+	if !v2set {
+		experiments = append(experiments, "use_unified_worker")
+	}
 	if *minCPUPlatform != "" {
 		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
 	}

@@ -49,7 +49,7 @@ from apache_beam.runners.sdf_utils import NoOpWatermarkEstimatorProvider
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import ProcessContinuation
 from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.trigger import _ValueStateTag
+from apache_beam.transforms.trigger import _ReadModifyWriteStateTag
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
@@ -259,9 +259,9 @@ class ProcessFn(beam.DoFn):
   """
   def __init__(self, sdf, args_for_invoker, kwargs_for_invoker):
     self.sdf = sdf
-    self._element_tag = _ValueStateTag('element')
-    self._restriction_tag = _ValueStateTag('restriction')
-    self.watermark_hold_tag = _ValueStateTag('watermark_hold')
+    self._element_tag = _ReadModifyWriteStateTag('element')
+    self._restriction_tag = _ReadModifyWriteStateTag('restriction')
+    self.watermark_hold_tag = _ReadModifyWriteStateTag('watermark_hold')
     self._process_element_invoker = None
     self._output_processor = _OutputProcessor()
 

@@ -225,6 +225,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                 capabilities=environments.python_sdk_capabilities())
         ])
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_remote_runner_translation(self):
     remote_runner = DataflowRunner()
     with Pipeline(remote_runner,
@@ -235,6 +238,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
           | ptransform.GroupByKey())
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_streaming_create_translation(self):
     remote_runner = DataflowRunner()
     self.default_properties.append("--streaming")
@@ -250,6 +256,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(job_dict[u'steps'][1][u'kind'], u'ParallelDo')
     self.assertEqual(job_dict[u'steps'][2][u'kind'], u'ParallelDo')
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_bigquery_read_streaming_fail(self):
     remote_runner = DataflowRunner()
     self.default_properties.append("--streaming")
@@ -259,6 +268,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                     PipelineOptions(self.default_properties)) as p:
         _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_biqquery_read_fn_api_fail(self):
     remote_runner = DataflowRunner()
     for flag in ['beam_fn_api', 'use_unified_worker', 'use_runner_v2']:
@@ -271,6 +283,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                       PipelineOptions(self.default_properties)) as p:
           _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
     p = Pipeline(
@@ -313,6 +328,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                      }]
     self.assertUnhashableCountEqual(disp_data, expected_data)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_no_group_by_key_directly_after_bigquery(self):
     remote_runner = DataflowRunner()
     with self.assertRaises(ValueError,
@@ -438,6 +456,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           common_urns.side_inputs.MULTIMAP.urn,
           side_input._side_input_data().access_pattern)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_min_cpu_platform_flag_is_propagated_to_experiments(self):
     remote_runner = DataflowRunner()
     self.default_properties.append('--min_cpu_platform=Intel Haswell')
@@ -448,6 +469,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         'min_cpu_platform=Intel Haswell',
         remote_runner.job.options.view_as(DebugOptions).experiments)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_streaming_engine_flag_adds_windmill_experiments(self):
     remote_runner = DataflowRunner()
     self.default_properties.append('--streaming')
@@ -463,6 +487,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertIn('enable_windmill_service', experiments_for_job)
     self.assertIn('some_other_experiment', experiments_for_job)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_upload_graph_experiment(self):
     remote_runner = DataflowRunner()
     self.default_properties.append('--experiment=upload_graph')
@@ -474,6 +501,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         remote_runner.job.options.view_as(DebugOptions).experiments)
     self.assertIn('upload_graph', experiments_for_job)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_dataflow_worker_jar_flag_non_fnapi_noop(self):
     remote_runner = DataflowRunner()
     self.default_properties.append('--experiment=some_other_experiment')
@@ -487,6 +517,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertIn('some_other_experiment', experiments_for_job)
     self.assertNotIn('use_staged_dataflow_worker_jar', experiments_for_job)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_dataflow_worker_jar_flag_adds_use_staged_worker_jar_experiment(self):
     remote_runner = DataflowRunner()
     self.default_properties.append('--experiment=beam_fn_api')
@@ -500,6 +533,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertIn('beam_fn_api', experiments_for_job)
     self.assertIn('use_staged_dataflow_worker_jar', experiments_for_job)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_use_fastavro_experiment_is_added_on_py3_and_onwards(self):
     remote_runner = DataflowRunner()
 
@@ -511,6 +547,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         remote_runner.job.options.view_as(DebugOptions).lookup_experiment(
             'use_fastavro', False))
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_use_fastavro_experiment_is_not_added_when_use_avro_is_present(self):
     remote_runner = DataflowRunner()
     self.default_properties.append('--experiment=use_avro')
@@ -522,6 +561,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
     self.assertFalse(debug_options.lookup_experiment('use_fastavro', False))
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_unsupported_fnapi_features(self):
     remote_runner = DataflowRunner()
     self.default_properties.append('--experiment=beam_fn_api')
@@ -575,6 +617,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     result = runner.get_default_gcp_region()
     self.assertIsNone(result)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_combine_values_translation(self):
     runner = DataflowRunner()
 
@@ -625,6 +670,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertGreater(len(step[u'properties']['display_data']), 0)
     self.assertEqual(step[u'properties']['output_info'], expected_output_info)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_read_create_translation(self):
     runner = DataflowRunner()
 
@@ -635,6 +683,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
     self.expect_correct_override(runner.job, u'Create/Read', u'ParallelRead')
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_read_bigquery_translation(self):
     runner = DataflowRunner()
 
@@ -645,6 +696,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
     self.expect_correct_override(runner.job, u'Read', u'ParallelRead')
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_read_pubsub_translation(self):
     runner = DataflowRunner()
 
@@ -658,6 +712,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.expect_correct_override(
         runner.job, u'ReadFromPubSub/Read', u'ParallelRead')
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_gbk_translation(self):
     runner = DataflowRunner()
     with beam.Pipeline(runner=runner,
@@ -694,6 +751,73 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(gbk_step[u'kind'], u'GroupByKey')
     self.assertEqual(
         gbk_step[u'properties']['output_info'], expected_output_info)
+
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
+  def test_write_bigquery_translation(self):
+    runner = DataflowRunner()
+
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      # pylint: disable=expression-not-assigned
+      p | beam.Create([1]) | beam.io.WriteToBigQuery('some.table')
+
+    job_dict = json.loads(str(runner.job))
+
+    expected_step = {
+        "kind": "ParallelWrite",
+        "name": "s2",
+        "properties": {
+            "create_disposition": "CREATE_IF_NEEDED",
+            "dataset": "some",
+            "display_data": [],
+            "encoding": {
+                "@type": "kind:windowed_value",
+                "component_encodings": [{
+                    "component_encodings": [],
+                    "pipeline_proto_coder_id": "ref_Coder_RowAsDictJsonCoder_4"
+                }, {
+                    "@type": "kind:global_window"
+                }],
+                "is_wrapper": True
+            },
+            "format": "bigquery",
+            "parallel_input": {
+                "@type": "OutputReference",
+                "output_name": "out",
+                "step_name": "s1"
+            },
+            "table": "table",
+            "user_name": "WriteToBigQuery/Write/NativeWrite",
+            "write_disposition": "WRITE_APPEND"
+        }
+    }
+    job_dict = json.loads(str(runner.job))
+    write_step = [
+        s for s in job_dict[u'steps']
+        if s[u'properties'][u'user_name'].startswith('WriteToBigQuery')
+    ][0]
+
+    # Delete the @type field because in this case it is a hash which may change
+    # depending on the pickling version.
+    step_encoding = write_step[u'properties'][u'encoding']
+    del step_encoding[u'component_encodings'][0][u'@type']
+    self.assertEqual(expected_step, write_step)
+
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
+  def test_write_bigquery_failed_translation(self):
+    """Tests that WriteToBigQuery cannot have any consumers if replaced."""
+    runner = DataflowRunner()
+
+    with self.assertRaises(ValueError):
+      with beam.Pipeline(runner=runner,
+                         options=PipelineOptions(self.default_properties)) as p:
+        # pylint: disable=expression-not-assigned
+        out = p | beam.Create([1]) | beam.io.WriteToBigQuery('some.table')
+        out['FailedRows'] | 'MyTransform' >> beam.Map(lambda _: _)
 
 
 class CustomMergingWindowFn(window.WindowFn):

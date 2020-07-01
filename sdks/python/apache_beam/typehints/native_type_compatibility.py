@@ -85,7 +85,7 @@ def _safe_issubclass(derived, parent):
   """
   try:
     return issubclass(derived, parent)
-  except TypeError:
+  except (TypeError, AttributeError):
     if hasattr(derived, '__origin__'):
       try:
         return issubclass(derived.__origin__, parent)

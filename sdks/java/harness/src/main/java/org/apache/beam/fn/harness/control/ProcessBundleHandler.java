@@ -341,16 +341,19 @@ public class ProcessBundleHandler {
       throws Exception {
     BundleProcessor bundleProcessor =
         bundleProcessorCache.find(request.getProcessBundleProgress().getInstructionId());
-    if (bundleProcessor == null) {
-      throw new IllegalStateException(
-          String.format(
-              "Unable to find active bundle for instruction id %s.",
-              request.getProcessBundleProgress().getInstructionId()));
-    }
     BeamFnApi.ProcessBundleProgressResponse.Builder response =
         BeamFnApi.ProcessBundleProgressResponse.newBuilder();
 
-    // TODO(BEAM-6597): This should really only be reporting monitoring infos where the data changed
+    if (bundleProcessor == null) {
+      // We might be unable to find an active bundle if ProcessBundleProgressRequest is received by
+      // the SDK before the ProcessBundleRequest. In this case, we send an empty response instead of
+      // failing so that the runner does not fail/timeout.
+      return BeamFnApi.InstructionResponse.newBuilder()
+          .setProcessBundleProgress(BeamFnApi.ProcessBundleProgressResponse.getDefaultInstance());
+    }
+
+    // TODO(BEAM-6597): This should really only be reporting monitoring infos where the data
+    // changed
     // and we should be using the short id system.
 
     // Get start bundle Execution Time Metrics.
@@ -378,14 +381,17 @@ public class ProcessBundleHandler {
   public BeamFnApi.InstructionResponse.Builder trySplit(BeamFnApi.InstructionRequest request) {
     BundleProcessor bundleProcessor =
         bundleProcessorCache.find(request.getProcessBundleSplit().getInstructionId());
-    if (bundleProcessor == null) {
-      throw new IllegalStateException(
-          String.format(
-              "Unable to find active bundle for instruction id %s.",
-              request.getProcessBundleSplit().getInstructionId()));
-    }
     BeamFnApi.ProcessBundleSplitResponse.Builder response =
         BeamFnApi.ProcessBundleSplitResponse.newBuilder();
+
+    if (bundleProcessor == null) {
+      // We might be unable to find an active bundle if ProcessBundleSplitRequest is received by
+      // the SDK before the ProcessBundleRequest. In this case, we send an empty response instead of
+      // failing so that the runner does not fail/timeout.
+      return BeamFnApi.InstructionResponse.newBuilder()
+          .setProcessBundleSplit(BeamFnApi.ProcessBundleSplitResponse.getDefaultInstance());
+    }
+
     for (BeamFnDataReadRunner channelRoot : bundleProcessor.getChannelRoots()) {
       channelRoot.trySplit(request.getProcessBundleSplit(), response);
     }

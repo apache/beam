@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithUTCTimeZone;
+
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -41,10 +44,10 @@ class TestInput {
           .addRows(
               14L,
               "KeyValue234",
-              DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
+              parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
               15L,
               "KeyValue235",
-              DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"));
+              parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"));
 
   public static final TestBoundedTable BASIC_TABLE_TWO =
       TestBoundedTable.of(
@@ -56,10 +59,10 @@ class TestInput {
           .addRows(
               15L,
               "BigTable235",
-              DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
+              parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
               16L,
               "BigTable236",
-              DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:08"));
+              parseTimestampWithUTCTimeZone("2018-07-01 21:26:08"));
 
   public static final TestBoundedTable BASIC_TABLE_THREE =
       TestBoundedTable.of(Schema.builder().addInt64Field("ColId").addStringField("Value").build())
@@ -132,25 +135,25 @@ class TestInput {
   public static final TestBoundedTable TIMESTAMP_TABLE_ONE =
       TestBoundedTable.of(Schema.builder().addDateTimeField("ts").addInt64Field("value").build())
           .addRows(
-              DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
+              parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
               3L,
-              DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
+              parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
               4L,
-              DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:08"),
+              parseTimestampWithUTCTimeZone("2018-07-01 21:26:08"),
               6L,
-              DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:09"),
+              parseTimestampWithUTCTimeZone("2018-07-01 21:26:09"),
               7L);
 
   public static final TestBoundedTable TIMESTAMP_TABLE_TWO =
       TestBoundedTable.of(Schema.builder().addDateTimeField("ts").addInt64Field("value").build())
           .addRows(
-              DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
+              parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
               3L,
-              DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
+              parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
               4L,
-              DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:12"),
+              parseTimestampWithUTCTimeZone("2018-07-01 21:26:12"),
               6L,
-              DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:13"),
+              parseTimestampWithUTCTimeZone("2018-07-01 21:26:13"),
               7L);
 
   public static final TestBoundedTable TABLE_ALL_NULL =
@@ -243,7 +246,43 @@ class TestInput {
           .addRows(LocalDate.of(2008, 12, 25), "str1")
           .addRows(LocalDate.of(2020, 04, 07), "str2");
 
+  private static final Schema TABLE_WTH_TIME_SCHEMA =
+      Schema.builder()
+          .addLogicalTypeField("time_field", SqlTypes.TIME)
+          .addStringField("str_field")
+          .build();
+  public static final TestBoundedTable TABLE_WITH_TIME =
+      TestBoundedTable.of(TABLE_WTH_TIME_SCHEMA)
+          .addRows(LocalTime.of(15, 30, 0), "str1")
+          .addRows(LocalTime.of(23, 35, 59), "str2");
+
   public static byte[] stringToBytes(String s) {
     return s.getBytes(StandardCharsets.UTF_8);
   }
+
+  public static final TestBoundedTable STREAMING_SQL_TABLE_A =
+      TestBoundedTable.of(
+              Schema.builder()
+                  .addInt64Field("f_long")
+                  .addDoubleField("f_double")
+                  .addStringField("f_string")
+                  .addDateTimeField("f_timestamp")
+                  .build())
+          .addRows(1000L, 1.0d, "string_row1", parseTimestampWithUTCTimeZone("2017-01-01 01:01:03"))
+          .addRows(1000L, 2.0d, "string_row1", parseTimestampWithUTCTimeZone("2017-01-01 01:02:03"))
+          .addRows(1000L, 3.0d, "string_row3", parseTimestampWithUTCTimeZone("2017-01-01 01:06:03"))
+          .addRows(4000L, 4.0d, "第四行", parseTimestampWithUTCTimeZone("2017-01-01 02:04:03"));
+
+  public static final TestBoundedTable STREAMING_SQL_TABLE_B =
+      TestBoundedTable.of(
+              Schema.builder()
+                  .addInt64Field("f_long")
+                  .addDoubleField("f_double")
+                  .addStringField("f_string")
+                  .addDateTimeField("f_timestamp")
+                  .build())
+          .addRows(1000L, 1.0d, "string_row1", parseTimestampWithUTCTimeZone("2017-01-01 01:01:03"))
+          .addRows(2000L, 2.0d, "string_row2", parseTimestampWithUTCTimeZone("2017-02-01 01:02:03"))
+          .addRows(
+              3000L, 3.0d, "string_row3", parseTimestampWithUTCTimeZone("2017-03-01 01:06:03"));
 }

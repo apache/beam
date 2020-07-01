@@ -186,52 +186,6 @@
     </profile>
 
     <profile>
-      <id>apex-runner</id>
-      <!-- Makes the ApexRunner available when running a pipeline. -->
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-apex</artifactId>
-          <version>${beam.version}</version>
-          <scope>runtime</scope>
-        </dependency>
-        <!--
-          Apex depends on httpclient version 4.3.6, project has a transitive dependency to httpclient 4.0.1 from
-          google-http-client. Apex dependency version being specified explicitly so that it gets picked up. This
-          can be removed when the project no longer has a dependency on a different httpclient version.
-        -->
-        <dependency>
-          <groupId>org.apache.httpcomponents</groupId>
-          <artifactId>httpclient</artifactId>
-          <version>4.3.6</version>
-          <scope>runtime</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>commons-codec</groupId>
-              <artifactId>commons-codec</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-        <!--
-          Apex 3.6 is built against YARN 2.6. Version in the fat jar has to match
-          what's on the cluster, hence we need to repeat the Apex Hadoop dependencies here.
-        -->
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-yarn-client</artifactId>
-          <version>${hadoop.version}</version>
-          <scope>runtime</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-common</artifactId>
-          <version>${hadoop.version}</version>
-          <scope>runtime</scope>
-        </dependency>
-      </dependencies>
-    </profile>
-
-    <profile>
       <id>dataflow-runner</id>
       <!-- Makes the DataflowRunner available when running a pipeline. -->
       <dependencies>
@@ -313,17 +267,6 @@
               <artifactId>netty-handler</artifactId>
             </exclusion>
           </exclusions>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>gearpump-runner</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-gearpump</artifactId>
-          <version>${beam.version}</version>
-          <scope>runtime</scope>
         </dependency>
       </dependencies>
     </profile>

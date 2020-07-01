@@ -22,7 +22,7 @@
 Apache Beam is an open source, unified model for defining both batch and streaming data-parallel
 processing pipelines. Using one of the open source Beam SDKs, you build a program that defines the
 pipeline. The pipeline is then executed by one of Beam’s supported distributed processing
-back-ends, which include Apache Apex, Apache Flink, Apache Spark, and Google Cloud Dataflow.
+back-ends, which include Apache Flink, Apache Spark, and Google Cloud Dataflow.
 
 Beam is particularly useful for Embarrassingly Parallel data processing tasks, in which the
 problem can be decomposed into many smaller bundles of data that can be processed independently

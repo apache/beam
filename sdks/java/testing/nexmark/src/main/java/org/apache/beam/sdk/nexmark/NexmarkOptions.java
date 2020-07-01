@@ -338,8 +338,8 @@ public interface NexmarkOptions
   void setFanout(Integer fanout);
 
   @Description(
-      "Maximum waiting time to clean personState in query3 "
-          + "(ie maximum waiting of the auctions related to person in state in seconds in event time).")
+      "Maximum waiting time to clean personState in query3 (ie maximum waiting of the auctions"
+          + " related to person in state in seconds in event time).")
   @Nullable
   Integer getMaxAuctionsWaitingTime();
 
@@ -423,7 +423,10 @@ public interface NexmarkOptions
 
   void setWatermarkValidationDelaySeconds(Long value);
 
-  @Description("Specify 'sql' to use Beam SQL queries. Otherwise Java transforms will be used")
+  @Description(
+      "Specify 'sql' to use Calcite SQL queries "
+          + "or 'zetasql' to use ZetaSQL queries."
+          + "Otherwise Java transforms will be used")
   @Nullable
   String getQueryLanguage();
 
@@ -464,4 +467,41 @@ public interface NexmarkOptions
   int getNexmarkParallel();
 
   void setNexmarkParallel(int value);
+
+  @Description("InfluxDB measurement to publish results to.")
+  @Nullable
+  String getInfluxMeasurement();
+
+  void setInfluxMeasurement(@Nullable String measurement);
+
+  @Description("InfluxDB host.")
+  @Nullable
+  String getInfluxHost();
+
+  void setInfluxHost(@Nullable String host);
+
+  @Description("InfluxDB database.")
+  @Nullable
+  String getInfluxDatabase();
+
+  void setInfluxDatabase(@Nullable String database);
+
+  @Description("Shall we export the summary to InfluxDB.")
+  @Default.Boolean(false)
+  boolean getExportSummaryToInfluxDB();
+
+  void setExportSummaryToInfluxDB(boolean exportSummaryToInfluxDB);
+
+  @Description("Base name of measurement name if using InfluxDB output.")
+  @Nullable
+  @Default.String("nexmark")
+  String getBaseInfluxMeasurement();
+
+  void setBaseInfluxMeasurement(String influxDBMeasurement);
+
+  @Description("Name of retention policy for Influx data.")
+  @Nullable
+  String getInfluxRetentionPolicy();
+
+  void setInfluxRetentionPolicy(String influxRetentionPolicy);
 }

@@ -88,7 +88,7 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
   public void testSdkParDoWithSideInput() throws Exception {
     Pipeline p = Pipeline.create();
     PCollection<String> pc = p.apply(Create.of("a", "b", "c"));
-    PCollectionView<Iterable<String>> pcView = pc.apply(View.asIterable());
+    PCollectionView<List<String>> pcView = pc.apply(View.asList());
     pc.apply(ParDo.of(new TestDoFn(pcView)).withSideInputs(pcView));
     RunnerApi.Pipeline pipeline = PipelineTranslation.toProto(p);
 
@@ -175,9 +175,9 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
   }
 
   private static class TestDoFn extends DoFn<String, Iterable<String>> {
-    @Nullable private final PCollectionView<Iterable<String>> pCollectionView;
+    @Nullable private final PCollectionView<List<String>> pCollectionView;
 
-    private TestDoFn(@Nullable PCollectionView<Iterable<String>> pCollectionView) {
+    private TestDoFn(@Nullable PCollectionView<List<String>> pCollectionView) {
       this.pCollectionView = pCollectionView;
     }
 

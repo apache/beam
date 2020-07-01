@@ -29,11 +29,14 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /** SqlStdOperatorMappingTable. */
 @Internal
 public class SqlStdOperatorMappingTable {
-  static final List<FunctionSignatureId> ZETASQL_BUILTIN_FUNCTION_WHITELIST =
+  static final List<FunctionSignatureId> ZETASQL_BUILTIN_FUNCTION_ALLOWLIST =
       ImmutableList.of(
           FunctionSignatureId.FN_AND,
           FunctionSignatureId.FN_ANY_VALUE,
+          FunctionSignatureId.FN_STRING_AGG_STRING,
           FunctionSignatureId.FN_BIT_OR_INT64,
+          // JIRA link: https://issues.apache.org/jira/browse/BEAM-10379
+          // FunctionSignatureId.FN_BIT_AND_INT64,
           FunctionSignatureId.FN_OR,
           FunctionSignatureId.FN_NOT,
           FunctionSignatureId.FN_MULTIPLY_DOUBLE,
@@ -88,6 +91,7 @@ public class SqlStdOperatorMappingTable {
           FunctionSignatureId.FN_CHAR_LENGTH_STRING,
           FunctionSignatureId.FN_ENDS_WITH_STRING,
           FunctionSignatureId.FN_STRING_LIKE,
+          FunctionSignatureId.FN_BYTE_LIKE,
           FunctionSignatureId.FN_COALESCE,
           FunctionSignatureId.FN_IF,
           FunctionSignatureId.FN_IFNULL,
@@ -107,6 +111,19 @@ public class SqlStdOperatorMappingTable {
           FunctionSignatureId.FN_PARSE_DATE, // parse_date
           FunctionSignatureId.FN_UNIX_DATE, // unix_date
           FunctionSignatureId.FN_DATE_FROM_UNIX_DATE, // date_from_unix_date
+
+          // Time functions
+          FunctionSignatureId.FN_CURRENT_TIME, // current_time
+          FunctionSignatureId.FN_EXTRACT_FROM_TIME, // $extract
+          FunctionSignatureId.FN_TIME_FROM_HOUR_MINUTE_SECOND, // time
+          FunctionSignatureId.FN_TIME_FROM_TIMESTAMP, // time
+          // FunctionSignatureId.FN_TIME_FROM_DATETIME, // time
+          FunctionSignatureId.FN_TIME_ADD, // time_add
+          FunctionSignatureId.FN_TIME_SUB, // time_sub
+          FunctionSignatureId.FN_TIME_DIFF, // time_diff
+          FunctionSignatureId.FN_TIME_TRUNC, // time_trunc
+          FunctionSignatureId.FN_FORMAT_TIME, // format_time
+          FunctionSignatureId.FN_PARSE_TIME, // parse_time
 
           // Timestamp functions
           FunctionSignatureId.FN_CURRENT_TIMESTAMP, // current_timestamp
@@ -131,9 +148,8 @@ public class SqlStdOperatorMappingTable {
           FunctionSignatureId.FN_TIMESTAMP_FROM_UNIX_MILLIS_INT64, // timestamp_from_unix_millis
           // FunctionSignatureId.FN_TIMESTAMP_FROM_UNIX_MICROS_INT64, // timestamp_from_unix_micros
 
-          // Time/Datetime functions
-          FunctionSignatureId.FN_EXTRACT_FROM_DATETIME,
-          FunctionSignatureId.FN_EXTRACT_FROM_TIME);
+          // Datetime functions
+          FunctionSignatureId.FN_EXTRACT_FROM_DATETIME);
 
   // todo: Some of operators defined here are later overridden in ZetaSQLPlannerImpl.
   // We should remove them from this table and add generic way to provide custom
@@ -220,11 +236,13 @@ public class SqlStdOperatorMappingTable {
           .put("any_value", SqlStdOperatorTable.ANY_VALUE)
           .put("count", SqlStdOperatorTable.COUNT)
 
+          // .put("bit_and", SqlStdOperatorTable.BIT_AND) //JIRA link:
+          // https://issues.apache.org/jira/browse/BEAM-10379
+
           // aggregate UDF
           // .put("array_agg", )
           // .put("array_concat_agg")
-          // .put("string_agg")
-          // .put("bit_and")
+          .put("string_agg", SqlOperators.STRING_AGG_STRING_FN) // NULL values not supported
           // .put("bit_xor")
           // .put("logical_and")
           // .put("logical_or")
@@ -324,10 +342,6 @@ public class SqlStdOperatorMappingTable {
           // .put("sha1")
           // .put("sha256")
           // .put("sha512")
-
-          // time functions
-          // .put("time_add", SqlStdOperatorTable.DATETIME_PLUS)
-          // .put("time_sub", SqlStdOperatorTable.MINUS_DATE)
 
           // timestamp functions
           .put("$extract", SqlStdOperatorTable.EXTRACT)

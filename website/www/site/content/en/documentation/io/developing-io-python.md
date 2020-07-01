@@ -183,13 +183,13 @@ See [AvroSource](https://github.com/apache/beam/blob/master/sdks/python/apache_b
 The following example, `CountingSource`, demonstrates an implementation of `BoundedSource` and uses the SDK-provided `RangeTracker` called `OffsetRangeTracker`.
 
 {{< highlight >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_source_new_source >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_source_new_source >}}
 {{< /highlight >}}
 
 To read data from the source in your pipeline, use the `Read` transform:
 
 {{< highlight >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_source_use_new_source >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_source_use_new_source >}}
 {{< /highlight >}}
 
 **Note:** When you create a source that end-users are going to use, we
@@ -262,23 +262,23 @@ to `_CountingSource`. Then, create the wrapper `PTransform`, called
 `ReadFromCountingSource`:
 
 {{< highlight >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_source_new_ptransform >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_source_new_ptransform >}}
 {{< /highlight >}}
 
 Finally, read from the source:
 
 {{< highlight >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_source_use_ptransform >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_source_use_ptransform >}}
 {{< /highlight >}}
 
 For the sink, rename `SimpleKVSink` to `_SimpleKVSink`. Then, create the wrapper `PTransform`, called `WriteToKVSink`:
 
 {{< highlight >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_sink_new_ptransform >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_sink_new_ptransform >}}
 {{< /highlight >}}
 
 Finally, write to the sink:
 
 {{< highlight >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_sink_use_ptransform >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_sink_use_ptransform >}}
 {{< /highlight >}}

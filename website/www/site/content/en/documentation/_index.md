@@ -51,11 +51,9 @@ A Beam Runner runs a Beam pipeline on a specific (often distributed) data proces
 ### Available Runners
 
 * [DirectRunner](/documentation/runners/direct/): Runs locally on your machine -- great for developing, testing, and debugging.
-* [ApexRunner](/documentation/runners/apex/): Runs on [Apache Apex](https://apex.apache.org).
 * [FlinkRunner](/documentation/runners/flink/): Runs on [Apache Flink](https://flink.apache.org).
 * [SparkRunner](/documentation/runners/spark/): Runs on [Apache Spark](https://spark.apache.org).
 * [DataflowRunner](/documentation/runners/dataflow/): Runs on [Google Cloud Dataflow](https://cloud.google.com/dataflow), a fully managed service within [Google Cloud Platform](https://cloud.google.com/).
-* [GearpumpRunner](/documentation/runners/gearpump/): Runs on [Apache Gearpump (incubating)](https://gearpump.apache.org).
 * [SamzaRunner](/documentation/runners/samza/): Runs on [Apache Samza](https://samza.apache.org).
 * [NemoRunner](/documentation/runners/nemo/): Runs on [Apache Nemo](https://nemo.apache.org).
 * [JetRunner](/documentation/runners/jet/): Runs on [Hazelcast Jet](https://jet.hazelcast.org/).

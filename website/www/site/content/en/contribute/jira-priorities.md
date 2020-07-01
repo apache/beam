@@ -17,24 +17,24 @@ limitations under the License.
 
 # Jira Priorities
 
-## Blocker / P0
+## P0: Outage
 
-*Expectation*: Drop everything else and work continuously to resolve. Note that
-the term "blocker" does not refer to blocking releases. A P0 issue is more
-urgent than simply blocking the next release.
+*Expectation*: Drop everything else and work continuously to resolve. An outage
+means that some piece of infrastructure that the community relies on is down. A
+P0 issue is _more_ urgent than simply blocking the next release.
 
-*Example Blocker/P0 issues*:
+*Example P0 issues*:
 
  - the build is broken, halting all development
  - the website is down
  - a vulnerability requires a point release ASAP
 
-## Critical / P1
+## P1: Critical
 
-*Expectation*: Continuous status updates. Critical bugs should not be
-unassigned. Most critical bugs should block release.
+*Expectation*: Continuous status updates. P1 bugs should not be
+unassigned. Most P1 bugs should block release.
 
-*Example Critical/P1 issues*:
+*Example P1 issues*:
 
  - data loss error
  - important component is nonfunctional for important use cases
@@ -42,32 +42,35 @@ unassigned. Most critical bugs should block release.
  - failing postcommit test
  - flaky test
 
-## Major / P2
+## P2: Default
 
 *Expectation*: Most tickets fall into this priority. These can be planned and
-executed by anyone who is interested. No special urgency is associated.
+executed by anyone who is interested. No special urgency is associated, but if
+no action is taken on a P2 ticket for a long time, it indicates it is actually
+just P3/nice-to-have.
 
-*Example Major/P2 issues*
+*Example P2 issues*
 
  - typical feature request
  - bug that affects some use cases but don't make a component nonfunctional
  - ignored ("sickbayed") test
 
-## Minor / P3
+## P3: Nice-to-have
 
 *Expectation*: Nice-to-have improvements.
 
-*Example Minor/P3 issues*
+*Example P3 issues*
 
  - feature request that is nice-to-have
+ - ticket filed as P2 that no one finds time to work on
 
-## Trivial / P4
+## P4
 
 *Expectation*: Nice-to-have improvements that are also very small and easy.
 Usually it is quicker to just fix them than to file a bug, but the Jira
 can be referenced by a pull request and shows up in release notes.
 
-*Example Trivial/P4 issues*
+*Example P4 issues*
 
  - spelling errors in comments or code
 

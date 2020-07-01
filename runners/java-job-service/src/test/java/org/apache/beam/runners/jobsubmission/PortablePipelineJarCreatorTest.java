@@ -17,10 +17,9 @@
  */
 package org.apache.beam.runners.jobsubmission;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -40,12 +39,9 @@ import java.util.jar.JarFile;
 import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
-import java.util.stream.Collectors;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetManifestResponse;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest.Location;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Test;
@@ -60,7 +56,6 @@ public class PortablePipelineJarCreatorTest implements Serializable {
   @Mock private JarFile inputJar;
   @Mock private JarOutputStream outputStream;
   @Mock private WritableByteChannel outputChannel;
-  @Mock private PortablePipelineJarCreator.ArtifactRetriever retrievalServiceStub;
   private PortablePipelineJarCreator jarCreator;
 
   @Before
@@ -68,10 +63,37 @@ public class PortablePipelineJarCreatorTest implements Serializable {
     initMocks(this);
     JarInputStream emptyInputStream = new JarInputStream(new ByteArrayInputStream(new byte[0]));
     when(inputJar.getInputStream(any())).thenReturn(emptyInputStream);
-    when(retrievalServiceStub.getArtifact(any())).thenReturn(Collections.emptyIterator());
     jarCreator = new PortablePipelineJarCreator(null);
     jarCreator.outputStream = outputStream;
     jarCreator.outputChannel = outputChannel;
+  }
+
+  @Test
+  public void testWriteArtifacts_copiesArtifactsIntoJar() throws IOException {
+    RunnerApi.ArtifactInformation artifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(ArtifactRetrievalService.EMBEDDED_ARTIFACT_URN)
+            .setTypePayload(
+                RunnerApi.EmbeddedFilePayload.newBuilder()
+                    .setData(ByteString.copyFromUtf8("someData"))
+                    .build()
+                    .toByteString())
+            .setRoleUrn("someRole")
+            .build();
+    RunnerApi.Pipeline pipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env", RunnerApi.Environment.newBuilder().addDependencies(artifact).build())
+                    .build())
+            .build();
+    RunnerApi.Pipeline newPipeline = jarCreator.writeArtifacts(pipeline, "jobName");
+    verify(outputStream, times(1)).putNextEntry(any());
+    RunnerApi.ArtifactInformation newArtifact =
+        newPipeline.getComponents().getEnvironmentsMap().get("env").getDependencies(0);
+    assertEquals(artifact.getRoleUrn(), newArtifact.getRoleUrn());
+    assertNotEquals(artifact.getTypePayload(), newArtifact.getTypePayload());
   }
 
   @Test
@@ -97,42 +119,6 @@ public class PortablePipelineJarCreatorTest implements Serializable {
     when(inputJar.entries()).thenReturn(Collections.enumeration(duplicateEntries));
     jarCreator.copyResourcesFromJar(inputJar);
     verify(outputStream, times(1)).putNextEntry(any());
-  }
-
-  @Test
-  public void testCopyStagedArtifacts_returnsProxyManifest() throws IOException {
-    ArtifactMetadata artifact1 = ArtifactMetadata.newBuilder().setName("foo").build();
-    ArtifactMetadata artifact2 = ArtifactMetadata.newBuilder().setName("bar").build();
-    List<ArtifactMetadata> artifacts = ImmutableList.of(artifact1, artifact2);
-    ArtifactApi.Manifest manifest =
-        ArtifactApi.Manifest.newBuilder().addAllArtifact(artifacts).build();
-    when(retrievalServiceStub.getManifest(any()))
-        .thenReturn(GetManifestResponse.newBuilder().setManifest(manifest).build());
-
-    ProxyManifest proxyManifest =
-        jarCreator.copyStagedArtifacts("retrievalToken", retrievalServiceStub, "job");
-
-    assertEquals(manifest, proxyManifest.getManifest());
-    List<String> outputArtifactNames =
-        proxyManifest.getLocationList().stream()
-            .map(Location::getName)
-            .collect(Collectors.toList());
-    assertThat(outputArtifactNames, containsInAnyOrder("foo", "bar"));
-  }
-
-  @Test
-  public void testCopyStagedArtifacts_copiesArtifacts() throws IOException {
-    ArtifactMetadata artifact1 = ArtifactMetadata.newBuilder().setName("foo").build();
-    ArtifactMetadata artifact2 = ArtifactMetadata.newBuilder().setName("bar").build();
-    List<ArtifactMetadata> artifacts = ImmutableList.of(artifact1, artifact2);
-    ArtifactApi.Manifest manifest =
-        ArtifactApi.Manifest.newBuilder().addAllArtifact(artifacts).build();
-    when(retrievalServiceStub.getManifest(any()))
-        .thenReturn(GetManifestResponse.newBuilder().setManifest(manifest).build());
-
-    jarCreator.copyStagedArtifacts("retrievalToken", retrievalServiceStub, "job");
-
-    verify(outputStream, times(2)).putNextEntry(any());
   }
 
   private static class FakePipelineRunnner {

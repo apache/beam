@@ -64,7 +64,7 @@ from apache_beam.runners.portability.fn_api_runner.worker_handlers import Worker
 from apache_beam.transforms import environments
 from apache_beam.utils import profiler
 from apache_beam.utils import proto_utils
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 if TYPE_CHECKING:
   from apache_beam.pipeline import Pipeline
@@ -269,6 +269,15 @@ class FnApiRunner(runner.PipelineRunner):
       if requirement not in supported_requirements:
         raise ValueError(
             'Unable to run pipeline with requirement: %s' % requirement)
+    for transform in pipeline_proto.components.transforms.values():
+      if transform.spec.urn == common_urns.primitives.TEST_STREAM.urn:
+        raise NotImplementedError(transform.spec.urn)
+      elif transform.spec.urn in translations.PAR_DO_URNS:
+        payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        for timer in payload.timer_family_specs.values():
+          if timer.time_domain != beam_runner_api_pb2.TimeDomain.EVENT_TIME:
+            raise NotImplementedError(timer.time_domain)
 
   def create_stages(
       self,
@@ -383,7 +392,9 @@ class FnApiRunner(runner.PipelineRunner):
                                      decoded_timer.windows[0]] = decoded_timer
         out = create_OutputStream()
         for decoded_timer in timers_by_key_and_window.values():
-          timer_coder_impl.encode_to_stream(decoded_timer, out, True)
+          # Only add not cleared timer to fired timers.
+          if not decoded_timer.clear_bit:
+            timer_coder_impl.encode_to_stream(decoded_timer, out, True)
         fired_timers[(transform_id, timer_family_id)] = ListBuffer(
             coder_impl=timer_coder_impl)
         fired_timers[(transform_id, timer_family_id)].append(out.get())
@@ -925,7 +936,7 @@ class ParallelBundleManager(BundleManager):
           expected_output_timers,
           dry_run)
 
-    with UnboundedThreadPoolExecutor() as executor:
+    with thread_pool_executor.shared_unbounded_instance() as executor:
       for result, split_result in executor.map(execute, zip(part_inputs,  # pylint: disable=zip-builtin-not-iterating
                                                             timer_inputs)):
         split_result_list += split_result
