@@ -38,7 +38,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.TypeToke
  * concrete types:
  *
  * <pre>{@code
- * TypeDecriptor<List<String>> = new TypeDescriptor<List<String>>() {};
+ * TypeDescriptor<List<String>> typeDescriptor = new TypeDescriptor<List<String>>() {};
  * }</pre>
  *
  * <p>If the above were not an anonymous subclass, the type {@code List<String>} would be erased and

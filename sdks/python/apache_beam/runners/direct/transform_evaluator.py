@@ -68,7 +68,7 @@ from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.transforms.trigger import TimeDomain
 from apache_beam.transforms.trigger import _CombiningValueStateTag
 from apache_beam.transforms.trigger import _ListStateTag
-from apache_beam.transforms.trigger import _ValueStateTag
+from apache_beam.transforms.trigger import _ReadModifyWriteStateTag
 from apache_beam.transforms.trigger import create_trigger_driver
 from apache_beam.transforms.userstate import get_dofn_specs
 from apache_beam.transforms.userstate import is_stateful_dofn
@@ -382,7 +382,8 @@ class _WatermarkControllerEvaluator(_TransformEvaluator):
   """
 
   # The state tag used to store the watermark.
-  WATERMARK_TAG = _ValueStateTag('_WatermarkControllerEvaluator_Watermark_Tag')
+  WATERMARK_TAG = _ReadModifyWriteStateTag(
+      '_WatermarkControllerEvaluator_Watermark_Tag')
 
   def __init__(
       self,

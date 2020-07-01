@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
+import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseAdminClient;
@@ -25,61 +27,94 @@ import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
-import com.google.cloud.spanner.spi.v1.SpannerInterceptorProvider;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
 import io.grpc.ClientInterceptor;
 import io.grpc.MethodDescriptor;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Manages lifecycle of {@link DatabaseClient} and {@link Spanner} instances. */
 class SpannerAccessor implements AutoCloseable {
+  private static final Logger LOG = LoggerFactory.getLogger(SpannerAccessor.class);
+
   // A common user agent token that indicates that this request was originated from Apache Beam.
   private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
+
+  // Only create one SpannerAccessor for each different SpannerConfig.
+  private static final ConcurrentHashMap<SpannerConfig, SpannerAccessor> spannerAccessors =
+      new ConcurrentHashMap<>();
+
+  // Keep reference counts of each SpannerAccessor's usage so that we can close
+  // it when it is no longer in use.
+  private static final ConcurrentHashMap<SpannerConfig, AtomicInteger> refcounts =
+      new ConcurrentHashMap<>();
 
   private final Spanner spanner;
   private final DatabaseClient databaseClient;
   private final BatchClient batchClient;
   private final DatabaseAdminClient databaseAdminClient;
+  private final SpannerConfig spannerConfig;
 
   private SpannerAccessor(
       Spanner spanner,
       DatabaseClient databaseClient,
       DatabaseAdminClient databaseAdminClient,
-      BatchClient batchClient) {
+      BatchClient batchClient,
+      SpannerConfig spannerConfig) {
     this.spanner = spanner;
     this.databaseClient = databaseClient;
     this.databaseAdminClient = databaseAdminClient;
     this.batchClient = batchClient;
+    this.spannerConfig = spannerConfig;
   }
 
-  static SpannerAccessor create(SpannerConfig spannerConfig) {
+  static SpannerAccessor getOrCreate(SpannerConfig spannerConfig) {
+
+    SpannerAccessor self = spannerAccessors.get(spannerConfig);
+    if (self == null) {
+      synchronized (spannerAccessors) {
+        // Re-check that it has not been created before we got the lock.
+        self = spannerAccessors.get(spannerConfig);
+        if (self == null) {
+          // Connect to spanner for this SpannerConfig.
+          LOG.info("Connecting to {}", spannerConfig);
+          self = SpannerAccessor.createAndConnect(spannerConfig);
+          spannerAccessors.put(spannerConfig, self);
+          refcounts.putIfAbsent(spannerConfig, new AtomicInteger(0));
+        }
+      }
+    }
+    // Add refcount for this spannerConfig.
+    int refcount = refcounts.get(spannerConfig).incrementAndGet();
+    LOG.debug("getOrCreate(): refcount={} for {}", refcount, spannerConfig);
+    return self;
+  }
+
+  private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig) {
     SpannerOptions.Builder builder = SpannerOptions.newBuilder();
 
     ValueProvider<Duration> commitDeadline = spannerConfig.getCommitDeadline();
     if (commitDeadline != null && commitDeadline.get().getMillis() > 0) {
 
-      // In Spanner API version 1.21 or above, we can set the deadline / total Timeout on an API
-      // call using the following code:
-      //
-      // UnaryCallSettings.Builder commitSettings =
-      // builder.getSpannerStubSettingsBuilder().commitSettings();
-      // RetrySettings.Builder commitRetrySettings = commitSettings.getRetrySettings().toBuilder()
-      // commitSettings.setRetrySettings(
-      //     commitRetrySettings.setTotalTimeout(
-      //         Duration.ofMillis(getCommitDeadlineMillis().get()))
-      //     .build());
-      //
-      // However, at time of this commit, the Spanner API is at only at v1.6.0, where the only
-      // method to set a deadline is with GRPC Interceptors, so we have to use that...
-      SpannerInterceptorProvider interceptorProvider =
-          SpannerInterceptorProvider.createDefault()
-              .with(new CommitDeadlineSettingInterceptor(commitDeadline.get()));
-      builder.setInterceptorProvider(interceptorProvider);
+      // Set the GRPC deadline on the Commit API call.
+      UnaryCallSettings.Builder commitSettings =
+          builder.getSpannerStubSettingsBuilder().commitSettings();
+      RetrySettings.Builder commitRetrySettings = commitSettings.getRetrySettings().toBuilder();
+      commitSettings.setRetrySettings(
+          commitRetrySettings
+              .setTotalTimeout(org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setMaxRpcTimeout(org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .setInitialRpcTimeout(
+                  org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
+              .build());
     }
 
     ValueProvider<String> projectId = spannerConfig.getProjectId();
@@ -107,7 +142,8 @@ class SpannerAccessor implements AutoCloseable {
         spanner.getBatchClient(DatabaseId.of(options.getProjectId(), instanceId, databaseId));
     DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
 
-    return new SpannerAccessor(spanner, databaseClient, databaseAdminClient, batchClient);
+    return new SpannerAccessor(
+        spanner, databaseClient, databaseAdminClient, batchClient, spannerConfig);
   }
 
   DatabaseClient getDatabaseClient() {
@@ -124,7 +160,21 @@ class SpannerAccessor implements AutoCloseable {
 
   @Override
   public void close() {
-    spanner.close();
+    // Only close Spanner when present in map and refcount == 0
+    int refcount = refcounts.getOrDefault(spannerConfig, new AtomicInteger(0)).decrementAndGet();
+    LOG.debug("close(): refcount={} for {}", refcount, spannerConfig);
+
+    if (refcount == 0) {
+      synchronized (spannerAccessors) {
+        // Re-check refcount in case it has increased outside the lock.
+        if (refcounts.get(spannerConfig).get() <= 0) {
+          spannerAccessors.remove(spannerConfig);
+          refcounts.remove(spannerConfig);
+          LOG.info("Closing {} ", spannerConfig);
+          spanner.close();
+        }
+      }
+    }
   }
 
   private static class CommitDeadlineSettingInterceptor implements ClientInterceptor {

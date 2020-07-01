@@ -980,10 +980,8 @@ type ProcessBundleRequest_CacheToken_UserState struct {
 func (m *ProcessBundleRequest_CacheToken_UserState) Reset() {
 	*m = ProcessBundleRequest_CacheToken_UserState{}
 }
-func (m *ProcessBundleRequest_CacheToken_UserState) String() string {
-	return proto.CompactTextString(m)
-}
-func (*ProcessBundleRequest_CacheToken_UserState) ProtoMessage() {}
+func (m *ProcessBundleRequest_CacheToken_UserState) String() string { return proto.CompactTextString(m) }
+func (*ProcessBundleRequest_CacheToken_UserState) ProtoMessage()    {}
 func (*ProcessBundleRequest_CacheToken_UserState) Descriptor() ([]byte, []int) {
 	return fileDescriptor_6d954c03a4758710, []int{9, 0, 0}
 }
@@ -1020,10 +1018,8 @@ type ProcessBundleRequest_CacheToken_SideInput struct {
 func (m *ProcessBundleRequest_CacheToken_SideInput) Reset() {
 	*m = ProcessBundleRequest_CacheToken_SideInput{}
 }
-func (m *ProcessBundleRequest_CacheToken_SideInput) String() string {
-	return proto.CompactTextString(m)
-}
-func (*ProcessBundleRequest_CacheToken_SideInput) ProtoMessage() {}
+func (m *ProcessBundleRequest_CacheToken_SideInput) String() string { return proto.CompactTextString(m) }
+func (*ProcessBundleRequest_CacheToken_SideInput) ProtoMessage()    {}
 func (*ProcessBundleRequest_CacheToken_SideInput) Descriptor() ([]byte, []int) {
 	return fileDescriptor_6d954c03a4758710, []int{9, 0, 1}
 }
@@ -1412,6 +1408,9 @@ type ProcessBundleSplitRequest_DesiredSplit struct {
 	FractionOfRemainder float64 `protobuf:"fixed64,1,opt,name=fraction_of_remainder,json=fractionOfRemainder,proto3" json:"fraction_of_remainder,omitempty"`
 	// A set of allowed element indices where the SDK may split. When this is
 	// empty, there are no constraints on where to split.
+	// Specifically, the first_residual_element of a split result must be an
+	// allowed split point, and the last_primary_element must immediately
+	// preceded an allowed split point.
 	AllowedSplitPoints []int64 `protobuf:"varint,3,rep,packed,name=allowed_split_points,json=allowedSplitPoints,proto3" json:"allowed_split_points,omitempty"`
 	// (Required for GrpcRead operations) Number of total elements expected
 	// to be sent to this GrpcRead operation, required to correctly account

@@ -296,11 +296,7 @@ public class PubsubMessageToRowTest implements Serializable {
 
   @Test
   public void testNestedSchemaMessageInvalidElement() {
-    Schema payloadSchema =
-        Schema.builder()
-            .addNullableField("id", FieldType.INT32)
-            .addNullableField("name", FieldType.STRING)
-            .build();
+    Schema payloadSchema = Schema.builder().addInt32Field("id").addStringField("name").build();
 
     Schema messageSchema =
         Schema.builder()

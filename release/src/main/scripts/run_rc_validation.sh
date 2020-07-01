@@ -193,18 +193,6 @@ else
   echo "* Skip Java quickstart with direct runner"
 fi
 
-echo "[Current task] Java quickstart with Apex local runner"
-if [[ "$java_quickstart_apex_local" = true ]]; then
-  echo "*************************************************************"
-  echo "* Running Java Quickstart with Apex local runner"
-  echo "*************************************************************"
-  ./gradlew :runners:apex:runQuickstartJavaApex \
-  -Prepourl=${REPO_URL} \
-  -Pver=${RELEASE_VER}
-else
-  echo "* Skip Java quickstart with Apex local runner"
-fi
-
 echo "[Current task] Java quickstart with Flink local runner"
 if [[ "$java_quickstart_flink_local" = true ]]; then
   echo "*************************************************************"

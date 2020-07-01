@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTime;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -33,6 +32,7 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -178,7 +178,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
               Comparator.comparing((SqlOperatorId operator) -> operator.name()),
               Comparator.comparing((SqlOperatorId operator) -> operator.kind())));
 
-  /** Smoke test that the whitelists and utility functions actually work. */
+  /** Smoke test that the allowlist and utility functions actually work. */
   @Test
   @SqlOperatorTest(name = "CARDINALITY", kind = "OTHER_FUNCTION")
   public void testAnnotationEquality() throws Exception {
@@ -1209,9 +1209,18 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
                 "DATE '1984-04-19' + INTERVAL '3' YEAR",
                 LocalDate.parse("1987-04-19"),
                 CalciteUtils.DATE)
-            .addExpr("TIME '14:28:30' + INTERVAL '15' SECOND", parseTime("14:28:45"))
-            .addExpr("TIME '14:28:30.239' + INTERVAL '4' MINUTE", parseTime("14:32:30.239"))
-            .addExpr("TIME '14:28:30.2' + INTERVAL '4' HOUR", parseTime("18:28:30.2"));
+            .addExpr(
+                "TIME '14:28:30' + INTERVAL '15' SECOND",
+                LocalTime.parse("14:28:45"),
+                CalciteUtils.TIME)
+            .addExpr(
+                "TIME '14:28:30.239' + INTERVAL '4' MINUTE",
+                LocalTime.parse("14:32:30.239"),
+                CalciteUtils.TIME)
+            .addExpr(
+                "TIME '14:28:30.2' + INTERVAL '4' HOUR",
+                LocalTime.parse("18:28:30.2"),
+                CalciteUtils.TIME);
 
     checker.buildRunAndCheck();
   }
@@ -1339,9 +1348,18 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
                 "DATE '1984-04-19' - INTERVAL '3' YEAR",
                 LocalDate.parse("1981-04-19"),
                 CalciteUtils.DATE)
-            .addExpr("TIME '14:28:30' - INTERVAL '15' SECOND", parseTime("14:28:15"))
-            .addExpr("TIME '14:28:30.239' - INTERVAL '4' MINUTE", parseTime("14:24:30.239"))
-            .addExpr("TIME '14:28:30.2' - INTERVAL '4' HOUR", parseTime("10:28:30.2"));
+            .addExpr(
+                "TIME '14:28:30' - INTERVAL '15' SECOND",
+                LocalTime.parse("14:28:15"),
+                CalciteUtils.TIME)
+            .addExpr(
+                "TIME '14:28:30.239' - INTERVAL '4' MINUTE",
+                LocalTime.parse("14:24:30.239"),
+                CalciteUtils.TIME)
+            .addExpr(
+                "TIME '14:28:30.2' - INTERVAL '4' HOUR",
+                LocalTime.parse("10:28:30.2"),
+                CalciteUtils.TIME);
 
     checker.buildRunAndCheck();
   }

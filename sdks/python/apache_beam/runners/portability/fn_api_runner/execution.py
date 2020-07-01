@@ -375,6 +375,8 @@ class FnApiRunnerExecutionContext(object):
         for o in transform.outputs.values():
           if o in s.side_inputs():
             continue
+          if o in producing_stages_by_pcoll:
+            continue
           producing_stages_by_pcoll[o] = s
 
     for side_pc in all_side_inputs:

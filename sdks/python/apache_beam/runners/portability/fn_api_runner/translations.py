@@ -67,10 +67,8 @@ COMBINE_URNS = frozenset([
 PAR_DO_URNS = frozenset([
     common_urns.primitives.PAR_DO.urn,
     common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
-    common_urns.sdf_components.SPLIT_RESTRICTION.urn,
     common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
     common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
-    common_urns.sdf_components.PROCESS_ELEMENTS.urn,
 ])
 
 IMPULSE_BUFFER = b'impulse'
@@ -1143,7 +1141,8 @@ def sink_flattens(stages, pipeline_context):
                     inputs={local_in: pcoll_in},
                     spec=beam_runner_api_pb2.FunctionSpec(
                         urn=bundle_processor.DATA_OUTPUT_URN,
-                        payload=buffer_id))
+                        payload=buffer_id),
+                    environment_id=transform.environment_id)
             ],
             downstream_side_inputs=frozenset(),
             must_follow=stage.must_follow)
@@ -1157,7 +1156,8 @@ def sink_flattens(stages, pipeline_context):
                   unique_name=transform.unique_name + '/Read',
                   outputs=transform.outputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=bundle_processor.DATA_INPUT_URN, payload=buffer_id))
+                      urn=bundle_processor.DATA_INPUT_URN, payload=buffer_id),
+                  environment_id=transform.environment_id)
           ],
           downstream_side_inputs=stage.downstream_side_inputs,
           must_follow=union(frozenset(flatten_writes), stage.must_follow))

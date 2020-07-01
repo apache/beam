@@ -47,7 +47,6 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
-import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory.Provider;
@@ -89,7 +88,6 @@ public class DefaultJobBundleFactoryTest {
   @Mock GrpcFnServer<FnApiControlClientPoolService> controlServer;
   @Mock GrpcFnServer<GrpcLoggingService> loggingServer;
   @Mock GrpcFnServer<ArtifactRetrievalService> retrievalServer;
-  @Mock GrpcFnServer<LegacyArtifactRetrievalService> legacyRetrievalServer;
   @Mock GrpcFnServer<StaticGrpcProvisionService> provisioningServer;
   @Mock private StaticGrpcProvisionService provisionService;
   @Mock private GrpcFnServer<GrpcDataService> dataServer;
@@ -134,7 +132,6 @@ public class DefaultJobBundleFactoryTest {
             .setControlServer(controlServer)
             .setLoggingServer(loggingServer)
             .setRetrievalServer(retrievalServer)
-            .setLegacyRetrievalServer(legacyRetrievalServer)
             .setProvisioningServer(provisioningServer)
             .setDataServer(dataServer)
             .setStateServer(stateServer)
@@ -376,7 +373,6 @@ public class DefaultJobBundleFactoryTest {
             controlServer,
             dataServer,
             stateServer,
-            legacyRetrievalServer,
             provisioningServer,
             remoteEnvironment);
 
@@ -390,7 +386,6 @@ public class DefaultJobBundleFactoryTest {
     inOrder.verify(controlServer).close();
     inOrder.verify(dataServer).close();
     inOrder.verify(stateServer).close();
-    inOrder.verify(legacyRetrievalServer).close();
     inOrder.verify(provisioningServer).close();
     inOrder.verify(remoteEnvironment).close();
   }

@@ -66,6 +66,15 @@ class StateSpec(object):
     raise NotImplementedError
 
 
+class ReadModifyWriteStateSpec(StateSpec):
+  """Specification for a user DoFn value state cell."""
+  def to_runner_api(self, context):
+    # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
+    return beam_runner_api_pb2.StateSpec(
+        read_modify_write_spec=beam_runner_api_pb2.ReadModifyWriteStateSpec(
+            coder_id=context.coders.get_id(self.coder)))
+
+
 class BagStateSpec(StateSpec):
   """Specification for a user DoFn bag state cell."""
   def to_runner_api(self, context):
@@ -315,6 +324,24 @@ class RuntimeState(object):
   def prefetch(self):
     # The default implementation here does nothing.
     pass
+
+
+class ReadModifyWriteRuntimeState(RuntimeState):
+  def read(self):
+    # type: () -> Any
+    raise NotImplementedError(type(self))
+
+  def write(self, value):
+    # type: (Any) -> None
+    raise NotImplementedError(type(self))
+
+  def clear(self):
+    # type: () -> None
+    raise NotImplementedError(type(self))
+
+  def commit(self):
+    # type: () -> None
+    raise NotImplementedError(type(self))
 
 
 class AccumulatingRuntimeState(RuntimeState):
