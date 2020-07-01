@@ -24,7 +24,7 @@ of database table rows.
 
 ![A branching pipeline](https://beam.apache.org/images/design-your-pipeline-multiple-pcollections.svg)
 
-In this lession, we will apply two different transforms to the same string input.
+In this lesson, we will apply two different transforms to the same string input.
 
 **Kata:** Branch out the strings to two different transforms: the first transform should reverse each word
 in the PCollection while the second should convert each word to uppercase.
