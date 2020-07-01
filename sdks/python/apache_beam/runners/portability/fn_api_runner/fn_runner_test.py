@@ -1277,27 +1277,27 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
 
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
-  def create_pipeline(self, is_drained=False):
+  def create_pipeline(self, is_drain=False):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=environments.EmbeddedPythonGrpcEnvironment(),
-            is_drained=is_drained))
+            is_drain=is_drain))
 
 
 class FnApiRunnerTestWithDisabledCaching(FnApiRunnerTest):
-  def create_pipeline(self, is_drained=False):
+  def create_pipeline(self, is_drain=False):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=environments.EmbeddedPythonGrpcEnvironment(
                 state_cache_size=0, data_buffer_time_limit_ms=0),
-            is_drained=is_drained))
+            is_drain=is_drain))
 
 
 class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
-  def create_pipeline(self, is_drained=False):
+  def create_pipeline(self, is_drain=False):
     pipeline_options = PipelineOptions(direct_num_workers=2)
     p = beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(is_drained=is_drained),
+        runner=fn_api_runner.FnApiRunner(is_drain=is_drain),
         options=pipeline_options)
     #TODO(BEAM-8444): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
@@ -1314,11 +1314,11 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
 
 
 class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
-  def create_pipeline(self, is_drained=False):
+  def create_pipeline(self, is_drain=False):
     pipeline_options = PipelineOptions(
         direct_num_workers=2, direct_running_mode='multi_threading')
     p = beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(is_drained=is_drained),
+        runner=fn_api_runner.FnApiRunner(is_drain=is_drain),
         options=pipeline_options)
     #TODO(BEAM-8444): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
@@ -1335,21 +1335,21 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
 
 
 class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
-  def create_pipeline(self, is_drained=False):
+  def create_pipeline(self, is_drain=False):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3),
-        is_drained=is_drained)
+        is_drain=is_drain)
 
   def test_register_finalizations(self):
     raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
 
 
 class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
-  def create_pipeline(self, is_drained=False):
+  def create_pipeline(self, is_drain=False):
     pipeline_options = PipelineOptions(direct_num_workers=2)
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            bundle_repeat=3, is_drained=is_drained),
+            bundle_repeat=3, is_drain=is_drain),
         options=pipeline_options)
     #TODO(BEAM-8444): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
@@ -1369,13 +1369,13 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
 
 
 class FnApiRunnerSplitTest(unittest.TestCase):
-  def create_pipeline(self, is_drained=False):
+  def create_pipeline(self, is_drain=False):
     # Must be GRPC so we can send data and split requests concurrent
     # to the bundle process request.
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             default_environment=environments.EmbeddedPythonGrpcEnvironment(),
-            is_drained=is_drained))
+            is_drain=is_drain))
 
   def test_checkpoint(self):
     # This split manager will get re-invoked on each smaller split,
