@@ -99,7 +99,7 @@ public class SchemaDispositionTest {
   }
 
   @Test
-  public void writeToExternalWithCreatedTableWithDatetimeSchemaSuccess() throws SQLException {
+  public void writeWithCreatedTableWithDatetimeSchemaSuccess() throws SQLException {
 
     List<String[]> testDates =
         LongStream.range(0, 100)
@@ -125,7 +125,7 @@ public class SchemaDispositionTest {
                 .withTableSchema(tableSchema)
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
-                .withFileNameTemplate("output*")
+                .withFileNameTemplate("output")
                 .withUserDataMapper(TestUtils.getLStringCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withSnowflakeService(snowflakeService));
@@ -137,8 +137,7 @@ public class SchemaDispositionTest {
   }
 
   @Test
-  public void writeToExternalWithCreatedTableWithNullValuesInSchemaSuccess()
-      throws SnowflakeSQLException {
+  public void writeWithCreatedTableWithNullValuesInSchemaSuccess() throws SnowflakeSQLException {
 
     List<String[]> testNulls =
         LongStream.range(0, 100)
@@ -164,7 +163,7 @@ public class SchemaDispositionTest {
                 .withTableSchema(tableSchema)
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
-                .withFileNameTemplate("output*")
+                .withFileNameTemplate("output")
                 .withUserDataMapper(getCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withSnowflakeService(snowflakeService));
@@ -176,7 +175,7 @@ public class SchemaDispositionTest {
   }
 
   @Test
-  public void writeToExternalWithCreatedTableWithStructuredDataSchemaSuccess() throws SQLException {
+  public void writeWithCreatedTableWithStructuredDataSchemaSuccess() throws SQLException {
     String json = "{ \"key1\": 1, \"key2\": {\"inner_key\": \"value2\", \"inner_key2\":18} }";
     String array = "[1,2,3]";
 
@@ -204,7 +203,7 @@ public class SchemaDispositionTest {
                 .withTableSchema(tableSchema)
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
-                .withFileNameTemplate("output*")
+                .withFileNameTemplate("output")
                 .withUserDataMapper(getCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withSnowflakeService(snowflakeService));

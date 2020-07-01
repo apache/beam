@@ -87,7 +87,7 @@ public class SnowflakeIOWriteTest {
   }
 
   @Test
-  public void writeToExternalWithIntegrationTest() throws SnowflakeSQLException {
+  public void writeWithIntegrationTest() throws SnowflakeSQLException {
     pipeline
         .apply(Create.of(testData))
         .apply(
@@ -108,11 +108,11 @@ public class SnowflakeIOWriteTest {
   }
 
   @Test
-  public void writeToExternalWithMapperTest() throws SnowflakeSQLException {
+  public void writeWithMapperTest() throws SnowflakeSQLException {
     pipeline
         .apply(Create.of(testData))
         .apply(
-            "External text write IO",
+            "text write IO",
             SnowflakeIO.<Long>write()
                 .toTable(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
@@ -129,7 +129,7 @@ public class SnowflakeIOWriteTest {
   }
 
   @Test
-  public void writeToExternalWithKVInput() throws SnowflakeSQLException {
+  public void writeWithKVInputTest() throws SnowflakeSQLException {
     pipeline
         .apply(Create.of(testData))
         .apply(ParDo.of(new TestUtils.ParseToKv()))
@@ -152,7 +152,7 @@ public class SnowflakeIOWriteTest {
   }
 
   @Test
-  public void writeToExternalWithTransformationTest() throws SQLException {
+  public void writeWithTransformationTest() throws SQLException {
     String query = "select t.$1 from %s t";
     pipeline
         .apply(Create.of(testData))
