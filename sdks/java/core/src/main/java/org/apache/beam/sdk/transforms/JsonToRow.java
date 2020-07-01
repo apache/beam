@@ -92,7 +92,7 @@ public class JsonToRow {
   static class JsonToRowFn extends PTransform<PCollection<String>, PCollection<Row>> {
     private transient volatile @Nullable ObjectMapper objectMapper;
     private Schema schema;
-    private volatile NullBehavior nullBehavior = NullBehavior.REQUIRE_NULL;
+    private volatile NullBehavior nullBehavior = NullBehavior.ACCEPT_MISSING_OR_NULL;
 
     static JsonToRowFn forSchema(Schema rowSchema) {
       // Throw exception if this schema is not supported by RowJson
