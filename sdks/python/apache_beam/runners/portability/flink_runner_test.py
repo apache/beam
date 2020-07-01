@@ -295,27 +295,17 @@ if __name__ == '__main__':
         lines_expected.update([
             # Gauges for the last finished bundle
             'stateful.beam.metric:statecache:capacity: 123',
-            # These are off by 10 because the first bundle contains all the keys
-            # once. Caching is only initialized after the first bundle. Caching
-            # depends on the cache token which is lazily initialized by the
-            # Runner's StateRequestHandlers.
-            'stateful.beam.metric:statecache:size: 20',
+            'stateful.beam.metric:statecache:size: 10',
             'stateful.beam.metric:statecache:get: 20',
             'stateful.beam.metric:statecache:miss: 0',
             'stateful.beam.metric:statecache:hit: 20',
             'stateful.beam.metric:statecache:put: 0',
             'stateful.beam.metric:statecache:evict: 0',
             # Counters
-            # (total of get/hit will be off by 10 due to the cross-bundle
-            # caching only getting initialized after the first bundle.
-            # Cross-bundle caching depends on the cache token which is lazily
-            # initialized by the Runner's StateRequestHandlers).
-            # If cross-bundle caching is not requested, caching is done
-            # at the bundle level.
             'stateful.beam.metric:statecache:get_total: 220',
-            'stateful.beam.metric:statecache:miss_total: 20',
-            'stateful.beam.metric:statecache:hit_total: 200',
-            'stateful.beam.metric:statecache:put_total: 20',
+            'stateful.beam.metric:statecache:miss_total: 10',
+            'stateful.beam.metric:statecache:hit_total: 210',
+            'stateful.beam.metric:statecache:put_total: 10',
             'stateful.beam.metric:statecache:evict_total: 0',
         ])
       else:

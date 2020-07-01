@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CAST;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_COLUMN_REF;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_GET_STRUCT_FIELD;
-import static org.apache.beam.sdk.extensions.sql.zetasql.TypeUtils.toSimpleRelDataType;
+import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils.toSimpleRelDataType;
 
 import com.google.zetasql.FunctionSignature;
 import com.google.zetasql.ZetaSQLType.TypeKind;

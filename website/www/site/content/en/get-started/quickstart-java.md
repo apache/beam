@@ -142,7 +142,7 @@ $ gradle build
 
 ## Run WordCount
 
-A single Beam pipeline can run on multiple Beam [runners](/documentation#runners), including the [ApexRunner](/documentation/runners/apex), [FlinkRunner](/documentation/runners/flink), [SparkRunner](/documentation/runners/spark), [NemoRunner](/documentation/runners/nemo), [JetRunner](/documentation/runners/jet), or [DataflowRunner](/documentation/runners/dataflow). The [DirectRunner](/documentation/runners/direct) is a common runner for getting started, as it runs locally on your machine and requires no specific setup.
+A single Beam pipeline can run on multiple Beam [runners](/documentation#runners), including the [FlinkRunner](/documentation/runners/flink), [SparkRunner](/documentation/runners/spark), [NemoRunner](/documentation/runners/nemo), [JetRunner](/documentation/runners/jet), or [DataflowRunner](/documentation/runners/dataflow). The [DirectRunner](/documentation/runners/direct) is a common runner for getting started, as it runs locally on your machine and requires no specific setup.
 
 After you've chosen which runner you'd like to use:
 
@@ -161,12 +161,6 @@ For Unix shells:
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
 {{< /highlight >}}
-
-{{< highlight class="runner-apex" >}}
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
-{{< /highlight >}}
-
 
 {{< highlight class="runner-flink-local" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
@@ -218,11 +212,6 @@ For Windows PowerShell:
 {{< highlight class="runner-direct" >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--inputFile=pom.xml --output=counts" -P direct-runner
-{{< /highlight >}}
-
-{{< highlight class="runner-apex" >}}
-PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
- -D exec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -P apex-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
@@ -323,10 +312,6 @@ Once the pipeline has completed, you can view the output. You'll notice that the
 $ ls counts*
 {{< /highlight >}}
 
-{{< highlight class="runner-apex" >}}
-$ ls counts*
-{{< /highlight >}}
-
 {{< highlight class="runner-flink-local" >}}
 $ ls counts*
 {{< /highlight >}}
@@ -366,16 +351,6 @@ Apache: 2
 The: 1
 limitations: 1
 Foundation: 1
-...
-{{< /highlight >}}
-
-{{< highlight class="runner-apex" >}}
-$ cat counts*
-BEAM: 1
-have: 1
-simple: 1
-skip: 4
-PAssert: 1
 ...
 {{< /highlight >}}
 

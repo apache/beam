@@ -26,14 +26,21 @@ public final class InfluxDBSettings {
   public final String userPassword;
   public final String measurement;
   public final String database;
+  public final String retentionPolicy;
 
   private InfluxDBSettings(
-      String host, String userName, String userPassword, String measurement, String database) {
+      String host,
+      String userName,
+      String userPassword,
+      String measurement,
+      String database,
+      String retentionPolicy) {
     this.host = host;
     this.userName = userName;
     this.userPassword = userPassword;
     this.measurement = measurement;
     this.database = database;
+    this.retentionPolicy = retentionPolicy;
   }
 
   public static Builder builder() {
@@ -41,7 +48,8 @@ public final class InfluxDBSettings {
   }
 
   public InfluxDBSettings copyWithMeasurement(final String newMeasurement) {
-    return new InfluxDBSettings(host, userName, userPassword, newMeasurement, database);
+    return new InfluxDBSettings(
+        host, userName, userPassword, newMeasurement, database, retentionPolicy);
   }
 
   public static class Builder {
@@ -52,6 +60,7 @@ public final class InfluxDBSettings {
     private String host;
     private String measurement;
     private String database;
+    private String retentionPolicy;
 
     public Builder withHost(final String host) {
       this.host = host;
@@ -68,12 +77,18 @@ public final class InfluxDBSettings {
       return this;
     }
 
+    public Builder withRetentionPolicy(final String retentionPolicy) {
+      this.retentionPolicy = retentionPolicy;
+      return this;
+    }
+
     public InfluxDBSettings get() {
       final String userName = System.getenv(INFLUX_USER);
       final String userPassword = System.getenv(INFLUX_PASSWORD);
       final String influxHost = isBlank(host) ? DEFAULT_HOST : host;
 
-      return new InfluxDBSettings(influxHost, userName, userPassword, measurement, database);
+      return new InfluxDBSettings(
+          influxHost, userName, userPassword, measurement, database, retentionPolicy);
     }
   }
 }

@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import javax.xml.ws.http.HTTPException;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -50,6 +49,12 @@ public class MetricsHttpSink implements MetricsSink {
     this.urlString = pipelineOptions.getMetricsHttpSinkUrl();
   }
 
+  /**
+   * Writes the metricQueryResults via HTTP POST to metrics sink endpoint.
+   *
+   * @param metricQueryResults query results to write.
+   * @throws Exception throws IOException for non-200 response from endpoint.
+   */
   @Override
   public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
     URL url = new URL(urlString);
@@ -69,7 +74,9 @@ public class MetricsHttpSink implements MetricsSink {
     }
     int responseCode = connection.getResponseCode();
     if (responseCode != 200) {
-      throw new HTTPException(responseCode);
+      throw new IOException(
+          "Expected HTTP 200 OK response while writing metrics to MetricsHttpSink but received "
+              + responseCode);
     }
   }
 
@@ -86,8 +93,8 @@ public class MetricsHttpSink implements MetricsSink {
     public void serialize(MetricName value, JsonGenerator gen, SerializerProvider provider)
         throws IOException {
       gen.writeStartObject();
-      gen.writeObjectField("name", value.name());
-      gen.writeObjectField("namespace", value.namespace());
+      gen.writeObjectField("name", value.getName());
+      gen.writeObjectField("namespace", value.getNamespace());
       gen.writeEndObject();
     }
   }

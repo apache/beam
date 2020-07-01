@@ -347,6 +347,11 @@ func SkipW(c *Coder) *Coder {
 	return c
 }
 
+// CoderFrom is a helper that creates a Coder from a CustomCoder.
+func CoderFrom(c *CustomCoder) *Coder {
+	return &Coder{Kind: Custom, T: typex.New(c.Type), Custom: c}
+}
+
 // Types returns a slice of types used by the supplied coders.
 func Types(list []*Coder) []typex.FullType {
 	var ret []typex.FullType

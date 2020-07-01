@@ -280,6 +280,13 @@ task portablePythonPreCommit() {
   dependsOn ":sdks:python:test-suites:portable:py37:preCommitPy37"
 }
 
+task pythonSparkPostCommit() {
+  dependsOn ":sdks:python:test-suites:portable:py2:sparkValidatesRunner"
+  dependsOn ":sdks:python:test-suites:portable:py35:sparkValidatesRunner"
+  dependsOn ":sdks:python:test-suites:portable:py36:sparkValidatesRunner"
+  dependsOn ":sdks:python:test-suites:portable:py37:sparkValidatesRunner"
+}
+
 task websitePreCommit() {
   dependsOn ":website:preCommit"
 }
@@ -329,7 +336,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 
   configurations { linkageCheckerJava }
   dependencies {
-    linkageCheckerJava "com.google.cloud.tools:dependencies:1.4.0"
+    linkageCheckerJava "com.google.cloud.tools:dependencies:1.4.2"
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the

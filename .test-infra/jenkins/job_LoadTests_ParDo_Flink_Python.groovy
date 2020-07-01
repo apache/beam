@@ -79,29 +79,31 @@ def batchScenarios = { datasetName -> [
                         environment_type     : 'DOCKER',
                 ]
         ],
-        [
-                title          : 'ParDo Python Load test: 20M 100 byte records 200 times',
-                test           : 'apache_beam.testing.load_tests.pardo_test',
-                runner         : CommonTestProperties.Runner.PORTABLE,
-                pipelineOptions: [
-                        job_name             : 'load-tests-python-flink-batch-pardo-2-' + now,
-                        project              : 'apache-beam-testing',
-                        publish_to_big_query : true,
-                        metrics_dataset      : datasetName,
-                        metrics_table        : 'python_flink_batch_pardo_2',
-                        influx_measurement   : 'python_batch_pardo_2',
-                        input_options        : '\'{' +
-                                '"num_records": 20000000,' +
-                                '"key_size": 10,' +
-                                '"value_size": 90}\'',
-                        iterations           : 200,
-                        number_of_counter_operations: 0,
-                        number_of_counters   : 0,
-                        parallelism          : 5,
-                        job_endpoint         : 'localhost:8099',
-                        environment_type     : 'DOCKER',
-                ]
-        ],
+// TODO(BEAM-10270): Takes too long time to execute (currently more than 3 hours). Re-enable
+// the test after its overhead is reduced.
+//         [
+//                 title          : 'ParDo Python Load test: 20M 100 byte records 200 times',
+//                 test           : 'apache_beam.testing.load_tests.pardo_test',
+//                 runner         : CommonTestProperties.Runner.PORTABLE,
+//                 pipelineOptions: [
+//                         job_name             : 'load-tests-python-flink-batch-pardo-2-' + now,
+//                         project              : 'apache-beam-testing',
+//                         publish_to_big_query : true,
+//                         metrics_dataset      : datasetName,
+//                         metrics_table        : 'python_flink_batch_pardo_2',
+//                         influx_measurement   : 'python_batch_pardo_2',
+//                         input_options        : '\'{' +
+//                                 '"num_records": 20000000,' +
+//                                 '"key_size": 10,' +
+//                                 '"value_size": 90}\'',
+//                         iterations           : 200,
+//                         number_of_counter_operations: 0,
+//                         number_of_counters   : 0,
+//                         parallelism          : 5,
+//                         job_endpoint         : 'localhost:8099',
+//                         environment_type     : 'DOCKER',
+//                 ]
+//         ],
         [
                 title          : 'ParDo Python Load test: 20M 100 byte records 10 counters',
                 test           : 'apache_beam.testing.load_tests.pardo_test',

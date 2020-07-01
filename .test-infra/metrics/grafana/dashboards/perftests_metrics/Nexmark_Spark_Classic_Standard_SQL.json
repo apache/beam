@@ -16,8 +16,8 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": null,
-  "iteration": 1591734146776,
+  "id": 15,
+  "iteration": 1593083013254,
   "links": [],
   "panels": [
     {
@@ -53,7 +53,7 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "ms"
         },
         "overrides": []
       },
@@ -82,11 +82,11 @@
                 },
                 {
                   "color": "red",
-                  "value": 10
+                  "value": 10000
                 }
               ]
             },
-            "unit": "s"
+            "unit": "ms"
           },
           "overrides": [],
           "values": false
@@ -122,7 +122,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_batch\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_batch\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -160,7 +160,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_batch\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_batch\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series",
@@ -260,7 +260,7 @@
           "measurement": "",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_batch\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_batch\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -294,7 +294,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"runtimeSec\" FROM \"forever\".\"nexmark_${ID}_sql_batch\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
+          "query": "SELECT \"runtimeMs\" FROM \"forever\".\"nexmark_${ID}_sql_batch\" WHERE \"runner\" = 'SparkRunner' AND $timeFilter",
           "rawQuery": true,
           "refId": "B",
           "resultFormat": "time_series",
@@ -338,7 +338,7 @@
         {
           "$$hashKey": "object:589",
           "decimals": null,
-          "format": "s",
+          "format": "ms",
           "label": "",
           "logBase": 2,
           "max": null,
@@ -498,5 +498,5 @@
   "variables": {
     "list": []
   },
-  "version": 1
+  "version": 2
 }

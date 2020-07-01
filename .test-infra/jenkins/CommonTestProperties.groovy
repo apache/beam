@@ -26,7 +26,8 @@ class CommonTestProperties {
     }
 
     enum Runner {
-        DATAFLOW("TestDataflowRunner"),
+        DATAFLOW("DataflowRunner"),
+        TEST_DATAFLOW("TestDataflowRunner"),
         SPARK("SparkRunner"),
         SPARK_STRUCTURED_STREAMING("SparkStructuredStreamingRunner"),
         FLINK("FlinkRunner"),
@@ -36,18 +37,21 @@ class CommonTestProperties {
         def RUNNER_DEPENDENCY_MAP = [
                 JAVA: [
                         DATAFLOW: ":runners:google-cloud-dataflow-java",
+                        TEST_DATAFLOW: ":runners:google-cloud-dataflow-java",
                         SPARK: ":runners:spark",
                         SPARK_STRUCTURED_STREAMING: ":runners:spark",
                         FLINK: ":runners:flink:1.10",
                         DIRECT: ":runners:direct-java"
                 ],
                 PYTHON: [
-                        DATAFLOW: "TestDataflowRunner",
+                        DATAFLOW: "DataflowRunner",
+                        TEST_DATAFLOW: "TestDataflowRunner",
                         DIRECT: "DirectRunner",
                         PORTABLE: "PortableRunner"
                 ],
                 PYTHON_37: [
-                        DATAFLOW: "TestDataflowRunner",
+                        DATAFLOW: "DataflowRunner",
+                        TEST_DATAFLOW: "TestDataflowRunner",
                         DIRECT: "DirectRunner",
                         PORTABLE: "PortableRunner"
                 ]

@@ -38,7 +38,7 @@ There are lots of opportunities to contribute:
  - review [changes](https://github.com/apache/beam/pulls)
  - write new examples
  - improve your favorite language SDK (Java, Python, Go, etc)
- - improve specific runners (Apache Apex, Apache Flink, Apache Spark, Google
+ - improve specific runners (Apache Flink, Apache Spark, Google
    Cloud Dataflow, etc)
  - improve or add IO connectors
  - add new transform libraries (statistics, ML, image processing, etc)

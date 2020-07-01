@@ -46,6 +46,7 @@ from tenacity import retry
 from tenacity import stop_after_attempt
 
 import apache_beam as beam
+from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.io import restriction_trackers
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.metrics import monitoring_infos
@@ -297,17 +298,25 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_pardo_state_only(self):
     index_state_spec = userstate.CombiningValueStateSpec('index', sum)
+    value_and_index_state_spec = userstate.ReadModifyWriteStateSpec(
+        'value:index', StrUtf8Coder())
 
     # TODO(ccy): State isn't detected with Map/FlatMap.
     class AddIndex(beam.DoFn):
-      def process(self, kv, index=beam.DoFn.StateParam(index_state_spec)):
+      def process(
+          self,
+          kv,
+          index=beam.DoFn.StateParam(index_state_spec),
+          value_and_index=beam.DoFn.StateParam(value_and_index_state_spec)):
         k, v = kv
         index.add(1)
-        yield k, v, index.read()
+        value_and_index.write('%s:%s' % (v, index.read()))
+        yield k, v, index.read(), value_and_index.read()
 
     inputs = [('A', 'a')] * 2 + [('B', 'b')] * 3
-    expected = [('A', 'a', 1), ('A', 'a', 2), ('B', 'b', 1), ('B', 'b', 2),
-                ('B', 'b', 3)]
+    expected = [('A', 'a', 1, 'a:1'), ('A', 'a', 2, 'a:2'),
+                ('B', 'b', 1, 'b:1'), ('B', 'b', 2, 'b:2'),
+                ('B', 'b', 3, 'b:3')]
 
     with self.create_pipeline() as p:
       # TODO(BEAM-8893): Allow the reshuffle.
@@ -377,11 +386,6 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(actual, equal_to(expected))
 
   def test_pardo_timers_clear(self):
-    if type(self).__name__ != 'FlinkRunnerTest':
-      # FnApiRunner fails to wire multiple timer collections
-      # this method can replace test_pardo_timers when the issue is fixed
-      self.skipTest('BEAM-7074: Multiple timer definitions not supported.')
-
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
     clear_timer_spec = userstate.TimerSpec(
         'clear_timer', userstate.TimeDomain.WATERMARK)

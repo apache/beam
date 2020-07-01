@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Prec
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +37,6 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
@@ -179,6 +179,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       // Check pipeline state in every second
       state = result.waitUntilFinish(Duration.standardSeconds(1));
       if (state != null && state.isTerminal()) {
+        if (PipelineResult.State.FAILED.equals(state)) {
+          throw new RuntimeException("Pipeline failed for unknown reason");
+        }
         break;
       }
 
@@ -201,7 +204,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     PCollection<Row> resultCollection = BeamSqlRelUtils.toPCollection(pipeline, node);
     resultCollection.apply(ParDo.of(new Collector()));
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    if (PipelineResult.State.FAILED.equals(result.waitUntilFinish())) {
+      throw new RuntimeException("Pipeline failed for unknown reason");
+    }
   }
 
   private static Queue<Row> collectRows(PipelineOptions options, BeamRelNode node) {
@@ -303,8 +308,12 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     switch (type.getTypeName()) {
       case LOGICAL_TYPE:
         String logicalId = type.getLogicalType().getIdentifier();
-        if (TimeType.IDENTIFIER.equals(logicalId)) {
-          return (int) ((ReadableInstant) beamValue).getMillis();
+        if (SqlTypes.TIME.getIdentifier().equals(logicalId)) {
+          if (beamValue instanceof Long) { // base type
+            return (Long) beamValue;
+          } else { // input type
+            return ((LocalTime) beamValue).toNanoOfDay();
+          }
         } else if (SqlTypes.DATE.getIdentifier().equals(logicalId)) {
           if (beamValue instanceof Long) { // base type
             return ((Long) beamValue).intValue();
@@ -362,7 +371,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     long count = 0;
     if (!containsUnboundedPCollection(pipeline)) {
-      result.waitUntilFinish();
+      if (PipelineResult.State.FAILED.equals(result.waitUntilFinish())) {
+        throw new RuntimeException("Pipeline failed for unknown reason");
+      }
       MetricQueryResults metrics =
           result
               .metrics()
