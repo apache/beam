@@ -55,7 +55,7 @@ TEST_DATA_SIZE = len(TEST_DATA_CONTENTS)
 
 
 class FakeHttpClientSuccess:
-  def request(self, uri, method, headers = {}):
+  def request(self, uri, method, headers={}):
     resp = Response({"content-length": TEST_DATA_SIZE})
     resp.status = 200
     resp.reason = "Ok"
@@ -64,7 +64,8 @@ class FakeHttpClientSuccess:
 
 class TestHttpIOSuccess(unittest.TestCase):
   def setUp(self):
-    self.httpio = httpio.HttpIO(client=FakeHttpClientSuccess()) if USE_MOCK else httpio.HttpIO()
+    self.httpio = httpio.HttpIO(
+        client=FakeHttpClientSuccess()) if USE_MOCK else httpio.HttpIO()
 
   def test_size(self):
     self.assertEqual(TEST_DATA_SIZE, self.httpio.size(TEST_DATA_PATH))
@@ -148,7 +149,7 @@ class TestHttpIOSuccess(unittest.TestCase):
 
   def test_list_prefix(self):
     expected_file_names = [
-      (TEST_DATA_PATH, TEST_DATA_SIZE),
+        (TEST_DATA_PATH, TEST_DATA_SIZE),
     ]
     self.assertEqual(
         set(self.httpio.list_prefix(TEST_DATA_PATH).items()),
@@ -160,8 +161,7 @@ class TestHttpIOSuccess(unittest.TestCase):
 
 class FakeHttpClientFail:
   """Always fails with a 500."""
-
-  def request(self, uri, method, headers = {}):
+  def request(self, uri, method, headers={}):
     resp = Response({"content-length": 0})
     resp.status = 500
     resp.reason = "Internal Server Error"
@@ -179,7 +179,7 @@ class TestHttpIOFailure(unittest.TestCase):
   def test_file_read(self):
     with self.assertRaisesRegex(BeamIOError, '500'):
       self.httpio.open(TEST_DATA_PATH)
-  
+
   def test_file_list_prefix(self):
     with self.assertRaisesRegex(BeamIOError, '500'):
       set(self.httpio.list_prefix(TEST_DATA_PATH).items())
@@ -187,8 +187,7 @@ class TestHttpIOFailure(unittest.TestCase):
 
 class FakeHttpClientNotFound:
   """Always returns a 404."""
-
-  def request(self, uri, method, headers = {}):
+  def request(self, uri, method, headers={}):
     resp = Response({"content-length": 0})
     resp.status = 404
     resp.reason = "Not Found"
@@ -206,15 +205,14 @@ class TestHttpIONotFound(unittest.TestCase):
   def test_file_read(self):
     with self.assertRaisesRegex(BeamIOError, '404'):
       self.httpio.open(TEST_DATA_PATH)
-  
+
   def test_file_exists(self):
     self.assertEqual(self.httpio.exists("test"), False)
 
 
 class FakeHttpClientHttpLib2Error:
   """Always returns a HttpLib2Error error."""
-
-  def request(self, uri, method, headers = {}):
+  def request(self, uri, method, headers={}):
     raise HttpLib2Error("httplib2 error")
 
 
@@ -229,21 +227,21 @@ class TestHttpIONotFound(unittest.TestCase):
   def test_file_read(self):
     with self.assertRaisesRegex(BeamIOError, 'httplib2 error'):
       self.httpio.open(TEST_DATA_PATH)
-  
+
   def test_file_exists(self):
     with self.assertRaisesRegex(BeamIOError, 'httplib2 error'):
       self.assertEqual(self.httpio.exists("test"), False)
 
 
 class FakeHttpClientNoHead:
-  def request(self, uri, method, headers = {}):
+  def request(self, uri, method, headers={}):
     if method == "HEAD":
       resp = Response({"content-length": 0})
       resp.status = 500
       resp.reason = "Internal Server Error"
       return resp, b""
     if method == "GET":
-      resp = Response({"content-length": TEST_DATA_SIZE })
+      resp = Response({"content-length": TEST_DATA_SIZE})
       resp.status = 200
       resp.reason = "Ok"
       return resp, TEST_DATA_CONTENTS
@@ -251,7 +249,6 @@ class FakeHttpClientNoHead:
 
 class TestHttpClientNoHead(TestHttpIOSuccess):
   """Uses a HTTP client that does not support HEAD requests, but supports GET requests."""
-
   def setUp(self):
     self.httpio = httpio.HttpIO(client=FakeHttpClientNoHead())
 

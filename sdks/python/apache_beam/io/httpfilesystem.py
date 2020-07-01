@@ -36,7 +36,6 @@ __all__ = ['HttpFileSystem', 'HttpsFileSystem']
 class HttpFileSystem(FileSystem):
   """A `FileSystem` implementation for accessing files from a http:// URL
   """
-
   @classmethod
   def scheme(cls):
     """URI scheme for the FileSystem
@@ -184,7 +183,7 @@ class HttpFileSystem(FileSystem):
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO):
     raise NotImplementedError
-  
+
   def copy(self, source_file_names, destination_file_names):
     raise NotImplementedError
 
@@ -193,7 +192,7 @@ class HttpFileSystem(FileSystem):
 
   def last_updated(self, path):
     raise NotImplementedError
-  
+
   def delete(self, paths):
     raise NotImplementedError
 
@@ -201,7 +200,6 @@ class HttpFileSystem(FileSystem):
 class HttpsFileSystem(HttpFileSystem):
   """A `FileSystem` implementation for accessing files from a https:// URL
   """
-
   @classmethod
   def scheme(cls):
     """URI scheme for the FileSystem

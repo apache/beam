@@ -48,7 +48,8 @@ class HttpFileSystemTest(unittest.TestCase):
         'http://example.com/path/to/file',
         self.fs.join('http://example.com/path', 'to', 'file'))
     self.assertEqual(
-        'http://example.com/path/to/file', self.fs.join('http://example.com/path', 'to/file'))
+        'http://example.com/path/to/file',
+        self.fs.join('http://example.com/path', 'to/file'))
     self.assertEqual(
         'http://example.com/path/to/file',
         self.fs.join('http://example.com/path', '/to/file'))
@@ -65,7 +66,8 @@ class HttpFileSystemTest(unittest.TestCase):
       self.fs.join('/example.com/path/', '/to/file')
 
   def test_split(self):
-    self.assertEqual(('http://foo.com/bar', 'baz'), self.fs.split('http://foo.com/bar/baz'))
+    self.assertEqual(('http://foo.com/bar', 'baz'),
+                     self.fs.split('http://foo.com/bar/baz'))
     self.assertEqual(('http://foo.com', ''), self.fs.split('http://foo.com/'))
     self.assertEqual(('http://foo.com', ''), self.fs.split('http://foo.com'))
 
@@ -78,9 +80,7 @@ class HttpFileSystemTest(unittest.TestCase):
     httpio_mock = mock.MagicMock()
     httpfilesystem.httpio.HttpIO = lambda: httpio_mock  # type: ignore[misc]
     httpio_mock.size.return_value = 1
-    expected_results = set([
-        FileMetadata('http://example.com/file1', 1)
-    ])
+    expected_results = set([FileMetadata('http://example.com/file1', 1)])
     match_result = self.fs.match(['http://example.com/file1'])[0]
 
     self.assertEqual(set(match_result.metadata_list), expected_results)
@@ -109,8 +109,7 @@ class HttpFileSystemTest(unittest.TestCase):
     # Issue file copy
     _ = self.fs.open('http://example.com/from1', 'application/octet-stream')
 
-    httpio_mock.open.assert_called_once_with(
-        'http://example.com/from1', 'rb')
+    httpio_mock.open.assert_called_once_with('http://example.com/from1', 'rb')
 
 
 class HttpsFileSystemTest(unittest.TestCase):
@@ -118,7 +117,6 @@ class HttpsFileSystemTest(unittest.TestCase):
   HttpsFileSystemTest is just like HttpFileSystem, but with
   a different scheme.
   """
-  
   def setUp(self):
     pipeline_options = PipelineOptions()
     self.fs = httpfilesystem.HttpsFileSystem(pipeline_options=pipeline_options)

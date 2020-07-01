@@ -43,18 +43,13 @@ REQUEST_FAILED_ERROR_MSG = "HTTP request failed for URL {}: {}"
 UNEXPECTED_STATUS_CODE_ERROR_MSG = "Unexpected status code received for URL {}: {} {}"
 
 
-class HttpIO:
+class HttpIO(object):
   """HTTP I/O."""
-
   def __init__(self, client=None):
     self._client = client or get_new_http()
-  
-  def open(
-      self,
-      uri,
-      mode='r',
-      read_buffer_size=16 * 1024 * 1024):
-      """Open a URL for reading or writing.
+
+  def open(self, uri, mode='r', read_buffer_size=16 * 1024 * 1024):
+    """Open a URL for reading or writing.
 
       Args:
         uri (str): HTTP URL in the form ``http://[path]`` or ``https://[path]``.
@@ -67,12 +62,13 @@ class HttpIO:
       Raises:
         ValueError: Invalid open file mode.
       """
-      if mode == 'r' or mode == 'rb':
-        downloader = HttpDownloader(uri, self._client)
-        return io.BufferedReader(
+    if mode == 'r' or mode == 'rb':
+      downloader = HttpDownloader(uri, self._client)
+      return io.BufferedReader(
           DownloaderStream(downloader, mode=mode), buffer_size=read_buffer_size)
-      else:
-        raise ValueError('Unsupported file open mode: %s for URL %s.' % (mode, uri))
+    else:
+      raise ValueError(
+          'Unsupported file open mode: %s for URL %s.' % (mode, uri))
 
   def list_prefix(self, path):
     """Lists files matching the prefix.
@@ -111,7 +107,9 @@ class HttpIO:
       except HttpLib2Error as e:
         raise BeamIOError(REQUEST_FAILED_ERROR_MSG.format(uri, e))
       if resp.status != 200:
-        raise BeamIOError(UNEXPECTED_STATUS_CODE_ERROR_MSG.format(uri, resp.status, resp.reason))
+        raise BeamIOError(
+            UNEXPECTED_STATUS_CODE_ERROR_MSG.format(
+                uri, resp.status, resp.reason))
       return int(resp["content-length"])
     # Default behavior
     try:
@@ -142,7 +140,9 @@ class HttpIO:
         return True
       if resp.status == 404:
         return False
-      raise BeamIOError(UNEXPECTED_STATUS_CODE_ERROR_MSG.format(uri, resp.status, resp.reason))
+      raise BeamIOError(
+          UNEXPECTED_STATUS_CODE_ERROR_MSG.format(
+              uri, resp.status, resp.reason))
     # Default behavior
     try:
       return self.exists(uri, method='HEAD')
@@ -160,7 +160,9 @@ class HttpDownloader(Downloader):
     except HttpLib2Error as e:
       raise BeamIOError(REQUEST_FAILED_ERROR_MSG.format(uri, e))
     if resp.status != 200:
-      raise BeamIOError(UNEXPECTED_STATUS_CODE_ERROR_MSG.format(uri, resp.status, resp.reason))
+      raise BeamIOError(
+          UNEXPECTED_STATUS_CODE_ERROR_MSG.format(
+              uri, resp.status, resp.reason))
     self._size = int(resp["content-length"])
     self._content = content
 
