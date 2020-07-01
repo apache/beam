@@ -287,7 +287,7 @@ class ExternalTransform(ptransform.PTransform):
         next(iter(self._inputs.values())).pipeline
         if self._inputs else pvalueish.pipeline)
     context = pipeline_context.PipelineContext(
-        component_id_context=pipeline._component_id_context)
+        component_id_map=pipeline.component_id_map)
     transform_proto = beam_runner_api_pb2.PTransform(
         unique_name=pipeline._current_transform().full_label,
         spec=beam_runner_api_pb2.FunctionSpec(

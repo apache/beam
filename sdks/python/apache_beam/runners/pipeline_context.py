@@ -25,7 +25,6 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 
 from builtins import object
-from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -38,6 +37,7 @@ from apache_beam import coders
 from apache_beam import pipeline
 from apache_beam import pvalue
 from apache_beam.internal import pickler
+from apache_beam.pipeline import ComponentIdMap
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
@@ -48,32 +48,6 @@ if TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
   from apache_beam.coders.coder_impl import IterableStateReader
   from apache_beam.coders.coder_impl import IterableStateWriter
-
-
-class ComponentIdContext(object):
-  """A utility for assigning unique component ids to Beam components.
-
-  Component ID assignments are only guaranteed to be unique and consistent
-  within the scope of a ComponentIdContext instance.
-  """
-  def __init__(self, namespace="ref"):
-    self.namespace = namespace
-    self._counters = defaultdict(lambda: 0)  # type: Dict[type, int]
-    self._obj_to_id = {}  # type: Dict[Any, str]
-
-  def get_or_assign(self, obj=None, obj_type=None, label=None):
-    if obj not in self._obj_to_id:
-      self._obj_to_id[obj] = self._unique_ref(obj, obj_type, label)
-
-    return self._obj_to_id[obj]
-
-  def _unique_ref(self, obj=None, obj_type=None, label=None):
-    self._counters[obj_type] += 1
-    return "%s_%s_%s_%d" % (
-        self.namespace,
-        obj_type.__name__,
-        label or type(obj).__name__,
-        self._counters[obj_type])
 
 
 class _PipelineContextMap(object):
@@ -103,7 +77,7 @@ class _PipelineContextMap(object):
   def get_id(self, obj, label=None):
     # type: (Any, Optional[str]) -> str
     if obj not in self._obj_to_id:
-      id = self._pipeline_context.component_id_context.get_or_assign(
+      id = self._pipeline_context.component_id_map.get_or_assign(
           obj, self._obj_type, label)
       self._id_to_obj[id] = obj
       self._obj_to_id[obj] = id
@@ -128,7 +102,7 @@ class _PipelineContextMap(object):
         if proto == maybe_new_proto:
           return id
     return self.put_proto(
-        self._pipeline_context.component_id_context.get_or_assign(
+        self._pipeline_context.component_id_map.get_or_assign(
             label, obj_type=self._obj_type),
         maybe_new_proto)
 
@@ -170,7 +144,7 @@ class PipelineContext(object):
 
   def __init__(self,
                proto=None,  # type: Optional[Union[beam_runner_api_pb2.Components, beam_fn_api_pb2.ProcessBundleDescriptor]]
-               component_id_context=None,
+               component_id_map=None,  # type: Optional[pipeline.ComponentIdMap]
                default_environment=None,  # type: Optional[environments.Environment]
                use_fake_coders=False,
                iterable_state_read=None,  # type: Optional[IterableStateReader]
@@ -185,9 +159,8 @@ class PipelineContext(object):
           windowing_strategies=dict(proto.windowing_strategies.items()),
           environments=dict(proto.environments.items()))
 
-    self.component_id_context = component_id_context or ComponentIdContext(
-        namespace)
-    assert self.component_id_context.namespace == namespace
+    self.component_id_map = component_id_map or ComponentIdMap(namespace)
+    assert self.component_id_map.namespace == namespace
 
     self.transforms = _PipelineContextMap(
         self,
