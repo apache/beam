@@ -20,6 +20,7 @@
 
 from __future__ import absolute_import
 
+import logging
 import unittest
 
 from apache_beam.io.azure import blobstorageio
@@ -67,4 +68,3 @@ class TestAZFSPathParser(unittest.TestCase):
   def test_bad_gcs_path_object_optional(self):
     for path in self.BAD_AZFS_PATHS:
       self.assertRaises(ValueError, blobstorageio.parse_azfs_path, path, True)
-

@@ -23,6 +23,7 @@
 
 from __future__ import absolute_import
 
+import logging
 import re
 import threading
 import time
@@ -54,7 +55,7 @@ class BlobStorageIOError(IOError, retry.PermanentException):
   pass
 
 
-class GcsIO(object):
+class BlobStorageIO(object):
   """Azure Blob Storage I/O client."""
 
   def __init__(self, client=None):
@@ -64,4 +65,41 @@ class GcsIO(object):
     else:
       self.client = client
 
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def list_prefix(self, path):
+    """Lists files matching the prefix.
+
+    Args:
+      path: Azure Blob Storage file path pattern in the form
+            azfs://<storage-account>/<container>/[name].
+
+    Returns:
+      Dictionary of file name -> size.
+    """
+    storage_account, container, blob = parse_azfs_path(path, object_optional=True)
+    file_sizes = {}
+    counter = 0
+    start_time = time.time()
+
+    logging.info("Starting the size estimation of the input")
+    
+    container_client = self.client.get_container_client(container)
+
+    while True:
+      response = container_client.list_blobs(name_starts_with=blob)
+      for item in response:
+        file_name = "azfs://%s/%s/%s" % (storage_account, container, item.name)
+        file_sizes[file_name] = item.size
+        counter += 1
+        if counter % 10000 == 0:
+          logging.info("Finished computing size of: %s files", len(file_sizes))
+      break
+
+    logging.info(
+        "Finished listing %s files in %s seconds.",
+        counter,
+        time.time() - start_time)
+
+    return file_sizes
 
