@@ -91,8 +91,7 @@ public class CreateDispositionTest {
   }
 
   @Test
-  public void writeToExternalWithWriteCreateDispositionWithAlreadyCreatedTableSuccess()
-      throws SQLException {
+  public void writeWithWriteCreateDispositionWithAlreadyCreatedTableSuccess() throws SQLException {
     FakeSnowflakeDatabase.createTable(FAKE_TABLE);
 
     pipeline
@@ -105,7 +104,7 @@ public class CreateDispositionTest {
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
-                .withFileNameTemplate("output*")
+                .withFileNameTemplate("output")
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withSnowflakeService(snowflakeService));
 
@@ -117,7 +116,7 @@ public class CreateDispositionTest {
   }
 
   @Test
-  public void writeToExternalWithWriteCreateDispositionWithCreatedTableWithoutSchemaFails() {
+  public void writeWithWriteCreateDispositionWithCreatedTableWithoutSchemaFails() {
 
     exceptionRule.expect(RuntimeException.class);
     exceptionRule.expectMessage(
@@ -132,7 +131,7 @@ public class CreateDispositionTest {
                 .toTable("NO_EXIST_TABLE")
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
-                .withFileNameTemplate("output*")
+                .withFileNameTemplate("output")
                 .withUserDataMapper(getCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withSnowflakeService(snowflakeService));
@@ -141,7 +140,7 @@ public class CreateDispositionTest {
   }
 
   @Test
-  public void writeToExternalWithWriteCreateDispositionWithCreatedTableWithSchemaSuccess()
+  public void writeWithWriteCreateDispositionWithCreatedTableWithSchemaSuccess()
       throws SQLException {
     SnowflakeTableSchema tableSchema =
         new SnowflakeTableSchema(SnowflakeColumn.of("id", new SnowflakeVarchar()));
@@ -156,7 +155,7 @@ public class CreateDispositionTest {
                 .withTableSchema(tableSchema)
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
-                .withFileNameTemplate("output*")
+                .withFileNameTemplate("output")
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withSnowflakeService(snowflakeService));
@@ -168,8 +167,7 @@ public class CreateDispositionTest {
   }
 
   @Test
-  public void writeToExternalWithWriteCreateDispositionWithCreateNeverSuccess()
-      throws SQLException {
+  public void writeWithWriteCreateDispositionWithCreateNeverSuccess() throws SQLException {
     FakeSnowflakeDatabase.createTable(FAKE_TABLE);
 
     pipeline
@@ -181,7 +179,7 @@ public class CreateDispositionTest {
                 .toTable(FAKE_TABLE)
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
-                .withFileNameTemplate("output*")
+                .withFileNameTemplate("output")
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_NEVER)
                 .withSnowflakeService(snowflakeService));
@@ -193,7 +191,7 @@ public class CreateDispositionTest {
   }
 
   @Test
-  public void writeToExternalWithWriteCreateDispositionWithCreateNeededFails() {
+  public void writeWithWriteCreateDispositionWithCreateNeededFails() {
 
     exceptionRule.expect(RuntimeException.class);
     exceptionRule.expectMessage("SQL compilation error: Table does not exist");
@@ -207,7 +205,7 @@ public class CreateDispositionTest {
                 .toTable("NO_EXIST_TABLE")
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
-                .withFileNameTemplate("output*")
+                .withFileNameTemplate("output")
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withCreateDisposition(CreateDisposition.CREATE_NEVER)
                 .withSnowflakeService(snowflakeService));
