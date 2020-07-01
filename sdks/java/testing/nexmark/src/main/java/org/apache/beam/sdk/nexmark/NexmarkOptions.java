@@ -139,6 +139,12 @@ public interface NexmarkOptions
 
   void setStreamTimeout(Integer streamTimeout);
 
+  @Description("Proactively cancels streaming job after query is completed")
+  @Default.Boolean(false)
+  boolean getCancelStreamingJobAfterFinish();
+
+  void setCancelStreamingJobAfterFinish(boolean cancelStreamingJobAfterFinish);
+
   @Description("Number of unbounded sources to create events.")
   @Nullable
   Integer getNumEventGenerators();
