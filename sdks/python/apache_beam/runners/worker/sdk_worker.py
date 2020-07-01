@@ -65,6 +65,7 @@ from apache_beam.runners.worker.data_plane import PeriodicThread
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
+from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.utils import thread_pool_executor
 
 if TYPE_CHECKING:
@@ -587,11 +588,7 @@ class SdkWorker(object):
     return False
 
   def _log_full_thread_dump(self):
-    id2name = {th.ident: th.name for th in threading.enumerate()}
-    for ident, frame in sys._current_frames().items():  # pylint: disable=protected-access
-      stack_trace = ''.join(traceback.format_stack(frame))
-      _LOGGER.info(
-          'Thread %s(%d):\n%s', id2name.get(ident, ''), ident, stack_trace)
+    thread_dump()
 
   def process_bundle_progress(self,
                               request,  # type: beam_fn_api_pb2.ProcessBundleProgressRequest
