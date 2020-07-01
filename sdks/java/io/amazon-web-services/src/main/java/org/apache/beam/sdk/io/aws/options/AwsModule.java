@@ -77,8 +77,8 @@ public class AwsModule extends SimpleModule {
   public static final String PROXY_PORT = "proxyPort";
   public static final String PROXY_USERNAME = "proxyUsername";
   public static final String PROXY_PASSWORD = "proxyPassword";
-  public static final String ROLE_ARN = "roleArn";
-  public static final String ROLE_SESSION_NAME = "roleSessionName";
+  private static final String ROLE_ARN = "roleArn";
+  private static final String ROLE_SESSION_NAME = "roleSessionName";
 
   public AwsModule() {
     super("AwsModule");
@@ -136,9 +136,9 @@ public class AwsModule extends SimpleModule {
       } else if (typeName.equals(EC2ContainerCredentialsProviderWrapper.class.getSimpleName())) {
         return new EC2ContainerCredentialsProviderWrapper();
       } else if (typeName.equals(STSAssumeRoleSessionCredentialsProvider.class.getSimpleName())) {
-        return AssumeRoleSessionCredentialsProvider.getInstance(
+        return new STSAssumeRoleSessionCredentialsProvider.Builder(
                 asMap.get(ROLE_ARN), asMap.get(ROLE_SESSION_NAME))
-            .getSessionCredentialsProvider();
+            .build();
       } else {
         throw new IOException(
             String.format("AWS credential provider type '%s' is not supported", typeName));
@@ -214,12 +214,24 @@ public class AwsModule extends SimpleModule {
       } else if (credentialsProvider
           .getClass()
           .equals(STSAssumeRoleSessionCredentialsProvider.class)) {
-        STSAssumeRoleSessionCredentialsProvider specificProvider =
-            (STSAssumeRoleSessionCredentialsProvider) credentialsProvider;
-        jsonGenerator.writeStringField(
-            ROLE_ARN, specificProvider.getCredentials().getAWSAccessKeyId());
-        jsonGenerator.writeStringField(
-            ROLE_SESSION_NAME, specificProvider.getCredentials().getAWSSecretKey());
+        try {
+          STSAssumeRoleSessionCredentialsProvider specificProvider =
+              (STSAssumeRoleSessionCredentialsProvider) credentialsProvider;
+
+          Field fieldRole =
+              STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField("roleArn");
+          fieldRole.setAccessible(true);
+          String roleArn = (String) fieldRole.get(specificProvider);
+          jsonGenerator.writeStringField(ROLE_ARN, roleArn);
+
+          Field fieldSession =
+              STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField("roleSessionName");
+          fieldSession.setAccessible(true);
+          String roleSessionName = (String) fieldSession.get(specificProvider);
+          jsonGenerator.writeStringField(ROLE_SESSION_NAME, roleSessionName);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+          throw new IOException("failed to access private field with reflection", e);
+        }
       } else if (!SINGLETON_CREDENTIAL_PROVIDERS.contains(credentialsProvider.getClass())) {
         throw new IllegalArgumentException(
             "Unsupported AWS credentials provider type " + credentialsProvider.getClass());
