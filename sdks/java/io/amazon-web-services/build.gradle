@@ -23,9 +23,7 @@ plugins {
   id 'org.apache.beam.module'
 }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.aws',
-        shadowClosure: {
-        },
+        automaticModuleName: 'org.apache.beam.sdk.io.aws'
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"

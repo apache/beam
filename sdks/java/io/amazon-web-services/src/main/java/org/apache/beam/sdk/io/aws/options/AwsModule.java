@@ -137,7 +137,8 @@ public class AwsModule extends SimpleModule {
         return new EC2ContainerCredentialsProviderWrapper();
       } else if (typeName.equals(STSAssumeRoleSessionCredentialsProvider.class.getSimpleName())) {
         return AssumeRoleSessionCredentialsProvider.getInstance(
-            asMap.get(ROLE_ARN), asMap.get(ROLE_SESSION_NAME)).getSessionCredentialsProvider();
+                asMap.get(ROLE_ARN), asMap.get(ROLE_SESSION_NAME))
+            .getSessionCredentialsProvider();
       } else {
         throw new IOException(
             String.format("AWS credential provider type '%s' is not supported", typeName));
