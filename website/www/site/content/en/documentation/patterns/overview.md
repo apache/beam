@@ -42,6 +42,9 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 * [Analysing the structure and meaning of text](/documentation/patterns/ai-platform/#analysing-the-structure-and-meaning-of-text)
 * [Getting predictions](/documentation/patterns/ai-platform/#getting-predictions)
 
+**Schema patterns** - Patterns for using Schemas 
+* [Using Joins](/documentation/patterns/schema/#using-joins)
+
 ## Contributing a pattern
 
 To contribute a new pipeline pattern, create an issue with the [`pipeline-patterns` label](https://issues.apache.org/jira/browse/BEAM-7449?jql=labels%20%3D%20pipeline-patterns) and add details to the issue description. See [Get started contributing](/contribute/) for more information.
