@@ -118,7 +118,7 @@ jobs:
         os_python: [
           {"os": "ubuntu-latest", "python": "cp27-* cp35-* cp36-* cp37-* cp38-*"},
           {"os": "macos-latest", "python": "cp27-* cp35-* cp36-* cp37-* cp38-*"},
-          {"os": "windows-latest", "python": "cp35-* cp36-* cp37*- cp38-*"},
+          {"os": "windows-latest", "python": "cp35-* cp36-* cp37-* cp38-*"},
         ]
     steps:
     - name: Download source from artifacts
