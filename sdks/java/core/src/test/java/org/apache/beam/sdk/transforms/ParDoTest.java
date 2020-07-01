@@ -54,8 +54,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
@@ -71,9 +69,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
@@ -3986,113 +3982,11 @@ public class ParDoTest implements Serializable {
           now, numTestElements, Create.timestamped(elements));
     }
 
-    @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      UsesStatefulParDo.class,
-      UsesStrictTimerOrdering.class
-    })
-    public void testEventTimeTimerOrderingWithBoundedSource() {
-      final int numTestElements = 1000;
-      BoundedSource<KV<String, String>> source =
-          new BoundedSource<KV<String, String>>() {
-
-            @Override
-            public List<? extends BoundedSource<KV<String, String>>> split(
-                long desiredBundleSizeBytes, PipelineOptions options) {
-              return Collections.singletonList(this);
-            }
-
-            @Override
-            public long getEstimatedSizeBytes(PipelineOptions options) {
-              return 0;
-            }
-
-            @Override
-            public BoundedReader<KV<String, String>> createReader(PipelineOptions options) {
-              BoundedSource<KV<String, String>> thisSource = this;
-              return new BoundedReader<KV<String, String>>() {
-
-                int current = 0;
-
-                @Override
-                public boolean start() {
-                  return true;
-                }
-
-                @Override
-                public boolean advance() {
-                  return ++current < numTestElements;
-                }
-
-                @Override
-                public KV<String, String> getCurrent() throws NoSuchElementException {
-                  if (current < numTestElements) {
-                    return KV.of("dummy" + current % 10, String.valueOf(current));
-                  }
-                  throw new NoSuchElementException();
-                }
-
-                @Override
-                public void close() {}
-
-                @Override
-                public BoundedSource<KV<String, String>> getCurrentSource() {
-                  return thisSource;
-                }
-              };
-            }
-
-            @Override
-            public Coder<KV<String, String>> getOutputCoder() {
-              return KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
-            }
-          };
-
-      PCollection<String> result =
-          pipeline
-              .apply(Read.from(source))
-              .apply(
-                  ParDo.of(
-                      new DoFn<KV<String, String>, String>() {
-
-                        @StateId("bag")
-                        final StateSpec<BagState<String>> bagSpec = StateSpecs.bag();
-
-                        @TimerId("timer")
-                        final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-                        @ProcessElement
-                        public void process(
-                            @Element KV<String, String> elem,
-                            @Timestamp Instant timestamp,
-                            @StateId("bag") BagState<String> state,
-                            @TimerId("timer") Timer timer) {
-                          timer.set(timestamp.plus(Duration.millis(1)));
-                          state.add(elem.getValue());
-                        }
-
-                        @OnTimer("timer")
-                        public void timer(
-                            @StateId("bag") BagState<String> state,
-                            @TimerId("timer") Timer timer,
-                            OutputReceiver<String> collector) {
-                          Objects.requireNonNull(state.read()).forEach(collector::output);
-                        }
-                      }));
-      PAssert.that(result)
-          .containsInAnyOrder(
-              IntStream.range(0, numTestElements)
-                  .mapToObj(String::valueOf)
-                  .collect(Collectors.toList()));
-      pipeline.run();
-    }
-
     private void testEventTimeTimerOrderingWithInputPTransform(
         Instant now,
         int numTestElements,
-        PTransform<PBegin, PCollection<KV<String, String>>> transform) {
+        PTransform<PBegin, PCollection<KV<String, String>>> transform)
+        throws Exception {
 
       final String timerIdBagAppend = "append";
       final String timerIdGc = "gc";
