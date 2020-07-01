@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.snowflake;
 
 import static org.apache.beam.sdk.io.TextIO.readFiles;
+import org.apache.beam.sdk.io.snowflake.enums.StreamingLogLevel;
+import org.apache.beam.sdk.options.PipelineOptions;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
@@ -90,6 +92,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -189,13 +192,8 @@ public class SnowflakeIO {
   static final int DEFAULT_STREAMING_SHARDS_NUMBER = 1;
   static final int DEFAULT_BATCH_SHARDS_NUMBER = 0;
   static final Duration DEFAULT_FLUSH_TIME_LIMIT = Duration.millis(30000); // 30 seconds
-  static final long SLEEP_STREAMING_LOGS_IN_SEC = 5000;
-  static final Duration STREAMING_LOGS_MAX_SLEEP = Duration.standardMinutes(2);;
-
-  public enum StreamingLogLevel {
-    INFO,
-    ERROR
-  }
+  static final Duration DEFAULT_STREAMING_LOGS_MAX_SLEEP = Duration.standardMinutes(2);
+  static final Duration DEFAULT_SLEEP_STREAMING_LOGS = Duration.standardSeconds(5000);
 
   /**
    * Read data from Snowflake.
@@ -357,6 +355,9 @@ public class SnowflakeIO {
      * @param stagingBucketName - String with the name of the bucket.
      */
     public Read<T> withStagingBucketName(String stagingBucketName) {
+      checkArgument(
+          stagingBucketName.endsWith("/"),
+          "stagingBucketName must be a cloud storage path ending with /");
       return toBuilder().setStagingBucketName(stagingBucketName).build();
     }
 
@@ -431,8 +432,8 @@ public class SnowflakeIO {
       // Either table or query is required. If query is present, it's being used, table is used
       // otherwise
 
-      checkArgument(getStorageIntegrationName() != null, "withStorageIntegrationName is required");
-      checkArgument(getStagingBucketName() != null, "withStagingBucketName is required");
+      checkArgument(getStorageIntegrationName() != null, "withStorageIntegrationName() is required");
+      checkArgument(getStagingBucketName() != null, "withStagingBucketName() is required");
 
       checkArgument(
           getQuery() != null || getTable() != null, "fromTable() or fromQuery() is required");
@@ -557,7 +558,7 @@ public class SnowflakeIO {
 
       @ProcessElement
       public void processElement(ProcessContext c) throws IOException {
-        String combinedPath = stagingBucketDir + "/" + tmpDirName + "/**";
+        String combinedPath = String.format("%s/%s/**",stagingBucketDir, tmpDirName);
         List<ResourceId> paths =
             FileSystems.match(combinedPath).metadata().stream()
                 .map(metadata -> metadata.resourceId())
@@ -716,6 +717,9 @@ public class SnowflakeIO {
      * @param stagingBucketName - String with the name of the bucket.
      */
     public Write<T> withStagingBucketName(String stagingBucketName) {
+      checkArgument(
+          stagingBucketName.endsWith("/"),
+          "stagingBucketName must be a cloud storage path ending with /");
       return toBuilder().setStagingBucketName(stagingBucketName).build();
     }
 
@@ -1180,10 +1184,10 @@ public class SnowflakeIO {
         String beginMark = null;
         Duration currentSleep = Duration.ZERO;
 
-        while (currentSleep.isShorterThan(STREAMING_LOGS_MAX_SLEEP)
+        while (currentSleep.isShorterThan(DEFAULT_STREAMING_LOGS_MAX_SLEEP)
             && trackedFilesNames.size() > 0) {
-          Thread.sleep(SLEEP_STREAMING_LOGS_IN_SEC);
-          currentSleep = currentSleep.plus(Duration.millis(SLEEP_STREAMING_LOGS_IN_SEC));
+          Thread.sleep(DEFAULT_SLEEP_STREAMING_LOGS.getMillis());
+          currentSleep = currentSleep.plus(DEFAULT_SLEEP_STREAMING_LOGS);
           HistoryResponse response = ingestManager.getHistory(null, null, beginMark);
 
           if (response != null && response.getNextBeginMark() != null) {

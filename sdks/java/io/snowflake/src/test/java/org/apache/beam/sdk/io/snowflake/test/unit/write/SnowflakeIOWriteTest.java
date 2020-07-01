@@ -49,7 +49,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SnowflakeIOWriteTest {
   private static final String FAKE_TABLE = "FAKE_TABLE";
-  private static final String BUCKET_NAME = "BUCKET";
+  private static final String BUCKET_NAME = "BUCKET/";
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -158,7 +158,7 @@ public class SnowflakeIOWriteTest {
 
     List<String> actualData = FakeSnowflakeDatabase.getElements(FAKE_TABLE);
     List<String> testDataInStrings =
-        testData.stream().map(e -> e.toString()).collect(Collectors.toList());
+        testData.stream().map(Object::toString).collect(Collectors.toList());
     assertTrue(TestUtils.areListsEqual(testDataInStrings, actualData));
   }
 
@@ -184,5 +184,56 @@ public class SnowflakeIOWriteTest {
     List<Long> actualData = FakeSnowflakeDatabase.getElementsAsLong(FAKE_TABLE);
 
     assertTrue(TestUtils.areListsEqual(testData, actualData));
+  }
+
+  @Test
+  public void writeToExternalWithDoubleQuotation() throws SnowflakeSQLException {
+
+    pipeline
+        .apply(Create.of(testDataInStrings))
+        .apply(
+            "Write SnowflakeIO",
+            SnowflakeIO.<String>write()
+                .withDataSourceConfiguration(dc)
+                .withUserDataMapper(TestUtils.getStringCsvMapper())
+                .withTable(FAKE_TABLE)
+                .withStagingBucketName(options.getStagingBucketName())
+                .withStorageIntegrationName(options.getStorageIntegrationName())
+                .withSnowflakeService(snowflakeService)
+                .withQuotationMark("\""));
+
+    pipeline.run(options).waitUntilFinish();
+
+    List<String> actualData = FakeSnowflakeDatabase.getElements(FAKE_TABLE);
+    List<String> escapedTestData =
+        testDataInStrings.stream()
+            .map(e -> e.replace("'", "''"))
+            .map(e -> String.format("\"%s\"", e))
+            .collect(Collectors.toList());
+    assertTrue(TestUtils.areListsEqual(escapedTestData, actualData));
+  }
+
+  @Test
+  public void writeToExternalWithBlankQuotation() throws SnowflakeSQLException {
+    pipeline
+        .apply(Create.of(testDataInStrings))
+        .apply(
+            "Write SnowflakeIO",
+            SnowflakeIO.<String>write()
+                .withDataSourceConfiguration(dc)
+                .withUserDataMapper(TestUtils.getStringCsvMapper())
+                .withTable(FAKE_TABLE)
+                .withStagingBucketName(options.getStagingBucketName())
+                .withStorageIntegrationName(options.getStorageIntegrationName())
+                .withSnowflakeService(snowflakeService)
+                .withQuotationMark(""));
+
+    pipeline.run(options).waitUntilFinish();
+
+    List<String> actualData = FakeSnowflakeDatabase.getElements(FAKE_TABLE);
+
+    List<String> escapedTestData =
+        testDataInStrings.stream().map(e -> e.replace("'", "''")).collect(Collectors.toList());
+    assertTrue(TestUtils.areListsEqual(escapedTestData, actualData));
   }
 }

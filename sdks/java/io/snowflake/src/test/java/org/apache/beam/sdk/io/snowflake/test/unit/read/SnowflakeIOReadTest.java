@@ -36,7 +36,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,7 +48,7 @@ import org.junit.runners.JUnit4;
 public class SnowflakeIOReadTest implements Serializable {
   public static final String FAKE_TABLE = "FAKE_TABLE";
   public static final String FAKE_QUERY = "SELECT * FROM FAKE_TABLE";
-  public static final String BUCKET_NAME = "BUCKET";
+  public static final String BUCKET_NAME = "BUCKET/";
 
   private static final TestPipelineOptions options =
       TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);;
@@ -83,15 +83,15 @@ public class SnowflakeIOReadTest implements Serializable {
     snowflakeService = new FakeSnowflakeBatchServiceImpl();
   }
 
-  @After
-  public void tearDown() {
+  @AfterClass
+  public static void tearDown() {
     TestUtils.removeTempDir(BUCKET_NAME);
   }
 
   @Test
   public void testConfigIsMissingStagingBucketName() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("withStagingBucketName is required");
+    thrown.expectMessage("withStagingBucketName() is required");
 
     pipeline.apply(
         SnowflakeIO.<GenericRecord>read(snowflakeService)
@@ -107,7 +107,7 @@ public class SnowflakeIOReadTest implements Serializable {
   @Test
   public void testConfigIsMissingStorageIntegration() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("withStorageIntegrationName is required");
+    thrown.expectMessage("withStorageIntegrationName() is required");
 
     pipeline.apply(
         SnowflakeIO.<GenericRecord>read(snowflakeService)
