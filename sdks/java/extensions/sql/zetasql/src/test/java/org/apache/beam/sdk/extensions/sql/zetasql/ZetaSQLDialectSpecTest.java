@@ -36,6 +36,7 @@ import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -2458,6 +2459,284 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
   }
 
   /////////////////////////////////////////////////////////////////////////////
+  // TIME type tests
+  /////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void testTimeLiteral() {
+    String sql = "SELECT TIME '15:30:00', TIME '15:30:00.135246' ";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder()
+                        .addLogicalTypeField("f_time1", SqlTypes.TIME)
+                        .addLogicalTypeField("f_time2", SqlTypes.TIME)
+                        .build())
+                .addValues(LocalTime.of(15, 30, 0))
+                .addValues(LocalTime.of(15, 30, 0, 135246000))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimeColumn() {
+    String sql = "SELECT FORMAT_TIME('%T', time_field) FROM table_with_time";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addStringField("f_time_str").build())
+                .addValues("15:30:00")
+                .build(),
+            Row.withSchema(Schema.builder().addStringField("f_time_str").build())
+                .addValues("23:35:59")
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  // TODO[BEAM-9166]: Add a test for CURRENT_TIME function ("SELECT CURRENT_TIME()")
+
+  @Test
+  public void testExtractTime() {
+    String sql =
+        "SELECT "
+            + "EXTRACT(HOUR FROM TIME '15:30:35.123456') as hour, "
+            + "EXTRACT(MINUTE FROM TIME '15:30:35.123456') as minute, "
+            + "EXTRACT(SECOND FROM TIME '15:30:35.123456') as second, "
+            + "EXTRACT(MILLISECOND FROM TIME '15:30:35.123456') as millisecond, "
+            + "EXTRACT(MICROSECOND FROM TIME '15:30:35.123456') as microsecond ";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema =
+        Schema.builder()
+            .addField("hour", FieldType.INT64)
+            .addField("minute", FieldType.INT64)
+            .addField("second", FieldType.INT64)
+            .addField("millisecond", FieldType.INT64)
+            .addField("microsecond", FieldType.INT64)
+            .build();
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(schema).addValues(15L, 30L, 35L, 123L, 123456L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimeFromHourMinuteSecond() {
+    String sql = "SELECT TIME(15, 30, 0)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addLogicalTypeField("f_time", SqlTypes.TIME).build())
+                .addValues(LocalTime.of(15, 30, 0))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimeFromTimestamp() {
+    String sql = "SELECT TIME(TIMESTAMP '2008-12-25 15:30:00+08', 'America/Los_Angeles')";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addLogicalTypeField("f_time", SqlTypes.TIME).build())
+                .addValues(LocalTime.of(23, 30, 0))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimeAdd() {
+    String sql =
+        "SELECT "
+            + "TIME_ADD(TIME '15:30:00', INTERVAL 10 MICROSECOND), "
+            + "TIME_ADD(TIME '15:30:00', INTERVAL 10 MILLISECOND), "
+            + "TIME_ADD(TIME '15:30:00', INTERVAL 10 SECOND), "
+            + "TIME_ADD(TIME '15:30:00', INTERVAL 10 MINUTE), "
+            + "TIME_ADD(TIME '15:30:00', INTERVAL 10 HOUR) ";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder()
+                        .addLogicalTypeField("f_time1", SqlTypes.TIME)
+                        .addLogicalTypeField("f_time2", SqlTypes.TIME)
+                        .addLogicalTypeField("f_time3", SqlTypes.TIME)
+                        .addLogicalTypeField("f_time4", SqlTypes.TIME)
+                        .addLogicalTypeField("f_time5", SqlTypes.TIME)
+                        .build())
+                .addValues(
+                    LocalTime.of(15, 30, 0, 10000),
+                    LocalTime.of(15, 30, 0, 10000000),
+                    LocalTime.of(15, 30, 10, 0),
+                    LocalTime.of(15, 40, 0, 0),
+                    LocalTime.of(1, 30, 0, 0))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimeSub() {
+    String sql =
+        "SELECT "
+            + "TIME_SUB(TIME '15:30:00', INTERVAL 10 MICROSECOND), "
+            + "TIME_SUB(TIME '15:30:00', INTERVAL 10 MILLISECOND), "
+            + "TIME_SUB(TIME '15:30:00', INTERVAL 10 SECOND), "
+            + "TIME_SUB(TIME '15:30:00', INTERVAL 10 MINUTE), "
+            + "TIME_SUB(TIME '15:30:00', INTERVAL 10 HOUR) ";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder()
+                        .addLogicalTypeField("f_time1", SqlTypes.TIME)
+                        .addLogicalTypeField("f_time2", SqlTypes.TIME)
+                        .addLogicalTypeField("f_time3", SqlTypes.TIME)
+                        .addLogicalTypeField("f_time4", SqlTypes.TIME)
+                        .addLogicalTypeField("f_time5", SqlTypes.TIME)
+                        .build())
+                .addValues(
+                    LocalTime.of(15, 29, 59, 999990000),
+                    LocalTime.of(15, 29, 59, 990000000),
+                    LocalTime.of(15, 29, 50, 0),
+                    LocalTime.of(15, 20, 0, 0),
+                    LocalTime.of(5, 30, 0, 0))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimeDiff() {
+    String sql = "SELECT TIME_DIFF(TIME '15:30:00', TIME '14:35:00', MINUTE)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addInt64Field("f_time_diff").build())
+                .addValues(55L)
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimeDiffNegativeResult() {
+    String sql = "SELECT TIME_DIFF(TIME '14:35:00', TIME '15:30:00', MINUTE)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addInt64Field("f_time_diff").build())
+                .addValues(-55L)
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimeTrunc() {
+    String sql = "SELECT TIME_TRUNC(TIME '15:30:35', HOUR)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("f_time_trunc", SqlTypes.TIME).build())
+                .addValues(LocalTime.of(15, 0, 0))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testFormatTime() {
+    String sql = "SELECT FORMAT_TIME('%R', TIME '15:30:00')";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addStringField("f_time_str").build())
+                .addValues("15:30")
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testParseTime() {
+    String sql = "SELECT PARSE_TIME('%H', '15')";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addLogicalTypeField("f_time", SqlTypes.TIME).build())
+                .addValues(LocalTime.of(15, 0, 0))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-10340")
+  public void testCastBetweenTimeAndString() {
+    String sql =
+        "SELECT CAST(s1 as TIME) as t2, CAST(t1 as STRING) as s2 FROM "
+            + "(SELECT '12:34:56.123456' as s1, TIME '12:34:56.123456' as t1)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder()
+                        .addLogicalTypeField("t2", SqlTypes.TIME)
+                        .addStringField("s2")
+                        .build())
+                .addValues(LocalTime.of(12, 34, 56, 123456000), "12:34:56.123456")
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
   // TIMESTAMP type tests
   /////////////////////////////////////////////////////////////////////////////
 
@@ -4608,6 +4887,24 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
         .containsInAnyOrder(
             Row.withSchema(schema).addValues(3L).build(),
             Row.withSchema(schema).addValue(7L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  @Ignore("NULL values don't work correctly. (https://issues.apache.org/jira/browse/BEAM-10379)")
+  public void testZetaSQLBitAnd() {
+    String sql = "SELECT BIT_AND(row_id) FROM table_all_types GROUP BY bool_col";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValue(1L).build(),
+            Row.withSchema(schema).addValue(0L).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

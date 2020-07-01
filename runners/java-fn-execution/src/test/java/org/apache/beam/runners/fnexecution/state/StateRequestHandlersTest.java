@@ -17,14 +17,28 @@
  */
 package org.apache.beam.runners.fnexecution.state;
 
+import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import java.util.EnumMap;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.MultimapSideInput;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
+import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.ModelCoders;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -58,5 +72,125 @@ public class StateRequestHandlersTest {
   public void testDelegatingStateHandlerThrowsWhenNotFound() throws Exception {
     StateRequestHandlers.delegateBasedUponType(new EnumMap<>(StateKey.TypeCase.class))
         .handle(StateRequest.getDefaultInstance());
+  }
+
+  @Test
+  public void testUserStateCacheTokenGeneration() throws Exception {
+    ExecutableStage stage = buildExecutableStage("state1", "state2");
+    ProcessBundleDescriptors.ExecutableProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptors.fromExecutableStage(
+            "id", stage, Endpoints.ApiServiceDescriptor.getDefaultInstance());
+
+    InMemoryBagUserStateFactory inMemoryBagUserStateFactory = new InMemoryBagUserStateFactory<>();
+    assertThat(inMemoryBagUserStateFactory.handlers.size(), is(0));
+
+    StateRequestHandler stateRequestHandler =
+        StateRequestHandlers.forBagUserStateHandlerFactory(descriptor, inMemoryBagUserStateFactory);
+    final BeamFnApi.ProcessBundleRequest.CacheToken cacheToken =
+        assertSingleCacheToken(stateRequestHandler);
+
+    sendGetRequest(stateRequestHandler, "state1");
+    assertThat(inMemoryBagUserStateFactory.handlers.size(), is(1));
+    assertThat(assertSingleCacheToken(stateRequestHandler), is(cacheToken));
+
+    sendGetRequest(stateRequestHandler, "state2");
+    assertThat(inMemoryBagUserStateFactory.handlers.size(), is(2));
+    assertThat(assertSingleCacheToken(stateRequestHandler), is(cacheToken));
+  }
+
+  private static BeamFnApi.ProcessBundleRequest.CacheToken assertSingleCacheToken(
+      StateRequestHandler stateRequestHandler) {
+    Iterable<BeamFnApi.ProcessBundleRequest.CacheToken> cacheTokens =
+        stateRequestHandler.getCacheTokens();
+    assertThat(Iterables.size(cacheTokens), is(1));
+
+    BeamFnApi.ProcessBundleRequest.CacheToken cacheToken = Iterables.getOnlyElement(cacheTokens);
+    assertThat(cacheToken.getToken(), is(notNullValue()));
+    assertThat(
+        cacheToken.getUserState(),
+        is(BeamFnApi.ProcessBundleRequest.CacheToken.UserState.getDefaultInstance()));
+    return cacheToken;
+  }
+
+  private static void sendGetRequest(StateRequestHandler stateRequestHandler, String userStateName)
+      throws Exception {
+    stateRequestHandler
+        .handle(
+            StateRequest.newBuilder()
+                .setGet(BeamFnApi.StateGetRequest.getDefaultInstance())
+                .setStateKey(
+                    StateKey.newBuilder()
+                        .setBagUserState(
+                            StateKey.BagUserState.newBuilder()
+                                .setKey(ByteString.copyFromUtf8("key"))
+                                .setWindow(
+                                    ByteString.copyFrom(
+                                        CoderUtils.encodeToByteArray(
+                                            GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE)))
+                                .setTransformId("transform")
+                                .setUserStateId(userStateName))
+                        .build())
+                .build())
+        .toCompletableFuture()
+        .get();
+  }
+
+  private static ExecutableStage buildExecutableStage(String... userStateNames) {
+    RunnerApi.ExecutableStagePayload.Builder builder =
+        RunnerApi.ExecutableStagePayload.newBuilder()
+            .setInput("input")
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putWindowingStrategies(
+                        "window",
+                        RunnerApi.WindowingStrategy.newBuilder()
+                            .setWindowCoderId("windowCoder")
+                            .build())
+                    .putPcollections(
+                        "input",
+                        RunnerApi.PCollection.newBuilder()
+                            .setWindowingStrategyId("window")
+                            .setCoderId("coder")
+                            .build())
+                    .putCoders(
+                        "windowCoder",
+                        RunnerApi.Coder.newBuilder()
+                            .setSpec(
+                                RunnerApi.FunctionSpec.newBuilder()
+                                    .setUrn(ModelCoders.GLOBAL_WINDOW_CODER_URN)
+                                    .build())
+                            .build())
+                    .putCoders(
+                        "coder",
+                        RunnerApi.Coder.newBuilder()
+                            .setSpec(
+                                RunnerApi.FunctionSpec.newBuilder()
+                                    .setUrn(ModelCoders.KV_CODER_URN)
+                                    .build())
+                            .addComponentCoderIds("keyCoder")
+                            .addComponentCoderIds("valueCoder")
+                            .build())
+                    .putCoders("keyCoder", RunnerApi.Coder.getDefaultInstance())
+                    .putCoders("valueCoder", RunnerApi.Coder.getDefaultInstance())
+                    .putTransforms(
+                        "transform",
+                        RunnerApi.PTransform.newBuilder()
+                            .setSpec(
+                                RunnerApi.FunctionSpec.newBuilder()
+                                    .setUrn(PAR_DO_TRANSFORM_URN)
+                                    .build())
+                            .putInputs("input", "input")
+                            .build())
+                    .build());
+
+    for (String userStateName : userStateNames) {
+      builder.addUserStates(
+          RunnerApi.ExecutableStagePayload.UserStateId.newBuilder()
+              .setTransformId("transform")
+              .setLocalName(userStateName)
+              .build());
+    }
+
+    return ExecutableStage.fromPayload(builder.build());
   }
 }

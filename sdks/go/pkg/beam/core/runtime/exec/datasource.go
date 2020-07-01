@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
@@ -46,7 +47,21 @@ type DataSource struct {
 	splitIdx  int64
 	start     time.Time
 
+	// rt is non-nil if this DataSource feeds directly to a splittable unit,
+	// and receives the current restriction tracker being processed.
+	rt chan sdf.RTracker
+
 	mu sync.Mutex
+}
+
+// Initializes the rt channel from the following unit when applicable.
+func (n *DataSource) InitSplittable() {
+	if n.Out == nil {
+		return
+	}
+	if u, ok := n.Out.(*ProcessSizedElementsAndRestrictions); ok == true {
+		n.rt = u.Rt
+	}
 }
 
 // ID returns the UnitID for this node.
@@ -287,12 +302,23 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (int64, 
 	}
 
 	n.mu.Lock()
+	var currProg float64 // Current element progress.
+	if n.index < 0 {     // Progress is at the end of the non-existant -1st element.
+		currProg = 1.0
+	} else if n.rt == nil { // If this isn't sub-element splittable, estimate some progress.
+		currProg = 0.5
+	} else { // If this is sub-element splittable, get progress of the current element.
+		rt := <-n.rt
+		d, r := rt.GetProgress()
+		currProg = d / (d + r)
+		n.rt <- rt
+	}
 	// Size to split within is the minimum of bufSize or splitIdx so we avoid
 	// including elements we already know won't be processed.
 	if bufSize <= 0 || n.splitIdx < bufSize {
 		bufSize = n.splitIdx
 	}
-	s, err := splitHelper(n.index, bufSize, splits, frac)
+	s, _, err := splitHelper(n.index, bufSize, currProg, splits, frac, false)
 	if err != nil {
 		n.mu.Unlock()
 		return 0, err
@@ -304,58 +330,99 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (int64, 
 }
 
 // splitHelper is a helper function that finds a split point in a range.
-// currIdx and splitIdx should match the DataSource's index and splitIdx fields,
-// and represent the start and end of the splittable range respectively. splits
-// is an optional slice of valid split indices, and if nil then all indices are
-// considered valid split points. frac must be between [0, 1], and represents
-// a fraction of the remaining work that the split point aims to be as close
-// as possible to.
-func splitHelper(currIdx, splitIdx int64, splits []int64, frac float64) (int64, error) {
+//
+// currIdx and endIdx should match the DataSource's index and splitIdx fields,
+// and represent the start and end of the splittable range respectively.
+//
+// currProg represents the progress through the current element (currIdx).
+//
+// splits is an optional slice of valid split indices, and if nil then all
+// indices are considered valid split points.
+//
+// frac must be between [0, 1], and represents a fraction of the remaining work
+// that the split point aims to be as close as possible to.
+//
+// splittable indicates that sub-element splitting is possible (i.e. the next
+// unit is an SDF).
+//
+// Returns the element index to split at (first element of residual), and the
+// fraction within that element to split, iff the split point is the current
+// element, the splittable param is set to true, and both the element being
+// split and the following element are valid split points.
+func splitHelper(
+	currIdx, endIdx int64,
+	currProg float64,
+	splits []int64,
+	frac float64,
+	splittable bool) (int64, float64, error) {
 	// Get split index from fraction. Find the closest index to the fraction of
 	// the remainder.
-	var start int64 = 0
-	if currIdx > start {
-		start = currIdx
+	start := float64(currIdx) + currProg
+	safeStart := currIdx + 1 // safeStart avoids splitting at 0, or <= currIdx
+	if safeStart <= 0 {
+		safeStart = 1
 	}
-	// This is the first valid split index, since we should never split at 0 or
-	// at the current element.
-	safeStart := start + 1
-	// The remainder starts at our actual progress (i.e. start), but our final
-	// split index has to be >= our safeStart.
-	fracIdx := start + int64(math.Round(frac*float64(splitIdx-start)))
-	if fracIdx < safeStart {
-		fracIdx = safeStart
+	var splitFloat = start + frac*(float64(endIdx)-start)
+
+	// Handle simpler cases where all split points are valid first.
+	if len(splits) == 0 {
+		if splittable && int64(splitFloat) == currIdx {
+			// Sub-element splitting is valid here, so return fraction.
+			_, f := math.Modf(splitFloat)
+			return int64(splitFloat), f, nil
+		}
+		// All split points are valid so just split at safe index closest to
+		// fraction.
+		splitIdx := int64(math.Round(splitFloat))
+		if splitIdx < safeStart {
+			splitIdx = safeStart
+		}
+		return splitIdx, 0.0, nil
 	}
-	if splits == nil {
-		// All split points are valid so just split at fraction.
-		return fracIdx, nil
-	} else {
-		// Find the closest unprocessed split point to our fraction.
-		sort.Slice(splits, func(i, j int) bool { return splits[i] < splits[j] })
-		var prevDiff int64 = math.MaxInt64
-		var bestS int64 = -1
+
+	// Cases where we have to find a valid split point.
+	sort.Slice(splits, func(i, j int) bool { return splits[i] < splits[j] })
+	if splittable && int64(splitFloat) == currIdx {
+		// Check valid split points to see if we can do a sub-element split.
+		// We need to find the currIdx and currIdx + 1 for it to be valid.
+		c, cp1 := false, false
 		for _, s := range splits {
-			if s >= safeStart && s <= splitIdx {
-				diff := intAbs(fracIdx - s)
-				if diff <= prevDiff {
-					prevDiff = diff
-					bestS = s
-				} else {
-					break // Stop early if the difference starts increasing.
-				}
+			if s == currIdx {
+				c = true
+			} else if s == currIdx+1 {
+				cp1 = true
+				break
+			} else if s > currIdx+1 {
+				break
 			}
 		}
-		if bestS != -1 {
-			return bestS, nil
+		if c && cp1 {
+			// Sub-element splitting is valid here, so return fraction.
+			_, f := math.Modf(splitFloat)
+			return int64(splitFloat), f, nil
 		}
 	}
-	return 0, fmt.Errorf("failed to split DataSource (at index: %v) at requested splits: {%v}", currIdx, splits)
-}
 
-// intAbs implements absolute value for integers via Two's Complement.
-func intAbs(n int64) int64 {
-	y := n >> 63       // y ← x ⟫ 63
-	return (n ^ y) - y // (x ⨁ y) - y
+	// For non-sub-element splitting, find the closest unprocessed split
+	// point to our fraction.
+	var prevDiff = math.MaxFloat64
+	var bestS int64 = -1
+	for _, s := range splits {
+		if s >= safeStart && s <= endIdx {
+			diff := math.Abs(splitFloat - float64(s))
+			if diff <= prevDiff {
+				prevDiff = diff
+				bestS = s
+			} else {
+				break // Stop early if the difference starts increasing.
+			}
+		}
+	}
+	if bestS != -1 {
+		return bestS, 0.0, nil
+	}
+
+	return -1, 0.0, fmt.Errorf("failed to split DataSource (at index: %v) at requested splits: {%v}", currIdx, splits)
 }
 
 type concatReStream struct {
