@@ -476,7 +476,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             .method(ElementMatchers.named("invokeSplitRestriction"))
             .intercept(splitRestrictionDelegation(clazzDescription, signature.splitRestriction()))
             .method(ElementMatchers.named("invokeTruncateRestriction"))
-            .intercept(truncateRestrictionDelegation(clazzDescription, signature))
+            .intercept(truncateRestrictionDelegation(clazzDescription, signature.truncateRestriction()))
             .method(ElementMatchers.named("invokeGetRestrictionCoder"))
             .intercept(getRestrictionCoderDelegation(clazzDescription, signature))
             .method(ElementMatchers.named("invokeNewTracker"))
