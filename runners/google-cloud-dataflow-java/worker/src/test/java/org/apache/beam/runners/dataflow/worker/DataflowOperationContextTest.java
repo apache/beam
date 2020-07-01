@@ -32,7 +32,6 @@ import static org.mockito.Mockito.when;
 import com.google.api.client.testing.http.FixedClock;
 import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.CounterUpdate;
-
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -71,7 +70,9 @@ import org.mockito.MockitoAnnotations;
 @RunWith(Enclosed.class)
 public class DataflowOperationContextTest {
 
-  /** Tests for the management of {@link DataflowExecutionState} in {@link DataflowOperationContext}. */
+  /**
+   * Tests for the management of {@link DataflowExecutionState} in {@link DataflowOperationContext}.
+   */
   @RunWith(JUnit4.class)
   public static class ContextStatesTest {
 
@@ -233,8 +234,7 @@ public class DataflowOperationContextTest {
           new StackTraceElement[] {
             new StackTraceElement(
                 "userpackage.SomeUserDoFn", "helperMethod", "SomeUserDoFn.java", 250),
-            new StackTraceElement(
-                "userpackage.SomeUserDoFn", "process", "SomeUserDoFn.java", 450),
+            new StackTraceElement("userpackage.SomeUserDoFn", "process", "SomeUserDoFn.java", 450),
             new StackTraceElement(
                 SimpleDoFnRunner.class.getName(), "processElement", "SimpleDoFnRunner.java", 500),
           };
@@ -259,12 +259,10 @@ public class DataflowOperationContextTest {
       try {
         executionState.reportLull(mockThread, 6000);
         verifyLullLog(true);
-        clock.setTime(
-            clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
+        clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
         executionState.reportLull(mockThread, 6000);
         verifyLullLog(false);
-        clock.setTime(
-            clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
+        clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
         executionState.reportLull(mockThread, 6000);
         verifyLullLog(true);
       } finally {
@@ -287,8 +285,7 @@ public class DataflowOperationContextTest {
           Matchers.allOf(
               Matchers.containsString(
                   "Operation ongoing in step " + NameContextsForTests.USER_NAME),
-              Matchers.containsString(
-                  " without outputting or completing in state somestate"),
+              Matchers.containsString(" without outputting or completing in state somestate"),
               Matchers.containsString("userpackage.SomeUserDoFn.helperMethod"),
               Matchers.not(Matchers.containsString(SimpleDoFnRunner.class.getName()))));
 

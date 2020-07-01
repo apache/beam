@@ -201,20 +201,14 @@ public class DataflowOperationContext implements OperationContext {
     }
 
     public DataflowExecutionState(
-      NameContext nameContext,
-      String stateName,
-      @Nullable String requestingStepName,
-      @Nullable Integer inputIndex,
-      @Nullable MetricsContainer metricsContainer,
-      ProfileScope profileScope,
-      Clock clock) {
-      this(
-          nameContext,
-          stateName,
-          requestingStepName,
-          inputIndex,
-          metricsContainer,
-          profileScope);
+        NameContext nameContext,
+        String stateName,
+        @Nullable String requestingStepName,
+        @Nullable Integer inputIndex,
+        @Nullable MetricsContainer metricsContainer,
+        ProfileScope profileScope,
+        Clock clock) {
+      this(nameContext, stateName, requestingStepName, inputIndex, metricsContainer, profileScope);
       this.clock = clock;
     }
 
