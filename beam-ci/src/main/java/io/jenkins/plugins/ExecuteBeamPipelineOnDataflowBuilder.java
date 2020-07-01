@@ -39,6 +39,7 @@ import jenkins.tasks.SimpleBuildStep;
 public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements SimpleBuildStep {
 
     private ProcessBuilder processBuilder;
+    private final String fileName = System.getProperty("user.dir") + "/src/main/java/io/jenkins/plugins/executePythonBeamPipeline.sh";
     private final String pathToCreds;
     private final String pathToMainClass;
     private final String pipelineOptions;
@@ -92,7 +93,6 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
      * Builds and sets the command on the ProcessBuilder depending on configurations set by the user
      * */
     private void buildCommand(Run<?, ?> run, String workspace, PrintStream logger) {
-//        ArrayList<String> command;
         if (this.useJava) {
             String pipelineOptions = this.pipelineOptions.replaceAll("[\\t\\n]+"," ");
             if (this.useGradle) { // gradle
@@ -107,16 +107,13 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
                 command.addAll(Arrays.asList(buildReleaseOptions)); // add build release options as separate list elements
             }
         } else { // python
-            // Get Path to the Bash Script
-            String dir = System.getProperty("user.dir"); // Get the directory the plugin is located
-            String pathToScript = dir + "/src/main/java/io/jenkins/plugins/executePythonBeamPipeline.sh";
-
             // Get Path to the current build directory to create Virtual Environment in
             String jobBuildPathDirectory = getJobBuildDirectory(run);
 
             // Execute Bash Script
-            command = new ArrayList<>(Arrays.asList(pathToScript, workspace, jobBuildPathDirectory, this.pathToMainClass, this.pipelineOptions, this.buildReleaseOptions));
+            command = new ArrayList<>(Arrays.asList(this.fileName, workspace, jobBuildPathDirectory, this.pathToMainClass, this.pipelineOptions, this.buildReleaseOptions));
         }
+        logger.println("Command: " + command);
         this.processBuilder.command(command);
     }
 
