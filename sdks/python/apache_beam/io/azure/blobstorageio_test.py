@@ -85,14 +85,14 @@ class TestBlobStorageIO(unittest.TestCase):
             [
                 ('sloth/pictures/sleeping', 2),
                 ('sloth/videos/smiling', 3),
-                ('sloth/institute/costarica', 4),
+                ('sloth/institute/costarica', 5),
             ]),
         (
             self.TEST_DATA_PATH + 'sloth/',
             [
                 ('sloth/pictures/sleeping', 2),
                 ('sloth/videos/smiling', 3),
-                ('sloth/institute/costarica', 4),
+                ('sloth/institute/costarica', 5),
             ]),
         (
             self.TEST_DATA_PATH + 'sloth/videos/smiling',
