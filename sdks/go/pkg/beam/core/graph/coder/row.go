@@ -24,11 +24,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
-type typeDecoderReflect struct {
-	typ    reflect.Type
-	fields []func(reflect.Value, io.Reader) error
-}
-
 // RowEncoderForStruct returns an encoding function that encodes a struct type
 // or a pointer to a struct type using the beam row encoding.
 //
@@ -97,7 +92,7 @@ func decoderForSingleTypeReflect(t reflect.Type) func(reflect.Value, io.Reader) 
 		return func(rv reflect.Value, r io.Reader) error {
 			v, err := DecodeBool(r)
 			if err != nil {
-				return errors.Wrap(err, "error decoding varint field")
+				return errors.Wrap(err, "error decoding bool field")
 			}
 			rv.SetBool(v)
 			return nil
@@ -106,7 +101,7 @@ func decoderForSingleTypeReflect(t reflect.Type) func(reflect.Value, io.Reader) 
 		return func(rv reflect.Value, r io.Reader) error {
 			b, err := DecodeByte(r)
 			if err != nil {
-				return nil
+				return errors.Wrap(err, "error decoding single byte field")
 			}
 			rv.SetUint(uint64(b))
 			return nil
@@ -151,7 +146,7 @@ func decoderForSingleTypeReflect(t reflect.Type) func(reflect.Value, io.Reader) 
 			return func(rv reflect.Value, r io.Reader) error {
 				b, err := DecodeBytes(r)
 				if err != nil {
-					return err
+					return errors.Wrap(err, "error decoding []byte field")
 				}
 				rv.SetBytes(b)
 				return nil
@@ -170,6 +165,11 @@ func decoderForSingleTypeReflect(t reflect.Type) func(reflect.Value, io.Reader) 
 		}
 	}
 	panic(fmt.Sprintf("unimplemented type to decode: %v", t))
+}
+
+type typeDecoderReflect struct {
+	typ    reflect.Type
+	fields []func(reflect.Value, io.Reader) error
 }
 
 // decoderForStructReflect returns a reflection based decoder function for the
@@ -287,7 +287,6 @@ type typeEncoderReflect struct {
 func encoderForStructReflect(t reflect.Type) func(reflect.Value, io.Writer) error {
 	var coder typeEncoderReflect
 	for i := 0; i < t.NumField(); i++ {
-		i := i // avoid alias issues in the closures.
 		coder.fields = append(coder.fields, encoderForSingleTypeReflect(t.Field(i).Type))
 	}
 
@@ -333,7 +332,7 @@ func writeRowHeader(rv reflect.Value, w io.Writer) error {
 		// Other types can be nil, but they aren't encodable.
 		case reflect.Ptr, reflect.Map, reflect.Slice:
 			if rvf.IsNil() {
-				curByte |= (uint8(1) << shift)
+				curByte |= (1 << uint8(shift))
 				nils = true
 			}
 		}
