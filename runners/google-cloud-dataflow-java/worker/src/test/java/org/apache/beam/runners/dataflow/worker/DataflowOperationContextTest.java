@@ -97,6 +97,7 @@ public class DataflowOperationContextTest {
     @Before
     public void setUp() {
       MockitoAnnotations.initMocks(this);
+
       otherState = stateRegistry.getState(NameContext.forStage("STAGE"), "other", null, emptyScope);
       startState =
           stateRegistry.getState(
@@ -178,6 +179,7 @@ public class DataflowOperationContextTest {
   }
 
   /** Tests for the lull logging in {@link DataflowOperationContext}. */
+  @RunWith(JUnit4.class)
   public static class LullLoggingTest {
 
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
