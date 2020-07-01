@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.snowflake.services;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.math.BigInteger;
+import java.nio.charset.Charset;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -73,11 +75,15 @@ public class SnowflakeBatchServiceImpl implements SnowflakeService<SnowflakeBatc
             getProperBucketDir(stagingBucketDir),
             source,
             storageIntegrationName,
-            CSV_QUOTE_CHAR_FOR_COPY);
+            getASCIICharRepresentation(config.getQuotationMark()));
 
     runStatement(copyQuery, getConnection(dataSourceProviderFn), null);
 
     return stagingBucketDir.concat("*");
+  }
+
+  private String getASCIICharRepresentation(String input) {
+    return String.format("0x%x", new BigInteger(1, input.getBytes(Charset.defaultCharset())));
   }
 
   public void copyToTable(SnowflakeBatchServiceConfig config) throws SQLException {
@@ -117,13 +123,13 @@ public class SnowflakeBatchServiceImpl implements SnowflakeService<SnowflakeBatc
               getTablePath(database, schema, table),
               getProperBucketDir(source),
               files,
-              CSV_QUOTE_CHAR_FOR_COPY,
+              getASCIICharRepresentation(config.getQuotationMark()),
               storageIntegrationName);
     } else {
       query =
           String.format(
               "COPY INTO %s FROM %s FILES=(%s) FILE_FORMAT=(TYPE=CSV FIELD_OPTIONALLY_ENCLOSED_BY='%s' COMPRESSION=GZIP);",
-              table, source, files, CSV_QUOTE_CHAR_FOR_COPY);
+              table, source, files, getASCIICharRepresentation(config.getQuotationMark()));
     }
 
     runStatement(query, dataSource.getConnection(), null);

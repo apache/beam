@@ -184,7 +184,6 @@ public class SnowflakeIO {
   private static final Logger LOG = LoggerFactory.getLogger(SnowflakeIO.class);
 
   private static final String CSV_QUOTE_CHAR = "'";
-  private static final String WRITE_TMP_PATH = "data";
 
   static final int DEFAULT_FLUSH_ROW_LIMIT = 10000;
   static final int DEFAULT_STREAMING_SHARDS_NUMBER = 1;
@@ -207,6 +206,7 @@ public class SnowflakeIO {
   public static <T> Read<T> read(SnowflakeService snowflakeService) {
     return new AutoValue_SnowflakeIO_Read.Builder<T>()
         .setSnowflakeService(snowflakeService)
+        .setQuotationMark(CSV_QUOTE_CHAR)
         .build();
   }
 
@@ -254,6 +254,7 @@ public class SnowflakeIO {
         .setFlushTimeLimit(DEFAULT_FLUSH_TIME_LIMIT)
         .setShardsNumber(DEFAULT_BATCH_SHARDS_NUMBER)
         .setFlushRowLimit(DEFAULT_FLUSH_ROW_LIMIT)
+        .setQuotationMark(CSV_QUOTE_CHAR)
         .build();
   }
 
@@ -284,6 +285,9 @@ public class SnowflakeIO {
     @Nullable
     abstract SnowflakeService getSnowflakeService();
 
+    @Nullable
+    abstract String getQuotationMark();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -304,6 +308,8 @@ public class SnowflakeIO {
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setSnowflakeService(SnowflakeService snowflakeService);
+
+      abstract Builder<T> setQuotationMark(String quotationMark);
 
       abstract Read<T> build();
     }
@@ -383,6 +389,10 @@ public class SnowflakeIO {
       return toBuilder().setCoder(coder).build();
     }
 
+    public Read<T> withQuotationMark(String quotationMark) {
+      return toBuilder().setQuotationMark(quotationMark).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArguments();
@@ -400,12 +410,13 @@ public class SnowflakeIO {
                           getStorageIntegrationName(),
                           getStagingBucketName(),
                           tmpDirName,
-                          getSnowflakeService())))
+                          getSnowflakeService(),
+                          getQuotationMark())))
               .apply(Reshuffle.viaRandomKey())
               .apply(FileIO.matchAll())
               .apply(FileIO.readMatches())
               .apply(readFiles())
-              .apply(ParDo.of(new MapCsvToStringArrayFn()))
+              .apply(ParDo.of(new MapCsvToStringArrayFn(getQuotationMark())))
               .apply(ParDo.of(new MapStringArrayToUserDataFn<>(getCsvMapper())));
 
       output.setCoder(getCoder());
@@ -453,6 +464,7 @@ public class SnowflakeIO {
       private final String storageIntegrationName;
       private final String stagingBucketDir;
       private final SnowflakeService snowflakeService;
+      private final String quotationMark;
 
       private CopyIntoStageFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn,
@@ -461,12 +473,14 @@ public class SnowflakeIO {
           String storageIntegrationName,
           String stagingBucketDir,
           String tmpDirName,
-          SnowflakeService snowflakeService) {
+          SnowflakeService snowflakeService,
+          String quotationMark) {
         this.dataSourceProviderFn = dataSourceProviderFn;
         this.query = query;
         this.table = table;
         this.storageIntegrationName = storageIntegrationName;
         this.snowflakeService = snowflakeService;
+        this.quotationMark = quotationMark;
         this.stagingBucketDir = stagingBucketDir;
         this.tmpDirName = tmpDirName;
         DataSourceProviderFromDataSourceConfiguration
@@ -494,7 +508,8 @@ public class SnowflakeIO {
                 table,
                 query,
                 storageIntegrationName,
-                stagingBucketDir);
+                stagingBucketRunDir,
+                quotationMark);
 
         String output = snowflakeService.read(config);
 
@@ -503,10 +518,16 @@ public class SnowflakeIO {
     }
 
     public static class MapCsvToStringArrayFn extends DoFn<String, String[]> {
+      private String quoteChar;
+
+      public MapCsvToStringArrayFn(String quoteChar) {
+        this.quoteChar = quoteChar;
+      }
+
       @ProcessElement
       public void processElement(ProcessContext c) throws IOException {
         String csvLine = c.element();
-        CSVParser parser = new CSVParserBuilder().withQuoteChar(CSV_QUOTE_CHAR.charAt(0)).build();
+        CSVParser parser = new CSVParserBuilder().withQuoteChar(quoteChar.charAt(0)).build();
         String[] parts = parser.parseLine(csvLine);
         c.output(parts);
       }
@@ -614,6 +635,9 @@ public class SnowflakeIO {
     abstract SnowflakeService getSnowflakeService();
 
     @Nullable
+    abstract String getQuotationMark();
+
+    @Nullable
     abstract StreamingLogLevel getDebugMode();
 
     abstract Builder<T> toBuilder();
@@ -650,6 +674,8 @@ public class SnowflakeIO {
       abstract Builder<T> setTableSchema(SnowflakeTableSchema tableSchema);
 
       abstract Builder<T> setSnowflakeService(SnowflakeService snowflakeService);
+
+      abstract Builder<T> setQuotationMark(String quotationMark);
 
       abstract Builder<T> setDebugMode(StreamingLogLevel debugLevel);
 
@@ -787,6 +813,10 @@ public class SnowflakeIO {
       return toBuilder().setSnowflakeService(snowflakeService).build();
     }
 
+    public Write<T> withQuotationMark(String quotationMark) {
+      return toBuilder().setQuotationMark(quotationMark).build();
+    }
+
     public Write<T> withDebugMode(StreamingLogLevel debugLevel) {
       return toBuilder().setDebugMode(debugLevel).build();
     }
@@ -904,7 +934,9 @@ public class SnowflakeIO {
                           return getUserDataMapper().mapRow(element);
                         }
                       }))
-              .apply("Map Objects array to CSV lines", ParDo.of(new MapObjectsArrayToCsvFn()))
+              .apply(
+                  "Map Objects array to CSV lines",
+                  ParDo.of(new MapObjectsArrayToCsvFn(getQuotationMark())))
               .setCoder(StringUtf8Coder.of());
 
       WriteFilesResult filesResult =
@@ -936,7 +968,8 @@ public class SnowflakeIO {
               getCreateDisposition(),
               getWriteDisposition(),
               getTableSchema(),
-              snowflakeService));
+              snowflakeService,
+              getQuotationMark()));
     }
 
     protected PTransform streamToTable(SnowflakeService snowflakeService, String stagingBucketDir) {
@@ -983,6 +1016,11 @@ public class SnowflakeIO {
    * <p>Adds Snowflake-specific quotations around strings.
    */
   private static class MapObjectsArrayToCsvFn extends DoFn<Object[], String> {
+    private String quotationMark;
+
+    public MapObjectsArrayToCsvFn(String quotationMark) {
+      this.quotationMark = quotationMark;
+    }
 
     @ProcessElement
     public void processElement(ProcessContext context) {
@@ -1002,7 +1040,7 @@ public class SnowflakeIO {
     }
 
     private String quoteField(String field) {
-      return quoteField(field, CSV_QUOTE_CHAR);
+      return quoteField(field, this.quotationMark);
     }
 
     private String quoteField(String field, String quotation) {
@@ -1019,6 +1057,7 @@ public class SnowflakeIO {
     private final SnowflakeTableSchema tableSchema;
     private final String stagingBucketDir;
     private final String storageIntegrationName;
+    private final String quotationMark;
     private final WriteDisposition writeDisposition;
     private final CreateDisposition createDisposition;
     private final SnowflakeService snowflakeService;
@@ -1032,16 +1071,18 @@ public class SnowflakeIO {
         CreateDisposition createDisposition,
         WriteDisposition writeDisposition,
         SnowflakeTableSchema tableSchema,
-        SnowflakeService snowflakeService) {
+        SnowflakeService snowflakeService,
+        String quotationMark) {
       this.dataSourceProviderFn = dataSourceProviderFn;
-      this.table = table;
       this.query = query;
+      this.table = table;
       this.stagingBucketDir = stagingBucketDir;
       this.storageIntegrationName = storageIntegrationName;
       this.writeDisposition = writeDisposition;
       this.createDisposition = createDisposition;
       this.tableSchema = tableSchema;
       this.snowflakeService = snowflakeService;
+      this.quotationMark = quotationMark;
 
       DataSourceProviderFromDataSourceConfiguration dataSourceProviderFromDataSourceConfiguration =
           (DataSourceProviderFromDataSourceConfiguration) this.dataSourceProviderFn;
@@ -1065,7 +1106,8 @@ public class SnowflakeIO {
               createDisposition,
               writeDisposition,
               storageIntegrationName,
-              stagingBucketDir);
+              stagingBucketDir,
+              quotationMark);
       snowflakeService.write(config);
     }
   }

@@ -48,7 +48,8 @@ public class SnowflakeBatchServiceConfig extends ServiceConfig {
       String table,
       String query,
       String storageIntegrationName,
-      String stagingBucketDir) {
+      String stagingBucketDir,
+      String quotationMark) {
     this.dataSourceProviderFn = dataSourceProviderFn;
     this.database = database;
     this.schema = schema;
@@ -56,6 +57,7 @@ public class SnowflakeBatchServiceConfig extends ServiceConfig {
     this.query = query;
     this.storageIntegrationName = storageIntegrationName;
     this.stagingBucketDir = stagingBucketDir;
+    this.quotationMark = quotationMark;
   }
 
   public SnowflakeBatchServiceConfig(
@@ -69,7 +71,8 @@ public class SnowflakeBatchServiceConfig extends ServiceConfig {
       CreateDisposition createDisposition,
       WriteDisposition writeDisposition,
       String storageIntegrationName,
-      String stagingBucketDir) {
+      String stagingBucketDir,
+      String quotationMark) {
     this.dataSourceProviderFn = dataSourceProviderFn;
     this.filesList = filesList;
     this.database = database;
@@ -81,6 +84,7 @@ public class SnowflakeBatchServiceConfig extends ServiceConfig {
     this.tableSchema = tableSchema;
     this.storageIntegrationName = storageIntegrationName;
     this.stagingBucketDir = stagingBucketDir;
+    this.quotationMark = quotationMark;
   }
 
   public SerializableFunction<Void, DataSource> getDataSourceProviderFn() {
@@ -109,6 +113,10 @@ public class SnowflakeBatchServiceConfig extends ServiceConfig {
 
   public WriteDisposition getWriteDisposition() {
     return writeDisposition;
+  }
+
+  public String getQuotationMark() {
+    return quotationMark;
   }
 
   public String getDatabase() {
