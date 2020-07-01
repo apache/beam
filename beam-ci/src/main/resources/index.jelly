@@ -1,4 +1,7 @@
 <?jelly escape-by-default='true'?>
+<!--
+  This view is used to render the installed plugins page.
+-->
 <div>
-    TODO
+    This plugin is used for launching Beam pipelines on Dataflow.
 </div>
