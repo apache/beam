@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
+import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.NullBehavior;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
@@ -91,6 +92,7 @@ public class JsonToRow {
   static class JsonToRowFn extends PTransform<PCollection<String>, PCollection<Row>> {
     private transient volatile @Nullable ObjectMapper objectMapper;
     private Schema schema;
+    private volatile NullBehavior nullBehavior = NullBehavior.REQUIRE_NULL;
 
     static JsonToRowFn forSchema(Schema rowSchema) {
       // Throw exception if this schema is not supported by RowJson
@@ -100,6 +102,11 @@ public class JsonToRow {
 
     private JsonToRowFn(Schema schema) {
       this.schema = schema;
+    }
+
+    public JsonToRowFn withNullBehavior(NullBehavior nullBehavior) {
+      this.nullBehavior = nullBehavior;
+      return this;
     }
 
     @Override
@@ -120,7 +127,9 @@ public class JsonToRow {
       if (this.objectMapper == null) {
         synchronized (this) {
           if (this.objectMapper == null) {
-            this.objectMapper = newObjectMapperWith(RowJsonDeserializer.forSchema(this.schema));
+            this.objectMapper =
+                newObjectMapperWith(
+                    RowJsonDeserializer.forSchema(this.schema).withNullBehavior(this.nullBehavior));
           }
         }
       }
@@ -188,6 +197,8 @@ public class JsonToRow {
 
     abstract boolean getExtendedErrorInfo();
 
+    abstract NullBehavior getNullBehavior();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -200,6 +211,8 @@ public class JsonToRow {
 
       abstract Builder setExtendedErrorInfo(boolean value);
 
+      abstract Builder setNullBehavior(NullBehavior nullBehavior);
+
       abstract JsonToRowWithErrFn build();
     }
 
@@ -208,6 +221,7 @@ public class JsonToRow {
       RowJson.verifySchemaSupported(rowSchema);
       return new AutoValue_JsonToRow_JsonToRowWithErrFn.Builder()
           .setSchema(rowSchema)
+          .setNullBehavior(NullBehavior.REQUIRE_NULL)
           .setExtendedErrorInfo(false)
           .setLineFieldName(LINE_FIELD_NAME)
           .setErrorFieldName(ERROR_FIELD_NAME)
@@ -243,6 +257,15 @@ public class JsonToRow {
             "This option is only available with Extended Error Info.");
       }
       return this.toBuilder().setErrorFieldName(errorField).build();
+    }
+
+    /**
+     * Sets the missing field behavior.
+     *
+     * @return {@link JsonToRow}
+     */
+    public JsonToRowWithErrFn withNullBehavior(NullBehavior nullBehavior) {
+      return this.toBuilder().setNullBehavior(nullBehavior).build();
     }
 
     @Override
@@ -321,7 +344,8 @@ public class JsonToRow {
             if (this.objectMapper == null) {
               this.objectMapper =
                   newObjectMapperWith(
-                      RowJsonDeserializer.forSchema(getJsonToRowWithErrFn().getSchema()));
+                      RowJsonDeserializer.forSchema(getJsonToRowWithErrFn().getSchema())
+                          .withNullBehavior(getJsonToRowWithErrFn().getNullBehavior()));
             }
           }
         }
