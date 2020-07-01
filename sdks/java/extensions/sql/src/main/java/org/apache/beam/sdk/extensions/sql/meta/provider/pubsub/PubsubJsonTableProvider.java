@@ -59,7 +59,7 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
     try {
       RowJsonDeserializer deserializer =
           RowJsonDeserializer.forSchema(ioProvider.configurationSchema())
-              .withMissingFieldBehavior(RowJsonDeserializer.MissingFieldBehavior.ALLOW_MISSING);
+              .withNullBehavior(RowJsonDeserializer.NullBehavior.ACCEPT_MISSING_OR_NULL);
 
       Row configurationRow =
           newObjectMapperWith(deserializer).readValue(tableProperties.toString(), Row.class);
