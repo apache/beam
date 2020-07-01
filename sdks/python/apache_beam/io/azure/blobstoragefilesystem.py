@@ -18,12 +18,14 @@
 
 from __future__ import absolute_import
 
+from future.utils import iteritems
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
+from apache_beam.io.azure import blobstorageio
 
 
 __all__ = ['BlobStorageFileSystem']
@@ -34,7 +36,7 @@ class BlobStorageFileSystem(FileSystem):
   Blob Storage.
   """
 
-  CHUNK_SIZE = 1 
+  CHUNK_SIZE = blobstorageio.MAX_BATCH_OPERATION_SIZE
   AZURE_FILE_SYSTEM_PREFIX = 'azfs://'
 
   @classmethod
@@ -123,7 +125,12 @@ class BlobStorageFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if listing fails, but not if no files were found.
     """
-    raise NotImplementedError
+    try:
+      for path, size in iteritems(blobstorageio.BlobStorageIO().list_prefix(dir_or_prefix)):
+        yield FileMetadata(path, size)
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("List operation failed", {dir_or_prefix: e})
+      
 
   def create(
       self,

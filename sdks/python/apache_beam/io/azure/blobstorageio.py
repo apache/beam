@@ -99,10 +99,5 @@ class BlobStorageIO(object):
         "Finished listing %s files in %s seconds.",
         counter,
         time.time() - start_time)
-    print("Query path:", path)
-    print("\n")
-    print("Result: ", file_sizes)
-    print("\n\n")
-
     return file_sizes
 
