@@ -247,14 +247,15 @@ public class JsonToRowTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testParsesErrorWithErrorMsgWithMissingFieldsDeadLetter() throws Exception {
+  public void testParsesErrorWithErrorMsgWithRequireNullDeadLetter() throws Exception {
     PCollection<String> jsonPersons =
         pipeline.apply("jsonPersons", Create.of(JSON_PERSON_WITH_IMPLICIT_NULLS));
 
     ParseResult results =
         jsonPersons.apply(
             JsonToRow.withExceptionReporting(PERSON_SCHEMA_WITH_NULLABLE_FIELD)
-                .withExtendedErrorInfo());
+                .withExtendedErrorInfo()
+                .withNullBehavior(NullBehavior.REQUIRE_NULL));
 
     PCollection<Row> errorsWithMsg = results.getFailedToParseLines();
 

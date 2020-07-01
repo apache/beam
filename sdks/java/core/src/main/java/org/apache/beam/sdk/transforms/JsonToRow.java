@@ -104,6 +104,7 @@ public class JsonToRow {
       this.schema = schema;
     }
 
+    /** Sets the behavior of the deserializer according to {@link NullBehavior}. */
     public JsonToRowFn withNullBehavior(NullBehavior nullBehavior) {
       this.nullBehavior = nullBehavior;
       return this;
@@ -260,7 +261,7 @@ public class JsonToRow {
     }
 
     /**
-     * Sets the missing field behavior.
+     * Sets the behavior of the deserializer according to {@link NullBehavior}.
      *
      * @return {@link JsonToRow}
      */
