@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -40,9 +41,7 @@ import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.translation.SparkBatchPortablePipelineTranslator;
-import org.apache.beam.runners.spark.translation.SparkContextFactory;
-import org.apache.beam.runners.spark.translation.SparkTranslationContext;
+import org.apache.beam.runners.spark.translation.*;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
@@ -71,7 +70,13 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
   @Override
   public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
-    SparkBatchPortablePipelineTranslator translator = new SparkBatchPortablePipelineTranslator();
+    SparkPortablePipelineTranslator translator;
+    if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(pipeline)) {
+      translator = new SparkBatchPortablePipelineTranslator();
+    }
+    else {
+      translator = new SparkStreamingPortablePipelineTranslator();
+    }
 
     // Expand any splittable DoFns within the graph to enable sizing and splitting of bundles.
     Pipeline pipelineWithSdfExpanded =
@@ -113,8 +118,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     MetricsEnvironment.setMetricsSupported(true);
     MetricsAccumulator.init(pipelineOptions, jsc);
 
-    final SparkTranslationContext context =
-        new SparkTranslationContext(jsc, pipelineOptions, jobInfo);
+    final SparkTranslationContext context = translator.createTranslationContext(jsc, pipelineOptions, jobInfo);
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
     final Future<?> submissionFuture =
         executorService.submit(
@@ -128,6 +132,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
               LOG.info(String.format("Job %s finished.", jobInfo.jobId()));
             });
 
+    // TODO: streaming option for result
     PortablePipelineResult result =
         new SparkPipelineResult.PortableBatchMode(submissionFuture, jsc);
     MetricsPusher metricsPusher =
