@@ -743,11 +743,36 @@ class DoOperation(Operation):
     return infos
 
 
+class SdfTruncateSizedRestrictions(DoOperation):
+  def __init__(self, *args, **kwargs):
+    super(SdfTruncateSizedRestrictions, self).__init__(*args, **kwargs)
+    self.sdf_process_op = None
+
+  def current_element_progress(self):
+    # type: () -> Optional[iobase.RestrictionProgress]
+    return self.sdf_process_op.current_element_progress()
+
+  def try_split(self, fraction_of_remainder):  # type: (...) -> Optional[Any]
+    result = self.sdf_process_op.try_split(fraction_of_remainder)
+    if result is not None:
+      return result
+    return None
+
+  def add_receiver(self, operation, output_index=0):
+    # type: (Operation, int) -> None
+    if isinstance(operation, SdfProcessSizedElements):
+      self.sdf_process_op = operation
+      self.sdf_process_op.sdf_truncate_op = self
+    super(SdfTruncateSizedRestrictions,
+          self).add_receiver(operation, output_index)
+
+
 class SdfProcessSizedElements(DoOperation):
   def __init__(self, *args, **kwargs):
     super(SdfProcessSizedElements, self).__init__(*args, **kwargs)
     self.lock = threading.RLock()
     self.element_start_output_bytes = None  # type: Optional[int]
+    self.sdf_truncate_op = None
 
   def process(self, o):
     # type: (WindowedValue) -> None

@@ -558,8 +558,7 @@ class FnApiRunnerTest(unittest.TestCase):
       actual = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
       assert_that(actual, equal_to(list(''.join(data))))
 
-  def test_sdf_with_sdf_initiated_checkpointing(self):
-
+  def run_sdf_initiated_checkpointing(self, is_drain=False):
     counter = beam.metrics.Metrics.counter('ns', 'my_counter')
 
     class ExpandStringsDoFn(beam.DoFn):
@@ -578,7 +577,7 @@ class FnApiRunnerTest(unittest.TestCase):
             return
           cur += 1
 
-    with self.create_pipeline() as p:
+    with self.create_pipeline(is_drain=is_drain) as p:
       data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
       actual = (p | beam.Create(data) | beam.ParDo(ExpandStringsDoFn()))
 
@@ -589,6 +588,12 @@ class FnApiRunnerTest(unittest.TestCase):
       counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
+
+  def test_sdf_with_sdf_initiated_checkpointing(self):
+    self.run_sdf_initiated_checkpointing(is_drain=False)
+
+  def test_draining_sdf_with_sdf_initiated_checkpointing(self):
+    self.run_sdf_initiated_checkpointing(is_drain=True)
 
   def test_sdf_default_truncate_when_bounded(self):
     class SimleSDF(beam.DoFn):
@@ -1337,8 +1342,7 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
 class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
   def create_pipeline(self, is_drain=False):
     return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(bundle_repeat=3),
-        is_drain=is_drain)
+        runner=fn_api_runner.FnApiRunner(bundle_repeat=3), is_drain=is_drain)
 
   def test_register_finalizations(self):
     raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
@@ -1348,8 +1352,7 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
   def create_pipeline(self, is_drain=False):
     pipeline_options = PipelineOptions(direct_num_workers=2)
     p = beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(
-            bundle_repeat=3, is_drain=is_drain),
+        runner=fn_api_runner.FnApiRunner(bundle_repeat=3, is_drain=is_drain),
         options=pipeline_options)
     #TODO(BEAM-8444): Fix these tests.
     p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
@@ -1432,16 +1435,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
             | beam.Map(lambda x: element_counter.increment() or x))
         assert_that(res, equal_to(elements))
 
-  def test_nosplit_sdf(self):
-    def split_manager(num_elements):
-      yield
-
-    elements = [1, 2, 3]
-    expected_groups = [[(e, k) for k in range(e)] for e in elements]
-    self.run_sdf_split_pipeline(
-        split_manager, elements, ElementCounter(), expected_groups)
-
-  def test_checkpoint_sdf(self):
+  def run_sdf_checkpoint(self, is_drain=False):
     element_counter = ElementCounter()
 
     def split_manager(num_elements):
@@ -1453,14 +1447,18 @@ class FnApiRunnerSplitTest(unittest.TestCase):
         yield 0
         breakpoint.clear()
 
-    # Everything should be perfectly split.
+      # Everything should be perfectly split.
+
     elements = [2, 3]
     expected_groups = [[(2, 0)], [(2, 1)], [(3, 0)], [(3, 1)], [(3, 2)]]
     self.run_sdf_split_pipeline(
-        split_manager, elements, element_counter, expected_groups)
+        split_manager,
+        elements,
+        element_counter,
+        expected_groups,
+        is_drain=is_drain)
 
-  def test_split_half_sdf(self):
-
+  def run_sdf_split_half(self, is_drain=False):
     element_counter = ElementCounter()
     is_first_bundle = [True]  # emulate nonlocal for Python 2
 
@@ -1483,9 +1481,13 @@ class FnApiRunnerSplitTest(unittest.TestCase):
                                                               (4, 2), (4, 3)]]
 
     self.run_sdf_split_pipeline(
-        split_manager, elements, element_counter, expected_groups)
+        split_manager,
+        elements,
+        element_counter,
+        expected_groups,
+        is_drain=is_drain)
 
-  def test_split_crazy_sdf(self, seed=None):
+  def run_split_crazy_sdf(self, seed=None, is_drain=False):
     if seed is None:
       seed = random.randrange(1 << 20)
     r = random.Random(seed)
@@ -1504,13 +1506,46 @@ class FnApiRunnerSplitTest(unittest.TestCase):
 
     try:
       elements = [r.randrange(5, 10) for _ in range(5)]
-      self.run_sdf_split_pipeline(split_manager, elements, element_counter)
+      self.run_sdf_split_pipeline(
+          split_manager, elements, element_counter, is_drain=is_drain)
     except Exception:
       _LOGGER.error('test_split_crazy_sdf.seed = %s', seed)
       raise
 
+  def test_nosplit_sdf(self):
+    def split_manager(num_elements):
+      yield
+
+    elements = [1, 2, 3]
+    expected_groups = [[(e, k) for k in range(e)] for e in elements]
+    self.run_sdf_split_pipeline(
+        split_manager, elements, ElementCounter(), expected_groups)
+
+  def test_checkpoint_sdf(self):
+    self.run_sdf_checkpoint(is_drain=False)
+
+  def test_checkpoint_draining_sdf(self):
+    self.run_sdf_checkpoint(is_drain=True)
+
+  def test_split_half_sdf(self):
+    self.run_sdf_split_half(is_drain=False)
+
+  def test_split_half_draining_sdf(self):
+    self.run_sdf_split_half(is_drain=True)
+
+  def test_split_crazy_sdf(self, seed=None):
+    self.run_split_crazy_sdf(seed=seed, is_drain=False)
+
+  def test_split_crazy_draining_sdf(self, seed=None):
+    self.run_split_crazy_sdf(seed=seed, is_drain=True)
+
   def run_sdf_split_pipeline(
-      self, split_manager, elements, element_counter, expected_groups=None):
+      self,
+      split_manager,
+      elements,
+      element_counter,
+      expected_groups=None,
+      is_drain=False):
     # Define an SDF that for each input x produces [(x, k) for k in range(x)].
 
     class EnumerateProvider(beam.transforms.core.RestrictionProvider):
@@ -1526,6 +1561,9 @@ class FnApiRunnerSplitTest(unittest.TestCase):
 
       def restriction_size(self, element, restriction):
         return restriction.size()
+
+      def is_bounded(self):
+        return True
 
     class EnumerateSdf(beam.DoFn):
       def process(
@@ -1544,7 +1582,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
     expected = [(e, k) for e in elements for k in range(e)]
 
     with fn_runner.split_manager('SDF', split_manager):
-      with self.create_pipeline() as p:
+      with self.create_pipeline(is_drain=is_drain) as p:
         grouped = (
             p
             | beam.Create(elements, reshuffle=False)

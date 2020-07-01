@@ -1079,6 +1079,13 @@ class BundleProcessor(object):
                                   ):
     # type: (...) -> beam_fn_api_pb2.BundleApplication
     transform_id, main_input_tag, main_input_coder, outputs = op.input_info
+    # The main_input_coder should be the main_input_coder of
+    # SdfTruncateSizedRestrictions if SdfProcessSizedElements is following
+    # SdfTruncateSizedRestrictions.
+    if (isinstance(op, operations.SdfProcessSizedElements) and
+        op.sdf_truncate_op is not None):
+      _, _, main_input_coder, _ = op.sdf_truncate_op.input_info
+
     if output_watermark:
       proto_output_watermark = proto_utils.from_micros(
           timestamp_pb2.Timestamp, output_watermark.micros)
@@ -1447,7 +1454,10 @@ def create_truncate_sized_restriction(*args):
         yield ((element, (truncated_restriction, estimator_state)),
                truncated_restriction_size)
 
-  return _create_sdf_operation(TruncateAndSizeRestriction, *args)
+  return _create_sdf_operation(
+      TruncateAndSizeRestriction,
+      *args,
+      operation_cls=operations.SdfTruncateSizedRestrictions)
 
 
 @BeamTransformFactory.register_urn(
@@ -1473,7 +1483,13 @@ def create_process_sized_elements_and_restrictions(
 
 
 def _create_sdf_operation(
-    proxy_dofn, factory, transform_id, transform_proto, parameter, consumers):
+    proxy_dofn,
+    factory,
+    transform_id,
+    transform_proto,
+    parameter,
+    consumers,
+    operation_cls=operations.DoOperation):
 
   dofn_data = pickler.loads(parameter.do_fn.payload)
   dofn = dofn_data[0]
@@ -1489,7 +1505,8 @@ def _create_sdf_operation(
       transform_proto,
       consumers,
       serialized_fn,
-      parameter)
+      parameter,
+      operation_cls=operation_cls)
 
 
 @BeamTransformFactory.register_urn(
