@@ -21,9 +21,9 @@ import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.ABORT_S
 import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.FINISH_STATE_NAME;
 import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.PROCESS_STATE_NAME;
 import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.START_STATE_NAME;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -225,30 +225,30 @@ public class DataflowOperationContextTest {
           };
 
       StackTraceElement[] doFnStackTrace =
-          new StackTraceElement[]{
-              new StackTraceElement(
-                  "userpackage.SomeUserDoFn", "helperMethod", "SomeUserDoFn.java", 250),
-              new StackTraceElement(
-                  "userpackage.SomeUserDoFn", "process", "SomeUserDoFn.java", 450),
-              new StackTraceElement(
-                  SimpleDoFnRunner.class.getName(), "processElement", "SimpleDoFnRunner.java", 500),
-          };
-      when(mockThread.getStackTrace())
-          .thenReturn(doFnStackTrace);
+        new StackTraceElement[] {
+          new StackTraceElement(
+              "userpackage.SomeUserDoFn", "helperMethod", "SomeUserDoFn.java", 250),
+          new StackTraceElement(
+              "userpackage.SomeUserDoFn", "process", "SomeUserDoFn.java", 450),
+          new StackTraceElement(
+              SimpleDoFnRunner.class.getName(), "processElement", "SimpleDoFnRunner.java", 500),
+        };
+      when(mockThread.getStackTrace()).thenReturn(doFnStackTrace);
 
       // Adding test for the full thread dump, but since we can't mock
       // Thread.getAllStackTraces(), we are starting a background thread
       // to verify the full thread dump.
-      Thread backgroundThread = new Thread("backgroundThread") {
-        @Override
-        public void run() {
-          try {
-            Thread.sleep(Long.MAX_VALUE);
-          } catch (InterruptedException e) {
-            // exiting the thread
-          }
-        }
-      };
+      Thread backgroundThread =
+          new Thread("backgroundThread") {
+            @Override
+            public void run() {
+              try {
+                Thread.sleep(Long.MAX_VALUE);
+              } catch (InterruptedException e) {
+                // exiting the thread
+              }
+            }
+          };
 
       backgroundThread.start();
       try {
