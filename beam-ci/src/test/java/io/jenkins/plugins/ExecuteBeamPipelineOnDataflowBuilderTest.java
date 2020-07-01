@@ -26,16 +26,14 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.*;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 
 import static junit.framework.TestCase.assertEquals;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
-
 
 public class ExecuteBeamPipelineOnDataflowBuilderTest {
 
@@ -43,10 +41,10 @@ public class ExecuteBeamPipelineOnDataflowBuilderTest {
     public JenkinsRule jenkins = new JenkinsRule();
 
     @Mock
-    ProcessBuilder processBuilderMock;
+    PipelineLauncher pipelineLauncherMock;
 
     @Mock
-    Process processMock;
+    PipelineLauncher.LaunchProcess launchProcessMock;
 
     final String pathToCreds = "path/to/credentials";
     final String pathToMainClass = "path/to/main/class";
@@ -57,41 +55,37 @@ public class ExecuteBeamPipelineOnDataflowBuilderTest {
     final ArrayList<String> expectedMavenCommand = new ArrayList<>(Arrays.asList("mvn", "compile", "exec:java", "-Dexec.mainClass=" + pathToMainClass, "-Dexec.args=" + pipelineOptions, buildReleaseOptions));
 
     @Before
-    public void initMocks() {
-        processBuilderMock = Mockito.mock(ProcessBuilder.class);
-        processMock = Mockito.mock(Process.class);
+    public void initMocks() throws InterruptedException, IOException {
+        pipelineLauncherMock = Mockito.mock(PipelineLauncher.class);
+        launchProcessMock = Mockito.mock(PipelineLauncher.LaunchProcess.class);
         MockitoAnnotations.initMocks(this);
-        Map<String,String> environment = new HashMap<>();
-        when(processBuilderMock.environment()).thenReturn(environment);
-        when(processBuilderMock.directory(any())).thenReturn(null);
-        when(processBuilderMock.command(anyList())).thenReturn(null);
         InputStream is = new ByteArrayInputStream( "".getBytes() );
-        when(processMock.getInputStream()).thenReturn(is);
-        when(processMock.getErrorStream()).thenReturn(is);
+        when(launchProcessMock.getInputStream()).thenReturn(is);
+        when(launchProcessMock.getErrorStream()).thenReturn(is);
+        when(launchProcessMock.waitFor()).thenReturn(0);
+        when(pipelineLauncherMock.start()).thenReturn(launchProcessMock);
     }
 
     @Test
     public void testGradleCommandConfiguration() throws Exception {
-        when(processBuilderMock.start()).thenReturn(processMock);
         generalTestJavaCommand(expectedGradleCommand, true);
     }
 
     @Test
     public void testMavenCommandConfiguration() throws Exception {
-        when(processBuilderMock.start()).thenReturn(processMock);
         generalTestJavaCommand(expectedMavenCommand, false);
     }
 
+    /**
+     * Test generating the correct command for running a Beam Pipeline in Python
+     * */
     @Test
     public void testPythonCommandConfiguration() throws Exception {
-        // Check for both cases of useGradle being true/false
-        when(processBuilderMock.start()).thenReturn(processMock);
         FreeStyleProject project = jenkins.createFreeStyleProject();
-        boolean useJava = false;
         boolean useGradle = false;
 
-        ExecuteBeamPipelineOnDataflowBuilder builder = new ExecuteBeamPipelineOnDataflowBuilder(pathToCreds, pathToMainClass, pipelineOptions, buildReleaseOptions, useJava, useGradle);
-        builder.setProcessBuilder(processBuilderMock);
+        ExecuteBeamPipelineOnDataflowBuilder builder = new ExecuteBeamPipelineOnDataflowBuilder(pathToCreds, pathToMainClass, pipelineOptions, buildReleaseOptions, "Python", useGradle);
+        builder.setPipelineLauncher(pipelineLauncherMock);
 
         project.getBuildersList().add(builder);
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
@@ -112,8 +106,8 @@ public class ExecuteBeamPipelineOnDataflowBuilderTest {
     private void generalTestJavaCommand(ArrayList<String> expectedCommand, boolean useGradle) throws Exception {
         FreeStyleProject project = jenkins.createFreeStyleProject();
 
-        ExecuteBeamPipelineOnDataflowBuilder builder = new ExecuteBeamPipelineOnDataflowBuilder(pathToCreds, pathToMainClass, pipelineOptions, buildReleaseOptions, true, useGradle);
-        builder.setProcessBuilder(processBuilderMock);
+        ExecuteBeamPipelineOnDataflowBuilder builder = new ExecuteBeamPipelineOnDataflowBuilder(pathToCreds, pathToMainClass, pipelineOptions, buildReleaseOptions, "Java", useGradle);
+        builder.setPipelineLauncher(pipelineLauncherMock);
 
         project.getBuildersList().add(builder);
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);

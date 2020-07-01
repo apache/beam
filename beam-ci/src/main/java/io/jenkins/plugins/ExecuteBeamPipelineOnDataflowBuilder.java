@@ -36,28 +36,28 @@ import jenkins.tasks.SimpleBuildStep;
 
 public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements SimpleBuildStep {
 
-    ProcessBuilder processBuilder;
+    PipelineLauncher pipelineLauncher;
     private final String fileName = System.getProperty("user.dir") + "/src/main/java/io/jenkins/plugins/executePythonBeamPipeline.sh";
     private final String pathToCreds;
     private final String pathToMainClass;
     private final String pipelineOptions;
     private final String buildReleaseOptions;
-    private boolean useJava; // if false, use Python
+    private String language;
     private boolean useGradle; // if false, use Maven
     private ArrayList<String> command;
 
     @DataBoundConstructor
-    public ExecuteBeamPipelineOnDataflowBuilder(String pathToCreds, String pathToMainClass, String pipelineOptions, String buildReleaseOptions, boolean useJava, boolean useGradle) {
+    public ExecuteBeamPipelineOnDataflowBuilder(String pathToCreds, String pathToMainClass, String pipelineOptions, String buildReleaseOptions, String language, boolean useGradle) {
         this.pathToCreds = pathToCreds;
         this.pathToMainClass = pathToMainClass;
         this.pipelineOptions = pipelineOptions;
         this.buildReleaseOptions = buildReleaseOptions;
-        this.useJava = useJava;
+        this.language = language;
         this.useGradle = useGradle;
     }
 
-    void setProcessBuilder(ProcessBuilder processBuilder) {
-        this.processBuilder = processBuilder;
+    void setPipelineLauncher(PipelineLauncher pipelineLauncher) {
+        this.pipelineLauncher = pipelineLauncher;
     }
 
     public String getPathToCreds() { return pathToCreds; }
@@ -74,9 +74,7 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         return buildReleaseOptions;
     }
 
-    public boolean getUseJava() {
-        return useJava;
-    }
+    public String getLanguage() { return language; }
 
     public boolean getUseGradle() {
         return useGradle;
@@ -88,7 +86,7 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
      * Builds and sets the command on the ProcessBuilder depending on configurations set by the user
      * */
     private void buildCommand(Run<?, ?> run, String workspace, PrintStream logger) {
-        if (this.useJava) {
+        if (this.language.equals("Java")) {
             String pipelineOptions = this.pipelineOptions.replaceAll("[\\t\\n]+"," ");
             if (this.useGradle) { // gradle
                 command = new ArrayList<>(Arrays.asList("gradle", "clean", "execute", "-DmainClass=" + this.pathToMainClass, "-Dexec.args=" + pipelineOptions));
@@ -109,8 +107,9 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
             command = new ArrayList<>(Arrays.asList(this.fileName, workspace, jobBuildPathDirectory, this.pathToMainClass, this.pipelineOptions, this.buildReleaseOptions));
         }
         logger.println("Command: " + command);
-        this.processBuilder.command(command);
+        this.pipelineLauncher.command(command);
     }
+
 
     /**
      * @return absolute path to current build folder
@@ -124,8 +123,8 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
 
     @Override
     public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener) throws InterruptedException, IOException {
-        if (processBuilder == null) {
-            this.processBuilder = new ProcessBuilder();
+        if (pipelineLauncher == null) {
+            this.pipelineLauncher = new PipelineLauncher(this.pathToCreds, new File(workspace.toURI()));
         }
 
         // see that all configurations are received correctly
@@ -133,19 +132,14 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         listener.getLogger().println("path to main class : " + this.pathToMainClass);
         listener.getLogger().println("pipeline options : " + this.pipelineOptions);
         listener.getLogger().println("build release options : " + this.buildReleaseOptions);
-        listener.getLogger().println("use java: " + this.useJava);
+        listener.getLogger().println("language: " + this.language);
         listener.getLogger().println("use gradle: " + this.useGradle);
 
-        Map<String, String> env = this.processBuilder.environment();
-        env.put("GOOGLE_APPLICATION_CREDENTIALS", this.pathToCreds);
-
-        // set correct directory to be running command
-        this.processBuilder.directory(new File(workspace.toURI()));
-
-        // build and set command to processBuilder based on configurations
+        // build command based on configurations
         buildCommand(run, workspace.toURI().getPath(), listener.getLogger());
 
-        Process process = this.processBuilder.start();
+        // start process
+        PipelineLauncher.LaunchProcess process = this.pipelineLauncher.start();
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
         String line;

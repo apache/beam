@@ -29,24 +29,26 @@
     <f:entry title="[Optional] Build Release Options" field="buildReleaseOptions">
         <f:textbox />
     </f:entry>
-    <f:block>
-      <table>
-        <f:optionalBlock inline="true" name="useJava" title="Check if using Java, leave unchecked if using Python." field="useJava">
-            <f:optionalBlock inline="true" name="useGradle" title="Check if using Gradle, leave unchecked if using Maven." field="useGradle">
-               <f:entry title="Add this Gradle Task to your build.gradle:">
-               <pre>
 
-                task execute(type:JavaExec) {
-                    main = System.getProperty("mainClass")
-                    classpath = sourceSets.main.runtimeClasspath
-                    systemProperties System.getProperties()
-                    args System.getProperty("exec.args").split()
-                }
+    <f:entry field="language" title="Choose Language">
+        <select name="language">
+            <option value="Java">Java</option>
+            <option value="Python">Python</option>
+        </select>
+    </f:entry>
 
-               </pre>
-               </f:entry>
-            </f:optionalBlock>
-        </f:optionalBlock>
-      </table>
-    </f:block>
+    <f:optionalBlock inline="true" name="useGradle" title="[Only for Java] Check if using Gradle, leave unchecked if using Maven." field="useGradle">
+       <f:entry title="Add this Gradle Task to your build.gradle:">
+       <pre>
+
+        task execute(type:JavaExec) {
+            main = System.getProperty("mainClass")
+            classpath = sourceSets.main.runtimeClasspath
+            systemProperties System.getProperties()
+            args System.getProperty("exec.args").split()
+        }
+
+       </pre>
+       </f:entry>
+    </f:optionalBlock>
 </j:jelly>
