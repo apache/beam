@@ -270,11 +270,13 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         delegateEvaluator.processElement(windowedValue);
       }
 
-      Instant currentInputWatermark = timerInternals.currentInputWatermarkTime();
+      final Instant inputWatermarkTime = timerInternals.currentInputWatermarkTime();
       PriorityQueue<TimerData> toBeFiredTimers =
           new PriorityQueue<>(Comparator.comparing(TimerData::getTimestamp));
       gbkResult.getValue().timersIterable().forEach(toBeFiredTimers::add);
-      while (!toBeFiredTimers.isEmpty()) {
+
+      while (!timerInternals.containsUpdateForTimeBefore(inputWatermarkTime)
+          && !toBeFiredTimers.isEmpty()) {
         TimerData timer = toBeFiredTimers.poll();
         checkState(
             timer.getNamespace() instanceof WindowNamespace,
@@ -291,10 +293,6 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
         stepContext.stateInternals().state(timer.getNamespace(), timerWatermarkHoldTag).clear();
         stepContext.stateInternals().commit();
-
-        if (timerInternals.containsUpdateForTimeBefore(currentInputWatermark)) {
-          break;
-        }
       }
       pushedBackTimers.addAll(toBeFiredTimers);
     }
