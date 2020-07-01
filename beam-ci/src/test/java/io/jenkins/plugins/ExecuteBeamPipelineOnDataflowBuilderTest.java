@@ -25,9 +25,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.*;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.*;
 
 import static junit.framework.TestCase.assertEquals;
@@ -60,8 +58,9 @@ public class ExecuteBeamPipelineOnDataflowBuilderTest {
         launchProcessMock = Mockito.mock(PipelineLauncher.LaunchProcess.class);
         MockitoAnnotations.initMocks(this);
         InputStream is = new ByteArrayInputStream( "".getBytes() );
-        when(launchProcessMock.getInputStream()).thenReturn(is);
-        when(launchProcessMock.getErrorStream()).thenReturn(is);
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(is));
+        when(launchProcessMock.getInputStream()).thenReturn(bufferedReader);
+        when(launchProcessMock.getErrorStream()).thenReturn(bufferedReader);
         when(launchProcessMock.waitFor()).thenReturn(0);
         when(pipelineLauncherMock.start()).thenReturn(launchProcessMock);
     }
