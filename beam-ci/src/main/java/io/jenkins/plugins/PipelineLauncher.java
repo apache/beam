@@ -1,8 +1,6 @@
 package io.jenkins.plugins;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.List;
 import java.util.Map;
 
@@ -38,12 +36,14 @@ public class PipelineLauncher {
             this.process = process;
         }
 
-        public InputStream getInputStream() {
-            return this.process.getInputStream();
+        public BufferedReader getInputStream() {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(this.process.getInputStream()));
+            return reader;
         }
 
-        public InputStream getErrorStream() {
-            return this.process.getErrorStream();
+        public BufferedReader getErrorStream() {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(this.process.getErrorStream()));
+            return reader;
         }
 
         public int waitFor() throws InterruptedException {
