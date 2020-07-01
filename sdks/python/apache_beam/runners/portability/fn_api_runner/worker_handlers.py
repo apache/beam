@@ -824,6 +824,8 @@ class WorkerHandlerManager(object):
       self._grpc_server = GrpcServer(
           self.state_servicer, self._job_provision_info, self)
       grpc_server = self._grpc_server
+    else:
+      grpc_server = self._grpc_server
 
     worker_handler_list = self._cached_handlers[environment_id]
     if len(worker_handler_list) < num_workers:
