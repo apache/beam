@@ -42,10 +42,10 @@ except ImportError:
 MAX_BATCH_OPERATION_SIZE = 100
 
 
-def parse_azfs_path(azfs_path, object_optional=False):
+def parse_azfs_path(azfs_path, blob_optional=False):
   """Return the storage account, the container and blob names of the given azfs:// path."""
   match = re.match('^azfs://([a-z0-9]{3,24})/([a-z0-9](?![a-z0-9-]*--[a-z0-9-]*)[a-z0-9-]{1,61}[a-z0-9])/(.*)$', azfs_path)
-  if match is None or (match.group(3) == '' and not object_optional):
+  if match is None or (match.group(3) == '' and not blob_optional):
     raise ValueError('Azure Blob Storage path must be in the form azfs://<storage-account>/<container>/<path>.')
   return match.group(1), match.group(2), match.group(3)
 
@@ -77,13 +77,12 @@ class BlobStorageIO(object):
     Returns:
       Dictionary of file name -> size.
     """
-    storage_account, container, blob = parse_azfs_path(path, object_optional=True)
+    storage_account, container, blob = parse_azfs_path(path, blob_optional=True)
     file_sizes = {}
     counter = 0
     start_time = time.time()
 
     logging.info("Starting the size estimation of the input")
-    
     container_client = self.client.get_container_client(container)
 
     while True:
@@ -100,6 +99,9 @@ class BlobStorageIO(object):
         "Finished listing %s files in %s seconds.",
         counter,
         time.time() - start_time)
+
+    print("Result: %s",
+                file_sizes)
 
     return file_sizes
 

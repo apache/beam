@@ -57,14 +57,57 @@ class TestAZFSPathParser(unittest.TestCase):
       self.assertRaises(ValueError, blobstorageio.parse_azfs_path, path)
     self.assertRaises(ValueError, blobstorageio.parse_azfs_path, 'azfs://storageaccount/container/')
 
-  def test_azfs_path_object_optional(self):
+  def test_azfs_path_blob_optional(self):
     self.assertEqual(
-        blobstorageio.parse_azfs_path('azfs://storageaccount/container/name', object_optional=True),
+        blobstorageio.parse_azfs_path('azfs://storageaccount/container/name', blob_optional=True),
         ('storageaccount', 'container', 'name'))
     self.assertEqual(
-        blobstorageio.parse_azfs_path('azfs://storageaccount/container/', object_optional=True),
+        blobstorageio.parse_azfs_path('azfs://storageaccount/container/', blob_optional=True),
         ('storageaccount', 'container', ''))
 
-  def test_bad_gcs_path_object_optional(self):
+  def test_bad_gcs_path_blob_optional(self):
     for path in self.BAD_AZFS_PATHS:
       self.assertRaises(ValueError, blobstorageio.parse_azfs_path, path, True)
+
+class TestBlobStorageIO(unittest.TestCase):
+
+
+  def setUp(self):
+    self.azfs = blobstorageio.BlobStorageIO()
+    self.TEST_DATA_PATH = 'azfs://gsoc2020/gsoc/'
+
+  
+  def test_list_prefix(self):
+
+    test_cases = [
+        (
+            self.TEST_DATA_PATH + 's',
+            [
+                ('sloth/pictures/sleeping', 2),
+                ('sloth/videos/smiling', 3),
+                ('sloth/institute/costarica', 4),
+            ]),
+        (
+            self.TEST_DATA_PATH + 'sloth/',
+            [
+                ('sloth/pictures/sleeping', 2),
+                ('sloth/videos/smiling', 3),
+                ('sloth/institute/costarica', 4),
+            ]),
+        (
+            self.TEST_DATA_PATH + 'sloth/videos/smiling',
+            [
+                ('sloth/videos/smiling', 3),
+            ]),
+    ]
+
+    for file_pattern, expected_object_names in test_cases:
+      expected_file_names = [(self.TEST_DATA_PATH + object_name, size)
+                             for (object_name, size) in expected_object_names]
+      self.assertEqual(
+          set(self.azfs.list_prefix(file_pattern).items()),
+          set(expected_file_names))
+    
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
