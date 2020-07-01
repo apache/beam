@@ -215,6 +215,18 @@ public class DoFnSignatures {
           Parameter.PaneInfoParameter.class,
           Parameter.PipelineOptionsParameter.class);
 
+  private static final Collection<Class<? extends Parameter>>
+      ALLOWED_TRUNCATE_RESTRICTION_PARAMETERS =
+          ImmutableList.of(
+              Parameter.ElementParameter.class,
+              Parameter.RestrictionParameter.class,
+              Parameter.RestrictionTrackerParameter.class,
+              Parameter.OutputReceiverParameter.class,
+              Parameter.WindowParameter.class,
+              Parameter.TimestampParameter.class,
+              Parameter.PaneInfoParameter.class,
+              Parameter.PipelineOptionsParameter.class);
+
   private static final Collection<Class<? extends Parameter>> ALLOWED_NEW_TRACKER_PARAMETERS =
       ImmutableList.of(
           Parameter.ElementParameter.class,
@@ -1859,7 +1871,7 @@ public class DoFnSignatures {
     }
 
     for (Parameter parameter : methodContext.getExtraParameters()) {
-      checkParameterOneOf(errors, parameter, ALLOWED_SPLIT_RESTRICTION_PARAMETERS);
+      checkParameterOneOf(errors, parameter, ALLOWED_TRUNCATE_RESTRICTION_PARAMETERS);
     }
 
     return DoFnSignature.TruncateRestrictionMethod.create(
