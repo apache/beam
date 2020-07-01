@@ -18,13 +18,23 @@ import groovy.json.JsonOutput
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.aws')
+plugins {
+  id 'com.github.johnrengelman.shadow'
+  id 'org.apache.beam.module'
+}
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.sdk.io.aws',
+        shadowClosure: {
+        },
+)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
 dependencies {
+  shadow localGroovy()
+  shadow gradleApi()
+
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.aws_java_sdk_cloudwatch
