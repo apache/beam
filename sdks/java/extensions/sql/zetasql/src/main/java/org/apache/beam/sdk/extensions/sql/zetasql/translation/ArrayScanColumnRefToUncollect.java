@@ -30,6 +30,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.Log
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.ImmutableBitSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts array scan that represents a reference to array column literal to uncollect. */
 public class ArrayScanColumnRefToUncollect extends RelConverter<ResolvedNodes.ResolvedArrayScan> {
@@ -59,7 +60,8 @@ public class ArrayScanColumnRefToUncollect extends RelConverter<ResolvedNodes.Re
                 .convertRexNodeFromResolvedExpr(
                     zetaNode.getArrayExpr(),
                     zetaNode.getInputScan().getColumnList(),
-                    input.getRowType().getFieldList());
+                    input.getRowType().getFieldList(),
+                    ImmutableMap.of());
 
     String fieldName =
         String.format(
