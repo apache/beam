@@ -26,11 +26,9 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
-import jenkins.util.SystemProperties;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
-import javax.servlet.ServletException;
 import java.io.*;
 import java.util.*;
 
@@ -38,7 +36,7 @@ import jenkins.tasks.SimpleBuildStep;
 
 public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements SimpleBuildStep {
 
-    private ProcessBuilder processBuilder;
+    ProcessBuilder processBuilder;
     private final String fileName = System.getProperty("user.dir") + "/src/main/java/io/jenkins/plugins/executePythonBeamPipeline.sh";
     private final String pathToCreds;
     private final String pathToMainClass;
@@ -47,7 +45,6 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
     private boolean useJava; // if false, use Python
     private boolean useGradle; // if false, use Maven
     private ArrayList<String> command;
-    private boolean test; // if we are testing, the mock ProcessBuilder never starts
 
     @DataBoundConstructor
     public ExecuteBeamPipelineOnDataflowBuilder(String pathToCreds, String pathToMainClass, String pipelineOptions, String buildReleaseOptions, boolean useJava, boolean useGradle) {
@@ -57,12 +54,10 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         this.buildReleaseOptions = buildReleaseOptions;
         this.useJava = useJava;
         this.useGradle = useGradle;
-        this.test = false;
     }
 
-    public void setProcessBuilder(ProcessBuilder processBuilder) {
+    void setProcessBuilder(ProcessBuilder processBuilder) {
         this.processBuilder = processBuilder;
-        this.test = true;
     }
 
     public String getPathToCreds() { return pathToCreds; }
@@ -129,7 +124,6 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
 
     @Override
     public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener) throws InterruptedException, IOException {
-//        ProcessBuilder processBuilder = new ProcessBuilder();
         if (processBuilder == null) {
             this.processBuilder = new ProcessBuilder();
         }
@@ -151,11 +145,6 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         // build and set command to processBuilder based on configurations
         buildCommand(run, workspace.toURI().getPath(), listener.getLogger());
 
-        if (this.test) { // if we are testing commands only, return before starting process
-            listener.getLogger().println("Test finished successfully.");
-            return;
-        }
-
         Process process = this.processBuilder.start();
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
@@ -164,8 +153,8 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
             listener.getLogger().println(line);
         }
 
-        BufferedReader reader2 = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-        while((line = reader2.readLine()) != null) {
+        reader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+        while((line = reader.readLine()) != null) {
             listener.getLogger().println(line);
         }
 

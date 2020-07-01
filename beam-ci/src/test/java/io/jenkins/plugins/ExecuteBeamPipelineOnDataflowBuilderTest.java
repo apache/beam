@@ -24,6 +24,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.*;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.util.*;
 
 import static junit.framework.TestCase.assertEquals;
@@ -42,6 +45,9 @@ public class ExecuteBeamPipelineOnDataflowBuilderTest {
     @Mock
     ProcessBuilder processBuilderMock;
 
+    @Mock
+    Process processMock;
+
     final String pathToCreds = "path/to/credentials";
     final String pathToMainClass = "path/to/main/class";
     final String pipelineOptions = "fake pipeline options";
@@ -53,26 +59,33 @@ public class ExecuteBeamPipelineOnDataflowBuilderTest {
     @Before
     public void initMocks() {
         processBuilderMock = Mockito.mock(ProcessBuilder.class);
+        processMock = Mockito.mock(Process.class);
         MockitoAnnotations.initMocks(this);
         Map<String,String> environment = new HashMap<>();
         when(processBuilderMock.environment()).thenReturn(environment);
         when(processBuilderMock.directory(any())).thenReturn(null);
         when(processBuilderMock.command(anyList())).thenReturn(null);
+        InputStream is = new ByteArrayInputStream( "".getBytes() );
+        when(processMock.getInputStream()).thenReturn(is);
+        when(processMock.getErrorStream()).thenReturn(is);
     }
 
     @Test
     public void testGradleCommandConfiguration() throws Exception {
+        when(processBuilderMock.start()).thenReturn(processMock);
         generalTestJavaCommand(expectedGradleCommand, true);
     }
 
     @Test
     public void testMavenCommandConfiguration() throws Exception {
+        when(processBuilderMock.start()).thenReturn(processMock);
         generalTestJavaCommand(expectedMavenCommand, false);
     }
 
     @Test
     public void testPythonCommandConfiguration() throws Exception {
         // Check for both cases of useGradle being true/false
+        when(processBuilderMock.start()).thenReturn(processMock);
         FreeStyleProject project = jenkins.createFreeStyleProject();
         boolean useJava = false;
         boolean useGradle = false;
@@ -89,7 +102,8 @@ public class ExecuteBeamPipelineOnDataflowBuilderTest {
         assertEquals(pathToMainClass, command.get(3));
         assertEquals(pipelineOptions, command.get(4));
         assertEquals(buildReleaseOptions, command.get(5));
-        jenkins.assertLogContains("Test finished successfully.", build);
+        jenkins.assertLogContains("Exited with error code : 0", build);
+        jenkins.assertLogContains("Finished: SUCCESS", build);
     }
 
     /**
@@ -104,7 +118,8 @@ public class ExecuteBeamPipelineOnDataflowBuilderTest {
         project.getBuildersList().add(builder);
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         assertEquals(expectedCommand, builder.getCommand());
-        jenkins.assertLogContains("Test finished successfully.", build);
+        jenkins.assertLogContains("Exited with error code : 0", build);
+        jenkins.assertLogContains("Finished: SUCCESS", build);
     }
 
 
