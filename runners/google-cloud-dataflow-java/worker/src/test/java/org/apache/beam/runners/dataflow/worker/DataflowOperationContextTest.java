@@ -29,9 +29,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.testing.http.FixedClock;
+import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.CounterUpdate;
+
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
@@ -67,7 +71,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(Enclosed.class)
 public class DataflowOperationContextTest {
 
-  /** Tests for the management of {@link ExecutionState} in {@link DataflowOperationContext}. */
+  /** Tests for the management of {@link DataflowExecutionState} in {@link DataflowOperationContext}. */
   @RunWith(JUnit4.class)
   public static class ContextStatesTest {
 
@@ -92,7 +96,6 @@ public class DataflowOperationContextTest {
     @Before
     public void setUp() {
       MockitoAnnotations.initMocks(this);
-
       otherState = stateRegistry.getState(NameContext.forStage("STAGE"), "other", null, emptyScope);
       startState =
           stateRegistry.getState(
@@ -202,6 +205,7 @@ public class DataflowOperationContextTest {
     @Test
     public void testLullReportsRightTrace() throws Exception {
       Thread mockThread = mock(Thread.class);
+      FixedClock clock = new FixedClock(Clock.SYSTEM.currentTimeMillis());
 
       DataflowExecutionState executionState =
           new DataflowExecutionState(
@@ -210,7 +214,8 @@ public class DataflowOperationContextTest {
               null /* requestingStepName */,
               null /* inputIndex */,
               null /* metricsContainer */,
-              ScopedProfiler.INSTANCE.emptyScope()) {
+              ScopedProfiler.INSTANCE.emptyScope(),
+              clock) {
             @Nullable
             @Override
             public CounterUpdate extractUpdate(boolean isFinalUpdate) {
@@ -225,14 +230,14 @@ public class DataflowOperationContextTest {
           };
 
       StackTraceElement[] doFnStackTrace =
-        new StackTraceElement[] {
-          new StackTraceElement(
-              "userpackage.SomeUserDoFn", "helperMethod", "SomeUserDoFn.java", 250),
-          new StackTraceElement(
-              "userpackage.SomeUserDoFn", "process", "SomeUserDoFn.java", 450),
-          new StackTraceElement(
-              SimpleDoFnRunner.class.getName(), "processElement", "SimpleDoFnRunner.java", 500),
-        };
+          new StackTraceElement[] {
+            new StackTraceElement(
+                "userpackage.SomeUserDoFn", "helperMethod", "SomeUserDoFn.java", 250),
+            new StackTraceElement(
+                "userpackage.SomeUserDoFn", "process", "SomeUserDoFn.java", 450),
+            new StackTraceElement(
+                SimpleDoFnRunner.class.getName(), "processElement", "SimpleDoFnRunner.java", 500),
+          };
       when(mockThread.getStackTrace()).thenReturn(doFnStackTrace);
 
       // Adding test for the full thread dump, but since we can't mock
@@ -253,24 +258,43 @@ public class DataflowOperationContextTest {
       backgroundThread.start();
       try {
         executionState.reportLull(mockThread, 6000);
+        verifyLullLog(true);
+        clock.setTime(
+            clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
+        executionState.reportLull(mockThread, 6000);
+        verifyLullLog(false);
+        clock.setTime(
+            clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
+        executionState.reportLull(mockThread, 6000);
+        verifyLullLog(true);
+      } finally {
+        // Cleaning up the background thread.
+        backgroundThread.interrupt();
+        backgroundThread.join();
+      }
+    }
 
-        File[] files = logFolder.listFiles();
-        assertThat(files, Matchers.arrayWithSize(1));
-        List<String> lines = Files.readAllLines(files[0].toPath());
+    private void verifyLullLog(boolean hasFullThreadDump) throws IOException {
+      File[] files = logFolder.listFiles();
+      assertThat(files, Matchers.arrayWithSize(1));
+      File logFile = files[0];
+      List<String> lines = Files.readAllLines(logFile.toPath());
 
-        String warnLines =
-            Joiner.on("\n").join(Iterables.filter(lines, line -> line.contains("\"WARN\"")));
-        assertThat(
-            warnLines,
-            Matchers.allOf(
-                Matchers.containsString(
-                    "Operation ongoing in step " + NameContextsForTests.USER_NAME),
-                Matchers.containsString(" without outputting or completing in state somestate"),
-                Matchers.containsString("userpackage.SomeUserDoFn.helperMethod"),
-                Matchers.not(Matchers.containsString(SimpleDoFnRunner.class.getName()))));
+      String warnLines =
+          Joiner.on("\n").join(Iterables.filter(lines, line -> line.contains("\"WARN\"")));
+      assertThat(
+          warnLines,
+          Matchers.allOf(
+              Matchers.containsString(
+                  "Operation ongoing in step " + NameContextsForTests.USER_NAME),
+              Matchers.containsString(
+                  " without outputting or completing in state somestate"),
+              Matchers.containsString("userpackage.SomeUserDoFn.helperMethod"),
+              Matchers.not(Matchers.containsString(SimpleDoFnRunner.class.getName()))));
 
-        String infoLines =
-            Joiner.on("\n").join(Iterables.filter(lines, line -> line.contains("\"INFO\"")));
+      String infoLines =
+          Joiner.on("\n").join(Iterables.filter(lines, line -> line.contains("\"INFO\"")));
+      if (hasFullThreadDump) {
         assertThat(
             infoLines,
             Matchers.allOf(
@@ -278,11 +302,17 @@ public class DataflowOperationContextTest {
                 Matchers.containsString(
                     "org.apache.beam.runners.dataflow.worker.DataflowOperationContext"),
                 Matchers.not(Matchers.containsString(SimpleDoFnRunner.class.getName()))));
-      } finally {
-        // Cleaning up the background thread.
-        backgroundThread.interrupt();
-        backgroundThread.join();
+      } else {
+        assertThat(
+            infoLines,
+            Matchers.not(
+                Matchers.anyOf(
+                    Matchers.containsString("Thread[backgroundThread,"),
+                    Matchers.containsString(
+                        "org.apache.beam.runners.dataflow.worker.DataflowOperationContext"))));
       }
+      // Truncate the file when done to prepare for the next test.
+      new FileOutputStream(logFile, false).getChannel().truncate(0).close();
     }
 
     @Test

@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 
+import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
@@ -181,6 +182,9 @@ public class DataflowOperationContext implements OperationContext {
     private final ProfileScope profileScope;
     @Nullable private final MetricsContainer metricsContainer;
 
+    /** Clock used to either provide real system time or mocked to virtualize time for testing. */
+    private Clock clock = Clock.SYSTEM;
+
     public DataflowExecutionState(
         NameContext nameContext,
         String stateName,
@@ -194,6 +198,24 @@ public class DataflowOperationContext implements OperationContext {
       this.inputIndex = inputIndex;
       this.profileScope = Preconditions.checkNotNull(profileScope);
       this.metricsContainer = metricsContainer;
+    }
+
+    public DataflowExecutionState(
+      NameContext nameContext,
+      String stateName,
+      @Nullable String requestingStepName,
+      @Nullable Integer inputIndex,
+      @Nullable MetricsContainer metricsContainer,
+      ProfileScope profileScope,
+      Clock clock) {
+      this(
+          nameContext,
+          stateName,
+          requestingStepName,
+          inputIndex,
+          metricsContainer,
+          profileScope);
+      this.clock = clock;
     }
 
     /**
@@ -286,7 +308,7 @@ public class DataflowOperationContext implements OperationContext {
     private long lastFullThreadDumpMillis = 0;
 
     private boolean shouldLogFullThreadDump() {
-      long now = System.currentTimeMillis();
+      long now = clock.currentTimeMillis();
       if (lastFullThreadDumpMillis + LOG_LULL_FULL_THREAD_DUMP_MS < now) {
         lastFullThreadDumpMillis = now;
         return true;
