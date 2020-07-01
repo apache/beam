@@ -221,7 +221,7 @@ public class JsonToRow {
       RowJson.verifySchemaSupported(rowSchema);
       return new AutoValue_JsonToRow_JsonToRowWithErrFn.Builder()
           .setSchema(rowSchema)
-          .setNullBehavior(NullBehavior.REQUIRE_NULL)
+          .setNullBehavior(NullBehavior.ACCEPT_MISSING_OR_NULL)
           .setExtendedErrorInfo(false)
           .setLineFieldName(LINE_FIELD_NAME)
           .setErrorFieldName(ERROR_FIELD_NAME)
