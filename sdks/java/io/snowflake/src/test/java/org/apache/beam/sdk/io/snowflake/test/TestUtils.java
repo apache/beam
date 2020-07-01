@@ -142,20 +142,6 @@ public class TestUtils {
     return (SnowflakeIO.UserDataMapper<String>) recordLine -> new String[] {recordLine};
   }
 
-  public static SnowflakeIO.UserDataMapper<String[]> getLStringCsvMapper() {
-    return (SnowflakeIO.UserDataMapper<String[]>) recordLine -> recordLine;
-  }
-
-  public static SnowflakeIO.CsvMapper<TestRow> getTestRowCsvMapper() {
-    return (SnowflakeIO.CsvMapper<TestRow>)
-        parts -> TestRow.create(Integer.valueOf(parts[0]), parts[1]);
-  }
-
-  public static SnowflakeIO.UserDataMapper<TestRow> getTestRowDataMapper() {
-    return (SnowflakeIO.UserDataMapper<TestRow>)
-        (TestRow element) -> new Object[] {element.id(), element.name()};
-  }
-
   public static class ParseToKv extends DoFn<Long, KV<String, Long>> {
     @ProcessElement
     public void processElement(ProcessContext c) {

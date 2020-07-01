@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.io.snowflake;
 
 import static org.apache.beam.sdk.io.TextIO.readFiles;
-import org.apache.beam.sdk.io.snowflake.enums.StreamingLogLevel;
-import org.apache.beam.sdk.options.PipelineOptions;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
@@ -59,6 +57,7 @@ import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentials;
 import org.apache.beam.sdk.io.snowflake.credentials.UsernamePasswordSnowflakeCredentials;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
+import org.apache.beam.sdk.io.snowflake.enums.StreamingLogLevel;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeBatchServiceConfig;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeBatchServiceImpl;
@@ -92,7 +91,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -432,7 +430,8 @@ public class SnowflakeIO {
       // Either table or query is required. If query is present, it's being used, table is used
       // otherwise
 
-      checkArgument(getStorageIntegrationName() != null, "withStorageIntegrationName() is required");
+      checkArgument(
+          getStorageIntegrationName() != null, "withStorageIntegrationName() is required");
       checkArgument(getStagingBucketName() != null, "withStagingBucketName() is required");
 
       checkArgument(
@@ -558,7 +557,7 @@ public class SnowflakeIO {
 
       @ProcessElement
       public void processElement(ProcessContext c) throws IOException {
-        String combinedPath = String.format("%s/%s/**",stagingBucketDir, tmpDirName);
+        String combinedPath = String.format("%s/%s/**", stagingBucketDir, tmpDirName);
         List<ResourceId> paths =
             FileSystems.match(combinedPath).metadata().stream()
                 .map(metadata -> metadata.resourceId())
