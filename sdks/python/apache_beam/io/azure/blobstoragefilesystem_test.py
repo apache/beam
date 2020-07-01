@@ -110,6 +110,21 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     self.assertEqual(len(match_result.metadata_list), limit)
     blobstorageio_mock.list_prefix.assert_called_once_with('azfs://storageaccount/container/')
 
+  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
+  def test_match_multiples_error(self, unused_mock_blobstorageio):
+    # Prepare mocks.
+    blobstorageio_mock = mock.MagicMock()
+    blobstoragefilesystem.blobstorageio.BlobStorageIO = lambda: blobstorageio_mock
+    exception = IOError('Failed')
+    blobstorageio_mock.list_prefix.side_effect = exception
+
+    with self.assertRaisesRegex(BeamIOError, r'^Match operation failed') as error:
+      self.fs.match(['azfs://storageaccount/container/'])
+      
+    self.assertRegex(
+        str(error.exception.exception_details), r'azfs://storageaccount/container/.*%s' % exception)
+    blobstorageio_mock.list_prefix.assert_called_once_with('azfs://storageaccount/container/')
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
