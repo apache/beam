@@ -37,9 +37,9 @@ public class BeamMatchRelTest {
         "C.id AS cid " +
         "PATTERN (A B C) " +
         "DEFINE " +
-        "A AS name = 'a', " +
-        "B AS name = 'b', " +
-        "C AS name = 'c' " +
+        "A AS PREV(name) = 'mark', " +
+        "B AS NEXT(name) = 'andy', " +
+        "C AS name = 'tagore' " +
         ") AS T";
 
     PCollection<Row> result = input.apply(SqlTransform.query(sql));
