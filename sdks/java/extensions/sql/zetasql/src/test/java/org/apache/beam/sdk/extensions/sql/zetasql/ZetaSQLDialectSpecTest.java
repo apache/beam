@@ -2847,8 +2847,7 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
     String sql = "SELECT 1; SELECT 2;";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage(
-        "Statement list must end in a SELECT statement, and cannot contain more than one SELECT statement.");
+    thrown.expectMessage("No additional statements are allowed after a SELECT statement.");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
