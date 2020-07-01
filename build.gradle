@@ -274,8 +274,7 @@ task python37PostCommit() {
 }
 
 task python38PostCommit() {
-  // TODO: Enable this when Dataflow supports Python 3.8
-  // dependsOn "sdks:python:test-suites:dataflow:py38:postCommitIT"
+  dependsOn "sdks:python:test-suites:dataflow:py38:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py38:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py38:hdfsIntegrationTest"
   dependsOn ":sdks:python:test-suites:portable:py38:postCommitPy38"
