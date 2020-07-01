@@ -29,6 +29,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.Log
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts LIMIT without ORDER BY. */
 class LimitOffsetScanToLimitConverter extends RelConverter<ResolvedLimitOffsetScan> {
@@ -58,7 +59,10 @@ class LimitOffsetScanToLimitConverter extends RelConverter<ResolvedLimitOffsetSc
     RexNode fetch =
         getExpressionConverter()
             .convertRexNodeFromResolvedExpr(
-                zetaNode.getLimit(), zetaNode.getColumnList(), input.getRowType().getFieldList());
+                zetaNode.getLimit(),
+                zetaNode.getColumnList(),
+                input.getRowType().getFieldList(),
+                ImmutableMap.of());
 
     if (RexLiteral.isNullLiteral(offset) || RexLiteral.isNullLiteral(fetch)) {
       throw new UnsupportedOperationException("Limit requires non-null count and offset");
