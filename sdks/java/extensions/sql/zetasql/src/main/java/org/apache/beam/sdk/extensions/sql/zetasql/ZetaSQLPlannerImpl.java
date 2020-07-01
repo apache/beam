@@ -174,7 +174,7 @@ public class ZetaSQLPlannerImpl implements Planner {
       } else if (statement.nodeKind() == RESOLVED_QUERY_STMT) {
         if (!SqlAnalyzer.isEndOfInput(parseResumeLocation)) {
           throw new UnsupportedOperationException(
-              "Statement list must end in a SELECT statement, and cannot contain more than one SELECT statement.");
+              "No additional statements are allowed after a SELECT statement.");
         }
         break;
       }

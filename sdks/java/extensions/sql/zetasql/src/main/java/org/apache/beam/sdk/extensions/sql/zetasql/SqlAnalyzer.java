@@ -147,7 +147,7 @@ public class SqlAnalyzer {
               // TODO(BEAM-9954) handle aggregate functions
               // TODO(BEAM-9969) handle table functions
               Mode.SCALAR,
-              com.google.common.collect.ImmutableList.of(createFunctionStmt.getSignature()));
+              ImmutableList.of(createFunctionStmt.getSignature()));
       try {
         catalog.addFunction(userFunction);
       } catch (IllegalArgumentException e) {
@@ -156,13 +156,11 @@ public class SqlAnalyzer {
                 "Failed to define function %s", String.join(".", createFunctionStmt.getNamePath())),
             e);
       }
-      return resolvedStatement;
-    } else if (resolvedStatement.nodeKind() == RESOLVED_QUERY_STMT) {
-      return resolvedStatement;
-    } else {
+    } else if (resolvedStatement.nodeKind() != RESOLVED_QUERY_STMT) {
       throw new UnsupportedOperationException(
           "Unrecognized statement type " + resolvedStatement.nodeKindString());
     }
+    return resolvedStatement;
   }
 
   static AnalyzerOptions initAnalyzerOptions() {

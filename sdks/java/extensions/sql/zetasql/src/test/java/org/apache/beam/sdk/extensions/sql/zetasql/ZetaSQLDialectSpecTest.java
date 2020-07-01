@@ -2899,7 +2899,9 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
   }
 
   @Test
-  @Ignore("Qualified paths can't be resolved due to a bug in ZetaSQL.")
+  @Ignore(
+      "Qualified paths can't be resolved due to a bug in ZetaSQL: "
+          + "https://github.com/google/zetasql/issues/42")
   public void testQualifiedNameUdfQualifiedCallThrowsException() {
     String sql = "CREATE FUNCTION foo.bar.baz() AS (\"uwu\"); SELECT foo.bar.baz();";
 
