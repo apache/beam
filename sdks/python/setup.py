@@ -259,10 +259,16 @@ def generate_protos_first(original_cmd):
 
 python_requires = '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
 
-if sys.version_info[0] == 2:
+if sys.version_info.major == 2:
   warnings.warn(
       'You are using Apache Beam with Python 2. '
       'New releases of Apache Beam will soon support Python 3 only.')
+
+if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+  warnings.warn(
+      'This version of Apache Beam has not been sufficiently tested on '
+      'Python %s.%s. You may encounter bugs or missing features.' % (
+          sys.version_info.major, sys.version_info.minor))
 
 setuptools.setup(
     name=PACKAGE_NAME,
@@ -312,6 +318,8 @@ setuptools.setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        # When updating vesion classifiers, also update version warnings
+        # above and in apache_beam/__init__.py.
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
