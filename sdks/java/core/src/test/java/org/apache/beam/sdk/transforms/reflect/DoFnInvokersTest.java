@@ -594,7 +594,8 @@ public class DoFnInvokersTest {
   }
 
   private static class RestrictionWithUnboundedDefaultTracker
-      implements HasDefaultTracker<RestrictionWithUnboundedDefaultTracker, UnboundedDefaultTracker> {
+      implements HasDefaultTracker<
+          RestrictionWithUnboundedDefaultTracker, UnboundedDefaultTracker> {
     @Override
     public UnboundedDefaultTracker newTracker() {
       return new UnboundedDefaultTracker();
@@ -627,7 +628,8 @@ public class DoFnInvokersTest {
     }
   }
 
-  private static class UnboundedDefaultTracker extends RestrictionTracker<RestrictionWithUnboundedDefaultTracker, Void>  {
+  private static class UnboundedDefaultTracker
+      extends RestrictionTracker<RestrictionWithUnboundedDefaultTracker, Void> {
     @Override
     public boolean tryClaim(Void position) {
       throw new UnsupportedOperationException();
@@ -639,7 +641,8 @@ public class DoFnInvokersTest {
     }
 
     @Override
-    public SplitResult<RestrictionWithUnboundedDefaultTracker> trySplit(double fractionOfRemainder) {
+    public SplitResult<RestrictionWithUnboundedDefaultTracker> trySplit(
+        double fractionOfRemainder) {
       throw new UnsupportedOperationException();
     }
 
@@ -647,12 +650,13 @@ public class DoFnInvokersTest {
     public void checkDone() throws IllegalStateException {}
 
     @Override
-    public RestrictionBoundness isBounded(){
+    public RestrictionBoundness isBounded() {
       return RestrictionBoundness.IS_UNBOUNDED;
     }
   }
 
-  private static class CoderForDefaultTracker extends AtomicCoder<RestrictionWithBoundedDefaultTracker> {
+  private static class CoderForDefaultTracker
+      extends AtomicCoder<RestrictionWithBoundedDefaultTracker> {
     public static CoderForDefaultTracker of() {
       return new CoderForDefaultTracker();
     }
@@ -813,7 +817,7 @@ public class DoFnInvokersTest {
 
       @GetInitialWatermarkEstimatorState
       public WatermarkEstimatorStateWithDefaultWatermarkEstimator
-      getInitialWatermarkEstimatorState() {
+          getInitialWatermarkEstimatorState() {
         return null;
       }
     }
@@ -834,13 +838,14 @@ public class DoFnInvokersTest {
     assertThat(
         invoker.invokeGetWatermarkEstimatorStateCoder(coderRegistry),
         instanceOf(CoderForWatermarkEstimatorStateWithDefaultWatermarkEstimator.class));
-    RestrictionTracker tracker =        invoker.invokeNewTracker(
-        new FakeArgumentProvider<String, String>() {
-          @Override
-          public Object restriction() {
-            return new RestrictionWithBoundedDefaultTracker();
-          }
-        });
+    RestrictionTracker tracker =
+        invoker.invokeNewTracker(
+            new FakeArgumentProvider<String, String>() {
+              @Override
+              public Object restriction() {
+                return new RestrictionWithBoundedDefaultTracker();
+              }
+            });
     assertThat(tracker, instanceOf(BoundedDefaultTracker.class));
     invoker.invokeTruncateRestriction(
         new FakeArgumentProvider<String, String>() {
@@ -909,7 +914,7 @@ public class DoFnInvokersTest {
 
       @GetInitialWatermarkEstimatorState
       public WatermarkEstimatorStateWithDefaultWatermarkEstimator
-      getInitialWatermarkEstimatorState() {
+          getInitialWatermarkEstimatorState() {
         return null;
       }
     }
@@ -930,21 +935,22 @@ public class DoFnInvokersTest {
     assertThat(
         invoker.invokeGetWatermarkEstimatorStateCoder(coderRegistry),
         instanceOf(CoderForWatermarkEstimatorStateWithDefaultWatermarkEstimator.class));
-    RestrictionTracker tracker =         invoker.invokeNewTracker(
-        new FakeArgumentProvider<String, String>() {
-          @Override
-          public Object restriction() {
-            return new RestrictionWithUnboundedDefaultTracker();
-          }
-        });
-    assertThat(tracker,
-        instanceOf(UnboundedDefaultTracker.class));
+    RestrictionTracker tracker =
+        invoker.invokeNewTracker(
+            new FakeArgumentProvider<String, String>() {
+              @Override
+              public Object restriction() {
+                return new RestrictionWithUnboundedDefaultTracker();
+              }
+            });
+    assertThat(tracker, instanceOf(UnboundedDefaultTracker.class));
     invoker.invokeTruncateRestriction(
         new FakeArgumentProvider<String, String>() {
           @Override
           public RestrictionTracker restrictionTracker() {
             return tracker;
           }
+
           @Override
           public String element(DoFn<String, String> doFn) {
             return "blah";
@@ -986,13 +992,13 @@ public class DoFnInvokersTest {
         instanceOf(DefaultWatermarkEstimator.class));
   }
 
-
   @Test
   public void testDefaultWatermarkEstimatorStateAndCoder() throws Exception {
     class MockFn extends DoFn<String, String> {
       @ProcessElement
       public void processElement(
-          ProcessContext c, RestrictionTracker<RestrictionWithBoundedDefaultTracker, Void> tracker) {}
+          ProcessContext c,
+          RestrictionTracker<RestrictionWithBoundedDefaultTracker, Void> tracker) {}
 
       @GetInitialRestriction
       public RestrictionWithBoundedDefaultTracker getInitialRestriction(@Element String element) {

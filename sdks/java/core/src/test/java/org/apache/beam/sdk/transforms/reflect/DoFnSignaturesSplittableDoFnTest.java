@@ -389,7 +389,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     assertEquals(
         SomeRestriction.class,
         getParameterOfType(
-            signature.truncateRestriction().extraParameters(), RestrictionParameter.class)
+                signature.truncateRestriction().extraParameters(), RestrictionParameter.class)
             .restrictionT()
             .getRawType());
     assertEquals(SomeRestrictionTracker.class, signature.newTracker().trackerT().getRawType());
@@ -509,7 +509,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     assertEquals(
         SomeRestriction.class,
         getParameterOfType(
-            signature.truncateRestriction().extraParameters(), RestrictionParameter.class)
+                signature.truncateRestriction().extraParameters(), RestrictionParameter.class)
             .restrictionT()
             .getRawType());
     assertEquals(RestrictionTracker.class, signature.newTracker().trackerT().getRawType());

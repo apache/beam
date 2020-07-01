@@ -324,8 +324,8 @@ class RestrictionProvider(object):
     """Truncate the given restriction into finite amount of work when the
     pipeline starts to drain.
 
-    By default, if the restriction is bounded, it will return the entire current
-    restriction. If the restriction is unbounded, it will return None.
+    By default, if the restriction is bounded, it will return the entire
+    restriction. If the restriction is unbounded, it will not return anything.
 
     It's recommended to implement this API if more granularity is required.
     """

@@ -672,6 +672,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *       perform bulk splitting initially allowing for a rapid increase in parallelism. See {@link
    *       RestrictionTracker#trySplit} for details about splitting when the current element and
    *       restriction are actively being processed.
+   *   <li>It <i>may</i> define a {@link TruncateRestriction} method to override the default
+   *       implementation {@code DefaultTruncateRestriction}, This method truncates a given
+   *       restriction into a bounded restriction when pipeline is draining.
    *   <li>It <i>may</i> define a {@link NewTracker} method returning a subtype of {@code
    *       RestrictionTracker<R>} where {@code R} is the restriction type returned by {@link
    *       GetInitialRestriction}. This method is optional only if the restriction type returned by
@@ -1054,11 +1057,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public @interface SplitRestriction {}
 
   /**
-   * Annotation for the method that truncates restriction of a <a
-   * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} into bounded one to be
-   * processed when pipeline starts to drain.
+   * Annotation for the method that truncates the restriction of a <a
+   * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} into a bounded one to
+   * be processed when pipeline starts to drain.
    *
-   * <p>This method is used to perform truncating the restriction before actual processing.
+   * <p>This method is used to perform truncation of the restriction while it is not actively being
+   * processed.
    *
    * <p>Signature: {@code void truncateRestriction(<arguments>);}
    *
@@ -1066,8 +1070,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <ul>
    *   <li>If one of the arguments is of type {@link OutputReceiver}, then it will be passed an
-   *       output receiver for outputting the splits. All splits must be output through this
-   *       parameter.
+   *       output receiver for outputting the truncated restrictions. All truncated restrictions
+   *       must be output through this parameter.
    *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
    *       passed the current element being processed; the argument must be of type {@code InputT}.
    *       Note that automatic conversion of {@link Row}s and {@link FieldAccess} parameters are
