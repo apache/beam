@@ -549,11 +549,11 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   private static Implementation truncateRestrictionDelegation(
-      TypeDescription doFnType, DoFnSignature signature) {
-    if (signature.truncateRestriction() == null) {
+      TypeDescription doFnType, DoFnSignature.TruncateRestrictionMethod signature) {
+    if (signature == null) {
       return MethodDelegation.to(DefaultTruncateRestriction.class);
     } else {
-      return new DoFnMethodWithExtraParametersDelegation(doFnType, signature.truncateRestriction());
+      return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);
     }
   }
 
