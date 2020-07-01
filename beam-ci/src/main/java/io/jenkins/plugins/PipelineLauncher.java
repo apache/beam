@@ -40,16 +40,16 @@ public class PipelineLauncher {
         this.processBuilder.command(command);
     }
 
-    public LaunchProcess start() throws IOException {
+    public LaunchedProcess start() throws IOException {
         Process process = this.processBuilder.start();
-        return new LaunchProcess(process);
+        return new LaunchedProcess(process);
     }
 
-    public static class LaunchProcess {
+    public static class LaunchedProcess {
 
         private Process process;
 
-        public LaunchProcess(Process process) {
+        public LaunchedProcess(Process process) {
             this.process = process;
         }
 

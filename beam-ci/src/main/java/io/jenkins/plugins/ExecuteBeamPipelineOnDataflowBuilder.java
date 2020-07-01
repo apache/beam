@@ -139,7 +139,7 @@ public class ExecuteBeamPipelineOnDataflowBuilder extends Builder implements Sim
         buildCommand(run, workspace.toURI().getPath(), listener.getLogger());
 
         // start process
-        PipelineLauncher.LaunchProcess process = this.pipelineLauncher.start();
+        PipelineLauncher.LaunchedProcess process = this.pipelineLauncher.start();
 
         BufferedReader reader = process.getInputStream();
         String line;

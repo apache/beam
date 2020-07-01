@@ -42,7 +42,7 @@ public class ExecuteBeamPipelineOnDataflowBuilderTest {
     PipelineLauncher pipelineLauncherMock;
 
     @Mock
-    PipelineLauncher.LaunchProcess launchProcessMock;
+    PipelineLauncher.LaunchedProcess launchedProcessMock;
 
     final String pathToCreds = "path/to/credentials";
     final String pathToMainClass = "path/to/main/class";
@@ -55,14 +55,14 @@ public class ExecuteBeamPipelineOnDataflowBuilderTest {
     @Before
     public void initMocks() throws InterruptedException, IOException {
         pipelineLauncherMock = Mockito.mock(PipelineLauncher.class);
-        launchProcessMock = Mockito.mock(PipelineLauncher.LaunchProcess.class);
+        launchedProcessMock = Mockito.mock(PipelineLauncher.LaunchedProcess.class);
         MockitoAnnotations.initMocks(this);
         InputStream is = new ByteArrayInputStream( "".getBytes() );
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(is));
-        when(launchProcessMock.getInputStream()).thenReturn(bufferedReader);
-        when(launchProcessMock.getErrorStream()).thenReturn(bufferedReader);
-        when(launchProcessMock.waitFor()).thenReturn(0);
-        when(pipelineLauncherMock.start()).thenReturn(launchProcessMock);
+        when(launchedProcessMock.getInputStream()).thenReturn(bufferedReader);
+        when(launchedProcessMock.getErrorStream()).thenReturn(bufferedReader);
+        when(launchedProcessMock.waitFor()).thenReturn(0);
+        when(pipelineLauncherMock.start()).thenReturn(launchedProcessMock);
     }
 
     @Test
