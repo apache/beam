@@ -17,19 +17,17 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.spark.api.java.JavaSparkContext;
-
-import java.util.Set;
 
 /**
  * Interface for portable Spark translators. This allows for a uniform invocation pattern for
  * pipeline translation between streaming and portable runners.
  */
-public interface SparkPortablePipelineTranslator <T extends SparkTranslationContext> {
+public interface SparkPortablePipelineTranslator<T extends SparkTranslationContext> {
 
   Set<String> knownUrns();
 

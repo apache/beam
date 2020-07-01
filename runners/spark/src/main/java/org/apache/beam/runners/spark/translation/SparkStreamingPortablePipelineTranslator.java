@@ -17,64 +17,23 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.createOutputMap;
-import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
-import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.instantiateCoder;
-
-import com.google.auto.service.AutoService;
-import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
-import org.apache.beam.runners.core.SystemReduceFn;
-import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
-import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
-import org.apache.beam.runners.spark.util.ByteArray;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.transforms.join.RawUnionValue;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.spark.HashPartitioner;
-import org.apache.spark.Partitioner;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.broadcast.Broadcast;
-import org.apache.spark.storage.StorageLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Tuple2;
 
 /** Translates a bounded portable pipeline into a Spark job. */
 public class SparkStreamingPortablePipelineTranslator
-    implements SparkPortablePipelineTranslator <SparkStreamingTranslationContext> {
+    implements SparkPortablePipelineTranslator<SparkStreamingTranslationContext> {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkStreamingPortablePipelineTranslator.class);
@@ -83,11 +42,11 @@ public class SparkStreamingPortablePipelineTranslator
 
   interface PTransformTranslator {
 
-    /**
-     * Translates transformNode from Beam into the Spark context.
-     */
+    /** Translates transformNode from Beam into the Spark context. */
     void translate(
-        PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkStreamingTranslationContext context);
+        PTransformNode transformNode,
+        RunnerApi.Pipeline pipeline,
+        SparkStreamingTranslationContext context);
   }
 
   public Set<String> knownUrns() {
@@ -99,22 +58,24 @@ public class SparkStreamingPortablePipelineTranslator
     translatorMap.put(
         PTransformTranslation.IMPULSE_TRANSFORM_URN,
         SparkStreamingPortablePipelineTranslator::translateImpulse);
-//    translatorMap.put(
-//        PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
-//        SparkStreamingPortablePipelineTranslator::translateGroupByKey);
-//    translatorMap.put(
-//        ExecutableStage.URN, SparkStreamingPortablePipelineTranslator::translateExecutableStage);
-//    translatorMap.put(
-//        PTransformTranslation.FLATTEN_TRANSFORM_URN,
-//        SparkStreamingPortablePipelineTranslator::translateFlatten);
-//    translatorMap.put(
-//        PTransformTranslation.RESHUFFLE_URN,
-//        SparkStreamingPortablePipelineTranslator::translateReshuffle);
+    //    translatorMap.put(
+    //        PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
+    //        SparkStreamingPortablePipelineTranslator::translateGroupByKey);
+    //    translatorMap.put(
+    //        ExecutableStage.URN,
+    // SparkStreamingPortablePipelineTranslator::translateExecutableStage);
+    //    translatorMap.put(
+    //        PTransformTranslation.FLATTEN_TRANSFORM_URN,
+    //        SparkStreamingPortablePipelineTranslator::translateFlatten);
+    //    translatorMap.put(
+    //        PTransformTranslation.RESHUFFLE_URN,
+    //        SparkStreamingPortablePipelineTranslator::translateReshuffle);
     this.urnToTransformTranslator = translatorMap.build();
   }
 
   /** Translates pipeline from Beam into the Spark context. */
-  public void translate(final RunnerApi.Pipeline pipeline, SparkStreamingTranslationContext context) {
+  public void translate(
+      final RunnerApi.Pipeline pipeline, SparkStreamingTranslationContext context) {
     QueryablePipeline p =
         QueryablePipeline.forTransforms(
             pipeline.getRootTransformIdsList(), pipeline.getComponents());
@@ -128,7 +89,9 @@ public class SparkStreamingPortablePipelineTranslator
   }
 
   private static void urnNotFound(
-      PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkStreamingTranslationContext context) {
+      PTransformNode transformNode,
+      RunnerApi.Pipeline pipeline,
+      SparkStreamingTranslationContext context) {
     throw new IllegalArgumentException(
         String.format(
             "Transform %s has unknown URN %s",
@@ -136,18 +99,20 @@ public class SparkStreamingPortablePipelineTranslator
   }
 
   private static void translateImpulse(
-      PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkStreamingTranslationContext context) {
+      PTransformNode transformNode,
+      RunnerApi.Pipeline pipeline,
+      SparkStreamingTranslationContext context) {
 
     // create dstream from empty rdd
     // does this need to be windowed values?
     // INCOMPLETE
-//    JavaRDD<> emptyRDD = context.getSparkContext().emptyRDD();
-//    Queue<JavaRDD<T>>
-//    context.getStreamingContext().queueStream(emptyRDD);
-//
-//    UnboundedDataset<byte[]> output =
-//        new UnboundedDataset<>( , Collections.singletonList(getInputId(transformNode)));
-//    context.pushDataset(getOutputId(transformNode), output);
+    //    JavaRDD<> emptyRDD = context.getSparkContext().emptyRDD();
+    //    Queue<JavaRDD<T>>
+    //    context.getStreamingContext().queueStream(emptyRDD);
+    //
+    //    UnboundedDataset<byte[]> output =
+    //        new UnboundedDataset<>( , Collections.singletonList(getInputId(transformNode)));
+    //    context.pushDataset(getOutputId(transformNode), output);
   }
 
   private static String getInputId(PTransformNode transformNode) {
@@ -158,9 +123,8 @@ public class SparkStreamingPortablePipelineTranslator
     return Iterables.getOnlyElement(transformNode.getTransform().getOutputsMap().values());
   }
 
-  public SparkStreamingTranslationContext createTranslationContext(JavaSparkContext jsc,
-                                                                   SparkPipelineOptions options, JobInfo jobInfo) {
+  public SparkStreamingTranslationContext createTranslationContext(
+      JavaSparkContext jsc, SparkPipelineOptions options, JobInfo jobInfo) {
     return new SparkStreamingTranslationContext(jsc, options, jobInfo);
   }
-
 }

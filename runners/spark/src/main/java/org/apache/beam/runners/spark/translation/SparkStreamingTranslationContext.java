@@ -17,17 +17,8 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import com.sun.istack.Nullable;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -39,7 +30,8 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 public class SparkStreamingTranslationContext extends SparkTranslationContext {
   private final JavaStreamingContext streamingContext;
 
-  public SparkStreamingTranslationContext(JavaSparkContext jsc, SparkPipelineOptions options, JobInfo jobInfo) {
+  public SparkStreamingTranslationContext(
+      JavaSparkContext jsc, SparkPipelineOptions options, JobInfo jobInfo) {
     super(jsc, options, jobInfo);
     Duration batchDuration = new Duration(options.getBatchIntervalMillis());
     this.streamingContext = new JavaStreamingContext(jsc, batchDuration);
@@ -48,5 +40,4 @@ public class SparkStreamingTranslationContext extends SparkTranslationContext {
   public JavaStreamingContext getStreamingContext() {
     return streamingContext;
   }
-
 }

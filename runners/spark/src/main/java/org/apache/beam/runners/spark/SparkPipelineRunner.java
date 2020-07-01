@@ -18,8 +18,8 @@
 package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
-import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
+import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
 
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -73,8 +73,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     SparkPortablePipelineTranslator translator;
     if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(pipeline)) {
       translator = new SparkBatchPortablePipelineTranslator();
-    }
-    else {
+    } else {
       translator = new SparkStreamingPortablePipelineTranslator();
     }
 
@@ -118,7 +117,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     MetricsEnvironment.setMetricsSupported(true);
     MetricsAccumulator.init(pipelineOptions, jsc);
 
-    final SparkTranslationContext context = translator.createTranslationContext(jsc, pipelineOptions, jobInfo);
+    final SparkTranslationContext context =
+        translator.createTranslationContext(jsc, pipelineOptions, jobInfo);
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
     final Future<?> submissionFuture =
         executorService.submit(

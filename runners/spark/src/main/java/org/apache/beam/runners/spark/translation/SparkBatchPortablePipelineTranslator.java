@@ -72,7 +72,8 @@ import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /** Translates a bounded portable pipeline into a Spark job. */
-public class SparkBatchPortablePipelineTranslator implements SparkPortablePipelineTranslator <SparkTranslationContext> {
+public class SparkBatchPortablePipelineTranslator
+    implements SparkPortablePipelineTranslator<SparkTranslationContext> {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkBatchPortablePipelineTranslator.class);
@@ -421,7 +422,8 @@ public class SparkBatchPortablePipelineTranslator implements SparkPortablePipeli
     return transformNode.getId();
   }
 
-  public SparkTranslationContext createTranslationContext(JavaSparkContext jsc, SparkPipelineOptions options, JobInfo jobInfo) {
+  public SparkTranslationContext createTranslationContext(
+      JavaSparkContext jsc, SparkPipelineOptions options, JobInfo jobInfo) {
     return new SparkTranslationContext(jsc, options, jobInfo);
   }
 
