@@ -137,8 +137,6 @@ import org.joda.time.Instant;
  * </pre>
  */
 public class WatermarkManager<ExecutableT, CollectionT> {
-  // The number of updates to apply in #tryApplyPendingUpdates
-  private static final int MAX_INCREMENTAL_UPDATES = 10;
 
   /**
    * The watermark of some {@link Pipeline} element, usually a {@link PTransform} or a {@link
@@ -895,7 +893,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
   private final Map<ExecutableT, TransformWatermarks> transformToWatermarks;
 
   /** A queue of pending updates to the state of this {@link WatermarkManager}. */
-  private final ConcurrentLinkedQueue<PendingWatermarkUpdate> pendingUpdates;
+  private final ConcurrentLinkedQueue<PendingWatermarkUpdate<ExecutableT, CollectionT>>
+      pendingUpdates;
 
   /** A lock used to control concurrency for updating pending values. */
   private final Lock refreshLock;
@@ -1110,17 +1109,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     pendingUpdates.offer(
         PendingWatermarkUpdate.create(
             executable, completed, timerUpdate, unprocessedInputs, outputs, earliestHold));
-    tryApplyPendingUpdates();
-  }
-
-  private void tryApplyPendingUpdates() {
-    if (refreshLock.tryLock()) {
-      try {
-        applyNUpdates(MAX_INCREMENTAL_UPDATES);
-      } finally {
-        refreshLock.unlock();
-      }
-    }
+    applyAllPendingUpdates();
   }
 
   /**
@@ -1130,7 +1119,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
   private void applyAllPendingUpdates() {
     refreshLock.lock();
     try {
-      applyNUpdates(-1);
+      applyUpdates();
     } finally {
       refreshLock.unlock();
     }
@@ -1138,8 +1127,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
   /** Applies up to {@code numUpdates}, or all available updates if numUpdates is non-positive. */
   @GuardedBy("refreshLock")
-  private void applyNUpdates(int numUpdates) {
-    for (int i = 0; !pendingUpdates.isEmpty() && (i < numUpdates || numUpdates <= 0); i++) {
+  private void applyUpdates() {
+    while (!pendingUpdates.isEmpty()) {
       PendingWatermarkUpdate<ExecutableT, CollectionT> pending = pendingUpdates.poll();
       applyPendingUpdate(pending);
       pendingRefreshes.add(pending.getExecutable());
@@ -1191,9 +1180,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     // do not share a Mutex within this call and thus can be interleaved with external calls to
     // refresh.
     for (Bundle<?, ? extends CollectionT> bundle : outputs) {
-      for (ExecutableT consumer :
-          // TODO: Remove this cast once CommittedBundle returns a CollectionT
-          graph.getPerElementConsumers((CollectionT) bundle.getPCollection())) {
+      for (ExecutableT consumer : graph.getPerElementConsumers(bundle.getPCollection())) {
         TransformWatermarks watermarks = transformToWatermarks.get(consumer);
         watermarks.addPending(bundle);
       }
@@ -1222,6 +1209,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       while (!toRefresh.isEmpty()) {
         toRefresh = refreshAllOf(toRefresh);
       }
+      pendingRefreshes.clear();
     } finally {
       refreshLock.unlock();
     }
@@ -1248,17 +1236,27 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     return Collections.emptySet();
   }
 
+  @VisibleForTesting
+  Collection<FiredTimers<ExecutableT>> extractFiredTimers() {
+    return extractFiredTimers(Collections.emptyList());
+  }
+
   /**
    * Returns a map of each {@link PTransform} that has pending timers to those timers. All of the
    * pending timers will be removed from this {@link WatermarkManager}.
    */
-  public Collection<FiredTimers<ExecutableT>> extractFiredTimers() {
+  public Collection<FiredTimers<ExecutableT>> extractFiredTimers(
+      Collection<ExecutableT> ignoredExecutables) {
+
     Collection<FiredTimers<ExecutableT>> allTimers = new ArrayList<>();
     refreshLock.lock();
     try {
       for (Map.Entry<ExecutableT, TransformWatermarks> watermarksEntry :
           transformToWatermarks.entrySet()) {
         ExecutableT transform = watermarksEntry.getKey();
+        if (ignoredExecutables.contains(transform)) {
+          continue;
+        }
         if (!transformsWithAlreadyExtractedTimers.containsKey(transform)) {
           TransformWatermarks watermarks = watermarksEntry.getValue();
           Collection<FiredTimers<ExecutableT>> firedTimers = watermarks.extractFiredTimers();
