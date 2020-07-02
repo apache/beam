@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import afu.org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Exception thrown when BeamSQL cannot convert sql to BeamRelNode. */
 public class SqlConversionException extends RuntimeException {
