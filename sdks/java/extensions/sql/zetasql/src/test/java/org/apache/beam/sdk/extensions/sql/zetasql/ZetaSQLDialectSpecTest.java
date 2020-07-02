@@ -3179,6 +3179,29 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
   }
 
   @Test
+  // test default timezone works properly in query execution stage
+  public void testTimestampFromDateWithDefaultTimezoneSet() {
+    String sql = "SELECT TIMESTAMP(DATE '2014-01-31')";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    zetaSQLQueryPlanner.setDefaultTimezone("Asia/Shanghai");
+    pipeline
+        .getOptions()
+        .as(BeamSqlPipelineOptions.class)
+        .setZetaSqlDefaultTimezone("Asia/Shanghai");
+
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addDateTimeField("f_timestamp").build())
+                .addValues(parseTimestampWithTimeZone("2014-01-31 00:00:00+08"))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testTimestampAdd() {
     String sql =
         "SELECT "
@@ -4630,7 +4653,7 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
   }
 
   @Test
-  public void testCastStringToTS() {
+  public void testCastStringToTimestamp() {
     String sql = "SELECT CAST('2019-01-15 13:21:03' AS TIMESTAMP)";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -4642,6 +4665,29 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
         .containsInAnyOrder(
             Row.withSchema(schema)
                 .addValues(parseTimestampWithUTCTimeZone("2019-01-15 13:21:03"))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  // test default timezone works properly in query analysis stage
+  public void testCastStringToTimestampWithDefaultTimezoneSet() {
+    String sql = "SELECT CAST('2014-12-01 12:34:56+07:30' AS TIMESTAMP)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    zetaSQLQueryPlanner.setDefaultTimezone("Pacific/Chatham");
+    pipeline
+        .getOptions()
+        .as(BeamSqlPipelineOptions.class)
+        .setZetaSqlDefaultTimezone("Pacific/Chatham");
+
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addDateTimeField("field_1").build())
+                .addValues(parseTimestampWithUTCTimeZone("2014-12-01 05:04:56"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
