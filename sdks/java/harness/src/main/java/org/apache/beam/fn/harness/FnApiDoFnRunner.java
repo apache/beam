@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -804,7 +805,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               public void onClaimFailed(PositionT position) {}
             });
     try {
-      doFnInvoker.invokeTruncateRestriction(processContext);
+      Optional<OutputT> truncatedRestriction =
+          doFnInvoker.invokeTruncateRestriction(processContext);
+      if (truncatedRestriction.isPresent()) {
+        processContext.output(truncatedRestriction.get());
+      }
     } finally {
       currentTracker = null;
       currentElement = null;
@@ -836,7 +841,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   @Override
                   public void onClaimFailed(PositionT position) {}
                 });
-        doFnInvoker.invokeTruncateRestriction(processContext);
+        Optional<OutputT> truncatedRestriction =
+            doFnInvoker.invokeTruncateRestriction(processContext);
+        if (truncatedRestriction.isPresent()) {
+          processContext.output(truncatedRestriction.get());
+        }
       }
     } finally {
       currentTracker = null;

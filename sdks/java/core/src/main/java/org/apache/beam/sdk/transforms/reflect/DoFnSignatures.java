@@ -221,7 +221,6 @@ public class DoFnSignatures {
               Parameter.ElementParameter.class,
               Parameter.RestrictionParameter.class,
               Parameter.RestrictionTrackerParameter.class,
-              Parameter.OutputReceiverParameter.class,
               Parameter.WindowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.PaneInfoParameter.class,
@@ -739,7 +738,6 @@ public class DoFnSignatures {
                 fnT,
                 truncateRestrictionMethod,
                 inputT,
-                outputT,
                 restrictionT,
                 fnContext));
       }
@@ -1830,13 +1828,13 @@ public class DoFnSignatures {
       TypeDescriptor<? extends DoFn<?, ?>> fnT,
       Method m,
       TypeDescriptor<?> inputT,
-      TypeDescriptor<?> outputT,
       TypeDescriptor<?> restrictionT,
       FnAnalysisContext fnContext) {
     // Method is of the form:
     // @TruncateRestriction
-    // void truncateRestriction(... parameters ...);
-    errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
+    // Optional<RestrictionT> truncateRestriction(... parameters ...);
+    errors.checkArgument(
+        Optional.class.equals(m.getReturnType()), "Must return Optional<Restriction>");
 
     Type[] params = m.getGenericParameterTypes();
     MethodAnalysisContext methodContext = MethodAnalysisContext.create();

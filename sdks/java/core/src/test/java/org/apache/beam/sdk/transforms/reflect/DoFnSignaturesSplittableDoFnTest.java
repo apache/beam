@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Optional;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -305,15 +306,16 @@ public class DoFnSignaturesSplittableDoFnTest {
           @Timestamp Instant timestamp) {}
 
       @TruncateRestriction
-      public void truncateRestriction(
+      public Optional<SomeRestriction> truncateRestriction(
           @Element Integer element,
           @Restriction SomeRestriction restriction,
           RestrictionTracker<SomeRestriction, Void> restrictionTracker,
-          OutputReceiver<SomeRestriction> receiver,
           PipelineOptions pipelineOptions,
           BoundedWindow boundedWindow,
           PaneInfo paneInfo,
-          @Timestamp Instant timestamp) {}
+          @Timestamp Instant timestamp) {
+        return Optional.empty();
+      }
 
       @NewTracker
       public SomeRestrictionTracker newTracker(
@@ -448,8 +450,9 @@ public class DoFnSignaturesSplittableDoFnTest {
           @Restriction RestrictionT restriction, OutputReceiver<RestrictionT> receiver) {}
 
       @TruncateRestriction
-      public void truncateRestriction(
-          @Restriction RestrictionT restriction, OutputReceiver<RestrictionT> receiver) {}
+      public Optional<RestrictionT> truncateRestriction(@Restriction RestrictionT restriction) {
+        return Optional.empty();
+      }
 
       @NewTracker
       public TrackerT newTracker(@Restriction RestrictionT restriction) {
@@ -985,20 +988,33 @@ public class DoFnSignaturesSplittableDoFnTest {
 
   @Test
   public void testTruncateRestrictionReturnsWrongType() throws Exception {
-    thrown.expectMessage(
-        "OutputReceiver should be parameterized by "
-            + "org.apache.beam.sdk.transforms.reflect.DoFnSignaturesSplittableDoFnTest$SomeRestriction");
+    thrown.expectMessage("Must return Optional<Restriction>");
     DoFnSignatures.analyzeTruncateRestrictionMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
-          void method(
-              @Element Integer element,
-              @Restriction SomeRestriction restriction,
-              DoFn.OutputReceiver<String> receiver) {}
+          void method(@Element Integer element, @Restriction SomeRestriction restriction) {}
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
-        TypeDescriptor.of(String.class),
+        TypeDescriptor.of(SomeRestriction.class),
+        FnAnalysisContext.create());
+  }
+
+  @Test
+  public void testTruncateRestrictionUnsupportedOutputReceiverArgument() throws Exception {
+    thrown.expectMessage("Illegal parameter type: OutputReceiverParameter");
+    DoFnSignatures.analyzeTruncateRestrictionMethod(
+        errors(),
+        TypeDescriptor.of(FakeDoFn.class),
+        new AnonymousMethod() {
+          Optional<SomeRestriction> method(
+              @Element Integer element,
+              @Restriction SomeRestriction restriction,
+              DoFn.OutputReceiver<SomeRestriction> receiver) {
+            return Optional.empty();
+          }
+        }.getMethod(),
+        TypeDescriptor.of(Integer.class),
         TypeDescriptor.of(SomeRestriction.class),
         FnAnalysisContext.create());
   }
@@ -1011,13 +1027,12 @@ public class DoFnSignaturesSplittableDoFnTest {
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
-          void method(
-              @Element String element,
-              @Restriction SomeRestriction restriction,
-              DoFn.OutputReceiver<SomeRestriction> receiver) {}
+          Optional<SomeRestriction> method(
+              @Element String element, @Restriction SomeRestriction restriction) {
+            return Optional.empty();
+          }
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
-        TypeDescriptor.of(String.class),
         TypeDescriptor.of(SomeRestriction.class),
         FnAnalysisContext.create());
   }
@@ -1029,14 +1044,12 @@ public class DoFnSignaturesSplittableDoFnTest {
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
-          private void method(
-              @Element Integer element,
-              @Restriction SomeRestriction restriction,
-              DoFn.OutputReceiver<SomeRestriction> receiver,
-              Object extra) {}
+          private Optional<SomeRestriction> method(
+              @Element Integer element, @Restriction SomeRestriction restriction, Object extra) {
+            return Optional.empty();
+          }
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
-        TypeDescriptor.of(String.class),
         TypeDescriptor.of(SomeRestriction.class),
         FnAnalysisContext.create());
   }
@@ -1061,15 +1074,15 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
 
       @DoFn.TruncateRestriction
-      public void truncateRestriction(
-          @Element Integer element,
-          @Restriction OtherRestriction restriction,
-          OutputReceiver<OtherRestriction> receiver) {}
+      public Optional<OtherRestriction> truncateRestriction(
+          @Element Integer element, @Restriction OtherRestriction restriction) {
+        return Optional.empty();
+      }
     }
 
     thrown.expectMessage("@GetInitialRestriction method uses restriction type SomeRestriction");
     thrown.expectMessage(
-        "truncateRestriction(Integer, OtherRestriction, OutputReceiver): Uses restriction type OtherRestriction");
+        "truncateRestriction(Integer, OtherRestriction): Uses restriction type OtherRestriction");
     DoFnSignatures.getSignature(BadFn.class);
   }
 

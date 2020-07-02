@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -313,10 +314,12 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     /** Return the current restriction if it's bounded.Otherwise, return null. */
     @SuppressWarnings("unused")
-    public static void invokeTruncateRestriction(DoFnInvoker.ArgumentProvider argumentProvider) {
+    public static Optional<?> invokeTruncateRestriction(
+        DoFnInvoker.ArgumentProvider argumentProvider) {
       if (argumentProvider.restrictionTracker().isBounded() == RestrictionBoundness.IS_BOUNDED) {
-        argumentProvider.outputReceiver(null).output(argumentProvider.restriction());
+        return Optional.of(argumentProvider.restriction());
       }
+      return Optional.empty();
     }
   }
 
@@ -476,7 +479,8 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             .method(ElementMatchers.named("invokeSplitRestriction"))
             .intercept(splitRestrictionDelegation(clazzDescription, signature.splitRestriction()))
             .method(ElementMatchers.named("invokeTruncateRestriction"))
-            .intercept(truncateRestrictionDelegation(clazzDescription, signature.truncateRestriction()))
+            .intercept(
+                truncateRestrictionDelegation(clazzDescription, signature.truncateRestriction()))
             .method(ElementMatchers.named("invokeGetRestrictionCoder"))
             .intercept(getRestrictionCoderDelegation(clazzDescription, signature))
             .method(ElementMatchers.named("invokeNewTracker"))

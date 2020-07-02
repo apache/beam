@@ -42,6 +42,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderProviders;
@@ -847,44 +848,26 @@ public class DoFnInvokersTest {
               }
             });
     assertThat(tracker, instanceOf(BoundedDefaultTracker.class));
-    invoker.invokeTruncateRestriction(
-        new FakeArgumentProvider<String, String>() {
-          @Override
-          public RestrictionTracker restrictionTracker() {
-            return tracker;
-          }
-
-          @Override
-          public String element(DoFn<String, String> doFn) {
-            return "blah";
-          }
-
-          @Override
-          public Object restriction() {
-            return "foo";
-          }
-
-          @Override
-          public OutputReceiver<String> outputReceiver(DoFn<String, String> doFn) {
-            return new DoFn.OutputReceiver<String>() {
-              private boolean invoked;
-
+    Optional result =
+        invoker.invokeTruncateRestriction(
+            new FakeArgumentProvider<String, String>() {
               @Override
-              public void output(String output) {
-                assertFalse(invoked);
-                invoked = true;
-                assertEquals("foo", output);
+              public RestrictionTracker restrictionTracker() {
+                return tracker;
               }
 
               @Override
-              public void outputWithTimestamp(String output, Instant instant) {
-                assertFalse(invoked);
-                invoked = true;
-                assertEquals("foo", output);
+              public String element(DoFn<String, String> doFn) {
+                return "blah";
               }
-            };
-          }
-        });
+
+              @Override
+              public Object restriction() {
+                return "foo";
+              }
+            });
+    assertTrue(result.isPresent());
+    assertEquals("foo", result.get());
     assertEquals(stop(), invoker.invokeProcessElement(mockArgumentProvider));
     assertThat(
         invoker.invokeNewWatermarkEstimator(
@@ -944,42 +927,25 @@ public class DoFnInvokersTest {
               }
             });
     assertThat(tracker, instanceOf(UnboundedDefaultTracker.class));
-    invoker.invokeTruncateRestriction(
-        new FakeArgumentProvider<String, String>() {
-          @Override
-          public RestrictionTracker restrictionTracker() {
-            return tracker;
-          }
-
-          @Override
-          public String element(DoFn<String, String> doFn) {
-            return "blah";
-          }
-
-          @Override
-          public Object restriction() {
-            return "foo";
-          }
-
-          @Override
-          public OutputReceiver<String> outputReceiver(DoFn<String, String> doFn) {
-            return new DoFn.OutputReceiver<String>() {
-              private final boolean shouldInvoked = false;
-
-              // This should not be invoked.
+    Optional result =
+        invoker.invokeTruncateRestriction(
+            new FakeArgumentProvider<String, String>() {
               @Override
-              public void output(String output) {
-                assertTrue(shouldInvoked);
+              public RestrictionTracker restrictionTracker() {
+                return tracker;
               }
 
-              // This should not be invoked.
               @Override
-              public void outputWithTimestamp(String output, Instant instant) {
-                assertTrue(shouldInvoked);
+              public String element(DoFn<String, String> doFn) {
+                return "blah";
               }
-            };
-          }
-        });
+
+              @Override
+              public Object restriction() {
+                return "foo";
+              }
+            });
+    assertFalse(result.isPresent());
     assertEquals(stop(), invoker.invokeProcessElement(mockArgumentProvider));
     assertThat(
         invoker.invokeNewWatermarkEstimator(
