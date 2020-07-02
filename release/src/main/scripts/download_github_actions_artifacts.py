@@ -33,7 +33,7 @@ GH_API_URL_WORKLOW_FMT = (
 GH_API_URL_WORKFLOW_RUNS_FMT = (
     "https://api.github.com/repos/{repo_url}/actions/workflows/{workflow_id}/runs"
 )
-GH_WEB_URL_WORKLOW_RUN_FMT = "https://github.com/TobKed/beam/actions/runs/{workflow_id}"
+GH_WEB_URL_WORKLOW_RUN_FMT = "https://github.com/apache/beam/actions/runs/{workflow_id}"
 
 
 def parse_arguments():
@@ -59,7 +59,7 @@ def parse_arguments():
   ARTIFACTS_DIR = args.artifacts_dir
 
 
-def requester(url, *args, return_raw_request=False, **kwargs):
+def requester(url, return_raw_request=False, *args, **kwargs):
   """Helper function form making requests authorized by GitHub token"""
   r = requests.get(url, *args, auth=("token", GITHUB_TOKEN), **kwargs)
   r.raise_for_status()
@@ -104,7 +104,9 @@ def get_last_run(workflow_id):
   if not filtered_commit_runs:
     workflow_web_url = GH_WEB_URL_WORKLOW_RUN_FMT.format(
         workflow_id=workflow_id)
-    raise Exception(f"No runs for workflow. Verify at {workflow_web_url}")
+    raise Exception(
+        f"No runs for workflow (branch {RELEASE_BRANCH}, commit {RELEASE_COMMIT}). Verify at {workflow_web_url}"
+    )
 
   sorted_runs = sorted(
       filtered_commit_runs,
@@ -135,7 +137,7 @@ def validate_run(run_data):
   workflow_web_url = GH_WEB_URL_WORKLOW_RUN_FMT.format(
       workflow_id=run_data["id"])
   print(
-      f"Waiting for Workflow run {run_data['id']} to finish. Check on {workflow_web_url}"
+      f"Started waiting for Workflow run {run_data['id']} to finish. Check on {workflow_web_url}"
   )
   start_time = time.time()
   last_request = start_time
@@ -166,7 +168,8 @@ def validate_run(run_data):
         return run_data
       elif conclusion:
         print("\r")
-        raise Exception(run_data)
+        raise Exception(
+            f"Run unsuccessful. Conclusion: {conclusion}. Payload: {run_data}")
 
 
 def reset_directory():
