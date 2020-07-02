@@ -129,6 +129,52 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--enforceEncodability=true',
               '--enforceImmutability=true"'].join(' '))
     }
+    shell('echo "*** RUN NEXMARK IN ZETASQL BATCH MODE USING DATAFLOW RUNNER ***"')
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sdks:java:testing:nexmark:run')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
+              ' -Pnexmark.args="' +
+              [commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
+              commonJobProperties.mapToArgString(nexmarkInfluxDBArgs),
+              '--runner=DataflowRunner',
+              '--region=us-central1',
+              '--numWorkers=4',
+              '--maxNumWorkers=4',
+              '--autoscalingAlgorithm=NONE',
+              '--nexmarkParallel=16',
+              '--queryLanguage=zetasql',
+              '--streaming=false',
+              '--suite=STRESS',
+              '--manageResources=false',
+              '--monitorJobs=true',
+              '--enforceEncodability=true',
+              '--enforceImmutability=true"'].join(' '))
+    }
+    shell('echo "*** RUN NEXMARK IN ZETASQL STREAMING MODE USING DATAFLOW RUNNER ***"')
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sdks:java:testing:nexmark:run')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":runners:google-cloud-dataflow-java"' +
+              ' -Pnexmark.args="' +
+              [commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
+              commonJobProperties.mapToArgString(nexmarkInfluxDBArgs),
+              '--runner=DataflowRunner',
+              '--region=us-central1',
+              '--numWorkers=4',
+              '--maxNumWorkers=4',
+              '--autoscalingAlgorithm=NONE',
+              '--nexmarkParallel=16',
+              '--queryLanguage=zetasql',
+              '--streaming=true',
+              '--suite=STRESS',
+              '--manageResources=false',
+              '--monitorJobs=true',
+              '--enforceEncodability=true',
+              '--enforceImmutability=true"'].join(' '))
+    }
   }
 }
 
