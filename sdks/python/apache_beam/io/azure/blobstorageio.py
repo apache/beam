@@ -23,6 +23,7 @@
 
 from __future__ import absolute_import
 
+import io
 import logging
 import re
 import threading
@@ -30,6 +31,10 @@ import time
 import os
 from builtins import object
 
+from apache_beam.io.filesystemio import Downloader
+from apache_beam.io.filesystemio import DownloaderStream
+from apache_beam.io.filesystemio import Uploader
+from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.utils import retry
 
 try:
@@ -38,6 +43,8 @@ try:
   from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
 except ImportError:
   raise ImportError('Missing `azure` requirement')
+
+DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 
 MAX_BATCH_OPERATION_SIZE = 100
 
@@ -64,6 +71,38 @@ class BlobStorageIO(object):
       self.client = BlobServiceClient.from_connection_string(connect_str)
     else:
       self.client = client
+
+  def open(
+      self,
+      filename,
+      mode='r',
+      read_buffer_size=DEFAULT_READ_BUFFER_SIZE,
+      mime_type='application/octet-stream'):
+    """Open an Azure Blob Storage file path for reading or writing.
+    Args:
+      filename (str): Azure Blob Storage file path in the form
+      ``azfs://<storage-account>/<container>/<path>``.
+      mode (str): ``'r'`` for reading or ``'w'`` for writing.
+      read_buffer_size (int): Buffer size to use during read operations.
+      mime_type (str): Mime type to set for write operations.
+    Returns:
+      Azure Blob Storage file object.
+    Raises:
+      ValueError: Invalid open file mode.
+    """
+    if mode == 'r' or mode == 'rb':
+      downloader = BlobStorageDownloader(
+          self.client, filename, buffer_size=read_buffer_size)
+      return io.BufferedReader(
+          DownloaderStream(
+              downloader, read_buffer_size=read_buffer_size, mode=mode),
+          buffer_size=read_buffer_size)
+    elif mode == 'w' or mode == 'wb':
+      uploader = BlobStorageUploader(self.client, filename, mime_type)
+      return io.BufferedWriter(
+          UploaderStream(uploader, mode=mode), buffer_size=128 * 1024)
+    else:
+      raise ValueError('Invalid file open mode: %s.' % mode)
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
@@ -101,3 +140,5 @@ class BlobStorageIO(object):
         time.time() - start_time)
     return file_sizes
 
+
+  
