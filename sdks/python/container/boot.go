@@ -130,7 +130,7 @@ func main() {
 	// when called by child processes in a worker pool.
 
 	if err := setupAcceptableWheelSpecs(); err != nil {
-		log.Fatalf("Failed to setup acceptable wheel specs: %v", err)
+		log.Printf("Failed to setup acceptable wheel specs, leave it as empty: %v", err)
 	}
 
 	materializeArtifactsFunc := func() {
