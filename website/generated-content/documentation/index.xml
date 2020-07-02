@@ -6814,7 +6814,7 @@ sum combine function to produce a single sum value for a &lt;code>PCollection&lt
 &lt;span class="n">Combine&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">globally&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">Sum&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">SumIntegerFn&lt;/span>&lt;span class="o">()));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;p>&lt;strong>Example 2&lt;/strong>: Keyed combine
-Use a keyed combine to to combine all of the values associated with each key
+Use a keyed combine to combine all of the values associated with each key
 into a single output value for each key. As with the global combine, the
 function passed to a keyed combine must be associative and commutative.&lt;/p>
 &lt;div class=language-java>

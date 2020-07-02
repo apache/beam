@@ -21,7 +21,7 @@ sum combine function to produce a single sum value for a <code>PCollection</code
 </span><span class=c1></span><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>&gt;</span> <span class=n>pc</span> <span class=o>=</span> <span class=o>...;</span>
 <span class=n>PCollection</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>&gt;</span> <span class=n>sum</span> <span class=o>=</span> <span class=n>pc</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span>
    <span class=n>Combine</span><span class=o>.</span><span class=na>globally</span><span class=o>(</span><span class=k>new</span> <span class=n>Sum</span><span class=o>.</span><span class=na>SumIntegerFn</span><span class=o>()));</span></code></pre></div></div><p><strong>Example 2</strong>: Keyed combine
-Use a keyed combine to to combine all of the values associated with each key
+Use a keyed combine to combine all of the values associated with each key
 into a single output value for each key. As with the global combine, the
 function passed to a keyed combine must be associative and commutative.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// PCollection is grouped by key and the Double values associated with each key are combined into a Double.
 </span><span class=c1></span><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>Double</span><span class=o>&gt;&gt;</span> <span class=n>salesRecords</span> <span class=o>=</span> <span class=o>...;</span>
