@@ -219,13 +219,13 @@ public class AwsModule extends SimpleModule {
               (STSAssumeRoleSessionCredentialsProvider) credentialsProvider;
 
           Field fieldRole =
-              STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField("roleArn");
+              STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField(ROLE_ARN);
           fieldRole.setAccessible(true);
           String roleArn = (String) fieldRole.get(specificProvider);
           jsonGenerator.writeStringField(ROLE_ARN, roleArn);
 
           Field fieldSession =
-              STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField("roleSessionName");
+              STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField(ROLE_SESSION_NAME);
           fieldSession.setAccessible(true);
           String roleSessionName = (String) fieldSession.get(specificProvider);
           jsonGenerator.writeStringField(ROLE_SESSION_NAME, roleSessionName);
