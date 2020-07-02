@@ -17,6 +17,6 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false, publish: false)
+applyJavaNature(enableChecker:false,exportJavadoc: false, publish: false)
 
 description = "Apache Beam :: SDKs :: Java :: Build Tools"

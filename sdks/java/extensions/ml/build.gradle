@@ -21,7 +21,7 @@ import groovy.json.JsonOutput
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.ml')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.extensions.ml')
 
 description = 'Apache Beam :: SDKs :: Java :: Extensions :: ML'
 
