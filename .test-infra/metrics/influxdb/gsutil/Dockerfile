@@ -16,15 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: influxdb-backups
-  labels:
-    app: beammetrics
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
+FROM python:3-slim
+
+# google-compute-engine package allows to obtain credentials for service
+# account specified in .boto file.
+RUN pip install --no-cache-dir gsutil google-compute-engine
+
+ADD .boto /etc/boto.cfg
