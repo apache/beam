@@ -186,7 +186,7 @@ func setupAcceptableWheelSpecs() error {
 	re := regexp.MustCompile(`Python (\d)\.(\d).*`)
 	pyVersions := re.FindStringSubmatch(string(stdoutStderr[:]))
 	if len(pyVersions) != 3 {
-		return fmt.Errorf("cannot get python version with expected format")
+		return fmt.Errorf("cannot get parse Python version from %s", stdoutStderr)
 	}
 	pyVersion := fmt.Sprintf("%s%s", pyVersions[1], pyVersions[2])
 	if pyVersion == "27" {
