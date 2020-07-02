@@ -20,7 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.twister2')
+applyJavaNature(automaticModuleName: 'org.apache.beam.runners.twister2', enableChecker:false)
 evaluationDependsOn(":sdks:java:core")
 configurations {
     validatesRunner

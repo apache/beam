@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.rabbitmq')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.rabbitmq')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: RabbitMQ"
 ext.summary = "IO to read and write to a RabbitMQ broker."

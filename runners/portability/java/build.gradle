@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.portability')
+applyJavaNature(automaticModuleName: 'org.apache.beam.runners.portability', enableChecker:false)
 
 description = "Apache Beam :: Runners :: Portability :: Java"
 ext.summary = """A Java implementation of the Beam Model which utilizes the portability
