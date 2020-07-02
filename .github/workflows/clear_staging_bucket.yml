@@ -43,25 +43,4 @@ jobs:
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}
     - name: Delete folders without corresponding branch in repo
-      run: |
-        declare -a FOLDERS_TO_BE_DELETED=()
-        IFS=$'\n' read -r -d '' -a existing_folders < <( (gsutil ls -d ${GCP_PATH} || return 1) | grep "^${GCP_PATH}" | sed "s?.*${GCP_PATH}/??" | sed -e 's/\/$//' && printf '\0' )
-        IFS=$'\n' read -r -d '' -a existing_branches < <( git ls-remote --heads origin | sed 's?.*refs/heads/??' && printf '\0' )
-
-        for i in "${existing_folders[@]}"
-          do
-            if [[ ! "${existing_branches[@]}" =~ "${i}" ]]; then
-              echo "For folder ${GCP_PATH}/${i} branch '${i}' does not exist and will be deleted"
-              FOLDERS_TO_BE_DELETED+=("${i}")
-             fi
-          done
-
-        if [ ${#FOLDERS_TO_BE_DELETED[@]} -eq 0 ]; then
-          echo "No Folders to be deleted, hooray"
-        else
-          for i in "${FOLDERS_TO_BE_DELETED[@]}"
-            do
-              echo "Deleting ${GCP_PATH}/${i}/ ..."
-              gsutil -m rm ${GCP_PATH}/${i}/**
-            done
-        fi
+      run: ./.github/scripts/clear_staging_bucket.sh
