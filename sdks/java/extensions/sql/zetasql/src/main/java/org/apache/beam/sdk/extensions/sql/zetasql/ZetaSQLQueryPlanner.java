@@ -150,7 +150,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     return (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
   }
 
-  private FrameworkConfig defaultConfig(JdbcConnection connection, RuleSet[] ruleSets) {
+  private static FrameworkConfig defaultConfig(JdbcConnection connection, RuleSet[] ruleSets) {
     final CalciteConnectionConfig config = connection.config();
     final SqlParser.ConfigBuilder parserConfig =
         SqlParser.configBuilder()
