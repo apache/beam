@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileIO.MatchConfiguration;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
@@ -51,6 +53,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
@@ -605,7 +608,8 @@ public class AvroIO {
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder<T> {
+    abstract static class Builder<T>
+        implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<T>> {
       abstract Builder<T> setFilepattern(ValueProvider<String> filepattern);
 
       abstract Builder<T> setMatchConfiguration(MatchConfiguration matchConfiguration);
@@ -619,6 +623,42 @@ public class AvroIO {
       abstract Builder<T> setHintMatchesManyFiles(boolean hintManyFiles);
 
       abstract Read<T> build();
+
+      @Override
+      public PTransform<PBegin, PCollection<T>> buildExternal(External.Configuration config) {
+
+        Schema schema = new Schema.Parser().parse(config.schema);
+        setFilepattern(StaticValueProvider.of(config.filepattern));
+        setSchema(schema);
+
+        return build();
+      }
+    }
+
+    @Experimental
+    @AutoService(ExternalTransformRegistrar.class)
+    public static class External implements ExternalTransformRegistrar {
+
+      public static final String URN = "beam:external:java:avro:read:v1";
+
+      @Override
+      public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+        return ImmutableMap.of(URN, AutoValue_AvroIO_Read.Builder.class);
+      }
+
+      /** Parameters class to expose the Read transform to an external SDK. */
+      public static class Configuration {
+        private String filepattern;
+        private String schema;
+
+        public void setFilepattern(String filepattern) {
+          this.filepattern = filepattern;
+        }
+
+        public void setSchema(String schema) {
+          this.schema = schema;
+        }
+      }
     }
 
     /**
