@@ -30,8 +30,8 @@ import typing
 import unittest
 
 import apache_beam as beam
-from apache_beam.io.external.kafka import ReadFromKafka
-from apache_beam.io.external.kafka import WriteToKafka
+from apache_beam.io.kafka import ReadFromKafka
+from apache_beam.io.kafka import WriteToKafka
 from apache_beam.metrics import Metrics
 from apache_beam.testing.test_pipeline import TestPipeline
 
