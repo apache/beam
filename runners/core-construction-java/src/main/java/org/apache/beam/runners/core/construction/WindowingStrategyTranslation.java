@@ -45,6 +45,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Durations;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Timestamps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.joda.time.Duration;
 
 /** Utilities for working with {@link WindowingStrategy WindowingStrategies}. */
@@ -281,6 +282,10 @@ public class WindowingStrategyTranslation implements Serializable {
   public static RunnerApi.WindowingStrategy toProto(
       WindowingStrategy<?, ?> windowingStrategy, SdkComponents components) throws IOException {
     FunctionSpec windowFnSpec = toProto(windowingStrategy.getWindowFn(), components);
+    String environmentId =
+        Strings.isNullOrEmpty(windowingStrategy.getEnvironmentId())
+            ? components.getOnlyEnvironmentId()
+            : windowingStrategy.getEnvironmentId();
 
     RunnerApi.WindowingStrategy.Builder windowingStrategyProto =
         RunnerApi.WindowingStrategy.newBuilder()
@@ -294,7 +299,7 @@ public class WindowingStrategyTranslation implements Serializable {
             .setOnTimeBehavior(toProto(windowingStrategy.getOnTimeBehavior()))
             .setWindowCoderId(
                 components.registerCoder(windowingStrategy.getWindowFn().windowCoder()))
-            .setEnvironmentId(components.getOnlyEnvironmentId());
+            .setEnvironmentId(environmentId);
 
     return windowingStrategyProto.build();
   }
@@ -334,6 +339,7 @@ public class WindowingStrategyTranslation implements Serializable {
     ClosingBehavior closingBehavior = fromProto(proto.getClosingBehavior());
     Duration allowedLateness = Duration.millis(proto.getAllowedLateness());
     OnTimeBehavior onTimeBehavior = fromProto(proto.getOnTimeBehavior());
+    String environmentId = proto.getEnvironmentId();
 
     return WindowingStrategy.of(windowFn)
         .withAllowedLateness(allowedLateness)
@@ -341,7 +347,8 @@ public class WindowingStrategyTranslation implements Serializable {
         .withTrigger(trigger)
         .withTimestampCombiner(timestampCombiner)
         .withClosingBehavior(closingBehavior)
-        .withOnTimeBehavior(onTimeBehavior);
+        .withOnTimeBehavior(onTimeBehavior)
+        .withEnvironmentId(environmentId);
   }
 
   public static WindowFn<?, ?> windowFnFromProto(FunctionSpec windowFnSpec) {

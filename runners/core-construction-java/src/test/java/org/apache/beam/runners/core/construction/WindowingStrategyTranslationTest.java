@@ -109,7 +109,11 @@ public class WindowingStrategyTranslationTest {
 
     assertThat(
         toProtoAndBackWindowingStrategy,
-        equalTo((WindowingStrategy) windowingStrategy.fixDefaults()));
+        equalTo(
+            (WindowingStrategy)
+                windowingStrategy
+                    .withEnvironmentId(components.getOnlyEnvironmentId())
+                    .fixDefaults()));
   }
 
   @Test
@@ -124,7 +128,8 @@ public class WindowingStrategyTranslationTest {
 
     assertThat(
         WindowingStrategyTranslation.fromProto(proto, protoComponents).fixDefaults(),
-        equalTo(windowingStrategy.fixDefaults()));
+        equalTo(
+            windowingStrategy.withEnvironmentId(components.getOnlyEnvironmentId()).fixDefaults()));
 
     protoComponents.getCoder(
         components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));
