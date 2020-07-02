@@ -59,7 +59,7 @@ def parse_arguments():
   ARTIFACTS_DIR = args.artifacts_dir
 
 
-def requester(url, return_raw_request=False, *args, **kwargs):
+def request_url(url, return_raw_request=False, *args, **kwargs):
   """Helper function form making requests authorized by GitHub token"""
   r = requests.get(url, *args, auth=("token", GITHUB_TOKEN), **kwargs)
   r.raise_for_status()
@@ -68,7 +68,7 @@ def requester(url, return_raw_request=False, *args, **kwargs):
   return r.json()
 
 
-def yes_or_no(question):
+def get_yes_or_no_answer(question):
   """Helper function to ask yes or no question"""
   reply = str(input(question + " (y/n): ")).lower().strip()
   if reply == "y":
@@ -76,12 +76,12 @@ def yes_or_no(question):
   if reply == "n":
     return False
   else:
-    return yes_or_no("Uhhhh... please enter ")
+    return get_yes_or_no_answer("Uhhhh... please enter ")
 
 
 def get_build_wheels_workflow_id():
   url = GH_API_URL_WORKLOW_FMT.format(repo_url=REPO_URL)
-  data = requester(url)
+  data = request_url(url)
   return data["id"]
 
 
@@ -91,7 +91,7 @@ def get_last_run(workflow_id):
   event_types = ["push", "pull_request"]
   runs = []
   for event in event_types:
-    data = requester(
+    data = request_url(
         url,
         params={
             "event": event, "branch": RELEASE_BRANCH
@@ -155,7 +155,7 @@ def validate_run(run_data):
     time.sleep(0.3)
     if (now - last_request) > 10:
       last_request = now
-      run_data = requester(url)
+      run_data = request_url(url)
       status = run_data["status"]
       conclusion = run_data["conclusion"]
       if status != "completed":
@@ -166,7 +166,7 @@ def validate_run(run_data):
             f"Last state: status: `{status}`, conclusion: `{conclusion}`.",
         )
         return run_data
-      elif conclusion:
+      else:
         print("\r")
         raise Exception(
             f"Run unsuccessful. Conclusion: {conclusion}. Payload: {run_data}")
@@ -177,7 +177,7 @@ def reset_directory():
       f"Artifacts directory will be cleared. Is it OK for you?\n"
       f"Artifacts directory: {ARTIFACTS_DIR}\n"
       f"Your answer")
-  if yes_or_no(question):
+  if get_yes_or_no_answer(question):
     print(f"Clearing directory: {ARTIFACTS_DIR}")
     shutil.rmtree(ARTIFACTS_DIR, ignore_errors=True)
     os.makedirs(ARTIFACTS_DIR)
@@ -188,7 +188,7 @@ def reset_directory():
 
 def download_artifacts(artifacts_url):
   print("Starting downloading artifacts ... (it may take a while)")
-  data_artifacts = requester(artifacts_url)
+  data_artifacts = request_url(artifacts_url)
   filtered_artifacts = [
       a for a in data_artifacts["artifacts"] if (
           a["name"].startswith("source_gztar_zip") or
@@ -201,7 +201,7 @@ def download_artifacts(artifacts_url):
     print(
         f"\tDownloading {name}.zip artifact (size: {artifacts_size_mb} megabytes)"
     )
-    r = requester(url, return_raw_request=True, allow_redirects=True)
+    r = request_url(url, return_raw_request=True, allow_redirects=True)
 
     with tempfile.NamedTemporaryFile(
         "wb",
