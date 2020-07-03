@@ -26,7 +26,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Array;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 
@@ -89,7 +92,6 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
     @Override
     public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-        LOG.info(((RexCall) pattern).getOperands().get(1).getClass().toString());
         for(Map.Entry<String, RexNode> entry : patternDefinitions.entrySet()) {
             String k = entry.getKey();
             RexCall v = (RexCall) entry.getValue();
@@ -170,26 +172,65 @@ public class BeamMatchRel extends Match implements BeamRelNode {
         private static class MatchPattern extends DoFn<KV<Row, Iterable<Row>>, KV<Row, Iterable<Row>>> {
 
             private final Schema mySchema;
-            private final RexNode pattern;
+            private final RexCall pattern;
             private final Map<String, RexNode> patternDefs;
+            private final String regexPattern;
 
             public MatchPattern(Schema mySchema, RexNode pattern, Map<String, RexNode> patternDefs) {
                 this.mySchema = mySchema;
-                this.pattern = pattern;
+                this.pattern = (RexCall) pattern;
                 this.patternDefs = patternDefs;
+                this.regexPattern = getRegexFromPattern(this.pattern);
+            }
+
+            // recursively change a RexNode into a regular expr
+            // TODO: support quantifiers: PATTERN_QUANTIFIER('A', 1, -1, false) false?
+            private String getRegexFromPattern(RexNode call) {
+                if(call.getClass() == RexLiteral.class) {
+                    return ((RexLiteral) call).getValueAs(String.class);
+                } else {
+                    RexCall oprs = (RexCall) call;
+                    if(oprs.getOperands().size() == 2) {
+                        return getRegexFromPattern(oprs.getOperands().get(0)) +
+                                getRegexFromPattern(oprs.getOperands().get(1));
+                    } else {
+                        return getRegexFromPattern(oprs.getOperands().get(0));
+                    }
+                }
             }
 
             @ProcessElement
             public void processElement(@Element KV<Row, Iterable<Row>> keyRows,
                                        OutputReceiver<KV<Row, Iterable<Row>>> out) {
-                ArrayList<Row> rows = new ArrayList();
+                ArrayList<Row> rows = new ArrayList<>();
+                String patternString = "";
                 for(Row i : keyRows.getValue()) {
                     rows.add(i);
                     // check pattern of row i
-
+                    String patternOfRow = " "; // a row with no matched pattern is marked by a space
+                    for(int j = 0; j < regexPattern.length(); ++j) {
+                        String tryPattern = Character.toString(regexPattern.charAt(j));
+                        RexCall call = (RexCall) patternDefs.get(tryPattern);
+                        if(call != null) {
+                            if (evalCondition(i,
+                                    (RexCall) patternDefs.get(tryPattern))) {
+                                patternOfRow = tryPattern;
+                                break;
+                            }
+                        } else {
+                            patternOfRow = tryPattern;
+                            break;
+                        }
+                    }
+                    patternString += patternOfRow;
                 }
 
-
+                Pattern p = Pattern.compile(regexPattern);
+                Matcher m = p.matcher(patternString);
+                if(m.matches()) {
+                    out.output(KV.of(keyRows.getKey(),
+                            rows.subList(m.start(), m.end())));
+                }
             }
 
             // Last(*.$1, 1) || NEXT(*.$1, 0)
@@ -256,21 +297,6 @@ public class BeamMatchRel extends Match implements BeamRelNode {
                     default:
                         return false;
                 }
-            }
-
-            // a function that gives back a matched pattern name string
-            private String patternOf(Row rowEle) {
-                // check each pattern def
-                for(Map.Entry<String, RexNode> entry : patternDefs.entrySet()) {
-                    String k = entry.getKey();
-                    RexCall v = (RexCall) entry.getValue();
-
-                    if(evalCondition(rowEle, v)) {
-                        return k;
-                    }
-                }
-
-                return " "; // if no pattern was matched, return space
             }
         }
 
