@@ -97,7 +97,7 @@ public class QueryDispositionLocationTest {
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
-                .withFileNameTemplate("output*")
+                .withFileNameTemplate("output")
                 .withWriteDisposition(WriteDisposition.TRUNCATE)
                 .withSnowflakeService(snowflakeService));
 
@@ -126,7 +126,7 @@ public class QueryDispositionLocationTest {
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
-                .withFileNameTemplate("output*")
+                .withFileNameTemplate("output")
                 .withWriteDisposition(WriteDisposition.EMPTY)
                 .withSnowflakeService(snowflakeService));
 
@@ -146,7 +146,7 @@ public class QueryDispositionLocationTest {
                 .withTable(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
-                .withFileNameTemplate("output*")
+                .withFileNameTemplate("output")
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withWriteDisposition(WriteDisposition.EMPTY)
                 .withSnowflakeService(snowflakeService));
