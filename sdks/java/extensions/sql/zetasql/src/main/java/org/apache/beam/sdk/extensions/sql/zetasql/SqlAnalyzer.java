@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_FUNCTION_STMT;
+import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_TABLE_FUNCTION_STMT;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable.ZETASQL_BUILTIN_FUNCTION_ALLOWLIST;
@@ -156,7 +157,8 @@ public class SqlAnalyzer {
                 "Failed to define function %s", String.join(".", createFunctionStmt.getNamePath())),
             e);
       }
-    } else if (resolvedStatement.nodeKind() != RESOLVED_QUERY_STMT) {
+    } else if (resolvedStatement.nodeKind() != RESOLVED_QUERY_STMT
+        && resolvedStatement.nodeKind() != RESOLVED_CREATE_TABLE_FUNCTION_STMT) {
       throw new UnsupportedOperationException(
           "Unrecognized statement type " + resolvedStatement.nodeKindString());
     }
@@ -177,12 +179,17 @@ public class SqlAnalyzer {
                     LanguageFeature.FEATURE_DISALLOW_GROUP_BY_FLOAT,
                     LanguageFeature.FEATURE_V_1_2_CIVIL_TIME,
                     LanguageFeature.FEATURE_V_1_1_SELECT_STAR_EXCEPT_REPLACE,
-                    LanguageFeature.FEATURE_TABLE_VALUED_FUNCTIONS)));
+                    LanguageFeature.FEATURE_TABLE_VALUED_FUNCTIONS,
+                    LanguageFeature.FEATURE_CREATE_TABLE_FUNCTION,
+                    LanguageFeature.FEATURE_TEMPLATE_FUNCTIONS)));
 
     options
         .getLanguageOptions()
         .setSupportedStatementKinds(
-            ImmutableSet.of(RESOLVED_QUERY_STMT, RESOLVED_CREATE_FUNCTION_STMT));
+            ImmutableSet.of(
+                RESOLVED_QUERY_STMT,
+                RESOLVED_CREATE_FUNCTION_STMT,
+                RESOLVED_CREATE_TABLE_FUNCTION_STMT));
 
     return options;
   }

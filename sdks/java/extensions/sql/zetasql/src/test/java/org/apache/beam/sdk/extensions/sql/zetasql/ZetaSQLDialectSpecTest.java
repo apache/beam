@@ -45,6 +45,7 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
+import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -2913,6 +2914,57 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(SqlException.class);
     thrown.expectMessage("Function not found: omega");
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testUDTVF() {
+    String sql =
+        "CREATE TABLE FUNCTION CustomerRange(MinID INT64, MaxID INT64)\n"
+            + "  AS\n"
+            + "    SELECT *\n"
+            + "    FROM KeyValue\n"
+            + "    WHERE key >= MinId AND key <= MaxId; \n"
+            + " SELECT key FROM CustomerRange(10, 14)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema singleField = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(14L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUDTVFTableNotFound() {
+    String sql =
+        "CREATE TABLE FUNCTION CustomerRange(MinID INT64, MaxID INT64)\n"
+            + "  AS\n"
+            + "    SELECT *\n"
+            + "    FROM TableNotExist\n"
+            + "    WHERE key >= MinId AND key <= MaxId; \n"
+            + " SELECT key FROM CustomerRange(10, 14)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(SqlConversionException.class);
+    thrown.expectMessage("Wasn't able to find resolve the path [TableNotExist] in beam");
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testUDTVFFunctionNotFound() {
+    String sql =
+        "CREATE TABLE FUNCTION CustomerRange(MinID INT64, MaxID INT64)\n"
+            + "  AS\n"
+            + "    SELECT *\n"
+            + "    FROM KeyValue\n"
+            + "    WHERE key >= MinId AND key <= MaxId; \n"
+            + " SELECT key FROM FunctionNotFound(10, 14)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(SqlException.class);
+    thrown.expectMessage("Table-valued function not found: FunctionNotFound");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 

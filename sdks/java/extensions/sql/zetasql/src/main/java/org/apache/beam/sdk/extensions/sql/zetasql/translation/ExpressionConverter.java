@@ -40,7 +40,9 @@ import com.google.common.collect.ImmutableSet;
 import com.google.zetasql.ArrayType;
 import com.google.zetasql.EnumType;
 import com.google.zetasql.StructType;
+import com.google.zetasql.TVFRelation;
 import com.google.zetasql.TableValuedFunction;
+import com.google.zetasql.TableValuedFunction.FixedOutputSchemaTVF;
 import com.google.zetasql.Type;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
@@ -68,9 +70,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
+import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedPureSqlTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperatorRewriter;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperators;
@@ -85,11 +89,14 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFieldImpl;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelRecordType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
@@ -589,6 +596,7 @@ public class ExpressionConverter {
       List<ResolvedNodes.ResolvedTVFArgument> argumentList,
       List<ResolvedColumn> inputTableColumns) {
     ResolvedColumn wmCol;
+    // Handle builtin windowing TVF.
     switch (tvf.getName()) {
       case TVFStreamingUtils.FIXED_WINDOW_TVF:
         // TUMBLE tvf's second argument is descriptor.
@@ -631,11 +639,42 @@ public class ExpressionConverter {
         operands.addAll(convertResolvedColumnsToRexInputRef(keyCol, inputTableColumns));
         return (RexCall)
             rexBuilder().makeCall(new SqlWindowTableFunction(SqlKind.SESSION.name()), operands);
-
-      default:
-        throw new UnsupportedOperationException(
-            "Does not support table-valued function: " + tvf.getName());
     }
+
+    if (tvf instanceof FixedOutputSchemaTVF) {
+      FixedOutputSchemaTVF fixedOutputSchemaTVF = (FixedOutputSchemaTVF) tvf;
+      return (RexCall)
+          rexBuilder()
+              .makeCall(
+                  new ZetaSqlUserDefinedPureSqlTableValuedFunction(
+                      new SqlIdentifier(tvf.getName(), SqlParserPos.ZERO),
+                      opBinding -> {
+                        List<RelDataTypeField> relDataTypeFields =
+                            convertTVFRelationColumnsToRelDataTypeFields(
+                                fixedOutputSchemaTVF.getOutputSchema().getColumns());
+                        return new RelRecordType(relDataTypeFields);
+                      },
+                      null,
+                      null,
+                      null,
+                      null));
+    }
+
+    throw new UnsupportedOperationException(
+        "Does not support table-valued function: " + tvf.getName());
+  }
+
+  private List<RelDataTypeField> convertTVFRelationColumnsToRelDataTypeFields(
+      List<TVFRelation.Column> columns) {
+    return IntStream.range(0, columns.size())
+        .mapToObj(
+            i ->
+                new RelDataTypeFieldImpl(
+                    columns.get(i).getName(),
+                    i,
+                    ZetaSqlCalciteTranslationUtils.toRelDataType(
+                        rexBuilder(), columns.get(i).getType(), false)))
+        .collect(Collectors.toList());
   }
 
   private List<RexInputRef> convertResolvedColumnsToRexInputRef(
