@@ -1478,13 +1478,19 @@ public class JdbcIO {
     private static final ConcurrentHashMap<DataSourceConfiguration, DataSource> instances =
         new ConcurrentHashMap<>();
     private final DataSourceProviderFromDataSourceConfiguration config;
+    private final SerializableFunction<DataSource, PoolingDataSource<PoolableConnection>> poolingDataSourceFactory;
 
-    private PoolableDataSourceProvider(DataSourceConfiguration config) {
+    private PoolableDataSourceProvider(DataSourceConfiguration config, SerializableFunction<DataSource, PoolingDataSource<PoolableConnection>> poolingDataSourceFactory) {
       this.config = new DataSourceProviderFromDataSourceConfiguration(config);
+      this.poolingDataSourceFactory = poolingDataSourceFactory;
     }
 
     public static SerializableFunction<Void, DataSource> of(DataSourceConfiguration config) {
-      return new PoolableDataSourceProvider(config);
+      return new PoolableDataSourceProvider(config, PoolableDataSourceProvider::defaultPoolingDataSourceFactory);
+    }
+
+    public static SerializableFunction<Void, DataSource> of(DataSourceConfiguration config, SerializableFunction<DataSource, PoolingDataSource<PoolableConnection>> poolingDataSourceFactory) {
+      return new PoolableDataSourceProvider(config, poolingDataSourceFactory);
     }
 
     @Override
@@ -1493,22 +1499,26 @@ public class JdbcIO {
           config.config,
           ignored -> {
             DataSource basicSource = config.apply(input);
-            DataSourceConnectionFactory connectionFactory =
-                new DataSourceConnectionFactory(basicSource);
-            PoolableConnectionFactory poolableConnectionFactory =
-                new PoolableConnectionFactory(connectionFactory, null);
-            GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
-            poolConfig.setMaxTotal(1);
-            poolConfig.setMinIdle(0);
-            poolConfig.setMinEvictableIdleTimeMillis(10000);
-            poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
-            GenericObjectPool connectionPool =
-                new GenericObjectPool(poolableConnectionFactory, poolConfig);
-            poolableConnectionFactory.setPool(connectionPool);
-            poolableConnectionFactory.setDefaultAutoCommit(false);
-            poolableConnectionFactory.setDefaultReadOnly(false);
-            return new PoolingDataSource(connectionPool);
+            return poolingDataSourceFactory.apply(basicSource);
           });
+    }
+
+    private static PoolingDataSource<PoolableConnection> defaultPoolingDataSourceFactory(DataSource basicSource) {
+      DataSourceConnectionFactory connectionFactory =
+              new DataSourceConnectionFactory(basicSource);
+      PoolableConnectionFactory poolableConnectionFactory =
+              new PoolableConnectionFactory(connectionFactory, null);
+      GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
+      poolConfig.setMaxTotal(1);
+      poolConfig.setMinIdle(0);
+      poolConfig.setMinEvictableIdleTimeMillis(10000);
+      poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
+      GenericObjectPool connectionPool =
+              new GenericObjectPool(poolableConnectionFactory, poolConfig);
+      poolableConnectionFactory.setPool(connectionPool);
+      poolableConnectionFactory.setDefaultAutoCommit(false);
+      poolableConnectionFactory.setDefaultReadOnly(false);
+      return new PoolingDataSource(connectionPool);
     }
 
     @Override
