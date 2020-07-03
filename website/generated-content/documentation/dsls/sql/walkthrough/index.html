@@ -63,7 +63,7 @@ Types</a> for more details on supported primitive data types.</p><p>A <code>PCol
               <span class=c1>// Output the Row representing the current POJO
 </span><span class=c1></span>              <span class=n>c</span><span class=o>.</span><span class=na>output</span><span class=o>(</span><span class=n>appRow</span><span class=o>);</span>
             <span class=o>}</span>
-          <span class=o>}));</span>
+          <span class=o>})).</span><span class=na>setRowSchema</span><span class=o>(</span><span class=n>appSchema</span><span class=o>);</span>
     </code></pre></div></div></p></li><li><p><strong>As an output of another <code>SqlTransform</code></strong>. Details in the next section.</p></li></ul><p>Once you have a <code>PCollection&lt;Row></code> in hand, you may use <code>SqlTransform</code> to apply SQL queries to it.</p><h2 id=sqltransform>SqlTransform</h2><p><a href=https://beam.apache.org/releases/javadoc/2.22.0/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html><code>SqlTransform.query(queryString)</code></a> method is the only API to create a <code>PTransform</code>
 from a string representation of the SQL query. You can apply this <code>PTransform</code>
 to either a single <code>PCollection</code> or a <code>PCollectionTuple</code> which holds multiple
