@@ -140,5 +140,4 @@ class BlobStorageIO(object):
         time.time() - start_time)
     return file_sizes
 
-
-  
+    

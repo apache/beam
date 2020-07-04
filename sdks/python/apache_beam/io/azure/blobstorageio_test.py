@@ -76,7 +76,13 @@ class TestBlobStorageIO(unittest.TestCase):
     self.azfs = blobstorageio.BlobStorageIO()
     self.TEST_DATA_PATH = 'azfs://gsoc2020/gsoc/'
 
-  
+  def test_file_mode(self):
+    file_name = self.TEST_DATA_PATH + 'sloth/pictures/sleeping'
+    with self.azfs.open(file_name, 'w') as f:
+      assert f.mode == 'w'
+    with self.azfs.open(file_name, 'r') as f:
+      assert f.mode == 'r'
+
   def test_list_prefix(self):
 
     test_cases = [
