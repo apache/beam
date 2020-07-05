@@ -1,12 +1,16 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import org.apache.beam.sdk.extensions.sql.SqlTransform;
+import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Test;
 import org.apache.beam.sdk.schemas.Schema;
+
+import static org.apache.beam.sdk.extensions.sql.impl.rel.BaseRelTest.compilePipeline;
+import static org.apache.beam.sdk.extensions.sql.impl.rel.BaseRelTest.registerTable;
 
 public class BeamMatchRelTest {
 
@@ -20,14 +24,29 @@ public class BeamMatchRelTest {
         .addInt32Field("proctime")
         .build();
 
-    PCollection<Row> input =
-        pipeline.apply(
-            Create.of(
-                Row.withSchema(schemaType).addValue(1).addValue("a").addValue(1).build())
-                .withRowSchema(schemaType));
+    registerTable(
+            "TestTable",
+            TestBoundedTable.of(
+                    schemaType)
+                    .addRows(
+                            1, "a", 1,
+                            1, "b", 2,
+                            1, "c", 3
+                    ));
+
+//
+//    PCollection<Row> input =
+//        pipeline.apply(
+//            Create.of(
+//                Row.withSchema(schemaType).addValues(
+//                        1, "a", 1,
+//                        1, "b", 2,
+//                        1, "c", 3
+//                ).build())
+//                .withRowSchema(schemaType));
 
     String sql = "SELECT T.aid, T.bid, T.cid " +
-        "FROM PCOLLECTION " +
+        "FROM TestTable " +
         "MATCH_RECOGNIZE (" +
         "PARTITION BY id " +
         "ORDER BY proctime " +
@@ -37,14 +56,25 @@ public class BeamMatchRelTest {
         "C.id AS cid " +
         "PATTERN (A B C) " +
         "DEFINE " +
-        "A AS PREV(name) = 'mark', " +
-        "B AS NEXT(name) = 'andy', " +
-        "C AS name = 'tagore' " +
+        "A AS name = 'a', " +
+        "B AS name = 'b', " +
+        "C AS name = 'c' " +
         ") AS T";
 
-    PCollection<Row> result = input.apply(SqlTransform.query(sql));
+//    PCollection<Row> result = input.apply(SqlTransform.query(sql));
+    PCollection<Row> result = compilePipeline(sql, pipeline);
 
-    pipeline.run();
+    PAssert.that(result)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                Schema.FieldType.INT32, "id",
+                Schema.FieldType.STRING, "name",
+                Schema.FieldType.INT32, "proctime")
+            .addRows(1, "a", 1, 1, "b", 2, 1, "c", 3)
+            .getRows()
+        );
+
+    pipeline.run().waitUntilFinish();
 
   }
 }

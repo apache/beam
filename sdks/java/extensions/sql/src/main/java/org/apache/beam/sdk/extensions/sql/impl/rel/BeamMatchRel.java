@@ -26,7 +26,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -164,7 +163,24 @@ public class BeamMatchRel extends Match implements BeamRelNode {
             PCollection<KV<Row, Iterable<Row>>> matchedUpstream = orderedUpstream
                 .apply(ParDo.of(new MatchPattern(mySchema, pattern, patternDefs)));
 
-            return null;
+            // apply the ParDo for the measures clause
+            // for now, output the all rows of each pattern matched (for testing purpose)
+            PCollection<Row> outStream = matchedUpstream
+                    .apply(ParDo.of(new Measure()))
+                    .setRowSchema(collectionSchema);
+
+            return outStream;
+        }
+
+        private static class Measure extends DoFn<KV<Row, Iterable<Row>>, Row> {
+
+            @ProcessElement
+            public void processElement(@Element KV<Row, Iterable<Row>> keyRows,
+                                       OutputReceiver<Row> out) {
+                for(Row i : keyRows.getValue()) {
+                    out.output(i);
+                }
+            }
         }
 
         // TODO: support both ALL ROWS PER MATCH and ONE ROW PER MATCH.
@@ -227,6 +243,8 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
                 Pattern p = Pattern.compile(regexPattern);
                 Matcher m = p.matcher(patternString);
+                // if the pattern is (A B+ C),
+                // it should return a List three rows matching A B C respectively
                 if(m.matches()) {
                     out.output(KV.of(keyRows.getKey(),
                             rows.subList(m.start(), m.end())));
