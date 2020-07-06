@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
-// Required to setup a Python 3 virtualenv and task names.
-pythonVersion = '3.7'
-apply from: '../common.gradle'
+addPortableWordCountTasks()
+
+// Required to setup a Python 3.8 virtualenv and task names.
+pythonVersion = '3.8'
+apply from: "../common.gradle"

@@ -16,9 +16,14 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
+enablePythonPerformanceTest()
+
+dependencies {
+  distTarBall project(path: ":sdks:python", configuration: "distTarBall")
+}
 
 // Required to setup a Python 3 virtualenv and task names.
-pythonVersion = '3.7'
-apply from: '../common.gradle'
+pythonVersion = '3.8'
+apply from: "../common.gradle"
