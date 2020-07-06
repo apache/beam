@@ -23,11 +23,9 @@ import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.PAYLOAD_FIELD;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.TIMESTAMP_FIELD;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -35,40 +33,51 @@ import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 import org.apache.beam.sdk.schemas.io.InvalidSchemaException;
 import org.apache.beam.sdk.schemas.io.SchemaCapableIOProvider;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
-import org.apache.beam.sdk.schemas.transforms.DropFields;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ToJson;
-import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * {@link SchemaCapableIOProvider} to create {@link PubsubSchemaIO} that implements {@link
- * SchemaIO}.
+ * An implementation of {@link SchemaCapableIOProvider} for reading and writing JSON payloads with
+ * {@link PubsubIO}.
  *
- * <p>If useFlatSchema of {@link PubsubSchemaIO} is not set, schema must contain exactly fields
- * 'event_timestamp', 'attributes, and 'payload'. Else, it must contain just 'event_timestamp'. See
- * {@link PubsubMessageToRow} for details.
+ * <h2>Schema</h2>
+ *
+ * <p>The data schema passed to {@link #from(String, Row, Schema)} must either be of the nested or
+ * flat style.
+ *
+ * <h3>Nested style</h3>
+ *
+ * <p>If nested structure is used, the required fields included in the Pubsub message model are
+ * 'event_timestamp', 'attributes', and 'payload'.
+ *
+ * <h3>Flat style</h3>
+ *
+ * <p>If flat structure is used, the required fields include just 'event_timestamp'. Every other
+ * field is assumed part of the payload. See {@link PubsubMessageToRow} for details.
+ *
+ * <h2>Configuration</h2>
  *
  * <p>{@link #configurationSchema()} consists of two attributes, timestampAttributeKey and
  * deadLetterQueue.
  *
- * <p>timestampAttributeKey is an optional attribute key of the Pubsub message from which to extract
- * the event timestamp.
+ * <h3>timestampAttributeKey</h3>
+ *
+ * <p>An optional attribute key of the Pubsub message from which to extract the event timestamp. If
+ * not specified, the message publish time will be used as event timestamp.
  *
  * <p>This attribute has to conform to the same requirements as in {@link
- * PubsubIO.Read.Builder#withTimestampAttribute}.
+ * PubsubIO.Read.Builder#withTimestampAttribute(String)}
  *
  * <p>Short version: it has to be either millis since epoch or string in RFC 3339 format.
  *
  * <p>If the attribute is specified then event timestamps will be extracted from the specified
  * attribute. If it is not specified then message publish timestamp will be used.
+ *
+ * <h3>deadLetterQueue</h3>
  *
  * <p>deadLetterQueue is an optional topic path which will be used as a dead letter queue.
  *
@@ -190,7 +199,9 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
         @Override
         public POutput expand(PCollection<Row> input) {
           return input
-              .apply(new RowToPubsubMessage(config, useFlatSchema, useTimestampAttribute(config)))
+              .apply(
+                  RowToPubsubMessage.fromConfig(
+                      config, useFlatSchema, useTimestampAttribute(config)))
               .apply(createPubsubMessageWrite());
         }
       };
@@ -241,46 +252,6 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
       return schema.hasField(field)
           && expectedType.equivalent(
               schema.getField(field).getType(), Schema.EquivalenceNullablePolicy.IGNORE);
-    }
-  }
-
-  /**
-   * A {@link PTransform} to convert {@link Row} to {@link PubsubMessage} with JSON payload.
-   *
-   * <p>Currently only supports writing a flat schema into a JSON payload. This means that all Row
-   * field values are written to the {@link PubsubMessage} JSON payload, except for {@code
-   * event_timestamp}, which is either ignored or written to the message attributes, depending on
-   * whether config.getValue("timestampAttributeKey") is set.
-   */
-  private static class RowToPubsubMessage
-      extends PTransform<PCollection<Row>, PCollection<PubsubMessage>> {
-    private final Row config;
-    private final Boolean useTimestampAttribute;
-
-    private RowToPubsubMessage(Row config, Boolean useFlatSchema, Boolean useTimestampAttribute) {
-      checkArgument(useFlatSchema, "RowToPubsubMessage is only supported for flattened schemas.");
-
-      this.config = config;
-      this.useTimestampAttribute = useTimestampAttribute;
-    }
-
-    @Override
-    public PCollection<PubsubMessage> expand(PCollection<Row> input) {
-      PCollection<Row> withTimestamp =
-          useTimestampAttribute
-              ? input.apply(
-                  WithTimestamps.of((row) -> row.getDateTime(TIMESTAMP_FIELD).toInstant()))
-              : input;
-
-      return withTimestamp
-          .apply(DropFields.fields(TIMESTAMP_FIELD))
-          .apply(ToJson.of())
-          .apply(
-              MapElements.into(TypeDescriptor.of(PubsubMessage.class))
-                  .via(
-                      (String json) ->
-                          new PubsubMessage(
-                              json.getBytes(StandardCharsets.ISO_8859_1), ImmutableMap.of())));
     }
   }
 }

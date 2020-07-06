@@ -19,10 +19,10 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toSet;
-import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
-import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Iterables.size;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaCapableIOProvider.VARCHAR;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.size;
 import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
@@ -39,15 +39,15 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-/** Unit tests for {@link org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow}. */
+/** Unit tests for {@link PubsubMessageToRow}. */
 public class PubsubMessageToRowTest implements Serializable {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
