@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts filter. */
 class FilterScanConverter extends RelConverter<ResolvedFilterScan> {
@@ -45,7 +46,8 @@ class FilterScanConverter extends RelConverter<ResolvedFilterScan> {
             .convertRexNodeFromResolvedExpr(
                 zetaNode.getFilterExpr(),
                 zetaNode.getInputScan().getColumnList(),
-                input.getRowType().getFieldList());
+                input.getRowType().getFieldList(),
+                ImmutableMap.of());
 
     return LogicalFilter.create(input, condition);
   }

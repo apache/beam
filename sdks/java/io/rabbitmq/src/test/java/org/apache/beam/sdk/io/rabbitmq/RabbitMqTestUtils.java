@@ -23,6 +23,8 @@ import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -67,17 +69,14 @@ public class RabbitMqTestUtils {
     return new String(record, StandardCharsets.UTF_8);
   }
 
-  /**
-   * A simple RabbitMQ {@code Consumer} that stores all received messages in the
-   * constructor-supplied List.
-   */
+  /** A simple RabbitMQ {@code Consumer} that stores all received messages. */
   static class TestConsumer extends DefaultConsumer {
 
     private final List<String> received;
 
-    public TestConsumer(Channel channel, List<String> received) {
+    public TestConsumer(Channel channel) {
       super(channel);
-      this.received = received;
+      this.received = Collections.synchronizedList(new ArrayList<>());
     }
 
     @Override
@@ -85,6 +84,11 @@ public class RabbitMqTestUtils {
         String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
         throws IOException {
       received.add(recordToString(body));
+    }
+
+    /** Returns a thread safe unmodifiable view of received messages. */
+    public List<String> getReceived() {
+      return Collections.unmodifiableList(received);
     }
   }
 }
