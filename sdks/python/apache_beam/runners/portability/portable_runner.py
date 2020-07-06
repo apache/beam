@@ -332,6 +332,8 @@ class PortableRunner(runner.PipelineRunner):
                 translations.annotate_downstream_side_inputs,
                 translations.annotate_stateful_dofns_as_roots,
                 translations.fix_side_input_pcoll_coders,
+                translations.eliminate_common_siblings,
+                translations.pack_combiners,
                 translations.lift_combiners,
                 translations.expand_sdf,
                 translations.fix_flatten_coders,
