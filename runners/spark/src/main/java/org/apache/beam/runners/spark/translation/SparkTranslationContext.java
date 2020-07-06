@@ -35,15 +35,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * compute them after translation.
  */
 public class SparkTranslationContext {
-  protected final JavaSparkContext jsc;
+  private final JavaSparkContext jsc;
   final JobInfo jobInfo;
   // Map pCollection IDs to the number of times they are consumed as inputs.
-  protected final Map<String, Integer> consumptionCount = new HashMap<>();
-  protected final Map<String, Coder> coderMap = new HashMap<>();
-  protected final Map<String, Dataset> datasets = new LinkedHashMap<>();
-  protected final Set<Dataset> leaves = new LinkedHashSet<>();
+  private final Map<String, Integer> consumptionCount = new HashMap<>();
+  private final Map<String, Coder> coderMap = new HashMap<>();
+  private final Map<String, Dataset> datasets = new LinkedHashMap<>();
+  private final Set<Dataset> leaves = new LinkedHashSet<>();
   final SerializablePipelineOptions serializablePipelineOptions;
-  protected int sinkId = 0;
+  private int sinkId = 0;
 
   public SparkTranslationContext(JavaSparkContext jsc, PipelineOptions options, JobInfo jobInfo) {
     this.jsc = jsc;
