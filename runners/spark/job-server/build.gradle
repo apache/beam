@@ -82,13 +82,21 @@ runShadow {
     jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
 }
 
-def portableValidatesRunnerTask(String name) {
+def portableValidatesRunnerTask(String name, Boolean streaming) {
+  def pipelineOptions = [
+          // Limit resource consumption via parallelism
+          "--parallelism=2",
+  ]
+  if (streaming) {
+    pipelineOptions += "--streaming"
+  }
   createPortableValidatesRunnerTask(
     name: "validatesPortableRunner${name}",
     jobServerDriver: "org.apache.beam.runners.spark.SparkJobServerDriver",
     jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
     testClasspathConfiguration: configurations.validatesPortableRunner,
     numParallelTests: 4,
+    pipelineOpts: pipelineOptions,
     environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
     systemProperties: [
       "beam.spark.test.reuseSparkContext": "false",
@@ -125,10 +133,12 @@ def portableValidatesRunnerTask(String name) {
   )
 }
 
-project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch")
+project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false)
+project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true)
 
 task validatesPortableRunner() {
   dependsOn validatesPortableRunnerBatch
+  dependsOn validatesPortableRunnerStreaming
 }
 
 def jobPort = BeamModulePlugin.startingExpansionPortNumber.getAndDecrement()
