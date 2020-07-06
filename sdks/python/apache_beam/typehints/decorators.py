@@ -398,13 +398,14 @@ class IOTypeHints(NamedTuple(
 
   def strip_pcoll_helper(
       self,
-      my_type,
-      has_my_type,
-      kwarg_dict,
-      my_valid_classes,
-      error_str,
-      source_str):
-    # type: (any, Callable[[], bool], Dict[str, any], List[str], str, str) -> IOTypeHints
+      my_type,            # type: any
+      has_my_type,        # type: Callable[[], bool]
+      kwarg_dict,         # type: Dict[str, any]
+      my_valid_classes,   # type: List[str]
+      error_str,          # type: str
+      source_str          # type: str
+      ):
+    # type: (...) -> IOTypeHints
 
     if not has_my_type() or len(my_type[0]) != 1:
       return self
