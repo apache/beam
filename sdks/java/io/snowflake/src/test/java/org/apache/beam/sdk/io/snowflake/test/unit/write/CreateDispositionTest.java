@@ -100,7 +100,7 @@ public class CreateDispositionTest {
             "Copy IO",
             SnowflakeIO.<Long>write()
                 .withDataSourceConfiguration(dc)
-                .toTable(FAKE_TABLE)
+                .to(FAKE_TABLE)
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
@@ -128,7 +128,7 @@ public class CreateDispositionTest {
             "Copy IO",
             SnowflakeIO.<Long>write()
                 .withDataSourceConfiguration(dc)
-                .toTable("NO_EXIST_TABLE")
+                .to("NO_EXIST_TABLE")
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
                 .withFileNameTemplate("output")
@@ -151,7 +151,7 @@ public class CreateDispositionTest {
             "Copy IO",
             SnowflakeIO.<Long>write()
                 .withDataSourceConfiguration(dc)
-                .toTable("NO_EXIST_TABLE")
+                .to("NO_EXIST_TABLE")
                 .withTableSchema(tableSchema)
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
@@ -176,7 +176,7 @@ public class CreateDispositionTest {
             "Copy IO",
             SnowflakeIO.<Long>write()
                 .withDataSourceConfiguration(dc)
-                .toTable(FAKE_TABLE)
+                .to(FAKE_TABLE)
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
                 .withFileNameTemplate("output")
@@ -202,7 +202,7 @@ public class CreateDispositionTest {
             "Copy IO",
             SnowflakeIO.<Long>write()
                 .withDataSourceConfiguration(dc)
-                .toTable("NO_EXIST_TABLE")
+                .to("NO_EXIST_TABLE")
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
                 .withFileNameTemplate("output")

@@ -38,7 +38,7 @@ public class SnowflakeBinary implements SnowflakeDataType, Serializable {
 
   public SnowflakeBinary(long size) {
     if (size > MAX_SIZE) {
-      throw new IllegalArgumentException();
+      throw new IllegalArgumentException(String.format("Provided size %s is bigger than max size %s ", size, MAX_SIZE));
     }
     this.size = size;
   }

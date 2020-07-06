@@ -95,7 +95,7 @@ public class SnowflakeIOWriteTest {
             SnowflakeIO.<Long>write()
                 .withDataSourceConfiguration(dc)
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
-                .toTable(FAKE_TABLE)
+                .to(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withSnowflakeService(snowflakeService));
@@ -114,7 +114,7 @@ public class SnowflakeIOWriteTest {
         .apply(
             "text write IO",
             SnowflakeIO.<Long>write()
-                .toTable(FAKE_TABLE)
+                .to(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withDataSourceConfiguration(dc)
@@ -138,7 +138,7 @@ public class SnowflakeIOWriteTest {
             SnowflakeIO.<KV<String, Long>>write()
                 .withDataSourceConfiguration(dc)
                 .withUserDataMapper(TestUtils.getLongCsvMapperKV())
-                .toTable(FAKE_TABLE)
+                .to(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withSnowflakeService(snowflakeService));
@@ -160,7 +160,7 @@ public class SnowflakeIOWriteTest {
         .apply(
             "Write SnowflakeIO",
             SnowflakeIO.<KV<String, Long>>write()
-                .toTable(FAKE_TABLE)
+                .to(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withUserDataMapper(TestUtils.getLongCsvMapperKV())
