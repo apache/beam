@@ -60,6 +60,7 @@
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Support for reading from Snowflake added (Java) ([BEAM-9722](https://issues.apache.org/jira/browse/BEAM-9722)).
 * Support for writing to Splunk added (Java) ([BEAM-8596](https://issues.apache.org/jira/browse/BEAM-8596)).
+* Support for assume role added (Java) ([BEAM-10335](https://issues.apache.org/jira/browse/BEAM-10335)).
 * A new transform to read from BigQuery has been added: `apache_beam.io.gcp.bigquery.ReadFromBigQuery`. This transform
   is experimental. It reads data from BigQuery by exporting data to Avro files, and reading those files. It also supports
   reading data by exporting to JSON files. This has small differences in behavior for Time and Date-related fields. See
@@ -76,7 +77,7 @@
   Previously nulls could only be represented with explicit null values, as in
   `{"foo": "bar", "baz": null}`, whereas an implicit null like `{"foo": "bar"}` would raise an
   exception. Now both JSON strings will yield the same result by default. This behavior can be
-  overriden with `RowJson.RowJsonDeserializer#withNullBehavior`.
+  overridden with `RowJson.RowJsonDeserializer#withNullBehavior`.
 * Fixed a bug in `GroupIntoBatches` experimental transform in Python to actually group batches by key. 
   This changes the output type for this transform ([BEAM-6696](https://issues.apache.org/jira/browse/BEAM-6696)).
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
