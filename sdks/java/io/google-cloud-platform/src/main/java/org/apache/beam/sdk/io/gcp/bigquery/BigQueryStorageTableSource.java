@@ -91,6 +91,8 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
     builder.addIfNotNull(
         DisplayData.item("table", BigQueryHelpers.displayTable(tableReferenceProvider))
             .withLabel("Table"));
+    // Note: This transform does not set launchesBigQueryJobs because it doesn't launch
+    // BigQuery jobs, but instead uses the storage api to directly read the table.
   }
 
   @Override

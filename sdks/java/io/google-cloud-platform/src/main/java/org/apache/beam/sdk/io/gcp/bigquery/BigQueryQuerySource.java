@@ -74,5 +74,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder.add(DisplayData.item("query", queryDef.getQuery()));
+    builder.add(
+        DisplayData.item("launchesBigQueryJobs", true)
+            .withLabel("This transform launches BigQuery jobs to read/write elements."));
   }
 }
