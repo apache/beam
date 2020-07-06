@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -228,6 +229,13 @@ class WriteTables<DestinationT>
               schemaUpdateOptions);
       pendingJobs.add(
           new PendingJobData(window, retryJob, partitionFiles, tableDestination, tableReference));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.add(
+          DisplayData.item("launchesBigQueryJobs", true)
+              .withLabel("This transform launches BigQuery jobs to read/write elements."));
     }
 
     @FinishBundle
