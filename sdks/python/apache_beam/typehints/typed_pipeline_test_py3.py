@@ -255,37 +255,55 @@ class MainInputTest(unittest.TestCase):
 
   def test_typed_ptransform_with_no_error(self):
     class StrToInt(beam.PTransform):
-      def expand(self, pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[int]:
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[int]:
         return pcoll | beam.Map(lambda x: int(x))
 
     class IntToStr(beam.PTransform):
-      def expand(self, pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
         return pcoll | beam.Map(lambda x: str(x))
 
     _ = ['1', '2', '3'] | StrToInt() | IntToStr()
 
   def test_typed_ptransform_with_bad_typehints(self):
     class StrToInt(beam.PTransform):
-      def expand(self, pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[int]:
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[int]:
         return pcoll | beam.Map(lambda x: int(x))
 
     class IntToStr(beam.PTransform):
-      def expand(self, pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[str]:
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[str]:
         return pcoll | beam.Map(lambda x: str(x))
 
-    with self.assertRaisesRegex(typehints.TypeCheckError, "Input type hint violation at IntToStr: expected <class 'str'>, got <class 'int'>"):
+    with self.assertRaisesRegex(
+        typehints.TypeCheckError,
+        "Input type hint violation at IntToStr: expected <class 'str'>, got <class 'int'>"
+    ):
       _ = ['1', '2', '3'] | StrToInt() | IntToStr()
 
   def test_typed_ptransform_with_bad_input(self):
     class StrToInt(beam.PTransform):
-      def expand(self, pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[int]:
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[str]) -> beam.pvalue.PCollection[int]:
         return pcoll | beam.Map(lambda x: int(x))
 
     class IntToStr(beam.PTransform):
-      def expand(self, pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
         return pcoll | beam.Map(lambda x: str(x))
 
-    with self.assertRaisesRegex(typehints.TypeCheckError, "Input type hint violation at StrToInt: expected <class 'str'>, got <class 'int'>"):
+    with self.assertRaisesRegex(
+        typehints.TypeCheckError,
+        "Input type hint violation at StrToInt: expected <class 'str'>, got <class 'int'>"
+    ):
       # Feed integers to a PTransform that expects strings
       _ = [1, 2, 3] | StrToInt() | IntToStr()
 
@@ -295,7 +313,9 @@ class MainInputTest(unittest.TestCase):
         return pcoll | beam.Map(lambda x: int(x))
 
     class IntToStr(beam.PTransform):
-      def expand(self, pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
         return pcoll | beam.Map(lambda x: str(x))
 
     # Feed integers to a PTransform that should expect strings but has no typehints so it expects any
@@ -303,11 +323,14 @@ class MainInputTest(unittest.TestCase):
 
   def test_typed_ptransform_with_bare_wrappers(self):
     class StrToInt(beam.PTransform):
-      def expand(self, pcoll: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
+      def expand(
+          self, pcoll: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
         return pcoll | beam.Map(lambda x: int(x))
 
     class IntToStr(beam.PTransform):
-      def expand(self, pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
         return pcoll | beam.Map(lambda x: str(x))
 
     _ = [1, 2, 3] | StrToInt() | IntToStr()
@@ -318,11 +341,14 @@ class MainInputTest(unittest.TestCase):
         return pcoll | beam.Map(lambda x: int(x))
 
     class IntToStr(beam.PTransform):
-      def expand(self, pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
         return pcoll | beam.Map(lambda x: str(x))
 
     # Feed integers to a PTransform that should expect strings but has no typehints so it expects any
     _ = [1, 2, 3] | StrToInt() | IntToStr()
+
 
 class AnnotationsTest(unittest.TestCase):
   def test_pardo_dofn(self):

@@ -71,22 +71,22 @@ class TestPTransformAnnotations(unittest.TestCase):
       def expand(self, pcoll: int) -> PCollection[str]:
         return pcoll | Map(lambda num: str(num))
 
-    error_str = 'An input typehint to a PTransform must be a single \(or nested\) type wrapped by a PCollection or ' \
-                'PBegin. '
+    error_str = r'An input typehint to a PTransform must be a single' \
+                r' \(or nested\) type wrapped by a PCollection or PBegin. '
 
     with self.assertRaisesRegex(TypeCheckError, error_str):
-      _th = MyPTransform().get_type_hints()
+      MyPTransform().get_type_hints()
 
   def test_annotations_without_output_pcollection_wrapper(self):
     class MyPTransform(PTransform):
       def expand(self, pcoll: PCollection[int]) -> str:
         return pcoll | Map(lambda num: str(num))
 
-    error_str = 'An output typehint to a PTransform must be a single \(or nested\) type wrapped by a PCollection or ' \
-                'PDone. '
+    error_str = r'An output typehint to a PTransform must be a single ' \
+                r'\(or nested\) type wrapped by a PCollection or PDone. '
 
     with self.assertRaisesRegex(TypeCheckError, error_str):
-      _th = MyPTransform().get_type_hints()
+      MyPTransform().get_type_hints()
 
   def test_annotations_without_input_internal_type(self):
     class MyPTransform(PTransform):

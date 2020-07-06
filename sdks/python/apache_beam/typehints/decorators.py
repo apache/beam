@@ -114,7 +114,6 @@ from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
 from apache_beam.typehints.typehints import validate_composite_type_param
 
-
 try:
   import funcsigs  # Python 2 only.
 except ImportError:
@@ -380,22 +379,31 @@ class IOTypeHints(NamedTuple(
         not self.output_types[1])
 
   def strip_pcoll(self):
-      return self.strip_pcoll_helper(self.input_types,
-                                     self._has_input_types,
-                                     {'input_types': None},
-                                     ['apache_beam.pvalue.PBegin'],
-                                     'An input typehint to a PTransform must be a single (or nested) type wrapped by '
-                                     'a PCollection or PBegin. ',
-                                     'strip_pcoll_input()').\
-                  strip_pcoll_helper(self.output_types,
-                                     self.has_simple_output_type,
-                                     {'output_types': None},
-                                     ['apache_beam.pvalue.PDone'],
-                                     'An output typehint to a PTransform must be a single (or nested) type wrapped by '
-                                     'a PCollection or PDone. ',
-                                     'strip_pcoll_output()')
+    return self.strip_pcoll_helper(self.input_types,
+                                   self._has_input_types,
+                                   {'input_types': None},
+                                   ['apache_beam.pvalue.PBegin'],
+                                   'An input typehint to a PTransform must be'
+                                   ' a single (or nested) type wrapped by '
+                                   'a PCollection or PBegin. ',
+                                   'strip_pcoll_input()').\
+                strip_pcoll_helper(self.output_types,
+                                   self.has_simple_output_type,
+                                   {'output_types': None},
+                                   ['apache_beam.pvalue.PDone'],
+                                   'An output typehint to a PTransform must be'
+                                   ' a single (or nested) type wrapped by '
+                                   'a PCollection or PDone. ',
+                                   'strip_pcoll_output()')
 
-  def strip_pcoll_helper(self, my_type, has_my_type, kwarg_dict, my_valid_classes, error_str, source_str):
+  def strip_pcoll_helper(
+      self,
+      my_type,
+      has_my_type,
+      kwarg_dict,
+      my_valid_classes,
+      error_str,
+      source_str):
     # type: (any, Callable[[], bool], Dict[str, any], List[str], str, str) -> IOTypeHints
 
     if not has_my_type() or len(my_type[0]) != 1:
@@ -411,11 +419,13 @@ class IOTypeHints(NamedTuple(
     if not any(valid_class in str(my_type) for valid_class in valid_classes):
       raise TypeCheckError(error_str)
 
-    if not hasattr(my_type, '__args__'):    # e.g. PCollection
-      kwarg_dict[next(iter(kwarg_dict))] = ((typehints.Any,), {})
-    else:                                   # e.g. PCollection[type]
+    if not hasattr(my_type, '__args__'):  # e.g. PCollection
+      kwarg_dict[next(iter(kwarg_dict))] = ((typehints.Any, ), {})
+    else:  # e.g. PCollection[type]
       kwarg_dict[next(iter(kwarg_dict))] = ((my_type.__args__[0], ), {})
-    return self._replace(**kwarg_dict, origin=self._make_origin([self], tb=False, msg=[source_str]))
+    return self._replace(
+        **kwarg_dict,
+        origin=self._make_origin([self], tb=False, msg=[source_str]))
 
   def strip_iterable(self):
     # type: () -> IOTypeHints
