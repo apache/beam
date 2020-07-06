@@ -40,6 +40,11 @@ public class BeamCalcRule extends ConverterRule {
 
   @Override
   public boolean matches(RelOptRuleCall x) {
+    /**
+     * The Analytic Functions (a.k.a. window functions) match with both Calc and Window rules. So,
+     * it is necessary to skip the Calc rule in order to execute the more suitable conversion
+     * (BeamWindowRule).
+     */
     boolean hasRexOver = false;
     List<RelNode> resList = x.getRelList();
     for (RelNode relNode : resList) {

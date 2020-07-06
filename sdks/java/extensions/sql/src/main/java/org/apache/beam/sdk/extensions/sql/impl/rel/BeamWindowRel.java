@@ -18,10 +18,11 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
@@ -31,6 +32,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -46,6 +48,31 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
+/**
+ * {@code BeamRelNode} to replace a {@code Window} node.
+ *
+ * <p>The following types of Analytic Functions are supported:
+ *
+ * <pre>{@code
+ * SELECT agg(c) over () FROM t
+ * SELECT agg(c1) over (PARTITION BY c2 ORDER BY c3 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM t
+ * }</pre>
+ *
+ * <p>The following types of Analytic Functions are not supported:
+ *
+ * <pre>{@code
+ * SELECT agg(c1) over (PARTITION BY c2 ORDER BY c3 ROWS BETWEEN 15 PRECEDING AND CURRENT ROW) FROM t
+ * SELECT agg(c1) over (PARTITION BY c2 ORDER BY c3 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM t
+ * }</pre>
+ *
+ * <h3>Constraints</h3>
+ *
+ * <ul>
+ *   <li>Only Aggregate Analytic Functions are available.
+ *   <li>Sliding windows with RANGE are not supported.
+ *   <li>Bounded windows with fixed limits are not supported.
+ * </ul>
+ */
 public class BeamWindowRel extends Window implements BeamRelNode {
   public BeamWindowRel(
       RelOptCluster cluster,
@@ -82,16 +109,23 @@ public class BeamWindowRel extends Window implements BeamRelNode {
               if (anAnalyticGroup.lowerBound.isCurrentRow()) {
                 lowerB = 0;
               } else if (anAnalyticGroup.lowerBound.isPreceding()) {
-                // pending
+                if (!anAnalyticGroup.lowerBound.isUnbounded())
+                  throw new UnsupportedOperationException("Bounded windows not supported!");
               } else if (anAnalyticGroup.lowerBound.isFollowing()) {
-                // pending
+                if (!anAnalyticGroup.lowerBound.isUnbounded())
+                  throw new UnsupportedOperationException("Bounded windows not supported!");
               }
               if (anAnalyticGroup.upperBound.isCurrentRow()) {
                 upperB = 0;
               } else if (anAnalyticGroup.upperBound.isPreceding()) {
-                // pending
+                if (!anAnalyticGroup.upperBound.isUnbounded())
+                  throw new UnsupportedOperationException("Bounded windows not supported!");
               } else if (anAnalyticGroup.upperBound.isFollowing()) {
-                // pending
+                if (!anAnalyticGroup.upperBound.isUnbounded())
+                  throw new UnsupportedOperationException("Bounded windows not supported!");
+              }
+              if (!anAnalyticGroup.isRows) {
+                throw new UnsupportedOperationException("RANGE windows not supported!");
               }
               final int lowerBFinal = lowerB;
               final int upperBFinal = upperB;
@@ -103,7 +137,7 @@ public class BeamWindowRel extends Window implements BeamRelNode {
                         Schema.Field field =
                             CalciteUtils.toField(anAggCall.getName(), anAggCall.getType());
                         Combine.CombineFn combineFn =
-                            AggregationCombineFnAdapter.createCombineFn(
+                            AggregationCombineFnAdapter.createCombineFnAnalyticsFunctions(
                                 anAggCall, field, anAggCall.getAggregation().getName());
                         FieldAggregation fieldAggregation =
                             new FieldAggregation(
@@ -167,6 +201,12 @@ public class BeamWindowRel extends Window implements BeamRelNode {
     return inputStat;
   }
 
+  /**
+   * A dummy cost computation based on a fixed multiplier.
+   *
+   * <p>Since, there are not additional LogicalWindow to BeamWindowRel strategies, the result of
+   * this cost computation has no impact in the query execution plan.
+   */
   @Override
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
@@ -190,37 +230,30 @@ public class BeamWindowRel extends Window implements BeamRelNode {
       PCollection<Row> inputData = input.get(0);
       Schema inputSchema = inputData.getSchema();
       for (FieldAggregation af : aggFields) {
+        Coder<Row> rowCoder = inputData.getCoder();
+        PCollection<Iterable<Row>> partitioned = null;
         if (af.partitionKeys.isEmpty()) {
-          // This sections simulate a KV Row
-          // Similar to the output of Group.byFieldIds
-          // When no partitions are specified
-          Schema inputSch = inputData.getSchema();
-          Schema mockKeySchema =
-              Schema.of(Schema.Field.of("mock", Schema.FieldType.STRING.withNullable(true)));
-          Schema simulatedKeyValueSchema =
-              Schema.of(
-                  Schema.Field.of("key", Schema.FieldType.row(mockKeySchema)),
-                  Schema.Field.of(
-                      "value", Schema.FieldType.iterable(Schema.FieldType.row(inputSch))));
-          PCollection<Iterable<Row>> apply =
-              inputData.apply(org.apache.beam.sdk.schemas.transforms.Group.globally());
-          inputData =
-              apply
-                  .apply(ParDo.of(uniquePartition(mockKeySchema, simulatedKeyValueSchema)))
-                  .setRowSchema(simulatedKeyValueSchema);
+          partitioned = inputData.apply(org.apache.beam.sdk.schemas.transforms.Group.globally());
         } else {
           org.apache.beam.sdk.schemas.transforms.Group.ByFields<Row> myg =
               org.apache.beam.sdk.schemas.transforms.Group.byFieldIds(af.partitionKeys);
-          inputData = inputData.apply("partitionBy", myg);
+          PCollection<KV<Row, Iterable<Row>>> partitionBy =
+              inputData.apply("partitionBy", myg.getToKvs());
+          partitioned =
+              partitionBy
+                  .apply(ParDo.of(new selectOnlyValues()))
+                  .setCoder(IterableCoder.of(rowCoder));
         }
-        inputData =
-            inputData
+        // Migrate to a SortedValues transform.
+        PCollection<List<Row>> sortedPartition =
+            partitioned
                 .apply("orderBy", ParDo.of(sortPartition(af)))
-                .setRowSchema(inputData.getSchema());
+                .setCoder(ListCoder.of(rowCoder));
+
         inputSchema =
             Schema.builder().addFields(inputSchema.getFields()).addFields(af.outputField).build();
         inputData =
-            inputData
+            sortedPartition
                 .apply("aggCall", ParDo.of(aggField(inputSchema, af)))
                 .setRowSchema(inputSchema);
       }
@@ -228,29 +261,13 @@ public class BeamWindowRel extends Window implements BeamRelNode {
     }
   }
 
-  private static DoFn<Iterable<Row>, Row> uniquePartition(
-      final Schema mockKeySchema, final Schema expectedSchema) {
-    return new DoFn<Iterable<Row>, Row>() {
-      @ProcessElement
-      public void processElement(
-          @Element Iterable<Row> inputPartition, OutputReceiver<Row> out, ProcessContext c) {
-        List<Row> result = Lists.newArrayList();
-        inputPartition.forEach(result::add);
-        Row key = Row.nullRow(mockKeySchema);
-        Row build = Row.withSchema(expectedSchema).addValues(key, result).build();
-        out.output(build);
-      }
-    };
-  }
-
-  private static DoFn<Row, Row> aggField(
+  private static DoFn<List<Row>, Row> aggField(
       final Schema expectedSchema, final FieldAggregation fieldAgg) {
-    return new DoFn<Row, Row>() {
+    return new DoFn<List<Row>, Row>() {
       @ProcessElement
       public void processElement(
-          @Element Row inputPartition, OutputReceiver<Row> out, ProcessContext c) {
-        Collection<Row> inputPartitions = inputPartition.getArray(1); // 1 -> value
-        List<Row> sortedRowsAsList = new ArrayList<Row>(inputPartitions);
+          @Element List<Row> inputPartition, OutputReceiver<Row> out, ProcessContext c) {
+        List<Row> sortedRowsAsList = inputPartition;
         for (int idx = 0; idx < sortedRowsAsList.size(); idx++) {
           int lowerIndex =
               fieldAgg.lowerLimit == Integer.MAX_VALUE
@@ -280,23 +297,27 @@ public class BeamWindowRel extends Window implements BeamRelNode {
     };
   }
 
-  private static DoFn<Row, Row> sortPartition(final FieldAggregation fieldAgg) {
-    return new DoFn<Row, Row>() {
+  static class selectOnlyValues extends DoFn<KV<Row, Iterable<Row>>, Iterable<Row>> {
+    @ProcessElement
+    public void processElement(
+        @Element KV<Row, Iterable<Row>> inputPartition,
+        OutputReceiver<Iterable<Row>> out,
+        ProcessContext c) {
+      out.output(inputPartition.getValue());
+    }
+  }
+
+  private static DoFn<Iterable<Row>, List<Row>> sortPartition(final FieldAggregation fieldAgg) {
+    return new DoFn<Iterable<Row>, List<Row>>() {
       @ProcessElement
       public void processElement(
-          @Element Row inputPartition, OutputReceiver<Row> out, ProcessContext c) {
-        Collection<Row> value =
-            inputPartition.getArray(1); // 1 -> value , inputPartition (key, value)
-        List<Row> partitionRows = new ArrayList<Row>(value);
+          @Element Iterable<Row> inputPartition, OutputReceiver<List<Row>> out, ProcessContext c) {
+        List<Row> partitionRows = Lists.newArrayList(inputPartition);
         BeamSortRel.BeamSqlRowComparator beamSqlRowComparator =
             new BeamSortRel.BeamSqlRowComparator(
                 fieldAgg.orderKeys, fieldAgg.orderOrientations, fieldAgg.orderNulls);
         Collections.sort(partitionRows, beamSqlRowComparator);
-        List<Object> fieldValues = Lists.newArrayListWithCapacity(inputPartition.getFieldCount());
-        fieldValues.addAll(inputPartition.getValues());
-        fieldValues.set(1, partitionRows);
-        Row build = Row.withSchema(inputPartition.getSchema()).addValues(fieldValues).build();
-        out.output(build);
+        out.output(partitionRows);
       }
     };
   }

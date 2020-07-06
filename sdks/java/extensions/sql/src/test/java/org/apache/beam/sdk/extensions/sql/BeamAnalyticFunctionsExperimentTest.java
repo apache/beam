@@ -130,6 +130,66 @@ public class BeamAnalyticFunctionsExperimentTest extends BeamSqlDslBase {
   }
 
   /**
+   * Compute a cumulative sum (inverse order) query taken from.
+   * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#compute_a_cumulative_sum
+   */
+  @Test
+  public void testOverCumulativeSumOrderByDesc() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PCollection<Row> inputRows = inputData();
+    String sql =
+        "SELECT item, purchases, category, sum(purchases) over "
+            + "("
+            + "PARTITION BY category "
+            + "ORDER BY purchases DESC "
+            + "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"
+            + ")"
+            + " as total_purchases  FROM PCOLLECTION";
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Schema overResultSchema =
+        Schema.builder()
+            .addStringField("item")
+            .addInt32Field("purchases")
+            .addStringField("category")
+            .addInt32Field("total_purchases")
+            .build();
+
+    List<Row> overResult =
+        TestUtils.RowsBuilder.of(overResultSchema)
+            .addRows(
+                "orange",
+                2,
+                "fruit",
+                10,
+                "apple",
+                8,
+                "fruit",
+                8,
+                "leek",
+                2,
+                "vegetable",
+                44,
+                "cabbage",
+                9,
+                "vegetable",
+                42,
+                "lettuce",
+                10,
+                "vegetable",
+                33,
+                "kale",
+                23,
+                "vegetable",
+                23)
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(overResult);
+
+    pipeline.run();
+  }
+
+  /**
    * Basic analytic function query taken from.
    * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#compute_a_grand_total
    */

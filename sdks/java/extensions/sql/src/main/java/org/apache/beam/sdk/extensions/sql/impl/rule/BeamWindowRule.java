@@ -25,6 +25,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.Con
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Window;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalWindow;
 
+/** A {@code ConverterRule} to replace {@link Window} with {@link BeamWindowRel}. */
 public class BeamWindowRule extends ConverterRule {
   public static final BeamWindowRule INSTANCE = new BeamWindowRule();
 

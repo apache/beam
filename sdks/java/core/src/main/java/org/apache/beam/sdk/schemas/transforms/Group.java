@@ -605,7 +605,7 @@ public class Group {
       }
     }
 
-    ToKv getToKvs() {
+    public ToKv getToKvs() {
       return new ToKv();
     }
 
