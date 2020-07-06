@@ -157,10 +157,10 @@ import org.slf4j.LoggerFactory;
  * items.apply(
  *     SnowflakeIO.<KV<Integer, String>>write()
  *         .withDataSourceConfiguration(dataSourceConfiguration)
- *         .toTable(table)
  *         .withStagingBucketName(...)
  *         .withStorageIntegrationName(...)
- *         .withUserDataMapper(maper);
+ *         .withUserDataMapper(maper)
+ *         .to(table);
  * }</pre>
  *
  * <p><b>Important</b> When writing data to Snowflake, firstly data will be saved as CSV files on
@@ -606,7 +606,7 @@ public class SnowflakeIO {
      *
      * @param table - String with the name of the table.
      */
-    public Write<T> toTable(String table) {
+    public Write<T> to(String table) {
       return toBuilder().setTable(table).build();
     }
 
@@ -715,7 +715,7 @@ public class SnowflakeIO {
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
-      checkArgument(getTable() != null, "toTable() is required");
+      checkArgument(getTable() != null, "to() is required");
     }
 
     private PCollection<String> write(PCollection<T> input, String stagingBucketDir) {

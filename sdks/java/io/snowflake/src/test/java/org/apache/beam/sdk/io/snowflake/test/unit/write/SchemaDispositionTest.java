@@ -121,7 +121,7 @@ public class SchemaDispositionTest {
             "Copy IO",
             SnowflakeIO.<String[]>write()
                 .withDataSourceConfiguration(dc)
-                .toTable("NO_EXIST_TABLE")
+                .to("NO_EXIST_TABLE")
                 .withTableSchema(tableSchema)
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
@@ -159,7 +159,7 @@ public class SchemaDispositionTest {
             "Copy IO",
             SnowflakeIO.<String[]>write()
                 .withDataSourceConfiguration(dc)
-                .toTable("NO_EXIST_TABLE")
+                .to("NO_EXIST_TABLE")
                 .withTableSchema(tableSchema)
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)
@@ -199,7 +199,7 @@ public class SchemaDispositionTest {
             "Copy IO",
             SnowflakeIO.<String[]>write()
                 .withDataSourceConfiguration(dc)
-                .toTable("NO_EXIST_TABLE")
+                .to("NO_EXIST_TABLE")
                 .withTableSchema(tableSchema)
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName)

@@ -195,7 +195,7 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
       DataSource dataSource, String table, SnowflakeTableSchema tableSchema) throws SQLException {
     String query =
         String.format(
-            "SELECT EXISTS (SELECT 1 FROM  information_schema.tables  WHERE  table_name = '%s');",
+            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '%s');",
             table.toUpperCase());
 
     runConnectionWithStatement(

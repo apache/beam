@@ -36,7 +36,7 @@ public class SnowflakeVarchar implements SnowflakeDataType, Serializable {
 
   public SnowflakeVarchar(long length) {
     if (length > MAX_LENGTH) {
-      throw new IllegalArgumentException();
+      throw new IllegalArgumentException(String.format("Provided length %s is bigger than max length %s ", length, MAX_LENGTH));
     }
     this.length = length;
   }
