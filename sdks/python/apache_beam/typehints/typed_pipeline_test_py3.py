@@ -283,7 +283,8 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         typehints.TypeCheckError,
-        "Input type hint violation at IntToStr: expected <class 'str'>, got <class 'int'>"
+        "Input type hint violation at IntToStr: "
+        "expected <class 'str'>, got <class 'int'>"
     ):
       _ = ['1', '2', '3'] | StrToInt() | IntToStr()
 
@@ -302,7 +303,8 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         typehints.TypeCheckError,
-        "Input type hint violation at StrToInt: expected <class 'str'>, got <class 'int'>"
+        "Input type hint violation at StrToInt: "
+        "expected <class 'str'>, got <class 'int'>"
     ):
       # Feed integers to a PTransform that expects strings
       _ = [1, 2, 3] | StrToInt() | IntToStr()
@@ -318,7 +320,8 @@ class MainInputTest(unittest.TestCase):
           pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
         return pcoll | beam.Map(lambda x: str(x))
 
-    # Feed integers to a PTransform that should expect strings but has no typehints so it expects any
+    # Feed integers to a PTransform that should expect strings
+    # but has no typehints so it expects any
     _ = [1, 2, 3] | StrToInt() | IntToStr()
 
   def test_typed_ptransform_with_bare_wrappers(self):
@@ -346,7 +349,8 @@ class MainInputTest(unittest.TestCase):
           pcoll: beam.pvalue.PCollection[int]) -> beam.pvalue.PCollection[str]:
         return pcoll | beam.Map(lambda x: str(x))
 
-    # Feed integers to a PTransform that should expect strings but has no typehints so it expects any
+    # Feed integers to a PTransform that should expect strings
+    # but has no typehints so it expects any
     _ = [1, 2, 3] | StrToInt() | IntToStr()
 
 

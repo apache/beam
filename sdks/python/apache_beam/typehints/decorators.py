@@ -425,8 +425,8 @@ class IOTypeHints(NamedTuple(
     else:  # e.g. PCollection[type]
       kwarg_dict[next(iter(kwarg_dict))] = ((my_type.__args__[0], ), {})
     return self._replace(
-        **kwarg_dict,
-        origin=self._make_origin([self], tb=False, msg=[source_str]))
+      origin=self._make_origin([self], tb=False, msg=[source_str]),
+      **kwarg_dict)
 
   def strip_iterable(self):
     # type: () -> IOTypeHints
