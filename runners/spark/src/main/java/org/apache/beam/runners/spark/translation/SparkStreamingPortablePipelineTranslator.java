@@ -17,7 +17,11 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import java.util.Collections;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
+
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -25,9 +29,14 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.streaming.api.java.JavaDStream;
+import org.apache.spark.streaming.api.java.JavaInputDStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +58,7 @@ public class SparkStreamingPortablePipelineTranslator
         SparkStreamingTranslationContext context);
   }
 
+  @Override
   public Set<String> knownUrns() {
     return urnToTransformTranslator.keySet();
   }
@@ -74,6 +84,7 @@ public class SparkStreamingPortablePipelineTranslator
   }
 
   /** Translates pipeline from Beam into the Spark context. */
+  @Override
   public void translate(
       final RunnerApi.Pipeline pipeline, SparkStreamingTranslationContext context) {
     QueryablePipeline p =
@@ -103,16 +114,14 @@ public class SparkStreamingPortablePipelineTranslator
       RunnerApi.Pipeline pipeline,
       SparkStreamingTranslationContext context) {
 
-    // create dstream from empty rdd
-    // does this need to be windowed values?
-    // INCOMPLETE
-    //    JavaRDD<> emptyRDD = context.getSparkContext().emptyRDD();
-    //    Queue<JavaRDD<T>>
-    //    context.getStreamingContext().queueStream(emptyRDD);
-    //
-    //    UnboundedDataset<byte[]> output =
-    //        new UnboundedDataset<>( , Collections.singletonList(getInputId(transformNode)));
-    //    context.pushDataset(getOutputId(transformNode), output);
+    // create input DStream from empty RDD
+    JavaRDD<WindowedValue<byte[]>> emptyRDD = context.getSparkContext().emptyRDD();
+    Queue<JavaRDD<WindowedValue<byte[]>>> queueRDD = new LinkedBlockingQueue<>();
+    queueRDD.add(emptyRDD);
+    JavaInputDStream<WindowedValue<byte[]>> emptyStream = context.getStreamingContext().queueStream(queueRDD, true);
+    UnboundedDataset<byte[]> output =
+        new UnboundedDataset<>(emptyStream, Collections.singletonList(emptyStream.inputDStream().id()));
+    context.pushDataset(getOutputId(transformNode), output);
   }
 
   private static String getInputId(PTransformNode transformNode) {
@@ -123,6 +132,7 @@ public class SparkStreamingPortablePipelineTranslator
     return Iterables.getOnlyElement(transformNode.getTransform().getOutputsMap().values());
   }
 
+  @Override
   public SparkStreamingTranslationContext createTranslationContext(
       JavaSparkContext jsc, SparkPipelineOptions options, JobInfo jobInfo) {
     return new SparkStreamingTranslationContext(jsc, options, jobInfo);

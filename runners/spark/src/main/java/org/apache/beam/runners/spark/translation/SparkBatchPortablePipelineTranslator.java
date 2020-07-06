@@ -87,6 +87,7 @@ public class SparkBatchPortablePipelineTranslator
         PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkTranslationContext context);
   }
 
+  @Override
   public Set<String> knownUrns() {
     return urnToTransformTranslator.keySet();
   }
@@ -111,6 +112,7 @@ public class SparkBatchPortablePipelineTranslator
   }
 
   /** Translates pipeline from Beam into the Spark context. */
+  @Override
   public void translate(final RunnerApi.Pipeline pipeline, SparkTranslationContext context) {
     QueryablePipeline p =
         QueryablePipeline.forTransforms(
@@ -422,6 +424,7 @@ public class SparkBatchPortablePipelineTranslator
     return transformNode.getId();
   }
 
+  @Override
   public SparkTranslationContext createTranslationContext(
       JavaSparkContext jsc, SparkPipelineOptions options, JobInfo jobInfo) {
     return new SparkTranslationContext(jsc, options, jobInfo);
