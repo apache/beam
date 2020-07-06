@@ -33,7 +33,16 @@ public class ConversionContext {
   private final ExpressionConverter expressionConverter;
   private final RelOptCluster cluster;
   private final QueryTrait trait;
-  private final Map<List<String>, ResolvedNode> sqlUDTVF;
+  // Pure-sql user-defined table-valued function can be resolved by Analyzer. Keeping the
+  // function name to its ResolvedNode mapping so during Plan conversion, UDTVF implementation
+  // can replace inputs of TVFScanConverter.
+  private final Map<List<String>, ResolvedNode> userDefinedTableValuedFunctions;
+
+  // Pure-sql user-defined table-valued function can be resolved by Analyzer. Its sql body is
+  // converted to ResolvedNode, in which function parameters are replaced with ResolvedArgumentRef.
+  // Meanwhile, Analyzer provides values for function parameters because it looks ahead to find
+  // the SELECT query. Thus keep the argument name to values (converted to RexNode) mapping in
+  // Context for future usage in plan conversion.
   private Map<String, RexNode> functionArgumentRefMapping;
 
   public static ConversionContext of(
@@ -64,7 +73,7 @@ public class ConversionContext {
     this.expressionConverter = expressionConverter;
     this.cluster = cluster;
     this.trait = trait;
-    this.sqlUDTVF = sqlUDTVF;
+    this.userDefinedTableValuedFunctions = sqlUDTVF;
     this.functionArgumentRefMapping = new HashMap<>();
   }
 
@@ -84,8 +93,8 @@ public class ConversionContext {
     return trait;
   }
 
-  Map<List<String>, ResolvedNode> getSqlUDTVF() {
-    return sqlUDTVF;
+  Map<List<String>, ResolvedNode> getUserDefinedTableValuedFunctions() {
+    return userDefinedTableValuedFunctions;
   }
 
   Map<String, RexNode> getFunctionArgumentRefMapping() {
@@ -93,10 +102,10 @@ public class ConversionContext {
   }
 
   void addToFunctionArgumentRefMapping(String s, RexNode r) {
-    functionArgumentRefMapping.put(s, r);
+    getFunctionArgumentRefMapping().put(s, r);
   }
 
   void clearFunctionArgumentRefMapping() {
-    functionArgumentRefMapping.clear();
+    getFunctionArgumentRefMapping().clear();
   }
 }

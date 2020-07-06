@@ -2948,7 +2948,7 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(SqlConversionException.class);
-    thrown.expectMessage("Wasn't able to find resolve the path [TableNotExist] in beam");
+    thrown.expectMessage("Wasn't able to resolve the path [TableNotExist] in schema: beam");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 

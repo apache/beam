@@ -45,6 +45,7 @@ import com.google.zetasql.ZetaSQLOptions.ErrorMessageMode;
 import com.google.zetasql.ZetaSQLOptions.LanguageFeature;
 import com.google.zetasql.ZetaSQLOptions.ParameterMode;
 import com.google.zetasql.ZetaSQLOptions.ProductMode;
+import com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
@@ -69,6 +70,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPl
 public class SqlAnalyzer {
   public static final String PRE_DEFINED_WINDOW_FUNCTIONS = "pre_defined_window_functions";
   public static final String USER_DEFINED_FUNCTIONS = "user_defined_functions";
+
+  private static final ImmutableSet<ResolvedNodeKind> SUPPORTED_STATEMENT_KINDS =
+      ImmutableSet.of(
+          RESOLVED_QUERY_STMT, RESOLVED_CREATE_FUNCTION_STMT, RESOLVED_CREATE_TABLE_FUNCTION_STMT);
 
   private static final ImmutableList<String> FUNCTION_LIST =
       ImmutableList.of(
@@ -157,8 +162,7 @@ public class SqlAnalyzer {
                 "Failed to define function %s", String.join(".", createFunctionStmt.getNamePath())),
             e);
       }
-    } else if (resolvedStatement.nodeKind() != RESOLVED_QUERY_STMT
-        && resolvedStatement.nodeKind() != RESOLVED_CREATE_TABLE_FUNCTION_STMT) {
+    } else if (!SUPPORTED_STATEMENT_KINDS.contains(resolvedStatement.nodeKind())) {
       throw new UnsupportedOperationException(
           "Unrecognized statement type " + resolvedStatement.nodeKindString());
     }
@@ -183,13 +187,7 @@ public class SqlAnalyzer {
                     LanguageFeature.FEATURE_CREATE_TABLE_FUNCTION,
                     LanguageFeature.FEATURE_TEMPLATE_FUNCTIONS)));
 
-    options
-        .getLanguageOptions()
-        .setSupportedStatementKinds(
-            ImmutableSet.of(
-                RESOLVED_QUERY_STMT,
-                RESOLVED_CREATE_FUNCTION_STMT,
-                RESOLVED_CREATE_TABLE_FUNCTION_STMT));
+    options.getLanguageOptions().setSupportedStatementKinds(SUPPORTED_STATEMENT_KINDS);
 
     return options;
   }
@@ -331,9 +329,9 @@ public class SqlAnalyzer {
 
     if (calciteTable == null) {
       throw new SqlConversionException(
-          "Wasn't able to find resolve the path "
+          "Wasn't able to resolve the path "
               + tablePath
-              + " in "
+              + " in schema: "
               + builder.topLevelSchema.getName());
     }
 
