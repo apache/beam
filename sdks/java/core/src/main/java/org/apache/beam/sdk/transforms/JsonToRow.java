@@ -334,27 +334,27 @@ public class JsonToRow {
   @AutoValue
   public abstract static class ParseResult implements POutput {
 
-    public abstract JsonToRowWithErrFn getJsonToRowWithErrFn();
+    abstract JsonToRowWithErrFn getJsonToRowWithErrFn();
 
-    public abstract PCollection<Row> getParsedLine();
+    abstract PCollection<Row> getParsedLine();
 
-    public abstract PCollection<Row> getFailedParse();
+    abstract PCollection<Row> getFailedParse();
 
-    public abstract ParseResult.Builder toBuilder();
+    abstract ParseResult.Builder toBuilder();
 
-    public abstract Pipeline getCallingPipeline();
+    abstract Pipeline getCallingPipeline();
 
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setJsonToRowWithErrFn(JsonToRowWithErrFn value);
+      abstract Builder setJsonToRowWithErrFn(JsonToRowWithErrFn value);
 
-      public abstract Builder setParsedLine(PCollection<Row> value);
+      abstract Builder setParsedLine(PCollection<Row> value);
 
-      public abstract Builder setFailedParse(PCollection<Row> value);
+      abstract Builder setFailedParse(PCollection<Row> value);
 
-      public abstract Builder setCallingPipeline(Pipeline value);
+      abstract Builder setCallingPipeline(Pipeline value);
 
-      public abstract ParseResult build();
+      abstract ParseResult build();
     }
 
     public static ParseResult.Builder resultBuilder() {
