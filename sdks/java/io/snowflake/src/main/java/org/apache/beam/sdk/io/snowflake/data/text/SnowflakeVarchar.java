@@ -21,7 +21,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeDataType;
 
 public class SnowflakeVarchar implements SnowflakeDataType, Serializable {
-  private static final Long MAX_LENGTH = 16777216L;
+  public static final Long MAX_LENGTH = 16777216L;
   private Long length;
 
   public static SnowflakeVarchar of() {
@@ -36,7 +36,8 @@ public class SnowflakeVarchar implements SnowflakeDataType, Serializable {
 
   public SnowflakeVarchar(long length) {
     if (length > MAX_LENGTH) {
-      throw new IllegalArgumentException(String.format("Provided length %s is bigger than max length %s ", length, MAX_LENGTH));
+      throw new IllegalArgumentException(
+          String.format("Provided length %s is bigger than max length %s ", length, MAX_LENGTH));
     }
     this.length = length;
   }

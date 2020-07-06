@@ -22,7 +22,7 @@ import org.apache.beam.sdk.io.snowflake.data.SnowflakeDataType;
 
 public class SnowflakeBinary implements SnowflakeDataType, Serializable {
 
-  private static final Long MAX_SIZE = 8388608L;
+  public static final Long MAX_SIZE = 8388608L;
 
   private Long size; // bytes
 
@@ -38,7 +38,8 @@ public class SnowflakeBinary implements SnowflakeDataType, Serializable {
 
   public SnowflakeBinary(long size) {
     if (size > MAX_SIZE) {
-      throw new IllegalArgumentException(String.format("Provided size %s is bigger than max size %s ", size, MAX_SIZE));
+      throw new IllegalArgumentException(
+          String.format("Provided size %s is bigger than max size %s ", size, MAX_SIZE));
     }
     this.size = size;
   }
