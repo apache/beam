@@ -21,7 +21,6 @@ import java.util.Collections;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
-
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -35,7 +34,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,9 +116,11 @@ public class SparkStreamingPortablePipelineTranslator
     JavaRDD<WindowedValue<byte[]>> emptyRDD = context.getSparkContext().emptyRDD();
     Queue<JavaRDD<WindowedValue<byte[]>>> queueRDD = new LinkedBlockingQueue<>();
     queueRDD.add(emptyRDD);
-    JavaInputDStream<WindowedValue<byte[]>> emptyStream = context.getStreamingContext().queueStream(queueRDD, true);
+    JavaInputDStream<WindowedValue<byte[]>> emptyStream =
+        context.getStreamingContext().queueStream(queueRDD, true);
     UnboundedDataset<byte[]> output =
-        new UnboundedDataset<>(emptyStream, Collections.singletonList(emptyStream.inputDStream().id()));
+        new UnboundedDataset<>(
+            emptyStream, Collections.singletonList(emptyStream.inputDStream().id()));
     context.pushDataset(getOutputId(transformNode), output);
   }
 
