@@ -17,32 +17,25 @@
  */
 package org.apache.beam.sdk.io.snowflake.test.unit.data;
 
-import static org.junit.Assert.assertEquals;
-
-import org.apache.beam.sdk.io.snowflake.data.structured.SnowflakeArray;
-import org.apache.beam.sdk.io.snowflake.data.structured.SnowflakeObject;
-import org.apache.beam.sdk.io.snowflake.data.structured.SnowflakeVariant;
+import org.apache.beam.sdk.io.snowflake.data.text.SnowflakeBinary;
+import org.apache.beam.sdk.io.snowflake.data.text.SnowflakeVarchar;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
-public class SnowflakeStructuredDataTest {
+public class SnowflakeDataTypeExceptionTest {
+
+  @Rule public ExpectedException exceptionRule = ExpectedException.none();
+
   @Test
-  public void testVariant() {
-    SnowflakeVariant variant = SnowflakeVariant.of();
-
-    assertEquals("VARIANT", variant.sql());
+  public void testBinaryReachesLimit() {
+    exceptionRule.expect(IllegalArgumentException.class);
+    SnowflakeBinary.of(SnowflakeBinary.MAX_SIZE + 1);
   }
 
   @Test
-  public void testArray() {
-    SnowflakeArray array = SnowflakeArray.of();
-
-    assertEquals("ARRAY", array.sql());
-  }
-
-  @Test
-  public void testObject() {
-    SnowflakeObject object = SnowflakeObject.of();
-
-    assertEquals("OBJECT", object.sql());
+  public void testVarcharReachesLimit() {
+    exceptionRule.expect(IllegalArgumentException.class);
+    SnowflakeVarchar.of(SnowflakeVarchar.MAX_LENGTH + 1);
   }
 }
