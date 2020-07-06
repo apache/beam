@@ -302,15 +302,6 @@ class PortableRunner(runner.PipelineRunner):
         default_environment=PortableRunner._create_environment(
             portable_options))
 
-    # Some runners won't detect the GroupByKey transform unless it has no
-    # subtransforms.  Remove all sub-transforms until BEAM-4605 is resolved.
-    for _, transform_proto in list(
-        proto_pipeline.components.transforms.items()):
-      if transform_proto.spec.urn == common_urns.primitives.GROUP_BY_KEY.urn:
-        for sub_transform in transform_proto.subtransforms:
-          del proto_pipeline.components.transforms[sub_transform]
-        del transform_proto.subtransforms[:]
-
     # Preemptively apply combiner lifting, until all runners support it.
     # These optimizations commute and are idempotent.
     pre_optimize = options.view_as(DebugOptions).lookup_experiment(
