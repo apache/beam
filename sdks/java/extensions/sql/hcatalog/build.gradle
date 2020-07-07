@@ -20,7 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog')
 
 def hive_version = "2.1.0"
 def netty_version = "4.1.30.Final"

@@ -241,6 +241,7 @@ public class DisplayData implements Serializable {
      * {@link #getType() type}.
      */
     @JsonGetter("value")
+    @Nullable
     public abstract Object getValue();
 
     /**

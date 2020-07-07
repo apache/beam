@@ -19,7 +19,7 @@
 plugins {
     id 'org.apache.beam.module'
 }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.splunk')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.splunk')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Splunk"
 ext.summary = "IO to write events to Splunk Http Event Collector (HEC)"
