@@ -25,8 +25,6 @@ import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.LanguageOptions;
 import com.google.zetasql.ParseResumeLocation;
 import com.google.zetasql.SimpleCatalog;
-import com.google.zetasql.TVFRelation;
-import com.google.zetasql.TableValuedFunction;
 import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateTableFunctionStmt;
@@ -35,7 +33,6 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
 import java.io.Reader;
 import java.util.List;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ExpressionConverter;
@@ -45,7 +42,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptUtil;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelRoot;
@@ -182,14 +178,6 @@ public class ZetaSQLPlannerImpl implements Planner {
       } else if (statement.nodeKind() == RESOLVED_CREATE_TABLE_FUNCTION_STMT) {
         ResolvedCreateTableFunctionStmt createTableFunctionStmt =
             (ResolvedCreateTableFunctionStmt) statement;
-        catalog.addTableValuedFunction(
-            new TableValuedFunction.FixedOutputSchemaTVF(
-                createTableFunctionStmt.getNamePath(),
-                createTableFunctionStmt.getSignature(),
-                TVFRelation.createColumnBased(
-                    createTableFunctionStmt.getQuery().getColumnList().stream()
-                        .map(c -> TVFRelation.Column.create(c.getName(), c.getType()))
-                        .collect(Collectors.toList()))));
         udtvfBuilder.put(createTableFunctionStmt.getNamePath(), createTableFunctionStmt.getQuery());
       } else if (statement.nodeKind() == RESOLVED_QUERY_STMT) {
         if (!SqlAnalyzer.isEndOfInput(parseResumeLocation)) {
@@ -212,7 +200,6 @@ public class ZetaSQLPlannerImpl implements Planner {
 
     RelNode convertedNode =
         QueryStatementConverter.convertRootQuery(context, (ResolvedQueryStmt) statement);
-    LOG.info("SQLPlan>\n" + RelOptUtil.toString(convertedNode));
     return RelRoot.of(convertedNode, SqlKind.ALL);
   }
 

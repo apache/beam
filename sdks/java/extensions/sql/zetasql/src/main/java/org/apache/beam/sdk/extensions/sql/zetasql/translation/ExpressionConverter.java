@@ -74,7 +74,7 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
-import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedPureSqlTableValuedFunction;
+import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperatorRewriter;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperators;
@@ -646,7 +646,7 @@ public class ExpressionConverter {
       return (RexCall)
           rexBuilder()
               .makeCall(
-                  new ZetaSqlUserDefinedPureSqlTableValuedFunction(
+                  new ZetaSqlUserDefinedSQLNativeTableValuedFunction(
                       new SqlIdentifier(tvf.getName(), SqlParserPos.ZERO),
                       opBinding -> {
                         List<RelDataTypeField> relDataTypeFields =

@@ -48,12 +48,14 @@ import com.google.zetasql.ZetaSQLOptions.ProductMode;
 import com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateTableFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
@@ -162,6 +164,17 @@ public class SqlAnalyzer {
                 "Failed to define function %s", String.join(".", createFunctionStmt.getNamePath())),
             e);
       }
+    } else if (resolvedStatement.nodeKind() == RESOLVED_CREATE_TABLE_FUNCTION_STMT) {
+      ResolvedCreateTableFunctionStmt createTableFunctionStmt =
+          (ResolvedCreateTableFunctionStmt) resolvedStatement;
+      catalog.addTableValuedFunction(
+          new TableValuedFunction.FixedOutputSchemaTVF(
+              createTableFunctionStmt.getNamePath(),
+              createTableFunctionStmt.getSignature(),
+              TVFRelation.createColumnBased(
+                  createTableFunctionStmt.getQuery().getColumnList().stream()
+                      .map(c -> TVFRelation.Column.create(c.getName(), c.getType()))
+                      .collect(Collectors.toList()))));
     } else if (!SUPPORTED_STATEMENT_KINDS.contains(resolvedStatement.nodeKind())) {
       throw new UnsupportedOperationException(
           "Unrecognized statement type " + resolvedStatement.nodeKindString());

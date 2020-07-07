@@ -27,11 +27,11 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlOpe
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 
-/** This is a class to indicate that a TVF is a ZetaSQL pure SQL UDTVF. */
+/** This is a class to indicate that a TVF is a ZetaSQL SQL native UDTVF. */
 @Internal
-public class ZetaSqlUserDefinedPureSqlTableValuedFunction extends SqlUserDefinedFunction {
+public class ZetaSqlUserDefinedSQLNativeTableValuedFunction extends SqlUserDefinedFunction {
 
-  public ZetaSqlUserDefinedPureSqlTableValuedFunction(
+  public ZetaSqlUserDefinedSQLNativeTableValuedFunction(
       SqlIdentifier opName,
       SqlReturnTypeInference returnTypeInference,
       SqlOperandTypeInference operandTypeInference,

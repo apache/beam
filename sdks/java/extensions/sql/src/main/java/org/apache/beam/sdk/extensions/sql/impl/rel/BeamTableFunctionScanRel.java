@@ -27,7 +27,7 @@ import java.util.Set;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.TVFSlidingWindowFn;
-import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedPureSqlTableValuedFunction;
+import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -208,7 +208,7 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
 
       // ZetaSQL pure SQL TVF should pass through input to output.
       if (((RexCall) getCall()).getOperator()
-          instanceof ZetaSqlUserDefinedPureSqlTableValuedFunction) {
+          instanceof ZetaSqlUserDefinedSQLNativeTableValuedFunction) {
         return input.get(0);
       }
 

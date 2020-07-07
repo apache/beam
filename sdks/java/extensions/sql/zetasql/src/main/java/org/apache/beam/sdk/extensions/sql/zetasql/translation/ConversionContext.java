@@ -33,12 +33,13 @@ public class ConversionContext {
   private final ExpressionConverter expressionConverter;
   private final RelOptCluster cluster;
   private final QueryTrait trait;
-  // Pure-sql user-defined table-valued function can be resolved by Analyzer. Keeping the
+
+  // SQL native user-defined table-valued function can be resolved by Analyzer. Keeping the
   // function name to its ResolvedNode mapping so during Plan conversion, UDTVF implementation
   // can replace inputs of TVFScanConverter.
   private final Map<List<String>, ResolvedNode> userDefinedTableValuedFunctions;
 
-  // Pure-sql user-defined table-valued function can be resolved by Analyzer. Its sql body is
+  // SQL native user-defined table-valued function can be resolved by Analyzer. Its sql body is
   // converted to ResolvedNode, in which function parameters are replaced with ResolvedArgumentRef.
   // Meanwhile, Analyzer provides values for function parameters because it looks ahead to find
   // the SELECT query. Thus keep the argument name to values (converted to RexNode) mapping in
