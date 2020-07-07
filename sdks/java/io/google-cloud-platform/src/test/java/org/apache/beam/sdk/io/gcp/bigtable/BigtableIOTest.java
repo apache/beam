@@ -1141,7 +1141,7 @@ public class BigtableIOTest {
             .withBigtableOptions(BIGTABLE_OPTIONS)
             .withProjectId(options.getBigtableProject())
             .withInstanceId(options.getBigtableInstanceId())
-            .withTableId(options.getBigtableTableId())
+            .withTableId(options.getBigtableTableId());
     DisplayData displayData = DisplayData.from(read);
     assertThat(
         displayData,
