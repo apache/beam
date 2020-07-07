@@ -284,11 +284,12 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
         self.set_state(beam_job_api_pb2.JobState.DONE)
         self.result = result
       except:  # pylint: disable=bare-except
-        self._log_queues.put(beam_job_api_pb2.JobMessage(
-              message_id=log_handler._next_id(),
-              time=time.strftime('%Y-%m-%d %H:%M:%S.'),
-              importance=beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR,
-              message_text=traceback.format_exc()))
+        self._log_queues.put(
+            beam_job_api_pb2.JobMessage(
+                message_id=log_handler._next_id(),
+                time=time.strftime('%Y-%m-%d %H:%M:%S.'),
+                importance=beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR,
+                message_text=traceback.format_exc()))
         _LOGGER.exception('Error running pipeline.')
         self.set_state(beam_job_api_pb2.JobState.FAILED)
         raise
@@ -327,7 +328,8 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self._log_queues.append(log_queue)
     self._state_queues.append(log_queue)
 
-    for msg in itertools.chain(self._log_queues.cache(), self.with_state_history(_iter_queue(log_queue))):
+    for msg in itertools.chain(self._log_queues.cache(),
+                               self.with_state_history(_iter_queue(log_queue))):
       if isinstance(msg, tuple):
         assert len(msg) == 2 and isinstance(msg[0], int)
         current_state = msg[0]
