@@ -17,20 +17,20 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
+import com.google.zetasql.FileDescriptorSetsBuilder;
+import com.google.zetasql.FunctionProtos.TableValuedFunctionProto;
+import com.google.zetasql.TableValuedFunction.FixedOutputSchemaTVF;
+import com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind;
 import com.google.zetasql.resolvedast.ResolvedNode;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLiteral;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedTVFArgument;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedTVFScan;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalTableFunctionScan;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFieldImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelRecordType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 
 /** Converts TVFScan. */
 class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
@@ -42,45 +42,59 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
   @Override
   public RelNode convert(ResolvedTVFScan zetaNode, List<RelNode> inputs) {
     RelNode input = inputs.get(0);
+    RexCall call =
+        getExpressionConverter()
+            .convertTableValuedFunction(
+                input,
+                zetaNode.getTvf(),
+                zetaNode.getArgumentList(),
+                zetaNode.getArgumentList().get(0).getScan() != null
+                    ? zetaNode.getArgumentList().get(0).getScan().getColumnList()
+                    : Collections.emptyList());
     RelNode tableFunctionScan =
         LogicalTableFunctionScan.create(
-            getCluster(),
-            inputs,
-            getExpressionConverter()
-                .convertTableValuedFunction(
-                    input,
-                    zetaNode.getTvf(),
-                    zetaNode.getArgumentList(),
-                    zetaNode.getArgumentList().get(0).getScan().getColumnList()),
-            null,
-            createRowTypeWithWindowStartAndEnd(input.getRowType()),
-            Collections.EMPTY_SET);
+            getCluster(), inputs, call, null, call.getType(), Collections.EMPTY_SET);
 
+    // Pure SQL UDF's language body is built bottom up, so FunctionArgumentRefMapping should be
+    // already consumed thus it can be cleared now.
+    context.clearFunctionArgumentRefMapping();
     return tableFunctionScan;
   }
 
   @Override
   public List<ResolvedNode> getInputs(ResolvedTVFScan zetaNode) {
     List<ResolvedNode> inputs = new ArrayList();
+    if (zetaNode.getTvf() != null
+        && context
+            .getUserDefinedTableValuedFunctions()
+            .containsKey(zetaNode.getTvf().getNamePath())) {
+      inputs.add(context.getUserDefinedTableValuedFunctions().get(zetaNode.getTvf().getNamePath()));
+    }
+
     for (ResolvedTVFArgument argument : zetaNode.getArgumentList()) {
       if (argument.getScan() != null) {
         inputs.add(argument.getScan());
       }
     }
+
+    // Extract ResolvedArguments for solving ResolvedArgumentRef in later conversion.
+    if (zetaNode.getTvf() instanceof FixedOutputSchemaTVF) {
+      FileDescriptorSetsBuilder temp = new FileDescriptorSetsBuilder();
+      // TODO: migrate to public Java API to retrieve FunctionSignature.
+      TableValuedFunctionProto tableValuedFunctionProto = zetaNode.getTvf().serialize(temp);
+      for (int i = 0; i < tableValuedFunctionProto.getSignature().getArgumentList().size(); i++) {
+        String argumentName =
+            tableValuedFunctionProto.getSignature().getArgument(i).getOptions().getArgumentName();
+        if (zetaNode.getArgumentList().get(i).nodeKind() == ResolvedNodeKind.RESOLVED_TVFARGUMENT) {
+          ResolvedTVFArgument resolvedTVFArgument = zetaNode.getArgumentList().get(i);
+          if (resolvedTVFArgument.getExpr().nodeKind() == ResolvedNodeKind.RESOLVED_LITERAL) {
+            ResolvedLiteral literal = (ResolvedLiteral) resolvedTVFArgument.getExpr();
+            context.addToFunctionArgumentRefMapping(
+                argumentName, getExpressionConverter().convertResolvedLiteral(literal));
+          }
+        }
+      }
+    }
     return inputs;
-  }
-
-  private RelDataType createRowTypeWithWindowStartAndEnd(RelDataType inputRowType) {
-    List<RelDataTypeField> newFields = new ArrayList<>(inputRowType.getFieldList());
-    RelDataType timestampType = getCluster().getTypeFactory().createSqlType(SqlTypeName.TIMESTAMP);
-
-    RelDataTypeField windowStartField =
-        new RelDataTypeFieldImpl(TVFStreamingUtils.WINDOW_START, newFields.size(), timestampType);
-    newFields.add(windowStartField);
-    RelDataTypeField windowEndField =
-        new RelDataTypeFieldImpl(TVFStreamingUtils.WINDOW_END, newFields.size(), timestampType);
-    newFields.add(windowEndField);
-
-    return new RelRecordType(inputRowType.getStructKind(), newFields);
   }
 }
