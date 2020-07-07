@@ -208,7 +208,7 @@ def progress_indicated(func):
 
 
 def as_json(func):
-  # type: (Callable[..., Any]) -> Callable[..., Any]
+  # type: (Callable[..., Any]) -> Callable[..., str]
 
   """A decorator convert python objects returned by callables to json
   string.
