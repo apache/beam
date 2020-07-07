@@ -31,6 +31,7 @@ import time
 import os
 from builtins import object
 
+from azure.core.exceptions import ResourceNotFoundError
 from apache_beam.io.filesystemio import Downloader
 from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.io.filesystemio import Uploader
@@ -56,6 +57,9 @@ def parse_azfs_path(azfs_path, blob_optional=False):
     raise ValueError('Azure Blob Storage path must be in the form azfs://<storage-account>/<container>/<path>.')
   return match.group(1), match.group(2), match.group(3)
 
+def get_azfs_url(storage_account, container, blob=''):
+  """Returns the url in the form of https://account.blob.core.windows.net/container/blob-name"""
+  return 'https://' + storage_account + '.blob.core.windows.net/' + container + '/' + blob
 
 class BlobStorageIOError(IOError, retry.PermanentException):
   """Blob Strorage IO error that should not be retried."""
@@ -106,6 +110,32 @@ class BlobStorageIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def copy(self, src, dest):
+    """Copies a single Azure Blob Storage blob from src to dest.
+    
+    Args:
+      src: Blob Storage file path pattern in the form 
+           azfs://<storage-account>/<container>/[name].
+      dest: Blob Storage file path pattern in the form 
+            azfs://<storage-account>/<container>/[name].
+    
+    Raises:
+      TimeoutError: on timeout.
+    """
+    src_storage_account, src_container, src_blob = parse_azfs_path(src)
+    dest_storage_account, dest_container, dest_blob = parse_azfs_path(dest)
+
+    source_blob = get_azfs_url(src_storage_account, src_container, src_blob)
+    copied_blob = self.client.get_blob_client(dest_container, dest_blob)
+
+    try:
+      copied_blob.start_copy_from_url(source_blob)
+    except ResourceNotFoundError:
+      raise ValueError('Blob not found')
+    
+    
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def list_prefix(self, path):
     """Lists files matching the prefix.
 
@@ -139,9 +169,3 @@ class BlobStorageIO(object):
         counter,
         time.time() - start_time)
     return file_sizes
-
-
-
-  
-  
-    
