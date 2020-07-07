@@ -231,16 +231,15 @@ public class BigtableIO {
 
     static Read create() {
       BigtableConfig config =
-          BigtableConfig.builder()
-              .setTableId(StaticValueProvider.of(""))
-              .setValidate(true)
-              .build();
+          BigtableConfig.builder().setTableId(StaticValueProvider.of("")).setValidate(true).build();
 
       return new AutoValue_BigtableIO_Read.Builder()
           .setBigtableConfig(config)
-          .setBigtableReadOptions(BigtableReadOptions.builder()
-              .setKeyRanges(StaticValueProvider
-                  .of(Collections.singletonList(ByteKeyRange.ALL_KEYS))).build())
+          .setBigtableReadOptions(
+              BigtableReadOptions.builder()
+                  .setKeyRanges(
+                      StaticValueProvider.of(Collections.singletonList(ByteKeyRange.ALL_KEYS)))
+                  .build())
           .build();
     }
 
@@ -872,9 +871,7 @@ public class BigtableIO {
 
   static class BigtableSource extends BoundedSource<Row> {
     public BigtableSource(
-        BigtableConfig config,
-        BigtableReadOptions readOptions,
-        @Nullable Long estimatedSizeBytes) {
+        BigtableConfig config, BigtableReadOptions readOptions, @Nullable Long estimatedSizeBytes) {
       this.config = config;
       this.readOptions = readOptions;
       this.estimatedSizeBytes = estimatedSizeBytes;
@@ -968,8 +965,8 @@ public class BigtableIO {
         counter++;
       }
       if (size > 0) {
-        reducedSplits
-            .add(new BigtableSource(config, readOptions.withKeyRanges(previousSourceRanges), size));
+        reducedSplits.add(
+            new BigtableSource(config, readOptions.withKeyRanges(previousSourceRanges), size));
       }
       return reducedSplits;
     }

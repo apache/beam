@@ -683,7 +683,8 @@ public class BigtableIOTest {
             BigtableReadOptions.builder()
                 .setKeyRanges(
                     StaticValueProvider.of(Collections.singletonList(service.getTableRange(table))))
-                .build(), null);
+                .build(),
+            null);
     assertSplitAtFractionExhaustive(source, null);
   }
 
@@ -703,7 +704,8 @@ public class BigtableIOTest {
             BigtableReadOptions.builder()
                 .setKeyRanges(
                     StaticValueProvider.of(Collections.singletonList(service.getTableRange(table))))
-                .build(), null);
+                .build(),
+            null);
     // With 0 items read, all split requests will fail.
     assertSplitAtFractionFails(source, 0, 0.1, null /* options */);
     assertSplitAtFractionFails(source, 0, 1.0, null /* options */);
@@ -734,8 +736,9 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(
-            config.withTableId(StaticValueProvider.of(table)),BigtableReadOptions.builder()
-            .setKeyRanges(ALL_KEY_RANGE).build(), null /*size*/);
+            config.withTableId(StaticValueProvider.of(table)),
+            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
+            null /*size*/);
     List<BigtableSource> splits =
         source.split(numRows * bytesPerRow / numSamples, null /* options */);
 
@@ -801,8 +804,8 @@ public class BigtableIOTest {
     BigtableSource source =
         new BigtableSource(
             config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder()
-                .setKeyRanges(StaticValueProvider.of(keyRanges)).build(), null /*size*/);
+            BigtableReadOptions.builder().setKeyRanges(StaticValueProvider.of(keyRanges)).build(),
+            null /*size*/);
 
     List<BigtableSource> splits = new ArrayList<>();
     for (ByteKeyRange range : keyRanges) {
@@ -851,8 +854,8 @@ public class BigtableIOTest {
     BigtableSource source =
         new BigtableSource(
             config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder()
-                .setKeyRanges(StaticValueProvider.of(keyRanges)).build(), null /*size*/);
+            BigtableReadOptions.builder().setKeyRanges(StaticValueProvider.of(keyRanges)).build(),
+            null /*size*/);
 
     List<BigtableSource> splits = new ArrayList<>();
     for (ByteKeyRange range : keyRanges) {
@@ -892,7 +895,8 @@ public class BigtableIOTest {
     BigtableSource source =
         new BigtableSource(
             config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(), null /*size*/);
+            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
+            null /*size*/);
     List<BigtableSource> splits = new ArrayList<>();
     List<ByteKeyRange> keyRanges =
         Arrays.asList(
@@ -962,15 +966,16 @@ public class BigtableIOTest {
     BigtableSource source =
         new BigtableSource(
             config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder()
-                .setKeyRanges(StaticValueProvider.of(keyRanges)).build(), null /*size*/);
+            BigtableReadOptions.builder().setKeyRanges(StaticValueProvider.of(keyRanges)).build(),
+            null /*size*/);
     BigtableSource referenceSource =
         new BigtableSource(
             config.withTableId(StaticValueProvider.of(table)),
             BigtableReadOptions.builder()
                 .setKeyRanges(
                     StaticValueProvider.of(Collections.singletonList(service.getTableRange(table))))
-                .build(), null /*size*/);
+                .build(),
+            null /*size*/);
     List<BigtableSource> splits = // 10,000
         source.split(numRows * bytesPerRow / numSamples, null /* options */);
 
@@ -996,7 +1001,8 @@ public class BigtableIOTest {
     BigtableSource source =
         new BigtableSource(
             config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(), null /*size*/);
+            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
+            null /*size*/);
     List<BigtableSource> splits = source.split(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
@@ -1037,15 +1043,16 @@ public class BigtableIOTest {
     BigtableSource source =
         new BigtableSource(
             config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder()
-                .setKeyRanges(StaticValueProvider.of(keyRanges)).build(),
+            BigtableReadOptions.builder().setKeyRanges(StaticValueProvider.of(keyRanges)).build(),
             null /*size*/);
     BigtableSource referenceSource =
         new BigtableSource(
             config.withTableId(StaticValueProvider.of(table)),
             BigtableReadOptions.builder()
-                .setKeyRanges(StaticValueProvider
-                    .of(ImmutableList.of(service.getTableRange(table)))).build(), null /*size*/);
+                .setKeyRanges(
+                    StaticValueProvider.of(ImmutableList.of(service.getTableRange(table))))
+                .build(),
+            null /*size*/);
     List<BigtableSource> splits = source.split(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
@@ -1074,7 +1081,9 @@ public class BigtableIOTest {
             config.withTableId(StaticValueProvider.of(table)),
             BigtableReadOptions.builder()
                 .setRowFilter(StaticValueProvider.of(filter))
-                .setKeyRanges(ALL_KEY_RANGE).build(), null /*size*/);
+                .setKeyRanges(ALL_KEY_RANGE)
+                .build(),
+            null /*size*/);
     List<BigtableSource> splits = source.split(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
@@ -1104,8 +1113,8 @@ public class BigtableIOTest {
 
     assertThat(displayData, hasDisplayItem("rowFilter", rowFilter.toString()));
 
-    assertThat(displayData,
-        hasDisplayItem("keyRanges", "[ByteKeyRange{startKey=[], endKey=[abcd]}]"));
+    assertThat(
+        displayData, hasDisplayItem("keyRanges", "[ByteKeyRange{startKey=[], endKey=[abcd]}]"));
 
     // BigtableIO adds user-agent to options; assert only on key and not value.
     assertThat(displayData, hasDisplayItem("bigtableOptions"));
@@ -1408,7 +1417,8 @@ public class BigtableIOTest {
     BigtableSource source =
         new BigtableSource(
             config.withTableId(StaticValueProvider.of(table)),
-            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(), null);
+            BigtableReadOptions.builder().setKeyRanges(ALL_KEY_RANGE).build(),
+            null);
 
     BoundedReader<Row> reader = source.createReader(TestPipeline.testingPipelineOptions());
 

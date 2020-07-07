@@ -70,7 +70,8 @@ abstract class BigtableReadOptions implements Serializable {
   }
 
   void populateDisplayData(DisplayData.Builder builder) {
-    builder.addIfNotNull(DisplayData.item("rowFilter", getRowFilter()).withLabel("Row Filter"))
+    builder
+        .addIfNotNull(DisplayData.item("rowFilter", getRowFilter()).withLabel("Row Filter"))
         .addIfNotNull(DisplayData.item("keyRanges", getKeyRanges()).withLabel("Key Ranges"));
   }
 
