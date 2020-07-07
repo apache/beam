@@ -171,6 +171,12 @@ class _BoundedMongoSource(iobase.BoundedSource):
         start_position, stop_position)
 
     desired_bundle_size_in_mb = desired_bundle_size // 1024 // 1024
+
+    # for desired bundle size, if desired chunk size smaller than 1mb, use
+    # mongodb default split size of 1mb.
+    if desired_bundle_size_in_mb < 1:
+      desired_bundle_size_in_mb = 1
+
     split_keys = self._get_split_keys(
         desired_bundle_size_in_mb, start_position, stop_position)
 
@@ -221,10 +227,6 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
   def _get_split_keys(self, desired_chunk_size_in_mb, start_pos, end_pos):
     # calls mongodb splitVector command to get document ids at split position
-    # for desired bundle size, if desired chunk size smaller than 1mb, use
-    # mongodb default split size of 1mb.
-    if desired_chunk_size_in_mb < 1:
-      desired_chunk_size_in_mb = 1
     if start_pos >= end_pos:
       # single document not splittable
       return []
