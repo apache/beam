@@ -123,7 +123,8 @@ public class ContextualTextIOTest implements Serializable {
             MapElements.into(TypeDescriptors.strings())
                 .via(
                     x -> {
-                      System.out.println(x.getRangeNum() + " " + x.getRangeLineNum() + " " + x.getFile());
+                      System.out.println(
+                          x.getRangeNum() + " " + x.getRangeLineNum() + " " + x.getFile());
                       return String.valueOf(x.getLine());
                     }));
 

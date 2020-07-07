@@ -313,8 +313,7 @@ public class ContextualTextIO {
         System.out.println("No Coder!");
       }
 
-      if(getHasRFC4180MultiLineColumn()) {
-      }
+      if (getHasRFC4180MultiLineColumn()) {}
 
       return input.apply(
           "Read all via FileBasedSource",

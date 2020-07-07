@@ -108,7 +108,7 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
     private long readerlineNum;
 
     private MultiLineTextBasedReader(
-            ContextualTextIOSource source, byte[] delimiter, boolean hasRFC4180MultiLineColumn) {
+        ContextualTextIOSource source, byte[] delimiter, boolean hasRFC4180MultiLineColumn) {
       super(source);
       buffer = ByteString.EMPTY;
       this.delimiter = delimiter;
@@ -175,8 +175,8 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
      *
      * <p>If {@link ContextualTextIOSource#hasRFC4180MultiLineColumn} is set then the behaviour will
      * change from the standard read seen in {@link org.apache.beam.sdk.io.TextIO}. The assumption
-     * when {@link ContextualTextIOSource#hasRFC4180MultiLineColumn} is set is that the file is being read
-     * with a single thread.
+     * when {@link ContextualTextIOSource#hasRFC4180MultiLineColumn} is set is that the file is
+     * being read with a single thread.
      *
      * <p>This fills the buffer and updates the positions as follows:
      *
