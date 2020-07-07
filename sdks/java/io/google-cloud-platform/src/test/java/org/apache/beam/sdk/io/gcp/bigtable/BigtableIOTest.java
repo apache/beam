@@ -185,8 +185,8 @@ public class BigtableIOTest {
   private static final SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
       PORT_CONFIGURATOR = input -> input.setPort(1234);
 
-  private static final ValueProvider<List<ByteKeyRange>> ALL_KEY_RANGE = StaticValueProvider
-      .of(Collections.singletonList(ByteKeyRange.ALL_KEYS));
+  private static final ValueProvider<List<ByteKeyRange>> ALL_KEY_RANGE =
+      StaticValueProvider.of(Collections.singletonList(ByteKeyRange.ALL_KEYS));
 
   @Before
   public void setup() throws Exception {
@@ -518,7 +518,8 @@ public class BigtableIOTest {
   }
 
   private void runReadTest(BigtableIO.Read read, List<Row> expected) {
-    PCollection<Row> rows = p.apply(read.getTableId() + "_" + read.getBigtableReadOptions().getKeyRanges(), read);
+    PCollection<Row> rows =
+        p.apply(read.getTableId() + "_" + read.getBigtableReadOptions().getKeyRanges(), read);
     PAssert.that(rows).containsInAnyOrder(expected);
     p.run();
   }
@@ -568,9 +569,7 @@ public class BigtableIOTest {
     assertThat(suffixRows, hasItems(middleRows.toArray(new Row[] {})));
   }
 
-  /**
-   * Tests reading key ranges specified through a ValueProvider.
-   */
+  /** Tests reading key ranges specified through a ValueProvider. */
   @Test
   public void testReadingWithRuntimeParameterizedKeyRange() throws Exception {
     final String table = "TEST-KEY-RANGE-TABLE";
@@ -583,7 +582,11 @@ public class BigtableIOTest {
 
     final ByteKeyRange middleRange = ByteKeyRange.of(startKey, endKey);
     List<Row> middleRows = filterToRange(testRows, middleRange);
-    runReadTest(defaultRead.withTableId(table).withKeyRanges(StaticValueProvider.of(Collections.singletonList(middleRange))), middleRows);
+    runReadTest(
+        defaultRead
+            .withTableId(table)
+            .withKeyRanges(StaticValueProvider.of(Collections.singletonList(middleRange))),
+        middleRows);
 
     assertThat(middleRows, allOf(hasSize(lessThan(numRows)), hasSize(greaterThan(0))));
   }
@@ -965,7 +968,9 @@ public class BigtableIOTest {
         new BigtableSource(
             config.withTableId(StaticValueProvider.of(table)),
             BigtableReadOptions.builder()
-                .setKeyRanges(StaticValueProvider.of(Collections.singletonList(service.getTableRange(table)))).build(), null /*size*/);
+                .setKeyRanges(
+                    StaticValueProvider.of(Collections.singletonList(service.getTableRange(table))))
+                .build(), null /*size*/);
     List<BigtableSource> splits = // 10,000
         source.split(numRows * bytesPerRow / numSamples, null /* options */);
 
@@ -1099,7 +1104,8 @@ public class BigtableIOTest {
 
     assertThat(displayData, hasDisplayItem("rowFilter", rowFilter.toString()));
 
-    assertThat(displayData, hasDisplayItem("keyRanges", "[ByteKeyRange{startKey=[], endKey=[abcd]}]"));
+    assertThat(displayData,
+        hasDisplayItem("keyRanges", "[ByteKeyRange{startKey=[], endKey=[abcd]}]"));
 
     // BigtableIO adds user-agent to options; assert only on key and not value.
     assertThat(displayData, hasDisplayItem("bigtableOptions"));

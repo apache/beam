@@ -968,7 +968,8 @@ public class BigtableIO {
         counter++;
       }
       if (size > 0) {
-        reducedSplits.add(new BigtableSource(config, readOptions.withKeyRanges(previousSourceRanges), size));
+        reducedSplits
+            .add(new BigtableSource(config, readOptions.withKeyRanges(previousSourceRanges), size));
       }
       return reducedSplits;
     }
@@ -1189,7 +1190,8 @@ public class BigtableIO {
       builder.add(DisplayData.item("tableId", config.getTableId()).withLabel("Table ID"));
 
       if (getRowFilter() != null) {
-        builder.add(DisplayData.item("rowFilter", getRowFilter().toString()).withLabel("Table Row Filter"));
+        builder.add(
+            DisplayData.item("rowFilter", getRowFilter().toString()).withLabel("Table Row Filter"));
       }
     }
 
