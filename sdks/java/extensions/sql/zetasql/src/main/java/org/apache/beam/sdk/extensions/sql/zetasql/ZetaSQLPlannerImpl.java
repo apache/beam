@@ -18,13 +18,16 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_FUNCTION_STMT;
+import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_TABLE_FUNCTION_STMT;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
 
 import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.LanguageOptions;
 import com.google.zetasql.ParseResumeLocation;
 import com.google.zetasql.SimpleCatalog;
+import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateTableFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
 import java.io.Reader;
@@ -157,6 +160,7 @@ public class ZetaSQLPlannerImpl implements Planner {
         analyzer.createPopulatedCatalog(defaultSchemaPlus.getName(), options, tables);
 
     ImmutableMap.Builder<String, ResolvedCreateFunctionStmt> udfBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<List<String>, ResolvedNode> udtvfBuilder = ImmutableMap.builder();
 
     ResolvedStatement statement;
     ParseResumeLocation parseResumeLocation = new ParseResumeLocation(sql);
@@ -171,6 +175,10 @@ public class ZetaSQLPlannerImpl implements Planner {
                 SqlAnalyzer.USER_DEFINED_FUNCTIONS,
                 String.join(".", createFunctionStmt.getNamePath()));
         udfBuilder.put(functionFullName, createFunctionStmt);
+      } else if (statement.nodeKind() == RESOLVED_CREATE_TABLE_FUNCTION_STMT) {
+        ResolvedCreateTableFunctionStmt createTableFunctionStmt =
+            (ResolvedCreateTableFunctionStmt) statement;
+        udtvfBuilder.put(createTableFunctionStmt.getNamePath(), createTableFunctionStmt.getQuery());
       } else if (statement.nodeKind() == RESOLVED_QUERY_STMT) {
         if (!SqlAnalyzer.isEndOfInput(parseResumeLocation)) {
           throw new UnsupportedOperationException(
@@ -187,11 +195,11 @@ public class ZetaSQLPlannerImpl implements Planner {
 
     ExpressionConverter expressionConverter =
         new ExpressionConverter(cluster, params, udfBuilder.build());
-    ConversionContext context = ConversionContext.of(config, expressionConverter, cluster, trait);
+    ConversionContext context =
+        ConversionContext.of(config, expressionConverter, cluster, trait, udtvfBuilder.build());
 
     RelNode convertedNode =
         QueryStatementConverter.convertRootQuery(context, (ResolvedQueryStmt) statement);
-
     return RelRoot.of(convertedNode, SqlKind.ALL);
   }
 
