@@ -24,6 +24,7 @@ import logging
 import unittest
 
 from apache_beam.io.azure import blobstorageio
+from apitools.base.py.exceptions import HttpError
 
 
 class TestAZFSPathParser(unittest.TestCase):
@@ -113,7 +114,29 @@ class TestBlobStorageIO(unittest.TestCase):
       self.assertEqual(
           set(self.azfs.list_prefix(file_pattern).items()),
           set(expected_file_names))
+
+  def test_copy(self):
+    src_file_name = self.TEST_DATA_PATH + 'source'
+    dest_file_name = self.TEST_DATA_PATH + 'dest'
     
+    # TODO : add insert_random_file functionality
+    
+    self.assertTrue(src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+    self.assertFalse(dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+
+    self.azfs.copy(src_file_name, dest_file_name)
+
+    self.assertTrue(src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+
+    
+    # Test copy of non-existent files.
+    with self.assertRaisesRegex(HttpError, r'Not Found'):
+      self.azfs.copy(
+          self.TEST_DATA_PATH + 'non-existent',
+          self.TEST_DATA_PATH + 'non-existent-destination')
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

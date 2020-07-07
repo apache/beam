@@ -140,4 +140,13 @@ class BlobStorageIO(object):
         time.time() - start_time)
     return file_sizes
 
+class BlobStorageDownloader()
+  def __init__(self, client, path, buffer_size):
+    self._client = client 
+    self._path = path 
+    self._storage_account, self._container, self._name = parse_azfs_path(path) 
+    self._buffer_size = buffer_size
+
+  
+  
     
