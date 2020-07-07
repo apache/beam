@@ -85,6 +85,9 @@ class BeamModulePlugin implements Plugin<Project> {
     /** Controls whether the spotbugs plugin is enabled and configured. */
     boolean enableSpotbugs = true
 
+    /** Conatrols whether the checker framework plugin is enabled and configured. */
+    boolean enableChecker = true
+
     /** Controls whether the dependency analysis plugin is enabled. */
     boolean enableStrictDependencies = false
 
@@ -381,6 +384,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def aws_java_sdk_version = "1.11.718"
     def aws_java_sdk2_version = "2.10.61"
     def cassandra_driver_version = "3.8.0"
+    def checkerframework_version = "3.5.0"
     def classgraph_version = "4.8.65"
     def gax_version = "1.54.0"
     def generated_grpc_ga_version = "1.85.1"
@@ -741,6 +745,23 @@ class BeamModulePlugin implements Plugin<Project> {
         maxHeapSize = '2g'
       }
 
+      // Most of our modules have null errors. Once they are fixed, we can
+      // set enableChecker=true in the build.gradle. Until then, we can pass -PenableChecker to
+      // find a few errors and fix them.
+      if (configuration.enableChecker) {
+        project.apply plugin: 'org.checkerframework'
+
+        project.checkerFramework {
+          checkers = [
+            'org.checkerframework.checker.nullness.NullnessChecker'
+          ]
+        }
+
+        project.dependencies {
+          checkerFramework("org.checkerframework:checker:$checkerframework_version")
+        }
+      }
+
       if (configuration.shadowClosure) {
         // Ensure that tests are packaged and part of the artifact set.
         project.task('packageTests', type: Jar) {
@@ -763,6 +784,9 @@ class BeamModulePlugin implements Plugin<Project> {
         "com.google.auto.value:auto-value-annotations:1.7",
         "com.google.auto.service:auto-service-annotations:1.0-rc6",
         "com.google.j2objc:j2objc-annotations:1.3",
+        // This contains many improved annotations beyond javax.annotations for enhanced static checking
+        // of the codebase
+        "org.checkerframework:checker-qual:$checkerframework_version",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
         //
@@ -1555,6 +1579,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.applyJavaNature(
               exportJavadoc: false,
               enableSpotbugs: false,
+              enableChecker: false,
               publish: configuration.publish,
               archivesBaseName: configuration.archivesBaseName,
               automaticModuleName: configuration.automaticModuleName,

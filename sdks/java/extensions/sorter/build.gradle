@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sorter')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.extensions.sorter')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Sorter"
 
