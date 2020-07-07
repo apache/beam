@@ -16,7 +16,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 @AutoValue
 abstract class BigtableReadOptions implements Serializable {
 
-  /** Returns the Row filter to use. */
+  /** Returns the row filter to use. */
   @Nullable
   abstract ValueProvider<RowFilter> getRowFilter();
 
