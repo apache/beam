@@ -82,7 +82,7 @@ if sys.version_info.major == 2 and sys.version_info.minor == 7:
       'You are using Apache Beam with Python 2. '
       'New releases of Apache Beam will soon support Python 3 only.')
 elif sys.version_info.major == 3:
-  if sys.version_info.minor >= 8:
+  if sys.version_info.minor >= 9:
     warnings.warn(
         'This version of Apache Beam has not been sufficiently tested on '
         'Python %s.%s. You may encounter bugs or missing features.' %
