@@ -665,7 +665,8 @@ class Row(object):
       yield value
 
   def __repr__(self):
-    return 'Row(%s)' % ', '.join('%s=%r' % kv for kv in sorted(self.__dict__.items()))
+    return 'Row(%s)' % ', '.join(
+        '%s=%r' % kv for kv in sorted(self.__dict__.items()))
 
   def __hash__(self):
     return hash(type(sorted(self.__dict__.items())))
