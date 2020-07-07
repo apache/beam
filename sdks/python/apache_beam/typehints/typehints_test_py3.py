@@ -26,8 +26,8 @@ from __future__ import print_function
 import unittest
 
 from apache_beam.transforms.core import DoFn
-from apache_beam.typehints import KV
 from apache_beam.typehints import Iterable
+from apache_beam.typehints import KV
 
 
 class TestParDoAnnotations(unittest.TestCase):
