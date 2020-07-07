@@ -142,6 +142,7 @@ def validate_run(run_data):
   start_time = time.time()
   last_request = start_time
   spinner = itertools.cycle(["|", "/", "-", "\\"])
+  request_interval = 10
 
   while True:
     now = time.time()
@@ -153,7 +154,7 @@ def validate_run(run_data):
     )
 
     time.sleep(0.3)
-    if (now - last_request) > 10:
+    if (now - last_request) > request_interval:
       last_request = now
       run_data = request_url(url)
       status = run_data["status"]
