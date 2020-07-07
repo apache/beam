@@ -264,7 +264,7 @@ public class RabbitMqIOTest implements Serializable {
               }
             });
     publisher.start();
-    waitForExchangeToBeDeclared.countDown();
+    waitForExchangeToBeDeclared.await();
     p.run();
     recordsToPublish.put(terminalRecord);
     publisher.join();
