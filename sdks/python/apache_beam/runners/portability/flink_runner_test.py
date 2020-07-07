@@ -35,8 +35,8 @@ from apache_beam import Map
 from apache_beam import Pipeline
 from apache_beam.coders import VarIntCoder
 from apache_beam.io.external.generate_sequence import GenerateSequence
-from apache_beam.io.external.kafka import ReadFromKafka
-from apache_beam.io.external.kafka import WriteToKafka
+from apache_beam.io.kafka import ReadFromKafka
+from apache_beam.io.kafka import WriteToKafka
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import FlinkRunnerOptions
