@@ -274,9 +274,7 @@ public class HL7v2IO {
       PCollectionTuple pct;
 
       public static Result of(PCollectionTuple pct) throws IllegalArgumentException {
-        if (pct.getAll()
-            .keySet()
-            .containsAll(TupleTagList.of(OUT).and(DEAD_LETTER).getAll())) {
+        if (pct.getAll().keySet().containsAll(TupleTagList.of(OUT).and(DEAD_LETTER).getAll())) {
           return new Result(pct);
         } else {
           throw new IllegalArgumentException(
