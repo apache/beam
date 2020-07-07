@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.schemas.io;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
@@ -28,8 +31,14 @@ import org.apache.beam.sdk.values.Row;
  * An abstraction to create schema capable and aware IOs. The interface is intended to be used in
  * conjunction with the interface {@link SchemaCapableIOProvider}.
  *
- * <p>The interfaces can be implemented to enable IOs for SDKs in addition to Beam SQL.
+ * <p>The interfaces can be implemented to make IOs available in other SDKs in addition to Beam SQL.
+ *
+ * <p><b>Internal only:</b> This interface is actively being worked on and it will likely change as
+ * we provide implementations for more standard Beam IOs. We provide no backwards compatibility
+ * guarantees and it should not be implemented outside of the Beam repository.
  */
+@Internal
+@Experimental(Kind.SCHEMAS)
 public interface SchemaIO {
   /** Returns the schema of the data. */
   Schema schema();

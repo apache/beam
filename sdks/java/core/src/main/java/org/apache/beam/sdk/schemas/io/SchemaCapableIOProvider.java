@@ -17,10 +17,21 @@
  */
 package org.apache.beam.sdk.schemas.io;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 
-/** Provider to create {@link SchemaIO}. */
+/**
+ * Provider to create {@link SchemaIO} instances for use in Beam SQL and other SDKs.
+ *
+ * <p><b>Internal only:</b> This interface is actively being worked on and it will likely change as
+ * we provide implementations for more standard Beam IOs. We provide no backwards compatibility
+ * guarantees and it should not be implemented outside of the Beam repository.
+ */
+@Internal
+@Experimental(Kind.SCHEMAS)
 public interface SchemaCapableIOProvider {
   /** Returns an id that uniquely represents this IO. */
   String identifier();
