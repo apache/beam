@@ -26,7 +26,6 @@ def dependOnProjects = [":runners:core-construction-java",
                         ":runners:core-java",
                         ":runners:local-java",
                         ":runners:java-fn-execution",
-                        ":runners:java-job-service",
                         ":sdks:java:fn-execution"]
 
 applyJavaNature(
