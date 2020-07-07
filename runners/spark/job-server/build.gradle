@@ -83,10 +83,7 @@ runShadow {
 }
 
 def portableValidatesRunnerTask(String name, Boolean streaming) {
-  def pipelineOptions = [
-          // Limit resource consumption via parallelism
-          "--parallelism=2",
-  ]
+  def pipelineOptions = []
   if (streaming) {
     pipelineOptions += "--streaming"
   }

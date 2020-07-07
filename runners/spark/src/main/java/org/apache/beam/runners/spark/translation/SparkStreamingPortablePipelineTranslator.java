@@ -17,7 +17,11 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
+
+import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -27,13 +31,22 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,9 +79,9 @@ public class SparkStreamingPortablePipelineTranslator
     translatorMap.put(
         PTransformTranslation.IMPULSE_TRANSFORM_URN,
         SparkStreamingPortablePipelineTranslator::translateImpulse);
-    //    translatorMap.put(
-    //        PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
-    //        SparkStreamingPortablePipelineTranslator::translateGroupByKey);
+    translatorMap.put(
+        PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
+        SparkStreamingPortablePipelineTranslator::translateGroupByKey);
     //    translatorMap.put(
     //        ExecutableStage.URN,
     // SparkStreamingPortablePipelineTranslator::translateExecutableStage);
@@ -124,12 +137,62 @@ public class SparkStreamingPortablePipelineTranslator
     context.pushDataset(getOutputId(transformNode), output);
   }
 
+  private static <K, V> void translateGroupByKey(
+      PTransformNode transformNode,
+      RunnerApi.Pipeline pipeline,
+      SparkStreamingTranslationContext context) {
+    RunnerApi.Components components = pipeline.getComponents();
+    String inputId = getInputId(transformNode);
+    UnboundedDataset<KV<K, V>> inputDataset =
+        (UnboundedDataset<KV<K, V>>) context.popDataset(inputId);
+    List<Integer> streamSources = inputDataset.getStreamSources();
+    JavaDStream<WindowedValue<KV<K, V>>> dStream = inputDataset.getDStream();
+    WindowedValue.WindowedValueCoder<KV<K, V>> inputCoder =
+        getWindowedValueCoder(inputId, components);
+    KvCoder<K, V> inputKvCoder = (KvCoder<K, V>) inputCoder.getValueCoder();
+    Coder<K> inputKeyCoder = inputKvCoder.getKeyCoder();
+    Coder<V> inputValueCoder = inputKvCoder.getValueCoder();
+    final WindowingStrategy windowingStrategy = getWindowingStrategy(inputId, components);
+    final WindowFn<Object, BoundedWindow> windowFn = windowingStrategy.getWindowFn();
+    final WindowedValue.WindowedValueCoder<V> wvCoder =
+        WindowedValue.FullWindowedValueCoder.of(inputValueCoder, windowFn.windowCoder());
+
+    JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
+        SparkGroupAlsoByWindowViaWindowSet.groupByKeyAndWindow(
+            dStream,
+            inputKeyCoder,
+            wvCoder,
+            windowingStrategy,
+            context.getSerializableOptions(),
+            streamSources,
+            transformNode.getId());
+
+    context.pushDataset(
+        getOutputId(transformNode), new UnboundedDataset<>(outStream, streamSources));
+  }
+
   private static String getInputId(PTransformNode transformNode) {
     return Iterables.getOnlyElement(transformNode.getTransform().getInputsMap().values());
   }
 
   private static String getOutputId(PTransformNode transformNode) {
     return Iterables.getOnlyElement(transformNode.getTransform().getOutputsMap().values());
+  }
+
+  private static <T> WindowedValue.WindowedValueCoder<T> getWindowedValueCoder(
+      String pCollectionId, RunnerApi.Components components) {
+    RunnerApi.PCollection pCollection = components.getPcollectionsOrThrow(pCollectionId);
+    PipelineNode.PCollectionNode pCollectionNode =
+        PipelineNode.pCollection(pCollectionId, pCollection);
+    WindowedValue.WindowedValueCoder<T> coder;
+    try {
+      coder =
+          (WindowedValue.WindowedValueCoder)
+              WireCoders.instantiateRunnerWireCoder(pCollectionNode, components);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    return coder;
   }
 
   @Override
