@@ -394,6 +394,9 @@ if __name__ == '__main__':
     def test_external_transforms(self):
       raise unittest.SkipTest("BEAM-7252")
 
+    def test_sql(self):
+      raise unittest.SkipTest("BEAM-7252")
+
   # Run the tests.
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
