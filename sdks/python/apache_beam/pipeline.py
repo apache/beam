@@ -58,6 +58,7 @@ import sys
 import tempfile
 from builtins import object
 from builtins import zip
+from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Dict
 from typing import FrozenSet
@@ -220,6 +221,13 @@ class Pipeline(object):
     # If a transform is applied and the full label is already in the set
     # then the transform will have to be cloned with a new label.
     self.applied_labels = set()  # type: Set[str]
+
+    # Create a ComponentIdMap for assigning IDs to components. Ensures that any
+    # components that receive an ID during pipeline construction (for example in
+    # ExternalTransform), will receive the same component ID when generating the
+    # full pipeline proto.
+    self.component_id_map = ComponentIdMap()
+
 
   @property  # type: ignore[misc]  # decorated property not supported
   @deprecated(
@@ -811,6 +819,7 @@ class Pipeline(object):
     if context is None:
       context = pipeline_context.PipelineContext(
           use_fake_coders=use_fake_coders,
+          component_id_map=self.component_id_map,
           default_environment=default_environment)
     elif default_environment is not None:
       raise ValueError(
@@ -1338,6 +1347,32 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
     """
     # Returns a PTransformReplacement
     raise NotImplementedError
+
+
+class ComponentIdMap(object):
+  """A utility for assigning unique component ids to Beam components.
+
+  Component ID assignments are only guaranteed to be unique and consistent
+  within the scope of a ComponentIdMap instance.
+  """
+  def __init__(self, namespace="ref"):
+    self.namespace = namespace
+    self._counters = defaultdict(lambda: 0)  # type: Dict[type, int]
+    self._obj_to_id = {}  # type: Dict[Any, str]
+
+  def get_or_assign(self, obj=None, obj_type=None, label=None):
+    if obj not in self._obj_to_id:
+      self._obj_to_id[obj] = self._unique_ref(obj, obj_type, label)
+
+    return self._obj_to_id[obj]
+
+  def _unique_ref(self, obj=None, obj_type=None, label=None):
+    self._counters[obj_type] += 1
+    return "%s_%s_%s_%d" % (
+        self.namespace,
+        obj_type.__name__,
+        label or type(obj).__name__,
+        self._counters[obj_type])
 
 
 if sys.version_info >= (3, ):
