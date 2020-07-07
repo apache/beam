@@ -3,6 +3,9 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
+import org.apache.beam.sdk.extensions.sql.impl.cep.CEPPattern;
+import org.apache.beam.sdk.extensions.sql.impl.cep.OrderKey;
+import org.apache.beam.sdk.extensions.sql.impl.cep.CEPUtil;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.schemas.Schema;
@@ -21,8 +24,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Match;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.*;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,20 +92,6 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
     @Override
     public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
-        for(Map.Entry<String, RexNode> entry : patternDefinitions.entrySet()) {
-            String k = entry.getKey();
-            RexCall v = (RexCall) entry.getValue();
-            LOG.info("key: " + k + ", value: " + v.getOperator().getName());
-            for(RexNode i: v.getOperands()) {
-                LOG.info(i.toString());
-                if(i.getKind() == SqlKind.LAST) {
-                    RexCall j = (RexCall) i;
-                    for(RexNode t: j.getOperands()) {
-                        LOG.info(t.getClass().toString());
-                    }
-                }
-            }
-        }
 
         return new matchTransform(partitionKeys, orderKeys, pattern, patternDefinitions);
     }
@@ -160,8 +147,12 @@ public class BeamMatchRel extends Match implements BeamRelNode {
                 .apply(ParDo.of(new SortPerKey(mySchema, orderKeys)));
 
             // apply the pattern match in each partition
+            ArrayList<CEPPattern> cepPattern = CEPUtil.getCEPPatternFromPattern(mySchema,
+                    (RexCall) pattern,
+                    patternDefs);
+            String regexPattern = CEPUtil.getRegexFromPattern((RexCall) pattern);
             PCollection<KV<Row, Iterable<Row>>> matchedUpstream = orderedUpstream
-                .apply(ParDo.of(new MatchPattern(mySchema, pattern, patternDefs)));
+                .apply(ParDo.of(new MatchPattern(mySchema, cepPattern, regexPattern)));
 
             // apply the ParDo for the measures clause
             // for now, output the all rows of each pattern matched (for testing purpose)
@@ -188,31 +179,13 @@ public class BeamMatchRel extends Match implements BeamRelNode {
         private static class MatchPattern extends DoFn<KV<Row, Iterable<Row>>, KV<Row, Iterable<Row>>> {
 
             private final Schema mySchema;
-            private final RexCall pattern;
-            private final Map<String, RexNode> patternDefs;
+            private final ArrayList<CEPPattern> pattern;
             private final String regexPattern;
 
-            public MatchPattern(Schema mySchema, RexNode pattern, Map<String, RexNode> patternDefs) {
+            MatchPattern(Schema mySchema, ArrayList<CEPPattern> pattern, String regexPattern) {
                 this.mySchema = mySchema;
-                this.pattern = (RexCall) pattern;
-                this.patternDefs = patternDefs;
-                this.regexPattern = getRegexFromPattern(this.pattern);
-            }
-
-            // recursively change a RexNode into a regular expr
-            // TODO: support quantifiers: PATTERN_QUANTIFIER('A', 1, -1, false) false?
-            private String getRegexFromPattern(RexNode call) {
-                if(call.getClass() == RexLiteral.class) {
-                    return ((RexLiteral) call).getValueAs(String.class);
-                } else {
-                    RexCall oprs = (RexCall) call;
-                    if(oprs.getOperands().size() == 2) {
-                        return getRegexFromPattern(oprs.getOperands().get(0)) +
-                                getRegexFromPattern(oprs.getOperands().get(1));
-                    } else {
-                        return getRegexFromPattern(oprs.getOperands().get(0));
-                    }
-                }
+                this.pattern = pattern;
+                this.regexPattern = regexPattern;
             }
 
             @ProcessElement
@@ -224,18 +197,10 @@ public class BeamMatchRel extends Match implements BeamRelNode {
                     rows.add(i);
                     // check pattern of row i
                     String patternOfRow = " "; // a row with no matched pattern is marked by a space
-                    for(int j = 0; j < regexPattern.length(); ++j) {
-                        String tryPattern = Character.toString(regexPattern.charAt(j));
-                        RexCall call = (RexCall) patternDefs.get(tryPattern);
-                        if(call != null) {
-                            if (evalCondition(i,
-                                    (RexCall) patternDefs.get(tryPattern))) {
-                                patternOfRow = tryPattern;
-                                break;
-                            }
-                        } else {
-                            patternOfRow = tryPattern;
-                            break;
+                    for(int j = 0; j < pattern.size(); ++j) {
+                        CEPPattern tryPattern = pattern.get(j);
+                        if(tryPattern.evalRow(i)) {
+                            patternOfRow = tryPattern.toString();
                         }
                     }
                     patternString += patternOfRow;
@@ -251,83 +216,30 @@ public class BeamMatchRel extends Match implements BeamRelNode {
                 }
             }
 
-            // Last(*.$1, 1) || NEXT(*.$1, 0)
-            private Comparable evalOperation(RexCall operation, Row rowEle) {
-                SqlOperator call = operation.getOperator();
-                List<RexNode> operands = operation.getOperands();
-
-                if(call.getKind() == SqlKind.LAST) {// support only simple match for now: LAST(*.$, 0)
-                        RexNode opr0 = operands.get(0);
-                        RexNode opr1 = operands.get(1);
-                        if(opr0.getClass() == RexPatternFieldRef.class
-                                && RexLiteral.intValue(opr1) == 0) {
-                            int fIndex = ((RexPatternFieldRef) opr0).getIndex();
-                            Schema.Field fd = mySchema.getField(fIndex);
-                            Schema.FieldType dtype = fd.getType();
-
-                            switch (dtype.getTypeName()) {
-                                case BYTE:
-                                    return rowEle.getByte(fIndex);
-                                case INT16:
-                                    return rowEle.getInt16(fIndex);
-                                case INT32:
-                                    return rowEle.getInt32(fIndex);
-                                case INT64:
-                                    return rowEle.getInt64(fIndex);
-                                case DECIMAL:
-                                    return rowEle.getDecimal(fIndex);
-                                case FLOAT:
-                                    return rowEle.getFloat(fIndex);
-                                case DOUBLE:
-                                    return rowEle.getDouble(fIndex);
-                                case STRING:
-                                    return rowEle.getString(fIndex);
-                                case DATETIME:
-                                    return rowEle.getDateTime(fIndex);
-                                case BOOLEAN:
-                                    return rowEle.getBoolean(fIndex);
-                                default:
-                                    throw new SqlConversionException("specified column not comparable");
-                            }
-                        }
-                }
-                throw new SqlConversionException("backward functions (PREV, NEXT) not supported for now");
-            }
-
-            // a function that evaluates whether a row is a match
-            private boolean evalCondition(Row rowEle, RexCall pattern) {
-                SqlOperator call = pattern.getOperator();
-                List<RexNode> operands = pattern.getOperands();
-                RexCall opr0 = (RexCall) operands.get(0);
-                RexLiteral opr1 = (RexLiteral) operands.get(1);
-
-                switch(call.getKind()) {
-                    case EQUALS:
-                        return evalOperation(opr0, rowEle).compareTo(opr1.getValue()) == 0;
-                    case GREATER_THAN:
-                        return evalOperation(opr0, rowEle).compareTo(opr1.getValue()) > 0;
-                    case GREATER_THAN_OR_EQUAL:
-                        return evalOperation(opr0, rowEle).compareTo(opr1.getValue()) >= 0;
-                    case LESS_THAN:
-                        return evalOperation(opr0, rowEle).compareTo(opr1.getValue()) < 0;
-                    case LESS_THAN_OR_EQUAL:
-                        return evalOperation(opr0, rowEle).compareTo(opr1.getValue()) <= 0;
-                    default:
-                        return false;
-                }
-            }
         }
 
         private static class SortPerKey extends DoFn<KV<Row, Iterable<Row>>, KV<Row, Iterable<Row>>> {
 
             private final Schema mySchema;
-            private final List<RelFieldCollation> orderKeys;
+            private final ArrayList<OrderKey> orderKeys;
 
             public SortPerKey(Schema mySchema, RelCollation orderKeys) {
                 this.mySchema = mySchema;
+
                 List<RelFieldCollation> revOrderKeys = orderKeys.getFieldCollations();
                 Collections.reverse(revOrderKeys);
-                this.orderKeys = revOrderKeys;
+                ArrayList<OrderKey> revOrderKeysList = new ArrayList<>();
+                for(RelFieldCollation i : revOrderKeys) {
+                    int fIndex = i.getFieldIndex();
+                    RelFieldCollation.Direction dir = i.getDirection();
+                    if(dir == RelFieldCollation.Direction.ASCENDING) {
+                        revOrderKeysList.add(new OrderKey(fIndex, true));
+                    } else {
+                        revOrderKeysList.add(new OrderKey(fIndex, false));
+                    }
+                }
+
+                this.orderKeys = revOrderKeysList;
             }
 
             @ProcessElement
@@ -337,12 +249,10 @@ public class BeamMatchRel extends Match implements BeamRelNode {
                 for(Row i : keyRows.getValue()) {
                     rows.add(i);
                 }
-                for(RelFieldCollation i : orderKeys) {
-                    int fIndex = i.getFieldIndex();
-                    RelFieldCollation.Direction dir = i.getDirection();
-                    if (dir == RelFieldCollation.Direction.ASCENDING) {
-                        rows.sort(new sortComparator(fIndex, true));
-                    }
+                for(OrderKey i : orderKeys) {
+                    int fIndex = i.getIndex();
+                    boolean dir = i.getDir();
+                    rows.sort(new sortComparator(fIndex, dir));
                 }
                 //TODO: Change the comparator to the row comparator:
                 // https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/impl/rel/BeamSortRel.java#L373

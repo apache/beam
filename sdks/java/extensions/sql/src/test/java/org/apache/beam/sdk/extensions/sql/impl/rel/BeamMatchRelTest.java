@@ -6,6 +6,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.junit.Rule;
 import org.junit.Test;
 import org.apache.beam.sdk.schemas.Schema;
 
@@ -14,7 +15,8 @@ import static org.apache.beam.sdk.extensions.sql.impl.rel.BaseRelTest.registerTa
 
 public class BeamMatchRelTest {
 
-  public static final TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public final TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void MatchLogicalPlanTest() {
@@ -45,15 +47,11 @@ public class BeamMatchRelTest {
 //                ).build())
 //                .withRowSchema(schemaType));
 
-    String sql = "SELECT T.aid, T.bid, T.cid " +
+    String sql = "SELECT * " +
         "FROM TestTable " +
         "MATCH_RECOGNIZE (" +
         "PARTITION BY id " +
         "ORDER BY proctime " +
-        "MEASURES " +
-        "A.id AS aid, " +
-        "B.id AS bid, " +
-        "C.id AS cid " +
         "PATTERN (A B C) " +
         "DEFINE " +
         "A AS name = 'a', " +
