@@ -20,6 +20,7 @@ import argparse
 import itertools
 import os
 import shutil
+import sys
 import tempfile
 import time
 import zipfile
@@ -175,8 +176,7 @@ def validate_run(run_data):
 
 def reset_directory():
   question = (
-      f"Artifacts directory will be cleared. Is it OK for you?\n"
-      f"Artifacts directory: {ARTIFACTS_DIR}\n"
+      "Creating Artifacts directory. Any existing content in {ARTIFACTS_DIR} will be erased. Proceed?\n"
       f"Your answer")
   if get_yes_or_no_answer(question):
     print(f"Clearing directory: {ARTIFACTS_DIR}")
@@ -184,7 +184,7 @@ def reset_directory():
     os.makedirs(ARTIFACTS_DIR)
   else:
     print("You said NO for clearing artifacts directory. Quitting ...")
-    quit(1)
+    sys.exit(1)
 
 
 def download_artifacts(artifacts_url):
