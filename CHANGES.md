@@ -47,6 +47,19 @@
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 -->
 
+# [2.24.0] - Unreleased
+
+## Highlights
+
+## I/Os
+
+* New overloads for BigtableIO.Read.withKeyRange() and BigtableIO.Read.withRowFilter()
+  methods that take ValueProvider as a parameter (Java) ([BEAM-10283](https://issues.apache.org/jira/browse/BEAM-10283)).
+
+## New Features / Improvements
+
+## Breaking Changes
+
 # [2.23.0] - Unreleased
 
 ## Highlights
@@ -84,7 +97,6 @@
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Remove Gearpump runner. ([BEAM-9999](https://issues.apache.org/jira/browse/BEAM-9999))
 * Remove Apex runner. ([BEAM-9999](https://issues.apache.org/jira/browse/BEAM-9999))
 * RedisIO.readAll() is deprecated and will be removed in 2 versions, users must use RedisIO.readKeyPatterns() as a replacement ([BEAM-9747](https://issues.apache.org/jira/browse/BEAM-9747)).
