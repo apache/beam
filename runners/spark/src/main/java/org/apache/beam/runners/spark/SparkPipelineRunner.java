@@ -41,11 +41,7 @@ import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.translation.SparkBatchPortablePipelineTranslator;
-import org.apache.beam.runners.spark.translation.SparkContextFactory;
-import org.apache.beam.runners.spark.translation.SparkPortablePipelineTranslator;
-import org.apache.beam.runners.spark.translation.SparkStreamingPortablePipelineTranslator;
-import org.apache.beam.runners.spark.translation.SparkTranslationContext;
+import org.apache.beam.runners.spark.translation.*;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
@@ -136,9 +132,16 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
               LOG.info(String.format("Job %s finished.", jobInfo.jobId()));
             });
 
-    // TODO: streaming option for result
-    PortablePipelineResult result =
-        new SparkPipelineResult.PortableBatchMode(submissionFuture, jsc);
+    PortablePipelineResult result;
+    if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(pipeline)) {
+      result = new SparkPipelineResult.PortableBatchMode(submissionFuture, jsc);
+    } else {
+      SparkStreamingTranslationContext streamContext = (SparkStreamingTranslationContext) context;
+      result =
+          new SparkPipelineResult.PortableStreamingMode(
+              submissionFuture, streamContext.getStreamingContext());
+    }
+
     MetricsPusher metricsPusher =
         new MetricsPusher(
             MetricsAccumulator.getInstance().value(),

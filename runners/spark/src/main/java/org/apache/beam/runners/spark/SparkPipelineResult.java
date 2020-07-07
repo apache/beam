@@ -213,6 +213,22 @@ public abstract class SparkPipelineResult implements PipelineResult {
     }
   }
 
+  static class PortableStreamingMode extends StreamingMode implements PortablePipelineResult {
+
+    private static final Logger LOG = LoggerFactory.getLogger(StreamingMode.class);
+
+    PortableStreamingMode(Future<?> pipelineExecution, JavaStreamingContext javaStreamingContext) {
+      super(pipelineExecution, javaStreamingContext);
+    }
+
+    @Override
+    public JobApi.MetricResults portableMetrics() {
+      return JobApi.MetricResults.newBuilder()
+          .addAllAttempted(MetricsAccumulator.getInstance().value().getMonitoringInfos())
+          .build();
+    }
+  }
+
   private void offerNewState(State newState) {
     State oldState = this.state;
     this.state = newState;
