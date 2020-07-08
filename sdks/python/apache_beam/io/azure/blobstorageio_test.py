@@ -66,7 +66,7 @@ class TestAZFSPathParser(unittest.TestCase):
         blobstorageio.parse_azfs_path('azfs://storageaccount/container/', blob_optional=True),
         ('storageaccount', 'container', ''))
 
-  def test_bad_gcs_path_blob_optional(self):
+  def test_bad_azfs_path_blob_optional(self):
     for path in self.BAD_AZFS_PATHS:
       self.assertRaises(ValueError, blobstorageio.parse_azfs_path, path, True)
 
@@ -139,8 +139,8 @@ class TestBlobStorageIO(unittest.TestCase):
   def test_delete(self):
     file_name = self.TEST_DATA_PATH + 'test_file'
     
-    # Test deletion of non-existent file.
-    self.azfs.delete(file_name) 
+    # # Test deletion of non-existent file.
+    # self.azfs.delete(file_name) 
 
     # TODO : add insert_random_file functionality
 
@@ -152,6 +152,13 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertFalse(file_name in files)
     # TODO : use exists instead
 
+  def test_exists(self):
+    file_name = self.TEST_DATA_PATH + 'test_file'
+
+    # TODO : add insert_random_file functionality
+    
+    self.assertFalse(self.azfs.exists(file_name + 'xyz'))
+    self.assertTrue(self.azfs.exists(file_name))
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
