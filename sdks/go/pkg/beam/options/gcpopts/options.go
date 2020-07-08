@@ -56,7 +56,9 @@ func GetRegion(ctx context.Context) string {
 		cmd := exec.CommandContext(ctx, "gcloud", "config", "get-value", "compute/region")
 		if out, err := cmd.Output(); err == nil && len(out) > 0 {
 			region := strings.TrimSpace(string(out))
-			log.Infof(ctx, "Using default GCP region %s from %s output.", region, cmd.String())
+			// TODO(bamnet): Replace hardcoded gcloud reference with `cmd.String()` when
+			// BeamModulePlugin.groovy supports Go >= 1.13. String() did not exist in 1.12.
+			log.Infof(ctx, "Using default GCP region %s from gcloud output.", region)
 			return region
 		}
 	}
