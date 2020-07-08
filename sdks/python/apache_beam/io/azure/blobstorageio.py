@@ -169,3 +169,18 @@ class BlobStorageIO(object):
         counter,
         time.time() - start_time)
     return file_sizes
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def delete(self, path):
+    """Deletes a single blob at the given Azure Blob Storage path.
+    Args:
+      path: Azure Blob Storage file path pattern in the form
+            azfs://<storage-account>/<container>/[name].
+    """
+    storage_account, container, blob = parse_azfs_path(path)
+    blob_to_delete = self.client.get_blob_client(container, blob)
+    try:
+      blob_to_delete.delete_blob()
+    except ResourceNotFoundError:
+      raise ValueError('Blob not found')
