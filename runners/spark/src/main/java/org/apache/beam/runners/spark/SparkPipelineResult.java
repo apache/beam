@@ -37,8 +37,6 @@ import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Represents a Spark pipeline execution result. */
 public abstract class SparkPipelineResult implements PipelineResult {
@@ -148,8 +146,6 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   static class PortableBatchMode extends BatchMode implements PortablePipelineResult {
 
-    private static final Logger LOG = LoggerFactory.getLogger(BatchMode.class);
-
     PortableBatchMode(Future<?> pipelineExecution, JavaSparkContext javaSparkContext) {
       super(pipelineExecution, javaSparkContext);
     }
@@ -214,8 +210,6 @@ public abstract class SparkPipelineResult implements PipelineResult {
   }
 
   static class PortableStreamingMode extends StreamingMode implements PortablePipelineResult {
-
-    private static final Logger LOG = LoggerFactory.getLogger(StreamingMode.class);
 
     PortableStreamingMode(Future<?> pipelineExecution, JavaStreamingContext javaStreamingContext) {
       super(pipelineExecution, javaStreamingContext);

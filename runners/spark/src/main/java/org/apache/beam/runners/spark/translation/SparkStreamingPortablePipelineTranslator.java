@@ -33,8 +33,10 @@ import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -125,8 +127,21 @@ public class SparkStreamingPortablePipelineTranslator
       RunnerApi.Pipeline pipeline,
       SparkStreamingTranslationContext context) {
 
-    // create input DStream from empty RDD
-    JavaRDD<WindowedValue<byte[]>> emptyRDD = context.getSparkContext().emptyRDD();
+    // create windowed RDD from empty byte array
+    Iterable<byte[]> values = Collections.singletonList(new byte[0]);
+    Iterable<WindowedValue<byte[]>> windowedValues =
+        Iterables.transform(values, WindowedValue::valueInGlobalWindow);
+
+    ByteArrayCoder coder = ByteArrayCoder.of();
+    WindowedValue.ValueOnlyWindowedValueCoder<byte[]> windowCoder =
+        WindowedValue.getValueOnlyCoder(coder);
+    JavaRDD<WindowedValue<byte[]>> emptyRDD =
+        context
+            .getSparkContext()
+            .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
+            .map(CoderHelpers.fromByteFunction(windowCoder));
+
+    // create input DStream from RDD queue
     Queue<JavaRDD<WindowedValue<byte[]>>> queueRDD = new LinkedBlockingQueue<>();
     queueRDD.add(emptyRDD);
     JavaInputDStream<WindowedValue<byte[]>> emptyStream =
