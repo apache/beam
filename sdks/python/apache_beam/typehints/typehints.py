@@ -440,7 +440,8 @@ class TypeVariable(AnyTypeConstraint):
     self.use_name_in_eq = use_name_in_eq
 
   def __eq__(self, other):
-    # The "other" may be an Ellipsis object so we have to check if it has use_name_in_eq first
+    # The "other" may be an Ellipsis object
+    # so we have to check if it has use_name_in_eq first
     if self.use_name_in_eq and (hasattr(other, 'use_name_in_eq') and
                                 other.use_name_in_eq):
       return type(self) == type(other) and self.name == other.name
