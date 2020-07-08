@@ -265,7 +265,7 @@ if sys.version_info.major == 2:
       'You are using Apache Beam with Python 2. '
       'New releases of Apache Beam will soon support Python 3 only.')
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+if sys.version_info.major == 3 and sys.version_info.minor >= 9:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' % (
@@ -319,6 +319,7 @@ setuptools.setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         # When updating vesion classifiers, also update version warnings
         # above and in apache_beam/__init__.py.
         'Topic :: Software Development :: Libraries',
