@@ -89,14 +89,7 @@ task depSnapshot {
 
 task dependencyUpdates {
   dependsOn ':dependencyUpdates'
-  dependsOn setupVirtualenv
-
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_dependency_check.sh"
-    }
-  }
+  dependsOn ':sdks:python:test-suites:tox:pycommon:dependency-check'
 }
 
 task buildSnapshot() {
