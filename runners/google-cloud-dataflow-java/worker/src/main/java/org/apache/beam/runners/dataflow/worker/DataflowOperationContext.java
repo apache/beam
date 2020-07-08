@@ -183,7 +183,7 @@ public class DataflowOperationContext implements OperationContext {
     @Nullable private final MetricsContainer metricsContainer;
 
     /** Clock used to either provide real system time or mocked to virtualize time for testing. */
-    private Clock clock = Clock.SYSTEM;
+    private final Clock clock;
 
     public DataflowExecutionState(
         NameContext nameContext,
@@ -192,12 +192,14 @@ public class DataflowOperationContext implements OperationContext {
         @Nullable Integer inputIndex,
         @Nullable MetricsContainer metricsContainer,
         ProfileScope profileScope) {
-      super(stateName);
-      this.stepName = nameContext;
-      this.requestingStepName = requestingStepName;
-      this.inputIndex = inputIndex;
-      this.profileScope = Preconditions.checkNotNull(profileScope);
-      this.metricsContainer = metricsContainer;
+      this(
+          nameContext,
+          stateName,
+          requestingStepName,
+          inputIndex,
+          metricsContainer,
+          profileScope,
+          Clock.SYSTEM);
     }
 
     public DataflowExecutionState(
@@ -208,7 +210,12 @@ public class DataflowOperationContext implements OperationContext {
         @Nullable MetricsContainer metricsContainer,
         ProfileScope profileScope,
         Clock clock) {
-      this(nameContext, stateName, requestingStepName, inputIndex, metricsContainer, profileScope);
+      super(stateName);
+      this.stepName = nameContext;
+      this.requestingStepName = requestingStepName;
+      this.inputIndex = inputIndex;
+      this.profileScope = Preconditions.checkNotNull(profileScope);
+      this.metricsContainer = metricsContainer;
       this.clock = clock;
     }
 
