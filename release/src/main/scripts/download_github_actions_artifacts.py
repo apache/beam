@@ -60,24 +60,24 @@ def parse_arguments():
   ARTIFACTS_DIR = args.artifacts_dir
 
 
-def request_url(url, return_raw_request=False, *args, **kwargs):
+def request_url(url, return_raw_response=False, *args, **kwargs):
   """Helper function form making requests authorized by GitHub token"""
   r = requests.get(url, *args, auth=("token", GITHUB_TOKEN), **kwargs)
   r.raise_for_status()
-  if return_raw_request:
+  if return_raw_response:
     return r
   return r.json()
 
 
 def get_yes_or_no_answer(question):
   """Helper function to ask yes or no question"""
-  reply = str(input(question + " (y/n): ")).lower().strip()
+  reply = str(input(question + " 'y' or 'n'): ")).lower().strip()
   if reply == "y":
     return True
   if reply == "n":
     return False
   else:
-    return get_yes_or_no_answer("Uhhhh... please enter ")
+    return get_yes_or_no_answer("Uhhhh... please enter")
 
 
 def get_build_wheels_workflow_id():
@@ -100,8 +100,7 @@ def get_last_run(workflow_id):
     )
     runs.extend(data["workflow_runs"])
 
-  filtered_commit_runs = list(
-      filter(lambda w: w.get("head_sha", "") == RELEASE_COMMIT, runs))
+  filtered_commit_runs = [r for r in runs if r.get("head_sha", "") == RELEASE_COMMIT]
   if not filtered_commit_runs:
     workflow_web_url = GH_API_URL_WORKFLOW_RUNS_FMT.format(
         repo_url=REPO_URL, workflow_id=workflow_id)
@@ -202,7 +201,7 @@ def download_artifacts(artifacts_url):
     print(
         f"\tDownloading {name}.zip artifact (size: {artifacts_size_mb} megabytes)"
     )
-    r = request_url(url, return_raw_request=True, allow_redirects=True)
+    r = request_url(url, return_raw_response=True, allow_redirects=True)
 
     with tempfile.NamedTemporaryFile(
         "wb",
