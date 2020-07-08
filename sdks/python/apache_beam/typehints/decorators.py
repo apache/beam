@@ -422,7 +422,8 @@ class IOTypeHints(NamedTuple(
 
     kwarg_dict = {}
 
-    if not hasattr(my_type, '__args__') or len(my_type.__args__) == 0:  # e.g. PCollection
+    if not hasattr(my_type, '__args__') or len(
+        my_type.__args__) == 0:  # e.g. PCollection
       kwarg_dict[my_key] = ((typehints.Any, ), {})
     else:  # e.g. PCollection[type]
       kwarg_dict[my_key] = ((my_type.__args__[0], ), {})
