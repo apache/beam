@@ -259,13 +259,28 @@ public class DataflowOperationContextTest {
 
       backgroundThread.start();
       try {
-        executionState.reportLull(mockThread, 6000);
+        // Full thread dump should be performed, because we never performed
+        // a full thread dump before, and the lull duration is more than 20
+        // minutes.
+        executionState.reportLull(mockThread, 30 * 60 * 1000);
         verifyLullLog(true);
+
+        // Full thread dump should not be performed because the last dump
+        // was only 5 minutes ago.
         clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
-        executionState.reportLull(mockThread, 6000);
+        executionState.reportLull(mockThread, 30 * 60 * 1000);
         verifyLullLog(false);
+
+        // Full thread dump should not be performed because the lull duration
+        // is only 6 minutes.
         clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
-        executionState.reportLull(mockThread, 6000);
+        executionState.reportLull(mockThread, 6 * 60 * 1000);
+        verifyLullLog(false);
+
+        // Full thread dump should be performed, because it has been 21 minutes
+        // since the last dump, and the lull duration is more than 20 minutes.
+        clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
+        executionState.reportLull(mockThread, 30 * 60 * 1000);
         verifyLullLog(true);
       } finally {
         // Cleaning up the background thread.

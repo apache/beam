@@ -244,7 +244,7 @@ public class DataflowOperationContext implements OperationContext {
     private static final ImmutableSet<String> FRAMEWORK_CLASSES =
         ImmutableSet.of(SimpleDoFnRunner.class.getName(), DoFnInstanceManagers.class.getName());
 
-    protected String getLullMessage(Thread trackedThread, Duration millis) {
+    protected String getLullMessage(Thread trackedThread, Duration lullDuration) {
       StringBuilder message = new StringBuilder();
       message.append("Operation ongoing");
       if (getStepName() != null) {
@@ -252,7 +252,7 @@ public class DataflowOperationContext implements OperationContext {
       }
       message
           .append(" for at least ")
-          .append(formatDuration(millis))
+          .append(formatDuration(lullDuration))
           .append(" without outputting or completing in state ")
           .append(getStateName());
       message.append("\n");
@@ -268,11 +268,13 @@ public class DataflowOperationContext implements OperationContext {
         return;
       }
 
+      Duration lullDuration = Duration.millis(millis);
+
       // Since the lull reporting executes in the sampler thread, it won't automatically inherit the
       // context of the current step. To ensure things are logged correctly, we get the currently
       // registered DataflowWorkerLoggingHandler and log directly in the desired context.
       LogRecord logRecord =
-          new LogRecord(Level.WARNING, getLullMessage(trackedThread, Duration.millis(millis)));
+          new LogRecord(Level.WARNING, getLullMessage(trackedThread, lullDuration));
       logRecord.setLoggerName(DataflowOperationContext.LOG.getName());
 
       // Publish directly in the context of this specific ExecutionState.
@@ -280,7 +282,7 @@ public class DataflowOperationContext implements OperationContext {
           DataflowWorkerLoggingInitializer.getLoggingHandler();
       dataflowLoggingHandler.publish(this, logRecord);
 
-      if (shouldLogFullThreadDump()) {
+      if (shouldLogFullThreadDump(lullDuration)) {
         Map<Thread, StackTraceElement[]> threadSet = Thread.getAllStackTraces();
         for (Map.Entry<Thread, StackTraceElement[]> entry : threadSet.entrySet()) {
           Thread thread = entry.getKey();
@@ -295,15 +297,28 @@ public class DataflowOperationContext implements OperationContext {
       }
     }
 
-    // A full thread dump is performed at most once every 20 minutes.
-    private static final long LOG_LULL_FULL_THREAD_DUMP_MS = 20 * 60 * 1000;
+    /**
+     * The time interval between two full thread dump.
+     * (A full thread dump is performed at most once every 20 minutes.)
+     */
+    private static final long LOG_LULL_FULL_THREAD_DUMP_INTERVAL_MS = 20 * 60 * 1000;
 
-    // Last time when a full thread dump was performed.
+    /**
+     * The minimum lull duration to perform a full thread dump.
+     */
+    private static final long LOG_LULL_FULL_THREAD_DUMP_LULL_MS = 20 * 60 * 1000;
+
+    /**
+     * Last time when a full thread dump was performed.
+     */
     private long lastFullThreadDumpMillis = 0;
 
-    private boolean shouldLogFullThreadDump() {
+    private boolean shouldLogFullThreadDump(Duration lullDuration) {
+      if (lullDuration.getMillis() < LOG_LULL_FULL_THREAD_DUMP_LULL_MS) {
+        return false;
+      }
       long now = clock.currentTimeMillis();
-      if (lastFullThreadDumpMillis + LOG_LULL_FULL_THREAD_DUMP_MS < now) {
+      if (lastFullThreadDumpMillis + LOG_LULL_FULL_THREAD_DUMP_INTERVAL_MS < now) {
         lastFullThreadDumpMillis = now;
         return true;
       }
