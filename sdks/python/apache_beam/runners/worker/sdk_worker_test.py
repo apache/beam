@@ -166,7 +166,7 @@ class SdkWorkerTest(unittest.TestCase):
         self.assertFalse(
             log_full_thread_dump.called,
             'log_full_thread_dump should not be called because only 6 minutes '
-                'have passed since the last dump.')
+            'have passed since the last dump.')
 
     with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
       with mock.patch('time.time') as time_mock:
@@ -176,7 +176,7 @@ class SdkWorkerTest(unittest.TestCase):
         self.assertFalse(
             log_full_thread_dump.called,
             'log_full_thread_dump should not be called because lull is only '
-                'for 10 minutes.')
+            'for 10 minutes.')
 
     with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
       with mock.patch('time.time') as time_mock:
