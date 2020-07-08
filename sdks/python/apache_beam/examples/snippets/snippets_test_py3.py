@@ -102,8 +102,8 @@ class TypeHintsTest(unittest.TestCase):
       from apache_beam.pvalue import PCollection
 
       class IntToStr(beam.PTransform):
-        def expand(pcoll: PCollection[int]) -> PCollection[str]:
-          return pcoll | beam.Map(lambda elem: str(elem))
+        def expand(self, pcoll: PCollection[int]) -> PCollection[str]:
+            return pcoll | beam.Map(lambda elem: str(elem))
 
       ids = numbers | 'convert to str' >> IntToStr()
       # [END type_hints_ptransforms]
