@@ -119,6 +119,9 @@ class BigQueryServicesImpl implements BigQueryServices {
   private static final FluentBackoff DEFAULT_BACKOFF_FACTORY =
       FluentBackoff.DEFAULT.withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
 
+  // The error code for quota exceeded error (https://cloud.google.com/bigquery/docs/error-messages)
+  private static final String QUOTA_EXCEEDED = "quotaExceeded";
+
   @Override
   public JobService getJobService(BigQueryOptions options) {
     return new JobServiceImpl(options);
@@ -791,18 +794,18 @@ class BigQueryServicesImpl implements BigQueryServices {
                         try {
                           return insert.execute().getInsertErrors();
                         } catch (IOException e) {
+                          GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
+                          if (errorInfo == null) {
+                            throw e;
+                          }
+                          if (!ApiErrorExtractor.INSTANCE.rateLimited(e)
+                              && !errorInfo.getReason().equals(QUOTA_EXCEEDED)) {
+                            throw e;
+                          }
                           LOG.info(
                               String.format(
                                   "BigQuery insertAll error, retrying: %s",
                                   ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
-                          GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
-                          if (errorInfo == null) {
-                            return insert.execute().getInsertErrors();
-                          }
-                          if (!ApiErrorExtractor.INSTANCE.rateLimited(e)
-                              && !errorInfo.getReason().equals("quotaExceeded")) {
-                            return insert.execute().getInsertErrors();
-                          }
                           try {
                             sleeper.sleep(backoff1.nextBackOffMillis());
                           } catch (InterruptedException interrupted) {
@@ -903,7 +906,7 @@ class BigQueryServicesImpl implements BigQueryServices {
           ignoreInsertIds);
     }
 
-    private GoogleJsonError.ErrorInfo getErrorInfo(IOException e) {
+    protected GoogleJsonError.ErrorInfo getErrorInfo(IOException e) {
       GoogleJsonResponseException jsonCause = null;
       Throwable eCause = e;
       if (eCause instanceof GoogleJsonResponseException) {
