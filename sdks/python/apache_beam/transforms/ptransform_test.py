@@ -799,7 +799,7 @@ class PTransformTest(unittest.TestCase):
 class TestGroupBy(unittest.TestCase):
   def test_lambdas(self):
     def normalize(key, values):
-      return tuple(key), sorted(values)
+      return tuple(key) if isinstance(key, beam.Row) else key, sorted(values)
 
     with TestPipeline() as p:
       pcoll = p | beam.Create(range(6))
@@ -810,11 +810,16 @@ class TestGroupBy(unittest.TestCase):
       assert_that(
           pcoll | beam.GroupBy(lambda x: x % 2)
           | 'n2' >> beam.MapTuple(normalize),
-          equal_to([((0, ), [0, 2, 4]), ((1, ), [1, 3, 5])]),
+          equal_to([(0, [0, 2, 4]), (1, [1, 3, 5])]),
           'GroupOne')
       assert_that(
-          pcoll | beam.GroupBy(a=lambda x: x % 2, b=lambda x: x < 4)
+          pcoll | 'G2' >> beam.GroupBy(lambda x: x % 2).force_tuple_keys()
           | 'n3' >> beam.MapTuple(normalize),
+          equal_to([((0, ), [0, 2, 4]), ((1, ), [1, 3, 5])]),
+          'GroupOneTuple')
+      assert_that(
+          pcoll | beam.GroupBy(a=lambda x: x % 2, b=lambda x: x < 4)
+          | 'n4' >> beam.MapTuple(normalize),
           equal_to([((0, True), [0, 2]), ((1, True), [1, 3]), ((0, False), [4]),
                     ((1, False), [5])]),
           'GroupTwo')
@@ -830,14 +835,23 @@ class TestGroupBy(unittest.TestCase):
       assert_that(
           pcoll | beam.GroupBy('square') | beam.MapTuple(normalize),
           equal_to([
+              (0, [0]),
+              (1, [-1, 1]),
+              (4, [-2, 2]),
+          ]),
+          'GroupSquare')
+      assert_that(
+          pcoll | 'G2' >> beam.GroupBy('square').force_tuple_keys()
+          | 'n2' >> beam.MapTuple(normalize),
+          equal_to([
               (beam.Row(square=0), [0]),
               (beam.Row(square=1), [-1, 1]),
               (beam.Row(square=4), [-2, 2]),
           ]),
-          'GroupSquare')
+          'GroupSquareTupleKey')
       assert_that(
           pcoll | beam.GroupBy('square', 'sign')
-          | 'n2' >> beam.MapTuple(normalize),
+          | 'n3' >> beam.MapTuple(normalize),
           equal_to([
               (beam.Row(square=0, sign=0), [0]),
               (beam.Row(square=1, sign=1), [1]),
@@ -848,7 +862,7 @@ class TestGroupBy(unittest.TestCase):
           'GroupSquareSign')
       assert_that(
           pcoll | beam.GroupBy('square', big=lambda x: x.value > 1)
-          | 'n3' >> beam.MapTuple(normalize),
+          | 'n4' >> beam.MapTuple(normalize),
           equal_to([
               (beam.Row(square=0, big=False), [0]),
               (beam.Row(square=1, big=False), [-1, 1]),
