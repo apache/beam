@@ -136,6 +136,22 @@ class TestBlobStorageIO(unittest.TestCase):
     #       self.TEST_DATA_PATH + 'non-existent',
     #       self.TEST_DATA_PATH + 'non-existent-destination')
 
+  def test_delete(self):
+    file_name = self.TEST_DATA_PATH + 'test_file'
+    
+    # Test deletion of non-existent file.
+    self.azfs.delete(file_name) 
+
+    # TODO : add insert_random_file functionality
+
+    files = self.azfs.list_prefix(self.TEST_DATA_PATH)
+    self.assertTrue(file_name in files)
+
+    self.azfs.delete(file_name)
+    files = self.azfs.list_prefix(self.TEST_DATA_PATH)
+    self.assertFalse(file_name in files)
+    # TODO : use exists instead
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
