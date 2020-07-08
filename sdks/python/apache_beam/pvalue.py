@@ -42,13 +42,14 @@ from typing import TYPE_CHECKING
 from typing import TypeVar
 from typing import Union
 
+from past.builtins import unicode
+
 from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-from past.builtins import unicode
 
 if TYPE_CHECKING:
   from apache_beam.transforms import sideinputs

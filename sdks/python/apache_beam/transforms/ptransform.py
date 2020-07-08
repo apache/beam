@@ -61,6 +61,8 @@ from typing import TypeVar
 from typing import Union
 from typing import overload
 
+from google.protobuf import message
+
 from apache_beam import error
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -79,7 +81,6 @@ from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
-from google.protobuf import message
 
 if TYPE_CHECKING:
   from apache_beam import coders
