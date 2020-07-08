@@ -35,7 +35,6 @@ import apache_beam as beam
 from apache_beam import TimeDomain
 from apache_beam import pvalue
 from apache_beam.coders import typecoders
-from apache_beam.io.iobase import RestrictionTracker
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.runners.common import DoFnContext
@@ -45,7 +44,6 @@ from apache_beam.runners.common import OutputProcessor
 from apache_beam.runners.direct.evaluation_context import DirectStepContext
 from apache_beam.runners.direct.util import KeyedWorkItem
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
-from apache_beam.runners.sdf_utils import NoOpWatermarkEstimatorProvider
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import ProcessContinuation
 from apache_beam.transforms.ptransform import PTransform
@@ -334,7 +332,6 @@ class ProcessFn(beam.DoFn):
       else:
         windowed_element = WindowedValue(element, timestamp, [window])
 
-    tracker = self.sdf_invoker.invoke_create_tracker(restriction)
     assert self._process_element_invoker
     assert isinstance(self._process_element_invoker, SDFProcessElementInvoker)
 
@@ -342,7 +339,7 @@ class ProcessFn(beam.DoFn):
         self.sdf_invoker,
         self._output_processor,
         windowed_element,
-        tracker,
+        restriction,
         *args,
         **kwargs)
 
@@ -439,19 +436,22 @@ class SDFProcessElementInvoker(object):
     raise ValueError
 
   def invoke_process_element(
-      self, sdf_invoker, output_processor, element, tracker, *args, **kwargs):
+      self,
+      sdf_invoker,
+      output_processor,
+      element,
+      restriction,
+      *args,
+      **kwargs):
     """Invokes `process()` method of a Splittable `DoFn` for a given element.
 
      Args:
        sdf_invoker: a `DoFnInvoker` for the Splittable `DoFn`.
        element: the element to process
-       tracker: a `RestrictionTracker` for the element that will be passed when
-                invoking the `process()` method of the Splittable `DoFn`.
      Returns:
        a `SDFProcessElementInvoker.Result` object.
      """
     assert isinstance(sdf_invoker, DoFnInvoker)
-    assert isinstance(tracker, RestrictionTracker)
 
     class CheckpointState(object):
       def __init__(self):
@@ -464,19 +464,21 @@ class SDFProcessElementInvoker(object):
       with self._checkpoint_lock:
         if checkpoint_state.checkpointed:
           return
-      checkpoint_state.residual_restriction = tracker.checkpoint()
-      checkpoint_state.checkpointed = object()
+        checkpoint_state.checkpointed = object()
+      split = sdf_invoker.try_split(0)
+      if split:
+        _, checkpoint_state.residual_restriction = split
+      else:
+        # Clear the checkpoint if the split didn't happen. This counters
+        # a very unlikely race condition that the Timer attempted to initiate
+        # a checkpoint before invoke_process set the current element allowing
+        # for another attempt to checkpoint.
+        checkpoint_state.checkpointed = None
 
     output_processor.reset()
-    noop_estimator = (
-        NoOpWatermarkEstimatorProvider().create_watermark_estimator(None))
     Timer(self._max_duration, initiate_checkpoint).start()
     sdf_invoker.invoke_process(
-        element,
-        restriction_tracker=tracker,
-        watermark_estimator=noop_estimator,
-        additional_args=args,
-        additional_kwargs=kwargs)
+        element, additional_args=args, restriction=restriction)
 
     assert output_processor.output_iter is not None
     output_count = 0
@@ -507,7 +509,6 @@ class SDFProcessElementInvoker(object):
       if self._max_num_outputs and output_count >= self._max_num_outputs:
         initiate_checkpoint()
 
-    tracker.check_done()
     result = (
         SDFProcessElementInvoker.Result(
             residual_restriction=checkpoint_state.residual_restriction)
