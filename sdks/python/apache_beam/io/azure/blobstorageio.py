@@ -174,6 +174,7 @@ class BlobStorageIO(object):
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def delete(self, path):
     """Deletes a single blob at the given Azure Blob Storage path.
+    
     Args:
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
@@ -184,3 +185,25 @@ class BlobStorageIO(object):
       blob_to_delete.delete_blob()
     except ResourceNotFoundError:
       raise ValueError('Blob not found')
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def exists(self, path):
+    """Returns whether the given Azure Blob Storage blob exists.
+    
+    Args:
+      path: Azure Blob Storage file path pattern in the form
+            azfs://<storage-account>/<container>/[name].
+    """
+    storage_account, container, blob = parse_azfs_path(path)
+    blob_to_check = self.client.get_blob_client(container, blob)
+    try:
+      blob_to_check.get_blob_properties()
+      return True
+    except ResourceNotFoundError as http_error:
+      if http_error.status_code == 404:
+        # HTTP 404 indicates that the file did not exist
+        return False
+      else:
+        # We re-raise all other exceptions
+        raise  
