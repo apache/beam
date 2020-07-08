@@ -2260,7 +2260,31 @@ def _expr_to_callable(expr, pos):
 
 
 class GroupBy(PTransform):
-  def __init__(self, *fields, **kwargs):
+  """Groups a PCollection by one or more expressions, used to derive the key.
+
+  `GroupBy(expr)` is roughly equivalent to
+
+      beam.Map(lambda v: (expr(v), v)) | GroupByKey()
+
+  but provides several conviniences, e.g.
+
+      * Several arguments may be provided, as positional or keyword arguments,
+        resulting in a tuple-like key. For example `GroupBy(a=expr1, b=expr2)`
+        groups by a key with attributes `a` and `b` computed by applying
+        `expr1` and `expr2` to each element.
+
+      * Strings can be used as a shorthand for accessing an attribute, e.g.
+        `GroupBy('some_field')` is equivalent to
+        `GroupBy(lambda v: getattr(v, 'some_field'))`.
+
+  The GroupBy operation can be made into an aggregating operation by invoking
+  its `aggregate_field` method.
+  """
+  def __init__(
+      self,
+      *fields,  # type: typing.Union[str, callable]
+      **kwargs  # type: typing.Union[str, callable]
+    ):
     if len(fields) == 1 and not kwargs:
       self._force_tuple_keys = False
       name = fields[0] if isinstance(fields[0], str) else 'key'
@@ -2281,7 +2305,31 @@ class GroupBy(PTransform):
         **{name: value
            for (name, _), value in zip(self._key_fields, values)})
 
+  def aggregate_field(
+      self,
+      field,  # type: typing.Union[str, callable]
+      combine_fn,  # type: typing.Union[callable, CombineFn]
+      dest,  # type: str
+    ):
+    """Returns a grouping operation that also aggregates grouped values.
+
+    Args:
+      field: indicates the field to be aggregated
+      combine_fn: indicates the aggregation function to be used
+      dest: indicates the name that will be used for the aggregate in the output
+
+    May be called repeatedly to aggregate multiple fields, e.g.
+
+        GroupBy('key')
+            .aggregate_field('some_attr', sum, 'sum_attr')
+            .aggregate_field(lambda v: ..., MeanCombineFn, 'mean')
+    """
+    return _GroupAndAggregate(self, ()).aggregate_field(field, combine_fn, dest)
+
   def force_tuple_keys(self, value=True):
+    """Forces the keys to always be tuple-like, even if there is only a single
+    expression.
+    """
     res = copy.copy(self)
     res._force_tuple_keys = value
     return res
@@ -2297,9 +2345,6 @@ class GroupBy(PTransform):
   def default_label(self):
     return 'GroupBy(%s)' % ', '.join(name for name, _ in self._key_fields)
 
-  def aggregate_field(self, field, combine_fn, dest):
-    return _GroupAndAggregate(self, ()).aggregate_field(field, combine_fn, dest)
-
   def expand(self, pcoll):
     return pcoll | Map(lambda x: (self._key_func()(x), x)) | GroupByKey()
 
@@ -2309,7 +2354,12 @@ class _GroupAndAggregate(PTransform):
     self._grouping = grouping
     self._aggregations = aggregations
 
-  def aggregate_field(self, field, combine_fn, dest):
+  def aggregate_field(
+      self,
+      field,  # type: typing.Union[str, callable]
+      combine_fn,  # type: typing.Union[callable, CombineFn]
+      dest,  # type: str
+      ):
     field = _expr_to_callable(field, 0)
     return _GroupAndAggregate(
         self._grouping, list(self._aggregations) + [(field, combine_fn, dest)])
