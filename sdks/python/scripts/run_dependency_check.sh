@@ -17,8 +17,7 @@
 #
 # This script will be run by Jenkins as a Python dependency test.
 
-set -e
-set -v
+set -euv
 
 mkdir -p $WORKSPACE/src/build/dependencyUpdates
 rm -f $WORKSPACE/src/build/dependencyUpdates/python_dependency_report.txt
