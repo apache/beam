@@ -83,7 +83,6 @@ python tfdv_analyze_and_validate.py \
   --project ${GCP_PROJECT} \
   --region us-central1 \
   --temp_location ${TEMP_PATH} \
-  --experiments shuffle_mode=auto \
   --job_name ${JOB_ID} \
   --save_main_session \
   --runner ${RUNNER} \
@@ -108,7 +107,6 @@ python tfdv_analyze_and_validate.py \
   --project ${GCP_PROJECT} \
   --region us-central1 \
   --temp_location ${TEMP_PATH} \
-  --experiments shuffle_mode=auto \
   --job_name ${EVAL_JOB_ID} \
   --save_main_session \
   --runner ${RUNNER} \
@@ -131,7 +129,6 @@ python preprocess.py \
   --project ${GCP_PROJECT} \
   --region us-central1 \
   --temp_location ${TEMP_PATH} \
-  --experiments shuffle_mode=auto \
   --job_name ${JOB_ID} \
   --runner ${RUNNER} \
   --max_rows ${MAX_ROWS} \
@@ -191,7 +188,6 @@ python process_tfma.py \
   --project ${GCP_PROJECT} \
   --region us-central1 \
   --temp_location ${GCS_BUCKET}/${JOB_ID}/tmp/ \
-  --experiments shuffle_mode=auto \
   --job_name ${JOB_ID} \
   --save_main_session \
   --runner ${RUNNER} \
