@@ -203,7 +203,10 @@ class BlobStorageFileSystem(FileSystem):
     
     Returns: boolean flag indicating if path exists
     """
-    raise NotImplementedError
+    try:
+      return blobstorageio.BlobStorageIO().exists(path)
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("exists() operation failed", {path: e})
 
   def size(self, path):
     # type: (str) -> int
