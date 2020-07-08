@@ -424,11 +424,11 @@ class IOTypeHints(NamedTuple(
 
     if not hasattr(my_type, '__args__'):  # e.g. PCollection
       kwarg_dict[my_key] = ((typehints.Any, ), {})
-    else:                                 # e.g. PCollection[type]
+    else:  # e.g. PCollection[type]
       kwarg_dict[my_key] = ((my_type.__args__[0], ), {})
     return self._replace(
-      origin=self._make_origin([self], tb=False, msg=[source_str]),
-      **kwarg_dict)
+        origin=self._make_origin([self], tb=False, msg=[source_str]),
+        **kwarg_dict)
 
   def strip_iterable(self):
     # type: () -> IOTypeHints
