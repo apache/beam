@@ -17,16 +17,15 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.createOutputMap;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
@@ -34,24 +33,29 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Tuple2;
 
 /** Translates a bounded portable pipeline into a Spark job. */
 public class SparkStreamingPortablePipelineTranslator
@@ -84,9 +88,8 @@ public class SparkStreamingPortablePipelineTranslator
     translatorMap.put(
         PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
         SparkStreamingPortablePipelineTranslator::translateGroupByKey);
-    //    translatorMap.put(
-    //        ExecutableStage.URN,
-    // SparkStreamingPortablePipelineTranslator::translateExecutableStage);
+    translatorMap.put(
+        ExecutableStage.URN, SparkStreamingPortablePipelineTranslator::translateExecutableStage);
     //    translatorMap.put(
     //        PTransformTranslation.FLATTEN_TRANSFORM_URN,
     //        SparkStreamingPortablePipelineTranslator::translateFlatten);
@@ -184,6 +187,54 @@ public class SparkStreamingPortablePipelineTranslator
 
     context.pushDataset(
         getOutputId(transformNode), new UnboundedDataset<>(outStream, streamSources));
+  }
+
+  private static <InputT, OutputT, SideInputT> void translateExecutableStage(
+      PTransformNode transformNode,
+      RunnerApi.Pipeline pipeline,
+      SparkStreamingTranslationContext context) {
+    RunnerApi.ExecutableStagePayload stagePayload;
+    try {
+      stagePayload =
+          RunnerApi.ExecutableStagePayload.parseFrom(
+              transformNode.getTransform().getSpec().getPayload());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    String inputPCollectionId = stagePayload.getInput();
+    UnboundedDataset<InputT> inputDataset =
+        (UnboundedDataset<InputT>) context.popDataset(inputPCollectionId);
+    List<Integer> streamSources = inputDataset.getStreamSources();
+    JavaDStream<WindowedValue<InputT>> inputDstream = inputDataset.getDStream();
+    Map<String, String> outputs = transformNode.getTransform().getOutputsMap();
+    BiMap<String, Integer> outputMap = createOutputMap(outputs.values());
+
+    RunnerApi.Components components = pipeline.getComponents();
+    Coder windowCoder =
+        getWindowingStrategy(inputPCollectionId, components).getWindowFn().windowCoder();
+
+    // TODO: handle side inputs?
+    ImmutableMap<
+            String, Tuple2<Broadcast<List<byte[]>>, WindowedValue.WindowedValueCoder<SideInputT>>>
+        broadcastVariables = null; // this may cause problems for now.
+
+    SparkExecutableStageFunction<InputT, SideInputT> function =
+        new SparkExecutableStageFunction<>(
+            stagePayload,
+            context.jobInfo,
+            outputMap,
+            SparkExecutableStageContextFactory.getInstance(),
+            broadcastVariables,
+            MetricsAccumulator.getInstance(),
+            windowCoder);
+    JavaDStream<RawUnionValue> staged = inputDstream.mapPartitions(function);
+
+    for (String outputId : outputs.values()) {
+      JavaDStream<WindowedValue<OutputT>> outStream =
+          staged.flatMap(new SparkExecutableStageExtractionFunction<>(outputMap.get(outputId)));
+      context.pushDataset(outputId, new UnboundedDataset<>(outStream, streamSources));
+    }
   }
 
   private static String getInputId(PTransformNode transformNode) {
