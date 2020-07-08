@@ -32,13 +32,13 @@ import collections
 import itertools
 from builtins import hex
 from builtins import object
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import Generic
 from typing import Iterator
 from typing import Optional
 from typing import Sequence
-from typing import TYPE_CHECKING
 from typing import TypeVar
 from typing import Union
 

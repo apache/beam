@@ -49,12 +49,12 @@ from builtins import object
 from builtins import zip
 from functools import reduce
 from functools import wraps
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Optional
 from typing import Sequence
-from typing import TYPE_CHECKING
 from typing import Tuple
 from typing import Type
 from typing import TypeVar

@@ -25,14 +25,14 @@ from __future__ import print_function
 
 import unittest
 
-from apache_beam.transforms.core import DoFn
-from apache_beam.typehints.typehints import Any
-from apache_beam.typehints import Iterable
-from apache_beam.typehints import KV
 from apache_beam import Map
-from apache_beam.pvalue import PCollection
 from apache_beam import PTransform
+from apache_beam.pvalue import PCollection
+from apache_beam.transforms.core import DoFn
+from apache_beam.typehints import KV
+from apache_beam.typehints import Iterable
 from apache_beam.typehints import TypeCheckError
+from apache_beam.typehints.typehints import Any
 
 
 class TestParDoAnnotations(unittest.TestCase):
