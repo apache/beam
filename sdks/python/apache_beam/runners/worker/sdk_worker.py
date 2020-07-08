@@ -588,8 +588,8 @@ class SdkWorker(object):
     if lull_seconds < LOG_LULL_FULL_THREAD_DUMP_LULL_S:
       return False
     now = time.time()
-    if (self._last_full_thread_dump_secs +
-        LOG_LULL_FULL_THREAD_DUMP_INTERVAL_S < now):
+    if (self._last_full_thread_dump_secs + LOG_LULL_FULL_THREAD_DUMP_INTERVAL_S
+        < now):
       self._last_full_thread_dump_secs = now
       return True
     return False
