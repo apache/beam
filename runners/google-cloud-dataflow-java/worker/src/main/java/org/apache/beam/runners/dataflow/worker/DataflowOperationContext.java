@@ -305,19 +305,15 @@ public class DataflowOperationContext implements OperationContext {
     }
 
     /**
-     * The time interval between two full thread dump.
-     * (A full thread dump is performed at most once every 20 minutes.)
+     * The time interval between two full thread dump. (A full thread dump is performed at most once
+     * every 20 minutes.)
      */
     private static final long LOG_LULL_FULL_THREAD_DUMP_INTERVAL_MS = 20 * 60 * 1000;
 
-    /**
-     * The minimum lull duration to perform a full thread dump.
-     */
+    /** The minimum lull duration to perform a full thread dump. */
     private static final long LOG_LULL_FULL_THREAD_DUMP_LULL_MS = 20 * 60 * 1000;
 
-    /**
-     * Last time when a full thread dump was performed.
-     */
+    /** Last time when a full thread dump was performed. */
     private long lastFullThreadDumpMillis = 0;
 
     private boolean shouldLogFullThreadDump(Duration lullDuration) {
