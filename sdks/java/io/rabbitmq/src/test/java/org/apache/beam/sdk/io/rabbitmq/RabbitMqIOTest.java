@@ -35,6 +35,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -162,7 +165,8 @@ public class RabbitMqIOTest implements Serializable {
    */
   private void doExchangeTest(ExchangeTestPlan testPlan, boolean simulateIncompatibleExchange)
       throws Exception {
-    String uri = "amqp://guest:guest@localhost:" + port;
+    final byte[] terminalRecord = new byte[0];
+    final String uri = "amqp://guest:guest@localhost:" + port;
     RabbitMqIO.Read read = testPlan.getRead();
     PCollection<RabbitMqMessage> raw =
         p.apply(read.withUri(uri).withMaxNumRecords(testPlan.getNumRecords()));
@@ -196,59 +200,74 @@ public class RabbitMqIOTest implements Serializable {
         exchangeType = "fanout";
       }
     }
-
-    ConnectionFactory connectionFactory = new ConnectionFactory();
-    connectionFactory.setAutomaticRecoveryEnabled(false);
-    connectionFactory.setUri(uri);
-    Connection connection = null;
-    Channel channel = null;
-
-    try {
-      connection = connectionFactory.newConnection();
-      channel = connection.createChannel();
-      channel.exchangeDeclare(exchange, exchangeType);
-      final Channel finalChannel = channel;
-      Thread publisher =
-          new Thread(
-              () -> {
-                try {
-                  Thread.sleep(5000);
-                } catch (Exception e) {
-                  LOG.error(e.getMessage(), e);
+    final String finalExchangeType = exchangeType;
+    final CountDownLatch waitForExchangeToBeDeclared = new CountDownLatch(1);
+    final BlockingQueue<byte[]> recordsToPublish = new LinkedBlockingQueue<>();
+    recordsToPublish.addAll(RabbitMqTestUtils.generateRecords(testPlan.getNumRecordsToPublish()));
+    Thread publisher =
+        new Thread(
+            () -> {
+              Connection connection = null;
+              Channel channel = null;
+              try {
+                ConnectionFactory connectionFactory = new ConnectionFactory();
+                connectionFactory.setAutomaticRecoveryEnabled(false);
+                connectionFactory.setUri(uri);
+                connection = connectionFactory.newConnection();
+                channel = connection.createChannel();
+                channel.exchangeDeclare(exchange, finalExchangeType);
+                // We are relying on the pipeline to declare the queue and messages that are
+                // published without a queue being declared are "unroutable". Since there is a race
+                // between when the pipeline declares and when we can start publishing, we add a
+                // handler to republish messages that are returned to us.
+                channel.addReturnListener(
+                    (replyCode, replyText, exchange1, routingKey, properties, body) -> {
+                      try {
+                        recordsToPublish.put(body);
+                      } catch (Exception e) {
+                        throw new RuntimeException(e);
+                      }
+                    });
+                waitForExchangeToBeDeclared.countDown();
+                while (true) {
+                  byte[] record = recordsToPublish.take();
+                  if (record == terminalRecord) {
+                    return;
+                  }
+                  channel.basicPublish(
+                      exchange,
+                      testPlan.publishRoutingKeyGen().get(),
+                      true, // ensure that messages are returned to sender
+                      testPlan.getPublishProperties(),
+                      record);
                 }
-                for (int i = 0; i < testPlan.getNumRecordsToPublish(); i++) {
+
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              } finally {
+                if (channel != null) {
+                  // channel may have already been closed automatically due to protocol failure
                   try {
-                    finalChannel.basicPublish(
-                        exchange,
-                        testPlan.publishRoutingKeyGen().get(),
-                        testPlan.getPublishProperties(),
-                        RabbitMqTestUtils.generateRecord(i));
+                    channel.close();
                   } catch (Exception e) {
-                    LOG.error(e.getMessage(), e);
+                    /* ignored */
                   }
                 }
-              });
-      publisher.start();
-      p.run();
-      publisher.join();
-    } finally {
-      if (channel != null) {
-        // channel may have already been closed automatically due to protocol failure
-        try {
-          channel.close();
-        } catch (Exception e) {
-          /* ignored */
-        }
-      }
-      if (connection != null) {
-        // connection may have already been closed automatically due to protocol failure
-        try {
-          connection.close();
-        } catch (Exception e) {
-          /* ignored */
-        }
-      }
-    }
+                if (connection != null) {
+                  // connection may have already been closed automatically due to protocol failure
+                  try {
+                    connection.close();
+                  } catch (Exception e) {
+                    /* ignored */
+                  }
+                }
+              }
+            });
+    publisher.start();
+    waitForExchangeToBeDeclared.await();
+    p.run();
+    recordsToPublish.put(terminalRecord);
+    publisher.join();
   }
 
   private void doExchangeTest(ExchangeTestPlan testPlan) throws Exception {
