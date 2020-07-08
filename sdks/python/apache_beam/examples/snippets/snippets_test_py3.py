@@ -103,7 +103,7 @@ class TypeHintsTest(unittest.TestCase):
 
       class IntToStr(beam.PTransform):
         def expand(self, pcoll: PCollection[int]) -> PCollection[str]:
-            return pcoll | beam.Map(lambda elem: str(elem))
+          return pcoll | beam.Map(lambda elem: str(elem))
 
       ids = numbers | 'convert to str' >> IntToStr()
       # [END type_hints_ptransforms]
