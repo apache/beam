@@ -381,7 +381,7 @@ class IOTypeHints(NamedTuple(
   def strip_pcoll(self):
     return self.strip_pcoll_helper(self.input_types,
                                    self._has_input_types,
-                                   {'input_types': None},
+                                   'input_types',
                                    ['apache_beam.pvalue.PBegin'],
                                    'An input typehint to a PTransform must be'
                                    ' a single (or nested) type wrapped by '
@@ -389,7 +389,7 @@ class IOTypeHints(NamedTuple(
                                    'strip_pcoll_input()').\
                 strip_pcoll_helper(self.output_types,
                                    self.has_simple_output_type,
-                                   {'output_types': None},
+                                   'output_types',
                                    ['apache_beam.pvalue.PDone'],
                                    'An output typehint to a PTransform must be'
                                    ' a single (or nested) type wrapped by '
@@ -400,7 +400,7 @@ class IOTypeHints(NamedTuple(
       self,
       my_type,            # type: any
       has_my_type,        # type: Callable[[], bool]
-      kwarg_dict,         # type: Dict[str, any]
+      my_key,             # type: str
       my_valid_classes,   # type: List[str]
       error_str,          # type: str
       source_str          # type: str
@@ -420,10 +420,12 @@ class IOTypeHints(NamedTuple(
     if not any(valid_class in str(my_type) for valid_class in valid_classes):
       raise TypeCheckError(error_str)
 
+    kwarg_dict = {}
+
     if not hasattr(my_type, '__args__'):  # e.g. PCollection
-      kwarg_dict[next(iter(kwarg_dict))] = ((typehints.Any, ), {})
-    else:  # e.g. PCollection[type]
-      kwarg_dict[next(iter(kwarg_dict))] = ((my_type.__args__[0], ), {})
+      kwarg_dict[my_key] = ((typehints.Any, ), {})
+    else:                                 # e.g. PCollection[type]
+      kwarg_dict[my_key] = ((my_type.__args__[0], ), {})
     return self._replace(
       origin=self._make_origin([self], tb=False, msg=[source_str]),
       **kwarg_dict)

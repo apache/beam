@@ -49,19 +49,17 @@ from builtins import object
 from builtins import zip
 from functools import reduce
 from functools import wraps
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Optional
 from typing import Sequence
+from typing import TYPE_CHECKING
 from typing import Tuple
 from typing import Type
 from typing import TypeVar
 from typing import Union
 from typing import overload
-
-from google.protobuf import message
 
 from apache_beam import error
 from apache_beam import pvalue
@@ -72,15 +70,16 @@ from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
-from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import IOTypeHints
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.decorators import get_signature
+from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
+from google.protobuf import message
 
 if TYPE_CHECKING:
   from apache_beam import coders

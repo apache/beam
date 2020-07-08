@@ -32,17 +32,15 @@ import collections
 import itertools
 from builtins import hex
 from builtins import object
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import Generic
 from typing import Iterator
 from typing import Optional
 from typing import Sequence
+from typing import TYPE_CHECKING
 from typing import TypeVar
 from typing import Union
-
-from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam import typehints
@@ -50,6 +48,7 @@ from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from past.builtins import unicode
 
 if TYPE_CHECKING:
   from apache_beam.transforms import sideinputs
@@ -222,7 +221,7 @@ class _InvalidUnpickledPCollection(object):
   pass
 
 
-class PBegin(PValue, Generic[T]):
+class PBegin(PValue):
   """A pipeline begin marker used as input to create/read transforms.
 
   The class is used internally to represent inputs to Create and Read
@@ -232,7 +231,7 @@ class PBegin(PValue, Generic[T]):
   pass
 
 
-class PDone(PValue, Generic[T]):
+class PDone(PValue):
   """PDone is the output of a transform that has a trivial result such as Write.
   """
   pass
