@@ -1891,7 +1891,7 @@ distributed data set backed by a persistent data store.&lt;/p>
 &lt;code>PCollection&lt;/code> is bounded or unbounded depends on the source of the data set that
 it represents. Reading from a batch data source, such as a file or a database,
 creates a bounded &lt;code>PCollection&lt;/code>. Reading from a streaming or
-continously-updating data source, such as Pub/Sub or Kafka, creates an unbounded
+continuously-updating data source, such as Pub/Sub or Kafka, creates an unbounded
 &lt;code>PCollection&lt;/code> (unless you explicitly tell it not to).&lt;/p>
 &lt;p>The bounded (or unbounded) nature of your &lt;code>PCollection&lt;/code> affects how Beam
 processes your data. A bounded &lt;code>PCollection&lt;/code> can be processed using a batch job,
@@ -2233,7 +2233,7 @@ transforms, including &lt;code>Filter&lt;/code>, &lt;code>FlatMapElements&lt;/co
 the execution of the ParDo transform. The comments give useful
 information to pipeline developers such as the constraints that
 apply to the objects or particular cases such as failover or
-instance reuse. They also give instanciation use cases.&lt;/p>
+instance reuse. They also give instantiation use cases.&lt;/p>
 &lt;!-- The source for the sequence diagram can be found in the the SVG resource. -->
 &lt;p>&lt;img src="/images/dofn-sequence-diagram.svg" alt="This is a sequence diagram that shows the lifecycle of the DoFn">&lt;/p>
 &lt;h4 id="groupbykey">4.2.2. GroupByKey&lt;/h4>
@@ -2946,7 +2946,7 @@ together.&lt;/p>
 &lt;span class="c1">// Input PCollection to our ParDo.
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">words&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...;&lt;/span>
 &lt;span class="c1">// The ParDo will filter words whose length is below a cutoff and add them to
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// the main ouput PCollection&amp;lt;String&amp;gt;.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// the main output PCollection&amp;lt;String&amp;gt;.
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// If a word is above the cutoff, the ParDo will add the word length to an
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// output PCollection&amp;lt;Integer&amp;gt;.
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// If a word starts with the string &amp;#34;MARKER&amp;#34;, the ParDo will add that word to an
@@ -3531,7 +3531,7 @@ infer the correct schema based on the members of the class.&lt;/p>
 &lt;/div>
 &lt;p>Using JavaBean classes as above is one way to map a schema to Java classes. However multiple Java classes might have
 the same schema, in which case the different Java types can often be used interchangeably. Beam will add implicit
-conversions betweens types that have matching schemas. For example, the above
+conversions between types that have matching schemas. For example, the above
 &lt;code>Transaction&lt;/code> class has the same schema as the following class:&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@DefaultSchema&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">JavaFieldSchema&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
@@ -3802,8 +3802,8 @@ setters and zero-argument constructor can be omitted.&lt;/p>
 &lt;p>&lt;code>@SchemaFieldName&lt;/code> and &lt;code>@SchemaIgnore&lt;/code> can be used to alter the schema inferred, just like with POJO classes.&lt;/p>
 &lt;h5 id="autovalue">&lt;strong>AutoValue&lt;/strong>&lt;/h5>
 &lt;p>Java value classes are notoriously difficult to generate correctly. There is a lot of boilerplate you must create in
-order to properly implement a value class. AutoValue is a popular library for easily generating such classes by i
-mplementing a simple abstract base class.&lt;/p>
+order to properly implement a value class. AutoValue is a popular library for easily generating such classes by
+implementing a simple abstract base class.&lt;/p>
 &lt;p>Beam can infer a schema from an AutoValue class. For example:&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@DefaultSchema&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">AutoValueSchema&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
@@ -3885,8 +3885,8 @@ specific keys from the map. For example, given the following schema:&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">purchasesByType&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Select&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">fieldNames&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;purchases{}.userId&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;p>Will result in a row containing an map field with key-type string and value-type string. The selected map will contain
-all of the keys from the original map, and the values will be the userId contained in the purchasee reecord.&lt;/p>
+&lt;p>Will result in a row containing a map field with key-type string and value-type string. The selected map will contain
+all of the keys from the original map, and the values will be the userId contained in the purchase record.&lt;/p>
 &lt;p>While the use of {} brackets in the selector is recommended, to make it clear that map value elements are being selected,
 they can be omitted for brevity. In the future, map slicing will be supported, allowing selection of specific keys from
 the map.&lt;/p>
@@ -4810,7 +4810,7 @@ the end of a window.&lt;/p>
 &lt;p>When you set &lt;code>.withAllowedLateness&lt;/code> on a &lt;code>PCollection&lt;/code>, that allowed lateness
 propagates forward to any subsequent &lt;code>PCollection&lt;/code> derived from the first
 &lt;code>PCollection&lt;/code> you applied allowed lateness to. If you want to change the allowed
-lateness later in your pipeline, you must do so explictly by applying
+lateness later in your pipeline, you must do so explicitly by applying
 &lt;code>Window.configure().withAllowedLateness()&lt;/code>.&lt;/p>
 &lt;h3 id="adding-timestamps-to-a-pcollections-elements">8.5. Adding timestamps to a PCollection&amp;rsquo;s elements&lt;/h3>
 &lt;p>An unbounded source provides a timestamp for each element. Depending on your
@@ -5351,7 +5351,7 @@ accumulates the number of elements seen.&lt;/p>
 &lt;/div>
 &lt;h4 id="bagstate">BagState&lt;/h4>
 &lt;p>A common use case for state is to accumulate multiple elements. &lt;code>BagState&lt;/code> allows for accumulating an unordered set
-ofelements. This allows for addition of elements to the collection without requiring the reading of the entire
+of elements. This allows for addition of elements to the collection without requiring the reading of the entire
 collection first, which is an efficiency gain. In addition, runners that support paged reads can allow individual
 bags larger than available memory.&lt;/p>
 &lt;div class=language-java>

@@ -230,7 +230,7 @@ distributed data set backed by a persistent data store.</p><p>A <code>PCollectio
 <code>PCollection</code> is bounded or unbounded depends on the source of the data set that
 it represents. Reading from a batch data source, such as a file or a database,
 creates a bounded <code>PCollection</code>. Reading from a streaming or
-continously-updating data source, such as Pub/Sub or Kafka, creates an unbounded
+continuously-updating data source, such as Pub/Sub or Kafka, creates an unbounded
 <code>PCollection</code> (unless you explicitly tell it not to).</p><p>The bounded (or unbounded) nature of your <code>PCollection</code> affects how Beam
 processes your data. A bounded <code>PCollection</code> can be processed using a batch job,
 which might read the entire data set once, and perform processing in a job of
@@ -455,7 +455,7 @@ transforms, including <code>Filter</code>, <code>FlatMapElements</code>, and <co
 the execution of the ParDo transform. The comments give useful
 information to pipeline developers such as the constraints that
 apply to the objects or particular cases such as failover or
-instance reuse. They also give instanciation use cases.</p><p><img src=/images/dofn-sequence-diagram.svg alt="This is a sequence diagram that shows the lifecycle of the DoFn"></p><h4 id=groupbykey>4.2.2. GroupByKey</h4><p><code>GroupByKey</code> is a Beam transform for processing collections of key/value pairs.
+instance reuse. They also give instantiation use cases.</p><p><img src=/images/dofn-sequence-diagram.svg alt="This is a sequence diagram that shows the lifecycle of the DoFn"></p><h4 id=groupbykey>4.2.2. GroupByKey</h4><p><code>GroupByKey</code> is a Beam transform for processing collections of key/value pairs.
 It&rsquo;s a parallel reduction operation, analogous to the Shuffle phase of a
 Map/Shuffle/Reduce-style algorithm. The input to <code>GroupByKey</code> is a collection of
 key/value pairs that represents a <em>multimap</em>, where the collection contains
@@ -1017,7 +1017,7 @@ together.</p><h4 id=output-tags>4.5.1. Tags for multiple outputs</h4><div class=
 </span><span class=c1></span>  <span class=n>PCollection</span><span class=o>&lt;</span><span class=n>String</span><span class=o>&gt;</span> <span class=n>words</span> <span class=o>=</span> <span class=o>...;</span>
 
   <span class=c1>// The ParDo will filter words whose length is below a cutoff and add them to
-</span><span class=c1></span>  <span class=c1>// the main ouput PCollection&lt;String&gt;.
+</span><span class=c1></span>  <span class=c1>// the main output PCollection&lt;String&gt;.
 </span><span class=c1></span>  <span class=c1>// If a word is above the cutoff, the ParDo will add the word length to an
 </span><span class=c1></span>  <span class=c1>// output PCollection&lt;Integer&gt;.
 </span><span class=c1></span>  <span class=c1>// If a word starts with the string &#34;MARKER&#34;, the ParDo will add that word to an
@@ -1403,7 +1403,7 @@ having Beam understand their element schemas.</p><p class=language-java>In Java 
   <span class=o>}</span>
 <span class=o>}</span></code></pre></div></div><p>Using JavaBean classes as above is one way to map a schema to Java classes. However multiple Java classes might have
 the same schema, in which case the different Java types can often be used interchangeably. Beam will add implicit
-conversions betweens types that have matching schemas. For example, the above
+conversions between types that have matching schemas. For example, the above
 <code>Transaction</code> class has the same schema as the following class:</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=nd>@DefaultSchema</span><span class=o>(</span><span class=n>JavaFieldSchema</span><span class=o>.</span><span class=na>class</span><span class=o>)</span>
 <span class=kd>public</span> <span class=kd>class</span> <span class=nc>TransactionPojo</span> <span class=o>{</span>
   <span class=kd>public</span> <span class=n>String</span> <span class=n>bank</span><span class=o>;</span>
@@ -1535,8 +1535,8 @@ setters and zero-argument constructor can be omitted.</p><div class=language-jav
   <span class=kd>public</span> <span class=n>String</span> <span class=nf>getBank</span><span class=o>()</span> <span class=o>{</span> <span class=err>…</span> <span class=o>}</span>
   <span class=kd>public</span> <span class=kt>double</span> <span class=nf>getPurchaseAmount</span><span class=o>()</span> <span class=o>{</span> <span class=err>…</span> <span class=o>}</span>
 <span class=o>}</span></code></pre></div></div><p><code>@SchemaFieldName</code> and <code>@SchemaIgnore</code> can be used to alter the schema inferred, just like with POJO classes.</p><h5 id=autovalue><strong>AutoValue</strong></h5><p>Java value classes are notoriously difficult to generate correctly. There is a lot of boilerplate you must create in
-order to properly implement a value class. AutoValue is a popular library for easily generating such classes by i
-mplementing a simple abstract base class.</p><p>Beam can infer a schema from an AutoValue class. For example:</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=nd>@DefaultSchema</span><span class=o>(</span><span class=n>AutoValueSchema</span><span class=o>.</span><span class=na>class</span><span class=o>)</span>
+order to properly implement a value class. AutoValue is a popular library for easily generating such classes by
+implementing a simple abstract base class.</p><p>Beam can infer a schema from an AutoValue class. For example:</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=nd>@DefaultSchema</span><span class=o>(</span><span class=n>AutoValueSchema</span><span class=o>.</span><span class=na>class</span><span class=o>)</span>
 <span class=nd>@AutoValue</span>
 <span class=kd>public</span> <span class=kd>abstract</span> <span class=kd>class</span> <span class=nc>TransactionValue</span> <span class=o>{</span>
   <span class=kd>public</span> <span class=kd>abstract</span> <span class=n>String</span> <span class=nf>getBank</span><span class=o>();</span> 
@@ -1561,8 +1561,8 @@ array.</p><h5 id=maps><strong>Maps</strong></h5><p>A map field, where the value 
 result is a map where the keys are the same as in the original map but the value is the specified type. Similar to
 arrays, the use of {} curly brackets in the selector is recommended, to make it clear that map value elements are being
 selected, they can be omitted for brevity. In the future, map key selectors will be supported, allowing selection of
-specific keys from the map. For example, given the following schema:</p><p><strong>PurchasesByType</strong></p><table><thead><tr class=header><th><b>Field Name</b></th><th><b>Field Type</b></th></tr></thead><tbody><tr><td>purchases</td><td>MAP{STRING, ROW{PURCHASE}</td></tr></tbody></table><br><p>The following</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>purchasesByType</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>Select</span><span class=o>.</span><span class=na>fieldNames</span><span class=o>(</span><span class=s>&#34;purchases{}.userId&#34;</span><span class=o>));</span></code></pre></div></div><p>Will result in a row containing an map field with key-type string and value-type string. The selected map will contain
-all of the keys from the original map, and the values will be the userId contained in the purchasee reecord.</p><p>While the use of {} brackets in the selector is recommended, to make it clear that map value elements are being selected,
+specific keys from the map. For example, given the following schema:</p><p><strong>PurchasesByType</strong></p><table><thead><tr class=header><th><b>Field Name</b></th><th><b>Field Type</b></th></tr></thead><tbody><tr><td>purchases</td><td>MAP{STRING, ROW{PURCHASE}</td></tr></tbody></table><br><p>The following</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>purchasesByType</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>Select</span><span class=o>.</span><span class=na>fieldNames</span><span class=o>(</span><span class=s>&#34;purchases{}.userId&#34;</span><span class=o>));</span></code></pre></div></div><p>Will result in a row containing a map field with key-type string and value-type string. The selected map will contain
+all of the keys from the original map, and the values will be the userId contained in the purchase record.</p><p>While the use of {} brackets in the selector is recommended, to make it clear that map value elements are being selected,
 they can be omitted for brevity. In the future, map slicing will be supported, allowing selection of specific keys from
 the map.</p><h4 id=662-schema-transforms>6.6.2. Schema transforms</h4><p>Beam provides a collection of transforms that operate natively on schemas. These transforms are very expressive,
 allowing selections and aggregations in terms of named schema fields. Following are some examples of useful
@@ -1930,7 +1930,7 @@ the end of a window.</p><div class=language-java><div class=highlight><pre class
               <span class=n>allowed_lateness</span><span class=o>=</span><span class=n>Duration</span><span class=p>(</span><span class=n>seconds</span><span class=o>=</span><span class=mi>2</span><span class=o>*</span><span class=mi>24</span><span class=o>*</span><span class=mi>60</span><span class=o>*</span><span class=mi>60</span><span class=p>))</span> <span class=c1># 2 days</span></code></pre></div></div><p>When you set <code>.withAllowedLateness</code> on a <code>PCollection</code>, that allowed lateness
 propagates forward to any subsequent <code>PCollection</code> derived from the first
 <code>PCollection</code> you applied allowed lateness to. If you want to change the allowed
-lateness later in your pipeline, you must do so explictly by applying
+lateness later in your pipeline, you must do so explicitly by applying
 <code>Window.configure().withAllowedLateness()</code>.</p><h3 id=adding-timestamps-to-a-pcollections-elements>8.5. Adding timestamps to a PCollection&rsquo;s elements</h3><p>An unbounded source provides a timestamp for each element. Depending on your
 unbounded source, you may need to configure how the timestamp is extracted from
 the raw data stream.</p><p>However, bounded sources (such as a file from <code>TextIO</code>) do not provide
@@ -2278,7 +2278,7 @@ accumulates the number of elements seen.</p><div class=language-java><div class=
     
 <span class=n>_</span> <span class=o>=</span> <span class=p>(</span><span class=n>p</span> <span class=o>|</span> <span class=s1>&#39;Read per user&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>ReadPerUser</span><span class=p>()</span>
        <span class=o>|</span> <span class=s1>&#39;Combine state pardo&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>CombiningStateDofn</span><span class=p>()))</span></code></pre></div></div><h4 id=bagstate>BagState</h4><p>A common use case for state is to accumulate multiple elements. <code>BagState</code> allows for accumulating an unordered set
-ofelements. This allows for addition of elements to the collection without requiring the reading of the entire
+of elements. This allows for addition of elements to the collection without requiring the reading of the entire
 collection first, which is an efficiency gain. In addition, runners that support paged reads can allow individual
 bags larger than available memory.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;&gt;</span> <span class=n>perUser</span> <span class=o>=</span> <span class=n>readPerUser</span><span class=o>();</span>
 <span class=n>perUser</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>ParDo</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=k>new</span> <span class=n>DoFn</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;,</span> <span class=n>OutputT</span><span class=o>&gt;()</span> <span class=o>{</span>
