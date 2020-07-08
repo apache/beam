@@ -34,7 +34,7 @@ GH_API_URL_WORKLOW_FMT = (
 GH_API_URL_WORKFLOW_RUNS_FMT = (
     "https://api.github.com/repos/{repo_url}/actions/workflows/{workflow_id}/runs"
 )
-GH_WEB_URL_WORKLOW_RUN_FMT = "https://github.com/{repo_url}/actions/runs/{workflow_id}"
+GH_WEB_URL_WORKLOW_RUN_FMT = "https://github.com/{repo_url}/actions/runs/{run_id}"
 
 
 def parse_arguments():
@@ -103,7 +103,7 @@ def get_last_run(workflow_id):
   filtered_commit_runs = list(
       filter(lambda w: w.get("head_sha", "") == RELEASE_COMMIT, runs))
   if not filtered_commit_runs:
-    workflow_web_url = GH_WEB_URL_WORKLOW_RUN_FMT.format(
+    workflow_web_url = GH_API_URL_WORKFLOW_RUNS_FMT.format(
         repo_url=REPO_URL, workflow_id=workflow_id)
     raise Exception(
         f"No runs for workflow (branch {RELEASE_BRANCH}, commit {RELEASE_COMMIT}). Verify at {workflow_web_url}"
@@ -119,7 +119,7 @@ def get_last_run(workflow_id):
       f"Found last run. SHA: {RELEASE_COMMIT}, created_at: '{last_run['created_at']}', id: {last_run['id']}"
   )
   workflow_web_url = GH_WEB_URL_WORKLOW_RUN_FMT.format(
-      repo_url=REPO_URL, workflow_id=last_run["id"])
+      repo_url=REPO_URL, run_id=last_run["id"])
   print(f"Verify at {workflow_web_url}")
   print(
       f"Optional upload to GCS will be available at:\n"
@@ -136,7 +136,7 @@ def validate_run(run_data):
 
   url = run_data["url"]
   workflow_web_url = GH_WEB_URL_WORKLOW_RUN_FMT.format(
-      repo_url=REPO_URL, workflow_id=run_data["id"])
+      repo_url=REPO_URL, run_id=run_data["id"])
   print(
       f"Started waiting for Workflow run {run_data['id']} to finish. Check on {workflow_web_url}"
   )
