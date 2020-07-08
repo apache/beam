@@ -706,9 +706,9 @@ public class BigQueryServicesImplTest {
 
     }
 
-      verify(response, times(1)).getStatusCode();
-      verify(response, times(1)).getContent();
-      verify(response, times(1)).getContentType();
+    verify(response, times(1)).getStatusCode();
+    verify(response, times(1)).getContent();
+    verify(response, times(1)).getContentType();
   }
 
   /**

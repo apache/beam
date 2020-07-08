@@ -794,18 +794,18 @@ class BigQueryServicesImpl implements BigQueryServices {
                         try {
                           return insert.execute().getInsertErrors();
                         } catch (IOException e) {
-                            GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
-                            if (errorInfo == null) {
-                              throw e;
-                            }
-                            if (!ApiErrorExtractor.INSTANCE.rateLimited(e)
-                                    && !errorInfo.getReason().equals(QUOTA_EXCEEDED)) {
-                              throw e;
-                            }
-                            LOG.info(
-                                    String.format(
-                                            "BigQuery insertAll error, retrying: %s",
-                                            ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
+                          GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
+                          if (errorInfo == null) {
+                            throw e;
+                          }
+                          if (!ApiErrorExtractor.INSTANCE.rateLimited(e)
+                              && !errorInfo.getReason().equals(QUOTA_EXCEEDED)) {
+                            throw e;
+                          }
+                          LOG.info(
+                              String.format(
+                                  "BigQuery insertAll error, retrying: %s",
+                                  ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
                           try {
                             sleeper.sleep(backoff1.nextBackOffMillis());
                           } catch (InterruptedException interrupted) {
