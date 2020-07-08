@@ -910,7 +910,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       if (!(e instanceof GoogleJsonResponseException)) {
         return null;
       }
-      GoogleJsonError jsonError = ((GoogleJsonResponseException)e).getDetails();
+      GoogleJsonError jsonError = ((GoogleJsonResponseException) e).getDetails();
       GoogleJsonError.ErrorInfo errorInfo = Iterables.getFirst(jsonError.getErrors(), null);
       return errorInfo;
     }
