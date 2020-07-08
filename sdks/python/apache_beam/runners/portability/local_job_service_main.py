@@ -66,6 +66,11 @@ def run(argv):
       help='Start the server up as a background process.'
       ' Will fail if pid_file already exists, unless --stop is also specified.')
   parser.add_argument(
+      '--stderr_file',
+      help='Where to write stderr (if not specified, merged with stdout).')
+  parser.add_argument(
+      '--stdout_file', help='Where to write stdout for background job service.')
+  parser.add_argument(
       '--stop',
       action='store_true',
       help='Stop the existing process, if any, specified in pid_file.'
@@ -99,11 +104,23 @@ def run(argv):
       options.port_file = os.path.splitext(options.pid_file)[0] + '.port'
       argv.append('--port_file')
       argv.append(options.port_file)
+
+    if not options.stdout_file:
+      raise RuntimeError('--stdout_file must be specified with --background')
+    stdout_dest = open(options.stdout_file, mode='w')
+
+    if options.stderr_file:
+      stderr_dest = open(options.stderr_file, mode='w')
+    else:
+      stderr_dest = subprocess.STDOUT
+
     subprocess.Popen([
         sys.executable,
         '-m',
         'apache_beam.runners.portability.local_job_service_main'
-    ] + argv)
+    ] + argv,
+                     stderr=stderr_dest,
+                     stdout=stdout_dest)
     print('Waiting for server to start up...')
     while not os.path.exists(options.port_file):
       time.sleep(.1)
