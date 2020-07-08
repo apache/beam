@@ -2220,6 +2220,43 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
+  @Test
+  public void testGroupByDate() {
+    String sql = "SELECT date_field, COUNT(*) FROM table_with_date GROUP BY date_field";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema =
+        Schema.builder()
+            .addLogicalTypeField("date_field", SqlTypes.DATE)
+            .addInt64Field("count")
+            .build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(LocalDate.of(2008, 12, 25), 1L).build(),
+            Row.withSchema(schema).addValues(LocalDate.of(2020, 4, 7), 1L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testAggregateOnDate() {
+    String sql = "SELECT MAX(date_field) FROM table_with_date GROUP BY str_field";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("date_field", SqlTypes.DATE).build())
+                .addValues(LocalDate.of(2020, 4, 7))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
   // TODO[BEAM-9166]: Add a test for CURRENT_DATE function ("SELECT CURRENT_DATE()")
 
   @Test
@@ -2500,6 +2537,43 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
                 .build(),
             Row.withSchema(Schema.builder().addStringField("f_time_str").build())
                 .addValues("23:35:59")
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testGroupByTime() {
+    String sql = "SELECT time_field, COUNT(*) FROM table_with_time GROUP BY time_field";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema =
+        Schema.builder()
+            .addLogicalTypeField("time_field", SqlTypes.TIME)
+            .addInt64Field("count")
+            .build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(LocalTime.of(15, 30, 0), 1L).build(),
+            Row.withSchema(schema).addValues(LocalTime.of(23, 35, 59), 1L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testAggregateOnTime() {
+    String sql = "SELECT MAX(time_field) FROM table_with_time GROUP BY str_field";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("time_field", SqlTypes.TIME).build())
+                .addValues(LocalTime.of(23, 35, 59))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
