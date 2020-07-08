@@ -681,7 +681,7 @@ public abstract class Row implements Serializable {
           .forEach(
               e ->
                   fieldOverrides.addOverride(
-                      FieldAccessDescriptor.withFieldNames(e.getKey()),
+                      FieldAccessDescriptor.withFieldNames(e.getKey()).resolve(getSchema()),
                       new FieldOverride(e.getValue())));
       return this;
     }
@@ -750,7 +750,7 @@ public abstract class Row implements Serializable {
      * syntax.
      */
     public FieldValueBuilder withFieldValues(Map<String, Object> values) {
-      checkState(values.isEmpty());
+      checkState(this.values.isEmpty());
       return new FieldValueBuilder(schema, null).withFieldValues(values);
     }
 
