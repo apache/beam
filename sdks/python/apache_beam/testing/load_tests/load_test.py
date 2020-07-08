@@ -93,8 +93,15 @@ class LoadTest(object):
   following environment options: `INFLUXDB_USER` and `INFLUXDB_USER_PASSWORD`.
   """
   def __init__(self, metrics_namespace=None):
+    self.runtime_type_check = self.get_option_or_default('runtime_type_check')
+ 
     # Be sure to set blocking to false for timeout_ms to work properly
-    self.pipeline = TestPipeline(is_integration_test=True, blocking=False)
+    self.pipeline = TestPipeline(
+        is_integration_test=True,
+        blocking=False,
+        options=PipelineOptions(runtime_type_check=self.runtime_type_check)
+    )
+
     assert not self.pipeline.blocking
 
     options = self.pipeline.get_pipeline_options().view_as(LoadTestOptions)
