@@ -13,17 +13,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module hello_beam_test
+package main
 
-go 1.14
-
-require (
-	github.com/apache/beam v2.22.0+incompatible
-	github.com/golang/protobuf v1.4.2 // indirect
-	github.com/google/go-cmp v0.4.0 // indirect
-	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
-	golang.org/x/sys v0.0.0-20200610111108-226ff32320da // indirect
-	golang.org/x/text v0.3.2 // indirect
-	google.golang.org/genproto v0.0.0-20200611194920-44ba362f84c1 // indirect
-	google.golang.org/grpc v1.29.1 // indirect
+import (
+	"apache.org/beam/learning/katas/introduction/hello_beam/hello_beam/pkg/task"
+	"context"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
+
+func main() {
+	p, s := beam.NewPipelineWithRoot()
+
+	hello := task.HelloBeam(s)
+
+	debug.Print(s, hello)
+
+	err := beamx.Run(context.Background(), p)
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+	}
+}

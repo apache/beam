@@ -17,6 +17,16 @@
 # under the License.
 #
 
-content:
-- Hello Beam
-- Hello Beam Test
+custom_name: Hello Beam
+type: edu
+files:
+- name: cmd/main.go
+  visible: true
+- name: pkg/task/task.go
+  visible: true
+  placeholders:
+  - offset: 920
+    length: 28
+    placeholder_text: TODO()
+- name: test/task_test.go
+  visible: false
