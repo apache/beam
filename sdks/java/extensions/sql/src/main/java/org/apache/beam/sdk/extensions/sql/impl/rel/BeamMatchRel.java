@@ -144,15 +144,15 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
             // sort within each keyed partition
             PCollection<KV<Row, Iterable<Row>>> orderedUpstream = groupedUpstream
-                .apply(ParDo.of(new SortPerKey(mySchema, orderKeys)));
+                .apply(ParDo.of(new SortPerKey(collectionSchema, orderKeys)));
 
             // apply the pattern match in each partition
-            ArrayList<CEPPattern> cepPattern = CEPUtil.getCEPPatternFromPattern(mySchema,
+            ArrayList<CEPPattern> cepPattern = CEPUtil.getCEPPatternFromPattern(collectionSchema,
                     (RexCall) pattern,
                     patternDefs);
             String regexPattern = CEPUtil.getRegexFromPattern((RexCall) pattern);
             PCollection<KV<Row, Iterable<Row>>> matchedUpstream = orderedUpstream
-                .apply(ParDo.of(new MatchPattern(mySchema, cepPattern, regexPattern)));
+                .apply(ParDo.of(new MatchPattern(cepPattern, regexPattern)));
 
             // apply the ParDo for the measures clause
             // for now, output the all rows of each pattern matched (for testing purpose)
@@ -178,12 +178,10 @@ public class BeamMatchRel extends Match implements BeamRelNode {
         // support only one row per match for now.
         private static class MatchPattern extends DoFn<KV<Row, Iterable<Row>>, KV<Row, Iterable<Row>>> {
 
-            private final Schema mySchema;
             private final ArrayList<CEPPattern> pattern;
             private final String regexPattern;
 
-            MatchPattern(Schema mySchema, ArrayList<CEPPattern> pattern, String regexPattern) {
-                this.mySchema = mySchema;
+            MatchPattern(ArrayList<CEPPattern> pattern, String regexPattern) {
                 this.pattern = pattern;
                 this.regexPattern = regexPattern;
             }
@@ -220,11 +218,11 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
         private static class SortPerKey extends DoFn<KV<Row, Iterable<Row>>, KV<Row, Iterable<Row>>> {
 
-            private final Schema mySchema;
+            private final Schema cSchema;
             private final ArrayList<OrderKey> orderKeys;
 
-            public SortPerKey(Schema mySchema, RelCollation orderKeys) {
-                this.mySchema = mySchema;
+            public SortPerKey(Schema cSchema, RelCollation orderKeys) {
+                this.cSchema = cSchema;
 
                 List<RelFieldCollation> revOrderKeys = orderKeys.getFieldCollations();
                 Collections.reverse(revOrderKeys);
@@ -272,7 +270,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
                 @Override
                 public int compare(Row o1, Row o2) {
-                    Schema.Field fd = mySchema.getField(fIndex);
+                    Schema.Field fd = cSchema.getField(fIndex);
                     Schema.FieldType dtype = fd.getType();
                     switch (dtype.getTypeName()) {
                         case BYTE:

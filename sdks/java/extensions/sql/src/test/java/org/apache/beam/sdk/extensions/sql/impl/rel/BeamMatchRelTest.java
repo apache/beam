@@ -9,6 +9,8 @@ import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
 import org.apache.beam.sdk.schemas.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.beam.sdk.extensions.sql.impl.rel.BaseRelTest.compilePipeline;
 import static org.apache.beam.sdk.extensions.sql.impl.rel.BaseRelTest.registerTable;
@@ -25,6 +27,7 @@ public class BeamMatchRelTest {
         .addStringField("name")
         .addInt32Field("proctime")
         .build();
+
 
     registerTable(
             "TestTable",
