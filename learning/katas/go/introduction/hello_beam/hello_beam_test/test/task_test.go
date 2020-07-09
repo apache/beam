@@ -13,22 +13,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package task
 
 import (
+	"apache.org/beam/learning/katas/introduction/hello_beam/hello_beam_test/pkg/task"
 	"context"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"hello_beam/pkg/task"
 	"testing"
 )
 
-func TestTask(t *testing.T) {
+func TestHelloBeam(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 
-	passert.Equals(s, task.HelloBeam(s), "Hello Beam")
+	got := task.HelloBeam(s)
+
+	passert.Equals(s, got, "Hello Beam")
 
 	err := ptest.Run(p)
 	if err != nil {
