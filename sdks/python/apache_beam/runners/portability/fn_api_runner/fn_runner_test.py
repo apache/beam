@@ -745,22 +745,20 @@ class FnApiRunnerTest(unittest.TestCase):
 
     res = p.run()
     res.wait_until_finish()
-    c1, = res.metrics().query(beam.metrics.MetricsFilter().with_step('count1'))[
-        'counters']
-    self.assertEqual(c1.committed, 2)
-    c2, = res.metrics().query(beam.metrics.MetricsFilter().with_step('count2'))[
-        'counters']
-    self.assertEqual(c2.committed, 4)
 
-    dist, = res.metrics().query(beam.metrics.MetricsFilter().with_step('dist'))[
-        'distributions']
+    t1, t2 = res.metrics().query(beam.metrics.MetricsFilter()
+                                 .with_name('counter'))['counters']
+    self.assertEqual(t1.committed + t2.committed, 6)
+
+    dist, = res.metrics().query(beam.metrics.MetricsFilter()
+                                .with_name('distribution'))['distributions']
     self.assertEqual(
         dist.committed.data, beam.metrics.cells.DistributionData(4, 2, 1, 3))
     self.assertEqual(dist.committed.mean, 2.0)
 
     if check_gauge:
-      gaug, = res.metrics().query(
-          beam.metrics.MetricsFilter().with_step('gauge'))['gauges']
+      gaug, = res.metrics().query(beam.metrics.MetricsFilter()
+                                  .with_name('gauge'))['gauges']
       self.assertEqual(gaug.committed.value, 3)
 
   def test_callbacks_with_exception(self):

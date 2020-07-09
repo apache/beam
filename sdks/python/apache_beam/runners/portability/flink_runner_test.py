@@ -255,6 +255,9 @@ if __name__ == '__main__':
             self).test_flattened_side_input(with_transcoding=False)
 
     def test_metrics(self):
+      super(FlinkRunnerTest, self).test_metrics(check_gauge=False)
+
+    def test_flink_metrics(self):
       """Run a simple DoFn that increments a counter and verifies state
       caching metrics. Verifies that its expected value is written to a
       temporary file by the FileReporter"""
