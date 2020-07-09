@@ -291,10 +291,11 @@ public class MetricsGraphiteSink implements MetricsSink {
       CommittedOrAttemped committedOrAttemped) {
     String metricName =
         String.format(
-            "beam.%s.%s.%s.%s.%s",
+            "beam.%s.%s.%s.%s.%s.%s",
             metricType,
             metric.getName().getNamespace(),
             metric.getName().getName(),
+            metric.getKey().stepName(),
             committedOrAttemped,
             valueType);
 
