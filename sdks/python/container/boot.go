@@ -192,7 +192,13 @@ func setupAcceptableWheelSpecs() error {
 	if pyVersion == "27" {
 		acceptableWhlSpecs = append(acceptableWhlSpecs, "cp27-cp27mu-manylinux1_x86_64.whl")
 	} else {
-		wheelName := fmt.Sprintf("cp%s-cp%sm-manylinux1_x86_64.whl", pyVersion, pyVersion)
+		var wheelName string
+		switch pyVersion {
+		case "35", "36", "37":
+			wheelName = fmt.Sprintf("cp%s-cp%sm-manylinux1_x86_64.whl", pyVersion, pyVersion)
+		default:
+			wheelName = fmt.Sprintf("cp%s-cp%s-manylinux1_x86_64.whl", pyVersion, pyVersion)
+		}
 		acceptableWhlSpecs = append(acceptableWhlSpecs, wheelName)
 	}
 	return nil
