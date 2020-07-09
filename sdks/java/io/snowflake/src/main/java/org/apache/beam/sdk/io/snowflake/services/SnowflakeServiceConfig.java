@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.snowflake.services;
 
 import java.util.List;
 import javax.sql.DataSource;
+import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
+import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
@@ -31,6 +33,8 @@ public class SnowflakeServiceConfig extends ServiceConfig {
   private List<String> filesList;
 
   private WriteDisposition writeDisposition;
+  private CreateDisposition createDisposition;
+  private SnowflakeTableSchema tableSchema;
   private String stagingBucketDir;
 
   public SnowflakeServiceConfig(
@@ -51,6 +55,8 @@ public class SnowflakeServiceConfig extends ServiceConfig {
       List<String> filesList,
       String table,
       String query,
+      SnowflakeTableSchema tableSchema,
+      CreateDisposition createDisposition,
       WriteDisposition writeDisposition,
       String storageIntegrationName,
       String stagingBucketDir) {
@@ -58,7 +64,9 @@ public class SnowflakeServiceConfig extends ServiceConfig {
     this.filesList = filesList;
     this.table = table;
     this.query = query;
+    this.tableSchema = tableSchema;
     this.writeDisposition = writeDisposition;
+    this.createDisposition = createDisposition;
     this.storageIntegrationName = storageIntegrationName;
     this.stagingBucketDir = stagingBucketDir;
   }
@@ -75,7 +83,7 @@ public class SnowflakeServiceConfig extends ServiceConfig {
     return query;
   }
 
-  public String getstorageIntegrationName() {
+  public String getStorageIntegrationName() {
     return storageIntegrationName;
   }
 
@@ -89,5 +97,13 @@ public class SnowflakeServiceConfig extends ServiceConfig {
 
   public WriteDisposition getWriteDisposition() {
     return writeDisposition;
+  }
+
+  public CreateDisposition getCreateDisposition() {
+    return createDisposition;
+  }
+
+  public SnowflakeTableSchema getTableSchema() {
+    return tableSchema;
   }
 }
