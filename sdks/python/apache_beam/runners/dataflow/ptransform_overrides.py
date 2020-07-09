@@ -238,8 +238,8 @@ class WriteToBigQueryPTransformOverride(PTransformOverride):
       def visit_transform(self, transform_node):
         # Internal consumers of the outputs we're overriding are expected.
         # We only error out on non-internal consumers.
-        if ('BigQueryBatchFileLoads' not in transform_node.full_label
-            and [o for o in self.outputs if o in transform_node.inputs]):
+        if ('BigQueryBatchFileLoads' not in transform_node.full_label and
+            [o for o in self.outputs if o in transform_node.inputs]):
           raise ValueError(
               'WriteToBigQuery was being replaced with the native '
               'BigQuerySink, but the transform "{}" has an input which will be '
