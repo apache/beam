@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
@@ -30,11 +32,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.io.PrintWriter;
 import java.io.Serializable;
-import java.io.StringWriter;
 import java.math.BigDecimal;
-import java.net.InetAddress;
 import java.nio.charset.Charset;
 import java.sql.Array;
 import java.sql.Connection;
@@ -59,8 +58,8 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
-import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
+import org.apache.beam.sdk.io.jdbc.JdbcIO.DataSourceConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PoolableDataSourceProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.Select;
@@ -77,17 +76,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.dbcp2.PoolingDataSource;
-import org.apache.derby.drda.NetworkServerControl;
-import org.apache.derby.jdbc.ClientDataSource;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.LocalDate;
 import org.joda.time.chrono.ISOChronology;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -100,16 +94,13 @@ import org.slf4j.LoggerFactory;
 /** Test on the JdbcIO. */
 @RunWith(JUnit4.class)
 public class JdbcIOTest implements Serializable {
-
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
+  private static final DataSourceConfiguration DATA_SOURCE_CONFIGURATION =
+      DataSourceConfiguration.create(
+          "org.apache.derby.jdbc.EmbeddedDriver", "jdbc:derby:memory:testDB;create=true");
+  private static final DataSource DATA_SOURCE = DATA_SOURCE_CONFIGURATION.buildDatasource();
   private static final int EXPECTED_ROW_COUNT = 1000;
-  private static final String BACKOFF_TABLE = "UT_WRITE_BACKOFF";
-
-  private static NetworkServerControl derbyServer;
-  private static ClientDataSource dataSource;
-
-  private static int port;
-  private static String readTableName;
+  private static final String READ_TABLE_NAME = DatabaseTestHelper.getTestTableName("UT_READ");
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -119,92 +110,31 @@ public class JdbcIOTest implements Serializable {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    port = NetworkTestHelper.getAvailableLocalPort();
-    LOG.info("Starting Derby database on {}", port);
-
     // by default, derby uses a lock timeout of 60 seconds. In order to speed up the test
     // and detect the lock faster, we decrease this timeout
     System.setProperty("derby.locks.waitTimeout", "2");
-    System.setProperty("derby.stream.error.file", "target/derby.log");
+    System.setProperty("derby.stream.error.file", "build/derby.log");
 
-    derbyServer = new NetworkServerControl(InetAddress.getByName("localhost"), port);
-    StringWriter out = new StringWriter();
-    derbyServer.start(new PrintWriter(out));
-    boolean started = false;
-    int count = 0;
-    // Use two different methods to detect when server is started:
-    // 1) Check the server stdout for the "started" string
-    // 2) wait up to 15 seconds for the derby server to start based on a ping
-    // on faster machines and networks, this may return very quick, but on slower
-    // networks where the DNS lookups are slow, this may take a little time
-    while (!started && count < 30) {
-      if (out.toString().contains("started")) {
-        started = true;
-      } else {
-        count++;
-        Thread.sleep(500);
-        try {
-          derbyServer.ping();
-          started = true;
-        } catch (Throwable t) {
-          // ignore, still trying to start
-        }
-      }
-    }
-
-    dataSource = new ClientDataSource();
-    dataSource.setCreateDatabase("create");
-    dataSource.setDatabaseName("target/beam");
-    dataSource.setServerName("localhost");
-    dataSource.setPortNumber(port);
-
-    readTableName = DatabaseTestHelper.getTestTableName("UT_READ");
-
-    DatabaseTestHelper.createTable(dataSource, readTableName);
-    addInitialData(dataSource, readTableName);
-  }
-
-  @AfterClass
-  public static void afterClass() throws Exception {
-    try {
-      DatabaseTestHelper.deleteTable(dataSource, readTableName);
-    } finally {
-      if (derbyServer != null) {
-        derbyServer.shutdown();
-      }
-    }
-  }
-
-  @Test
-  public void testDataSourceConfigurationDataSource() throws Exception {
-    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(dataSource);
-    try (Connection conn = config.buildDatasource().getConnection()) {
-      assertTrue(conn.isValid(0));
-    }
+    DatabaseTestHelper.createTable(DATA_SOURCE, READ_TABLE_NAME);
+    addInitialData(DATA_SOURCE, READ_TABLE_NAME);
   }
 
   @Test
   public void testDataSourceConfigurationDataSourceWithoutPool() {
-    assertTrue(
-        JdbcIO.DataSourceConfiguration.create(dataSource).buildDatasource()
-            instanceof ClientDataSource);
+    assertThat(
+        DATA_SOURCE_CONFIGURATION.buildDatasource(), not(instanceOf(PoolingDataSource.class)));
   }
 
   @Test
   public void testDataSourceConfigurationDataSourceWithPool() {
     assertTrue(
-        JdbcIO.PoolableDataSourceProvider.of(JdbcIO.DataSourceConfiguration.create(dataSource))
-                .apply(null)
+        JdbcIO.PoolableDataSourceProvider.of(DATA_SOURCE_CONFIGURATION).apply(null)
             instanceof PoolingDataSource);
   }
 
   @Test
   public void testDataSourceConfigurationDriverAndUrl() throws Exception {
-    JdbcIO.DataSourceConfiguration config =
-        JdbcIO.DataSourceConfiguration.create(
-            "org.apache.derby.jdbc.ClientDriver",
-            "jdbc:derby://localhost:" + port + "/target/beam");
-    try (Connection conn = config.buildDatasource().getConnection()) {
+    try (Connection conn = DATA_SOURCE_CONFIGURATION.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
   }
@@ -214,11 +144,7 @@ public class JdbcIOTest implements Serializable {
     String username = "sa";
     String password = "sa";
     JdbcIO.DataSourceConfiguration config =
-        JdbcIO.DataSourceConfiguration.create(
-                "org.apache.derby.jdbc.ClientDriver",
-                "jdbc:derby://localhost:" + port + "/target/beam")
-            .withUsername(username)
-            .withPassword(password);
+        DATA_SOURCE_CONFIGURATION.withUsername(username).withPassword(password);
     try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
@@ -229,11 +155,7 @@ public class JdbcIOTest implements Serializable {
     String username = "sa";
     String password = null;
     JdbcIO.DataSourceConfiguration config =
-        JdbcIO.DataSourceConfiguration.create(
-                "org.apache.derby.jdbc.ClientDriver",
-                "jdbc:derby://localhost:" + port + "/target/beam")
-            .withUsername(username)
-            .withPassword(password);
+        DATA_SOURCE_CONFIGURATION.withUsername(username).withPassword(password);
     try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
@@ -244,11 +166,7 @@ public class JdbcIOTest implements Serializable {
     String username = null;
     String password = null;
     JdbcIO.DataSourceConfiguration config =
-        JdbcIO.DataSourceConfiguration.create(
-                "org.apache.derby.jdbc.ClientDriver",
-                "jdbc:derby://localhost:" + port + "/target/beam")
-            .withUsername(username)
-            .withPassword(password);
+        DATA_SOURCE_CONFIGURATION.withUsername(username).withPassword(password);
     try (Connection conn = config.buildDatasource().getConnection()) {
       assertTrue(conn.isValid(0));
     }
@@ -259,9 +177,7 @@ public class JdbcIOTest implements Serializable {
     String username = "sa";
     String password = "sa";
     JdbcIO.DataSourceConfiguration config =
-        JdbcIO.DataSourceConfiguration.create(
-                "org.apache.derby.jdbc.ClientDriver",
-                "jdbc:derby://localhost:" + port + "/target/beam")
+        DATA_SOURCE_CONFIGURATION
             .withUsername(username)
             .withPassword(password)
             .withConnectionInitSqls(ImmutableList.of("SET innodb_lock_wait_timeout = 5"));
@@ -295,8 +211,8 @@ public class JdbcIOTest implements Serializable {
         pipeline.apply(
             JdbcIO.<TestRow>read()
                 .withFetchSize(12)
-                .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-                .withQuery("select name,id from " + readTableName)
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withQuery("select name,id from " + READ_TABLE_NAME)
                 .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
                 .withCoder(SerializableCoder.of(TestRow.class)));
 
@@ -314,8 +230,8 @@ public class JdbcIOTest implements Serializable {
     PCollection<TestRow> rows =
         pipeline.apply(
             JdbcIO.<TestRow>read()
-                .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-                .withQuery(String.format("select name,id from %s where name = ?", readTableName))
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withQuery(String.format("select name,id from %s where name = ?", READ_TABLE_NAME))
                 .withStatementPreparator(
                     preparedStatement -> preparedStatement.setString(1, TestRow.getNameForSeed(1)))
                 .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
@@ -334,8 +250,8 @@ public class JdbcIOTest implements Serializable {
     PCollection<Row> rows =
         pipeline.apply(
             JdbcIO.readRows()
-                .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-                .withQuery(String.format("select name,id from %s where name = ?", readTableName))
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withQuery(String.format("select name,id from %s where name = ?", READ_TABLE_NAME))
                 .withStatementPreparator(
                     preparedStatement ->
                         preparedStatement.setString(1, TestRow.getNameForSeed(1))));
@@ -358,7 +274,7 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testReadRowsWithoutStatementPreparator() {
-    SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> dataSource;
+    SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> DATA_SOURCE;
     String name = TestRow.getNameForSeed(1);
     PCollection<Row> rows =
         pipeline.apply(
@@ -366,7 +282,7 @@ public class JdbcIOTest implements Serializable {
                 .withDataSourceProviderFn(dataSourceProvider)
                 .withQuery(
                     String.format(
-                        "select name,id from %s where name = '%s'", readTableName, name)));
+                        "select name,id from %s where name = '%s'", READ_TABLE_NAME, name)));
 
     Schema expectedSchema =
         Schema.of(
@@ -386,7 +302,7 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testReadWithSchema() {
-    SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> dataSource;
+    SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> DATA_SOURCE;
     JdbcIO.RowMapper<RowWithSchema> rowMapper =
         rs -> new RowWithSchema(rs.getString("NAME"), rs.getInt("ID"));
     pipeline.getSchemaRegistry().registerJavaBean(RowWithSchema.class);
@@ -395,7 +311,7 @@ public class JdbcIOTest implements Serializable {
         pipeline.apply(
             JdbcIO.<RowWithSchema>read()
                 .withDataSourceProviderFn(dataSourceProvider)
-                .withQuery(String.format("select name,id from %s where name = ?", readTableName))
+                .withQuery(String.format("select name,id from %s where name = ?", READ_TABLE_NAME))
                 .withRowMapper(rowMapper)
                 .withCoder(SerializableCoder.of(RowWithSchema.class))
                 .withStatementPreparator(
@@ -419,32 +335,28 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testWrite() throws Exception {
-    final long rowsToAdd = 1000L;
-
     String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
-    DatabaseTestHelper.createTable(dataSource, tableName);
+    DatabaseTestHelper.createTable(DATA_SOURCE, tableName);
     try {
-      ArrayList<KV<Integer, String>> data = getDataToWrite(rowsToAdd);
+      ArrayList<KV<Integer, String>> data = getDataToWrite(EXPECTED_ROW_COUNT);
       pipeline.apply(Create.of(data)).apply(getJdbcWrite(tableName));
 
       pipeline.run();
 
       assertRowCount(tableName, EXPECTED_ROW_COUNT);
     } finally {
-      DatabaseTestHelper.deleteTable(dataSource, tableName);
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
     }
   }
 
   @Test
   public void testWriteWithResultsAndWaitOn() throws Exception {
-    final long rowsToAdd = 1000L;
-
     String firstTableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
     String secondTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_AFTER_WAIT");
-    DatabaseTestHelper.createTable(dataSource, firstTableName);
-    DatabaseTestHelper.createTable(dataSource, secondTableName);
+    DatabaseTestHelper.createTable(DATA_SOURCE, firstTableName);
+    DatabaseTestHelper.createTable(DATA_SOURCE, secondTableName);
     try {
-      ArrayList<KV<Integer, String>> data = getDataToWrite(rowsToAdd);
+      ArrayList<KV<Integer, String>> data = getDataToWrite(EXPECTED_ROW_COUNT);
 
       PCollection<KV<Integer, String>> dataCollection = pipeline.apply(Create.of(data));
       PCollection<Void> rowsWritten =
@@ -456,16 +368,13 @@ public class JdbcIOTest implements Serializable {
       assertRowCount(firstTableName, EXPECTED_ROW_COUNT);
       assertRowCount(secondTableName, EXPECTED_ROW_COUNT);
     } finally {
-      DatabaseTestHelper.deleteTable(dataSource, firstTableName);
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, firstTableName);
     }
   }
 
   private static JdbcIO.Write<KV<Integer, String>> getJdbcWrite(String tableName) {
     return JdbcIO.<KV<Integer, String>>write()
-        .withDataSourceConfiguration(
-            JdbcIO.DataSourceConfiguration.create(
-                "org.apache.derby.jdbc.ClientDriver",
-                "jdbc:derby://localhost:" + port + "/target/beam"))
+        .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
         .withStatement(String.format("insert into %s values(?, ?)", tableName))
         .withBatchSize(10L)
         .withPreparedStatementSetter(
@@ -485,12 +394,12 @@ public class JdbcIOTest implements Serializable {
   }
 
   private static void assertRowCount(String tableName, int expectedRowCount) throws SQLException {
-    try (Connection connection = dataSource.getConnection()) {
+    try (Connection connection = DATA_SOURCE.getConnection()) {
       try (Statement statement = connection.createStatement()) {
         try (ResultSet resultSet = statement.executeQuery("select count(*) from " + tableName)) {
           resultSet.next();
           int count = resultSet.getInt(1);
-          Assert.assertEquals(expectedRowCount, count);
+          assertEquals(expectedRowCount, count);
         }
       }
     }
@@ -499,10 +408,10 @@ public class JdbcIOTest implements Serializable {
   @Test
   public void testWriteWithBackoff() throws Exception {
     String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE_BACKOFF");
-    DatabaseTestHelper.createTable(dataSource, tableName);
+    DatabaseTestHelper.createTable(DATA_SOURCE, tableName);
 
     // lock table
-    Connection connection = dataSource.getConnection();
+    Connection connection = DATA_SOURCE.getConnection();
     Statement lockStatement = connection.createStatement();
     lockStatement.execute("ALTER TABLE " + tableName + " LOCKSIZE TABLE");
     lockStatement.execute("LOCK TABLE " + tableName + " IN EXCLUSIVE MODE");
@@ -520,15 +429,12 @@ public class JdbcIOTest implements Serializable {
         .apply(Create.of(Collections.singletonList(KV.of(1, "TEST"))))
         .apply(
             JdbcIO.<KV<Integer, String>>write()
-                .withDataSourceConfiguration(
-                    JdbcIO.DataSourceConfiguration.create(
-                        "org.apache.derby.jdbc.ClientDriver",
-                        "jdbc:derby://localhost:" + port + "/target/beam"))
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
                 .withStatement(String.format("insert into %s values(?, ?)", tableName))
                 .withRetryStrategy(
                     (JdbcIO.RetryStrategy)
                         e -> {
-                          return "XJ208"
+                          return "40XL1"
                               .equals(e.getSQLState()); // we fake a deadlock with a lock here
                         })
                 .withPreparedStatementSetter(
@@ -556,15 +462,6 @@ public class JdbcIOTest implements Serializable {
     expectedLogs.verifyWarn("Deadlock detected, retrying");
 
     assertRowCount(tableName, 2);
-  }
-
-  @After
-  public void tearDown() {
-    try {
-      DatabaseTestHelper.deleteTable(dataSource, BACKOFF_TABLE);
-    } catch (Exception e) {
-      // nothing to do
-    }
   }
 
   @Test
@@ -604,7 +501,7 @@ public class JdbcIOTest implements Serializable {
     stmt.append("column_timestamp     TIMESTAMP,"); // Timestamp
     stmt.append("column_short         SMALLINT"); // short
     stmt.append(" )");
-    DatabaseTestHelper.createTableWithStatement(dataSource, stmt.toString());
+    DatabaseTestHelper.createTableWithStatement(DATA_SOURCE, stmt.toString());
     try {
       ArrayList<Row> data = getRowsToWrite(rowsToAdd, schema);
       pipeline
@@ -612,45 +509,39 @@ public class JdbcIOTest implements Serializable {
           .setRowSchema(schema)
           .apply(
               JdbcIO.<Row>write()
-                  .withDataSourceConfiguration(
-                      JdbcIO.DataSourceConfiguration.create(
-                          "org.apache.derby.jdbc.ClientDriver",
-                          "jdbc:derby://localhost:" + port + "/target/beam"))
+                  .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
                   .withBatchSize(10L)
                   .withTable(tableName));
       pipeline.run();
       assertRowCount(tableName, rowsToAdd);
     } finally {
-      DatabaseTestHelper.deleteTable(dataSource, tableName);
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
     }
   }
 
   @Test
   public void testWriteWithoutPreparedStatementWithReadRows() throws Exception {
-    SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> dataSource;
+    SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> DATA_SOURCE;
     PCollection<Row> rows =
         pipeline.apply(
             JdbcIO.readRows()
                 .withDataSourceProviderFn(dataSourceProvider)
-                .withQuery(String.format("select name,id from %s where name = ?", readTableName))
+                .withQuery(String.format("select name,id from %s where name = ?", READ_TABLE_NAME))
                 .withStatementPreparator(
                     preparedStatement ->
                         preparedStatement.setString(1, TestRow.getNameForSeed(1))));
 
     String writeTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_PS_WITH_READ_ROWS");
-    DatabaseTestHelper.createTableForRowWithSchema(dataSource, writeTableName);
+    DatabaseTestHelper.createTableForRowWithSchema(DATA_SOURCE, writeTableName);
     try {
       rows.apply(
           JdbcIO.<Row>write()
-              .withDataSourceConfiguration(
-                  JdbcIO.DataSourceConfiguration.create(
-                      "org.apache.derby.jdbc.ClientDriver",
-                      "jdbc:derby://localhost:" + port + "/target/beam"))
+              .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
               .withBatchSize(10L)
               .withTable(writeTableName));
       pipeline.run();
     } finally {
-      DatabaseTestHelper.deleteTable(dataSource, writeTableName);
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, writeTableName);
     }
   }
 
@@ -670,7 +561,7 @@ public class JdbcIOTest implements Serializable {
     stmt.append("column_boolean       BOOLEAN,");
     stmt.append("column_int           INTEGER NOT NULL");
     stmt.append(" )");
-    DatabaseTestHelper.createTableWithStatement(dataSource, stmt.toString());
+    DatabaseTestHelper.createTableWithStatement(DATA_SOURCE, stmt.toString());
     try {
       ArrayList<Row> data = getRowsToWrite(rowsToAdd, schema);
       pipeline
@@ -678,15 +569,12 @@ public class JdbcIOTest implements Serializable {
           .setRowSchema(schema)
           .apply(
               JdbcIO.<Row>write()
-                  .withDataSourceConfiguration(
-                      JdbcIO.DataSourceConfiguration.create(
-                          "org.apache.derby.jdbc.ClientDriver",
-                          "jdbc:derby://localhost:" + port + "/target/beam"))
+                  .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
                   .withBatchSize(10L)
                   .withTable(tableName));
       pipeline.run();
     } finally {
-      DatabaseTestHelper.deleteTable(dataSource, tableName);
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
       thrown.expect(RuntimeException.class);
     }
   }
@@ -696,7 +584,7 @@ public class JdbcIOTest implements Serializable {
     final int rowsToAdd = 10;
 
     String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE_PS_NON_ROW");
-    DatabaseTestHelper.createTableForRowWithSchema(dataSource, tableName);
+    DatabaseTestHelper.createTableForRowWithSchema(DATA_SOURCE, tableName);
     try {
       List<RowWithSchema> data = getRowsWithSchemaToWrite(rowsToAdd);
 
@@ -704,16 +592,13 @@ public class JdbcIOTest implements Serializable {
           .apply(Create.of(data))
           .apply(
               JdbcIO.<RowWithSchema>write()
-                  .withDataSourceConfiguration(
-                      JdbcIO.DataSourceConfiguration.create(
-                          "org.apache.derby.jdbc.ClientDriver",
-                          "jdbc:derby://localhost:" + port + "/target/beam"))
+                  .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
                   .withBatchSize(10L)
                   .withTable(tableName));
       pipeline.run();
       assertRowCount(tableName, rowsToAdd);
     } finally {
-      DatabaseTestHelper.deleteTable(dataSource, tableName);
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
     }
   }
 
@@ -791,7 +676,6 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testGetPreparedStatementSetCallerForLogicalTypes() throws Exception {
-
     Schema schema =
         Schema.builder()
             .addField("logical_date_col", LogicalTypes.JDBC_DATE_TYPE)
@@ -913,10 +797,7 @@ public class JdbcIOTest implements Serializable {
         .apply(Create.empty(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of())))
         .apply(
             JdbcIO.<KV<Integer, String>>write()
-                .withDataSourceConfiguration(
-                    JdbcIO.DataSourceConfiguration.create(
-                        "org.apache.derby.jdbc.ClientDriver",
-                        "jdbc:derby://localhost:" + port + "/target/beam"))
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
                 .withStatement("insert into BEAM values(?, ?)")
                 .withPreparedStatementSetter(
                     (element, statement) -> {
@@ -930,10 +811,7 @@ public class JdbcIOTest implements Serializable {
   @Test
   public void testSerializationAndCachingOfPoolingDataSourceProvider() {
     SerializableFunction<Void, DataSource> provider =
-        PoolableDataSourceProvider.of(
-            JdbcIO.DataSourceConfiguration.create(
-                "org.apache.derby.jdbc.ClientDriver",
-                "jdbc:derby://localhost:" + port + "/target/beam"));
+        PoolableDataSourceProvider.of(DATA_SOURCE_CONFIGURATION);
     SerializableFunction<Void, DataSource> deserializedProvider =
         SerializableUtils.ensureSerializable(provider);
 
@@ -945,12 +823,11 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testCustomFluentBackOffConfiguration() throws Exception {
-
     String tableName = DatabaseTestHelper.getTestTableName("UT_FLUENT_BACKOFF");
-    DatabaseTestHelper.createTable(dataSource, tableName);
+    DatabaseTestHelper.createTable(DATA_SOURCE, tableName);
 
     // lock table
-    Connection connection = dataSource.getConnection();
+    Connection connection = DATA_SOURCE.getConnection();
     Statement lockStatement = connection.createStatement();
     lockStatement.execute("ALTER TABLE " + tableName + " LOCKSIZE TABLE");
     lockStatement.execute("LOCK TABLE " + tableName + " IN EXCLUSIVE MODE");
@@ -968,15 +845,12 @@ public class JdbcIOTest implements Serializable {
         .apply(Create.of(Collections.singletonList(KV.of(1, "TEST"))))
         .apply(
             JdbcIO.<KV<Integer, String>>write()
-                .withDataSourceConfiguration(
-                    JdbcIO.DataSourceConfiguration.create(
-                        "org.apache.derby.jdbc.ClientDriver",
-                        "jdbc:derby://localhost:" + port + "/target/beam"))
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
                 .withStatement(String.format("insert into %s values(?, ?)", tableName))
                 .withRetryStrategy(
                     (JdbcIO.RetryStrategy)
                         e -> {
-                          return "XJ208"
+                          return "40XL1"
                               .equals(e.getSQLState()); // we fake a deadlock with a lock here
                         })
                 .withRetryConfiguration(
@@ -1026,7 +900,8 @@ public class JdbcIOTest implements Serializable {
 
       assertThat(
           e.getMessage(),
-          containsString("java.sql.BatchUpdateException: Non-atomic batch failure."));
+          containsString(
+              "java.sql.BatchUpdateException: A lock could not be obtained within the time requested"));
     }
 
     // since, we got an error we will only have one row and the second one wouldn't go through.
