@@ -407,12 +407,12 @@ class IOTypeHints(NamedTuple(
       ):
     # type: (...) -> IOTypeHints
 
-    if not has_my_type() or len(my_type[0]) != 1:
+    if not has_my_type() or not my_type or len(my_type[0]) != 1:
       return self
 
     my_type = my_type[0][0]
 
-    if isinstance(my_type, typehints.AnyTypeConstraint):
+    if isinstance(my_type, typehints.AnyTypeConstraint) or my_type is None:
       return self
 
     valid_classes = ['apache_beam.pvalue.PCollection'] + my_valid_classes
@@ -422,10 +422,11 @@ class IOTypeHints(NamedTuple(
 
     kwarg_dict = {}
 
-    if not hasattr(my_type, '__args__') or len(
-        my_type.__args__) == 0:  # e.g. PCollection
+    if not hasattr(my_type, '__args__') or len(my_type.__args__) == 0:
+      # e.g. PCollection
       kwarg_dict[my_key] = ((typehints.Any, ), {})
-    else:  # e.g. PCollection[type]
+    else:
+      # e.g. PCollection[type]
       kwarg_dict[my_key] = ((my_type.__args__[0], ), {})
     return self._replace(
         origin=self._make_origin([self], tb=False, msg=[source_str]),
