@@ -197,8 +197,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     ]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=hc.all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink')
+        on_success_matcher=hc.all_of(*pipeline_verifiers))
 
     with beam.Pipeline(argv=args) as p:
       # pylint: disable=expression-not-assigned

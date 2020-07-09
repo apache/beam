@@ -250,16 +250,13 @@ class WriteToBigQueryPTransformOverride(PTransformOverride):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam import io
-    from apache_beam.runners.dataflow.internal import apiclient
-
     transform = applied_ptransform.transform
     if (not isinstance(transform, io.WriteToBigQuery) or
         getattr(transform, 'override', False)):
       return False
 
-    use_fnapi = apiclient._use_fnapi(self.options)
     experiments = self.options.view_as(DebugOptions).experiments or []
-    if (use_fnapi or 'use_beam_bq_sink' in experiments):
+    if 'use_dataflow_bq_sink' not in experiments:
       return False
 
     if transform.schema == io.gcp.bigquery.SCHEMA_AUTODETECT:
