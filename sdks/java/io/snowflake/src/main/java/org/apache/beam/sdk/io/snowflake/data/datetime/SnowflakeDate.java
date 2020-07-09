@@ -15,18 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.snowflake.enums;
+package org.apache.beam.sdk.io.snowflake.data.datetime;
 
-public enum CloudProvider {
-  GCS("gs://");
+import org.apache.beam.sdk.io.snowflake.data.SnowflakeDataType;
 
-  private final String prefix;
+public class SnowflakeDate implements SnowflakeDataType {
+  public SnowflakeDate() {}
 
-  private CloudProvider(String prefix) {
-    this.prefix = prefix;
+  public static SnowflakeDate of() {
+    return new SnowflakeDate();
   }
 
-  public String getPrefix() {
-    return prefix;
+  @Override
+  public String sql() {
+    return "DATE";
   }
 }
