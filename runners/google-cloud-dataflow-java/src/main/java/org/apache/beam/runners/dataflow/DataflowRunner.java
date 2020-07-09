@@ -258,7 +258,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
     if (missing.size() > 0) {
       throw new IllegalArgumentException(
-          "Missing required values: " + Joiner.on(',').join(missing));
+          "Missing required pipeline options: " + Joiner.on(',').join(missing));
     }
 
     validateWorkerSettings(PipelineOptionsValidator.validate(GcpOptions.class, options));
