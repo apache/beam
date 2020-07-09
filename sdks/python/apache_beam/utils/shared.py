@@ -22,7 +22,7 @@ threads within the same process. Shared is a serializable object that can be
 shared by all threads of each worker process, which will be initialized as
 necessary by calls to acquire.
 
-Example usage:
+Example usage::
 
 To share a very large list across all threads of each worker in a DoFn:
 
@@ -43,9 +43,10 @@ To share a very large list across all threads of each worker in a DoFn:
   (p | beam.Create([2, 4, 6, 8])
      | beam.ParDo(GetNthStringFn(shared_handle)))
 
+
 Real-world uses will typically involve using a side-input to a DoFn to
 initialize the shared resource in a way that can't be done with just its
-constructor:
+constructor::
 
   class RainbowTableLookupFn(beam.DoFn):
     def __init__(self, shared_handle):
