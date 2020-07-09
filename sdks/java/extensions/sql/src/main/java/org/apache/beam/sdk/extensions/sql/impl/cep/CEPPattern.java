@@ -4,14 +4,10 @@ import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexPatternFieldRef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.List;
 
 // a pattern class that stores the definition of a single pattern
@@ -41,99 +37,94 @@ public class CEPPattern implements Serializable {
             return;
         }
 
-        // transform a rexnode into a pattern condition class
-        SqlOperator call = patternDef.getOperator();
-        List<RexNode> operands = patternDef.getOperands();
-        RexCall opr0 = (RexCall) operands.get(0);
-        RexLiteral opr1 = (RexLiteral) operands.get(1);
+        CEPCall cepCall = CEPCall.of(patternDef);
+        CEPOperator cepOperator = cepCall.getOperator();
+        List<CEPOperation> cepOperands = cepCall.getOperands();
+        CEPCall cepOpr0 = (CEPCall) cepOperands.get(0);
+        CEPLiteral cepOpr1 = (CEPLiteral) cepOperands.get(1);
 
-        switch(call.getKind()) {
+        switch(cepOperator.getCepKind()) {
             case EQUALS:
                 this.patternCondition = new PatternCondition(this) {
-
-                    @Override public boolean eval(Row rowEle) {
-                    return evalOperation(opr0, rowEle)
-                        .compareTo(opr1.getValue()) == 0;
+                    @Override
+                    public boolean eval(Row eleRow) {
+                        return evalOperation(cepOpr0, cepOpr1, eleRow) == 0;
                     }
                 };
                 break;
             case GREATER_THAN:
                 this.patternCondition = new PatternCondition(this) {
-
-                    @Override public boolean eval(Row rowEle) {
-                        return evalOperation(opr0, rowEle)
-                                .compareTo(opr1.getValue()) > 0;
+                    @Override
+                    public boolean eval(Row eleRow) {
+                        return evalOperation(cepOpr0, cepOpr1, eleRow) > 0;
                     }
                 };
                 break;
             case GREATER_THAN_OR_EQUAL:
                 this.patternCondition = new PatternCondition(this) {
-
-                    @Override public boolean eval(Row rowEle) {
-                        return evalOperation(opr0, rowEle)
-                                .compareTo(opr1.getValue()) >= 0;
+                    @Override
+                    public boolean eval(Row eleRow) {
+                        return evalOperation(cepOpr0, cepOpr1, eleRow) >= 0;
                     }
                 };
                 break;
             case LESS_THAN:
                 this.patternCondition = new PatternCondition(this) {
-
-                    @Override public boolean eval(Row rowEle) {
-                        return evalOperation(opr0, rowEle)
-                                .compareTo(opr1.getValue()) < 0;
+                    @Override
+                    public boolean eval(Row eleRow) {
+                        return evalOperation(cepOpr0, cepOpr1, eleRow) < 0;
                     }
                 };
                 break;
             case LESS_THAN_OR_EQUAL:
                 this.patternCondition = new PatternCondition(this) {
-
-                    @Override public boolean eval(Row rowEle) {
-                        return evalOperation(opr0, rowEle)
-                                .compareTo(opr1.getValue()) <= 0;
+                    @Override
+                    public boolean eval(Row eleRow) {
+                        return evalOperation(cepOpr0, cepOpr1, eleRow) <= 0;
                     }
                 };
                 break;
             default:
-                throw new SqlConversionException(String.format("Comparison operator not supported: %s",
-                        call.kind.toString()));
+                throw new SqlConversionException("Comparison operator not recognized.");
         }
+
     }
 
         // Last(*.$1, 1) || NEXT(*.$1, 0)
-        private Comparable evalOperation(RexCall operation, Row rowEle) {
-            SqlOperator call = operation.getOperator();
-            List<RexNode> operands = operation.getOperands();
+        private int evalOperation(CEPCall operation, CEPLiteral lit, Row rowEle) {
+            CEPOperator call = operation.getOperator();
+            List<CEPOperation> operands = operation.getOperands();
 
-            if(call.getKind() == SqlKind.LAST) {// support only simple match for now: LAST(*.$, 0)
-                RexNode opr0 = operands.get(0);
-                RexNode opr1 = operands.get(1);
-                if(opr0.getClass() == RexPatternFieldRef.class
-                        && RexLiteral.intValue(opr1) == 0) {
-                    int fIndex = ((RexPatternFieldRef) opr0).getIndex();
+            if(call.getCepKind() == CEPKind.LAST) {// support only simple match for now: LAST(*.$, 0)
+                CEPOperation opr0 = operands.get(0);
+                CEPLiteral opr1 = (CEPLiteral) operands.get(1);
+                if(opr0.getClass() == CEPFieldRef.class
+                        && opr1.getDecimal().equals(BigDecimal.ZERO)) {
+                    int fIndex = ((CEPFieldRef) opr0).getIndex();
                     Schema.Field fd = mySchema.getField(fIndex);
                     Schema.FieldType dtype = fd.getType();
 
                     switch (dtype.getTypeName()) {
                         case BYTE:
-                            return rowEle.getByte(fIndex);
+                            return rowEle.getByte(fIndex).compareTo(lit.getByte());
                         case INT16:
-                            return rowEle.getInt16(fIndex);
+                            return rowEle.getInt16(fIndex).compareTo(lit.getInt16());
                         case INT32:
-                            return rowEle.getInt32(fIndex);
+                            return rowEle.getInt32(fIndex).compareTo(lit.getInt32());
                         case INT64:
-                            return rowEle.getInt64(fIndex);
+                            return rowEle.getInt64(fIndex).compareTo(lit.getInt64());
                         case DECIMAL:
-                            return rowEle.getDecimal(fIndex);
+                            return rowEle.getDecimal(fIndex).compareTo(lit.getDecimal());
                         case FLOAT:
-                            return rowEle.getFloat(fIndex);
+                            return rowEle.getFloat(fIndex).compareTo(lit.getFloat());
                         case DOUBLE:
-                            return rowEle.getDouble(fIndex);
+                            return rowEle.getDouble(fIndex).compareTo(lit.getDouble());
                         case STRING:
-                            return rowEle.getString(fIndex);
+                            return rowEle.getString(fIndex).compareTo(lit.getString());
                         case DATETIME:
-                            return rowEle.getDateTime(fIndex);
+                            return rowEle.getDateTime(fIndex).compareTo(lit.getDateTime());
                         case BOOLEAN:
-                            return rowEle.getBoolean(fIndex);
+                            return rowEle.getBoolean(fIndex).compareTo(lit.getBoolean());
                         default:
                             throw new SqlConversionException("specified column not comparable");
                     }
