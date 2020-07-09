@@ -39,7 +39,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 public class ArtifactRetrievalService
     extends ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceImplBase implements FnService {
 
-  public static final int DEFAULT_BUFFER_SIZE = 4 << 20; // 4 MB
+  public static final int DEFAULT_BUFFER_SIZE = 2 << 20; // 2 MB
 
   public static final String FILE_ARTIFACT_URN = "beam:artifact:type:file:v1";
   public static final String URL_ARTIFACT_URN = "beam:artifact:type:url:v1";
