@@ -28,7 +28,6 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
-import org.apache.beam.sdk.io.snowflake.enums.CloudProvider;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -39,6 +38,7 @@ import org.slf4j.LoggerFactory;
 public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(SnowflakeServiceImpl.class);
   private static final String SNOWFLAKE_GCS_PREFIX = "gcs://";
+  private static final String GCS_PREFIX = "gs://";
 
   @Override
   public void write(SnowflakeServiceConfig config) throws Exception {
@@ -270,8 +270,8 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
 
   // Snowflake is expecting "gcs://" prefix for GCS and Beam "gs://"
   private String getProperBucketDir(String bucketDir) {
-    if (bucketDir.contains(CloudProvider.GCS.getPrefix())) {
-      return bucketDir.replace(CloudProvider.GCS.getPrefix(), SNOWFLAKE_GCS_PREFIX);
+    if (bucketDir.contains(GCS_PREFIX)) {
+      return bucketDir.replace(GCS_PREFIX, SNOWFLAKE_GCS_PREFIX);
     }
     return bucketDir;
   }
