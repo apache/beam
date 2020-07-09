@@ -130,11 +130,6 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.7
-    - name: Install Visual C++ for Python 2.7 on Windows
-      if: startsWith(matrix.os_python.os, 'windows')
-      run: |
-        choco install mingw -f -y
-        choco install vcpython27 -f -y
     - name: Install cibuildwheel
       run: pip install cibuildwheel==1.4.2
     - name: Build wheel
