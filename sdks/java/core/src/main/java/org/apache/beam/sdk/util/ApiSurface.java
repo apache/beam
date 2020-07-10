@@ -516,6 +516,7 @@ public class ApiSurface {
   private boolean pruned(Class<?> clazz) {
     return clazz.isPrimitive()
         || clazz.isArray()
+        || clazz.getCanonicalName().equals("jdk.internal.HotSpotIntrinsicCandidate")
         || getPrunedPattern().matcher(clazz.getName()).matches();
   }
 
