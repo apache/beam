@@ -27,6 +27,7 @@ import com.google.auto.value.AutoValue;
 import java.awt.*;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -38,6 +39,7 @@ import javafx.util.Pair;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.specific.SpecificData;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -55,6 +57,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.grpc.v1p26p0.io.netty.util.internal.shaded.org.jctools.util.RangeUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.parquet.HadoopReadOptions;
@@ -62,6 +65,7 @@ import org.apache.parquet.ParquetReadOptions;
 import org.apache.parquet.Preconditions;
 import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.avro.AvroParquetWriter;
+import org.apache.parquet.avro.AvroReadSupport;
 import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.hadoop.ParquetFileReader;
@@ -257,23 +261,42 @@ public class ParquetIO {
     public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
       return input
-          .apply(ParDo.of(new ReadFn(getAvroDataModel())))
+          .apply(ParDo.of(new SplittableReadFn(getAvroDataModel())))
           .setCoder(AvroCoder.of(getSchema()));
     }
+    @DoFn.BoundedPerElement
     static class SplittableReadFn extends DoFn<FileIO.ReadableFile,GenericRecord>{
       private Class<? extends GenericData> modelClass;
 
       SplittableReadFn(GenericData model) {
         this.modelClass = model != null ? model.getClass() : null;
       }
-      private ParquetFileReader getFileReader(FileIO.ReadableFile file) throws IOException {
+      private ReadSupport getReadSupport(Configuration conf) throws Exception {
+        GenericData model = null;
+        boolean isReflect=true;
+        if(modelClass!=null){
+          model=(GenericData) modelClass.getMethod("get").invoke(null);
+        }
+        if (model.getClass() != GenericData.class &&
+                model.getClass() != SpecificData.class) {
+          isReflect = true;
+        }
+        if (isReflect) {
+          conf.setBoolean(AvroReadSupport.AVRO_COMPATIBILITY, false);
+        } else {
+          conf.setBoolean(AvroReadSupport.AVRO_COMPATIBILITY, true);
+        }
+        return new AvroReadSupport(model);
+
+      }
+      private ParquetFileReader getFileReader(FileIO.ReadableFile file) throws Exception {
         if (!file.getMetadata().isReadSeekEfficient()) {
           ResourceId filename = file.getMetadata().resourceId();
           throw new RuntimeException(String.format("File has to be seekable: %s", filename));
         }
         SeekableByteChannel seekableByteChannel = file.openSeekable();
-        ReadSupport readSupport=null;
         Configuration conf=new Configuration();
+        getReadSupport(conf);
         InputFile parquetInputFile=new BeamParquetInputFile(seekableByteChannel);
         ParquetReadOptions options= HadoopReadOptions.builder(conf).build();
         ParquetFileReader fileReader = ParquetFileReader.open(parquetInputFile, options);
@@ -285,7 +308,7 @@ public class ParquetIO {
         FileIO.ReadableFile file = processContext.element();
         ParquetFileReader fileReader=getFileReader(file);
         Configuration conf=new Configuration();
-        ReadSupport readSupport=null;
+        ReadSupport readSupport=getReadSupport(conf);
         FileMetaData parquetFileMetadata=fileReader.getFooter().getFileMetaData();
         MessageType fileSchema = parquetFileMetadata.getSchema();
         Map<String, String> fileMetadata = parquetFileMetadata.getKeyValueMetaData();
@@ -326,50 +349,57 @@ public class ParquetIO {
         return Collections.unmodifiableMap(setMultiMap);
       }
       @GetInitialRestriction
-      public Pair<Integer,Integer> GetInitialRestriction(FileIO.ReadableFile file) throws IOException {
+      public OffsetRange GetInitialRestriction(FileIO.ReadableFile file) throws Exception {
         ParquetFileReader fileReader=getFileReader(file);
-        return new Pair(0,fileReader.getRowGroups().size());
+
+        return new OffsetRange(0,fileReader.getRowGroups().size());
+      }
+      @SplitRestriction
+      void split(FileIO.ReadableFile file, OffsetRange restriction, int numParts, OutputReceiver<OffsetRange>out){
+        for(OffsetRange range:restriction.split(numParts,0)){
+          out.output(range);
+        }
       }
       @NewTracker
-      OffsetRangeTracker newTracker(Pair<Integer, Integer> range) {
-        return new OffsetRangeTracker(new OffsetRange(range.getKey(), range.getValue()));
+      OffsetRangeTracker newTracker(OffsetRange restriction) {
+        return new OffsetRangeTracker(restriction);
       }
     }
 
-    static class ReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
-
-      private Class<? extends GenericData> modelClass;
-
-      ReadFn(GenericData model) {
-        this.modelClass = model != null ? model.getClass() : null;
-      }
-
-      @ProcessElement
-      public void processElement(ProcessContext processContext) throws Exception {
-        FileIO.ReadableFile file = processContext.element();
-
-        if (!file.getMetadata().isReadSeekEfficient()) {
-          ResourceId filename = file.getMetadata().resourceId();
-          throw new RuntimeException(String.format("File has to be seekable: %s", filename));
-        }
-
-        SeekableByteChannel seekableByteChannel = file.openSeekable();
-
-        AvroParquetReader.Builder builder =
-            AvroParquetReader.<GenericRecord>builder(new BeamParquetInputFile(seekableByteChannel));
-        if (modelClass != null) {
-          // all GenericData implementations have a static get method
-          builder = builder.withDataModel((GenericData) modelClass.getMethod("get").invoke(null));
-        }
-
-        try (ParquetReader<GenericRecord> reader = builder.build()) {
-          GenericRecord read;
-          while ((read = reader.read()) != null) {
-            processContext.output(read);
-          }
-        }
-      }
-    }
+//    static class ReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
+//
+//      private Class<? extends GenericData> modelClass;
+//
+//      ReadFn(GenericData model) {
+//        this.modelClass = model != null ? model.getClass() : null;
+//      }
+//
+//      @ProcessElement
+//      public void processElement(ProcessContext processContext) throws Exception {
+//        FileIO.ReadableFile file = processContext.element();
+//
+//        if (!file.getMetadata().isReadSeekEfficient()) {
+//          ResourceId filename = file.getMetadata().resourceId();
+//          throw new RuntimeException(String.format("File has to be seekable: %s", filename));
+//        }
+//
+//        SeekableByteChannel seekableByteChannel = file.openSeekable();
+//
+//        AvroParquetReader.Builder builder =
+//            AvroParquetReader.<GenericRecord>builder(new BeamParquetInputFile(seekableByteChannel));
+//        if (modelClass != null) {
+//          // all GenericData implementations have a static get method
+//          builder = builder.withDataModel((GenericData) modelClass.getMethod("get").invoke(null));
+//        }
+//
+//        try (ParquetReader<GenericRecord> reader = builder.build()) {
+//          GenericRecord read;
+//          while ((read = reader.read()) != null) {
+//            processContext.output(read);
+//          }
+//        }
+//      }
+//    }
 
     private static class BeamParquetInputFile implements InputFile {
 
