@@ -130,6 +130,126 @@ public class BeamAnalyticFunctionsExperimentTest extends BeamSqlDslBase {
   }
 
   /**
+   * Compute a bounded ROWS sum query taken from.
+   * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#compute_a_cumulative_sum
+   */
+  @Test
+  public void testOverRowsBoundedSum() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PCollection<Row> inputRows = inputData();
+    String sql =
+        "SELECT item, purchases, category, sum(purchases) over "
+            + "("
+            + "PARTITION BY category "
+            + "ORDER BY purchases "
+            + "ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING"
+            + ")"
+            + " as total_purchases  FROM PCOLLECTION";
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Schema overResultSchema =
+        Schema.builder()
+            .addStringField("item")
+            .addInt32Field("purchases")
+            .addStringField("category")
+            .addInt32Field("total_purchases")
+            .build();
+
+    List<Row> overResult =
+        TestUtils.RowsBuilder.of(overResultSchema)
+            .addRows(
+                "orange",
+                2,
+                "fruit",
+                10,
+                "apple",
+                8,
+                "fruit",
+                10,
+                "leek",
+                2,
+                "vegetable",
+                11,
+                "cabbage",
+                9,
+                "vegetable",
+                21,
+                "lettuce",
+                10,
+                "vegetable",
+                42,
+                "kale",
+                23,
+                "vegetable",
+                33)
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(overResult);
+
+    pipeline.run();
+  }
+
+  /**
+   * Compute a bounded RANGE sum query taken from.
+   * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#compute_a_cumulative_sum
+   */
+  @Test
+  public void testOverRangeBoundedSum() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PCollection<Row> inputRows = inputData();
+    String sql =
+        "SELECT item, purchases, category, sum(purchases) over "
+            + "("
+            + "PARTITION BY category "
+            + "ORDER BY purchases "
+            + "RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING"
+            + ")"
+            + " as total_purchases  FROM PCOLLECTION";
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Schema overResultSchema =
+        Schema.builder()
+            .addStringField("item")
+            .addInt32Field("purchases")
+            .addStringField("category")
+            .addInt32Field("total_purchases")
+            .build();
+
+    List<Row> overResult =
+        TestUtils.RowsBuilder.of(overResultSchema)
+            .addRows(
+                "orange",
+                2,
+                "fruit",
+                2,
+                "apple",
+                8,
+                "fruit",
+                8,
+                "leek",
+                2,
+                "vegetable",
+                2,
+                "cabbage",
+                9,
+                "vegetable",
+                19,
+                "lettuce",
+                10,
+                "vegetable",
+                19,
+                "kale",
+                23,
+                "vegetable",
+                23)
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(overResult);
+
+    pipeline.run();
+  }
+
+  /**
    * Compute a cumulative sum (inverse order) query taken from.
    * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#compute_a_cumulative_sum
    */

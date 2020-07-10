@@ -18,8 +18,11 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -45,7 +48,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Aggreg
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Window;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /**
@@ -56,21 +61,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * <pre>{@code
  * SELECT agg(c) over () FROM t
  * SELECT agg(c1) over (PARTITION BY c2 ORDER BY c3 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM t
- * }</pre>
- *
- * <p>The following types of Analytic Functions are not supported:
- *
- * <pre>{@code
- * SELECT agg(c1) over (PARTITION BY c2 ORDER BY c3 ROWS BETWEEN 15 PRECEDING AND CURRENT ROW) FROM t
- * SELECT agg(c1) over (PARTITION BY c2 ORDER BY c3 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM t
+ * SELECT agg(c1) over (PARTITION BY c2 ORDER BY c3 RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM t
  * }</pre>
  *
  * <h3>Constraints</h3>
  *
  * <ul>
  *   <li>Only Aggregate Analytic Functions are available.
- *   <li>Sliding windows with RANGE are not supported.
- *   <li>Bounded windows with fixed limits are not supported.
  * </ul>
  */
 public class BeamWindowRel extends Window implements BeamRelNode {
@@ -104,31 +101,31 @@ public class BeamWindowRel extends Window implements BeamRelNode {
                         orderByNullDirections.add(
                             fc.nullDirection == RelFieldCollation.NullDirection.FIRST);
                       });
-              int lowerB = Integer.MAX_VALUE; // Unbounded by default
-              int upperB = Integer.MAX_VALUE; // Unbounded by default
+              BigDecimal lowerB = null; // Unbounded by default
+              BigDecimal upperB = null; // Unbounded by default
               if (anAnalyticGroup.lowerBound.isCurrentRow()) {
-                lowerB = 0;
+                lowerB = BigDecimal.ZERO;
               } else if (anAnalyticGroup.lowerBound.isPreceding()) {
-                if (!anAnalyticGroup.lowerBound.isUnbounded())
-                  throw new UnsupportedOperationException("Bounded windows not supported!");
+                if (!anAnalyticGroup.lowerBound.isUnbounded()) {
+                  lowerB = getLiteralValueConstants(anAnalyticGroup.lowerBound.getOffset());
+                }
               } else if (anAnalyticGroup.lowerBound.isFollowing()) {
                 if (!anAnalyticGroup.lowerBound.isUnbounded())
-                  throw new UnsupportedOperationException("Bounded windows not supported!");
+                  lowerB =
+                      getLiteralValueConstants(anAnalyticGroup.lowerBound.getOffset()).negate();
               }
               if (anAnalyticGroup.upperBound.isCurrentRow()) {
-                upperB = 0;
+                upperB = BigDecimal.ZERO;
               } else if (anAnalyticGroup.upperBound.isPreceding()) {
                 if (!anAnalyticGroup.upperBound.isUnbounded())
-                  throw new UnsupportedOperationException("Bounded windows not supported!");
+                  upperB =
+                      getLiteralValueConstants(anAnalyticGroup.upperBound.getOffset()).negate();
               } else if (anAnalyticGroup.upperBound.isFollowing()) {
                 if (!anAnalyticGroup.upperBound.isUnbounded())
-                  throw new UnsupportedOperationException("Bounded windows not supported!");
+                  upperB = getLiteralValueConstants(anAnalyticGroup.upperBound.getOffset());
               }
-              if (!anAnalyticGroup.isRows) {
-                throw new UnsupportedOperationException("RANGE windows not supported!");
-              }
-              final int lowerBFinal = lowerB;
-              final int upperBFinal = upperB;
+              final BigDecimal lowerBFinal = lowerB;
+              final BigDecimal upperBFinal = upperB;
               List<AggregateCall> aggregateCalls = anAnalyticGroup.getAggregateCalls(this);
               aggregateCalls.stream()
                   .forEach(
@@ -158,14 +155,19 @@ public class BeamWindowRel extends Window implements BeamRelNode {
     return new Transform(outputSchema, analyticFields);
   }
 
+  private BigDecimal getLiteralValueConstants(RexNode n) {
+    int idx = ((RexInputRef) n).getIndex() - input.getRowType().getFieldCount();
+    return (BigDecimal) this.constants.get(idx).getValue();
+  }
+
   private static class FieldAggregation implements Serializable {
 
     private List<Integer> partitionKeys;
     private List<Integer> orderKeys;
     private List<Boolean> orderOrientations;
     private List<Boolean> orderNulls;
-    private int lowerLimit = Integer.MAX_VALUE;
-    private int upperLimit = Integer.MAX_VALUE;
+    private BigDecimal lowerLimit = null;
+    private BigDecimal upperLimit = null;
     private boolean rows = true;
     private List<Integer> inputFields;
     private Combine.CombineFn combineFn;
@@ -176,8 +178,8 @@ public class BeamWindowRel extends Window implements BeamRelNode {
         List<Integer> orderKeys,
         List<Boolean> orderOrientations,
         List<Boolean> orderNulls,
-        int lowerLimit,
-        int upperLimit,
+        BigDecimal lowerLimit,
+        BigDecimal upperLimit,
         boolean rows,
         List<Integer> inputFields,
         Combine.CombineFn combineFn,
@@ -229,32 +231,38 @@ public class BeamWindowRel extends Window implements BeamRelNode {
     public PCollection<Row> expand(PCollectionList<Row> input) {
       PCollection<Row> inputData = input.get(0);
       Schema inputSchema = inputData.getSchema();
+      int ids = 0;
       for (FieldAggregation af : aggFields) {
+        ids++;
+        String prefix = "transform_" + ids;
         Coder<Row> rowCoder = inputData.getCoder();
         PCollection<Iterable<Row>> partitioned = null;
         if (af.partitionKeys.isEmpty()) {
-          partitioned = inputData.apply(org.apache.beam.sdk.schemas.transforms.Group.globally());
+          partitioned =
+              inputData.apply(
+                  prefix + "globalPartition",
+                  org.apache.beam.sdk.schemas.transforms.Group.globally());
         } else {
           org.apache.beam.sdk.schemas.transforms.Group.ByFields<Row> myg =
               org.apache.beam.sdk.schemas.transforms.Group.byFieldIds(af.partitionKeys);
           PCollection<KV<Row, Iterable<Row>>> partitionBy =
-              inputData.apply("partitionBy", myg.getToKvs());
+              inputData.apply(prefix + "partitionBy", myg.getToKvs());
           partitioned =
               partitionBy
-                  .apply(ParDo.of(new selectOnlyValues()))
+                  .apply(prefix + "selectOnlyValues", ParDo.of(new selectOnlyValues()))
                   .setCoder(IterableCoder.of(rowCoder));
         }
         // Migrate to a SortedValues transform.
         PCollection<List<Row>> sortedPartition =
             partitioned
-                .apply("orderBy", ParDo.of(sortPartition(af)))
+                .apply(prefix + "orderBy", ParDo.of(sortPartition(af)))
                 .setCoder(ListCoder.of(rowCoder));
 
         inputSchema =
             Schema.builder().addFields(inputSchema.getFields()).addFields(af.outputField).build();
         inputData =
             sortedPartition
-                .apply("aggCall", ParDo.of(aggField(inputSchema, af)))
+                .apply(prefix + "aggCall", ParDo.of(aggField(inputSchema, af)))
                 .setRowSchema(inputSchema);
       }
       return inputData.setRowSchema(this.outputSchema);
@@ -268,18 +276,17 @@ public class BeamWindowRel extends Window implements BeamRelNode {
       public void processElement(
           @Element List<Row> inputPartition, OutputReceiver<Row> out, ProcessContext c) {
         List<Row> sortedRowsAsList = inputPartition;
+        NavigableMap<BigDecimal, List<Row>> index_range = null;
+        if (!fieldAgg.rows) {
+          index_range = indexRows(sortedRowsAsList);
+        }
         for (int idx = 0; idx < sortedRowsAsList.size(); idx++) {
-          int lowerIndex =
-              fieldAgg.lowerLimit == Integer.MAX_VALUE
-                  ? Integer.MIN_VALUE
-                  : idx - fieldAgg.lowerLimit;
-          int upperIndex =
-              fieldAgg.upperLimit == Integer.MAX_VALUE
-                  ? Integer.MAX_VALUE
-                  : idx + fieldAgg.upperLimit + 1;
-          lowerIndex = lowerIndex < 0 ? 0 : lowerIndex;
-          upperIndex = upperIndex > sortedRowsAsList.size() ? sortedRowsAsList.size() : upperIndex;
-          List<Row> aggRange = sortedRowsAsList.subList(lowerIndex, upperIndex);
+          List<Row> aggRange = null;
+          if (fieldAgg.rows) {
+            aggRange = getRows(sortedRowsAsList, idx);
+          } else {
+            aggRange = getRange(index_range, sortedRowsAsList.get(idx));
+          }
           Object accumulator = fieldAgg.combineFn.createAccumulator();
           final int aggFieldIndex = fieldAgg.inputFields.get(0);
           for (Row aggRow : aggRange) {
@@ -293,6 +300,75 @@ public class BeamWindowRel extends Window implements BeamRelNode {
           Row build = Row.withSchema(expectedSchema).addValues(fieldValues).build();
           out.output(build);
         }
+      }
+
+      private NavigableMap<BigDecimal, List<Row>> indexRows(List<Row> input) {
+        NavigableMap<BigDecimal, List<Row>> map = new TreeMap<BigDecimal, List<Row>>();
+        for (Row r : input) {
+          BigDecimal orderByValue = getOrderByValue(r);
+          if (orderByValue == null) {
+            /** Special case agg(X) OVER () set dummy value. */
+            orderByValue = BigDecimal.ZERO;
+          }
+          if (!map.containsKey(orderByValue)) {
+            map.put(orderByValue, Lists.newArrayList());
+          }
+          map.get(orderByValue).add(r);
+        }
+        return map;
+      }
+
+      private List<Row> getRange(NavigableMap<BigDecimal, List<Row>> mp, Row r) {
+        NavigableMap<BigDecimal, List<Row>> sub_mp;
+        BigDecimal currentRowValue = getOrderByValue(r);
+        if (currentRowValue != null && fieldAgg.lowerLimit != null && fieldAgg.upperLimit != null) {
+          BigDecimal ll = currentRowValue.subtract(fieldAgg.lowerLimit);
+          BigDecimal ul = currentRowValue.add(fieldAgg.upperLimit);
+          sub_mp = mp.subMap(ll, true, ul, true);
+        } else if (currentRowValue != null
+            && fieldAgg.lowerLimit != null
+            && fieldAgg.upperLimit == null) {
+          BigDecimal ll = currentRowValue.subtract(fieldAgg.lowerLimit);
+          sub_mp = mp.tailMap(ll, true);
+        } else if (currentRowValue != null
+            && fieldAgg.lowerLimit == null
+            && fieldAgg.upperLimit != null) {
+          BigDecimal ul = currentRowValue.add(fieldAgg.upperLimit);
+          sub_mp = mp.headMap(ul, true);
+        } else {
+          sub_mp = mp;
+        }
+        List<Row> rsp = Lists.newArrayList();
+        for (List<Row> rsp_n : sub_mp.values()) {
+          rsp.addAll(rsp_n);
+        }
+        return rsp;
+      }
+
+      private BigDecimal getOrderByValue(Row r) {
+        /**
+         * Special Case: This query is transformed by calcite as follows: agg(X) over () -> agg(X)
+         * over (RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) No orderKeys, so return
+         * null.
+         */
+        if (fieldAgg.orderKeys.size() == 0) {
+          return null;
+        } else {
+          return new BigDecimal(((Number) r.getBaseValue(fieldAgg.orderKeys.get(0))).toString());
+        }
+      }
+
+      private List<Row> getRows(List<Row> input, int index) {
+        Integer ll =
+            fieldAgg.lowerLimit != null ? fieldAgg.lowerLimit.intValue() : Integer.MAX_VALUE;
+        Integer ul =
+            fieldAgg.upperLimit != null ? fieldAgg.upperLimit.intValue() : Integer.MAX_VALUE;
+        int lowerIndex = ll == Integer.MAX_VALUE ? Integer.MIN_VALUE : index - ll;
+        int upperIndex = ul == Integer.MAX_VALUE ? Integer.MAX_VALUE : index + ul + 1;
+        lowerIndex = lowerIndex < 0 ? 0 : lowerIndex;
+        upperIndex = upperIndex > input.size() ? input.size() : upperIndex;
+        List<Row> out = input.subList(lowerIndex, upperIndex);
+        return out;
       }
     };
   }
