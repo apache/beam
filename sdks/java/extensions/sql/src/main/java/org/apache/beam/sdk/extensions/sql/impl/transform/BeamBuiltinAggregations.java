@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CovarianceFn;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.StandardDeviationFn;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -61,6 +62,7 @@ public class BeamBuiltinAggregations {
               // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
               // .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
+              .put("STDDEV_POP", t -> StandardDeviationFn.newPopulation(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
               .put("COVAR_POP", t -> CovarianceFn.newPopulation(t.getTypeName()))
               .put("COVAR_SAMP", t -> CovarianceFn.newSample(t.getTypeName()))
@@ -186,6 +188,7 @@ public class BeamBuiltinAggregations {
     throw new UnsupportedOperationException(
         String.format("[%s] is not supported in BIT_OR", fieldType));
   }
+
 
   //  static CombineFn createBitAnd(Schema.FieldType fieldType) {
   //    if (fieldType.getTypeName() == TypeName.INT64) {

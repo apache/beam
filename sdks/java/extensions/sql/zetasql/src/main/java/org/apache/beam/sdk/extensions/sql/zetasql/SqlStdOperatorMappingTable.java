@@ -35,6 +35,7 @@ public class SqlStdOperatorMappingTable {
           FunctionSignatureId.FN_ANY_VALUE,
           FunctionSignatureId.FN_STRING_AGG_STRING,
           FunctionSignatureId.FN_BIT_OR_INT64,
+          FunctionSignatureId.FN_STDDEV_POP,
           // JIRA link: https://issues.apache.org/jira/browse/BEAM-10379
           // FunctionSignatureId.FN_BIT_AND_INT64,
           FunctionSignatureId.FN_OR,
@@ -247,6 +248,7 @@ public class SqlStdOperatorMappingTable {
           // .put("logical_and")
           // .put("logical_or")
           .put("bit_or", SqlStdOperatorTable.BIT_OR)
+          .put("stddev_pop", SqlStdOperatorTable.STDDEV_POP)
           // built-in statistical aggregate function
           // .put("covar_pop", SqlStdOperatorTable.COVAR_POP)
           // .put("covar_samp", SqlStdOperatorTable.COVAR_SAMP)
