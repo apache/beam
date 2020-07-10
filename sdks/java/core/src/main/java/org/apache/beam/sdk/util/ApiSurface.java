@@ -49,6 +49,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimaps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.ClassPath;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Invokable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Parameter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.TypeToken;
