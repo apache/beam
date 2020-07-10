@@ -102,15 +102,10 @@ Where parameters can be:
 - `.withKeyPairAuth(username, privateKey)`
   - Sets key pair authentication using username and [PrivateKey](https://docs.oracle.com/javase/8/docs/api/java/security/PrivateKey.html)
   - Example: `.withKeyPairAuth("USERNAME",` [PrivateKey](https://docs.oracle.com/javase/8/docs/api/java/security/PrivateKey.html)`)`
-- `.withKeyPairPathAuth(username, privateKeyPath, privateKeyPassphrase)`
-  - Sets key pair authentication using username, path to private key file and passphrase.
-  - Example: `.withKeyPairPathAuth("USERNAME", "PATH/TO/KEY.P8", "PASSPHRASE")`
-- `.withKeyPairRawAuth(username, rawPrivateKey, privateKeyPassphrase)`
-  - Sets key pair authentication using username, private key and passphrase.
-  - Example: `.withKeyPairRawAuth("USERNAME", "PRIVATE_KEY", "PASSPHRASE")`
 
 
 **Note** - either `.withUrl(...)` or `.withServerName(...)` **is required**.
+
 ## Pipeline options
 Use Beam’s [Pipeline options](https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/options/PipelineOptions.html) to set options via the command line.
 ### Snowflake Pipeline options
@@ -125,10 +120,6 @@ Snowflake IO library supports following options that can be passed via the [comm
 `--oauthToken` Required for OAuth authentication only.
 
 `--password` Required for username/password authentication only.
-
-`--privateKeyPath` Path to Private Key file. Required for Private Key authentication only.
-
-`--rawPrivateKey` Private Key. Required for Private Key authentication only.
 
 `--privateKeyPassphrase` Private Key's passphrase. Required for Private Key authentication only.
 
@@ -151,305 +142,6 @@ Snowflake IO library supports following options that can be passed via the [comm
 `--authenticator` Authenticator to use. Optional.
 
 `--portNumber` Port number. Optional.
-
-`--loginTimeout` Login timeout. Optional.
-
-`--snowPipe` SnowPipe name. Optional.
-
-In the connector code SnowflakePipelineOptions looks following (and it can be [extended](https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options)):
-{{< highlight java >}}
-public interface SnowflakePipelineOptions extends PipelineOptions, StreamingOptions {
-  String BASIC_CONNECTION_INFO_VALIDATION_GROUP = "BASIC_CONNECTION_INFO_GROUP";
-  String AUTH_VALIDATION_GROUP = "AUTH_VALIDATION_GROUP";
-
-  @Description(
-      "Snowflake's JDBC-like url including account name and region without any parameters.")
-  @Validation.Required(groups = BASIC_CONNECTION_INFO_VALIDATION_GROUP)
-  String getUrl();
-
-  void setUrl(String url);
-
-  @Description("Server Name - full server name with account, zone and domain.")
-  @Validation.Required(groups = BASIC_CONNECTION_INFO_VALIDATION_GROUP)
-  ValueProvider<String> getServerName();
-
-  void setServerName(ValueProvider<String> serverName);
-
-  @Description("Username. Required for username/password and Private Key authentication.")
-  @Validation.Required(groups = AUTH_VALIDATION_GROUP)
-  ValueProvider<String> getUsername();
-
-  void setUsername(ValueProvider<String> username);
-
-  @Description("OAuth token. Required for OAuth authentication only.")
-  @Validation.Required(groups = AUTH_VALIDATION_GROUP)
-  String getOauthToken();
-
-  void setOauthToken(String oauthToken);
-
-  @Description("Password. Required for username/password authentication only.")
-  @Default.String("")
-  ValueProvider<String> getPassword();
-
-  void setPassword(ValueProvider<String> password);
-
-  @Description("Path to Private Key file. Required for Private Key authentication only.")
-  @Default.String("")
-  String getPrivateKeyPath();
-
-  void setPrivateKeyPath(String privateKeyPath);
-
-  @Description("Private key. Required for Private Key authentication only.")
-  @Default.String("")
-  ValueProvider<String> getRawPrivateKey();
-
-  void setRawPrivateKey(ValueProvider<String> rawPrivateKey);
-
-  @Description("Private Key's passphrase. Required for Private Key authentication only.")
-  @Default.String("")
-  ValueProvider<String> getPrivateKeyPassphrase();
-
-  void setPrivateKeyPassphrase(ValueProvider<String> keyPassphrase);
-
-  @Description("Warehouse to use. Optional.")
-  @Default.String("")
-  ValueProvider<String> getWarehouse();
-
-  void setWarehouse(ValueProvider<String> warehouse);
-
-  @Description("Database name to connect to. Optional.")
-  @Default.String("")
-  ValueProvider<String> getDatabase();
-
-  void setDatabase(ValueProvider<String> database);
-
-  @Description("Schema to use. Optional.")
-  @Default.String("")
-  ValueProvider<String> getSchema();
-
-  void setSchema(ValueProvider<String> schema);
-
-  @Description("Table to use. Optional.")
-  @Default.String("")
-  ValueProvider<String> getTable();
-
-  void setTable(ValueProvider<String> table);
-
-  @Description("Query to use. Optional.")
-  @Default.String("")
-  ValueProvider<String> getQuery();
-
-  void setQuery(ValueProvider<String> query);
-
-  @Description("Role to use. Optional.")
-  @Default.String("")
-  ValueProvider<String> getRole();
-
-  void setRole(ValueProvider<String> role);
-
-  @Description("Authenticator to use. Optional.")
-  @Default.String("")
-  String getAuthenticator();
-
-  void setAuthenticator(String authenticator);
-
-  @Description("Port number. Optional.")
-  @Default.String("")
-  String getPortNumber();
-
-  void setPortNumber(String portNumber);
-
-  @Description("Login timeout. Optional.")
-  @Default.String("")
-  String getLoginTimeout();
-
-  void setLoginTimeout(String loginTimeout);
-
-  @Description("Temporary GCS bucket name.")
-  ValueProvider<String> getStagingBucketName();
-
-  void setStagingBucketName(ValueProvider<String> stagingBucketName);
-
-  @Description("Storage integration name")
-  ValueProvider<String> getStorageIntegrationName();
-
-  void setStorageIntegrationName(ValueProvider<String> storageIntegrationName);
-
-  @Description("SnowPipe name. Optional.")
-  ValueProvider<String> getSnowPipe();
-
-  void setSnowPipe(ValueProvider<String> snowPipe);
-}
-{{< /highlight >}}
-### Using Pipeline options
-To use Pipeline options, you must configure them as follows:
-
-{{< highlight java>}}
-SnowflakePipelineOptions options = PipelineOptionsFactory
-    .fromArgs(args)
-    .withValidation()
-    .as(SnowflakePipelineOptions.class);
-{{< /highlight >}}
-
-All the below parameters are required:
-- `.fromArgs()`
-  - GNU style command line arguments, 
-  - Example: `--project=myproject --database=test`
-- `.withValidation()`
-  - which validates that PipelineOptions confirms all criteria from the passed in interface
-- `.as()`
-  - a class of used pipeline options
-  - Example: `.as(SnowflakePipelineOptions.class)`
-
-Then create your pipeline using created options:
-
-{{< highlight java >}}
-Pipeline pipeline = Pipeline.create(options);
-{{< /highlight >}}
-
-Example of accessing pipeline options in code:
-
-{{< highlight java >}}
-String stagingBucketName = options.getStagingBucketName();
-{{< /highlight >}}
-
-Pipelines in tests:
-{{< highlight java >}}
-PipelineOptionsFactory.register(SnowflakePipelineOptions.class);
-    options = TestPipeline
-                .testingPipelineOptions()                                  
-                .as(SnowflakePipelineOptions.class);
-{{< /highlight >}}
-
-Then use them in pipeline run:
-{{< highlight java >}}
-PipelineResult pipelineResult = pipeline.run(options);
-{{< /highlight >}}
-
-### Extending pipeline options
-Extend the SnowflakePipelineOptions with your own custom options to access additional parameters in your code.
-
-Example of extending the Pipeline options:
-{{< highlight java >}}
-public interface BatchTestPipelineOptions extends SnowflakePipelineOptions {
-  @Description("Table name to connect to.")
-  String getTable();
-
-  void setTable(String table);
-}
-{{< /highlight >}}
-
-The following example shows how to insert the custom options:
-{{< highlight java >}}
-ExampleSnowflakePipelineOptions options = PipelineOptionsFactory
-.fromArgs(args)
-.withValidation()
-.as(ExampleSnowflakePipelineOptions.class);
-
-options.getTable();
-{{< /highlight >}}
-
-And in case of testing:
-{{< highlight java >}}
-PipelineOptionsFactory.register(ExampleSnowflakePipelineOptions.class);
-    options = TestPipeline
-    .testingPipelineOptions()
-                .as(ExampleSnowflakePipelineOptions.class);
-{{< /highlight >}}
-
-### Running main command with Pipeline options
-To pass Pipeline options via the command line, use `--args` in a gradle command as follows:
-
-{{< highlight >}}
-./gradle run 
-    --args="
-        --serverName=<SNOWFLAKE SERVER NAME>  
-           Example: --serverName=account.region.gcp.snowflakecomputing.com
-        --username=<SNOWFLAKE USERNAME> 
-           Example: --username=testuser
-        --password=<SNOWFLAKE PASSWORD> 
-           Example: --password=mypassword
-        --database=<SNOWFLAKE DATABASE> 
-           Example: --database=TEST_DATABASE
-        --schema=<SNOWFLAKE SCHEMA> 
-           Example: --schema=public
-        --table=<SNOWFLAKE TABLE IN DATABASE> 
-           Example: --table=TEST_TABLE
-        --query=<IF NOT TABLE THEN QUERY> 
-           Example: --query=‘SELECT column FROM TABLE’
-        --storageIntegrationName=<SNOWFLAKE STORAGE INTEGRATION NAME> 
-           Example: --storageIntegrationName=my_integration
-        --stagingBucketName=<GCS BUCKET NAME>
-           Example: --stagingBucketName=gs://my_gcp_bucket/
-        --runner=<DirectRunner/DataflowRunner>
-           Example: --runner=DataflowRunner
-        --project=<FOR DATAFLOW RUNNER: GCP PROJECT NAME> 
-           Example: --project=my_project
-        --tempLocation=<FOR DATAFLOW RUNNER: GCS TEMP LOCATION STARTING
-                        WITH gs://…>
-           Example: --tempLocation=gs://my_bucket/temp/
-        --region=<FOR DATAFLOW RUNNER: GCP REGION> 
-           Example: --region=us-east-1
-        --appName=<OPTIONAL: DATAFLOW JOB NAME PREFIX>
-           Example: --appName=my_job
-    "
-    {{< /highlight >}}
-Then in the code it is possible to access the parameters with arguments using the options.getStagingBucketName(); command.
-
-### Running test command with Pipeline options
-To pass Pipeline options via the command line, use `-DintegrationTestPipelineOptions` in a gradle command as follows:
-{{< highlight >}}
-./gradlew test --tests nameOfTest 
--DintegrationTestPipelineOptions='[
-  "--serverName=<SNOWFLAKE SERVER NAME>",
-      Example: --serverName=account.region.gcp.snowflakecomputing.com
-  "--username=<SNOWFLAKE USERNAME>",
-      Example: --username=testuser
-  "--password=<SNOWFLAKE PASSWORD>",
-      Example: --password=mypassword
-  "--schema=<SNOWFLAKE SCHEMA>",
-      Example: --schema=PUBLIC
-  "--table=<SNOWFLAKE TABLE IN DATABASE>",
-      Example: --table=TEST_TABLE
-  "--database=<SNOWFLAKE DATABASE>",
-      Example: --database=TEST_DATABASE
-  "--storageIntegrationName=<SNOWFLAKE STORAGE INTEGRATION NAME>", 
-      Example: --storageIntegrationName=my_integration
-  "--stagingBucketName=<GCS BUCKET NAME>",
-      Example: --stagingBucketName=gs://my_gcp_bucket
-  "--externalLocation=<GCS BUCKET URL STARTING WITH GS://>",
-      Example: --tempLocation=gs://my_bucket/temp/
-]' --no-build-cache
-{{< /highlight >}}
-
-Where all parameters are starting with “--”, they are surrounded with double quotation and separated with comma:
-
-- `--serverName=<SNOWFLAKE SERVER NAME>`
-  - Specifies the full name of your account (provided by Snowflake). Note that your full account name might include additional segments that identify the region and cloud platform where your account is hosted. 
-  - Example: `--serverName=xy12345.eu-west-1.gcp..snowflakecomputing.com`
-
-- `--username=<SNOWFLAKE USERNAME>`
-  - Specifies the login name of the user.
-  - Example: `--username=my_username`
-
-- `--password=<SNOWFLAKE PASSWORD>`
-  - Specifies the password for the specified user.
-  - Example: `--password=my_secret`
-
-- `--schema=<SNOWFLAKE SCHEMA>`
-  - Specifies the schema to use for the specified database once connected. The specified schema should be an existing schema for which the specified user’s role has privileges.
-  - Example: `--schema=PUBLIC`
-
-- `--table=<SNOWFLAKE TABLE IN DATABASE>`
-  - Example: `--table=MY_TABLE`
-
-- `--database=<SNOWFLAKE DATABASE>`
-  - Specifies the database to use once connected. The specified database should be an existing database for which the specified user’s role has privileges.
-  - Example: `--database=MY_DATABASE`
-
-- `--storageIntegrationName=<SNOWFLAKE STORAGE INTEGRATION NAME>`
-  - Name of storage integration created in [Snowflake](https://docs.snowflake.com/en/sql-reference/sql/create-storage-integration.html) for a cloud storage of choice.
-  - Example: `--storageIntegrationName=my_google_integration`
 
 ## Running pipelines on Dataflow
 By default, pipelines are run on [Direct Runner](https://beam.apache.org/documentation/runners/direct/) on your local machine. To run a pipeline on [Google Dataflow](https://cloud.google.com/dataflow/), you must provide the following Pipeline options:
@@ -475,60 +167,6 @@ More pipeline options for Dataflow can be found [here](https://beam.apache.org/r
 
 **Important**: Please acknowledge [Google Dataflow pricing](Important: Please acknowledge Google Dataflow pricing).
 
-###Running pipeline templates on Dataflow
-Google Dataflow is supporting [template](https://cloud.google.com/dataflow/docs/guides/templates/overview) creation which means staging pipelines on Cloud Storage and running them with ability to pass runtime parameters that are only available during pipeline execution.
-
-The process of creating own Dataflow template is following
-1. Create your own pipeline. 
-2. Create [Dataflow template](https://cloud.google.com/dataflow/docs/guides/templates/creating-templates#creating-and-staging-templates) with checking which options SnowflakeIO is supporting at runtime.
-3. Run a Dataflow template using [Cloud Console](https://cloud.google.com/dataflow/docs/guides/templates/running-templates#using-the-cloud-console), [REST API](https://cloud.google.com/dataflow/docs/guides/templates/running-templates#using-the-rest-api) or [gcloud](https://cloud.google.com/dataflow/docs/guides/templates/running-templates#using-gcloud).
-
-Currently, SnowflakeIO supports following options at runtime:
-
-- `--serverName` Full server name with account, zone and domain.
-
-- `--username` Required for username/password and Private Key authentication.
-
-- `--password` Required for username/password authentication only.
-
-- `--rawPrivateKey` Private Key file. Required for Private Key authentication only.
-
-- `--privateKeyPassphrase` Private Key's passphrase. Required for Private Key authentication only.
-
-- `--stagingBucketName` external bucket path ending with `/`. I.e. `gs://bucket/`. Sub-directories are allowed.
-
-- `--storageIntegrationName` Storage integration name.
-
-- `--warehouse` Warehouse to use. Optional.
-
-- `--database` Database name to connect to. Optional.
-
-- `--schema` Schema to use. Optional.
-
-- `--table` Table to use. Optional. Note: table is not in default pipeline options.
-
-- `--query` Query to use. Optional. Note: query is not in default pipeline options.
-
-- `--role` Role to use. Optional.
-
-- `--snowPipe` SnowPipe name. Optional.
-
-**Note**: table and query is not in pipeline options by default, it may be added by [extending](https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options) PipelineOptions.
-
-Currently, SnowflakeIO **doesn't support** following options at runtime:
-
-- `--url` Snowflake's JDBC-like url including account name and region without any parameters.
-
-- `--oauthToken` Required for OAuth authentication only.
-
-- `--privateKeyPath` Path to Private Key file. Required for Private Key authentication only.
-
-- `--authenticator` Authenticator to use. Optional.
-
-- `--portNumber` Port number. Optional.
-
-- `--loginTimeout` Login timeout. Optional.
-
 ## Writing to Snowflake tables
 One of the functions of SnowflakeIO is writing to Snowflake tables. This transformation enables you to finish the Beam pipeline with an output operation that sends the user's [PCollection](https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/values/PCollection.html) to your Snowflake database.
 ### Batch write (from a bounded source)
@@ -537,7 +175,7 @@ The basic .`write()` operation usage is as follows:
 data.apply(
    SnowflakeIO.<type>write()
        .withDataSourceConfiguration(dc)
-       .toTable("MY_TABLE")
+       .to("MY_TABLE")
        .withStagingBucketName("BUCKET NAME")
        .withStorageIntegrationName("STORAGE INTEGRATION NAME")
        .withUserDataMapper(mapper)
@@ -572,12 +210,6 @@ Then:
 **Note**:
 SnowflakeIO uses COPY statements behind the scenes to write (using [COPY to table](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html)). StagingBucketName will be used to save CSV files which will end up in Snowflake. Those CSV files will be saved under the “stagingBucketName” path.
 
-**Optional** for batching:
-- `.withQuotationMark()` 
-  - Default value: ‘ (single quotation mark).
-  - Accepts String with one character. It will surround all text (String) fields saved to CSV. It should be one of the accepted characters by [Snowflake’s](https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html) [FIELD_OPTIONALLY_ENCLOSED_BY](https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html) parameter (double quotation mark, single quotation mark or none).
-  - Example: `.withQuotationMark("'")`
-
 ### UserDataMapper function
 The UserDataMapper function is required to map data from a PCollection to an array of String values before the `write()` operation saves the data to temporary .csv files. For example:
 {{< highlight java >}}
@@ -596,7 +228,7 @@ String query = "SELECT t.$1 from YOUR_TABLE;";
 data.apply(
    SnowflakeIO.<~>write()
        .withDataSourceConfiguration(dc)
-       .toTable("MY_TABLE")
+       .to("MY_TABLE")
        .withStagingBucketName("BUCKET NAME")
        .withStorageIntegrationName("STORAGE INTEGRATION NAME")
        .withUserDataMapper(mapper)
@@ -618,7 +250,7 @@ Example of usage:
 data.apply(
    SnowflakeIO.<~>write()
        .withDataSourceConfiguration(dc)
-       .toTable("MY_TABLE")
+       .to("MY_TABLE")
        .withStagingBucketName("BUCKET NAME")
        .withStorageIntegrationName("STORAGE INTEGRATION NAME")
        .withUserDataMapper(mapper)
@@ -638,7 +270,7 @@ Usage:
 data.apply(
    SnowflakeIO.<~>write()
        .withDataSourceConfiguration(dc)
-       .toTable("MY_TABLE")
+       .to("MY_TABLE")
        .withStagingBucketName("BUCKET NAME")
        .withStorageIntegrationName("STORAGE INTEGRATION NAME")
        .withUserDataMapper(mapper)
@@ -661,7 +293,7 @@ SFTableSchema tableSchema =
 data.apply(
    SnowflakeIO.<~>write()
        .withDataSourceConfiguration(dc)
-       .toTable("MY_TABLE")
+       .to("MY_TABLE")
        .withStagingBucketName("BUCKET NAME")
        .withStorageIntegrationName("STORAGE INTEGRATION NAME")
        .withUserDataMapper(mapper)
