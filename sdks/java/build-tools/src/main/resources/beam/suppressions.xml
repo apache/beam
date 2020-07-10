@@ -99,7 +99,8 @@
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*datastore.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*DateTimeUtils\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlBeamTranslationUtils\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSQLDialectSpecTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlDialectSpecTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlTimeFunctionsTest\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlBeamTranslationUtilsTest\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*TableResolutionTest\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSQLPushDownTest\.java" />
