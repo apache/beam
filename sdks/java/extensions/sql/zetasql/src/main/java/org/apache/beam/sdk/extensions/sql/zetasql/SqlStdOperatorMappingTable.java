@@ -267,12 +267,12 @@ public class SqlStdOperatorMappingTable {
           // Signatures specific to extracting the DATE date part from a DATETIME or a
           // TIMESTAMP.
           // FunctionSignatureId.FN_EXTRACT_DATE_FROM_DATETIME, // $extract_date
-          // FunctionSignatureId.FN_EXTRACT_DATE_FROM_TIMESTAMP, // $extract_date
+          FunctionSignatureId.FN_EXTRACT_DATE_FROM_TIMESTAMP, // $extract_date
 
           // Signatures specific to extracting the TIME date part from a DATETIME or a
           // TIMESTAMP.
           // FunctionSignatureId.FN_EXTRACT_TIME_FROM_DATETIME, // $extract_time
-          // FunctionSignatureId.FN_EXTRACT_TIME_FROM_TIMESTAMP, // $extract_time
+          FunctionSignatureId.FN_EXTRACT_TIME_FROM_TIMESTAMP, // $extract_time
 
           // Signature specific to extracting the DATETIME date part from a TIMESTAMP.
           // FunctionSignatureId.FN_EXTRACT_DATETIME_FROM_TIMESTAMP, // $extract_datetime
@@ -677,7 +677,6 @@ public class SqlStdOperatorMappingTable {
           .put("ceil", SqlStdOperatorTable.CEIL)
           .put("floor", SqlStdOperatorTable.FLOOR)
           .put("mod", SqlStdOperatorTable.MOD)
-          .put("$extract", SqlStdOperatorTable.EXTRACT)
           .put("timestamp", SqlOperators.TIMESTAMP_OP)
           .put("$case_no_value", SqlStdOperatorTable.CASE)
 
@@ -701,6 +700,5 @@ public class SqlStdOperatorMappingTable {
               .put("coalesce", new SqlCoalesceOperatorRewriter())
               .put("ifnull", new SqlIfNullOperatorRewriter())
               .put("nullif", new SqlNullIfOperatorRewriter())
-              .put("$extract", new SqlExtractTimestampOperatorRewriter())
               .build();
 }
