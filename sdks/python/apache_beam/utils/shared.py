@@ -22,9 +22,9 @@ threads within the same process. Shared is a serializable object that can be
 shared by all threads of each worker process, which will be initialized as
 necessary by calls to acquire.
 
-Example usage::
+Example usage:
 
-To share a very large list across all threads of each worker in a DoFn:
+To share a very large list across all threads of each worker in a DoFn::
 
   class GetNthStringFn(beam.DoFn):
     def __init__(self, shared_handle):
@@ -248,12 +248,13 @@ class Shared(object):
   object. Example usage is described in the file comment of shared.py.
 
   This object has the following limitations:
-    *  A shared object won't be GC'ed if there isn't another acquire called for
-       a different shared object.
-    *  Each stage can only use exactly one Shared token, otherwise only one
-       Shared token, *NOT NECESSARILY THE LATEST*, will be "kept-alive".
-    *  If there are two different stages using separate Shared tokens, but which
-       get fused together, only one Shared token will be "kept-alive".
+  *  A shared object won't be GC'ed if there isn't another acquire called for
+  a different shared object.
+  *  Each stage can only use exactly one Shared token, otherwise only one
+  Shared token, *NOT NECESSARILY THE LATEST*, will be "kept-alive".
+  *  If there are two different stages using separate Shared tokens, but which
+  get fused together, only one Shared token will be "kept-alive".
+
   (See documentation of _SharedMap for details.)
   """
 
