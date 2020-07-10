@@ -20,7 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sql.datacatalog')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.extensions.sql.datacatalog')
 
 dependencies {
   compile(library.java.google_cloud_datacatalog_v1beta1) {

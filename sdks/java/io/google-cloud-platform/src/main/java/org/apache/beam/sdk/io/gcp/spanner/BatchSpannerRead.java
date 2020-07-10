@@ -93,7 +93,7 @@ abstract class BatchSpannerRead
 
     @Setup
     public void setup() throws Exception {
-      spannerAccessor = SpannerAccessor.create(config);
+      spannerAccessor = SpannerAccessor.getOrCreate(config);
     }
 
     @Teardown
@@ -146,7 +146,7 @@ abstract class BatchSpannerRead
 
     @Setup
     public void setup() throws Exception {
-      spannerAccessor = SpannerAccessor.create(config);
+      spannerAccessor = SpannerAccessor.getOrCreate(config);
     }
 
     @Teardown

@@ -45,7 +45,8 @@ class FilterScanConverter extends RelConverter<ResolvedFilterScan> {
             .convertRexNodeFromResolvedExpr(
                 zetaNode.getFilterExpr(),
                 zetaNode.getInputScan().getColumnList(),
-                input.getRowType().getFieldList());
+                input.getRowType().getFieldList(),
+                context.getFunctionArgumentRefMapping());
 
     return LogicalFilter.create(input, condition);
   }

@@ -24,7 +24,6 @@ from __future__ import absolute_import
 import unittest
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
@@ -164,8 +163,6 @@ class TestStreamTest(unittest.TestCase):
         yield (element, timestamp)
 
     options = StandardOptions(streaming=True)
-    options.view_as(DebugOptions).add_experiment(
-        'passthrough_pcollection_output_ids')
     p = TestPipeline(options=options)
 
     main = p | test_stream
@@ -219,8 +216,6 @@ class TestStreamTest(unittest.TestCase):
                    .advance_watermark_to(30, tag='numbers')) # yapf: disable
 
     options = StandardOptions(streaming=True)
-    options.view_as(DebugOptions).add_experiment(
-        'passthrough_pcollection_output_ids')
     p = TestPipeline(options=options)
 
     main = p | test_stream
@@ -492,8 +487,6 @@ class TestStreamTest(unittest.TestCase):
 
   def test_basic_execution_sideinputs(self):
     options = PipelineOptions()
-    options.view_as(DebugOptions).add_experiment(
-        'passthrough_pcollection_output_ids')
     options.view_as(StandardOptions).streaming = True
     with TestPipeline(options=options) as p:
 
@@ -568,8 +561,6 @@ class TestStreamTest(unittest.TestCase):
 
   def test_basic_execution_sideinputs_fixed_windows(self):
     options = PipelineOptions()
-    options.view_as(DebugOptions).add_experiment(
-        'passthrough_pcollection_output_ids')
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
 
@@ -655,8 +646,6 @@ class TestStreamTest(unittest.TestCase):
                    .add_elements([4, 5, 6], tag='b')) # yapf: disable
 
     options = StandardOptions(streaming=True)
-    options.view_as(DebugOptions).add_experiment(
-        'passthrough_pcollection_output_ids')
 
     p = TestPipeline(options=options)
     p | test_stream

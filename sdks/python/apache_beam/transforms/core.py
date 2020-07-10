@@ -1321,6 +1321,9 @@ class ParDo(PTransformWithSideInputs):
         ``'main'``.
     """
     main_tag = main_kw.pop('main', None)
+    if main_tag in tags:
+      raise ValueError(
+          'Main output tag must be different from side output tags.')
     if main_kw:
       raise ValueError('Unexpected keyword arguments: %s' % list(main_kw))
     return _MultiParDo(self, tags, main_tag)
@@ -2056,12 +2059,12 @@ class CombineValues(PTransformWithSideInputs):
 
 class CombineValuesDoFn(DoFn):
   """DoFn for performing per-key Combine transforms."""
-
-  def __init__(self,
-               input_pcoll_type,
-               combinefn,  # type: CombineFn
-               runtime_type_check,  # type: bool
-              ):
+  def __init__(
+      self,
+      input_pcoll_type,
+      combinefn,  # type: CombineFn
+      runtime_type_check,  # type: bool
+  ):
     super(CombineValuesDoFn, self).__init__()
     self.combinefn = combinefn
     self.runtime_type_check = runtime_type_check
@@ -2112,11 +2115,11 @@ class CombineValuesDoFn(DoFn):
 
 
 class _CombinePerKeyWithHotKeyFanout(PTransform):
-
-  def __init__(self,
-               combine_fn,  # type: CombineFn
-               fanout,  # type: typing.Union[int, typing.Callable[[typing.Any], int]]
-              ):
+  def __init__(
+      self,
+      combine_fn,  # type: CombineFn
+      fanout,  # type: typing.Union[int, typing.Callable[[typing.Any], int]]
+  ):
     # type: (...) -> None
     self._combine_fn = combine_fn
     self._fanout_fn = ((lambda key: fanout)
@@ -2286,13 +2289,14 @@ class Partition(PTransformWithSideInputs):
 
 
 class Windowing(object):
-  def __init__(self,
-               windowfn,  # type: WindowFn
-               triggerfn=None,  # type: typing.Optional[TriggerFn]
-               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
-               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
-               allowed_lateness=0, # type: typing.Union[int, float]
-               ):
+  def __init__(
+      self,
+      windowfn,  # type: WindowFn
+      triggerfn=None,  # type: typing.Optional[TriggerFn]
+      accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
+      timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
+      allowed_lateness=0,  # type: typing.Union[int, float]
+  ):
     """Class representing the window strategy.
 
     Args:
@@ -2423,12 +2427,13 @@ class WindowInto(ParDo):
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
 
-  def __init__(self,
-               windowfn,  # type: typing.Union[Windowing, WindowFn]
-               trigger=None,  # type: typing.Optional[TriggerFn]
-               accumulation_mode=None,
-               timestamp_combiner=None,
-               allowed_lateness=0):
+  def __init__(
+      self,
+      windowfn,  # type: typing.Union[Windowing, WindowFn]
+      trigger=None,  # type: typing.Optional[TriggerFn]
+      accumulation_mode=None,
+      timestamp_combiner=None,
+      allowed_lateness=0):
     """Initializes a WindowInto transform.
 
     Args:

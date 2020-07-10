@@ -242,20 +242,6 @@ class _FinalizeMaterialization(_PValueishTransform):
       return self.visit_nested(node)
 
 
-class _GetPValues(_PValueishTransform):
-  def visit(self, node, pvalues):
-    if isinstance(node, (pvalue.PValue, pvalue.DoOutputsTuple)):
-      pvalues.append(node)
-    else:
-      self.visit_nested(node, pvalues)
-
-
-def get_nested_pvalues(pvalueish):
-  pvalues = []
-  _GetPValues().visit(pvalueish, pvalues)
-  return pvalues
-
-
 def get_named_nested_pvalues(pvalueish):
   if isinstance(pvalueish, tuple):
     # Check to see if it's a named tuple.

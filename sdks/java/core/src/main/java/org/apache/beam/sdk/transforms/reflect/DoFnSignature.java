@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Restrictio
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerFamilyParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -233,6 +234,24 @@ public abstract class DoFnSignature {
      * <p>Validation that these are allowed is external to this class.
      */
     List<Parameter> extraParameters();
+
+    /**
+     * Whether this method observes - directly or indirectly - the window that an element resides
+     * in.
+     *
+     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because they are
+     * each scoped to a single window.
+     */
+    default boolean observesWindow() {
+      return extraParameters().stream()
+          .anyMatch(
+              Predicates.or(
+                      Predicates.instanceOf(WindowParameter.class),
+                      Predicates.instanceOf(TimerParameter.class),
+                      Predicates.instanceOf(TimerFamilyParameter.class),
+                      Predicates.instanceOf(StateParameter.class))
+                  ::apply);
+    }
 
     /** The type of window expected by this method, if any. */
     @Nullable
@@ -991,23 +1010,6 @@ public abstract class DoFnSignature {
           watermarkEstimatorT,
           windowT,
           hasReturnValue);
-    }
-
-    /**
-     * Whether this {@link DoFn} observes - directly or indirectly - the window that an element
-     * resides in.
-     *
-     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because they are
-     * each scoped to a single window.
-     */
-    public boolean observesWindow() {
-      return extraParameters().stream()
-          .anyMatch(
-              Predicates.or(
-                      Predicates.instanceOf(WindowParameter.class),
-                      Predicates.instanceOf(TimerParameter.class),
-                      Predicates.instanceOf(StateParameter.class))
-                  ::apply);
     }
 
     @Nullable

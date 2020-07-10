@@ -17,45 +17,43 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import com.google.zetasql.Analyzer;
+import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_FUNCTION_STMT;
+import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_TABLE_FUNCTION_STMT;
+import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
+
+import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.LanguageOptions;
+import com.google.zetasql.ParseResumeLocation;
+import com.google.zetasql.SimpleCatalog;
+import com.google.zetasql.resolvedast.ResolvedNode;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
+import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateTableFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
-import java.io.Reader;
 import java.util.List;
-import java.util.logging.Logger;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ExpressionConverter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.QueryStatementConverter;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelRoot;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexExecutor;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Planner;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Program;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelConversionException;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.ValidationException;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Util;
 
 /** ZetaSQLPlannerImpl. */
-public class ZetaSQLPlannerImpl implements Planner {
-  private static final Logger LOG = Logger.getLogger(ZetaSQLPlannerImpl.class.getName());
-
+class ZetaSQLPlannerImpl {
   private final SchemaPlus defaultSchemaPlus;
 
   // variables that are used in Calcite's planner.
@@ -63,22 +61,11 @@ public class ZetaSQLPlannerImpl implements Planner {
   private RelOptPlanner planner;
   private JavaTypeFactory typeFactory;
   private final RexExecutor executor;
-  private RelOptCluster cluster;
   private final ImmutableList<Program> programs;
-  private ExpressionConverter expressionConverter;
 
-  private static final long ONE_SECOND_IN_MILLIS = 1000L;
-  private static final long ONE_MINUTE_IN_MILLIS = 60L * ONE_SECOND_IN_MILLIS;
-  private static final long ONE_HOUR_IN_MILLIS = 60L * ONE_MINUTE_IN_MILLIS;
-  private static final long ONE_DAY_IN_MILLIS = 24L * ONE_HOUR_IN_MILLIS;
+  private String defaultTimezone = "UTC"; // choose UTC (offset 00:00) unless explicitly set
 
-  @SuppressWarnings("unused")
-  private static final long ONE_MONTH_IN_MILLIS = 30L * ONE_DAY_IN_MILLIS;
-
-  @SuppressWarnings("unused")
-  private static final long ONE_YEAR_IN_MILLIS = 365L * ONE_DAY_IN_MILLIS;
-
-  public ZetaSQLPlannerImpl(FrameworkConfig config) {
+  ZetaSQLPlannerImpl(FrameworkConfig config) {
     this.config = config;
     this.executor = config.getExecutor();
     this.programs = config.getPrograms();
@@ -96,110 +83,78 @@ public class ZetaSQLPlannerImpl implements Planner {
     this.defaultSchemaPlus = config.getDefaultSchema();
   }
 
-  @Override
-  public SqlNode parse(String s) throws SqlParseException {
-    throw new UnsupportedOperationException(
-        String.format("%s.parse(String) is not implemented", this.getClass().getCanonicalName()));
-  }
-
-  @Override
-  public SqlNode parse(Reader reader) throws SqlParseException {
-    throw new UnsupportedOperationException(
-        String.format("%s.parse(Reader) is not implemented", this.getClass().getCanonicalName()));
-  }
-
-  @Override
-  public SqlNode validate(SqlNode sqlNode) throws ValidationException {
-    throw new UnsupportedOperationException(
-        String.format(
-            "%s.validate(SqlNode) is not implemented", this.getClass().getCanonicalName()));
-  }
-
-  @Override
-  public Pair<SqlNode, RelDataType> validateAndGetType(SqlNode sqlNode) throws ValidationException {
-    throw new UnsupportedOperationException(
-        String.format(
-            "%s.validateAndGetType(SqlNode) is not implemented",
-            this.getClass().getCanonicalName()));
-  }
-
-  @Override
-  public RelRoot rel(SqlNode sqlNode) throws RelConversionException {
-    throw new UnsupportedOperationException(
-        String.format("%s.rel(SqlNode) is not implemented", this.getClass().getCanonicalName()));
-  }
-
   public RelRoot rel(String sql, QueryParameters params) {
-    this.cluster = RelOptCluster.create(planner, new RexBuilder(typeFactory));
-    this.expressionConverter = new ExpressionConverter(cluster, params);
-
+    RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(typeFactory));
     QueryTrait trait = new QueryTrait();
+    SqlAnalyzer analyzer =
+        new SqlAnalyzer(trait, defaultSchemaPlus, (JavaTypeFactory) cluster.getTypeFactory());
+
+    AnalyzerOptions options = SqlAnalyzer.getAnalyzerOptions(params, defaultTimezone);
 
     // Set up table providers that need to be pre-registered
-    // TODO(https://issues.apache.org/jira/browse/BEAM-8817): share this logic between dialects
-    List<List<String>> tables = Analyzer.extractTableNamesFromStatement(sql);
+    List<List<String>> tables = analyzer.extractTableNames(sql, options);
     TableResolution.registerTables(this.defaultSchemaPlus, tables);
+    SimpleCatalog catalog =
+        analyzer.createPopulatedCatalog(defaultSchemaPlus.getName(), options, tables);
 
-    ResolvedStatement statement =
-        SqlAnalyzer.getBuilder()
-            .withQueryParams(params)
-            .withQueryTrait(trait)
-            .withCalciteContext(config.getContext())
-            .withTopLevelSchema(defaultSchemaPlus)
-            .withTypeFactory((JavaTypeFactory) cluster.getTypeFactory())
-            .analyze(sql);
+    ImmutableMap.Builder<String, ResolvedCreateFunctionStmt> udfBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<List<String>, ResolvedNode> udtvfBuilder = ImmutableMap.builder();
+
+    ResolvedStatement statement;
+    ParseResumeLocation parseResumeLocation = new ParseResumeLocation(sql);
+    do {
+      statement = analyzer.analyzeNextStatement(parseResumeLocation, options, catalog);
+      if (statement.nodeKind() == RESOLVED_CREATE_FUNCTION_STMT) {
+        ResolvedCreateFunctionStmt createFunctionStmt = (ResolvedCreateFunctionStmt) statement;
+        // ResolvedCreateFunctionStmt does not include the full function name, so build it here.
+        String functionFullName =
+            String.format(
+                "%s:%s",
+                SqlAnalyzer.USER_DEFINED_FUNCTIONS,
+                String.join(".", createFunctionStmt.getNamePath()));
+        udfBuilder.put(functionFullName, createFunctionStmt);
+      } else if (statement.nodeKind() == RESOLVED_CREATE_TABLE_FUNCTION_STMT) {
+        ResolvedCreateTableFunctionStmt createTableFunctionStmt =
+            (ResolvedCreateTableFunctionStmt) statement;
+        udtvfBuilder.put(createTableFunctionStmt.getNamePath(), createTableFunctionStmt.getQuery());
+      } else if (statement.nodeKind() == RESOLVED_QUERY_STMT) {
+        if (!SqlAnalyzer.isEndOfInput(parseResumeLocation)) {
+          throw new UnsupportedOperationException(
+              "No additional statements are allowed after a SELECT statement.");
+        }
+        break;
+      }
+    } while (!SqlAnalyzer.isEndOfInput(parseResumeLocation));
 
     if (!(statement instanceof ResolvedQueryStmt)) {
       throw new UnsupportedOperationException(
-          "Unsupported query statement type: " + sql.getClass().getSimpleName());
+          "Statement list must end in a SELECT statement, not " + statement.nodeKindString());
     }
 
-    ConversionContext context = ConversionContext.of(config, expressionConverter, cluster, trait);
+    ExpressionConverter expressionConverter =
+        new ExpressionConverter(cluster, params, udfBuilder.build());
+    ConversionContext context =
+        ConversionContext.of(config, expressionConverter, cluster, trait, udtvfBuilder.build());
 
     RelNode convertedNode =
         QueryStatementConverter.convertRootQuery(context, (ResolvedQueryStmt) statement);
-
     return RelRoot.of(convertedNode, SqlKind.ALL);
   }
 
-  @Override
-  public RelNode convert(SqlNode sqlNode) {
-    throw new UnsupportedOperationException(
-        String.format("%s.convert(SqlNode) is not implemented.", getClass().getCanonicalName()));
-  }
-
-  @Override
-  public RelDataTypeFactory getTypeFactory() {
-    throw new UnsupportedOperationException(
-        String.format("%s.getTypeFactor() is not implemented.", getClass().getCanonicalName()));
-  }
-
-  @Override
-  public RelNode transform(int i, RelTraitSet relTraitSet, RelNode relNode)
-      throws RelConversionException {
+  RelNode transform(int i, RelTraitSet relTraitSet, RelNode relNode) {
     Program program = programs.get(i);
     return program.run(planner, relNode, relTraitSet, ImmutableList.of(), ImmutableList.of());
   }
 
-  @Override
-  public void reset() {
-    throw new UnsupportedOperationException(
-        String.format("%s.reset() is not implemented", this.getClass().getCanonicalName()));
+  String getDefaultTimezone() {
+    return defaultTimezone;
   }
 
-  @Override
-  public void close() {
-    // no-op
+  void setDefaultTimezone(String timezone) {
+    defaultTimezone = timezone;
   }
 
-  @Override
-  public RelTraitSet getEmptyTraitSet() {
-    throw new UnsupportedOperationException(
-        String.format(
-            "%s.getEmptyTraitSet() is not implemented", this.getClass().getCanonicalName()));
-  }
-
-  public static LanguageOptions getLanguageOptions() {
-    return SqlAnalyzer.initAnalyzerOptions().getLanguageOptions();
+  static LanguageOptions getLanguageOptions() {
+    return SqlAnalyzer.baseAnalyzerOptions().getLanguageOptions();
   }
 }

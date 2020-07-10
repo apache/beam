@@ -65,7 +65,7 @@ public abstract class FullNameTableProvider implements TableProvider, CustomTabl
     // Because this is a getSubProvider() call it means Calcite expects
     // the sub-schema/sub-provider to be returned, not a table,
     // so we only need to check against known compound table identifiers.
-    // If 'name' acutally represents a simple identifier then it will be checked
+    // If 'name' actually represents a simple identifier then it will be checked
     // in a 'getTable()' call later. Unless there's the same sub-provider name,
     // in which case it's a conflict and we will use the sub-schema and not assume it's a table.
     // Calcite does the same.

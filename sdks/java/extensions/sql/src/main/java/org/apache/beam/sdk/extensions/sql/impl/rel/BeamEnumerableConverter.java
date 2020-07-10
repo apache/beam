@@ -21,6 +21,9 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Prec
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +39,6 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
@@ -121,11 +123,17 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   }
 
   public static List<Row> toRowList(BeamRelNode node) {
+    return toRowList(node, Collections.emptyMap());
+  }
+
+  public static List<Row> toRowList(BeamRelNode node, Map<String, String> otherOptions) {
     final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
-      final PipelineOptions options = createPipelineOptions(node.getPipelineOptions());
-      return toRowList(options, node);
+      final Map<String, String> optionsMap = new HashMap<>();
+      optionsMap.putAll(node.getPipelineOptions());
+      optionsMap.putAll(otherOptions);
+      return toRowList(createPipelineOptions(optionsMap), node);
     } finally {
       Thread.currentThread().setContextClassLoader(originalClassLoader);
     }
@@ -308,8 +316,12 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     switch (type.getTypeName()) {
       case LOGICAL_TYPE:
         String logicalId = type.getLogicalType().getIdentifier();
-        if (TimeType.IDENTIFIER.equals(logicalId)) {
-          return (int) ((ReadableInstant) beamValue).getMillis();
+        if (SqlTypes.TIME.getIdentifier().equals(logicalId)) {
+          if (beamValue instanceof Long) { // base type
+            return (Long) beamValue;
+          } else { // input type
+            return ((LocalTime) beamValue).toNanoOfDay();
+          }
         } else if (SqlTypes.DATE.getIdentifier().equals(logicalId)) {
           if (beamValue instanceof Long) { // base type
             return ((Long) beamValue).intValue();

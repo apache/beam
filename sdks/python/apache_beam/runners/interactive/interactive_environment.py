@@ -33,6 +33,7 @@ import sys
 
 import apache_beam as beam
 from apache_beam.runners import runner
+from apache_beam.runners.interactive.messaging.interactive_environment_inspector import InteractiveEnvironmentInspector
 from apache_beam.runners.interactive.utils import register_ipython_log_handler
 from apache_beam.utils.interactive_utils import is_in_ipython
 from apache_beam.utils.interactive_utils import is_in_notebook
@@ -199,6 +200,10 @@ class InteractiveEnvironment(object):
       ])
       register_ipython_log_handler()
 
+    # A singleton inspector instance to message information of current
+    # environment to other applications.
+    self._inspector = InteractiveEnvironmentInspector()
+
   @property
   def options(self):
     """A reference to the global interactive options.
@@ -233,6 +238,12 @@ class InteractiveEnvironment(object):
     test.
     """
     return self._is_in_notebook
+
+  @property
+  def inspector(self):
+    """Gets the singleton InteractiveEnvironmentInspector to retrieve
+    information consumable by other applications."""
+    return self._inspector
 
   def cleanup(self):
     # Utilizes cache manager to clean up cache from everywhere.

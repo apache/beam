@@ -109,6 +109,9 @@ public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> 
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder.add(DisplayData.item("query", queryProvider).withLabel("Query"));
+    builder.add(
+        DisplayData.item("launchesBigQueryJobs", true)
+            .withLabel("This transform launches BigQuery jobs to read/write elements."));
   }
 
   @Override
