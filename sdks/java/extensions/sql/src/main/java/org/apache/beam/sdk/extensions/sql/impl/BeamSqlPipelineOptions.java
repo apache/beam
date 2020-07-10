@@ -30,6 +30,14 @@ public interface BeamSqlPipelineOptions extends PipelineOptions {
 
   void setPlannerName(String className);
 
+  @Description(
+      "Default timezone for ZetaSQL analyzer; has no effect on CalciteSQL. Allow tz database "
+          + "timezone names in https://en.wikipedia.org/wiki/List_of_tz_database_time_zones")
+  @Default.String("UTC")
+  String getZetaSqlDefaultTimezone();
+
+  void setZetaSqlDefaultTimezone(String timezone);
+
   @Description("Enables extra verification of row values for debugging.")
   @Default.Boolean(false)
   Boolean getVerifyRowValues();

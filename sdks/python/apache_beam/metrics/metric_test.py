@@ -141,11 +141,15 @@ class MetricsTest(unittest.TestCase):
   def test_user_counter_using_pardo(self):
     class SomeDoFn(beam.DoFn):
       """A custom dummy DoFn using yield."""
+      static_counter_elements = metrics.Metrics.counter(
+          "SomeDoFn", 'metrics_static_counter_element')
+
       def __init__(self):
         self.user_counter_elements = metrics.Metrics.counter(
             self.__class__, 'metrics_user_counter_element')
 
       def process(self, element):
+        self.static_counter_elements.inc(2)
         self.user_counter_elements.inc()
         distro = Metrics.distribution(self.__class__, 'element_dist')
         distro.update(element)
@@ -159,15 +163,26 @@ class MetricsTest(unittest.TestCase):
     res = pipeline.run()
     res.wait_until_finish()
 
+    # Verify static counter.
+    metric_results = (
+        res.metrics().query(
+            MetricsFilter().with_metric(SomeDoFn.static_counter_elements)))
+    outputs_static_counter = metric_results['counters'][0]
+
+    self.assertEqual(
+        outputs_static_counter.key.metric.name,
+        'metrics_static_counter_element')
+    self.assertEqual(outputs_static_counter.committed, 8)
+
     # Verify user counter.
     metric_results = (
         res.metrics().query(
             MetricsFilter().with_name('metrics_user_counter_element')))
-    outputs_counter = metric_results['counters'][0]
+    outputs_user_counter = metric_results['counters'][0]
 
     self.assertEqual(
-        outputs_counter.key.metric.name, 'metrics_user_counter_element')
-    self.assertEqual(outputs_counter.committed, 4)
+        outputs_user_counter.key.metric.name, 'metrics_user_counter_element')
+    self.assertEqual(outputs_user_counter.committed, 4)
 
     # Verify user distribution counter.
     metric_results = res.metrics().query()

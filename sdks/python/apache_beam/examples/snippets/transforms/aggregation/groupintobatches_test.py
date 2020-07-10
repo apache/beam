@@ -31,14 +31,14 @@ from . import groupintobatches
 
 def check_batches_with_keys(actual):
   expected = '''[START batches_with_keys]
-[('spring', '🍓'), ('spring', '🥕'), ('spring', '🍆')]
-[('summer', '🥕'), ('summer', '🍅'), ('summer', '🌽')]
-[('spring', '🍅')]
-[('fall', '🥕'), ('fall', '🍅')]
-[('winter', '🍆')]
+('spring', ['🍓', '🥕', '🍆'])
+('summer', ['🥕', '🍅', '🌽'])
+('spring', ['🍅'])
+('fall', ['🥕', '🍅'])
+('winter', ['🍆'])
 [END batches_with_keys]'''.splitlines()[1:-1]
   assert_matches_stdout(
-      actual, expected, lambda batch: (batch[0][0], len(batch)))
+      actual, expected, lambda batch: (batch[0], len(batch[1])))
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)

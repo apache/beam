@@ -267,6 +267,9 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
                 .withLabel("Write Disposition"))
         .add(
             DisplayData.item("firstPaneCreateDisposition", firstPaneCreateDisposition.toString())
-                .withLabel("Create Disposition"));
+                .withLabel("Create Disposition"))
+        .add(
+            DisplayData.item("launchesBigQueryJobs", true)
+                .withLabel("This transform launches BigQuery jobs to read/write elements."));
   }
 }

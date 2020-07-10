@@ -170,7 +170,7 @@ public class JsonToRowTest implements Serializable {
             row(
                 JsonToRowWithErrFn.ERROR_ROW_WITH_ERR_MSG_SCHEMA,
                 "{}",
-                "Field 'name' is not present in the JSON object"),
+                "Non-nullable field 'name' is not present in the JSON object."),
             row(
                 JsonToRowWithErrFn.ERROR_ROW_WITH_ERR_MSG_SCHEMA,
                 "Is it 42?",
@@ -208,7 +208,7 @@ public class JsonToRowTest implements Serializable {
 
     PAssert.that(errorsWithMsg)
         .containsInAnyOrder(
-            row(customSchema, "{}", "Field 'name' is not present in the JSON object"),
+            row(customSchema, "{}", "Non-nullable field 'name' is not present in the JSON object."),
             row(customSchema, "Is it 42?", "Unable to parse Row"));
 
     pipeline.run();

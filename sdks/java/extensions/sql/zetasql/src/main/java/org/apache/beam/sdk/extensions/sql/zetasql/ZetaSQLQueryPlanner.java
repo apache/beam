@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import com.google.zetasql.LanguageOptions;
 import com.google.zetasql.Value;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner.NonCumulativeCostImpl;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
@@ -52,7 +54,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelConversionException;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -65,9 +66,18 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     plannerImpl = new ZetaSQLPlannerImpl(config);
   }
 
+  /**
+   * Called by {@link org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv}.instantiatePlanner()
+   * reflectively.
+   */
   public ZetaSQLQueryPlanner(JdbcConnection jdbcConnection, RuleSet[] ruleSets) {
     plannerImpl =
         new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, modifyRuleSetsForZetaSql(ruleSets)));
+    setDefaultTimezone(
+        jdbcConnection
+            .getPipelineOptions()
+            .as(BeamSqlPipelineOptions.class)
+            .getZetaSqlDefaultTimezone());
   }
 
   public static RuleSet[] getZetaSqlRuleSets() {
@@ -94,6 +104,18 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     return ret;
   }
 
+  public String getDefaultTimezone() {
+    return plannerImpl.getDefaultTimezone();
+  }
+
+  public void setDefaultTimezone(String timezone) {
+    plannerImpl.setDefaultTimezone(timezone);
+  }
+
+  public static LanguageOptions getLanguageOptions() {
+    return ZetaSQLPlannerImpl.getLanguageOptions();
+  }
+
   public BeamRelNode convertToBeamRel(String sqlStatement) {
     return convertToBeamRel(sqlStatement, QueryParameters.ofNone());
   }
@@ -111,11 +133,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
   @Override
   public BeamRelNode convertToBeamRel(String sqlStatement, QueryParameters queryParameters)
       throws ParseException, SqlConversionException {
-    try {
-      return convertToBeamRelInternal(sqlStatement, queryParameters);
-    } catch (RelConversionException e) {
-      throw new SqlConversionException(e.getCause());
-    }
+    return convertToBeamRelInternal(sqlStatement, queryParameters);
   }
 
   @Override
@@ -126,8 +144,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
             this.getClass().getCanonicalName()));
   }
 
-  private BeamRelNode convertToBeamRelInternal(String sql, QueryParameters queryParams)
-      throws RelConversionException {
+  private BeamRelNode convertToBeamRelInternal(String sql, QueryParameters queryParams) {
     RelRoot root = plannerImpl.rel(sql, queryParams);
     RelTraitSet desiredTraits =
         root.rel
@@ -150,7 +167,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     return (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
   }
 
-  private FrameworkConfig defaultConfig(JdbcConnection connection, RuleSet[] ruleSets) {
+  private static FrameworkConfig defaultConfig(JdbcConnection connection, RuleSet[] ruleSets) {
     final CalciteConnectionConfig config = connection.config();
     final SqlParser.ConfigBuilder parserConfig =
         SqlParser.configBuilder()

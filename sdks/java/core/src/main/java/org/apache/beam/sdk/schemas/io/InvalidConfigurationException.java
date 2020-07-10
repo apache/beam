@@ -15,18 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.snowflake.enums;
+package org.apache.beam.sdk.schemas.io;
 
-public enum CloudProvider {
-  GCS("gs://");
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 
-  private final String prefix;
-
-  private CloudProvider(String prefix) {
-    this.prefix = prefix;
+/** Exception thrown when the configuration for a {@link SchemaIO} is invalid. */
+@Internal
+@Experimental(Kind.SCHEMAS)
+public class InvalidConfigurationException extends IllegalArgumentException {
+  public InvalidConfigurationException(String msg) {
+    super(msg);
   }
 
-  public String getPrefix() {
-    return prefix;
+  public InvalidConfigurationException(String msg, Throwable cause) {
+    super(msg, cause);
+  }
+
+  public InvalidConfigurationException(Throwable cause) {
+    super(cause);
   }
 }

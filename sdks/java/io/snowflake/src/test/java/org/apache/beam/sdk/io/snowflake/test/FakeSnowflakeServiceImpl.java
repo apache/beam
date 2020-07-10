@@ -24,6 +24,9 @@ import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import net.snowflake.client.jdbc.SnowflakeSQLException;
+import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
+import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeServiceConfig;
@@ -60,6 +63,8 @@ public class FakeSnowflakeServiceImpl implements SnowflakeService<SnowflakeServi
   public void copyToTable(SnowflakeServiceConfig config) throws SQLException {
     List<String> filesList = config.getFilesList();
     String table = config.getTable();
+    SnowflakeTableSchema tableSchema = config.getTableSchema();
+    CreateDisposition createDisposition = config.getCreateDisposition();
     WriteDisposition writeDisposition = config.getWriteDisposition();
 
     List<String> rows = new ArrayList<>();
@@ -67,9 +72,33 @@ public class FakeSnowflakeServiceImpl implements SnowflakeService<SnowflakeServi
       rows.addAll(TestUtils.readGZIPFile(file.replace("'", "")));
     }
 
+    prepareTableAccordingCreateDisposition(table, tableSchema, createDisposition);
     prepareTableAccordingWriteDisposition(table, writeDisposition);
 
     FakeSnowflakeDatabase.createTableWithElements(table, rows);
+  }
+
+  private void prepareTableAccordingCreateDisposition(
+      String table, SnowflakeTableSchema tableSchema, CreateDisposition createDisposition)
+      throws SQLException {
+    switch (createDisposition) {
+      case CREATE_NEVER:
+        if (!FakeSnowflakeDatabase.isTableExist(table)) {
+          throw new SnowflakeSQLException(
+              null, "SQL compilation error: Table does not exist", table, 0);
+        }
+        break;
+      case CREATE_IF_NEEDED:
+        if (FakeSnowflakeDatabase.isTableExist(table)) {
+          break;
+        } else if (tableSchema == null) {
+          throw new RuntimeException(
+              "The CREATE_IF_NEEDED disposition requires schema if table doesn't exists");
+        } else {
+          FakeSnowflakeDatabase.createTable(table);
+        }
+        break;
+    }
   }
 
   private void prepareTableAccordingWriteDisposition(

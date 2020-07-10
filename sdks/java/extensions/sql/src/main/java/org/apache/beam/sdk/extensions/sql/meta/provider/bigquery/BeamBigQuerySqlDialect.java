@@ -24,6 +24,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.Ti
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.NullCollation;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeSystem;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlAbstractDateTimeLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlDialect;
@@ -36,6 +37,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlSetOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlSyntax;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlTimestampLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlWriter;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.dialect.BigQuerySqlDialect;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlTrimFunction;
@@ -427,5 +429,16 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
         null,
         null,
         SqlParserPos.ZERO);
+  }
+
+  @Override
+  public void unparseDateTimeLiteral(
+      SqlWriter writer, SqlAbstractDateTimeLiteral literal, int leftPrec, int rightPrec) {
+    if (literal instanceof SqlTimestampLiteral) {
+      // 'Z' stands for +00 timezone offset, which is guaranteed in TIMESTAMP literal
+      writer.literal("TIMESTAMP '" + literal.toFormattedString() + "Z'");
+    } else {
+      super.unparseDateTimeLiteral(writer, literal, leftPrec, rightPrec);
+    }
   }
 }

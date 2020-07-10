@@ -20,10 +20,10 @@ package org.apache.beam.sdk.metrics;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,15 +51,16 @@ public class MetricsEnvironment {
   private static final AtomicBoolean METRICS_SUPPORTED = new AtomicBoolean(false);
   private static final AtomicBoolean REPORTED_MISSING_CONTAINER = new AtomicBoolean(false);
 
-  private static final ThreadLocal<MetricsContainer> CONTAINER_FOR_THREAD = new ThreadLocal<>();
+  private static final ThreadLocal<@Nullable MetricsContainer> CONTAINER_FOR_THREAD =
+      new ThreadLocal<>();
 
   /**
    * Set the {@link MetricsContainer} for the current thread.
    *
    * @return The previous container for the current thread.
    */
-  @Nullable
-  public static MetricsContainer setCurrentContainer(@Nullable MetricsContainer container) {
+  public static @Nullable MetricsContainer setCurrentContainer(
+      @Nullable MetricsContainer container) {
     MetricsContainer previous = CONTAINER_FOR_THREAD.get();
     if (container == null) {
       CONTAINER_FOR_THREAD.remove();
@@ -91,7 +92,7 @@ public class MetricsEnvironment {
 
   private static class ScopedContainer implements Closeable {
 
-    @Nullable private final MetricsContainer oldContainer;
+    private final @Nullable MetricsContainer oldContainer;
 
     private ScopedContainer(MetricsContainer newContainer) {
       this.oldContainer = setCurrentContainer(newContainer);
@@ -110,8 +111,7 @@ public class MetricsEnvironment {
    * is not a work-execution thread. The first time this happens in a given thread it will log a
    * diagnostic message.
    */
-  @Nullable
-  public static MetricsContainer getCurrentContainer() {
+  public static @Nullable MetricsContainer getCurrentContainer() {
     MetricsContainer container = CONTAINER_FOR_THREAD.get();
     if (container == null && REPORTED_MISSING_CONTAINER.compareAndSet(false, true)) {
       if (isMetricsSupported()) {

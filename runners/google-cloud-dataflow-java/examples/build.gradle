@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(publish: false, exportJavadoc: false)
+applyJavaNature(publish: false, exportJavadoc: false, enableChecker: false)
 // Evaluate the given project before this one, to allow referencing
 // its sourceSets.test.output directly.
 evaluationDependsOn(":examples:java")

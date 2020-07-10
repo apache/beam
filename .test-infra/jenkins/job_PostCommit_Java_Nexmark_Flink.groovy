@@ -108,6 +108,41 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--monitorJobs=true"'
               ].join(' '))
     }
+    shell('echo "*** RUN NEXMARK IN ZETASQL BATCH MODE USING FLINK RUNNER ***"')
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sdks:java:testing:nexmark:run')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":runners:flink:1.10"' +
+              ' -Pnexmark.args="' +
+              [commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
+              commonJobProperties.mapToArgString(nexmarkInfluxDBArgs),
+              '--runner=FlinkRunner',
+              '--queryLanguage=zetasql',
+              '--streaming=false',
+              '--suite=SMOKE',
+              '--streamTimeout=60' ,
+              '--manageResources=false"'
+              ].join(' '))
+    }
+    shell('echo "*** RUN NEXMARK IN ZETASQL STREAMING MODE USING FLINK RUNNER ***"')
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sdks:java:testing:nexmark:run')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":runners:flink:1.10"' +
+              ' -Pnexmark.args="' +
+              [commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
+              commonJobProperties.mapToArgString(nexmarkInfluxDBArgs),
+              '--runner=FlinkRunner',
+              '--queryLanguage=zetasql',
+              '--streaming=true',
+              '--suite=SMOKE',
+              '--streamTimeout=60' ,
+              '--manageResources=false',
+              '--monitorJobs=true"'
+              ].join(' '))
+    }
   }
 }
 

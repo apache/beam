@@ -30,16 +30,17 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 public class PubsubMessage {
 
   private byte[] message;
-  private Map<String, String> attributes;
-  private String messageId;
+  @Nullable private Map<String, String> attributes;
+  @Nullable private String messageId;
 
-  public PubsubMessage(byte[] payload, Map<String, String> attributes) {
+  public PubsubMessage(byte[] payload, @Nullable Map<String, String> attributes) {
     this.message = payload;
     this.attributes = attributes;
     this.messageId = null;
   }
 
-  public PubsubMessage(byte[] payload, Map<String, String> attributes, String messageId) {
+  public PubsubMessage(
+      byte[] payload, @Nullable Map<String, String> attributes, @Nullable String messageId) {
     this.message = payload;
     this.attributes = attributes;
     this.messageId = messageId;
@@ -58,6 +59,7 @@ public class PubsubMessage {
   }
 
   /** Returns the full map of attributes. This is an unmodifiable map. */
+  @Nullable
   public Map<String, String> getAttributeMap() {
     return attributes;
   }

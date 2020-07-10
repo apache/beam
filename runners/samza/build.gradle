@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.runners.samza')
+applyJavaNature(exportJavadoc: false, enableChecker:false, automaticModuleName: 'org.apache.beam.runners.samza')
 
 description = "Apache Beam :: Runners :: Samza"
 
