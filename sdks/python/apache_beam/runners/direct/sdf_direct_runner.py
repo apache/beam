@@ -107,10 +107,11 @@ class SplittableParDo(PTransform):
 
 
 class ElementAndRestriction(object):
-  """A holder for an element and a restriction."""
-  def __init__(self, element, restriction):
+  """A holder for an element, restriction, and watermark estimator state."""
+  def __init__(self, element, restriction, watermark_estimator_state):
     self.element = element
     self.restriction = restriction
+    self.watermark_estimator_state = watermark_estimator_state
 
 
 class PairWithRestrictionFn(beam.DoFn):
@@ -127,7 +128,11 @@ class PairWithRestrictionFn(beam.DoFn):
 
   def process(self, element, window=beam.DoFn.WindowParam, *args, **kwargs):
     initial_restriction = self._invoker.invoke_initial_restriction(element)
-    yield ElementAndRestriction(element, initial_restriction)
+    watermark_estimator_state = (
+        self.signature.process_method.watermark_estimator_provider.
+        initial_estimator_state(element, initial_restriction))
+    yield ElementAndRestriction(
+        element, initial_restriction, watermark_estimator_state)
 
 
 class SplitRestrictionFn(beam.DoFn):
@@ -147,7 +152,8 @@ class SplitRestrictionFn(beam.DoFn):
     restriction = element_and_restriction.restriction
     restriction_parts = self._invoker.invoke_split(element, restriction)
     for part in restriction_parts:
-      yield ElementAndRestriction(element, part)
+      yield ElementAndRestriction(
+          element, part, element_and_restriction.watermark_estimator_state)
 
 
 class ExplodeWindowsFn(beam.DoFn):
@@ -259,6 +265,8 @@ class ProcessFn(beam.DoFn):
     self.sdf = sdf
     self._element_tag = _ReadModifyWriteStateTag('element')
     self._restriction_tag = _ReadModifyWriteStateTag('restriction')
+    self._watermark_state_tag = _ReadModifyWriteStateTag(
+        'watermark_estimator_state')
     self.watermark_hold_tag = _ReadModifyWriteStateTag('watermark_hold')
     self._process_element_invoker = None
     self._output_processor = _OutputProcessor()
@@ -317,6 +325,8 @@ class ProcessFn(beam.DoFn):
     if not is_seed_call:
       element = state.get_state(window, self._element_tag)
       restriction = state.get_state(window, self._restriction_tag)
+      watermark_estimator_state = state.get_state(
+          window, self._watermark_state_tag)
       windowed_element = WindowedValue(element, timestamp, [window])
     else:
       # After values iterator is expanded above we should have gotten a list
@@ -325,6 +335,8 @@ class ProcessFn(beam.DoFn):
       element_and_restriction = value
       element = element_and_restriction.element
       restriction = element_and_restriction.restriction
+      watermark_estimator_state = (
+          element_and_restriction.watermark_estimator_state)
 
       if isinstance(value, WindowedValue):
         windowed_element = WindowedValue(
@@ -340,6 +352,7 @@ class ProcessFn(beam.DoFn):
         self._output_processor,
         windowed_element,
         restriction,
+        watermark_estimator_state,
         *args,
         **kwargs)
 
@@ -359,6 +372,7 @@ class ProcessFn(beam.DoFn):
       # All work for current residual and restriction pair is complete.
       state.clear_state(window, self._element_tag)
       state.clear_state(window, self._restriction_tag)
+      state.clear_state(window, self._watermark_state_tag)
       # Releasing output watermark by setting it to positive infinity.
       state.add_state(
           window, self.watermark_hold_tag, WatermarkManager.WATERMARK_POS_INF)
@@ -366,6 +380,8 @@ class ProcessFn(beam.DoFn):
       state.add_state(window, self._element_tag, element)
       state.add_state(
           window, self._restriction_tag, sdf_result.residual_restriction)
+      state.add_state(
+          window, self._watermark_state_tag, watermark_estimator_state)
       # Holding output watermark by setting it to negative infinity.
       state.add_state(
           window, self.watermark_hold_tag, WatermarkManager.WATERMARK_NEG_INF)
@@ -441,6 +457,7 @@ class SDFProcessElementInvoker(object):
       output_processor,
       element,
       restriction,
+      watermark_estimator_state,
       *args,
       **kwargs):
     """Invokes `process()` method of a Splittable `DoFn` for a given element.
@@ -478,7 +495,10 @@ class SDFProcessElementInvoker(object):
     output_processor.reset()
     Timer(self._max_duration, initiate_checkpoint).start()
     sdf_invoker.invoke_process(
-        element, additional_args=args, restriction=restriction)
+        element,
+        additional_args=args,
+        restriction=restriction,
+        watermark_estimator_state=watermark_estimator_state)
 
     assert output_processor.output_iter is not None
     output_count = 0

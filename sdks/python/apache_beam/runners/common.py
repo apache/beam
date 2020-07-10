@@ -473,6 +473,11 @@ class DoFnInvoker(object):
       windowed_value: a WindowedValue object that gives the element for which
                       process() method should be invoked along with the window
                       the element belongs to.
+      restriction: The restriction to use when executing this splittable DoFn.
+                   Should only be specified for splittable DoFns.
+      watermark_estimator_state: The watermark estimator state to use when
+                                 executing this splittable DoFn. Should only
+                                 be specified for splittable DoFns.
       additional_args: additional arguments to be passed to the current
                       `DoFn.process()` invocation, usually as side inputs.
       additional_kwargs: additional keyword arguments to be passed to the
@@ -678,13 +683,7 @@ class PerWindowInvoker(DoFnInvoker):
     # otherwise as none of the arguments are changing
 
     if self.is_splittable:
-      if not restriction:
-        restriction = self.invoke_initial_restriction(windowed_value.value)
       restriction_tracker = self.invoke_create_tracker(restriction)
-      if not watermark_estimator_state:
-        watermark_estimator_state = (
-            self.signature.process_method.watermark_estimator_provider.
-            initial_estimator_state(windowed_value.value, restriction))
       watermark_estimator = self.invoke_create_watermark_estimator(
           watermark_estimator_state)
 
