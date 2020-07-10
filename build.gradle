@@ -118,6 +118,7 @@ rat {
 
     // Mockito extensions
     "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
+    "sdks/java/io/azure/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
     "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
 
     // JupyterLab extensions
