@@ -260,7 +260,7 @@ public class SqlStdOperatorMappingTable {
           // Signatures for extracting date parts, taking a date/timestamp
           // and the target date part as arguments.
           FunctionSignatureId.FN_EXTRACT_FROM_DATE, // $extract
-          // FunctionSignatureId.FN_EXTRACT_FROM_DATETIME, // $extract
+          FunctionSignatureId.FN_EXTRACT_FROM_DATETIME, // $extract
           FunctionSignatureId.FN_EXTRACT_FROM_TIME, // $extract
           FunctionSignatureId.FN_EXTRACT_FROM_TIMESTAMP, // $extract
 
