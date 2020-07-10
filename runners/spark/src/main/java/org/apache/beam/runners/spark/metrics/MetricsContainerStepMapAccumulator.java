@@ -17,16 +17,17 @@
  */
 package org.apache.beam.runners.spark.metrics;
 
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.spark.util.AccumulatorV2;
 
-/** {@link AccumulatorV2} implementation for {@link SparkMetricsContainerStepMap}. */
+/** {@link AccumulatorV2} implementation for {@link MetricsContainerStepMap}. */
 public class MetricsContainerStepMapAccumulator
-    extends AccumulatorV2<SparkMetricsContainerStepMap, SparkMetricsContainerStepMap> {
-  private static final SparkMetricsContainerStepMap empty = new SparkMetricsContainerStepMap();
+    extends AccumulatorV2<MetricsContainerStepMap, MetricsContainerStepMap> {
+  private static final MetricsContainerStepMap empty = new SparkMetricsContainerStepMap();
 
-  private SparkMetricsContainerStepMap value;
+  private MetricsContainerStepMap value;
 
-  public MetricsContainerStepMapAccumulator(SparkMetricsContainerStepMap value) {
+  public MetricsContainerStepMapAccumulator(MetricsContainerStepMap value) {
     this.value = value;
   }
 
@@ -37,7 +38,7 @@ public class MetricsContainerStepMapAccumulator
 
   @Override
   public MetricsContainerStepMapAccumulator copy() {
-    SparkMetricsContainerStepMap newContainer = new SparkMetricsContainerStepMap();
+    MetricsContainerStepMap newContainer = new SparkMetricsContainerStepMap();
     newContainer.updateAll(value);
     return new MetricsContainerStepMapAccumulator(newContainer);
   }
@@ -48,18 +49,17 @@ public class MetricsContainerStepMapAccumulator
   }
 
   @Override
-  public void add(SparkMetricsContainerStepMap other) {
+  public void add(MetricsContainerStepMap other) {
     this.value.updateAll(other);
   }
 
   @Override
-  public void merge(
-      AccumulatorV2<SparkMetricsContainerStepMap, SparkMetricsContainerStepMap> other) {
+  public void merge(AccumulatorV2<MetricsContainerStepMap, MetricsContainerStepMap> other) {
     this.value.updateAll(other.value());
   }
 
   @Override
-  public SparkMetricsContainerStepMap value() {
+  public MetricsContainerStepMap value() {
     return this.value;
   }
 }

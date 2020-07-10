@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.metrics;
 
 import java.io.IOException;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
@@ -57,13 +58,13 @@ public class MetricsAccumulator {
               opts.isStreaming()
                   ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
                   : Optional.absent();
-          SparkMetricsContainerStepMap metricsContainerStepMap = new SparkMetricsContainerStepMap();
+          MetricsContainerStepMap metricsContainerStepMap = new SparkMetricsContainerStepMap();
           MetricsContainerStepMapAccumulator accumulator =
               new MetricsContainerStepMapAccumulator(metricsContainerStepMap);
           jsc.sc().register(accumulator, ACCUMULATOR_NAME);
 
           if (maybeCheckpointDir.isPresent()) {
-            Optional<SparkMetricsContainerStepMap> maybeRecoveredValue =
+            Optional<MetricsContainerStepMap> maybeRecoveredValue =
                 recoverValueFromCheckpoint(jsc, maybeCheckpointDir.get());
             if (maybeRecoveredValue.isPresent()) {
               accumulator = new MetricsContainerStepMapAccumulator(maybeRecoveredValue.get());
@@ -86,7 +87,7 @@ public class MetricsAccumulator {
     }
   }
 
-  private static Optional<SparkMetricsContainerStepMap> recoverValueFromCheckpoint(
+  private static Optional<MetricsContainerStepMap> recoverValueFromCheckpoint(
       JavaSparkContext jsc, CheckpointDir checkpointDir) {
     try {
       Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();
@@ -120,8 +121,7 @@ public class MetricsAccumulator {
   }
 
   /**
-   * Spark Listener which checkpoints {@link SparkMetricsContainerStepMap} values for
-   * fault-tolerance.
+   * Spark Listener which checkpoints {@link MetricsContainerStepMap} values for fault-tolerance.
    */
   public static class AccumulatorCheckpointingSparkListener extends JavaStreamingListener {
     @Override
