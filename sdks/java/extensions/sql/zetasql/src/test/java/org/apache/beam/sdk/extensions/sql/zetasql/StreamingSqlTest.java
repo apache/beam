@@ -39,16 +39,15 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** StreamingSQLTest. */
+/** StreamingSqlTest. */
 @RunWith(JUnit4.class)
-public class StreamingSQLTest extends ZetaSQLTestBase {
+public class StreamingSqlTest extends ZetaSqlTestBase {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Before
   public void setUp() {
-    initializeBeamTableProvider();
-    initializeCalciteEnvironment();
+    initialize();
   }
 
   @Test
