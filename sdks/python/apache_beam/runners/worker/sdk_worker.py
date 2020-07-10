@@ -144,14 +144,16 @@ class SdkHarness(object):
     self._worker_index = 0
     self._worker_id = worker_id
     self._state_cache = StateCache(state_cache_size)
+    options = [('grpc.max_receive_message_length', -1),
+               ('grpc.max_send_message_length', -1)]
     if credentials is None:
       _LOGGER.info('Creating insecure control channel for %s.', control_address)
       self._control_channel = GRPCChannelFactory.insecure_channel(
-          control_address)
+          control_address, options=options)
     else:
       _LOGGER.info('Creating secure control channel for %s.', control_address)
       self._control_channel = GRPCChannelFactory.secure_channel(
-          control_address, credentials)
+          control_address, credentials, options=options)
     grpc.channel_ready_future(self._control_channel).result(timeout=60)
     _LOGGER.info('Control channel established.')
 
