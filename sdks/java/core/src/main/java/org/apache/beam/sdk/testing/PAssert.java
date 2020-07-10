@@ -1196,6 +1196,13 @@ public class PAssert {
         return PCollectionList.of(dummy)
             .and(actual)
             .apply(Flatten.pCollections())
+            .apply(
+                // Default end-of-window trigger dissallowed for unbounded PCollections.
+                input.isBounded() == PCollection.IsBounded.UNBOUNDED
+                    ? Window.<Iterable<ValueInSingleWindow<T>>>configure()
+                        .triggering(Never.ever())
+                        .discardingFiredPanes()
+                    : Window.<Iterable<ValueInSingleWindow<T>>>configure())
             .apply(WithKeys.of(combinedKey))
             .apply(GroupByKey.create())
             .apply(Values.create())
