@@ -407,73 +407,65 @@ public class SqlStdOperatorMappingTable {
           // FunctionSignatureId.FN_APPROX_TOP_SUM_NUMERIC, // approx_top_sum
           // FunctionSignatureId.FN_APPROX_TOP_SUM_BIGNUMERIC, // approx_top_sum
 
-          /*
           // Approximate count functions that expose the intermediate sketch.
           // These are all found in the "hll_count.*" namespace.
-          FunctionSignatureId.FN_HLL_COUNT_MERGE, // hll_count.merge(bytes)
-          FunctionSignatureId.FN_HLL_COUNT_EXTRACT, // hll_count.extract(bytes), scalar
-          FunctionSignatureId.FN_HLL_COUNT_INIT_INT64, // hll_count.init(int64)
-          FunctionSignatureId.FN_HLL_COUNT_INIT_NUMERIC, // hll_count.init(numeric)
-          FunctionSignatureId.FN_HLL_COUNT_INIT_BIGNUMERIC, // hll_count.init(bignumeric)
-          FunctionSignatureId.FN_HLL_COUNT_INIT_STRING, // hll_count.init(string)
-          FunctionSignatureId.FN_HLL_COUNT_INIT_BYTES, // hll_count.init(bytes)
-          FunctionSignatureId.FN_HLL_COUNT_MERGE_PARTIAL, // hll_count.merge_partial(bytes)
-          */
+          // FunctionSignatureId.FN_HLL_COUNT_MERGE, // hll_count.merge(bytes)
+          // FunctionSignatureId.FN_HLL_COUNT_EXTRACT, // hll_count.extract(bytes), scalar
+          // FunctionSignatureId.FN_HLL_COUNT_INIT_INT64, // hll_count.init(int64)
+          // FunctionSignatureId.FN_HLL_COUNT_INIT_NUMERIC, // hll_count.init(numeric)
+          // FunctionSignatureId.FN_HLL_COUNT_INIT_BIGNUMERIC, // hll_count.init(bignumeric)
+          // FunctionSignatureId.FN_HLL_COUNT_INIT_STRING, // hll_count.init(string)
+          // FunctionSignatureId.FN_HLL_COUNT_INIT_BYTES, // hll_count.init(bytes)
+          // FunctionSignatureId.FN_HLL_COUNT_MERGE_PARTIAL, // hll_count.merge_partial(bytes)
 
-          /*
           // Statistical aggregate functions.
-          FunctionSignatureId.FN_CORR, // corr
-          FunctionSignatureId.FN_CORR_NUMERIC, // corr
-          FunctionSignatureId.FN_COVAR_POP, // covar_pop
-          FunctionSignatureId.FN_COVAR_POP_NUMERIC, // covar_pop
-          FunctionSignatureId.FN_COVAR_SAMP, // covar_samp
-          FunctionSignatureId.FN_COVAR_SAMP_NUMERIC, // covar_samp
-          FunctionSignatureId.FN_STDDEV_POP, // stddev_pop
-          FunctionSignatureId.FN_STDDEV_POP_NUMERIC, // stddev_pop
-          FunctionSignatureId.FN_STDDEV_SAMP, // stddev_samp
-          FunctionSignatureId.FN_STDDEV_SAMP_NUMERIC, // stddev_samp
-          FunctionSignatureId.FN_VAR_POP, // var_pop
-          FunctionSignatureId.FN_VAR_POP_NUMERIC, // var_pop
-          FunctionSignatureId.FN_VAR_SAMP, // var_samp
-          FunctionSignatureId.FN_VAR_SAMP_NUMERIC, // var_samp
-          */
+          // FunctionSignatureId.FN_CORR, // corr
+          // FunctionSignatureId.FN_CORR_NUMERIC, // corr
+          // FunctionSignatureId.FN_COVAR_POP, // covar_pop
+          // FunctionSignatureId.FN_COVAR_POP_NUMERIC, // covar_pop
+          // FunctionSignatureId.FN_COVAR_SAMP, // covar_samp
+          // FunctionSignatureId.FN_COVAR_SAMP_NUMERIC, // covar_samp
+          // FunctionSignatureId.FN_STDDEV_POP, // stddev_pop
+          // FunctionSignatureId.FN_STDDEV_POP_NUMERIC, // stddev_pop
+          // FunctionSignatureId.FN_STDDEV_SAMP, // stddev_samp
+          // FunctionSignatureId.FN_STDDEV_SAMP_NUMERIC, // stddev_samp
+          // FunctionSignatureId.FN_VAR_POP, // var_pop
+          // FunctionSignatureId.FN_VAR_POP_NUMERIC, // var_pop
+          // FunctionSignatureId.FN_VAR_SAMP, // var_samp
+          // FunctionSignatureId.FN_VAR_SAMP_NUMERIC, // var_samp
 
           // FunctionSignatureId.FN_COUNTIF, // countif
 
-          /*
           // Approximate quantiles functions that produce or consume intermediate
           // sketches. All found in the "kll_quantiles.*" namespace.
-          FunctionSignatureId.FN_KLL_QUANTILES_INIT_INT64,
-          FunctionSignatureId.FN_KLL_QUANTILES_INIT_DOUBLE,
-          FunctionSignatureId.FN_KLL_QUANTILES_MERGE_PARTIAL,
-          FunctionSignatureId.FN_KLL_QUANTILES_MERGE_INT64,
-          FunctionSignatureId.FN_KLL_QUANTILES_MERGE_DOUBLE,
-          FunctionSignatureId.FN_KLL_QUANTILES_EXTRACT_INT64, // scalar
-          FunctionSignatureId.FN_KLL_QUANTILES_EXTRACT_DOUBLE, // scalar
-          FunctionSignatureId.FN_KLL_QUANTILES_MERGE_POINT_INT64,
-          FunctionSignatureId.FN_KLL_QUANTILES_MERGE_POINT_DOUBLE,
-          FunctionSignatureId.FN_KLL_QUANTILES_EXTRACT_POINT_INT64, // scalar
-          FunctionSignatureId.FN_KLL_QUANTILES_EXTRACT_POINT_DOUBLE, // scalar
-          */
+          // FunctionSignatureId.FN_KLL_QUANTILES_INIT_INT64,
+          // FunctionSignatureId.FN_KLL_QUANTILES_INIT_DOUBLE,
+          // FunctionSignatureId.FN_KLL_QUANTILES_MERGE_PARTIAL,
+          // FunctionSignatureId.FN_KLL_QUANTILES_MERGE_INT64,
+          // FunctionSignatureId.FN_KLL_QUANTILES_MERGE_DOUBLE,
+          // FunctionSignatureId.FN_KLL_QUANTILES_EXTRACT_INT64, // scalar
+          // FunctionSignatureId.FN_KLL_QUANTILES_EXTRACT_DOUBLE, // scalar
+          // FunctionSignatureId.FN_KLL_QUANTILES_MERGE_POINT_INT64,
+          // FunctionSignatureId.FN_KLL_QUANTILES_MERGE_POINT_DOUBLE,
+          // FunctionSignatureId.FN_KLL_QUANTILES_EXTRACT_POINT_INT64, // scalar
+          // FunctionSignatureId.FN_KLL_QUANTILES_EXTRACT_POINT_DOUBLE, // scalar
 
-          /*
           // Analytic functions.
-          FunctionSignatureId.FN_DENSE_RANK, // dense_rank
-          FunctionSignatureId.FN_RANK, // rank
-          FunctionSignatureId.FN_ROW_NUMBER, // row_number
-          FunctionSignatureId.FN_PERCENT_RANK, // percent_rank
-          FunctionSignatureId.FN_CUME_DIST, // cume_dist
-          FunctionSignatureId.FN_NTILE, // ntile
-          FunctionSignatureId.FN_LEAD, // lead
-          FunctionSignatureId.FN_LAG, // lag
-          FunctionSignatureId.FN_FIRST_VALUE, // first_value
-          FunctionSignatureId.FN_LAST_VALUE, // last_value
-          FunctionSignatureId.FN_NTH_VALUE, // nth_value
-          FunctionSignatureId.FN_PERCENTILE_CONT, // percentile_cont
-          FunctionSignatureId.FN_PERCENTILE_CONT_NUMERIC, // percentile_cont
-          FunctionSignatureId.FN_PERCENTILE_DISC, // percentile_disc
-          FunctionSignatureId.FN_PERCENTILE_DISC_NUMERIC, // percentile_disc
-          */
+          // FunctionSignatureId.FN_DENSE_RANK, // dense_rank
+          // FunctionSignatureId.FN_RANK, // rank
+          // FunctionSignatureId.FN_ROW_NUMBER, // row_number
+          // FunctionSignatureId.FN_PERCENT_RANK, // percent_rank
+          // FunctionSignatureId.FN_CUME_DIST, // cume_dist
+          // FunctionSignatureId.FN_NTILE, // ntile
+          // FunctionSignatureId.FN_LEAD, // lead
+          // FunctionSignatureId.FN_LAG, // lag
+          // FunctionSignatureId.FN_FIRST_VALUE, // first_value
+          // FunctionSignatureId.FN_LAST_VALUE, // last_value
+          // FunctionSignatureId.FN_NTH_VALUE, // nth_value
+          // FunctionSignatureId.FN_PERCENTILE_CONT, // percentile_cont
+          // FunctionSignatureId.FN_PERCENTILE_CONT_NUMERIC, // percentile_cont
+          // FunctionSignatureId.FN_PERCENTILE_DISC, // percentile_disc
+          // FunctionSignatureId.FN_PERCENTILE_DISC_NUMERIC, // percentile_disc
 
           // Misc functions.
           // FunctionSignatureId.FN_BIT_CAST_INT64_TO_INT64, // bit_cast_to_int64(int64)
@@ -503,145 +495,133 @@ public class SqlStdOperatorMappingTable {
           // FunctionSignatureId.FN_JSON_QUERY, // json_query(string, string)
           // FunctionSignatureId.FN_JSON_VALUE, // json_value(string, string)
 
-          /*
           // Net functions. These are all found in the "net.*" namespace.
-          FunctionSignatureId.FN_NET_FORMAT_IP,
-          FunctionSignatureId.FN_NET_PARSE_IP,
-          FunctionSignatureId.FN_NET_FORMAT_PACKED_IP,
-          FunctionSignatureId.FN_NET_PARSE_PACKED_IP,
-          FunctionSignatureId.FN_NET_IP_IN_NET,
-          FunctionSignatureId.FN_NET_MAKE_NET,
-          FunctionSignatureId.FN_NET_HOST, // net.host(string)
-          FunctionSignatureId.FN_NET_REG_DOMAIN, // net.reg_domain(string)
-          FunctionSignatureId.FN_NET_PUBLIC_SUFFIX, // net.public_suffix(string)
-          FunctionSignatureId.FN_NET_IP_FROM_STRING, // net.ip_from_string(string)
-          FunctionSignatureId.FN_NET_SAFE_IP_FROM_STRING, // net.safe_ip_from_string(string)
-          FunctionSignatureId.FN_NET_IP_TO_STRING, // net.ip_to_string(bytes)
-          FunctionSignatureId.FN_NET_IP_NET_MASK, // net.ip_net_mask(int64, int64)
-          FunctionSignatureId.FN_NET_IP_TRUNC, // net.ip_net_mask(bytes, int64)
-          FunctionSignatureId.FN_NET_IPV4_FROM_INT64, // net.ipv4_from_int64(int64)
-          FunctionSignatureId.FN_NET_IPV4_TO_INT64, // net.ipv4_to_int64(bytes)
-          */
+          // FunctionSignatureId.FN_NET_FORMAT_IP,
+          // FunctionSignatureId.FN_NET_PARSE_IP,
+          // FunctionSignatureId.FN_NET_FORMAT_PACKED_IP,
+          // FunctionSignatureId.FN_NET_PARSE_PACKED_IP,
+          // FunctionSignatureId.FN_NET_IP_IN_NET,
+          // FunctionSignatureId.FN_NET_MAKE_NET,
+          // FunctionSignatureId.FN_NET_HOST, // net.host(string)
+          // FunctionSignatureId.FN_NET_REG_DOMAIN, // net.reg_domain(string)
+          // FunctionSignatureId.FN_NET_PUBLIC_SUFFIX, // net.public_suffix(string)
+          // FunctionSignatureId.FN_NET_IP_FROM_STRING, // net.ip_from_string(string)
+          // FunctionSignatureId.FN_NET_SAFE_IP_FROM_STRING, // net.safe_ip_from_string(string)
+          // FunctionSignatureId.FN_NET_IP_TO_STRING, // net.ip_to_string(bytes)
+          // FunctionSignatureId.FN_NET_IP_NET_MASK, // net.ip_net_mask(int64, int64)
+          // FunctionSignatureId.FN_NET_IP_TRUNC, // net.ip_net_mask(bytes, int64)
+          // FunctionSignatureId.FN_NET_IPV4_FROM_INT64, // net.ipv4_from_int64(int64)
+          // FunctionSignatureId.FN_NET_IPV4_TO_INT64, // net.ipv4_to_int64(bytes)
 
-          /*
           // Hashing functions.
-          FunctionSignatureId.FN_MD5_BYTES, // md5(bytes)
-          FunctionSignatureId.FN_MD5_STRING, // md5(string)
-          FunctionSignatureId.FN_SHA1_BYTES, // sha1(bytes)
-          FunctionSignatureId.FN_SHA1_STRING, // sha1(string)
-          FunctionSignatureId.FN_SHA256_BYTES, // sha256(bytes)
-          FunctionSignatureId.FN_SHA256_STRING, // sha256(string)
-          FunctionSignatureId.FN_SHA512_BYTES, // sha512(bytes)
-          FunctionSignatureId.FN_SHA512_STRING, // sha512(string)
-          */
+          // FunctionSignatureId.FN_MD5_BYTES, // md5(bytes)
+          // FunctionSignatureId.FN_MD5_STRING, // md5(string)
+          // FunctionSignatureId.FN_SHA1_BYTES, // sha1(bytes)
+          // FunctionSignatureId.FN_SHA1_STRING, // sha1(string)
+          // FunctionSignatureId.FN_SHA256_BYTES, // sha256(bytes)
+          // FunctionSignatureId.FN_SHA256_STRING, // sha256(string)
+          // FunctionSignatureId.FN_SHA512_BYTES, // sha512(bytes)
+          // FunctionSignatureId.FN_SHA512_STRING, // sha512(string)
 
-          /*
           // Fingerprinting functions
-          FunctionSignatureId.FN_FARM_FINGERPRINT_BYTES, // farm_fingerprint(bytes) -> int64
-          FunctionSignatureId.FN_FARM_FINGERPRINT_STRING, // farm_fingerprint(string) -> int64
-          */
+          // FunctionSignatureId.FN_FARM_FINGERPRINT_BYTES, // farm_fingerprint(bytes) -> int64
+          // FunctionSignatureId.FN_FARM_FINGERPRINT_STRING, // farm_fingerprint(string) -> int64
 
-          /*
           // Keyset management, encryption, and decryption functions
-          // ((broken link)). Requires that FEATURE_ENCRYPTION is enabled.
-          FunctionSignatureId.FN_KEYS_NEW_KEYSET, // keys.new_keyset(string)
+          // Requires that FEATURE_ENCRYPTION is enabled.
+          // FunctionSignatureId.FN_KEYS_NEW_KEYSET, // keys.new_keyset(string)
           // keys.add_key_from_raw_bytes(bytes, string, bytes)
-          FunctionSignatureId.FN_KEYS_ADD_KEY_FROM_RAW_BYTES,
-          FunctionSignatureId.FN_KEYS_ROTATE_KEYSET, // keys.rotate_keyset(bytes, string)
-          FunctionSignatureId.FN_KEYS_KEYSET_LENGTH, // keys.keyset_length(bytes)
-          FunctionSignatureId.FN_KEYS_KEYSET_TO_JSON, // keys.keyset_to_json(bytes)
-          FunctionSignatureId.FN_KEYS_KEYSET_FROM_JSON, // keys.keyset_from_json(string)
-          FunctionSignatureId.FN_AEAD_ENCRYPT_STRING, // aead.encrypt(bytes, string, string)
-          FunctionSignatureId.FN_AEAD_ENCRYPT_BYTES, // aead.encrypt(bytes, bytes, bytes)
-          FunctionSignatureId.FN_AEAD_DECRYPT_STRING, // aead.decrypt_string(bytes, bytes, string)
-          FunctionSignatureId.FN_AEAD_DECRYPT_BYTES, // aead.decrypt_bytes(bytes, bytes, bytes)
-          FunctionSignatureId.FN_KMS_ENCRYPT_STRING, // kms.encrypt(string, string)
-          FunctionSignatureId.FN_KMS_ENCRYPT_BYTES, // kms.encrypt(string, bytes)
-          FunctionSignatureId.FN_KMS_DECRYPT_STRING, // kms.decrypt_string(string, bytes)
-          FunctionSignatureId.FN_KMS_DECRYPT_BYTES, // kms.decrypt_bytes(string, bytes)
-          */
+          // FunctionSignatureId.FN_KEYS_ADD_KEY_FROM_RAW_BYTES,
+          // FunctionSignatureId.FN_KEYS_ROTATE_KEYSET, // keys.rotate_keyset(bytes, string)
+          // FunctionSignatureId.FN_KEYS_KEYSET_LENGTH, // keys.keyset_length(bytes)
+          // FunctionSignatureId.FN_KEYS_KEYSET_TO_JSON, // keys.keyset_to_json(bytes)
+          // FunctionSignatureId.FN_KEYS_KEYSET_FROM_JSON, // keys.keyset_from_json(string)
+          // FunctionSignatureId.FN_AEAD_ENCRYPT_STRING, // aead.encrypt(bytes, string, string)
+          // FunctionSignatureId.FN_AEAD_ENCRYPT_BYTES, // aead.encrypt(bytes, bytes, bytes)
+          // FunctionSignatureId.FN_AEAD_DECRYPT_STRING,// aead.decrypt_string(bytes, bytes, string)
+          // FunctionSignatureId.FN_AEAD_DECRYPT_BYTES, // aead.decrypt_bytes(bytes, bytes, bytes)
+          // FunctionSignatureId.FN_KMS_ENCRYPT_STRING, // kms.encrypt(string, string)
+          // FunctionSignatureId.FN_KMS_ENCRYPT_BYTES, // kms.encrypt(string, bytes)
+          // FunctionSignatureId.FN_KMS_DECRYPT_STRING, // kms.decrypt_string(string, bytes)
+          // FunctionSignatureId.FN_KMS_DECRYPT_BYTES, // kms.decrypt_bytes(string, bytes)
 
-          /*
           // ST_ family of functions (Geography related)
           // Constructors
-          FunctionSignatureId.FN_ST_GEOG_POINT,
-          FunctionSignatureId.FN_ST_MAKE_LINE,
-          FunctionSignatureId.FN_ST_MAKE_LINE_ARRAY,
-          FunctionSignatureId.FN_ST_MAKE_POLYGON,
-          FunctionSignatureId.FN_ST_MAKE_POLYGON_ORIENTED,
+          // FunctionSignatureId.FN_ST_GEOG_POINT,
+          // FunctionSignatureId.FN_ST_MAKE_LINE,
+          // FunctionSignatureId.FN_ST_MAKE_LINE_ARRAY,
+          // FunctionSignatureId.FN_ST_MAKE_POLYGON,
+          // FunctionSignatureId.FN_ST_MAKE_POLYGON_ORIENTED,
           // Transformations
-          FunctionSignatureId.FN_ST_INTERSECTION,
-          FunctionSignatureId.FN_ST_UNION,
-          FunctionSignatureId.FN_ST_UNION_ARRAY,
-          FunctionSignatureId.FN_ST_DIFFERENCE,
-          FunctionSignatureId.FN_ST_UNARY_UNION,
-          FunctionSignatureId.FN_ST_CENTROID,
-          FunctionSignatureId.FN_ST_BUFFER,
-          FunctionSignatureId.FN_ST_BUFFER_WITH_TOLERANCE,
-          FunctionSignatureId.FN_ST_SIMPLIFY,
-          FunctionSignatureId.FN_ST_SNAP_TO_GRID,
-          FunctionSignatureId.FN_ST_CLOSEST_POINT,
-          FunctionSignatureId.FN_ST_BOUNDARY,
-          FunctionSignatureId.FN_ST_CONVEXHULL,
+          // FunctionSignatureId.FN_ST_INTERSECTION,
+          // FunctionSignatureId.FN_ST_UNION,
+          // FunctionSignatureId.FN_ST_UNION_ARRAY,
+          // FunctionSignatureId.FN_ST_DIFFERENCE,
+          // FunctionSignatureId.FN_ST_UNARY_UNION,
+          // FunctionSignatureId.FN_ST_CENTROID,
+          // FunctionSignatureId.FN_ST_BUFFER,
+          // FunctionSignatureId.FN_ST_BUFFER_WITH_TOLERANCE,
+          // FunctionSignatureId.FN_ST_SIMPLIFY,
+          // FunctionSignatureId.FN_ST_SNAP_TO_GRID,
+          // FunctionSignatureId.FN_ST_CLOSEST_POINT,
+          // FunctionSignatureId.FN_ST_BOUNDARY,
+          // FunctionSignatureId.FN_ST_CONVEXHULL,
           // Predicates
-          FunctionSignatureId.FN_ST_EQUALS,
-          FunctionSignatureId.FN_ST_INTERSECTS,
-          FunctionSignatureId.FN_ST_CONTAINS,
-          FunctionSignatureId.FN_ST_COVERS,
-          FunctionSignatureId.FN_ST_DISJOINT,
-          FunctionSignatureId.FN_ST_INTERSECTS_BOX,
-          FunctionSignatureId.FN_ST_DWITHIN,
-          FunctionSignatureId.FN_ST_WITHIN,
-          FunctionSignatureId.FN_ST_COVEREDBY,
-          FunctionSignatureId.FN_ST_TOUCHES,
+          // FunctionSignatureId.FN_ST_EQUALS,
+          // FunctionSignatureId.FN_ST_INTERSECTS,
+          // FunctionSignatureId.FN_ST_CONTAINS,
+          // FunctionSignatureId.FN_ST_COVERS,
+          // FunctionSignatureId.FN_ST_DISJOINT,
+          // FunctionSignatureId.FN_ST_INTERSECTS_BOX,
+          // FunctionSignatureId.FN_ST_DWITHIN,
+          // FunctionSignatureId.FN_ST_WITHIN,
+          // FunctionSignatureId.FN_ST_COVEREDBY,
+          // FunctionSignatureId.FN_ST_TOUCHES,
           // Accessors
-          FunctionSignatureId.FN_ST_IS_EMPTY,
-          FunctionSignatureId.FN_ST_IS_COLLECTION,
-          FunctionSignatureId.FN_ST_DIMENSION,
-          FunctionSignatureId.FN_ST_NUM_POINTS,
-          FunctionSignatureId.FN_ST_DUMP,
+          // FunctionSignatureId.FN_ST_IS_EMPTY,
+          // FunctionSignatureId.FN_ST_IS_COLLECTION,
+          // FunctionSignatureId.FN_ST_DIMENSION,
+          // FunctionSignatureId.FN_ST_NUM_POINTS,
+          // FunctionSignatureId.FN_ST_DUMP,
           // Measures
-          FunctionSignatureId.FN_ST_LENGTH,
-          FunctionSignatureId.FN_ST_PERIMETER,
-          FunctionSignatureId.FN_ST_AREA,
-          FunctionSignatureId.FN_ST_DISTANCE,
-          FunctionSignatureId.FN_ST_MAX_DISTANCE,
+          // FunctionSignatureId.FN_ST_LENGTH,
+          // FunctionSignatureId.FN_ST_PERIMETER,
+          // FunctionSignatureId.FN_ST_AREA,
+          // FunctionSignatureId.FN_ST_DISTANCE,
+          // FunctionSignatureId.FN_ST_MAX_DISTANCE,
           // Parsers/formatters
-          FunctionSignatureId.FN_ST_GEOG_FROM_TEXT,
-          FunctionSignatureId.FN_ST_GEOG_FROM_KML,
-          FunctionSignatureId.FN_ST_GEOG_FROM_GEO_JSON,
-          FunctionSignatureId.FN_ST_GEOG_FROM_WKB,
-          FunctionSignatureId.FN_ST_AS_TEXT,
-          FunctionSignatureId.FN_ST_AS_KML,
-          FunctionSignatureId.FN_ST_AS_GEO_JSON,
-          FunctionSignatureId.FN_ST_AS_BINARY,
-          FunctionSignatureId.FN_ST_GEOHASH,
-          FunctionSignatureId.FN_ST_GEOG_POINT_FROM_GEOHASH,
+          // FunctionSignatureId.FN_ST_GEOG_FROM_TEXT,
+          // FunctionSignatureId.FN_ST_GEOG_FROM_KML,
+          // FunctionSignatureId.FN_ST_GEOG_FROM_GEO_JSON,
+          // FunctionSignatureId.FN_ST_GEOG_FROM_WKB,
+          // FunctionSignatureId.FN_ST_AS_TEXT,
+          // FunctionSignatureId.FN_ST_AS_KML,
+          // FunctionSignatureId.FN_ST_AS_GEO_JSON,
+          // FunctionSignatureId.FN_ST_AS_BINARY,
+          // FunctionSignatureId.FN_ST_GEOHASH,
+          // FunctionSignatureId.FN_ST_GEOG_POINT_FROM_GEOHASH,
           // Aggregate functions
-          FunctionSignatureId.FN_ST_UNION_AGG,
-          FunctionSignatureId.FN_ST_ACCUM,
-          FunctionSignatureId.FN_ST_CENTROID_AGG,
+          // FunctionSignatureId.FN_ST_UNION_AGG,
+          // FunctionSignatureId.FN_ST_ACCUM,
+          // FunctionSignatureId.FN_ST_CENTROID_AGG,
           // Other geography functions
-          FunctionSignatureId.FN_ST_X,
-          FunctionSignatureId.FN_ST_Y,
-          */
+          // FunctionSignatureId.FN_ST_X,
+          // FunctionSignatureId.FN_ST_Y,
 
-          /*
           // Array functions.
-          FunctionSignatureId.FN_FLATTEN, // flatten(array path) -> array
-          FunctionSignatureId.FN_ARRAY_AT_OFFSET, // $array_at_offset
-          FunctionSignatureId.FN_ARRAY_AT_ORDINAL, // $array_at_ordinal
-          FunctionSignatureId.FN_ARRAY_CONCAT, // array_concat(repeated array) -> array
-          FunctionSignatureId.FN_ARRAY_CONCAT_OP, // array_concat(array, array) -> array
-          FunctionSignatureId.FN_ARRAY_LENGTH, // array_length(array) -> int64
+          // FunctionSignatureId.FN_FLATTEN, // flatten(array path) -> array
+          // FunctionSignatureId.FN_ARRAY_AT_OFFSET, // $array_at_offset
+          // FunctionSignatureId.FN_ARRAY_AT_ORDINAL, // $array_at_ordinal
+          // FunctionSignatureId.FN_ARRAY_CONCAT, // array_concat(repeated array) -> array
+          // FunctionSignatureId.FN_ARRAY_CONCAT_OP, // array_concat(array, array) -> array
+          // FunctionSignatureId.FN_ARRAY_LENGTH, // array_length(array) -> int64
           // array_to_string(array, bytes[, bytes]) -> bytes
-          FunctionSignatureId.FN_ARRAY_TO_BYTES,
+          // FunctionSignatureId.FN_ARRAY_TO_BYTES,
           // array_to_string(array, string[, string]) -> string
-          FunctionSignatureId.FN_ARRAY_TO_STRING,
-          FunctionSignatureId.FN_MAKE_ARRAY, // $make_array
-          FunctionSignatureId.FN_SAFE_ARRAY_AT_OFFSET, // $safe_array_at_offset
-          FunctionSignatureId.FN_SAFE_ARRAY_AT_ORDINAL, // $safe_array_at_ordinal
-          */
+          // FunctionSignatureId.FN_ARRAY_TO_STRING,
+          // FunctionSignatureId.FN_MAKE_ARRAY, // $make_array
+          // FunctionSignatureId.FN_SAFE_ARRAY_AT_OFFSET, // $safe_array_at_offset
+          // FunctionSignatureId.FN_SAFE_ARRAY_AT_ORDINAL, // $safe_array_at_ordinal
           );
 
   // todo: Some of operators defined here are later overridden in ZetaSQLPlannerImpl.
