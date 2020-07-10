@@ -1197,7 +1197,7 @@ public class PAssert {
             .and(actual)
             .apply(Flatten.pCollections())
             .apply(
-                // Default end-of-window trigger dissallowed for unbounded PCollections.
+                // Default end-of-window trigger disallowed for unbounded PCollections.
                 input.isBounded() == PCollection.IsBounded.UNBOUNDED
                     ? Window.<Iterable<ValueInSingleWindow<T>>>configure()
                         .triggering(Never.ever())
