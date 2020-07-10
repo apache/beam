@@ -263,15 +263,15 @@ public class ParquetIO {
     public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
       return input
-          .apply(ParDo.of(new SplittableReadFn(getAvroDataModel())))
+          .apply(ParDo.of(new ReadFn(getAvroDataModel())))
           .setCoder(AvroCoder.of(getSchema()));
     }
 
     @DoFn.BoundedPerElement
-    static class SplittableReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
+    static class ReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
       private Class<? extends GenericData> modelClass;
 
-      SplittableReadFn(GenericData model) {
+      ReadFn(GenericData model) {
         this.modelClass = model != null ? model.getClass() : null;
       }
 
