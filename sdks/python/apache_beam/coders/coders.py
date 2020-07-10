@@ -706,9 +706,9 @@ class PickleCoder(_PickleCoderBase):
   """Coder using Python's pickle functionality."""
   def _create_impl(self):
     dumps = pickle.dumps
-    HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
+    protocol = pickle.HIGHEST_PROTOCOL
     return coder_impl.CallbackCoderImpl(
-        lambda x: dumps(x, HIGHEST_PROTOCOL), pickle.loads)
+        lambda x: dumps(x, protocol), pickle.loads)
 
   def as_deterministic_coder(self, step_label, error_message=None):
     return DeterministicFastPrimitivesCoder(self, step_label)

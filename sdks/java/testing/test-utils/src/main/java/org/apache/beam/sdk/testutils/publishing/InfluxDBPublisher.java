@@ -18,14 +18,24 @@
 package org.apache.beam.sdk.testutils.publishing;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.isNull;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNoneBlank;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.commons.compress.utils.Charsets;
+import org.apache.http.Header;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
@@ -35,6 +45,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +71,7 @@ public final class InfluxDBPublisher {
       try {
         publishFunction.publish();
       } catch (Exception exception) {
-        LOG.warn("Unable to publish metrics due to error: {}", exception.getMessage(), exception);
+        LOG.warn("Unable to publish metrics due to error: {}", exception.getMessage());
       }
     } else {
       LOG.warn("Missing property -- measurement/database. Metrics won't be published.");
@@ -146,14 +157,27 @@ public final class InfluxDBPublisher {
   private static void executeWithVerification(
       final HttpPost postRequest, final HttpClientBuilder builder) throws IOException {
     try (final CloseableHttpResponse response = builder.build().execute(postRequest)) {
-      is2xx(response.getStatusLine().getStatusCode());
+      is2xx(response);
     }
   }
 
-  private static void is2xx(final int code) throws IOException {
+  private static void is2xx(final HttpResponse response) throws IOException {
+    final int code = response.getStatusLine().getStatusCode();
     if (code < 200 || code >= 300) {
-      throw new IOException("Response code: " + code);
+      throw new IOException(
+          "Response code: " + code + ". Reason: " + getErrorMessage(response.getEntity()));
     }
+  }
+
+  private static String getErrorMessage(final HttpEntity entity) throws IOException {
+    final Header encodingHeader = entity.getContentEncoding();
+    final Charset encoding =
+        encodingHeader == null
+            ? StandardCharsets.UTF_8
+            : Charsets.toCharset(encodingHeader.getValue());
+    final JsonElement errorElement =
+        new Gson().fromJson(EntityUtils.toString(entity, encoding), JsonObject.class).get("error");
+    return isNull(errorElement) ? "[Unable to get error message]" : errorElement.toString();
   }
 
   @FunctionalInterface

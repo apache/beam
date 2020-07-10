@@ -480,6 +480,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             && quietFor.isLongerThan(DONE_DELAY)) {
           NexmarkUtils.console("streaming query appears to have finished waiting for completion.");
           waitingForShutdown = true;
+          if (options.getCancelStreamingJobAfterFinish()) {
+            cancelJob = true;
+          }
         } else if (quietFor.isLongerThan(STUCK_TERMINATE_DELAY)) {
           NexmarkUtils.console(
               "ERROR: streaming query appears to have been stuck for %d minutes, cancelling job.",

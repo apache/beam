@@ -68,8 +68,7 @@ cdef class DoFnInvoker(object):
   cdef public object bundle_finalizer_param
 
   cpdef invoke_process(self, WindowedValue windowed_value,
-                       restriction_tracker=*,
-                       watermark_estimator=*,
+                       restriction=*, watermark_estimator_state=*,
                        additional_args=*, additional_kwargs=*)
   cpdef invoke_start_bundle(self)
   cpdef invoke_finish_bundle(self)

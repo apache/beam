@@ -46,6 +46,7 @@ from tenacity import retry
 from tenacity import stop_after_attempt
 
 import apache_beam as beam
+from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.io import restriction_trackers
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.metrics import monitoring_infos
@@ -53,6 +54,7 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
@@ -297,17 +299,25 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_pardo_state_only(self):
     index_state_spec = userstate.CombiningValueStateSpec('index', sum)
+    value_and_index_state_spec = userstate.ReadModifyWriteStateSpec(
+        'value:index', StrUtf8Coder())
 
     # TODO(ccy): State isn't detected with Map/FlatMap.
     class AddIndex(beam.DoFn):
-      def process(self, kv, index=beam.DoFn.StateParam(index_state_spec)):
+      def process(
+          self,
+          kv,
+          index=beam.DoFn.StateParam(index_state_spec),
+          value_and_index=beam.DoFn.StateParam(value_and_index_state_spec)):
         k, v = kv
         index.add(1)
-        yield k, v, index.read()
+        value_and_index.write('%s:%s' % (v, index.read()))
+        yield k, v, index.read(), value_and_index.read()
 
     inputs = [('A', 'a')] * 2 + [('B', 'b')] * 3
-    expected = [('A', 'a', 1), ('A', 'a', 2), ('B', 'b', 1), ('B', 'b', 2),
-                ('B', 'b', 3)]
+    expected = [('A', 'a', 1, 'a:1'), ('A', 'a', 2, 'a:2'),
+                ('B', 'b', 1, 'b:1'), ('B', 'b', 2, 'b:2'),
+                ('B', 'b', 3, 'b:3')]
 
     with self.create_pipeline() as p:
       # TODO(BEAM-8893): Allow the reshuffle.
@@ -736,22 +746,20 @@ class FnApiRunnerTest(unittest.TestCase):
 
     res = p.run()
     res.wait_until_finish()
-    c1, = res.metrics().query(beam.metrics.MetricsFilter().with_step('count1'))[
-        'counters']
-    self.assertEqual(c1.committed, 2)
-    c2, = res.metrics().query(beam.metrics.MetricsFilter().with_step('count2'))[
-        'counters']
-    self.assertEqual(c2.committed, 4)
 
-    dist, = res.metrics().query(beam.metrics.MetricsFilter().with_step('dist'))[
-        'distributions']
+    t1, t2 = res.metrics().query(beam.metrics.MetricsFilter()
+                                 .with_name('counter'))['counters']
+    self.assertEqual(t1.committed + t2.committed, 6)
+
+    dist, = res.metrics().query(beam.metrics.MetricsFilter()
+                                .with_name('distribution'))['distributions']
     self.assertEqual(
         dist.committed.data, beam.metrics.cells.DistributionData(4, 2, 1, 3))
     self.assertEqual(dist.committed.mean, 2.0)
 
     if check_gauge:
-      gaug, = res.metrics().query(
-          beam.metrics.MetricsFilter().with_step('gauge'))['gauges']
+      gaug, = res.metrics().query(beam.metrics.MetricsFilter()
+                                  .with_name('gauge'))['gauges']
       self.assertEqual(gaug.committed.value, 3)
 
   def test_callbacks_with_exception(self):
@@ -821,6 +829,21 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.ParDo(SyntheticSDFAsSource())
           | beam.combiners.Count.Globally())
       assert_that(res, equal_to([total_num_records]))
+
+  def test_create_value_provider_pipeline_option(self):
+    # Verify that the runner can execute a pipeline when there are value
+    # provider pipeline options
+    # pylint: disable=unused-variable
+    class FooOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument(
+            "--foo", help='a value provider argument', default="bar")
+
+    RuntimeValueProvider.set_runtime_options({})
+
+    with self.create_pipeline() as p:
+      assert_that(p | beam.Create(['a', 'b']), equal_to(['a', 'b']))
 
 
 # These tests are kept in a separate group so that they are

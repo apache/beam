@@ -30,6 +30,7 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EC2ContainerCredentialsProviderWrapper;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.PropertiesFileCredentialsProvider;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
@@ -115,6 +116,30 @@ public class AwsModuleTest {
     field.setAccessible(true);
     String deserializedCredentialsFilePath = (String) field.get(deserializedCredentialsProvider);
     assertEquals(credentialsFilePath, deserializedCredentialsFilePath);
+  }
+
+  @Test
+  public void testSTSAssumeRoleSessionCredentialsProviderSerializationDeserialization()
+      throws Exception {
+    String roleArn = "arn:aws:iam::000111222333:role/TestRole";
+    String roleSessionName = "roleSessionName";
+    STSAssumeRoleSessionCredentialsProvider credentialsProvider =
+        new STSAssumeRoleSessionCredentialsProvider.Builder(roleArn, roleSessionName).build();
+    String serializedCredentialsProvider = objectMapper.writeValueAsString(credentialsProvider);
+    AWSCredentialsProvider deserializedCredentialsProvider =
+        objectMapper.readValue(serializedCredentialsProvider, AWSCredentialsProvider.class);
+
+    assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
+    Field fieldRole = STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField("roleArn");
+    fieldRole.setAccessible(true);
+    String deserializedRoleArn = (String) fieldRole.get(deserializedCredentialsProvider);
+    assertEquals(roleArn, deserializedRoleArn);
+
+    Field fieldSession =
+        STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField("roleSessionName");
+    fieldSession.setAccessible(true);
+    String deserializedRoleSessionName = (String) fieldSession.get(deserializedCredentialsProvider);
+    assertEquals(roleSessionName, deserializedRoleSessionName);
   }
 
   @Test

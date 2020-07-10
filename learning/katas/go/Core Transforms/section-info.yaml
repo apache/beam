@@ -25,3 +25,5 @@ content:
 - Flatten
 - Partition
 - Side Input
+- Additional Outputs
+- Branching

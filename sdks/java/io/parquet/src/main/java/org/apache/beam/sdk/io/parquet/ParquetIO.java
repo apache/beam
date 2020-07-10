@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.parquet;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.parquet.Preconditions.checkNotNull;
 import static org.apache.parquet.hadoop.ParquetFileWriter.Mode.OVERWRITE;
 import static org.apache.parquet.hadoop.ParquetInputFormat.RECORD_FILTERING_ENABLED;
 import static org.apache.parquet.hadoop.ParquetInputFormat.STRICT_TYPE_CHECKING;
@@ -44,6 +45,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
@@ -431,6 +433,9 @@ public class ParquetIO {
 
     abstract CompressionCodecName getCompressionCodec();
 
+    @Nullable
+    abstract SerializableConfiguration getConfiguration();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -439,12 +444,25 @@ public class ParquetIO {
 
       abstract Builder setCompressionCodec(CompressionCodecName compressionCodec);
 
+      abstract Builder setConfiguration(SerializableConfiguration configuration);
+
       abstract Sink build();
     }
 
     /** Specifies compression codec. By default, CompressionCodecName.SNAPPY. */
     public Sink withCompressionCodec(CompressionCodecName compressionCodecName) {
       return toBuilder().setCompressionCodec(compressionCodecName).build();
+    }
+
+    /** Specifies configuration to be passed into the sink's writer. */
+    public Sink withConfiguration(Map<String, String> configuration) {
+      Configuration hadoopConfiguration = new Configuration();
+      for (Map.Entry<String, String> entry : configuration.entrySet()) {
+        hadoopConfiguration.set(entry.getKey(), entry.getValue());
+      }
+      return toBuilder()
+          .setConfiguration(new SerializableConfiguration(hadoopConfiguration))
+          .build();
     }
 
     @Nullable private transient ParquetWriter<GenericRecord> writer;
@@ -458,12 +476,17 @@ public class ParquetIO {
       BeamParquetOutputFile beamParquetOutputFile =
           new BeamParquetOutputFile(Channels.newOutputStream(channel));
 
-      this.writer =
+      AvroParquetWriter.Builder<GenericRecord> builder =
           AvroParquetWriter.<GenericRecord>builder(beamParquetOutputFile)
               .withSchema(schema)
               .withCompressionCodec(getCompressionCodec())
-              .withWriteMode(OVERWRITE)
-              .build();
+              .withWriteMode(OVERWRITE);
+
+      if (getConfiguration() != null) {
+        builder = builder.withConf(getConfiguration().get());
+      }
+
+      this.writer = builder.build();
     }
 
     @Override

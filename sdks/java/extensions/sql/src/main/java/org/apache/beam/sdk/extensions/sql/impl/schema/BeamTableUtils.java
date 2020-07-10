@@ -24,6 +24,7 @@ import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.GregorianCalendar;
 import java.util.List;
@@ -125,6 +126,15 @@ public final class BeamTableUtils {
             .toLocalDate();
       } else {
         return LocalDate.ofEpochDay((Integer) rawObj);
+      }
+    } else if (CalciteUtils.TIME.typesEqual(type) || CalciteUtils.NULLABLE_TIME.typesEqual(type)) {
+      if (rawObj instanceof GregorianCalendar) { // used by the SQL CLI
+        GregorianCalendar calendar = (GregorianCalendar) rawObj;
+        return Instant.ofEpochMilli(calendar.getTimeInMillis())
+            .atZone(calendar.getTimeZone().toZoneId())
+            .toLocalTime();
+      } else {
+        return LocalTime.ofNanoOfDay((Long) rawObj);
       }
     } else if (CalciteUtils.isDateTimeType(type)) {
       // Internal representation of Date in Calcite is convertible to Joda's Datetime.

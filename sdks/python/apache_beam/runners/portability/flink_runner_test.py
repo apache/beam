@@ -22,6 +22,7 @@ from __future__ import print_function
 import argparse
 import logging
 import sys
+import typing
 import unittest
 from os import linesep
 from os import path
@@ -29,14 +30,16 @@ from os.path import exists
 from shutil import rmtree
 from tempfile import mkdtemp
 
+from past.builtins import unicode
+
 import apache_beam as beam
 from apache_beam import Impulse
 from apache_beam import Map
 from apache_beam import Pipeline
 from apache_beam.coders import VarIntCoder
 from apache_beam.io.external.generate_sequence import GenerateSequence
-from apache_beam.io.external.kafka import ReadFromKafka
-from apache_beam.io.external.kafka import WriteToKafka
+from apache_beam.io.kafka import ReadFromKafka
+from apache_beam.io.kafka import WriteToKafka
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import FlinkRunnerOptions
@@ -48,8 +51,12 @@ from apache_beam.runners.portability import portable_runner_test
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import userstate
+from apache_beam.transforms.sql import SqlTransform
 
 _LOGGER = logging.getLogger(__name__)
+
+Row = typing.NamedTuple("Row", [("col1", int), ("col2", unicode)])
+beam.coders.registry.register_coder(Row, beam.coders.RowCoder)
 
 if __name__ == '__main__':
   # Run as
@@ -167,6 +174,11 @@ if __name__ == '__main__':
     def get_runner(cls):
       return portable_runner.PortableRunner()
 
+    @classmethod
+    def get_expansion_service(cls):
+      # TODO Move expansion address resides into PipelineOptions
+      return 'localhost:%s' % cls.expansion_port
+
     def create_options(self):
       options = super(FlinkRunnerTest, self).create_options()
       options.view_as(
@@ -191,15 +203,13 @@ if __name__ == '__main__':
       raise unittest.SkipTest("BEAM-4781")
 
     def test_external_transforms(self):
-      # TODO Move expansion address resides into PipelineOptions
-      def get_expansion_service():
-        return "localhost:" + str(self.expansion_port)
-
       with self.create_pipeline() as p:
         res = (
             p
             | GenerateSequence(
-                start=1, stop=10, expansion_service=get_expansion_service()))
+                start=1,
+                stop=10,
+                expansion_service=self.get_expansion_service()))
 
         assert_that(res, equal_to([i for i in range(1, 10)]))
 
@@ -222,7 +232,7 @@ if __name__ == '__main__':
                   value_deserializer='org.apache.kafka.'
                   'common.serialization.'
                   'LongDeserializer',
-                  expansion_service=get_expansion_service()))
+                  expansion_service=self.get_expansion_service()))
       self.assertTrue(
           'No resolvable bootstrap urls given in bootstrap.servers' in str(
               ctx.exception),
@@ -246,7 +256,22 @@ if __name__ == '__main__':
               value_serializer='org.apache.kafka.'
               'common.serialization.'
               'ByteArraySerializer',
-              expansion_service=get_expansion_service()))
+              expansion_service=self.get_expansion_service()))
+
+    def test_sql(self):
+      with self.create_pipeline() as p:
+        output = (
+            p
+            | 'Create' >> beam.Create([Row(x, str(x)) for x in range(5)])
+            | 'Sql' >> SqlTransform(
+                """SELECT col1, col2 || '*' || col2 as col2,
+                          power(col1, 2) as col3
+                   FROM PCOLLECTION
+                """,
+                expansion_service=self.get_expansion_service()))
+        assert_that(
+            output,
+            equal_to([(x, '{x}*{x}'.format(x=x), x * x) for x in range(5)]))
 
     def test_flattened_side_input(self):
       # Blocked on support for transcoding
@@ -255,6 +280,9 @@ if __name__ == '__main__':
             self).test_flattened_side_input(with_transcoding=False)
 
     def test_metrics(self):
+      super(FlinkRunnerTest, self).test_metrics(check_gauge=False)
+
+    def test_flink_metrics(self):
       """Run a simple DoFn that increments a counter and verifies state
       caching metrics. Verifies that its expected value is written to a
       temporary file by the FileReporter"""
@@ -367,6 +395,9 @@ if __name__ == '__main__':
       return options
 
     def test_external_transforms(self):
+      raise unittest.SkipTest("BEAM-7252")
+
+    def test_sql(self):
       raise unittest.SkipTest("BEAM-7252")
 
   # Run the tests.

@@ -255,7 +255,11 @@ public class Main {
     schemaResults.put("timestamp", timestamp);
     schemaResults.put("runner", runner);
     schemaResults.put("measurement", measurement);
-    schemaResults.put("runtimeMs", runtimeMs);
+
+    // By default, InfluxDB treats all number values as floats. We need to add 'i' suffix to
+    // interpret the value as an integer.
+    schemaResults.put("runtimeMs", runtimeMs + "i");
+    schemaResults.put("numResults", schemaResults.get("numResults") + "i");
 
     return schemaResults;
   }

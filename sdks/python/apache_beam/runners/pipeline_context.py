@@ -37,6 +37,7 @@ from apache_beam import coders
 from apache_beam import pipeline
 from apache_beam import pvalue
 from apache_beam.internal import pickler
+from apache_beam.pipeline import ComponentIdMap
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import core
@@ -67,16 +68,6 @@ class _PipelineContextMap(object):
     self._obj_to_id = {}  # type: Dict[Any, str]
     self._id_to_obj = {}  # type: Dict[str, Any]
     self._id_to_proto = dict(proto_map) if proto_map else {}
-    self._counter = 0
-
-  def _unique_ref(self, obj=None, label=None):
-    # type: (Optional[Any], Optional[str]) -> str
-    self._counter += 1
-    return "%s_%s_%s_%d" % (
-        self._namespace,
-        self._obj_type.__name__,
-        label or type(obj).__name__,
-        self._counter)
 
   def populate_map(self, proto_map):
     # type: (Mapping[str, message.Message]) -> None
@@ -86,7 +77,8 @@ class _PipelineContextMap(object):
   def get_id(self, obj, label=None):
     # type: (Any, Optional[str]) -> str
     if obj not in self._obj_to_id:
-      id = self._unique_ref(obj, label)
+      id = self._pipeline_context.component_id_map.get_or_assign(
+          obj, self._obj_type, label)
       self._id_to_obj[id] = obj
       self._obj_to_id[obj] = id
       self._id_to_proto[id] = obj.to_runner_api(self._pipeline_context)
@@ -109,7 +101,10 @@ class _PipelineContextMap(object):
       for id, proto in self._id_to_proto.items():
         if proto == maybe_new_proto:
           return id
-    return self.put_proto(self._unique_ref(label), maybe_new_proto)
+    return self.put_proto(
+        self._pipeline_context.component_id_map.get_or_assign(
+            label, obj_type=self._obj_type),
+        maybe_new_proto)
 
   def get_id_to_proto_map(self):
     # type: () -> Dict[str, message.Message]
@@ -149,6 +144,7 @@ class PipelineContext(object):
 
   def __init__(self,
                proto=None,  # type: Optional[Union[beam_runner_api_pb2.Components, beam_fn_api_pb2.ProcessBundleDescriptor]]
+               component_id_map=None,  # type: Optional[pipeline.ComponentIdMap]
                default_environment=None,  # type: Optional[environments.Environment]
                use_fake_coders=False,
                iterable_state_read=None,  # type: Optional[IterableStateReader]
@@ -162,6 +158,9 @@ class PipelineContext(object):
           coders=dict(proto.coders.items()),
           windowing_strategies=dict(proto.windowing_strategies.items()),
           environments=dict(proto.environments.items()))
+
+    self.component_id_map = component_id_map or ComponentIdMap(namespace)
+    assert self.component_id_map.namespace == namespace
 
     self.transforms = _PipelineContextMap(
         self,
