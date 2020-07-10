@@ -62,9 +62,12 @@ class CaptureControl(object):
     self._test_limiters = limiters
 
 
-def evict_captured_data():
+def evict_captured_data(pipeline=None):
   """Evicts all deterministic replayable data that have been captured by
-  Interactive Beam. In future PCollection evaluation/visualization and pipeline
+  Interactive Beam for the given pipeline. If no pipeline is specified, evicts
+  for all user defined pipelines.
+
+  In future PCollection evaluation/visualization and pipeline
   runs, Interactive Beam will capture fresh data."""
   if ie.current_env().options.enable_capture_replay:
     _LOGGER.info(
@@ -72,7 +75,11 @@ def evict_captured_data():
         'data that could be deterministically replayed among multiple '
         'pipeline runs.')
   ie.current_env().track_user_pipelines()
-  for user_pipeline in ie.current_env().tracked_user_pipelines:
-    bcj.attempt_to_cancel_background_caching_job(user_pipeline)
-    bcj.attempt_to_stop_test_stream_service(user_pipeline)
-  ie.current_env().cleanup()
+  if pipeline:
+    bcj.attempt_to_cancel_background_caching_job(pipeline)
+    bcj.attempt_to_stop_test_stream_service(pipeline)
+  else:
+    for user_pipeline in ie.current_env().tracked_user_pipelines:
+      bcj.attempt_to_cancel_background_caching_job(user_pipeline)
+      bcj.attempt_to_stop_test_stream_service(user_pipeline)
+  ie.current_env().cleanup(pipeline)

@@ -45,10 +45,13 @@ class SizeLimiter(Limiter):
     self._size_limit = size_limit
 
   def is_triggered(self):
-    cache_manager = ie.current_env().cache_manager()
-    if hasattr(cache_manager, 'capture_size'):
-      return cache_manager.capture_size >= self._size_limit
-    return False
+    total_capture_size = 0
+    ie.current_env().track_user_pipelines()
+    for user_pipeline in ie.current_env().tracked_user_pipelines:
+      cache_manager = ie.current_env().get_cache_manager(user_pipeline)
+      if hasattr(cache_manager, 'capture_size'):
+        total_capture_size += cache_manager.capture_size
+    return total_capture_size >= self._size_limit
 
 
 class DurationLimiter(Limiter):

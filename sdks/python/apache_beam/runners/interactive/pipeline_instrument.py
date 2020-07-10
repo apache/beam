@@ -93,11 +93,11 @@ class PipelineInstrument(object):
   """
   def __init__(self, pipeline, options=None):
     self._pipeline = pipeline
-    # The global cache manager is lazily initiated outside of this module by any
-    # interactive runner so that its lifespan could cover multiple runs in
-    # the interactive environment. Owned by interactive_environment module. Not
-    # owned by this module.
-    self._cache_manager = ie.current_env().cache_manager()
+    # The cache manager per user-defined pipeline is lazily initiated the first
+    # time accessed. It is owned by interactive_environment module. This
+    # shortcut reference will be initialized when the user pipeline associated
+    # to the given pipeline is identified.
+    self._cache_manager = None
 
     # Invoke a round trip through the runner API. This makes sure the Pipeline
     # proto is stable. The snapshot of pipeline will not be mutated within this
@@ -556,19 +556,26 @@ class PipelineInstrument(object):
             if not self._pin._user_pipeline:
               # Retrieve a reference to the user defined pipeline instance.
               self._pin._user_pipeline = user_pcoll.pipeline
-              # Once user_pipeline is retrieved, check if the user pipeline
-              # contains any source to cache. If so, current cache manager held
-              # by current interactive environment might get wrapped into a
-              # streaming cache, thus re-assign the reference to that cache
-              # manager.
+              # Retrieve a reference to the cache manager for the user defined
+              # pipeline instance.
+              self._pin._cache_manager = ie.current_env().get_cache_manager(
+                  self._pin._user_pipeline, create_if_absent=True)
+              # Check if the user defined pipeline contains any source to cache.
+              # If so, during the check, the cache manager is converted into a
+              # streaming cache manager, thus re-assign the reference.
               if background_caching_job.has_source_to_cache(
                   self._pin._user_pipeline):
-                self._pin._cache_manager = ie.current_env().cache_manager()
+                self._pin._cache_manager = ie.current_env().get_cache_manager(
+                    self._pin._user_pipeline)
             self._pin._runner_pcoll_to_user_pcoll[pcoll] = user_pcoll
             self._pin.cacheables[cacheable_key].pcoll = pcoll
 
     v = PreprocessVisitor(self)
     self._pipeline.visit(v)
+    if not self._user_pipeline:
+      self._user_pipeline = self._pipeline
+      self._cache_manager = ie.current_env().get_cache_manager(
+          self._user_pipeline, create_if_absent=True)
 
   def _write_cache(
       self,

@@ -398,7 +398,7 @@ class PCollectionVisualization(object):
 
   def _to_dataframe(self):
     results = []
-    cache_manager = ie.current_env().cache_manager()
+    cache_manager = ie.current_env().get_cache_manager(self._pcoll.pipeline)
     if cache_manager.exists('full', self._cache_key):
       coder = cache_manager.load_pcoder('full', self._cache_key)
       reader, _ = cache_manager.read('full', self._cache_key)
