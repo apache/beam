@@ -2264,7 +2264,7 @@ class GroupBy(PTransform):
 
   `GroupBy(expr)` is roughly equivalent to
 
-      beam.Map(lambda v: (expr(v), v)) | GroupByKey()
+      beam.Map(lambda v: (expr(v), v)) | beam.GroupByKey()
 
   but provides several conviniences, e.g.
 
