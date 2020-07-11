@@ -130,7 +130,7 @@ func (fn *sdfStepFn) Setup() {
 func (fn *sdfStepFn) ProcessElement(rt *sdf.LockRTracker, key, val []byte, emit func([]byte, []byte)) {
 	filtered := fn.cfg.FilterRatio > 0 && fn.rng.Float64() < fn.cfg.FilterRatio
 
-	for i := rt.Rt.(*offsetrange.Tracker).Rest.Start; rt.TryClaim(i) == true; i++ {
+	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i) == true; i++ {
 		if !filtered {
 			emit(key, val)
 		}

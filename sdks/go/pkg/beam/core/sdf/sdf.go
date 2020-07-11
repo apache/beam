@@ -80,4 +80,8 @@ type RTracker interface {
 	// correctly processed all work in a restriction before finishing. If this method returns false
 	// then GetError is expected to return a non-nil error.
 	IsDone() bool
+
+	// GetRestriction returns the restriction this tracker is tracking, or nil if the restriction
+	// is unavailable for some reason.
+	GetRestriction() interface{}
 }
