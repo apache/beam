@@ -45,10 +45,6 @@ coders.registry.register_coder(Enrich, coders.RowCoder)
 
 
 @attr('UsesSqlExpansionService')
-@unittest.skipIf(
-    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-    None,
-    "Must be run with a runner that supports staging java artifacts.")
 class SqlTransformTest(unittest.TestCase):
   """Tests that exercise the cross-language SqlTransform (implemented in java).
 
