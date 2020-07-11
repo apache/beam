@@ -219,6 +219,31 @@ class TestPipeStream(unittest.TestCase):
         child_thread.join()
         self.assertTrue(success[0], 'error in test thread')
 
+  def test_pipe_stream_rewind_buffer(self):
+    buffer_size = 512
+    data = os.urandom(buffer_size)
+
+    parent_conn, child_conn = multiprocessing.Pipe()
+    parent_conn.send_bytes(data)
+    parent_conn.close()
+    stream = filesystemio.PipeStream(child_conn)
+
+    # Regular read.
+    read_data = stream.read(buffer_size)
+    self.assertEqual(data, read_data)
+
+    # Rewind buffer_size bytes.
+    stream.seek(0)
+    read_data = stream.read(buffer_size)
+    self.assertEqual(data, read_data)
+
+    # Read 0 bytes. Rewind buffer still points to offset 0.
+    read_data = stream.read(buffer_size)
+    self.assertFalse(read_data)
+    stream.seek(0)
+    read_data = stream.read(buffer_size)
+    self.assertEqual(data, read_data)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
