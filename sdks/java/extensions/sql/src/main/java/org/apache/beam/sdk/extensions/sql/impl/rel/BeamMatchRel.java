@@ -231,9 +231,9 @@ public class BeamMatchRel extends Match implements BeamRelNode {
                     int fIndex = i.getFieldIndex();
                     RelFieldCollation.Direction dir = i.getDirection();
                     if(dir == RelFieldCollation.Direction.ASCENDING) {
-                        revOrderKeysList.add(new OrderKey(fIndex, true));
-                    } else {
                         revOrderKeysList.add(new OrderKey(fIndex, false));
+                    } else {
+                        revOrderKeysList.add(new OrderKey(fIndex, true));
                     }
                 }
 
