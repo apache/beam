@@ -77,7 +77,7 @@ public class SqlOperators {
     return new SqlFunction(
         name,
         SqlKind.OTHER_FUNCTION,
-        x -> createTypeFactory().createSqlType(returnType),
+        x -> createSqlType(returnType, true),
         null, // operandTypeInference
         null, // operandTypeChecker
         SqlFunctionCategory.USER_DEFINED_FUNCTION);

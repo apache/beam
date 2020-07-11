@@ -1456,10 +1456,10 @@ def _create_sdf_operation(
   dofn_data = pickler.loads(parameter.do_fn.payload)
   dofn = dofn_data[0]
   restriction_provider = common.DoFnSignature(dofn).get_restriction_provider()
-  watermark_estiamtor_provider = (
+  watermark_estimator_provider = (
       common.DoFnSignature(dofn).get_watermark_estimator_provider())
   serialized_fn = pickler.dumps(
-      (proxy_dofn(dofn, restriction_provider, watermark_estiamtor_provider), ) +
+      (proxy_dofn(dofn, restriction_provider, watermark_estimator_provider), ) +
       dofn_data[1:])
   return _create_pardo_operation(
       factory,

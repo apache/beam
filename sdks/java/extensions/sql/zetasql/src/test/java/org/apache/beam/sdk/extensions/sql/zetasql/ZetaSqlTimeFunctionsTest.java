@@ -47,7 +47,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** ZetaSqlTimeFunctionsTest. */
+/** Tests for ZetaSQL time functions (DATE, TIME, DATETIME, and TIMESTAMP functions). */
 @RunWith(JUnit4.class)
 public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 

@@ -147,10 +147,10 @@ import org.slf4j.LoggerFactory;
  * );
  * }</pre>
  *
- * By default, the provided function instantiates a DataSource per execution thread. In some
- * circumstances, such as DataSources that have a pool of connections, this can quickly overwhelm
- * the database by requesting too many connections. In that case you should make the DataSource a
- * static singleton so it gets instantiated only once per JVM.
+ * <p>By default, the provided function requests a DataSource per execution thread. In some
+ * circumstances this can quickly overwhelm the database by requesting too many connections. In that
+ * case you should look into sharing a single instance of a {@link PoolingDataSource} across all the
+ * execution threads.
  *
  * <h3>Writing to JDBC datasource</h3>
  *
@@ -883,11 +883,14 @@ public class JdbcIO {
     @Setup
     public void setup() throws Exception {
       dataSource = dataSourceProviderFn.apply(null);
-      connection = dataSource.getConnection();
     }
 
     @ProcessElement
     public void processElement(ProcessContext context) throws Exception {
+      // Only acquire the connection if we need to perform a read.
+      if (connection == null) {
+        connection = dataSource.getConnection();
+      }
       try (PreparedStatement statement =
           connection.prepareStatement(
               query.get(), ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
@@ -901,9 +904,24 @@ public class JdbcIO {
       }
     }
 
-    @Teardown
-    public void teardown() throws Exception {
-      connection.close();
+    @FinishBundle
+    public void finishBundle() throws Exception {
+      cleanUpConnection();
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+      cleanUpConnection();
+    }
+
+    private void cleanUpConnection() throws Exception {
+      if (connection != null) {
+        try {
+          connection.close();
+        } finally {
+          connection = null;
+        }
+      }
     }
   }
 
@@ -1354,13 +1372,6 @@ public class JdbcIO {
                 .withMaxRetries(retryConfiguration.getMaxAttempts());
       }
 
-      @StartBundle
-      public void startBundle() throws Exception {
-        connection = dataSource.getConnection();
-        connection.setAutoCommit(false);
-        preparedStatement = connection.prepareStatement(spec.getStatement().get());
-      }
-
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
         T record = context.element();
@@ -1385,13 +1396,30 @@ public class JdbcIO {
       @FinishBundle
       public void finishBundle() throws Exception {
         executeBatch();
+        cleanUpStatementAndConnection();
+      }
+
+      @Override
+      protected void finalize() throws Throwable {
+        cleanUpStatementAndConnection();
+      }
+
+      private void cleanUpStatementAndConnection() throws Exception {
         try {
           if (preparedStatement != null) {
-            preparedStatement.close();
+            try {
+              preparedStatement.close();
+            } finally {
+              preparedStatement = null;
+            }
           }
         } finally {
           if (connection != null) {
-            connection.close();
+            try {
+              connection.close();
+            } finally {
+              connection = null;
+            }
           }
         }
       }
@@ -1399,6 +1427,12 @@ public class JdbcIO {
       private void executeBatch() throws SQLException, IOException, InterruptedException {
         if (records.isEmpty()) {
           return;
+        }
+        // Only acquire the connection if there is something to write.
+        if (connection == null) {
+          connection = dataSource.getConnection();
+          connection.setAutoCommit(false);
+          preparedStatement = connection.prepareStatement(spec.getStatement().get());
         }
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = retryBackOff.backoff();
@@ -1498,7 +1532,6 @@ public class JdbcIO {
             PoolableConnectionFactory poolableConnectionFactory =
                 new PoolableConnectionFactory(connectionFactory, null);
             GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
-            poolConfig.setMaxTotal(1);
             poolConfig.setMinIdle(0);
             poolConfig.setMinEvictableIdleTimeMillis(10000);
             poolConfig.setSoftMinEvictableIdleTimeMillis(30000);

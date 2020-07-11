@@ -282,7 +282,7 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
       if (operandCount == 2) {
         tz = call.operand(1);
       }
-    } else if (operandCount == 2 || operandCount == 3) {
+    } else if (funName.equals("$extract") && (operandCount == 2 || operandCount == 3)) {
       // EXTRACT(date_part FROM timestamp_expression [AT TIME ZONE tz])
       // operand0: timestamp_expression
       // operand1: date_part
