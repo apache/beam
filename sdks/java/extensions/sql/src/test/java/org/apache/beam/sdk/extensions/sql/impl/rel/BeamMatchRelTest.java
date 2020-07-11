@@ -39,17 +39,6 @@ public class BeamMatchRelTest {
                             1, "c", 3
                     ));
 
-//
-//    PCollection<Row> input =
-//        pipeline.apply(
-//            Create.of(
-//                Row.withSchema(schemaType).addValues(
-//                        1, "a", 1,
-//                        1, "b", 2,
-//                        1, "c", 3
-//                ).build())
-//                .withRowSchema(schemaType));
-
     String sql = "SELECT * " +
         "FROM TestTable " +
         "MATCH_RECOGNIZE (" +
@@ -62,7 +51,6 @@ public class BeamMatchRelTest {
         "C AS name = 'c' " +
         ") AS T";
 
-//    PCollection<Row> result = input.apply(SqlTransform.query(sql));
     PCollection<Row> result = compilePipeline(sql, pipeline);
 
     PAssert.that(result)
