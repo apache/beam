@@ -5,11 +5,11 @@ import java.io.Serializable;
 public class OrderKey implements Serializable {
 
     private final int fIndex;
-    private final boolean dir;
+    private final boolean inv;
 
-    public OrderKey(int fIndex, boolean dir) {
+    public OrderKey(int fIndex, boolean inv) {
         this.fIndex = fIndex;
-        this.dir = dir;
+        this.inv = inv;
     }
 
     public int getIndex() {
@@ -17,6 +17,6 @@ public class OrderKey implements Serializable {
     }
 
     public boolean getDir() {
-        return dir;
+        return inv;
     }
 }
