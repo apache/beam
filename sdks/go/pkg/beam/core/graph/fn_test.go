@@ -635,6 +635,9 @@ func (rt *RTrackerT) GetProgress() (float64, float64) {
 func (rt *RTrackerT) IsDone() bool {
 	return true
 }
+func (rt *RTrackerT) GetRestriction() interface{} {
+	return nil
+}
 
 type GoodSdf struct {
 	*GoodDoFn

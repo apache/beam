@@ -27,36 +27,56 @@ func NewLockRTracker(rt RTracker) *LockRTracker {
 // tracker and adds thread safety to it by locking a mutex in each method,
 // before delegating to the underlying tracker.
 type LockRTracker struct {
-	mu sync.Mutex // Lock on accessing underlying tracker.
+	Mu sync.Mutex // Lock on accessing underlying tracker.
+	// The underlying tracker. If accessing directly, consider thread safety.
+	// Lock the mutex if thread safety is needed.
 	Rt RTracker
 }
 
+// TryClaim locks a mutex for thread safety, and then delegates to the
+// underlying tracker's TryClaim.
 func (rt *LockRTracker) TryClaim(pos interface{}) (ok bool) {
-	rt.mu.Lock()
-	defer rt.mu.Unlock()
+	rt.Mu.Lock()
+	defer rt.Mu.Unlock()
 	return rt.Rt.TryClaim(pos)
 }
 
+// GetError locks a mutex for thread safety, and then delegates to the
+// underlying tracker's GetError.
 func (rt *LockRTracker) GetError() error {
-	rt.mu.Lock()
-	defer rt.mu.Unlock()
+	rt.Mu.Lock()
+	defer rt.Mu.Unlock()
 	return rt.Rt.GetError()
 }
 
+// TrySplit locks a mutex for thread safety, and then delegates to the
+// underlying tracker's TrySplit.
 func (rt *LockRTracker) TrySplit(fraction float64) (interface{}, interface{}, error) {
-	rt.mu.Lock()
-	defer rt.mu.Unlock()
+	rt.Mu.Lock()
+	defer rt.Mu.Unlock()
 	return rt.Rt.TrySplit(fraction)
 }
 
+// GetProgress locks a mutex for thread safety, and then delegates to the
+// underlying tracker's GetProgress.
 func (rt *LockRTracker) GetProgress() (float64, float64) {
-	rt.mu.Lock()
-	defer rt.mu.Unlock()
+	rt.Mu.Lock()
+	defer rt.Mu.Unlock()
 	return rt.Rt.GetProgress()
 }
 
+// IsDone locks a mutex for thread safety, and then delegates to the
+// underlying tracker's IsDone.
 func (rt *LockRTracker) IsDone() bool {
-	rt.mu.Lock()
-	defer rt.mu.Unlock()
+	rt.Mu.Lock()
+	defer rt.Mu.Unlock()
 	return rt.Rt.IsDone()
+}
+
+// GetRestriction locks a mutex for thread safety, and then delegates to the
+// underlying tracker's GetRestriction.
+func (rt *LockRTracker) GetRestriction() interface{} {
+	rt.Mu.Lock()
+	defer rt.Mu.Unlock()
+	return rt.Rt.GetRestriction()
 }
