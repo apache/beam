@@ -101,8 +101,8 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to InfluxDB </h3>
  *
- * <p>InfluxDB sink supports writing records into a database. It writes a {@link PCollection} to the database.
- * InfluxDB line protocol reference
+ * <p>InfluxDB sink supports writing records into a database. It writes a {@link PCollection} to the
+ * database. InfluxDB line protocol reference
  *
  * <p>Like the {@link #read()}, to configure the {@link #write()}, you have to provide a {@link
  * DataSourceConfiguration}.
@@ -388,12 +388,13 @@ public class InfluxDbIO {
   private static String getQueryToRun(Read spec) {
     if (spec.query() == null) {
       if (spec.toDateTime() != null && spec.fromDateTime() != null) {
-        String retVal =  String.format(
-            "SELECT * FROM %s.%s WHERE time >= '%s' and time <= '%s'",
-            spec.retentionPolicy(),
-            String.join(",", spec.metrics()),
-            spec.toDateTime(),
-            spec.fromDateTime());
+        String retVal =
+            String.format(
+                "SELECT * FROM %s.%s WHERE time >= '%s' and time <= '%s'",
+                spec.retentionPolicy(),
+                String.join(",", spec.metrics()),
+                spec.toDateTime(),
+                spec.fromDateTime());
         return retVal;
       } else {
         return String.format(

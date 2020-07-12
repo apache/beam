@@ -52,43 +52,50 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({org.influxdb.InfluxDBFactory.class, org.apache.beam.sdk.io.influxdb.InfluxDbIO.InfluxDBSource.class})
-public class InfluxDbIOTest  {
+@PrepareForTest({
+  org.influxdb.InfluxDBFactory.class,
+  org.apache.beam.sdk.io.influxdb.InfluxDbIO.InfluxDBSource.class
+})
+public class InfluxDbIOTest {
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   InfluxDB influxDb;
 
   @Before
-  public void setupTest(){
+  public void setupTest() {
     PowerMockito.mockStatic(InfluxDBFactory.class);
     influxDb = Mockito.mock(InfluxDB.class);
-    PowerMockito.when(InfluxDBFactory.connect(anyString(), anyString(), anyString(), any(OkHttpClient.Builder.class))).thenReturn(influxDb);
-    PowerMockito.when(InfluxDBFactory.connect(anyString(), anyString(), anyString())).thenReturn(influxDb);
+    PowerMockito.when(
+            InfluxDBFactory.connect(
+                anyString(), anyString(), anyString(), any(OkHttpClient.Builder.class)))
+        .thenReturn(influxDb);
+    PowerMockito.when(InfluxDBFactory.connect(anyString(), anyString(), anyString()))
+        .thenReturn(influxDb);
   }
+
   @Test
   public void validateWriteTest() {
     String influxHost = "http://localhost";
     String userName = "admin";
     String password = "admin";
     String influxDatabaseName = "testDataBase";
-    AtomicInteger countInvocation= new AtomicInteger();
-    Mockito.doAnswer(invocation -> countInvocation.getAndIncrement()).when(influxDb).write(any(String.class));
+    AtomicInteger countInvocation = new AtomicInteger();
+    Mockito.doAnswer(invocation -> countInvocation.getAndIncrement())
+        .when(influxDb)
+        .write(any(String.class));
     doReturn(getDatabase(influxDatabaseName)).when(influxDb).query(new Query("SHOW DATABASES"));
     final int numOfElementsToWrite = 1000;
     pipeline
-          .apply("Generate data", Create.of(GenerateData.getMetric(numOfElementsToWrite)))
-          .apply(
-              "Write data to InfluxDB",
-              InfluxDbIO.write()
-                  .withConfiguration(
-                      InfluxDbIO.DataSourceConfiguration.create(
-                          influxHost,
-                          userName,
-                          password))
-                  .withDatabase(influxDatabaseName)
-                  .withSslInvalidHostNameAllowed(true)
-                  .withSslEnabled(false));
-    PipelineResult result =  pipeline.run();
+        .apply("Generate data", Create.of(GenerateData.getMetric(numOfElementsToWrite)))
+        .apply(
+            "Write data to InfluxDB",
+            InfluxDbIO.write()
+                .withConfiguration(
+                    InfluxDbIO.DataSourceConfiguration.create(influxHost, userName, password))
+                .withDatabase(influxDatabaseName)
+                .withSslInvalidHostNameAllowed(true)
+                .withSslEnabled(false));
+    PipelineResult result = pipeline.run();
     Assert.assertEquals(State.DONE, result.waitUntilFinish());
     Assert.assertEquals(numOfElementsToWrite, countInvocation.get());
   }
@@ -102,30 +109,32 @@ public class InfluxDbIOTest  {
 
     doReturn(getDatabase(influxDatabaseName)).when(influxDb).query(new Query("SHOW DATABASES"));
     doReturn(getDatabase(influxDatabaseName)).when(influxDb).query(new Query("show shards"));
-    doReturn(mockResult("cpu", 20)).when(influxDb).query(new Query("SELECT * FROM cpu", influxDatabaseName));
+    doReturn(mockResult("cpu", 20))
+        .when(influxDb)
+        .query(new Query("SELECT * FROM cpu", influxDatabaseName));
 
-    PCollection<Long> data = pipeline
-        .apply(
-            "Read data to InfluxDB",
-            InfluxDbIO.read()
-                .withDataSourceConfiguration(
-                    InfluxDbIO.DataSourceConfiguration.create(
-                        influxHost,
-                        userName,
-                        password))
-                .withDatabase(influxDatabaseName)
-                .withQuery("SELECT * FROM cpu")
-                .withSslInvalidHostNameAllowed(true)
-                .withSslEnabled(false)).apply(Count.globally());
+    PCollection<Long> data =
+        pipeline
+            .apply(
+                "Read data to InfluxDB",
+                InfluxDbIO.read()
+                    .withDataSourceConfiguration(
+                        InfluxDbIO.DataSourceConfiguration.create(influxHost, userName, password))
+                    .withDatabase(influxDatabaseName)
+                    .withQuery("SELECT * FROM cpu")
+                    .withSslInvalidHostNameAllowed(true)
+                    .withSslEnabled(false))
+            .apply(Count.globally());
     PAssert.that(data).containsInAnyOrder(20L);
-    PipelineResult result =  pipeline.run();
+    PipelineResult result = pipeline.run();
     Assert.assertEquals(State.DONE, result.waitUntilFinish());
   }
+
   private QueryResult getDatabase(String name) {
     QueryResult queryResult = new QueryResult();
     QueryResult.Series series = new Series();
     series.setName("databases");
-    List<Object> db= new ArrayList<>();
+    List<Object> db = new ArrayList<>();
     db.add(name);
     List<List<Object>> values = new ArrayList<>();
     values.add(db);
@@ -146,7 +155,7 @@ public class InfluxDbIOTest  {
     series.setName(metricName);
     series.setColumns(Arrays.asList("time", "value"));
     List<List<Object>> values = new ArrayList<>();
-    for (int i=0; i< numberOfRecords; i++) {
+    for (int i = 0; i < numberOfRecords; i++) {
       List<Object> metricData = new ArrayList<>();
       Date now = new Date();
       SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ssZ");
