@@ -160,6 +160,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertFalse(self.azfs.exists(file_name + 'xyz'))
     self.assertTrue(self.azfs.exists(file_name))
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

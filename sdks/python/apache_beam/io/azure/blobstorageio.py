@@ -23,10 +23,10 @@
 
 from __future__ import absolute_import
 
+import errno
 import io
 import logging
 import re
-import threading
 import time
 import os
 from builtins import object
@@ -37,6 +37,8 @@ from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.utils import retry
+
+_LOGGER = logging.getLogger(__name__)
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
@@ -207,3 +209,40 @@ class BlobStorageIO(object):
       else:
         # We re-raise all other exceptions
         raise  
+
+class BlobStorageDownloader(Downloader):
+  def __init__(self, client, path, buffer_size):
+    self._client = client
+    self._path = path
+    self._storage_account, self._container, self._blob = parse_azfs_path(path)
+    self._buffer_size = buffer_size
+
+    self._blob_to_download = self._client.get_blob_client(
+        self._container, self._blob)
+
+    try:
+      properties = self._get_object_properties()
+    except ResourceNotFoundError as http_error:
+      if http_error.status_code == 404:
+        raise IOError(errno.ENOENT, 'Not found: %s' % self._path)
+      else:
+        _LOGGER.error(
+            'HTTP error while requesting file %s: %s', self._path, http_error)
+        raise
+
+    self._size = properties.size
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def _get_object_properties(self):
+    return self._blob_to_download.get_blob_properties()
+
+  @property
+  def size(self):
+    return self._size
+
+  def get_range(self, start, end):
+    # Download_blob first parameter is offset and second is length (exclusive)
+    blob_data = self._blob_to_download.download_blob(start, end - start)
+    # Returns the content as bytes
+    return blob_data.readall()
