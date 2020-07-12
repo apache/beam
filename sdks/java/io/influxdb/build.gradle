@@ -26,11 +26,11 @@ ext.summary = "IO to read and write on InfluxDB"
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile 'org.influxdb:influxdb-java:2.17'
+  compile library.java.influxdb_library
   testCompile library.java.junit
+  testCompile library.java.powermock
+  testCompile library.java.powermock_mockito
+  testCompile library.java.mockito_core
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile group: 'org.powermock', name: 'powermock-api-mockito2', version: '2.0.7'
-  testCompile group: 'org.powermock', name: 'powermock-core', version: '2.0.7'
-  testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: '2.0.7'
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
 }
