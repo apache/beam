@@ -18,14 +18,14 @@
 import CommonJobProperties as common
 import Kubernetes
 
-String jobName = "beam_PerformanceTests_InfluxDBIO_IT"
+String jobName = "beam_PerformanceTests_InfluxDbIO_IT"
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
   common.enablePhraseTriggeringFromPullRequest(
           delegate,
-          'Java InfluxDBIO Performance Test',
-          'Run Java InfluxDBIO Performance Test')
+          'Java InfluxDbIO Performance Test',
+          'Run Java InfluxDbIO Performance Test')
 
   String namespace = common.getKubernetesNamespace(jobName)
   String kubeconfigPath = common.getKubeconfigLocationForNamespace(namespace)
@@ -48,7 +48,7 @@ job(jobName) {
       switches("--info")
       switches("-DintegrationTestPipelineOptions=\'${common.joinPipelineOptions(pipelineOptions)}\'")
       switches("-DintegrationTestRunner=direct")
-      tasks(":sdks:java:io:influxdb:integrationTest --tests org.apache.beam.sdk.io.influxdb.InfluxDBIOIT")
+      tasks(":sdks:java:io:influxdb:integrationTest --tests org.apache.beam.sdk.io.influxdb.InfluxDbIOIT")
     }
   }
 }
