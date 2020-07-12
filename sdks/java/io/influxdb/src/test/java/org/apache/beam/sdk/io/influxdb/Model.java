@@ -25,7 +25,7 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.influxdb.dto.Point;
 
 @DefaultCoder(AvroCoder.class)
-class Model implements LineProtocolConvertable {
+class Model {
   private String measurement;
   private Map<String, String> tags;
   private Map<String, Object> fields;
@@ -85,7 +85,6 @@ class Model implements LineProtocolConvertable {
     this.fields = fields;
   }
 
-  @Override
   public String getLineProtocol() {
     return Point.measurement(measurement)
         .time(time, timeUnit)

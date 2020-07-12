@@ -40,7 +40,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * A test of {@link org.apache.beam.sdk.io.influxdb.InfluxDBIO} on an independent InfluxDB instance.
+ * A test of {@link InfluxDbIO} on an independent InfluxDB instance.
  * Run the docker container using the following command
  *
  * <pre>
@@ -55,12 +55,12 @@ import org.junit.runners.JUnit4;
  *  "--infuxDBDatabase=mypass",
  *  "--username=supersadmin"
  *  "--password=supersecretpassword"]'
- *  --tests org.apache.beam.sdk.io.influxdb.InfluxDBIOIT
+ *  --tests org.apache.beam.sdk.io.influxdb.InfluxDbIOIT
  *  -DintegrationTestRunner=direct
  * </pre>
  */
 @RunWith(JUnit4.class)
-public class InfluxDBIOIT {
+public class InfluxDbIOIT {
 
   private static InfluxDBPipelineOptions options;
 
@@ -138,14 +138,14 @@ public class InfluxDBIOIT {
 
   @Test
   public void testWriteAndRead() {
-    final int noofElementsToReadAndWrite = 1000;
+    final int numOfElementsToReadAndWrite = 2000;
     writePipeline
-        .apply("Generate data", Create.of(GenerateData.getMetric(noofElementsToReadAndWrite)))
+        .apply("Generate data", Create.of(GenerateData.getMetric(numOfElementsToReadAndWrite)))
         .apply(
             "Write data to InfluxDB",
-            InfluxDBIO.write()
+            InfluxDbIO.write()
                 .withConfiguration(
-                    InfluxDBIO.DataSourceConfiguration.create(
+                    InfluxDbIO.DataSourceConfiguration.create(
                         options.getInfluxDBURL(),
                         options.getInfluxDBUserName(),
                         options.getInfluxDBPassword()))
@@ -156,9 +156,9 @@ public class InfluxDBIOIT {
     PCollection<String> values =
         readPipeline.apply(
             "Read all points in Influxdb",
-            InfluxDBIO.read()
+            InfluxDbIO.read()
                 .withDataSourceConfiguration(
-                    InfluxDBIO.DataSourceConfiguration.create(
+                    InfluxDbIO.DataSourceConfiguration.create(
                         options.getInfluxDBURL(),
                         options.getInfluxDBUserName(),
                         options.getInfluxDBPassword()))
@@ -168,7 +168,7 @@ public class InfluxDBIOIT {
                 .withSslEnabled(false));
 
     PAssert.thatSingleton(values.apply("Count All", Count.globally()))
-        .isEqualTo((long) noofElementsToReadAndWrite);
+        .isEqualTo((long) numOfElementsToReadAndWrite);
     readPipeline.run().waitUntilFinish();
   }
 
@@ -179,9 +179,9 @@ public class InfluxDBIOIT {
         .apply("Generate data", Create.of(GenerateData.getMetric(noOfElementsToReadAndWrite)))
         .apply(
             "Write data to InfluxDB",
-            InfluxDBIO.write()
+            InfluxDbIO.write()
                 .withConfiguration(
-                    InfluxDBIO.DataSourceConfiguration.create(
+                    InfluxDbIO.DataSourceConfiguration.create(
                         options.getInfluxDBURL(),
                         options.getInfluxDBUserName(),
                         options.getInfluxDBPassword()))
@@ -192,9 +192,9 @@ public class InfluxDBIOIT {
     PCollection<String> values =
         readPipeline.apply(
             "Read all points in InfluxDB",
-            InfluxDBIO.read()
+            InfluxDbIO.read()
                 .withDataSourceConfiguration(
-                    InfluxDBIO.DataSourceConfiguration.create(
+                    InfluxDbIO.DataSourceConfiguration.create(
                         options.getInfluxDBURL(),
                         options.getInfluxDBUserName(),
                         options.getInfluxDBPassword()))
@@ -210,15 +210,15 @@ public class InfluxDBIOIT {
 
   @Test
   public void testWriteAndReadWithMultipleMetric() {
-    final int noOfElementsToReadAndWrite = 2000;
+    final int numOfElementsToReadAndWrite = 2000;
     writePipeline
         .apply(
-            "Generate data", Create.of(GenerateData.getMultipleMetric(noOfElementsToReadAndWrite)))
+            "Generate data", Create.of(GenerateData.getMultipleMetric(numOfElementsToReadAndWrite)))
         .apply(
             "Write data to InfluxDB",
-            InfluxDBIO.write()
+            InfluxDbIO.write()
                 .withConfiguration(
-                    InfluxDBIO.DataSourceConfiguration.create(
+                    InfluxDbIO.DataSourceConfiguration.create(
                         options.getInfluxDBURL(),
                         options.getInfluxDBUserName(),
                         options.getInfluxDBPassword()))
@@ -229,9 +229,9 @@ public class InfluxDBIOIT {
     PCollection<String> values =
         readPipeline.apply(
             "Read all points in InfluxDB",
-            InfluxDBIO.read()
+            InfluxDbIO.read()
                 .withDataSourceConfiguration(
-                    InfluxDBIO.DataSourceConfiguration.create(
+                    InfluxDbIO.DataSourceConfiguration.create(
                         options.getInfluxDBURL(),
                         options.getInfluxDBUserName(),
                         options.getInfluxDBPassword()))
@@ -240,21 +240,21 @@ public class InfluxDBIOIT {
                 .withSslInvalidHostNameAllowed(false)
                 .withSslEnabled(false));
     PAssert.thatSingleton(values.apply("Count All", Count.globally()))
-        .isEqualTo((long) noOfElementsToReadAndWrite * 2);
+        .isEqualTo((long) numOfElementsToReadAndWrite * 2);
     readPipeline.run().waitUntilFinish();
   }
 
   @Test
   public void testWriteAndReadWithSingleMetricWithCustomRetentionPolicy() {
-    final int noOfElementsToReadAndWrite = 1000;
+    final int noOfElementsToReadAndWrite = 2000;
     createRetentionPolicyInDB(options.getDatabaseName(), "test_retention");
     writePipeline
         .apply("Generate data", Create.of(GenerateData.getMetric(noOfElementsToReadAndWrite)))
         .apply(
             "Write data to InfluxDB",
-            InfluxDBIO.write()
+            InfluxDbIO.write()
                 .withConfiguration(
-                    InfluxDBIO.DataSourceConfiguration.create(
+                    InfluxDbIO.DataSourceConfiguration.create(
                         options.getInfluxDBURL(),
                         options.getInfluxDBUserName(),
                         options.getInfluxDBPassword()))
@@ -266,9 +266,9 @@ public class InfluxDBIOIT {
     PCollection<String> values =
         readPipeline.apply(
             "Read all points in InfluxDB",
-            InfluxDBIO.read()
+            InfluxDbIO.read()
                 .withDataSourceConfiguration(
-                    InfluxDBIO.DataSourceConfiguration.create(
+                    InfluxDbIO.DataSourceConfiguration.create(
                         options.getInfluxDBURL(),
                         options.getInfluxDBUserName(),
                         options.getInfluxDBPassword()))
@@ -292,9 +292,9 @@ public class InfluxDBIOIT {
             "Generate data", Create.of(GenerateData.getMultipleMetric(noOfElementsToReadAndWrite)))
         .apply(
             "Write data to InfluxDB",
-            InfluxDBIO.write()
+            InfluxDbIO.write()
                 .withConfiguration(
-                    InfluxDBIO.DataSourceConfiguration.create(
+                    InfluxDbIO.DataSourceConfiguration.create(
                         options.getInfluxDBURL(),
                         options.getInfluxDBUserName(),
                         options.getInfluxDBPassword()))
@@ -306,9 +306,9 @@ public class InfluxDBIOIT {
     PCollection<String> valuesForTestm =
         readPipeline.apply(
             "Read all points in InfluxDB For test_m metric",
-            InfluxDBIO.read()
+            InfluxDbIO.read()
                 .withDataSourceConfiguration(
-                    InfluxDBIO.DataSourceConfiguration.create(
+                    InfluxDbIO.DataSourceConfiguration.create(
                         options.getInfluxDBURL(),
                         options.getInfluxDBUserName(),
                         options.getInfluxDBPassword()))
@@ -320,9 +320,9 @@ public class InfluxDBIOIT {
     PCollection<String> valuesForTestm1 =
         readPipeline.apply(
             "Read all points in InfluxDB For test_m1 metric",
-            InfluxDBIO.read()
+            InfluxDbIO.read()
                 .withDataSourceConfiguration(
-                    InfluxDBIO.DataSourceConfiguration.create(
+                    InfluxDbIO.DataSourceConfiguration.create(
                         options.getInfluxDBURL(),
                         options.getInfluxDBUserName(),
                         options.getInfluxDBPassword()))

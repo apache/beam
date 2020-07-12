@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.influxdb;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.influxdb.BatchOptions.DEFAULT_BATCH_INTERVAL_DURATION;
 import static org.influxdb.BatchOptions.DEFAULT_BUFFER_LIMIT;
 
@@ -69,7 +69,7 @@ import org.slf4j.LoggerFactory;
  * <p>InfluxDBIO {@link #read()} returns a bounded collection of {@code String} as a {@code
  * PCollection<String>}.
  *
- * <p>you have to provide a {@link DataSourceConfiguration} using<br>
+ * <p>You have to provide a {@link DataSourceConfiguration} using<br>
  * {@link DataSourceConfiguration#create(String, String, String)}(url, userName and password).
  * Optionally, {@link DataSourceConfiguration#withUsername(String)} and {@link
  * DataSourceConfiguration#withPassword(String)} allows you to define userName and password.
@@ -101,9 +101,8 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to InfluxDB </h3>
  *
- * <p>InfluxDB sink supports writing records into a database. It writes a {@link PCollection} to the
- * database by converting each T. The T should implement getLineProtocol() from {@link
- * LineProtocolConvertable}.
+ * <p>InfluxDB sink supports writing records into a database. It writes a {@link PCollection} to the database.
+ * InfluxDB line protocol reference
  *
  * <p>Like the {@link #read()}, to configure the {@link #write()}, you have to provide a {@link
  * DataSourceConfiguration}.
@@ -124,20 +123,20 @@ import org.slf4j.LoggerFactory;
  * *
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
-public class InfluxDBIO {
-  private static final Logger LOG = LoggerFactory.getLogger(InfluxDBIO.class);
+public class InfluxDbIO {
+  private static final Logger LOG = LoggerFactory.getLogger(InfluxDbIO.class);
 
   public static Write write() {
-    return new AutoValue_InfluxDBIO_Write.Builder()
+    return new AutoValue_InfluxDbIO_Write.Builder()
         .setSslEnabled(false)
         .setSslInvalidHostNameAllowed(false)
         .setFlushDuration(DEFAULT_BATCH_INTERVAL_DURATION)
-        .setNoOfElementsToBatch(DEFAULT_BUFFER_LIMIT)
+        .setNumOfElementsToBatch(DEFAULT_BUFFER_LIMIT)
         .build();
   }
 
   public static Read read() {
-    return new AutoValue_InfluxDBIO_Read.Builder()
+    return new AutoValue_InfluxDbIO_Read.Builder()
         .setSslEnabled(false)
         .setSslInvalidHostNameAllowed(false)
         .setStartDateTime(DateTime.parse("1677-09-21T00:12:43.145224194Z"))
@@ -208,7 +207,7 @@ public class InfluxDBIO {
 
     /** Reads from the InfluxDB instance indicated by the given configuration. */
     public Read withDataSourceConfiguration(DataSourceConfiguration configuration) {
-      checkArgument(configuration != null, "configuration can not be null");
+      checkState(configuration != null, "configuration can not be null");
       return builder().setDataSourceConfiguration(configuration).build();
     }
 
@@ -262,10 +261,10 @@ public class InfluxDBIO {
 
     @Override
     public PCollection<String> expand(PBegin input) {
-      checkArgument(dataSourceConfiguration() != null, "configuration is required");
-      checkArgument(query() != null || database() != null, "database or query is required");
+      checkState(dataSourceConfiguration() != null, "configuration is required");
+      checkState(query() != null || database() != null, "database or query is required");
       if (database() != null) {
-        checkArgument(
+        checkState(
             checkDatabase(
                 database(), dataSourceConfiguration(), sslInvalidHostNameAllowed(), sslEnabled()),
             "Database %s does not exist",
@@ -297,9 +296,9 @@ public class InfluxDBIO {
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
-      String noOfBlocks = "NUMBER OF BLOCKS";
+      String numOfBlocks = "NUMBER OF BLOCKS";
       String sizeOfBlocks = "SIZE OF BLOCKS";
-      LinkedHashSet<Long> noOfBlocksValue = new LinkedHashSet<>();
+      LinkedHashSet<Long> numOfBlocksValue = new LinkedHashSet<>();
       LinkedHashSet<Long> sizeOfBlocksValue = new LinkedHashSet<>();
       try (InfluxDB connection =
           getConnection(
@@ -318,8 +317,8 @@ public class InfluxDBIO {
           for (Series series : res.getSeries()) {
             for (List<Object> data : series.getValues()) {
               String s = data.get(0).toString();
-              if (s.startsWith(noOfBlocks)) {
-                noOfBlocksValue.add(Long.parseLong(s.split(":", -1)[1].trim()));
+              if (s.startsWith(numOfBlocks)) {
+                numOfBlocksValue.add(Long.parseLong(s.split(":", -1)[1].trim()));
               }
               if (s.startsWith(sizeOfBlocks)) {
                 sizeOfBlocksValue.add(Long.parseLong(s.split(":", -1)[1].trim()));
@@ -329,11 +328,11 @@ public class InfluxDBIO {
         }
       }
 
-      Iterator<Long> noOfBlocksValueItr = noOfBlocksValue.iterator();
-      Iterator<Long> sizeOfBlocksValueItr = sizeOfBlocksValue.iterator();
+      Iterator<Long> numOfBlocksValueIterator = numOfBlocksValue.iterator();
+      Iterator<Long> sizeOfBlocksValueIterator = sizeOfBlocksValue.iterator();
       long size = 0;
-      while (noOfBlocksValueItr.hasNext() && sizeOfBlocksValueItr.hasNext()) {
-        size = size + (noOfBlocksValueItr.next() * sizeOfBlocksValueItr.next());
+      while (numOfBlocksValueIterator.hasNext() && sizeOfBlocksValueIterator.hasNext()) {
+        size = size + (numOfBlocksValueIterator.next() * sizeOfBlocksValueIterator.next());
       }
       return size;
     }
@@ -389,12 +388,13 @@ public class InfluxDBIO {
   private static String getQueryToRun(Read spec) {
     if (spec.query() == null) {
       if (spec.toDateTime() != null && spec.fromDateTime() != null) {
-        return String.format(
+        String retVal =  String.format(
             "SELECT * FROM %s.%s WHERE time >= '%s' and time <= '%s'",
             spec.retentionPolicy(),
             String.join(",", spec.metrics()),
             spec.toDateTime(),
             spec.fromDateTime());
+        return retVal;
       } else {
         return String.format(
             "SELECT * FROM %s.%s", spec.retentionPolicy(), String.join(",", spec.metrics()));
@@ -404,19 +404,19 @@ public class InfluxDBIO {
   }
 
   private static class BoundedInfluxDbReader extends BoundedSource.BoundedReader<String> {
-    private final InfluxDBIO.InfluxDBSource source;
+    private final InfluxDbIO.InfluxDBSource source;
     private Iterator<Result> resultIterator;
     private Iterator<Series> seriesIterator;
     private Iterator<List<Object>> valuesIterator;
     private List current;
 
-    public BoundedInfluxDbReader(InfluxDBIO.InfluxDBSource source) {
+    public BoundedInfluxDbReader(InfluxDbIO.InfluxDBSource source) {
       this.source = source;
     }
 
     @Override
     public boolean start() {
-      InfluxDBIO.Read spec = source.spec;
+      InfluxDbIO.Read spec = source.spec;
       try (InfluxDB influxDB =
           getConnection(
               spec.dataSourceConfiguration(),
@@ -479,9 +479,9 @@ public class InfluxDBIO {
 
     @Override
     public PDone expand(PCollection<String> input) {
-      checkArgument(dataSourceConfiguration() != null, "withConfiguration() is required");
-      checkArgument(database() != null && !database().isEmpty(), "withDatabase() is required");
-      checkArgument(
+      checkState(dataSourceConfiguration() != null, "withConfiguration() is required");
+      checkState(database() != null && !database().isEmpty(), "withDatabase() is required");
+      checkState(
           checkDatabase(
               database(), dataSourceConfiguration(), sslInvalidHostNameAllowed(), sslEnabled()),
           "Database %s does not exist",
@@ -500,7 +500,7 @@ public class InfluxDBIO {
       builder.addIfNotNull(DisplayData.item("sslEnabled", sslEnabled()));
       builder.addIfNotNull(
           DisplayData.item("sslInvalidHostNameAllowed", sslInvalidHostNameAllowed()));
-      builder.addIfNotNull(DisplayData.item("noOfElementsToBatch", noOfElementsToBatch()));
+      builder.addIfNotNull(DisplayData.item("numOfElementsToBatch", numOfElementsToBatch()));
       builder.addIfNotNull(DisplayData.item("flushDuration", flushDuration()));
     }
 
@@ -514,7 +514,7 @@ public class InfluxDBIO {
 
     abstract boolean sslEnabled();
 
-    abstract int noOfElementsToBatch();
+    abstract int numOfElementsToBatch();
 
     abstract int flushDuration();
 
@@ -531,7 +531,7 @@ public class InfluxDBIO {
 
       abstract Builder setSslInvalidHostNameAllowed(boolean value);
 
-      abstract Builder setNoOfElementsToBatch(int noOfElementsToBatch);
+      abstract Builder setNumOfElementsToBatch(int numOfElementsToBatch);
 
       abstract Builder setFlushDuration(int flushDuration);
 
@@ -543,7 +543,7 @@ public class InfluxDBIO {
     }
 
     public Write withConfiguration(DataSourceConfiguration configuration) {
-      checkArgument(configuration != null, "configuration can not be null");
+      checkState(configuration != null, "configuration can not be null");
       return builder().setDataSourceConfiguration(configuration).build();
     }
 
@@ -559,8 +559,8 @@ public class InfluxDBIO {
       return builder().setSslInvalidHostNameAllowed(value).build();
     }
 
-    public Write withNoOfElementsToBatch(int noOfElementsToBatch) {
-      return builder().setNoOfElementsToBatch(noOfElementsToBatch).build();
+    public Write withNumOfElementsToBatch(int numOfElementsToBatch) {
+      return builder().setNumOfElementsToBatch(numOfElementsToBatch).build();
     }
 
     public Write withFlushDuration(int flushDuration) {
@@ -571,10 +571,10 @@ public class InfluxDBIO {
       return builder().setRetentionPolicy(rp).build();
     }
 
-    private class InfluxWriterFn<T> extends DoFn<T, Void> {
+    private class InfluxWriterFn extends DoFn<String, Void> {
 
       private final Write spec;
-      private InfluxDB connection;
+      private transient InfluxDB connection;
 
       InfluxWriterFn(Write write) {
         this.spec = write;
@@ -586,16 +586,16 @@ public class InfluxDBIO {
             getConnection(
                 spec.dataSourceConfiguration(), sslInvalidHostNameAllowed(), sslEnabled());
         int flushDuration = spec.flushDuration();
-        int noOfBatchPoints = spec.noOfElementsToBatch();
+        int numOfBatchPoints = spec.numOfElementsToBatch();
         connection.enableBatch(
-            BatchOptions.DEFAULTS.actions(noOfBatchPoints).flushDuration(flushDuration));
+            BatchOptions.DEFAULTS.actions(numOfBatchPoints).flushDuration(flushDuration));
         connection.setRetentionPolicy(spec.retentionPolicy());
         connection.setDatabase(spec.database());
       }
 
       @ProcessElement
       public void processElement(ProcessContext c) {
-        connection.write(c.element().toString());
+        connection.write(c.element());
       }
 
       @FinishBundle
@@ -682,9 +682,9 @@ public class InfluxDBIO {
     }
 
     public static DataSourceConfiguration create(String url, String userName, String password) {
-      checkArgument(url != null, "url can not be null");
-      checkArgument(userName != null, "userName can not be null");
-      checkArgument(password != null, "password can not be null");
+      checkState(url != null, "url can not be null");
+      checkState(userName != null, "userName can not be null");
+      checkState(password != null, "password can not be null");
 
       return create(
           ValueProvider.StaticValueProvider.of(url),
@@ -694,11 +694,11 @@ public class InfluxDBIO {
 
     public static DataSourceConfiguration create(
         ValueProvider<String> url, ValueProvider<String> userName, ValueProvider<String> password) {
-      checkArgument(url != null, "url can not be null");
-      checkArgument(userName != null, "userName can not be null");
-      checkArgument(password != null, "password can not be null");
+      checkState(url != null, "url can not be null");
+      checkState(userName != null, "userName can not be null");
+      checkState(password != null, "password can not be null");
 
-      return new AutoValue_InfluxDBIO_DataSourceConfiguration.Builder()
+      return new AutoValue_InfluxDbIO_DataSourceConfiguration.Builder()
           .setUrl(url)
           .setUserName(userName)
           .setPassword(password)
@@ -809,7 +809,7 @@ public class InfluxDBIO {
     return false;
   }
 
-  private static InfluxDB getConnection(
+  public static InfluxDB getConnection(
       DataSourceConfiguration configuration,
       boolean sslInvalidHostNameAllowed,
       boolean sslEnabled) {

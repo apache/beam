@@ -28,7 +28,9 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile 'org.influxdb:influxdb-java:2.17'
   testCompile library.java.junit
-  testRuntimeOnly project(":runners:direct-java")
-  testCompile group: 'org.apache.beam', name: 'beam-runners-direct-java', version: '2.15.0'
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile group: 'org.powermock', name: 'powermock-api-mockito2', version: '2.0.7'
+  testCompile group: 'org.powermock', name: 'powermock-core', version: '2.0.7'
+  testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: '2.0.7'
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
 }

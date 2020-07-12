@@ -19,6 +19,6 @@
 /**
  * Transforms for reading and writing from/to InfluxDB.
  *
- * @see org.apache.beam.sdk.io.influxdb.InfluxDBIO
+ * @see org.apache.beam.sdk.io.influxdb.InfluxDbIO
  */
 package org.apache.beam.sdk.io.influxdb;

@@ -23,11 +23,11 @@ import java.util.List;
 import java.util.Map;
 import org.influxdb.dto.QueryResult.Series;
 
-public class DBShardInformation {
+class DBShardInformation {
 
   private Map<String, List<ShardInformation>> shardInformation = new HashMap<>();
 
-  public DBShardInformation() {}
+  DBShardInformation() {}
 
   public void loadShardInformation(String dbName, Series sData) {
     if (!shardInformation.containsKey(dbName)) {

@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Objects;
 import org.joda.time.DateTime;
 
-public class ShardInformation implements Comparable {
+class ShardInformation implements Comparable {
 
   private double id;
   private String retentionPolicy;
@@ -29,7 +29,7 @@ public class ShardInformation implements Comparable {
   private DateTime startTime;
   private DateTime endTime;
 
-  public ShardInformation(List<Object> data) {
+  ShardInformation(List<Object> data) {
     id = Double.parseDouble(data.get(0).toString());
     retentionPolicy = data.get(2).toString();
     shardGroup = Double.parseDouble(data.get(3).toString());
