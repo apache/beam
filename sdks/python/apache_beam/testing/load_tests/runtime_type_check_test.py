@@ -54,6 +54,7 @@ python -m apache_beam.testing.load_tests.runtime_typechecking_test \
 from __future__ import absolute_import
 
 import logging
+from typing import Iterable
 
 import apache_beam as beam
 from apache_beam.testing.load_tests.load_test import LoadTest
@@ -61,21 +62,21 @@ from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 
-class RunTimeTypeCheckingTest(LoadTest):
+class RunTimeTypeCheckTest(LoadTest):
   def __init__(self):
-    super(RunTimeTypeCheckingTest, self).__init__()
+    super(RunTimeTypeCheckTest, self).__init__()
     self.fanout = self.get_option_or_default('fanout', 1)
     self.iterations = self.get_option_or_default('iterations', 1)
 
-  class IntToStr(beam.DoFn):
-    def process(self, element: int, iterations) -> str:
-      for i in range(iterations):
-        yield str(element)
+  class SimpleAnnotatedInput(beam.DoFn):
+    def process(self, element: bytes, iterations):
+      for _ in range(iterations):
+        yield element
 
-  class StrToInt(beam.DoFn):
-    def process(self, element: str, iterations) -> int:
-      for i in range(iterations):
-        yield int(element)
+  class SimpleAnnotatedOutput(beam.DoFn):
+    def process(self, element, iterations) -> Iterable[bytes]:
+      for _ in range(iterations):
+        yield element
 
   def test(self):
     pc = (
@@ -93,4 +94,4 @@ class RunTimeTypeCheckingTest(LoadTest):
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
-  RunTimeTypeCheckingTest().run()
+  RunTimeTypeCheckTest().run()
