@@ -159,9 +159,9 @@ def validate_run(run_data):
       run_data = request_url(url)
       status = run_data["status"]
       conclusion = run_data["conclusion"]
-      if status != "completed":
+      if status in ["queued", "in_progress"]:
         continue
-      elif conclusion == "success":
+      elif status == "completed" and conclusion == "success":
         print(
             f"\rFinished in: {elapsed_time}. "
             f"Last state: status: `{status}`, conclusion: `{conclusion}`.",
