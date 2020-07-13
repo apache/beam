@@ -510,12 +510,50 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             || (doFnSignature.newTracker() != null && doFnSignature.newTracker().observesWindow())
             || (doFnSignature.getSize() != null && doFnSignature.getSize().observesWindow())
             || !sideInputMapping.isEmpty()) {
-          mainInputConsumer = this::processElementForWindowObservingTruncateRestriction;
+          mainInputConsumer =
+              new SplittableFnDataReceiver() {
+                private final HandlesSplits splitDelegate =
+                    (HandlesSplits) Iterables.get(mainOutputConsumers, 0);
+
+                @Override
+                public void accept(WindowedValue input) throws Exception {
+                  processElementForWindowObservingTruncateRestriction(input);
+                }
+
+                @Override
+                public SplitResult trySplit(double fractionOfRemainder) {
+                  return splitDelegate.trySplit(fractionOfRemainder);
+                }
+
+                @Override
+                public double getProgress() {
+                  return splitDelegate.getProgress();
+                }
+              };
           this.processContext =
               new SizedRestrictionWindowObservingProcessBundleContext(
                   PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN);
         } else {
-          mainInputConsumer = this::processElementForTruncateRestriction;
+          mainInputConsumer =
+              new SplittableFnDataReceiver() {
+                private final HandlesSplits splitDelegate =
+                    (HandlesSplits) Iterables.get(mainOutputConsumers, 0);
+
+                @Override
+                public void accept(WindowedValue input) throws Exception {
+                  processElementForTruncateRestriction(input);
+                }
+
+                @Override
+                public SplitResult trySplit(double fractionOfRemainder) {
+                  return splitDelegate.trySplit(fractionOfRemainder);
+                }
+
+                @Override
+                public double getProgress() {
+                  return splitDelegate.getProgress();
+                }
+              };
           this.processContext =
               new SizedRestrictionNonWindowObservingProcessBundleContext(
                   PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN);
