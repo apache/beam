@@ -37,5 +37,12 @@ builder.build {
             javadocDir("src/sdks/java/javadoc/build/docs/javadoc")
             keepAll(false)
         }
+        recordIssues {
+            tools {
+                java()
+                javaDoc()
+            }
+            enabledForFailure(true)
+        }
     }
 }
