@@ -22,7 +22,7 @@ from __future__ import absolute_import
 
 import logging
 import unittest
-
+import os
 
 from apache_beam.io.azure import blobstorageio
 
@@ -160,6 +160,23 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertFalse(self.azfs.exists(file_name + 'xyz'))
     self.assertTrue(self.azfs.exists(file_name))
 
+  def test_full_file_read(self):
+    file_name = self.TEST_DATA_PATH + 'test_file_read'
+    file_size = 22
+    # TODO : add insert_random_file functionality
+
+    contents = b'Hi beam, how are you?\n'
+
+    f = self.azfs.open(file_name)
+    self.assertEqual(f.mode, 'r')
+    f.seek(0, os.SEEK_END)
+    self.assertEqual(f.tell(), file_size)
+    self.assertEqual(f.read(), b'')
+    f.seek(0)
+    self.assertEqual(f.read(), contents)
+
+    # Clean up
+    self.azfs.delete(file_name)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

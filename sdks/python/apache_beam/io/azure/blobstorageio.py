@@ -208,7 +208,7 @@ class BlobStorageIO(object):
         return False
       else:
         # We re-raise all other exceptions
-        raise  
+        raise 
 
 class BlobStorageDownloader(Downloader):
   def __init__(self, client, path, buffer_size):
