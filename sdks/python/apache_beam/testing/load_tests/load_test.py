@@ -14,7 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable-all
 # pytype: skip-file
+# pylint: skip-file
 
 from __future__ import absolute_import
 
@@ -93,14 +95,11 @@ class LoadTest(object):
   following environment options: `INFLUXDB_USER` and `INFLUXDB_USER_PASSWORD`.
   """
   def __init__(self, metrics_namespace=None):
-    self.runtime_type_check = self.get_option_or_default('runtime_type_check')
- 
     # Be sure to set blocking to false for timeout_ms to work properly
     self.pipeline = TestPipeline(
         is_integration_test=True,
         blocking=False,
-        options=PipelineOptions(runtime_type_check=self.runtime_type_check)
-    )
+        options=self.parse_pipeline_options())
 
     assert not self.pipeline.blocking
 
@@ -176,6 +175,17 @@ class LoadTest(object):
         },
         'forceNumInitialBundles': options.get('force_initial_num_bundles', 0)
     }
+
+  def parse_pipeline_options(self):
+    parser = argparse.ArgumentParser(description='Parse pipeline options.')
+    parser.add_argument('--test-pipeline-options', type=str)
+    parser.add_argument(
+        '--runtime_type_check',
+        dest='runtime_type_check',
+        default=False,
+        type=bool)
+    args = parser.parse_args()
+    return PipelineOptions(runtime_type_check=args.runtime_type_check)
 
   def get_option_or_default(self, opt_name, default=0):
     """Returns a testing option or a default value if it was not provided.

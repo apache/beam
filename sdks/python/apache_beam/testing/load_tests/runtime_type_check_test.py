@@ -16,9 +16,9 @@
 #
 
 """
-This is runtime type=checking load test with Synthetic Source. Besides of the standard
-input options there are additional options:
-* runtime_type_check (optional) - if runtime typechecking is enabled for the pipeline
+This is runtime type=checking load test with Synthetic Source.
+Besides of the standard input options there are additional options:
+* runtime_type_check (optional) - if it's enabled for the pipeline
 * nested_typehint (optional) - if the typehint on the DoFn is nested or simple
 * fanout (optional) - number of GBK operations to run in parallel
 * iterations (optional) - number of reiteraations over per-key-grouped
@@ -35,7 +35,7 @@ will be stored,
 
 Example test run:
 
-python -m apache_beam.testing.load_tests.runtime_typechecking_test \
+python -m apache_beam.testing.load_tests.runtime_type_check_test \
     --test-pipeline-options="
     --project=apache-beam-testing
     --region=us-centrall
@@ -44,12 +44,10 @@ python -m apache_beam.testing.load_tests.runtime_typechecking_test \
     --metrics_table=gbk
     --fanout=100
     --iterations=100
-    --runtime_type_check=True
-    --nested_typehint=True
     --input_options='{
-    \"num_records\": 300,
+    \"num_records\": 1000,
     \"key_size\": 5,
-    \"value_size\": 150
+    \"value_size\": 15
     }'"
 """
 
@@ -58,7 +56,7 @@ python -m apache_beam.testing.load_tests.runtime_typechecking_test \
 from __future__ import absolute_import
 
 import logging
-from typing import Iterable
+from typing import Iterable, Tuple
 
 import apache_beam as beam
 from apache_beam.testing.load_tests.load_test import LoadTest
@@ -84,30 +82,43 @@ class RunTimeTypeCheckTest(LoadTest):
         yield element
 
   class NestedInput(beam.DoFn):
-    def process(self, element: Iterable[Iterable[int, str, bytes, Iterable[int]]], iterations):
+    def process(
+        self,
+        element: Iterable[Tuple[int, str, bytes, Iterable[int]]],
+        iterations):
       for _ in range(iterations):
         yield element
 
   class NestedOutput(beam.DoFn):
-    def process(self, element, iterations) -> Iterable[Iterable[int, str, bytes, Iterable[int]]]:
+    def process(self, element,
+                iterations) -> Iterable[Tuple[int, str, bytes, Iterable[int]]]:
       for _ in range(iterations):
-        yield [1, 'a', element, [0]]
+        yield 1, 'a', element, [0]
 
   def test(self):
-    pc = (self.pipeline
-          | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
-          | 'Measure time: Start' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
+    pc = (
+        self.pipeline
+        | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
+        | 'Measure time: Start' >> beam.ParDo(
+            MeasureTime(self.metrics_namespace)))
 
-    input_transform = self.NestedInput if self.nested_typehint else self.SimpleInput
-    output_transform = self.NestedOutput if self.nested_typehint else self.SimpleOutput
+    if self.nested_typehint:
+      input_transform = self.NestedInput
+      output_transform = self.NestedOutput
+    else:
+      input_transform = self.SimpleInput
+      output_transform = self.SimpleOutput
 
     # Perform the output DoFn before input DoFn so the annotations are valid
     for branch in range(self.fanout):
       (  # pylint: disable=expression-not-assigned
               pc
-              | 'Output Transform %i' % branch >> beam.ParDo(output_transform(), self.iterations)
-              | 'Input Transform %i' % branch >> beam.ParDo(input_transform(), self.iterations)
-              | 'Measure time: End %i' % branch >> beam.ParDo(MeasureTime(self.metrics_namespace)))
+              | 'Output Transform %i' % branch >>
+                beam.ParDo(output_transform(), self.iterations)
+              | 'Input Transform %i' % branch >>
+                beam.ParDo(input_transform(), self.iterations)
+              | 'Measure time: End %i' % branch >>
+                beam.ParDo(MeasureTime(self.metrics_namespace)))
 
 
 if __name__ == '__main__':
