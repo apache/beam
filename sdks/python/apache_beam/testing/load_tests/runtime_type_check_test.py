@@ -67,29 +67,40 @@ class RunTimeTypeCheckTest(LoadTest):
     super(RunTimeTypeCheckTest, self).__init__()
     self.fanout = self.get_option_or_default('fanout', 1)
     self.iterations = self.get_option_or_default('iterations', 1)
+    self.nested_typehint = self.get_option_or_default('nested_typehint', False)
 
-  class SimpleAnnotatedInput(beam.DoFn):
+  class SimpleInput(beam.DoFn):
     def process(self, element: bytes, iterations):
       for _ in range(iterations):
         yield element
 
-  class SimpleAnnotatedOutput(beam.DoFn):
+  class SimpleOutput(beam.DoFn):
     def process(self, element, iterations) -> Iterable[bytes]:
       for _ in range(iterations):
         yield element
 
+  class NestedInput(beam.DoFn):
+    def process(self, element: Iterable[Iterable[int, str, bytes, Iterable[int]]], iterations):
+      for _ in range(iterations):
+        yield element
+
+  class NestedOutput(beam.DoFn):
+    def process(self, element, iterations) -> Iterable[Iterable[int, str, bytes, Iterable[int]]]:
+      for _ in range(iterations):
+        yield [1, 'a', element, [0]]
+
   def test(self):
     pc = (
-        self.pipeline
-        | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
-        | 'Measure time: Start' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
+            self.pipeline
+            | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
+            | 'Measure time: Start' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
     for branch in range(self.fanout):
       (  # pylint: disable=expression-not-assigned
-          pc
-          | 'IntToStr %i' % branch >> beam.ParDo(self.IntToStr(), self.iterations)
-          | 'StrToInt %i' % branch >> beam.ParDo(self.StrToInt(), self.iterations)
-          | 'Measure time: End %i' % branch >> beam.ParDo(MeasureTime(self.metrics_namespace)))
+              pc
+              | 'IntToStr %i' % branch >> beam.ParDo(self.IntToStr(), self.iterations)
+              | 'StrToInt %i' % branch >> beam.ParDo(self.StrToInt(), self.iterations)
+              | 'Measure time: End %i' % branch >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
 
 if __name__ == '__main__':
