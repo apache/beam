@@ -70,6 +70,7 @@ __all__ = [
     'BoundedSource',
     'RangeTracker',
     'Read',
+    'RestrictionProgress',
     'RestrictionTracker',
     'WatermarkEstimator',
     'Sink',
@@ -1301,18 +1302,22 @@ class RestrictionProgress(object):
   @property
   def completed_work(self):
     # type: () -> float
-    if self._completed:
+    if self._completed is not None:
       return self._completed
-    elif self._remaining and self._fraction:
+    elif self._remaining is not None and self._fraction:
       return self._remaining * self._fraction / (1 - self._fraction)
+    else:
+      return self._fraction
 
   @property
   def remaining_work(self):
     # type: () -> float
-    if self._remaining:
+    if self._remaining is not None:
       return self._remaining
-    elif self._completed:
+    elif self._completed is not None and self._fraction:
       return self._completed * (1 - self._fraction) / self._fraction
+    else:
+      return 1 - self._fraction
 
   @property
   def total_work(self):
