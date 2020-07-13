@@ -837,8 +837,7 @@ public class FhirIO {
               "Resolve SubDirs",
               MapElements.into(TypeDescriptors.strings())
                   .via((String path) -> path.endsWith("/") ? path + "*" : path + "/*"))
-          .apply("Wait On File Writing", Wait.on(failedBodies))
-          .apply("Wait On FHIR Importing", Wait.on(failedFiles))
+          .apply("Wait On FHIR Importing", Wait.on(failedBodies, failedFiles))
           .apply(
               "Match tempGcsPath",
               FileIO.matchAll().withEmptyMatchTreatment(EmptyMatchTreatment.ALLOW))
@@ -848,12 +847,6 @@ public class FhirIO {
                   new DoFn<Metadata, Void>() {
                     @ProcessElement
                     public void delete(@Element Metadata path, ProcessContext context) {
-                      String tempPath =
-                          getImportGcsTempPath()
-                              .orElse(
-                                  StaticValueProvider.of(
-                                      context.getPipelineOptions().getTempLocation()))
-                              .get();
                       // Wait til window closes for failedBodies and failedFiles to ensure we are
                       // done processing
                       // anything under tempGcsPath because it has been successfully imported to

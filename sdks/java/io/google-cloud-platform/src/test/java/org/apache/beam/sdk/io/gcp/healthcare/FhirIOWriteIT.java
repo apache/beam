@@ -117,7 +117,6 @@ public class FhirIOWriteIT {
   }
 
   @Test
-  @Ignore("BEAM-10419 ignore due to flakiness.")
   public void testFhirIO_Import() {
     Pipeline pipeline = Pipeline.create(options);
     if (options.getTempLocation() == null) {
