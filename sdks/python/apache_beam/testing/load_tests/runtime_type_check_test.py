@@ -42,6 +42,7 @@ python -m apache_beam.testing.load_tests.runtime_type_check_test \
     --publish_to_big_query=true
     --metrics_dataset=saavan_python_load_tests
     --metrics_table=gbk
+    --nested_typehint=true
     --fanout=100
     --iterations=100
     --input_options='{

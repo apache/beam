@@ -177,15 +177,15 @@ class LoadTest(object):
     }
 
   def parse_pipeline_options(self):
-    parser = argparse.ArgumentParser(description='Parse pipeline options.')
-    parser.add_argument('--test-pipeline-options', type=str)
-    parser.add_argument(
-        '--runtime_type_check',
-        dest='runtime_type_check',
-        default=False,
-        type=bool)
-    args = parser.parse_args()
-    return PipelineOptions(runtime_type_check=args.runtime_type_check)
+    # parser = argparse.ArgumentParser(description='Parse pipeline options.')
+    # parser.add_argument('--test-pipeline-options', type=str)
+    # parser.add_argument(
+    #     '--runtime_type_check',
+    #     dest='runtime_type_check',
+    #     default=False,
+    #     type=bool)
+    # args = parser.parse_args()
+    return PipelineOptions(runtime_type_check=True)
 
   def get_option_or_default(self, opt_name, default=0):
     """Returns a testing option or a default value if it was not provided.
