@@ -89,18 +89,18 @@ def get_build_wheels_workflow_id():
 def get_last_run(workflow_id):
   url = GH_API_URL_WORKFLOW_RUNS_FMT.format(
       repo_url=REPO_URL, workflow_id=workflow_id)
-  event_types = ["push", "pull_request"]
-  runs = []
-  for event in event_types:
-    data = request_url(
-        url,
-        params={
-            "event": event, "branch": RELEASE_BRANCH
-        },
-    )
-    runs.extend(data["workflow_runs"])
+  event_type = "push"
+  data = request_url(
+      url,
+      params={
+          "event": event_type, "branch": RELEASE_BRANCH
+      },
+  )
+  runs = data["workflow_runs"]
 
-  filtered_commit_runs = [r for r in runs if r.get("head_sha", "") == RELEASE_COMMIT]
+  filtered_commit_runs = [
+      r for r in runs if r.get("head_sha", "") == RELEASE_COMMIT
+  ]
   if not filtered_commit_runs:
     workflow_web_url = GH_API_URL_WORKFLOW_RUNS_FMT.format(
         repo_url=REPO_URL, workflow_id=workflow_id)
