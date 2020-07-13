@@ -57,6 +57,22 @@ public class MaxTest {
   }
 
   @Test
+  public void testMaxDoubleFnInfinity() {
+    testCombineFn(
+        Max.ofDoubles(),
+        Lists.newArrayList(Double.NEGATIVE_INFINITY, 2.0, 3.0, Double.POSITIVE_INFINITY),
+        Double.POSITIVE_INFINITY);
+  }
+
+  @Test
+  public void testMaxDoubleFnNan() {
+    testCombineFn(
+        Max.ofDoubles(),
+        Lists.newArrayList(Double.NaN, 2.0, 3.0, Double.POSITIVE_INFINITY),
+        Double.NaN);
+  }
+
+  @Test
   public void testDisplayData() {
     Top.Natural<Integer> comparer = new Top.Natural<>();
 
