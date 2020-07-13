@@ -245,7 +245,7 @@ public class Max {
 
     @Override
     public int apply(int left, int right) {
-      return left >= right ? left : right;
+      return Math.max(left, right);
     }
 
     @Override
@@ -258,7 +258,7 @@ public class Max {
 
     @Override
     public long apply(long left, long right) {
-      return left >= right ? left : right;
+      return Math.max(left, right);
     }
 
     @Override
@@ -271,7 +271,7 @@ public class Max {
 
     @Override
     public double apply(double left, double right) {
-      return left >= right ? left : right;
+      return Math.max(left, right);
     }
 
     @Override

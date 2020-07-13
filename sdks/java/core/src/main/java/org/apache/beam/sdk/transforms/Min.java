@@ -245,7 +245,7 @@ public class Min {
 
     @Override
     public int apply(int left, int right) {
-      return left <= right ? left : right;
+      return Math.min(left, right);
     }
 
     @Override
@@ -258,7 +258,7 @@ public class Min {
 
     @Override
     public long apply(long left, long right) {
-      return left <= right ? left : right;
+      return Math.min(left, right);
     }
 
     @Override
@@ -271,7 +271,7 @@ public class Min {
 
     @Override
     public double apply(double left, double right) {
-      return left <= right ? left : right;
+      return Math.min(left, right);
     }
 
     @Override
