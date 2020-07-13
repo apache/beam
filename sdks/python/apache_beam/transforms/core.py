@@ -2298,12 +2298,9 @@ class GroupBy(PTransform):
       for name, expr in kwargs.items():
         key_fields.append((name, _expr_to_callable(expr, name)))
     self._key_fields = key_fields
-    # TODO(robertwb): Pickling of dynamic named tuples.
-    # self._key_type = typing.NamedTuple(
-    #     'Key', [name for name, _ in self._key_fields])
-    self._key_type = lambda *values: pvalue.Row(
-        **{name: value
-           for (name, _), value in zip(self._key_fields, values)})
+    field_names = tuple(name for name, _ in key_fields)
+    self._key_type = lambda *values: _dynamic_named_tuple('Key', field_names)(
+        *values)
 
   def aggregate_field(
       self,
@@ -2349,6 +2346,25 @@ class GroupBy(PTransform):
     return pcoll | Map(lambda x: (self._key_func()(x), x)) | GroupByKey()
 
 
+_dynamic_named_tuple_cache = {}
+
+
+def _dynamic_named_tuple(type_name, field_names):
+  cache_key = (type_name, field_names)
+  result = _dynamic_named_tuple_cache.get(cache_key)
+  if result is None:
+    import collections
+    result = _dynamic_named_tuple_cache[cache_key] = collections.namedtuple(
+        type_name, field_names)
+    result.__reduce__ = lambda self: (
+        _unpickle_dynamic_named_tuple, (type_name, field_names, tuple(self)))
+  return result
+
+
+def _unpickle_dynamic_named_tuple(type_name, field_names, values):
+  return _dynamic_named_tuple(type_name, field_names)(*values)
+
+
 class _GroupAndAggregate(PTransform):
   def __init__(self, grouping, aggregations):
     self._grouping = grouping
@@ -2377,6 +2393,9 @@ class _GroupAndAggregate(PTransform):
     key_func = self._grouping.force_tuple_keys(True)._key_func()
     value_exprs = [expr for expr, _, __ in self._aggregations]
     value_func = lambda element: [expr(element) for expr in value_exprs]
+    result_fields = tuple(name
+                          for name, _ in self._grouping._key_fields) + tuple(
+                              dest for _, __, dest in self._aggregations)
 
     return (
         pcoll
@@ -2386,14 +2405,8 @@ class _GroupAndAggregate(PTransform):
                 *[combine_fn for _, combine_fn, __ in self._aggregations]))
         | MapTuple(
             lambda key,
-            value: pvalue.Row(
-                **union_dicts(
-                    key.__dict__,
-                    {
-                        dest: c
-                        for (_, __, dest),
-                        c in zip(self._aggregations, value)
-                    }))))
+            value: _dynamic_named_tuple('Result', result_fields)
+            (*(key + value))))
 
 
 class Partition(PTransformWithSideInputs):

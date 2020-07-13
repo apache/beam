@@ -826,6 +826,10 @@ class TestGroupBy(unittest.TestCase):
 
   def test_fields(self):
     def normalize(key, values):
+      if isinstance(key, tuple):
+        key = beam.Row(
+            **{name: value
+               for name, value in zip(type(key)._fields, key)})
       return key, sorted(v.value for v in values)
 
     with TestPipeline() as p:
@@ -872,15 +876,22 @@ class TestGroupBy(unittest.TestCase):
           'GroupSquareNonzero')
 
   def test_aggregate(self):
+    def named_tuple_to_row(t):
+      return beam.Row(
+          **{name: value
+             for name, value in zip(type(t)._fields, t)})
+
     with TestPipeline() as p:
       pcoll = p | beam.Create(range(-2, 3)) | beam.Map(
           lambda x: beam.Row(
               value=x, square=x * x, sign=x // abs(x) if x else 0))
 
       assert_that(
-          pcoll | beam.GroupBy('square', big=lambda x: x.value > 1)
+          pcoll
+          | beam.GroupBy('square', big=lambda x: x.value > 1)
             .aggregate_field('value', sum, 'sum')
-            .aggregate_field(lambda x: x.sign == 1, all, 'positive'),
+            .aggregate_field(lambda x: x.sign == 1, all, 'positive')
+          | beam.Map(named_tuple_to_row),
           equal_to([
               beam.Row(square=0, big=False, sum=0, positive=False),   # [0],
               beam.Row(square=1, big=False, sum=0, positive=False),   # [-1, 1]
