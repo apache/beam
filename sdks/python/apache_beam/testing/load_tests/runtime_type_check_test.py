@@ -42,11 +42,11 @@ python -m apache_beam.testing.load_tests.runtime_type_check_test \
     --publish_to_big_query=true
     --metrics_dataset=saavan_python_load_tests
     --metrics_table=gbk
-    --nested_typehint=1
-    --fanout=100
-    --iterations=100
+    --nested_typehint=0
+    --fanout=10
+    --iterations=10
     --input_options='{
-    \"num_records\": 1000,
+    \"num_records\": 300,
     \"key_size\": 5,
     \"value_size\": 15
     }'"
@@ -73,20 +73,18 @@ class RunTimeTypeCheckTest(LoadTest):
     self.nested_typehint = self.get_option_or_default('nested_typehint', 0)
 
   class SimpleInput(beam.DoFn):
-    def process(self, element: bytes, iterations):
+    def process(self, element: Tuple[bytes, ...], iterations):
       for _ in range(iterations):
         yield element
 
   class SimpleOutput(beam.DoFn):
-    def process(self, element, iterations) -> Iterable[bytes]:
+    def process(self, element, iterations) -> Iterable[Tuple[bytes, ...]]:
       for _ in range(iterations):
         yield element
 
   class NestedInput(beam.DoFn):
     def process(
-        self,
-        element: Iterable[Tuple[int, str, bytes, Iterable[int]]],
-        iterations):
+        self, element: Tuple[int, str, bytes, Iterable[int]], iterations):
       for _ in range(iterations):
         yield element
 
