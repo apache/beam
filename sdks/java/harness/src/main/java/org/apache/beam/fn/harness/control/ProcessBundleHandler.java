@@ -105,6 +105,7 @@ public class ProcessBundleHandler {
 
   // TODO: What should the initial set of URNs be?
   private static final String DATA_INPUT_URN = "beam:runner:source:v1";
+  private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
   public static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
@@ -485,9 +486,11 @@ public class ProcessBundleHandler {
     for (Map.Entry<String, RunnerApi.PTransform> entry :
         bundleDescriptor.getTransformsMap().entrySet()) {
 
-      // Skip anything which isn't a root
+      // Skip anything which isn't a root.
+      // Also force data output transforms to be unconditionally instantiated (see BEAM-10450).
       // TODO: Remove source as a root and have it be triggered by the Runner.
       if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
+          && !DATA_OUTPUT_URN.equals(entry.getValue().getSpec().getUrn())
           && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
           && !PTransformTranslation.READ_TRANSFORM_URN.equals(
               entry.getValue().getSpec().getUrn())) {
