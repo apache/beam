@@ -21,9 +21,6 @@ package org.apache.beam.gradle
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
-import org.gradle.api.JavaVersion
-
-import java.util.concurrent.atomic.AtomicInteger
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -43,6 +40,7 @@ import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
+import java.util.concurrent.atomic.AtomicInteger
 /**
  * This plugin adds methods to configure a module with Beam's defaults, called "natures".
  *
@@ -393,6 +391,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_clients_version = "1.30.9"
     def google_cloud_bigdataoss_version = "2.1.3"
     def google_cloud_core_version = "1.92.2"
+    def google_cloud_pubsublite_version = "0.1.6"
     def google_cloud_spanner_version = "1.49.1"
     def google_cloud_datacatalog_version = "0.32.1"
     def google_code_gson_version = "2.8.6"
@@ -482,6 +481,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog:$google_cloud_datacatalog_version",
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.3",
+        google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite:$google_cloud_pubsublite_version",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version",
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
         google_http_client                          : "com.google.http-client:google-http-client:$google_http_clients_version",
@@ -497,6 +497,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_core                                   : "io.grpc:grpc-core:$grpc_version",
         grpc_context                                : "io.grpc:grpc-context:$grpc_version",
         grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1:$generated_grpc_ga_version",
+        grpc_google_cloud_pubsublite_v1             : "com.google.api.grpc:grpc-google-cloud-pubsublite-v1:$google_cloud_pubsublite_version",
         grpc_grpclb                                 : "io.grpc:grpc-grpclb:$grpc_version",
         grpc_protobuf                               : "io.grpc:grpc-protobuf:$grpc_version",
         grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite:$grpc_version",
@@ -544,6 +545,7 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_bigtable_v2              : "com.google.api.grpc:proto-google-cloud-bigtable-v2:1.9.1",
         proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1:0.85.0",
         proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1:$generated_grpc_ga_version",
+        proto_google_cloud_pubsublite_v1            : "com.google.api.grpc:proto-google-cloud-pubsublite-v1:$google_cloud_pubsublite_version",
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:$google_cloud_spanner_version",
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
         slf4j_api                                   : "org.slf4j:slf4j-api:1.7.25",
