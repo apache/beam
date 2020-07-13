@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.io;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
@@ -32,7 +33,7 @@ import org.apache.beam.sdk.values.Row;
  */
 @Internal
 @Experimental(Kind.SCHEMAS)
-public interface SchemaCapableIOProvider {
+public interface SchemaIOProvider {
   /** Returns an id that uniquely represents this IO. */
   String identifier();
 
@@ -47,5 +48,8 @@ public interface SchemaCapableIOProvider {
    * resides there, and some IO-specific configuration object. Can throw a {@link
    * InvalidConfigurationException} or a {@link InvalidSchemaException}.
    */
-  SchemaIO from(String location, Row configuration, Schema dataSchema);
+  SchemaIO from(String location, Row configuration, @Nullable Schema dataSchema);
+
+  /** Indicates whether the dataSchema value is necessary. */
+  Boolean requiresDataSchema();
 }
