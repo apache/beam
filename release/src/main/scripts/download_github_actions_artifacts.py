@@ -60,13 +60,13 @@ def parse_arguments():
   ARTIFACTS_DIR = args.artifacts_dir
 
 
-def request_url(url, return_raw_response=False, *args, **kwargs):
+def request_url(url, return_json=True, *args, **kwargs):
   """Helper function form making requests authorized by GitHub token"""
   r = requests.get(url, *args, auth=("token", GITHUB_TOKEN), **kwargs)
-  r.raise_for_status()
-  if return_raw_response:
-    return r
-  return r.json()
+  if return_json:
+    r.raise_for_status()
+    return r.json()
+  return r
 
 
 def get_yes_or_no_answer(question):
@@ -202,8 +202,8 @@ def download_artifacts(artifacts_url):
         f"\tDownloading {name}.zip artifact (size: {artifacts_size_mb} megabytes)"
     )
 
-    with tempfile.NamedTemporaryFile("wb", prefix=name, suffix=".zip") as f, requests.get(
-       url, auth=("token", GITHUB_TOKEN), allow_redirects=True, stream=True
+    with tempfile.NamedTemporaryFile("wb", prefix=name, suffix=".zip") as f, request_url(
+       url, return_json=False, allow_redirects=True, stream=True
     ) as r:
       with open(f.name, 'wb') as f:
         shutil.copyfileobj(r.raw, f)
