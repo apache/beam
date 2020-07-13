@@ -16,22 +16,16 @@
  * limitations under the License.
  */
 
-import PrecommitJobBuilder
+import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
-        scope: this,
-        nameBase: 'Javadoc',
-        gradleTask: ':sdks:java:javadoc:aggregateJavadoc',
-        triggerPathPatterns: [
-                '^model/.*$',
-                '^sdks/java/.*$',
-                '^runners/.*$',
-                '^examples/java/.*$',
-                '^examples/kotlin/.*$',
-                '^release/.*$',
-        ],
-)
-builder.build {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Javadoc', 'Run Javadoc PostCommit',
+        'Javadoc generation', this) {
+
+    description('PostCommit job that generates aggregated Javadoc')
+
+    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+
     publishers {
         archiveJavadoc {
             javadocDir("src/sdks/java/javadoc/build/docs/javadoc")
@@ -43,6 +37,14 @@ builder.build {
                 javaDoc()
             }
             enabledForFailure(true)
+        }
+    }
+
+    steps {
+        gradle {
+            rootBuildScriptDir(commonJobProperties.checkoutDir)
+            tasks(':sdks:java:javadoc:aggregateJavadoc')
+            commonJobProperties.setGradleSwitches(delegate)
         }
     }
 }
