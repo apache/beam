@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTime
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithTimeZone;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithUTCTimeZone;
 
-import com.google.zetasql.SqlException;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import java.time.LocalDate;
@@ -139,7 +138,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
   // TODO[BEAM-9166]: Add a test for CURRENT_DATE function ("SELECT CURRENT_DATE()")
 
   @Test
-  public void testExtractDate() {
+  public void testExtractFromDate() {
     String sql =
         "WITH Dates AS (\n"
             + "  SELECT DATE '2015-12-31' AS date UNION ALL\n"
@@ -152,8 +151,12 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
             // TODO[BEAM-9178]: Add tests for DATE_TRUNC and EXTRACT with "week with weekday" date
             //  parts once they are supported
             // + "  EXTRACT(WEEK FROM date) AS week,\n"
-            + "  EXTRACT(MONTH FROM date) AS month\n"
-            + "FROM Dates\n";
+            + "  EXTRACT(MONTH FROM date) AS month,\n"
+            + "  EXTRACT(QUARTER FROM date) AS quarter,\n"
+            + "  EXTRACT(DAY FROM date) AS day,\n"
+            + "  EXTRACT(DAYOFYEAR FROM date) AS dayofyear,\n"
+            + "  EXTRACT(DAYOFWEEK FROM date) AS dayofweek\n"
+            + "FROM Dates";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -161,16 +164,24 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
     final Schema schema =
         Schema.builder()
-            .addField("isoyear", FieldType.INT64)
-            .addField("year", FieldType.INT64)
-            .addField("isoweek", FieldType.INT64)
-            // .addField("week", FieldType.INT64)
-            .addField("month", FieldType.INT64)
+            .addInt64Field("isoyear")
+            .addInt64Field("year")
+            .addInt64Field("isoweek")
+            // .addInt64Field("week")
+            .addInt64Field("month")
+            .addInt64Field("quarter")
+            .addInt64Field("day")
+            .addInt64Field("dayofyear")
+            .addInt64Field("dayofweek")
             .build();
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(schema).addValues(2015L, 2015L, 53L /* , 52L */, 12L).build(),
-            Row.withSchema(schema).addValues(2015L, 2016L, 53L /* , 0L */, 1L).build());
+            Row.withSchema(schema)
+                .addValues(2015L, 2015L, 53L /* , 52L */, 12L, 4L, 31L, 365L, 5L)
+                .build(),
+            Row.withSchema(schema)
+                .addValues(2015L, 2016L, 53L /* , 0L */, 1L, 1L, 1L, 1L, 6L)
+                .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -510,7 +521,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
   // TODO[BEAM-9166]: Add a test for CURRENT_TIME function ("SELECT CURRENT_TIME()")
 
   @Test
-  public void testExtractTime() {
+  public void testExtractFromTime() {
     String sql =
         "SELECT "
             + "EXTRACT(HOUR FROM TIME '15:30:35.123456') as hour, "
@@ -525,11 +536,11 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
     final Schema schema =
         Schema.builder()
-            .addField("hour", FieldType.INT64)
-            .addField("minute", FieldType.INT64)
-            .addField("second", FieldType.INT64)
-            .addField("millisecond", FieldType.INT64)
-            .addField("microsecond", FieldType.INT64)
+            .addInt64Field("hour")
+            .addInt64Field("minute")
+            .addInt64Field("second")
+            .addInt64Field("millisecond")
+            .addInt64Field("microsecond")
             .build();
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues(15L, 30L, 35L, 123L, 123456L).build());
@@ -826,10 +837,10 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
   // TODO[BEAM-9166]: Add a test for CURRENT_TIMESTAMP function ("SELECT CURRENT_TIMESTAMP()")
 
   @Test
-  public void testExtractTimestamp() {
+  public void testExtractFromTimestamp() {
     String sql =
         "WITH Timestamps AS (\n"
-            + "  SELECT TIMESTAMP '2007-12-31 12:34:56' AS timestamp UNION ALL\n"
+            + "  SELECT TIMESTAMP '2007-12-31 12:34:56.789' AS timestamp UNION ALL\n"
             + "  SELECT TIMESTAMP '2009-12-31'\n"
             + ")\n"
             + "SELECT\n"
@@ -839,8 +850,16 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
             // TODO[BEAM-9178]: Add tests for TIMESTAMP_TRUNC and EXTRACT with "week with weekday"
             //  date parts once they are supported
             // + "  EXTRACT(WEEK FROM timestamp) AS week,\n"
-            + "  EXTRACT(MINUTE FROM timestamp) AS minute\n"
-            + "FROM Timestamps\n";
+            + "  EXTRACT(MONTH FROM timestamp) AS month,\n"
+            + "  EXTRACT(QUARTER FROM timestamp) AS quarter,\n"
+            + "  EXTRACT(DAY FROM timestamp) AS day,\n"
+            + "  EXTRACT(DAYOFYEAR FROM timestamp) AS dayofyear,\n"
+            + "  EXTRACT(DAYOFWEEK FROM timestamp) AS dayofweek,\n"
+            + "  EXTRACT(HOUR FROM timestamp) AS hour,\n"
+            + "  EXTRACT(MINUTE FROM timestamp) AS minute,\n"
+            + "  EXTRACT(SECOND FROM timestamp) AS second,\n"
+            + "  EXTRACT(MILLISECOND FROM timestamp) AS millisecond\n"
+            + "FROM Timestamps";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -848,51 +867,94 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
     final Schema schema =
         Schema.builder()
-            .addField("isoyear", FieldType.INT64)
-            .addField("year", FieldType.INT64)
-            .addField("isoweek", FieldType.INT64)
-            // .addField("week", FieldType.INT64)
-            .addField("minute", FieldType.INT64)
+            .addInt64Field("isoyear")
+            .addInt64Field("year")
+            .addInt64Field("isoweek")
+            // .addInt64Field("week")
+            .addInt64Field("month")
+            .addInt64Field("quarter")
+            .addInt64Field("day")
+            .addInt64Field("dayofyear")
+            .addInt64Field("dayofweek")
+            .addInt64Field("hour")
+            .addInt64Field("minute")
+            .addInt64Field("second")
+            .addInt64Field("millisecond")
             .build();
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(schema).addValues(2008L, 2007L, 1L /* , 53L */, 34L).build(),
-            Row.withSchema(schema).addValues(2009L, 2009L, 53L /* , 52L */, 0L).build());
+            Row.withSchema(schema)
+                .addValues(
+                    2008L, 2007L, 1L /* , 53L */, 12L, 4L, 31L, 365L, 2L, 12L, 34L, 56L, 789L)
+                .build(),
+            Row.withSchema(schema)
+                .addValues(2009L, 2009L, 53L /* , 52L */, 12L, 4L, 31L, 365L, 5L, 0L, 0L, 0L, 0L)
+                .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
-  public void testExtractTimestampAtTimeZoneUnsupported() {
-    String sql =
-        "WITH Timestamps AS (\n"
-            + "  SELECT TIMESTAMP '2017-05-26' AS timestamp\n"
-            + ")\n"
-            + "SELECT\n"
-            + "  timestamp,\n"
-            + "  EXTRACT(HOUR FROM timestamp AT TIME ZONE 'America/Vancouver') AS hour,\n"
-            + "  EXTRACT(DAY FROM timestamp AT TIME ZONE 'America/Vancouver') AS day\n"
-            + "FROM Timestamps\n";
+  public void testExtractDateFromTimestamp() {
+    String sql = "SELECT EXTRACT(DATE FROM TIMESTAMP '2017-05-26 12:34:56')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(UnsupportedOperationException.class);
-    zetaSQLQueryPlanner.convertToBeamRel(sql);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addLogicalTypeField("date", SqlTypes.DATE).build())
+                .addValues(LocalDate.of(2017, 5, 26))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
-  public void testExtractDateFromTimestampUnsupported() {
-    String sql =
-        "WITH Timestamps AS (\n"
-            + "  SELECT TIMESTAMP '2017-05-26' AS ts\n"
-            + ")\n"
-            + "SELECT\n"
-            + "  ts,\n"
-            + "  EXTRACT(DATE FROM ts) AS dt\n"
-            + "FROM Timestamps\n";
+  public void testExtractTimeFromTimestamp() {
+    String sql = "SELECT EXTRACT(TIME FROM TIMESTAMP '2017-05-26 12:34:56')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(SqlException.class);
-    zetaSQLQueryPlanner.convertToBeamRel(sql);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addLogicalTypeField("time", SqlTypes.TIME).build())
+                .addValues(LocalTime.of(12, 34, 56))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testExtractFromTimestampAtTimeZone() {
+    String sql =
+        "WITH Timestamps AS (\n"
+            + "  SELECT TIMESTAMP '2007-12-31 12:34:56.789' AS timestamp\n"
+            + ")\n"
+            + "SELECT\n"
+            + "  EXTRACT(DAY FROM timestamp AT TIME ZONE 'America/Vancouver') AS day,\n"
+            + "  EXTRACT(DATE FROM timestamp AT TIME ZONE 'UTC') AS date,\n"
+            + "  EXTRACT(TIME FROM timestamp AT TIME ZONE 'Asia/Shanghai') AS time\n"
+            + "FROM Timestamps";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema =
+        Schema.builder()
+            .addInt64Field("day")
+            .addLogicalTypeField("date", SqlTypes.DATE)
+            .addLogicalTypeField("time", SqlTypes.TIME)
+            .build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(31L, LocalDate.of(2007, 12, 31), LocalTime.of(20, 34, 56, 789000000))
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
