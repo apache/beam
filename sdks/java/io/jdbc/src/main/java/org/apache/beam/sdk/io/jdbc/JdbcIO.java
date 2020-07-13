@@ -150,7 +150,26 @@ import org.slf4j.LoggerFactory;
  * <p>By default, the provided function requests a DataSource per execution thread. In some
  * circumstances this can quickly overwhelm the database by requesting too many connections. In that
  * case you should look into sharing a single instance of a {@link PoolingDataSource} across all the
- * execution threads.
+ * execution threads. For example:
+ *
+ * <pre>{@code
+ * private static class MyDataSourceProviderFn implements SerializableFunction<Void, DataSource> {
+ *   private static transient DataSource dataSource;
+ *
+ *   @Override
+ *   public synchronized DataSource apply(Void input) {
+ *     if (dataSource == null) {
+ *       dataSource = ... build data source ...
+ *     }
+ *     return dataSource;
+ *   }
+ * }
+ *
+ * pipeline.apply(JdbcIO.<KV<Integer, String>>read()
+ *   .withDataSourceProviderFn(new MyDataSourceProviderFn())
+ *   // ...
+ * );
+ * }</pre>
  *
  * <h3>Writing to JDBC datasource</h3>
  *
