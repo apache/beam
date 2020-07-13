@@ -42,7 +42,7 @@ python -m apache_beam.testing.load_tests.runtime_type_check_test \
     --publish_to_big_query=true
     --metrics_dataset=saavan_python_load_tests
     --metrics_table=gbk
-    --nested_typehint=true
+    --nested_typehint=1
     --fanout=100
     --iterations=100
     --input_options='{
@@ -70,7 +70,7 @@ class RunTimeTypeCheckTest(LoadTest):
     super(RunTimeTypeCheckTest, self).__init__()
     self.fanout = self.get_option_or_default('fanout', 1)
     self.iterations = self.get_option_or_default('iterations', 1)
-    self.nested_typehint = self.get_option_or_default('nested_typehint', False)
+    self.nested_typehint = self.get_option_or_default('nested_typehint', 0)
 
   class SimpleInput(beam.DoFn):
     def process(self, element: bytes, iterations):

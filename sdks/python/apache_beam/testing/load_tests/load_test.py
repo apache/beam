@@ -14,9 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: disable-all
 # pytype: skip-file
-# pylint: skip-file
 
 from __future__ import absolute_import
 
@@ -32,6 +30,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.load_tests.load_test_metrics_utils import InfluxDBMetricsPublisherOptions
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.options.pipeline_options import TypeOptions
 
 
 class LoadTestOptions(PipelineOptions):
@@ -96,12 +95,11 @@ class LoadTest(object):
   """
   def __init__(self, metrics_namespace=None):
     # Be sure to set blocking to false for timeout_ms to work properly
-    self.pipeline = TestPipeline(
-        is_integration_test=True,
-        blocking=False,
-        options=self.parse_pipeline_options())
+    self.pipeline = TestPipeline(is_integration_test=True, blocking=False)
 
     assert not self.pipeline.blocking
+
+    self.pipeline._options.view_as(TypeOptions).runtime_type_check = True
 
     options = self.pipeline.get_pipeline_options().view_as(LoadTestOptions)
     self.timeout_ms = options.timeout_ms
@@ -175,17 +173,6 @@ class LoadTest(object):
         },
         'forceNumInitialBundles': options.get('force_initial_num_bundles', 0)
     }
-
-  def parse_pipeline_options(self):
-    # parser = argparse.ArgumentParser(description='Parse pipeline options.')
-    # parser.add_argument('--test-pipeline-options', type=str)
-    # parser.add_argument(
-    #     '--runtime_type_check',
-    #     dest='runtime_type_check',
-    #     default=False,
-    #     type=bool)
-    # args = parser.parse_args()
-    return PipelineOptions(runtime_type_check=True)
 
   def get_option_or_default(self, opt_name, default=0):
     """Returns a testing option or a default value if it was not provided.
