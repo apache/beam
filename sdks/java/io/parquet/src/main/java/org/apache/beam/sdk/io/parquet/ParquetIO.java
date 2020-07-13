@@ -54,8 +54,10 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.cli.OptionBuilder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.HadoopReadOptions;
 import org.apache.parquet.ParquetReadOptions;
@@ -66,6 +68,7 @@ import org.apache.parquet.avro.AvroReadSupport;
 import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.hadoop.ParquetFileReader;
+import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.api.InitContext;
 import org.apache.parquet.hadoop.api.ReadSupport;
@@ -274,14 +277,14 @@ public class ParquetIO {
       ReadFn(GenericData model) {
         this.modelClass = model != null ? model.getClass() : null;
       }
-
       private ReadSupport getReadSupport(Configuration conf) throws Exception {
-        GenericData model;
+        GenericData model=null;
         boolean isReflect = true;
         if (modelClass != null) {
           model = (GenericData) modelClass.getMethod("get").invoke(null);
-        } else {
-          return null;
+        }
+        else{
+          return new AvroReadSupport(null);
         }
         if (model.getClass() != GenericData.class && model.getClass() != SpecificData.class) {
           isReflect = true;
@@ -312,43 +315,49 @@ public class ParquetIO {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext processContext, OffsetRangeTracker tracker)
+      public void processElement(@Element  FileIO.ReadableFile file,
+                                 RestrictionTracker<OffsetRange, Long> tracker,
+                                 OutputReceiver<GenericRecord> outputReceiver)
           throws Exception {
-        FileIO.ReadableFile file = processContext.element();
+        //FileIO.ReadableFile file = processContext.element();
         ParquetFileReader fileReader = getFileReader(file);
         Configuration conf = new Configuration();
         ReadSupport readSupport = getReadSupport(conf);
         FileMetaData parquetFileMetadata = fileReader.getFooter().getFileMetaData();
         MessageType fileSchema = parquetFileMetadata.getSchema();
         Map<String, String> fileMetadata = parquetFileMetadata.getKeyValueMetaData();
-        ReadSupport.ReadContext readContext =
-            readSupport.init(new InitContext(conf, toSetMultiMap(fileMetadata), fileSchema));
+        InitContext initContext = new InitContext(conf, toSetMultiMap(fileMetadata), fileSchema);
+        ReadSupport.ReadContext readContext = readSupport.init(initContext);
         ColumnIOFactory columnIOFactory = new ColumnIOFactory(parquetFileMetadata.getCreatedBy());
         RecordMaterializer recordConverter =
-            readSupport.prepareForRead(conf, fileMetadata, fileSchema, readContext);
+                readSupport.prepareForRead(conf, fileMetadata, fileSchema, readContext);
         MessageType requestedSchema = readContext.getRequestedSchema();
+        fileReader.setRequestedSchema(requestedSchema);
         boolean strictTypeChecking = conf.getBoolean(STRICT_TYPE_CHECKING, true);
         boolean filterRecords = conf.getBoolean(RECORD_FILTERING_ENABLED, true);
         FilterCompat.Filter filter = Preconditions.checkNotNull(FilterCompat.NOOP, "filter");
 
         MessageColumnIO columnIO =
-            columnIOFactory.getColumnIO(requestedSchema, fileSchema, strictTypeChecking);
+                columnIOFactory.getColumnIO(requestedSchema, fileSchema, strictTypeChecking);
         for (int i = 0; i < fileReader.getRowGroups().size(); i++) {
-          if (!tracker.tryClaim((long) i)) {
-            if (!fileReader.skipNextRowGroup()) {
-              break;
+          if (i<tracker.currentRestriction().getFrom()) {
+              continue;
+          }
+          if(tracker.tryClaim((long)i)) {
+            PageReadStore pages = fileReader.readNextRowGroup();
+            i+=1;
+            RecordReader<GenericRecord> recordReader =
+                    columnIO.getRecordReader(
+                            pages, recordConverter, filterRecords ? filter : FilterCompat.NOOP);
+            GenericRecord read;
+            while ((read = recordReader.read()) != null) {
+              outputReceiver.output(read);
             }
-            continue;
           }
-          PageReadStore pages = fileReader.readNextRowGroup();
-          RecordReader<GenericRecord> recordReader =
-              columnIO.getRecordReader(
-                  pages, recordConverter, filterRecords ? filter : FilterCompat.NOOP);
-          GenericRecord read;
-          while ((read = recordReader.read()) != null) {
-            processContext.output(read);
+          else{
+            break;
           }
-        }
+      }
       }
 
       private static <K, V> Map<K, Set<V>> toSetMultiMap(Map<K, V> map) {
@@ -362,25 +371,23 @@ public class ParquetIO {
       }
 
       @GetInitialRestriction
-      public OffsetRange getInitialRestriction(FileIO.ReadableFile file) throws Exception {
+      public OffsetRange getInitialRestriction(@Element FileIO.ReadableFile file) throws Exception {
         ParquetFileReader fileReader = getFileReader(file);
 
         return new OffsetRange(0, fileReader.getRowGroups().size());
       }
 
       @SplitRestriction
-      void split(
-          FileIO.ReadableFile file,
-          OffsetRange restriction,
-          int numParts,
+      public void split(
+          @Restriction OffsetRange restriction,
           OutputReceiver<OffsetRange> out) {
-        for (OffsetRange range : restriction.split(numParts, 0)) {
+        for (OffsetRange range : restriction.split(1,0)) {
           out.output(range);
         }
       }
 
       @NewTracker
-      OffsetRangeTracker newTracker(OffsetRange restriction) {
+      public OffsetRangeTracker newTracker(@Restriction OffsetRange restriction) {
         return new OffsetRangeTracker(restriction);
       }
     }
