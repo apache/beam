@@ -847,6 +847,9 @@ class PerWindowInvoker(DoFnInvoker):
 
   def try_split(self, fraction):
     # type: (...) -> Optional[Tuple[SplitResultPrimary, SplitResultResidual]]
+    if not self.is_splittable:
+      return None
+
     with self.splitting_lock:
       # Make a local reference to member variables that change references during
       # processing under lock before attempting to split so we have a consistent
