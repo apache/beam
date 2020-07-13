@@ -178,6 +178,23 @@ class TestBlobStorageIO(unittest.TestCase):
     # Clean up
     self.azfs.delete(file_name)
 
+  def test_file_write(self):
+    file_name = self.TEST_DATA_PATH + 'test_file_write'
+    file_size = 8 * 1024 * 1024 + 2000
+    contents = os.urandom(file_size)
+    f = self.azfs.open(file_name, 'w')
+    self.assertEqual(f.mode, 'w')
+    f.write(contents[0:1000])
+    f.write(contents[1000:1024 * 1024])
+    f.write(contents[1024 * 1024:])
+    f.close()
+    new_file = self.azfs.open(file_name, 'r')
+    new_file_contents = new_file.read()
+    self.assertEqual(new_file_contents, contents)
+
+    # Clean up
+    self.azfs.delete(file_name)
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

@@ -104,7 +104,7 @@ class BlobStorageIO(object):
               downloader, read_buffer_size=read_buffer_size, mode=mode),
           buffer_size=read_buffer_size)
     elif mode == 'w' or mode == 'wb':
-      uploader = BlobStorageUploader(self.client, filename, mime_type)
+      uploader = BlobStorageUploader(self.client, filename, None)
       return io.BufferedWriter(
           UploaderStream(uploader, mode=mode), buffer_size=128 * 1024)
     else:
@@ -209,6 +209,7 @@ class BlobStorageIO(object):
       else:
         # We re-raise all other exceptions
         raise 
+
 
 class BlobStorageDownloader(Downloader):
   def __init__(self, client, path, buffer_size):
