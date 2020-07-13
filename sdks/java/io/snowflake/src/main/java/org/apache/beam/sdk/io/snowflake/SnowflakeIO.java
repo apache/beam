@@ -26,6 +26,7 @@ import com.opencsv.CSVParserBuilder;
 import java.io.IOException;
 import java.io.Serializable;
 import java.security.PrivateKey;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -939,6 +940,9 @@ public class SnowflakeIO {
     public abstract Boolean getSsl();
 
     @Nullable
+    public abstract Boolean getValidate();
+
+    @Nullable
     public abstract DataSource getDataSource();
 
     abstract Builder builder();
@@ -971,6 +975,8 @@ public class SnowflakeIO {
 
       abstract Builder setSsl(Boolean ssl);
 
+      abstract Builder setValidate(Boolean validate);
+
       abstract Builder setDataSource(DataSource dataSource);
 
       abstract DataSourceConfiguration build();
@@ -984,6 +990,7 @@ public class SnowflakeIO {
     public static DataSourceConfiguration create(DataSource dataSource) {
       checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
       return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
+          .setValidate(true)
           .setDataSource(dataSource)
           .build();
     }
@@ -994,44 +1001,26 @@ public class SnowflakeIO {
      * @param credentials - an instance of {@link SnowflakeCredentials}.
      */
     public static DataSourceConfiguration create(SnowflakeCredentials credentials) {
-      return credentials.createSnowflakeDataSourceConfiguration();
-    }
-
-    /**
-     * Creates {@link DataSourceConfiguration} from instance of {@link
-     * UsernamePasswordSnowflakeCredentials}.
-     *
-     * @param credentials - an instance of {@link UsernamePasswordSnowflakeCredentials}.
-     */
-    public static DataSourceConfiguration create(UsernamePasswordSnowflakeCredentials credentials) {
-      return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
-          .setUsername(credentials.getUsername())
-          .setPassword(credentials.getPassword())
-          .build();
-    }
-
-    /**
-     * Creates {@link DataSourceConfiguration} from instance of {@link KeyPairSnowflakeCredentials}.
-     *
-     * @param credentials - an instance of {@link KeyPairSnowflakeCredentials}.
-     */
-    public static DataSourceConfiguration create(KeyPairSnowflakeCredentials credentials) {
-      return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
-          .setUsername(credentials.getUsername())
-          .setPrivateKey(credentials.getPrivateKey())
-          .build();
-    }
-
-    /**
-     * Creates {@link DataSourceConfiguration} from instance of {@link
-     * OAuthTokenSnowflakeCredentials}.
-     *
-     * @param credentials - an instance of {@link OAuthTokenSnowflakeCredentials}.
-     */
-    public static DataSourceConfiguration create(OAuthTokenSnowflakeCredentials credentials) {
-      return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
-          .setOauthToken(credentials.getToken())
-          .build();
+      if (credentials instanceof UsernamePasswordSnowflakeCredentials) {
+        return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
+            .setValidate(true)
+            .setUsername(((UsernamePasswordSnowflakeCredentials) credentials).getUsername())
+            .setPassword(((UsernamePasswordSnowflakeCredentials) credentials).getPassword())
+            .build();
+      } else if (credentials instanceof OAuthTokenSnowflakeCredentials) {
+        return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
+            .setValidate(true)
+            .setOauthToken(((OAuthTokenSnowflakeCredentials) credentials).getToken())
+            .build();
+      } else if (credentials instanceof KeyPairSnowflakeCredentials) {
+        return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
+            .setValidate(true)
+            .setUsername(((KeyPairSnowflakeCredentials) credentials).getUsername())
+            .setPrivateKey(((KeyPairSnowflakeCredentials) credentials).getPrivateKey())
+            .build();
+      }
+      throw new IllegalArgumentException(
+          "Can't create DataSourceConfiguration from given credentials");
     }
 
     /**
@@ -1121,6 +1110,15 @@ public class SnowflakeIO {
       return builder().setLoginTimeout(loginTimeout).build();
     }
 
+    /**
+     * Disables validation of connection parameters prior to pipeline submission.
+     *
+     * @return
+     */
+    public DataSourceConfiguration withoutValidation() {
+      return builder().setValidate(false).build();
+    }
+
     void populateDisplayData(DisplayData.Builder builder) {
       if (getDataSource() != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", getDataSource().getClass().getName()));
@@ -1196,6 +1194,15 @@ public class SnowflakeIO {
     private final DataSourceConfiguration config;
 
     private DataSourceProviderFromDataSourceConfiguration(DataSourceConfiguration config) {
+      if (config.getValidate()) {
+        try {
+          Connection connection = config.buildDatasource().getConnection();
+          connection.close();
+        } catch (SQLException e) {
+          throw new IllegalArgumentException(
+              "Invalid DataSourceConfiguration. Underlying cause: " + e);
+        }
+      }
       this.config = config;
     }
 

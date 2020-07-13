@@ -17,12 +17,8 @@
  */
 package org.apache.beam.sdk.io.snowflake.credentials;
 
-import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-
 /**
  * Interface for holding credentials. Allows creating {@link
  * org.apache.beam.sdk.io.snowflake.SnowflakeIO.DataSourceConfiguration}.
  */
-public interface SnowflakeCredentials {
-  SnowflakeIO.DataSourceConfiguration createSnowflakeDataSourceConfiguration();
-}
+public interface SnowflakeCredentials {}

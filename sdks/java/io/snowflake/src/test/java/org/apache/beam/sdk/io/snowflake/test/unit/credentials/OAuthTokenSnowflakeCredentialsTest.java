@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.snowflake.test.unit.credentials;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.io.snowflake.credentials.OAuthTokenSnowflakeCredentials;
@@ -37,8 +38,9 @@ public class OAuthTokenSnowflakeCredentialsTest {
     OAuthTokenSnowflakeCredentials credentials = new OAuthTokenSnowflakeCredentials("token");
 
     SnowflakeIO.DataSourceConfiguration configuration =
-        credentials.createSnowflakeDataSourceConfiguration();
+        SnowflakeIO.DataSourceConfiguration.create(credentials);
 
     assertEquals(credentials.getToken(), configuration.getOauthToken());
+    assertTrue(configuration.getValidate());
   }
 }

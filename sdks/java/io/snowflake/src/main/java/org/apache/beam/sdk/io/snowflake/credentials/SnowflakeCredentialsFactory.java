@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.io.snowflake.credentials;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings.isNullOrEmpty;
-
 import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
-import org.apache.beam.sdk.io.snowflake.xlang.Configuration;
+import org.apache.beam.sdk.io.snowflake.crosslanguage.SnowflakeReadRegistrar;
 
 /**
  * Factory class for creating implementations of {@link SnowflakeCredentials} from {@link
@@ -28,40 +26,44 @@ import org.apache.beam.sdk.io.snowflake.xlang.Configuration;
  */
 public class SnowflakeCredentialsFactory {
   public static SnowflakeCredentials of(SnowflakePipelineOptions o) {
-    return createCredentials(
-        o.getOauthToken(),
-        o.getPrivateKeyPath(),
-        o.getPrivateKeyPassphrase(),
-        o.getUsername(),
-        o.getPassword());
-  }
-
-  public static SnowflakeCredentials createCredentials(Configuration c) {
-    return createCredentials(
-        c.getOAuthToken(),
-        c.getPrivateKeyPath(),
-        c.getPrivateKeyPassphrase(),
-        c.getUsername(),
-        c.getPassword());
-  }
-
-  private static SnowflakeCredentials createCredentials(
-      String oAuth,
-      String privateKeyPath,
-      String privateKeyPassphrase,
-      String username,
-      String password) {
-
-    if (!isNullOrEmpty(oAuth)) {
-      return new OAuthTokenSnowflakeCredentials(oAuth);
-    } else if (!isNullOrEmpty(privateKeyPath)
-        && !isNullOrEmpty(username)
-        && !isNullOrEmpty(privateKeyPassphrase)) {
-      return new KeyPairSnowflakeCredentials(username, privateKeyPath, privateKeyPassphrase);
-    } else if (!isNullOrEmpty(username) && !isNullOrEmpty(password)) {
-      return new UsernamePasswordSnowflakeCredentials(username, password);
-    } else {
-      throw new RuntimeException("Can't get credentials");
+    if (oauthOptionsAvailable(o.getOauthToken())) {
+      return new OAuthTokenSnowflakeCredentials(o.getOauthToken());
+    } else if (usernamePasswordOptionsAvailable(o.getUsername(), o.getPassword())) {
+      return new UsernamePasswordSnowflakeCredentials(o.getUsername(), o.getPassword());
+    } else if (keyPairOptionsAvailable(
+        o.getUsername(), o.getPrivateKeyPath(), o.getPrivateKeyPassphrase())) {
+      return new KeyPairSnowflakeCredentials(
+          o.getUsername(), o.getPrivateKeyPath(), o.getPrivateKeyPassphrase());
     }
+    throw new RuntimeException("Can't get credentials from Options");
+  }
+
+  public static SnowflakeCredentials of(SnowflakeReadRegistrar.ReadConfiguration c) {
+    if (oauthOptionsAvailable(c.getOAuthToken())) {
+      return new OAuthTokenSnowflakeCredentials(c.getOAuthToken());
+    } else if (usernamePasswordOptionsAvailable(c.getUsername(), c.getPassword())) {
+      return new UsernamePasswordSnowflakeCredentials(c.getUsername(), c.getPassword());
+    } else if (keyPairOptionsAvailable(
+        c.getUsername(), c.getPrivateKeyPath(), c.getPrivateKeyPassphrase())) {
+      return new KeyPairSnowflakeCredentials(
+          c.getUsername(), c.getPrivateKeyPath(), c.getPrivateKeyPassphrase());
+    }
+    throw new RuntimeException("Can't get credentials from Options");
+  }
+
+  private static boolean oauthOptionsAvailable(String token) {
+    return token != null && !token.isEmpty();
+  }
+
+  private static boolean usernamePasswordOptionsAvailable(String username, String password) {
+    return username != null && !username.isEmpty() && !password.isEmpty();
+  }
+
+  private static boolean keyPairOptionsAvailable(
+      String username, String privateKeyPath, String privateKeyPassphrase) {
+    return username != null
+        && !username.isEmpty()
+        && !privateKeyPath.isEmpty()
+        && !privateKeyPassphrase.isEmpty();
   }
 }

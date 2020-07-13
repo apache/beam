@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.snowflake.test.unit.credentials;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.io.snowflake.credentials.UsernamePasswordSnowflakeCredentials;
@@ -40,9 +41,10 @@ public class UsernamePasswordSnowflakeCredentialsTest {
         new UsernamePasswordSnowflakeCredentials("username", "password");
 
     SnowflakeIO.DataSourceConfiguration configuration =
-        credentials.createSnowflakeDataSourceConfiguration();
+        SnowflakeIO.DataSourceConfiguration.create(credentials);
 
     assertEquals("username", configuration.getUsername());
     assertEquals("password", configuration.getPassword());
+    assertTrue(configuration.getValidate());
   }
 }

@@ -115,6 +115,12 @@ public class DataSourceConfigurationTest {
   }
 
   @Test
+  public void testSettingValidate() {
+    configuration = configuration.withoutValidation();
+    assertEquals(false, configuration.getValidate());
+  }
+
+  @Test
   public void testDataSourceCreatedFromUrl() {
     String url = "jdbc:snowflake://account.snowflakecomputing.com";
     String expectedUrl = "jdbc:snowflake://account.snowflakecomputing.com?application=beam";

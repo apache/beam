@@ -56,6 +56,7 @@ public class SnowflakeCredentialsFactoryTest {
   @Test
   public void keyPairTest() {
     SnowflakePipelineOptions options = PipelineOptionsFactory.as(SnowflakePipelineOptions.class);
+    System.out.println(TestUtils.getPrivateKeyPath(getClass()));
     options.setUsername("username");
     options.setPrivateKeyPath(TestUtils.getPrivateKeyPath(getClass()));
     options.setPrivateKeyPassphrase(TestUtils.getPrivateKeyPassphrase());
@@ -71,6 +72,6 @@ public class SnowflakeCredentialsFactoryTest {
 
     Exception ex =
         assertThrows(RuntimeException.class, () -> SnowflakeCredentialsFactory.of(options));
-    assertEquals("Can't get credentials", ex.getMessage());
+    assertEquals("Can't get credentials from Options", ex.getMessage());
   }
 }

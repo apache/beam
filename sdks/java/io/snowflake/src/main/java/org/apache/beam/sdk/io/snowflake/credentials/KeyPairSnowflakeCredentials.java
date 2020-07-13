@@ -31,27 +31,21 @@ import java.util.Base64;
 import javax.crypto.EncryptedPrivateKeyInfo;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
-import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 
 /** POJO for handling Key-Pair authentication against Snowflake. */
 public class KeyPairSnowflakeCredentials implements SnowflakeCredentials {
-  private final String username;
-  private final PrivateKey privateKey;
+  private String username;
+  private PrivateKey privateKey;
 
   public KeyPairSnowflakeCredentials(
-      String username, String privateKeyPath, String privateKeyPassphrase) {
+      String username, String privateKeyPath, String privateKeyPassword) {
     this.username = username;
-    this.privateKey = getPrivateKey(privateKeyPath, privateKeyPassphrase);
+    this.privateKey = getPrivateKey(privateKeyPath, privateKeyPassword);
   }
 
   public KeyPairSnowflakeCredentials(String username, PrivateKey privateKey) {
     this.username = username;
     this.privateKey = privateKey;
-  }
-
-  @Override
-  public SnowflakeIO.DataSourceConfiguration createSnowflakeDataSourceConfiguration() {
-    return SnowflakeIO.DataSourceConfiguration.create(this);
   }
 
   private PrivateKey getPrivateKey(String privateKeyPath, String privateKeyPassphrase) {

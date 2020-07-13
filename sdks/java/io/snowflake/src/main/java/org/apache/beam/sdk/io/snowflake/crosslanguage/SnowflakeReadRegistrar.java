@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.snowflake.xlang;
+package org.apache.beam.sdk.io.snowflake.crosslanguage;
 
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
@@ -38,7 +38,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /** Exposes {@link SnowflakeIO.Read} as an external transform for cross-language usage. */
 @Experimental
 @AutoService(ExternalTransformRegistrar.class)
-public final class ExternalRead implements ExternalTransformRegistrar {
+public final class SnowflakeReadRegistrar implements ExternalTransformRegistrar {
 
   public static final String URN = "beam:external:java:snowflake:read:v1";
 
@@ -56,7 +56,7 @@ public final class ExternalRead implements ExternalTransformRegistrar {
 
     @Override
     public PTransform<PBegin, PCollection<byte[]>> buildExternal(ReadConfiguration c) {
-      SnowflakeCredentials credentials = SnowflakeCredentialsFactory.createCredentials(c);
+      SnowflakeCredentials credentials = SnowflakeCredentialsFactory.of(c);
 
       SerializableFunction<Void, DataSource> dataSourceSerializableFunction =
           SnowflakeIO.DataSourceProviderFromDataSourceConfiguration.of(
