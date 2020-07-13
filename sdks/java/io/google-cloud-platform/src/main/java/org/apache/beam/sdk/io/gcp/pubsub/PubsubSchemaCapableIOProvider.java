@@ -31,8 +31,8 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 import org.apache.beam.sdk.schemas.io.InvalidSchemaException;
-import org.apache.beam.sdk.schemas.io.SchemaCapableIOProvider;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
+import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -41,8 +41,8 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * An implementation of {@link SchemaCapableIOProvider} for reading and writing JSON payloads with
- * {@link PubsubIO}.
+ * An implementation of {@link SchemaIOProvider} for reading and writing JSON payloads with {@link
+ * PubsubIO}.
  *
  * <h2>Schema</h2>
  *
@@ -85,8 +85,8 @@ import org.apache.beam.sdk.values.Row;
  * exception will be thrown for errors during processing causing the pipeline to crash.
  */
 @Internal
-@AutoService(SchemaCapableIOProvider.class)
-public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
+@AutoService(SchemaIOProvider.class)
+public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
   public static final FieldType VARCHAR = FieldType.STRING;
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
 
@@ -116,11 +116,21 @@ public class PubsubSchemaCapableIOProvider implements SchemaCapableIOProvider {
   public PubsubSchemaIO from(String location, Row configuration, Schema dataSchema) {
     validateConfigurationSchema(configuration);
     validateDlq(configuration.getValue("deadLetterQueue"));
-    validateEventTimestamp(dataSchema);
+    validateDataSchema(dataSchema);
     return new PubsubSchemaIO(location, configuration, dataSchema);
   }
 
-  private void validateEventTimestamp(Schema schema) {
+  @Override
+  public boolean requiresDataSchema() {
+    return true;
+  }
+
+  private void validateDataSchema(Schema schema) {
+    if (schema == null) {
+      throw new InvalidSchemaException(
+          "Unsupported schema specified for Pubsub source in CREATE TABLE."
+              + "CREATE TABLE for Pubsub topic must not be null");
+    }
     if (!PubsubSchemaIO.fieldPresent(schema, TIMESTAMP_FIELD, TIMESTAMP)) {
       throw new InvalidSchemaException(
           "Unsupported schema specified for Pubsub source in CREATE TABLE."
