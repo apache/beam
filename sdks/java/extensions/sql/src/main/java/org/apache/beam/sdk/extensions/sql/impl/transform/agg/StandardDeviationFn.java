@@ -1,26 +1,32 @@
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
+import org.apache.beam.sdk.extensions.sql.impl.utils.BigDecimalConverter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 
-public class StandardDeviationFn<T extends Number> extends Combine.CombineFn<T, VarianceAccumulator, Double> {
+import java.math.BigDecimal;
+
+public class StandardDeviationFn<T extends Number> extends Combine.CombineFn<T, VarianceAccumulator, T> {
 
     private VarianceFn internal;
 
     private static final boolean SAMPLE = true;
     private static final boolean POP = false;
+    private SerializableFunction<BigDecimal, T> decimalConverter;
 
-    private <V extends Number> StandardDeviationFn(boolean isSample, Schema.TypeName typeName) {
+    private StandardDeviationFn(boolean isSample, Schema.TypeName typeName, SerializableFunction<BigDecimal, T> decimalConverter ) {
         internal = isSample ? VarianceFn.newSample(typeName) : VarianceFn.newPopulation(typeName);
+        this.decimalConverter = decimalConverter;
     }
 
     public static StandardDeviationFn newPopulation(Schema.TypeName typeName) {
-        return new StandardDeviationFn<>(POP, typeName);
+        return new StandardDeviationFn<>(POP, typeName, BigDecimalConverter.forSqlType(typeName));
     }
 
 
     public static StandardDeviationFn newSample(Schema.TypeName typeName) {
-        return new StandardDeviationFn<>(SAMPLE, typeName);
+        return new StandardDeviationFn<>(SAMPLE, typeName, BigDecimalConverter.forSqlType(typeName));
     }
 
 
@@ -41,8 +47,9 @@ public class StandardDeviationFn<T extends Number> extends Combine.CombineFn<T, 
     }
 
     @Override
-    public Double extractOutput(VarianceAccumulator accumulator) {
-        return Math.sqrt(internal.extractOutput(accumulator).doubleValue());
+    public T extractOutput(VarianceAccumulator accumulator) {
+        BigDecimal result = BigDecimal.valueOf(Math.sqrt(internal.extractOutput(accumulator).doubleValue()));
+        return decimalConverter.apply(result);
     }
 
 

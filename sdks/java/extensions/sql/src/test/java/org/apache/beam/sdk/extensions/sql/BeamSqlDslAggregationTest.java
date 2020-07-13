@@ -20,9 +20,7 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithoutTimeZone;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import java.math.BigDecimal;
@@ -48,6 +46,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Iterables;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Before;
@@ -321,7 +320,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   @Test
-  public void testStdPopFunction() throws Exception {
+  public void testStdPopFunctionLong() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
 
     Schema schemaInTableA =
@@ -339,7 +338,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     String sql = "SELECT stddev_pop(f_long) as stddevpop " + "FROM PCOLLECTION GROUP BY f_int2";
 
-    Row rowResult = Row.withSchema(resultType).addValues(61613L).build();
+    Row rowResult = Row.withSchema(resultType).addValues(28915L).build();
 
     PCollection<Row> inputRows =
         pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
@@ -349,6 +348,74 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     pipeline.run().waitUntilFinish();
   }
+
+  @Test
+  public void testStdPopFunctionDouble() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+            Schema.builder().addDoubleField("f_double").addInt32Field("f_int2").build();
+
+    Schema resultType = Schema.builder().addDoubleField("finalAnswer").build();
+
+    List<Row> rowsInTableA =
+            TestUtils.RowsBuilder.of(schemaInTableA)
+                    .addRows(
+                            15.0, 0,
+                            3.0, 0,
+                            98.9, 0)
+                    .getRows();
+
+    String sql = "SELECT stddev_pop(f_double) as stddevpop " + "FROM PCOLLECTION GROUP BY f_int2";
+
+    Row rowResult = Row.withSchema(resultType).addValues(42.6614840602413).build();
+
+    PCollection<Row> inputRows =
+            pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result).satisfies(input -> {
+      Row row = Iterables.getOnlyElement(input);
+      assertNotNull(row);
+      assertEquals(42.6614840602413, row.getDouble(0), 1e-7);
+      return null;
+    });
+
+    pipeline.run().waitUntilFinish();
+  }
+
+
+  @Test
+  public void testStdSampFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+            Schema.builder().addInt64Field("f_long").addInt32Field("f_int2").build();
+
+    Schema resultType = Schema.builder().addInt64Field("finalAnswer").build();
+
+    List<Row> rowsInTableA =
+            TestUtils.RowsBuilder.of(schemaInTableA)
+                    .addRows(
+                            0xF001L, 0,
+                            0x00A1L, 0,
+                            44L, 0)
+                    .getRows();
+
+    String sql = "SELECT stddev_samp(f_long) as stddevsamp " + "FROM PCOLLECTION GROUP BY f_int2";
+
+    Row rowResult = Row.withSchema(resultType).addValues(61613L).build();
+
+    PCollection<Row> inputRows =
+            pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result).containsInAnyOrder(rowResult);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+
 
   /**
    * NULL values don't work correctly. (https://issues.apache.org/jira/browse/BEAM-10379)
