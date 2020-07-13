@@ -51,5 +51,5 @@ public interface SchemaIOProvider {
   SchemaIO from(String location, Row configuration, @Nullable Schema dataSchema);
 
   /** Indicates whether the dataSchema value is necessary. */
-  Boolean requiresDataSchema();
+  boolean requiresDataSchema();
 }

@@ -121,12 +121,12 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
   }
 
   @Override
-  public Boolean requiresDataSchema() {
+  public boolean requiresDataSchema() {
     return true;
   }
 
   private void validateDataSchema(Schema schema) {
-    if (requiresDataSchema() && schema == null) {
+    if (schema == null) {
       throw new InvalidSchemaException(
           "Unsupported schema specified for Pubsub source in CREATE TABLE."
               + "CREATE TABLE for Pubsub topic must not be null");
