@@ -5044,14 +5044,13 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema).addValues(1.2472191291028214).build(),
-                Row.withSchema(schema).addValue(1.0).build());
-
+            Row.withSchema(schema).addValue(1.0).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
-  public void testZetaSQLStddevSamp() {
+  public void testZetaSQLStddevSAMP() {
     String sql = "SELECT STDDEV_SAMP(row_id) FROM table_all_types GROUP BY bool_col";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -5060,15 +5059,12 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
 
     final Schema schema = Schema.builder().addDoubleField("field1").build();
     PAssert.that(stream)
-            .containsInAnyOrder(
-                    Row.withSchema(schema).addValues(1.2472191291028214).build(),
-                    Row.withSchema(schema).addValue(1.0).build());
-
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(1.4142135623730951).build(),
+            Row.withSchema(schema).addValue(1.5275252315428378).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
-
-
 
   @Test
   @Ignore("NULL values don't work correctly. (https://issues.apache.org/jira/browse/BEAM-10379)")

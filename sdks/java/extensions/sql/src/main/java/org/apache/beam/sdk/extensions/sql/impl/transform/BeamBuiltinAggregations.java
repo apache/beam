@@ -190,7 +190,6 @@ public class BeamBuiltinAggregations {
         String.format("[%s] is not supported in BIT_OR", fieldType));
   }
 
-
   //  static CombineFn createBitAnd(Schema.FieldType fieldType) {
   //    if (fieldType.getTypeName() == TypeName.INT64) {
   //      return new BitAnd();
