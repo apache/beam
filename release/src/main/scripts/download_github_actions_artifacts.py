@@ -201,15 +201,12 @@ def download_artifacts(artifacts_url):
     print(
         f"\tDownloading {name}.zip artifact (size: {artifacts_size_mb} megabytes)"
     )
-    r = request_url(url, return_raw_response=True, allow_redirects=True)
 
-    with tempfile.NamedTemporaryFile(
-        "wb",
-        prefix=name,
-        suffix=".zip",
-    ) as f:
-      f.write(r.content)
-
+    with tempfile.NamedTemporaryFile("wb", prefix=name, suffix=".zip") as f, requests.get(
+       url, auth=("token", GITHUB_TOKEN), allow_redirects=True, stream=True
+    ) as r:
+      with open(f.name, 'wb') as f:
+        shutil.copyfileobj(r.raw, f)
       with zipfile.ZipFile(f.name, "r") as zip_ref:
         print(f"\tUnzipping {len(zip_ref.filelist)} files")
         zip_ref.extractall(ARTIFACTS_DIR)
