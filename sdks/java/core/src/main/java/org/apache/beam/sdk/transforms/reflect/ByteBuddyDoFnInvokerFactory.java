@@ -249,6 +249,9 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         String timerId,
         String timerFamilyId,
         DoFnInvoker.ArgumentProvider<InputT, OutputT> arguments) {
+      if (timerFamilyId.isEmpty()) {
+        return;
+      }
       @Nullable OnTimerInvoker onTimerInvoker = onTimerInvokers.get(timerFamilyId);
 
       if (onTimerInvoker != null) {
