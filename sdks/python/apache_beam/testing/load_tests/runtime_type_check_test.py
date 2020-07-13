@@ -18,6 +18,8 @@
 """
 This is runtime type=checking load test with Synthetic Source. Besides of the standard
 input options there are additional options:
+* runtime_type_check (optional) - if runtime typechecking is enabled for the pipeline
+* nested_typehint (optional) - if the typehint on the DoFn is nested or simple
 * fanout (optional) - number of GBK operations to run in parallel
 * iterations (optional) - number of reiteraations over per-key-grouped
 values to perform
@@ -40,12 +42,14 @@ python -m apache_beam.testing.load_tests.runtime_typechecking_test \
     --publish_to_big_query=true
     --metrics_dataset=saavan_python_load_tests
     --metrics_table=gbk
-    --fanout=1
-    --iterations=1
+    --fanout=100
+    --iterations=100
+    --runtime_type_check=True
+    --nested_typehint=True
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
-    \"value_size\": 15
+    \"value_size\": 150
     }'"
 """
 
@@ -90,16 +94,19 @@ class RunTimeTypeCheckTest(LoadTest):
         yield [1, 'a', element, [0]]
 
   def test(self):
-    pc = (
-            self.pipeline
-            | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
-            | 'Measure time: Start' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
+    pc = (self.pipeline
+          | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
+          | 'Measure time: Start' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
+    input_transform = self.NestedInput if self.nested_typehint else self.SimpleInput
+    output_transform = self.NestedOutput if self.nested_typehint else self.SimpleOutput
+
+    # Perform the output DoFn before input DoFn so the annotations are valid
     for branch in range(self.fanout):
       (  # pylint: disable=expression-not-assigned
               pc
-              | 'IntToStr %i' % branch >> beam.ParDo(self.IntToStr(), self.iterations)
-              | 'StrToInt %i' % branch >> beam.ParDo(self.StrToInt(), self.iterations)
+              | 'Output Transform %i' % branch >> beam.ParDo(output_transform(), self.iterations)
+              | 'Input Transform %i' % branch >> beam.ParDo(input_transform(), self.iterations)
               | 'Measure time: End %i' % branch >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
 
