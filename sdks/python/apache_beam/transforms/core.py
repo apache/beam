@@ -2382,14 +2382,6 @@ class _GroupAndAggregate(PTransform):
 
   def expand(self, pcoll):
     from apache_beam.transforms.combiners import TupleCombineFn
-
-    # TODO(Py3): Use {**a, **b} syntax once Python 2 is gone.
-    def union_dicts(a, b):
-      result = {}
-      result.update(a)
-      result.update(b)
-      return result
-
     key_func = self._grouping.force_tuple_keys(True)._key_func()
     value_exprs = [expr for expr, _, __ in self._aggregations]
     value_func = lambda element: [expr(element) for expr in value_exprs]

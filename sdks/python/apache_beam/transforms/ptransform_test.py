@@ -799,7 +799,7 @@ class PTransformTest(unittest.TestCase):
 class TestGroupBy(unittest.TestCase):
   def test_lambdas(self):
     def normalize(key, values):
-      return tuple(key) if isinstance(key, beam.Row) else key, sorted(values)
+      return tuple(key) if isinstance(key, tuple) else key, sorted(values)
 
     with TestPipeline() as p:
       pcoll = p | beam.Create(range(6))
