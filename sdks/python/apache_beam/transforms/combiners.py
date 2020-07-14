@@ -68,9 +68,9 @@ class CombinerWithoutDefaults(ptransform.PTransform):
     self.has_defaults = has_defaults
 
   def with_defaults(self, has_defaults=True):
-      new = copy.copy(self)
-      new.has_defaults = has_defaults
-      return new
+    new = copy.copy(self)
+    new.has_defaults = has_defaults
+    return new
 
   def without_defaults(self):
     return self.with_defaults(False)
