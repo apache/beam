@@ -184,7 +184,6 @@ if [[ $confirmation = "y" ]]; then
 
   echo '--------------Fetching GitHub Actions Artifacts--------------'
   python release/src/main/scripts/download_github_actions_artifacts.py \
-    --github-token ${GITHUB_TOKEN} \
     --github-user ${USER_GITHUB_ID} \
     --repo-url ${GIT_REPO_BASE_URL} \
     --release-branch ${RELEASE_BRANCH} \
