@@ -25,6 +25,7 @@ import copy
 import inspect
 import logging
 import random
+import sys
 import types
 import typing
 from builtins import map
@@ -2295,7 +2296,13 @@ class GroupBy(PTransform):
       for ix, field in enumerate(fields):
         name = field if isinstance(field, str) else 'key%d' % ix
         key_fields.append((name, _expr_to_callable(field, ix)))
-      for name, expr in kwargs.items():
+      if sys.version_info < (3, 6):
+        # Before PEP 468, these are randomly ordered.
+        # At least provide deterministic behavior here.
+        kwargs_items = sorted(kwargs.items())
+      else:
+        kwargs_items = kwargs.items()
+      for name, expr in kwargs_items:
         key_fields.append((name, _expr_to_callable(expr, name)))
     self._key_fields = key_fields
     field_names = tuple(name for name, _ in key_fields)
