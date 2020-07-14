@@ -72,4 +72,43 @@ public class BeamMatchRelTest {
 
     pipeline.run().waitUntilFinish();
   }
+
+  @Test
+  public void matchQuantifierTest() {
+    Schema schemaType =
+        Schema.builder()
+            .addInt32Field("id")
+            .addStringField("name")
+            .addInt32Field("proctime")
+            .build();
+
+    registerTable(
+        "TestTable", TestBoundedTable.of(schemaType).addRows(1, "a", 1, 1, "a", 2, 1, "b", 3, 1, "c", 4));
+
+    String sql =
+        "SELECT * "
+            + "FROM TestTable "
+            + "MATCH_RECOGNIZE ("
+            + "PARTITION BY id "
+            + "ORDER BY proctime "
+            + "PATTERN (A+ B C) "
+            + "DEFINE "
+            + "A AS name = 'a', "
+            + "B AS name = 'b', "
+            + "C AS name = 'c' "
+            + ") AS T";
+
+    PCollection<Row> result = compilePipeline(sql, pipeline);
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                Schema.FieldType.INT32, "id",
+                Schema.FieldType.STRING, "name",
+                Schema.FieldType.INT32, "proctime")
+                .addRows(1, "a", 1, 1, "a", 2, 1, "b", 3, 1, "c", 4)
+                .getRows());
+
+    pipeline.run().waitUntilFinish();
+  }
 }
