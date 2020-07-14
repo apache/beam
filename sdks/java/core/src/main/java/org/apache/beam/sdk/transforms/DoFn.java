@@ -672,9 +672,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *       perform bulk splitting initially allowing for a rapid increase in parallelism. See {@link
    *       RestrictionTracker#trySplit} for details about splitting when the current element and
    *       restriction are actively being processed.
-   *   <li>It <i>may</i> define a {@link TruncateRestriction} method to override the default
-   *       implementation {@code DefaultTruncateRestriction}, This method truncates a given
-   *       restriction into a bounded restriction when pipeline is draining.
+   *   <li>It <i>may</i> define a {@link TruncateRestriction} method to choose how to truncate a
+   *       restriction such that it represents a finite amount of work when the pipeline is
+   *       draining. See {@link TruncateRestriction} and {@link RestrictionTracker#isBounded} for
+   *       additional details.
    *   <li>It <i>may</i> define a {@link NewTracker} method returning a subtype of {@code
    *       RestrictionTracker<R>} where {@code R} is the restriction type returned by {@link
    *       GetInitialRestriction}. This method is optional only if the restriction type returned by
@@ -1058,8 +1059,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /**
    * Annotation for the method that truncates the restriction of a <a
-   * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} into a bounded one to
-   * be processed when pipeline starts to drain.
+   * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} into a bounded one.
+   * This method is invoked when a pipeline is being <a
+   * href="https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#">drained</a>.
    *
    * <p>This method is used to perform truncation of the restriction while it is not actively being
    * processed.
@@ -1094,6 +1096,13 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *   <li>If one of the parameters is of type {@link PipelineOptions}, then it will be passed the
    *       options for the current pipeline.
    * </ul>
+   *
+   * <p>The default behavior when a pipeline is being drained is that {@link
+   * org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.IsBounded#BOUNDED}
+   * restrictions process entirely while {@link
+   * org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.IsBounded#UNBOUNDED}
+   * restrictions process till a checkpoint is possible. Splittable {@link DoFn}s should only
+   * provide this method if they want to change this default behavior.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)

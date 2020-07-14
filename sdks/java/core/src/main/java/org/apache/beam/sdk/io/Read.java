@@ -57,7 +57,6 @@ import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
@@ -154,7 +153,7 @@ public class Read {
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(),
           WindowingStrategy.globalDefault(),
-          IsBounded.BOUNDED,
+          PCollection.IsBounded.BOUNDED,
           source.getOutputCoder());
     }
 
@@ -244,7 +243,7 @@ public class Read {
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(),
           WindowingStrategy.globalDefault(),
-          IsBounded.UNBOUNDED,
+          PCollection.IsBounded.UNBOUNDED,
           source.getOutputCoder());
     }
 
@@ -432,8 +431,8 @@ public class Read {
       }
 
       @Override
-      public RestrictionBoundness isBounded() {
-        return RestrictionBoundness.IS_BOUNDED;
+      public IsBounded isBounded() {
+        return IsBounded.BOUNDED;
       }
     }
   }
@@ -870,8 +869,8 @@ public class Read {
       }
 
       @Override
-      public RestrictionBoundness isBounded() {
-        return RestrictionBoundness.IS_UNBOUNDED;
+      public IsBounded isBounded() {
+        return IsBounded.UNBOUNDED;
       }
 
       @Override

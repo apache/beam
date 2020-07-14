@@ -624,8 +624,8 @@ public class DoFnInvokersTest {
     public void checkDone() throws IllegalStateException {}
 
     @Override
-    public RestrictionBoundness isBounded() {
-      return RestrictionBoundness.IS_BOUNDED;
+    public IsBounded isBounded() {
+      return IsBounded.BOUNDED;
     }
   }
 
@@ -651,8 +651,8 @@ public class DoFnInvokersTest {
     public void checkDone() throws IllegalStateException {}
 
     @Override
-    public RestrictionBoundness isBounded() {
-      return RestrictionBoundness.IS_UNBOUNDED;
+    public IsBounded isBounded() {
+      return IsBounded.UNBOUNDED;
     }
   }
 

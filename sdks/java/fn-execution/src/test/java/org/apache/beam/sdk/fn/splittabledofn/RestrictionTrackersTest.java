@@ -61,8 +61,8 @@ public class RestrictionTrackersTest {
           }
 
           @Override
-          public RestrictionBoundness isBounded() {
-            return RestrictionBoundness.IS_BOUNDED;
+          public IsBounded isBounded() {
+            return IsBounded.BOUNDED;
           }
         };
 
@@ -117,8 +117,8 @@ public class RestrictionTrackersTest {
     public void checkDone() throws IllegalStateException {}
 
     @Override
-    public RestrictionBoundness isBounded() {
-      return RestrictionBoundness.IS_BOUNDED;
+    public IsBounded isBounded() {
+      return IsBounded.BOUNDED;
     }
   }
 

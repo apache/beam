@@ -64,7 +64,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.RestrictionBoundness;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.IsBounded;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -316,7 +316,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     @SuppressWarnings("unused")
     public static Optional<?> invokeTruncateRestriction(
         DoFnInvoker.ArgumentProvider argumentProvider) {
-      if (argumentProvider.restrictionTracker().isBounded() == RestrictionBoundness.IS_BOUNDED) {
+      if (argumentProvider.restrictionTracker().isBounded() == IsBounded.BOUNDED) {
         return Optional.of(argumentProvider.restriction());
       }
       return Optional.empty();

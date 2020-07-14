@@ -1104,11 +1104,11 @@ public class Watch {
     }
 
     @Override
-    public RestrictionBoundness isBounded() {
+    public IsBounded isBounded() {
       if (state == EMPTY_STATE || state instanceof NonPollingGrowthState) {
-        return RestrictionBoundness.IS_BOUNDED;
+        return IsBounded.BOUNDED;
       }
-      return RestrictionBoundness.IS_UNBOUNDED;
+      return IsBounded.UNBOUNDED;
     }
 
     @Override

@@ -386,7 +386,9 @@ message StandardPTransforms {
 
     // Truncates the restriction of each element/restriction pair and returns
     // the finite restriction which will be processed when a pipeline is
-    // drained: https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#.
+    // drained. See
+    // https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#.
+    // for additional details about drain.
     //
     // Input: KV(KV(element, restriction), size);
     // Output: KV(KV(element, restriction), size).

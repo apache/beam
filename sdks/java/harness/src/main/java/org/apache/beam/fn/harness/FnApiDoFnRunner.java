@@ -1704,7 +1704,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
   }
 
-  /** This context outputs KV<KV<Element, <Restriction, WatemarkEstimatorState>>, size>. */
+  /** This context outputs KV<KV<Element, KV<Restriction, WatemarkEstimatorState>>, Size>. */
   private class SizedRestrictionWindowObservingProcessBundleContext
       extends WindowObservingProcessBundleContext {
     private final String errorContextPrefix;
@@ -1750,7 +1750,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
   }
 
-  /** This context outputs KV<KV<Element, <Restriction, WatermarkEstimatorState>>, size>. */
+  /** This context outputs KV<KV<Element, KV<Restriction, WatermarkEstimatorState>>, Size>. */
   private class SizedRestrictionNonWindowObservingProcessBundleContext
       extends NonWindowObservingProcessBundleContext {
     private final String errorContextPrefix;

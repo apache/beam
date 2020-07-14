@@ -146,8 +146,8 @@ public class PeriodicSequence
     }
 
     @Override
-    public RestrictionBoundness isBounded() {
-      return RestrictionBoundness.IS_BOUNDED;
+    public IsBounded isBounded() {
+      return IsBounded.BOUNDED;
     }
 
     @Override

@@ -25,8 +25,8 @@ import static org.junit.Assert.assertTrue;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.IsBounded;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.RestrictionBoundness;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -258,18 +258,18 @@ public class GrowableOffsetRangeTrackerTest {
   public void testIsBounded() throws Exception {
     SimpleEstimator simpleEstimator = new SimpleEstimator();
     GrowableOffsetRangeTracker tracker = new GrowableOffsetRangeTracker(0L, simpleEstimator);
-    assertEquals(RestrictionBoundness.IS_UNBOUNDED, tracker.isBounded());
+    assertEquals(IsBounded.UNBOUNDED, tracker.isBounded());
     assertTrue(tracker.tryClaim(0L));
-    assertEquals(RestrictionBoundness.IS_UNBOUNDED, tracker.isBounded());
+    assertEquals(IsBounded.UNBOUNDED, tracker.isBounded());
 
     // After split, the restriction should be bounded.
     simpleEstimator.setEstimateRangeEnd(16L);
     tracker.trySplit(0.5);
-    assertEquals(RestrictionBoundness.IS_BOUNDED, tracker.isBounded());
+    assertEquals(IsBounded.BOUNDED, tracker.isBounded());
 
     // The restriction should be bounded after all the work has been claimed.
     tracker = new GrowableOffsetRangeTracker(0L, simpleEstimator);
     tracker.tryClaim(Long.MAX_VALUE);
-    assertEquals(RestrictionBoundness.IS_BOUNDED, tracker.isBounded());
+    assertEquals(IsBounded.BOUNDED, tracker.isBounded());
   }
 }

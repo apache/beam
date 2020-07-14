@@ -99,23 +99,19 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    */
   public abstract void checkDone() throws IllegalStateException;
 
-  public enum RestrictionBoundness {
-    IS_BOUNDED,
-    IS_UNBOUNDED
+  public enum IsBounded {
+    /** Indicates that a {@code Restriction} represents a bounded amount of work. */
+    BOUNDED,
+    /** Indicates that a {@code Restriction} represents an unbounded amount of work. */
+    UNBOUNDED
   }
 
   /**
-   * Return the boundedness of current tracking restriction. If the current restriction produces
-   * finite output, it should return {@link RestrictionBoundness#IS_BOUNDED}. Otherwise, it should
-   * return {@link RestrictionBoundness#IS_UNBOUNDED}.
-   *
-   * <p>The API is called by the system when the pipeline starts to drain and there is no
-   * implementation of {@link DoFn.TruncateRestriction}. Based on the boundness of the restriction,
-   * the system will give the default behavior of truncating restrictions.
-   *
-   * <p>The API is required to be implemented.
+   * Return the boundedness of the current restriction. If the current restriction represents a
+   * finite amount of work, it should return {@link IsBounded#BOUNDED}. Otherwise, it should return
+   * {@link IsBounded#UNBOUNDED}.
    */
-  public abstract RestrictionBoundness isBounded();
+  public abstract IsBounded isBounded();
 
   /**
    * All {@link RestrictionTracker}s SHOULD implement this interface to improve auto-scaling and
