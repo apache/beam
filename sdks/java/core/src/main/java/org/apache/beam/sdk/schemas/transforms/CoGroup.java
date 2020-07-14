@@ -44,7 +44,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
@@ -337,8 +336,6 @@ public class CoGroup {
     private final Map<String, PCollectionView<Map<Row, Iterable<Row>>>> sideInputs;
     private final Schema keySchema;
     private final Map<String, Schema> componentSchemas;
-    // Maps from index in sortedTags to the toRow function.
-    private final Map<Integer, SerializableFunction<Object, Row>> toRows;
     private final List<String> sortedTags;
     private final Map<Integer, String> tagToKeyedTag;
 
@@ -347,14 +344,12 @@ public class CoGroup {
         Map<String, PCollectionView<Map<Row, Iterable<Row>>>> sideInputs,
         Schema keySchema,
         Map<String, Schema> componentSchemas,
-        Map<Integer, SerializableFunction<Object, Row>> toRows,
         List<String> sortedTags,
         Map<Integer, String> tagToKeyedTag) {
       this.keyedPCollectionTuple = keyedPCollectionTuple;
       this.sideInputs = sideInputs;
       this.keySchema = keySchema;
       this.componentSchemas = componentSchemas;
-      this.toRows = toRows;
       this.sortedTags = sortedTags;
       this.tagToKeyedTag = tagToKeyedTag;
     }
@@ -375,7 +370,6 @@ public class CoGroup {
       // Keep this in a TreeMap so that it's sorted. This way we get a deterministic output
       // schema.
       TreeMap<String, Schema> componentSchemas = Maps.newTreeMap();
-      Map<Integer, SerializableFunction<Object, Row>> toRows = Maps.newHashMap();
 
       Map<String, PCollectionView<Map<Row, Iterable<Row>>>> sideInputs = Maps.newHashMap();
       Map<Integer, String> tagToKeyedTag = Maps.newHashMap();
@@ -386,7 +380,6 @@ public class CoGroup {
         PCollection<?> pc = entry.getValue();
         Schema schema = pc.getSchema();
         componentSchemas.put(tag, schema);
-        toRows.put(tagIndex, (SerializableFunction<Object, Row>) pc.getToRowFunction());
         FieldAccessDescriptor fieldAccessDescriptor = getFieldAccessDescriptor.apply(tag);
         if (fieldAccessDescriptor == null) {
           throw new IllegalStateException("No fields were set for input " + tag);
@@ -421,7 +414,6 @@ public class CoGroup {
           sideInputs,
           keySchema,
           componentSchemas,
-          toRows,
           sortedTags,
           tagToKeyedTag);
     }
@@ -518,7 +510,6 @@ public class CoGroup {
 
       for (int i = 0; i < joinInformation.sortedTags.size(); ++i) {
         String tupleTag = joinInformation.tagToKeyedTag.get(i);
-        SerializableFunction<Object, Row> toRow = joinInformation.toRows.get(i);
         PCollectionView<Map<Row, Iterable<Row>>> sideView =
             joinInformation.sideInputs.get(tupleTag);
         Iterable<Row> rows =
@@ -528,7 +519,7 @@ public class CoGroup {
         if (rows == null) {
           rows = Collections::emptyIterator;
         }
-        fields.add(Iterables.transform(rows, toRow::apply));
+        fields.add(rows);
         tags.add(joinInformation.sortedTags.get(i));
       }
       return new AutoValue_CoGroup_Result(key, fields, tags, joinArgs, outputSchema);
