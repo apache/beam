@@ -46,7 +46,13 @@ To test a transform you've created, you can use the following pattern:
 
 ### TestPipeline
 
-[TestPipeline](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestPipeline.java) is a class included in the Beam Java SDK specifically for testing transforms. For tests, use `TestPipeline` in place of `Pipeline` when you create the pipeline object. Unlike `Pipeline.create`, `TestPipeline.create` handles setting `PipelineOptions` interally.
+{{< paragraph class="language-java" >}}
+[TestPipeline](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestPipeline.java) is a class included in the Beam Java SDK specifically for testing transforms.
+{{< /paragraph >}}
+{{< paragraph class="language-py" >}}
+[TestPipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/testing/test_pipeline.py) is a class included in the Beam Python SDK specifically for testing transforms.
+{{< /paragraph >}}
+For tests, use `TestPipeline` in place of `Pipeline` when you create the pipeline object. Unlike `Pipeline.create`, `TestPipeline.create` handles setting `PipelineOptions` interally.
 
 You create a `TestPipeline` as follows:
 
@@ -54,11 +60,16 @@ You create a `TestPipeline` as follows:
 Pipeline p = TestPipeline.create();
 {{< /highlight >}}
 
+{{< highlight py >}}
+with TestPipeline as p:
+    ...
+{{< /highlight >}}
+
 > **Note:** Read about testing unbounded pipelines in Beam in [this blog post](/blog/2016/10/20/test-stream.html).
 
 ### Using the Create Transform
 
-You can use the `Create` transform to create a `PCollection` out of a standard in-memory collection class, such as Java `List`. See [Creating a PCollection](/documentation/programming-guide/#creating-a-pcollection) for more information.
+You can use the `Create` transform to create a `PCollection` out of a standard in-memory collection class, such as Java or Python `List`. See [Creating a PCollection](/documentation/programming-guide/#creating-a-pcollection) for more information.
 
 ### PAssert
 
@@ -77,7 +88,21 @@ PAssert.that(output)
   "elem2");
 {{< /highlight >}}
 
-Any code that uses `PAssert` must link in `JUnit` and `Hamcrest`. If you're using Maven, you can link in `Hamcrest` by adding the following dependency to your project's `pom.xml` file:
+{{< highlight py >}}
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+output = ...
+
+# Check whether a PCollection contains some elements in any order.
+assert_that(
+    output,
+    equal_to(["elem1", "elem3", "elem2"]))
+{{< /highlight >}}
+
+{{< paragraph class="language-java" >}}
+Any Java code that uses `PAssert` must link in `JUnit` and `Hamcrest`. If you're using Maven, you can link in `Hamcrest` by adding the following dependency to your project's `pom.xml` file:
+{{< /paragraph >}}
 
 {{< highlight java >}}
 <dependency>
@@ -92,42 +117,79 @@ For more information on how these classes work, see the [org.apache.beam.sdk.tes
 
 ### An Example Test for a Composite Transform
 
-The following code shows a complete test for a composite transform. The test applies the `Count` transform to an input `PCollection` of `String` elements. The test uses the `Create` transform to create the input `PCollection` from a Java `List<String>`.
+The following code shows a complete test for a composite transform. The test applies the `Count` transform to an input `PCollection` of `String` elements. The test uses the `Create` transform to create the input `PCollection` from a `List<String>`.
 
 {{< highlight java >}}
 public class CountTest {
 
-// Our static input data, which will make up the initial PCollection.
-static final String[] WORDS_ARRAY = new String[] {
-"hi", "there", "hi", "hi", "sue", "bob",
-"hi", "sue", "", "", "ZOW", "bob", ""};
+  // Our static input data, which will make up the initial PCollection.
+  static final String[] WORDS_ARRAY = new String[] {
+  "hi", "there", "hi", "hi", "sue", "bob",
+  "hi", "sue", "", "", "ZOW", "bob", ""};
 
-static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
+  static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
 
-public void testCount() {
-  // Create a test pipeline.
-  Pipeline p = TestPipeline.create();
+  public void testCount() {
+    // Create a test pipeline.
+    Pipeline p = TestPipeline.create();
 
-  // Create an input PCollection.
-  PCollection<String> input = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
+    // Create an input PCollection.
+    PCollection<String> input = p.apply(Create.of(WORDS));
 
-  // Apply the Count transform under test.
-  PCollection<KV<String, Long>> output =
-    input.apply(Count.<String>perElement());
+    // Apply the Count transform under test.
+    PCollection<KV<String, Long>> output =
+      input.apply(Count.<String>perElement());
 
-  // Assert on the results.
-  PAssert.that(output)
-    .containsInAnyOrder(
-        KV.of("hi", 4L),
-        KV.of("there", 1L),
-        KV.of("sue", 2L),
-        KV.of("bob", 2L),
-        KV.of("", 3L),
-        KV.of("ZOW", 1L));
+    // Assert on the results.
+    PAssert.that(output)
+      .containsInAnyOrder(
+          KV.of("hi", 4L),
+          KV.of("there", 1L),
+          KV.of("sue", 2L),
+          KV.of("bob", 2L),
+          KV.of("", 3L),
+          KV.of("ZOW", 1L));
 
-  // Run the pipeline.
-  p.run();
+    // Run the pipeline.
+    p.run();
+  }
 }
+{{< /highlight >}}
+
+{{< highlight py >}}
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+class CountTest(unittest.TestCase):
+
+  # Our static input data, which will make up the initial PCollection.
+  WORDS = [
+      "hi", "there", "hi", "hi", "sue", "bob",
+      "hi", "sue", "", "", "ZOW", "bob", ""
+  ]
+
+  def test_count(self):
+    # Create a test pipeline.
+    with beam.TestPipeline as p:
+
+      # Create an input PCollection.
+      input = p | beam.Create(WORDS);
+
+      # Apply the Count transform under test.
+      output = input | beam.combiners.Count.PerElement();
+
+      # Assert on the results.
+      assert_that(
+        output,
+        equal_to([
+            ("hi", 4),
+            ("there", 1),
+            ("sue", 2),
+            ("bob", 2),
+            ("", 3),
+            ("ZOW", 1)])
+
+      # The pipeline will run and verify the results.
 {{< /highlight >}}
 
 ## Testing a Pipeline End-to-End
@@ -143,7 +205,7 @@ You can use the test classes in the Beam SDKs (such as `TestPipeline` and `PAsse
 
 ### Testing the WordCount Pipeline
 
-The following example code shows how one might test the [WordCount example pipeline](/get-started/wordcount-example/). `WordCount` usually reads lines from a text file for input data; instead, the test creates a Java `List<String>` containing some text lines and uses a `Create` transform to create an initial `PCollection`.
+The following example code shows how one might test the [WordCount example pipeline](/get-started/wordcount-example/). `WordCount` usually reads lines from a text file for input data; instead, the test creates a `List<String>` containing some text lines and uses a `Create` transform to create an initial `PCollection`.
 
 `WordCount`'s final transform (from the composite transform `CountWords`) produces a `PCollection<String>` of formatted word counts suitable for printing. Rather than write that `PCollection` to an output text file, our test pipeline uses `PAssert` to verify that the elements of the `PCollection` match those of a static `String` array containing our expected output data.
 
@@ -167,7 +229,7 @@ public class WordCountTest {
       Pipeline p = TestPipeline.create();
 
       // Create a PCollection from the WORDS static input data.
-      PCollection<String> input = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
+      PCollection<String> input = p.apply(Create.of(WORDS));
 
       // Run ALL the pipeline's transforms (in this case, the CountWords composite transform).
       PCollection<String> output = input.apply(new CountWords());
@@ -179,4 +241,33 @@ public class WordCountTest {
       p.run();
     }
 }
+{{< /highlight >}}
+
+{{< highlight py >}}
+class WordCountTest(unittest.TestCase):
+
+  # Our input data, which will make up the initial PCollection.
+  WORDS = [
+      "hi", "there", "hi", "hi", "sue", "bob",
+      "hi", "sue", "", "", "ZOW", "bob", ""
+  ]
+
+  # Our output data, which is the expected data that the final PCollection must match.
+  EXPECTED_COUNTS = ["hi: 5", "there: 1", "sue: 2", "bob: 2"]
+
+  # Example test that tests the pipeline's transforms.
+
+  def test_count_words(self):
+    with TestPipeline() as p:
+
+      # Create a PCollection from the WORDS static input data.
+      input = p | beam.Create(WORDS)
+
+      # Run ALL the pipeline's transforms (in this case, the CountWords composite transform).
+      output = input | CountWords()
+
+      # Assert that the output PCollection matches the EXPECTED_COUNTS data.
+      assert_that(output, equal_to(EXPECTED_COUNTS), label='CheckOutput')
+
+    # The pipeline will run and verify the results.
 {{< /highlight >}}
