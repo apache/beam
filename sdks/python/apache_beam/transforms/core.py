@@ -2299,6 +2299,7 @@ class GroupBy(PTransform):
       if sys.version_info < (3, 6):
         # Before PEP 468, these are randomly ordered.
         # At least provide deterministic behavior here.
+        # pylint: disable=dict-items-not-iterating
         kwargs_items = sorted(kwargs.items())
       else:
         kwargs_items = kwargs.items()
