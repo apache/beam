@@ -45,7 +45,9 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -848,12 +850,6 @@ public class FhirIO {
                   new DoFn<Metadata, Void>() {
                     @ProcessElement
                     public void delete(@Element Metadata path, ProcessContext context) {
-                      String tempPath =
-                          getImportGcsTempPath()
-                              .orElse(
-                                  StaticValueProvider.of(
-                                      context.getPipelineOptions().getTempLocation()))
-                              .get();
                       // Wait til window closes for failedBodies and failedFiles to ensure we are
                       // done processing
                       // anything under tempGcsPath because it has been successfully imported to
@@ -1037,7 +1033,19 @@ public class FhirIO {
               FileSystems.matchNewResource(deadLetterGcsPath.get(), true)
                   .resolve(file.getFilename(), StandardResolveOptions.RESOLVE_FILE));
         }
-        FileSystems.copy(ImmutableList.copyOf(batch), tempDestinations);
+        // Ignore missing files since this might be a retry, which means files
+        // should have been copied over.
+        FileSystems.copy(
+            ImmutableList.copyOf(batch),
+            tempDestinations,
+            StandardMoveOptions.IGNORE_MISSING_FILES);
+        // Check whether any temporary files are not present.
+        boolean hasMissingFile =
+            FileSystems.matchResources(tempDestinations).stream()
+                .anyMatch((MatchResult r) -> r.status() != Status.OK);
+        if (hasMissingFile) {
+          throw new IllegalStateException("Not all temporary files are present for importing.");
+        }
         ResourceId importUri = tempDir.resolve("*", StandardResolveOptions.RESOLVE_FILE);
         try {
           // Blocking fhirStores.import request.

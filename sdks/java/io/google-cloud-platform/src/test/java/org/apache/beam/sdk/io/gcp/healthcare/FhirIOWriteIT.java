@@ -34,7 +34,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -117,7 +116,6 @@ public class FhirIOWriteIT {
   }
 
   @Test
-  @Ignore("BEAM-10419 ignore due to flakiness.")
   public void testFhirIO_Import() {
     Pipeline pipeline = Pipeline.create(options);
     if (options.getTempLocation() == null) {
