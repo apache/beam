@@ -25,11 +25,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Test;
 
-/**
- * A simple Analytic Functions experiment for BeamSQL created in order to understand the query
- * processing workflow of BeamSQL and Calcite.
- */
-public class BeamAnalyticFunctionsExperimentTest extends BeamSqlDslBase {
+/** Tests for BeamSQL aggregation analytics functionality. */
+public class BeamAnalyticFunctionsTest extends BeamSqlDslBase {
 
   /**
    * Table schema and data taken from.

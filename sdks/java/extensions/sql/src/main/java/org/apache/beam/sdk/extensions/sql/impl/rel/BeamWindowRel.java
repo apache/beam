@@ -110,19 +110,22 @@ public class BeamWindowRel extends Window implements BeamRelNode {
                   lowerB = getLiteralValueConstants(anAnalyticGroup.lowerBound.getOffset());
                 }
               } else if (anAnalyticGroup.lowerBound.isFollowing()) {
-                if (!anAnalyticGroup.lowerBound.isUnbounded())
+                if (!anAnalyticGroup.lowerBound.isUnbounded()) {
                   lowerB =
                       getLiteralValueConstants(anAnalyticGroup.lowerBound.getOffset()).negate();
+                }
               }
               if (anAnalyticGroup.upperBound.isCurrentRow()) {
                 upperB = BigDecimal.ZERO;
               } else if (anAnalyticGroup.upperBound.isPreceding()) {
-                if (!anAnalyticGroup.upperBound.isUnbounded())
+                if (!anAnalyticGroup.upperBound.isUnbounded()) {
                   upperB =
                       getLiteralValueConstants(anAnalyticGroup.upperBound.getOffset()).negate();
+                }
               } else if (anAnalyticGroup.upperBound.isFollowing()) {
-                if (!anAnalyticGroup.upperBound.isUnbounded())
+                if (!anAnalyticGroup.upperBound.isUnbounded()) {
                   upperB = getLiteralValueConstants(anAnalyticGroup.upperBound.getOffset());
+                }
               }
               final BigDecimal lowerBFinal = lowerB;
               final BigDecimal upperBFinal = upperB;
@@ -249,7 +252,7 @@ public class BeamWindowRel extends Window implements BeamRelNode {
               inputData.apply(prefix + "partitionBy", myg.getToKvs());
           partitioned =
               partitionBy
-                  .apply(prefix + "selectOnlyValues", ParDo.of(new selectOnlyValues()))
+                  .apply(prefix + "selectOnlyValues", ParDo.of(new SelectOnlyValues()))
                   .setCoder(IterableCoder.of(rowCoder));
         }
         // Migrate to a SortedValues transform.
@@ -276,16 +279,16 @@ public class BeamWindowRel extends Window implements BeamRelNode {
       public void processElement(
           @Element List<Row> inputPartition, OutputReceiver<Row> out, ProcessContext c) {
         List<Row> sortedRowsAsList = inputPartition;
-        NavigableMap<BigDecimal, List<Row>> index_range = null;
+        NavigableMap<BigDecimal, List<Row>> indexRange = null;
         if (!fieldAgg.rows) {
-          index_range = indexRows(sortedRowsAsList);
+          indexRange = indexRows(sortedRowsAsList);
         }
         for (int idx = 0; idx < sortedRowsAsList.size(); idx++) {
           List<Row> aggRange = null;
           if (fieldAgg.rows) {
             aggRange = getRows(sortedRowsAsList, idx);
           } else {
-            aggRange = getRange(index_range, sortedRowsAsList.get(idx));
+            aggRange = getRange(indexRange, sortedRowsAsList.get(idx));
           }
           Object accumulator = fieldAgg.combineFn.createAccumulator();
           final int aggFieldIndex = fieldAgg.inputFields.get(0);
@@ -318,31 +321,31 @@ public class BeamWindowRel extends Window implements BeamRelNode {
         return map;
       }
 
-      private List<Row> getRange(NavigableMap<BigDecimal, List<Row>> mp, Row r) {
-        NavigableMap<BigDecimal, List<Row>> sub_mp;
-        BigDecimal currentRowValue = getOrderByValue(r);
+      private List<Row> getRange(NavigableMap<BigDecimal, List<Row>> indexRanges, Row aRow) {
+        NavigableMap<BigDecimal, List<Row>> subMap;
+        BigDecimal currentRowValue = getOrderByValue(aRow);
         if (currentRowValue != null && fieldAgg.lowerLimit != null && fieldAgg.upperLimit != null) {
           BigDecimal ll = currentRowValue.subtract(fieldAgg.lowerLimit);
           BigDecimal ul = currentRowValue.add(fieldAgg.upperLimit);
-          sub_mp = mp.subMap(ll, true, ul, true);
+          subMap = indexRanges.subMap(ll, true, ul, true);
         } else if (currentRowValue != null
             && fieldAgg.lowerLimit != null
             && fieldAgg.upperLimit == null) {
           BigDecimal ll = currentRowValue.subtract(fieldAgg.lowerLimit);
-          sub_mp = mp.tailMap(ll, true);
+          subMap = indexRanges.tailMap(ll, true);
         } else if (currentRowValue != null
             && fieldAgg.lowerLimit == null
             && fieldAgg.upperLimit != null) {
           BigDecimal ul = currentRowValue.add(fieldAgg.upperLimit);
-          sub_mp = mp.headMap(ul, true);
+          subMap = indexRanges.headMap(ul, true);
         } else {
-          sub_mp = mp;
+          subMap = indexRanges;
         }
-        List<Row> rsp = Lists.newArrayList();
-        for (List<Row> rsp_n : sub_mp.values()) {
-          rsp.addAll(rsp_n);
+        List<Row> result = Lists.newArrayList();
+        for (List<Row> partialList : subMap.values()) {
+          result.addAll(partialList);
         }
-        return rsp;
+        return result;
       }
 
       private BigDecimal getOrderByValue(Row r) {
@@ -373,7 +376,7 @@ public class BeamWindowRel extends Window implements BeamRelNode {
     };
   }
 
-  static class selectOnlyValues extends DoFn<KV<Row, Iterable<Row>>, Iterable<Row>> {
+  static class SelectOnlyValues extends DoFn<KV<Row, Iterable<Row>>, Iterable<Row>> {
     @ProcessElement
     public void processElement(
         @Element KV<Row, Iterable<Row>> inputPartition,

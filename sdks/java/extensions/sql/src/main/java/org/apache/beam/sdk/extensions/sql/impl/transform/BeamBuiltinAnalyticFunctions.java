@@ -23,7 +23,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 
-/** Built-in Analytic Functions for the aggregation analytics functionality */
+/** Built-in Analytic Functions for the aggregation analytics functionality. */
 public class BeamBuiltinAnalyticFunctions {
   public static final Map<String, Function<Schema.FieldType, Combine.CombineFn<?, ?, ?>>>
       BUILTIN_ANALYTIC_FACTORIES =
