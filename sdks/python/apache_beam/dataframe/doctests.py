@@ -172,6 +172,10 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
       self.compute = self.compute_using_beam
     else:
       self.compute = self.compute_using_session
+    self._seen_wont_implement = False
+
+  def reset(self):
+    self._seen_wont_implement = False
 
   def compute_using_session(self, to_compute):
     session = expressions.Session(self._env._inputs)
@@ -217,6 +221,18 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
     return want, got
 
   def check_output(self, want, got, optionflags):
+    if got.startswith('apache_beam.dataframe.frame_base.WontImplementError'):
+      self._seen_wont_implement = True
+      return True
+    elif got.startswith('NameError') and self._seen_wont_implement:
+      # After raising WontImplementError, ignore NameErrors.
+      # This allows us to gracefully skip tests like
+      #    >>> res = df.unsupported_operation()
+      #    >>> check(res)
+      return True
+    else:
+      # Reset.
+      self._seen_wont_implement = False
     want, got = self.fix(want, got)
     return super(_DeferrredDataframeOutputChecker,
                  self).check_output(want, got, optionflags)
@@ -240,13 +256,15 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
   """A Doctest runner suitable for replacing the `pd` module with one backed
   by beam.
   """
-  def __init__(self, env, use_beam=True, **kwargs):
+  def __init__(self, env, use_beam=True, skip=dict(), **kwargs):
     self._test_env = env
+    self._skip = skip
     super(BeamDataframeDoctestRunner, self).__init__(
         checker=_DeferrredDataframeOutputChecker(self._test_env, use_beam),
         **kwargs)
 
   def run(self, test, **kwargs):
+    self._checker.reset()
     for example in test.examples:
       if example.exc_msg is None:
         # Don't fail doctests that raise this error.
