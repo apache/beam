@@ -36,6 +36,7 @@ import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
+import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -90,9 +91,9 @@ public class SparkStreamingPortablePipelineTranslator
         SparkStreamingPortablePipelineTranslator::translateGroupByKey);
     translatorMap.put(
         ExecutableStage.URN, SparkStreamingPortablePipelineTranslator::translateExecutableStage);
-    //    translatorMap.put(
-    //        PTransformTranslation.FLATTEN_TRANSFORM_URN,
-    //        SparkStreamingPortablePipelineTranslator::translateFlatten);
+    translatorMap.put(
+        PTransformTranslation.FLATTEN_TRANSFORM_URN,
+        SparkStreamingPortablePipelineTranslator::translateFlatten);
     //    translatorMap.put(
     //        PTransformTranslation.RESHUFFLE_URN,
     //        SparkStreamingPortablePipelineTranslator::translateReshuffle);
@@ -206,7 +207,7 @@ public class SparkStreamingPortablePipelineTranslator
     UnboundedDataset<InputT> inputDataset =
         (UnboundedDataset<InputT>) context.popDataset(inputPCollectionId);
     List<Integer> streamSources = inputDataset.getStreamSources();
-    JavaDStream<WindowedValue<InputT>> inputDstream = inputDataset.getDStream();
+    JavaDStream<WindowedValue<InputT>> inputDStream = inputDataset.getDStream();
     Map<String, String> outputs = transformNode.getTransform().getOutputsMap();
     BiMap<String, Integer> outputMap = createOutputMap(outputs.values());
 
@@ -217,7 +218,7 @@ public class SparkStreamingPortablePipelineTranslator
     // TODO: handle side inputs?
     ImmutableMap<
             String, Tuple2<Broadcast<List<byte[]>>, WindowedValue.WindowedValueCoder<SideInputT>>>
-        broadcastVariables = null; // this may cause problems for now.
+        broadcastVariables = null;
 
     SparkExecutableStageFunction<InputT, SideInputT> function =
         new SparkExecutableStageFunction<>(
@@ -228,13 +229,39 @@ public class SparkStreamingPortablePipelineTranslator
             broadcastVariables,
             MetricsAccumulator.getInstance(),
             windowCoder);
-    JavaDStream<RawUnionValue> staged = inputDstream.mapPartitions(function);
+    JavaDStream<RawUnionValue> staged = inputDStream.mapPartitions(function);
 
     for (String outputId : outputs.values()) {
       JavaDStream<WindowedValue<OutputT>> outStream =
           staged.flatMap(new SparkExecutableStageExtractionFunction<>(outputMap.get(outputId)));
       context.pushDataset(outputId, new UnboundedDataset<>(outStream, streamSources));
     }
+  }
+
+  private static <T> void translateFlatten(
+      PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkStreamingTranslationContext context) {
+    Map<String, String> inputsMap = transformNode.getTransform().getInputsMap();
+    final List<JavaDStream<WindowedValue<T>>> dStreams = new ArrayList<>();
+    final List<Integer> streamingSources = new ArrayList<>();
+    for (String inputId : inputsMap.values()) {
+      Dataset dataset = context.popDataset(inputId);
+      if (dataset instanceof UnboundedDataset) {
+        UnboundedDataset<T> unboundedDataset = (UnboundedDataset<T>) dataset;
+        streamingSources.addAll(unboundedDataset.getStreamSources());
+        dStreams.add(unboundedDataset.getDStream());
+      } else {
+        // create a single RDD stream.
+        Queue<JavaRDD<WindowedValue<T>>> q = new LinkedBlockingQueue<>();
+        q.offer(((BoundedDataset) dataset).getRDD());
+        // TODO: this is not recoverable from checkpoint!
+        JavaDStream<WindowedValue<T>> dStream = context.getStreamingContext().queueStream(q);
+        dStreams.add(dStream);
+      }
+    }
+    // Unify streams into a single stream.
+    JavaDStream<WindowedValue<T>> unifiedStreams =
+        SparkCompat.joinStreams(context.getStreamingContext(), dStreams);
+    context.pushDataset(getOutputId(transformNode), new UnboundedDataset<>(unifiedStreams, streamingSources));
   }
 
   private static String getInputId(PTransformNode transformNode) {
