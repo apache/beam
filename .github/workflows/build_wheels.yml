@@ -38,7 +38,6 @@ jobs:
 
   build_source:
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'apache'
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -108,7 +107,6 @@ jobs:
     name: Build wheels on ${{ matrix.os }}
     needs: build_source
     runs-on: ${{ matrix.os }}
-    if: github.repository_owner == 'apache'
     strategy:
       matrix:
         os : [ubuntu-latest, macos-latest]

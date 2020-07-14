@@ -21,7 +21,6 @@ jobs:
   cancel:
     name: 'Cancel Previous Runs'
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'apache'
     timeout-minutes: 3
     steps:
       - name: Get workflow id
