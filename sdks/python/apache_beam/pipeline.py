@@ -552,7 +552,8 @@ class Pipeline(object):
 
     try:
       if not exc_type:
-        self.run().wait_until_finish()
+        self.result = self.run()
+        self.result.wait_until_finish()
     finally:
       self._extra_context.__exit__(exc_type, exc_val, exc_tb)
 
