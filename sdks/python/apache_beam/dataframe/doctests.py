@@ -258,13 +258,29 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
   """
   def __init__(self, env, use_beam=True, skip=dict(), **kwargs):
     self._test_env = env
-    self._skip = skip
+
+    def to_callable(cond):
+      if cond == '*':
+        return lambda example: True
+      else:
+        return lambda example: example.source.strip() == cond
+
+    self._skip = {
+        test: [to_callable(cond) for cond in examples]
+        for test,
+        examples in skip.items()
+    }
     super(BeamDataframeDoctestRunner, self).__init__(
         checker=_DeferrredDataframeOutputChecker(self._test_env, use_beam),
         **kwargs)
 
   def run(self, test, **kwargs):
     self._checker.reset()
+    if test.name in self._skip:
+      for ix, example in enumerate(test.examples):
+        if any(should_skip(example) for should_skip in self._skip[test.name]):
+          example.source = 'pass'
+          example.want = ''
     for example in test.examples:
       if example.exc_msg is None:
         # Don't fail doctests that raise this error.
@@ -316,12 +332,13 @@ def _run_patched(func, *args, **kwargs):
 
     env = TestEnvironment()
     use_beam = kwargs.pop('use_beam', True)
+    skip = kwargs.pop('skip', {})
     extraglobs = dict(kwargs.pop('extraglobs', {}))
     extraglobs['pd'] = env.fake_pandas_module()
     # Unfortunately the runner is not injectable.
     original_doc_test_runner = doctest.DocTestRunner
     doctest.DocTestRunner = lambda **kwargs: BeamDataframeDoctestRunner(
-        env, use_beam=use_beam, **kwargs)
+        env, use_beam=use_beam, skip=skip, **kwargs)
     return func(*args, extraglobs=extraglobs, optionflags=optionflags, **kwargs)
   finally:
     doctest.DocTestRunner = original_doc_test_runner
