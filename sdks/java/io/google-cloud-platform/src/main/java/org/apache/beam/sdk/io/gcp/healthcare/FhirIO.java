@@ -1044,7 +1044,7 @@ public class FhirIO {
             FileSystems.matchResources(tempDestinations).stream()
                 .anyMatch((MatchResult r) -> r.status() != Status.OK);
         if (hasMissingFile) {
-          throw new IllegalStateException("Not all temporary files are" + "present for importing.");
+          throw new IllegalStateException("Not all temporary files are present for importing.");
         }
         ResourceId importUri = tempDir.resolve("*", StandardResolveOptions.RESOLVE_FILE);
         try {
