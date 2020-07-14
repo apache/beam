@@ -323,7 +323,7 @@ class RestrictionProvider(object):
   def truncate(self, element, restriction):
     """Truncates the provided restriction into a restriction representing a
     finite amount of work when the pipeline is
-    `draining <https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#> for additional details about drain.>_`.
+    `draining <https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#> for additional details about drain.>_`.  # pylint: disable=line-too-long
     By default, if the restriction is bounded then the restriction will be
     returned otherwise None will be returned.
 
