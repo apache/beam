@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -67,6 +68,7 @@ import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -99,6 +101,11 @@ public class SpannerIOWriteTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
   @Captor public transient ArgumentCaptor<Iterable<Mutation>> mutationBatchesCaptor;
   @Captor public transient ArgumentCaptor<Iterable<MutationGroup>> mutationGroupListCaptor;
+
+  @Captor
+  public transient ArgumentCaptor<KV<Iterable<MutationGroup>, Long>>
+      mutationGroupListWithCountCaptor;
+
   @Captor public transient ArgumentCaptor<MutationGroup> mutationGroupCaptor;
 
   private FakeServiceFactory serviceFactory;
@@ -748,7 +755,7 @@ public class SpannerIOWriteTest implements Serializable {
 
     // Capture the outputs.
     doNothing().when(mockProcessContext).output(mutationGroupCaptor.capture());
-    doNothing().when(mockProcessContext).output(any(), mutationGroupListCaptor.capture());
+    doNothing().when(mockProcessContext).output(any(), mutationGroupListWithCountCaptor.capture());
 
     // Process all elements.
     for (MutationGroup m : mutationGroups) {
@@ -761,17 +768,22 @@ public class SpannerIOWriteTest implements Serializable {
         mutationGroupCaptor.getAllValues(),
         containsInAnyOrder(g(m(1L)), g(m(2L), m(3L)), g(del(1L))));
 
+    List<KV<Iterable<MutationGroup>, Long>> unbatchables =
+        mutationGroupListWithCountCaptor.getAllValues();
+    assertEquals(5, unbatchables.size());
     // Verify captured unbatchable mutations
-    Iterable<MutationGroup> unbatchableMutations =
-        Iterables.concat(mutationGroupListCaptor.getAllValues());
     assertThat(
-        unbatchableMutations,
-        containsInAnyOrder(
-            g(m(2L), m(3L), m(4L), m(5L)), // not batchable - too big.
-            g(del(5L, 6L)), // not point delete.
-            g(all),
-            g(prefix),
-            g(range)));
+        unbatchables.get(0).getKey(),
+        contains(g(m(2L), m(3L), m(4L), m(5L)))); // not batchable - too big.
+    assertThat(unbatchables.get(0).getValue(), equalTo(32L));
+    assertThat(unbatchables.get(1).getKey(), contains(g(del(5L, 6L)))); // not point delete.
+    assertThat(unbatchables.get(1).getValue(), equalTo(16L));
+    assertThat(unbatchables.get(2).getKey(), contains(g(all)));
+    assertThat(unbatchables.get(2).getValue(), equalTo(0L));
+    assertThat(unbatchables.get(3).getKey(), contains(g(prefix)));
+    assertThat(unbatchables.get(3).getValue(), equalTo(16L));
+    assertThat(unbatchables.get(4).getKey(), contains(g(range)));
+    assertThat(unbatchables.get(4).getValue(), equalTo(8L));
   }
 
   @Test
@@ -802,7 +814,7 @@ public class SpannerIOWriteTest implements Serializable {
 
     // Capture the outputs.
     doNothing().when(mockProcessContext).output(mutationGroupCaptor.capture());
-    doNothing().when(mockProcessContext).output(any(), mutationGroupListCaptor.capture());
+    doNothing().when(mockProcessContext).output(any(), mutationGroupListWithCountCaptor.capture());
 
     // Process all elements.
     for (MutationGroup m : mutationGroups) {
@@ -816,16 +828,30 @@ public class SpannerIOWriteTest implements Serializable {
         containsInAnyOrder(g(m(1L)), g(m(2L), m(3L)), g(del(1L))));
 
     // Verify captured unbatchable mutations
-    Iterable<MutationGroup> unbatchableMutations =
-        Iterables.concat(mutationGroupListCaptor.getAllValues());
+    List<KV<Iterable<MutationGroup>, Long>> unbatchables =
+        mutationGroupListWithCountCaptor.getAllValues();
+    assertEquals(5, unbatchables.size());
+    // Verify captured unbatchable mutations
     assertThat(
-        unbatchableMutations,
-        containsInAnyOrder(
-            g(m(1L), m(3L), m(4L), m(5L)), // not batchable - too big.
-            g(del(5L, 6L)), // not point delete.
-            g(all),
-            g(prefix),
-            g(range)));
+        unbatchables.get(0).getKey(),
+        contains(g(m(1L), m(3L), m(4L), m(5L)))); // not batchable - too big.
+    assertThat(unbatchables.get(0).getValue(), equalTo(32L));
+    assertThat(unbatchables.get(1).getKey(), contains(g(del(5L, 6L)))); // not point delete.
+    assertThat(unbatchables.get(1).getValue(), equalTo(16L));
+    assertThat(unbatchables.get(2).getKey(), contains(g(all)));
+    assertThat(unbatchables.get(2).getValue(), equalTo(0L));
+    assertThat(unbatchables.get(3).getKey(), contains(g(prefix)));
+    assertThat(unbatchables.get(3).getValue(), equalTo(16L));
+    assertThat(unbatchables.get(4).getKey(), contains(g(range)));
+    assertThat(unbatchables.get(4).getValue(), equalTo(8L));
+    /*assertThat(
+    unbatchableMutations,
+    containsInAnyOrder(
+        g(m(1L), m(3L), m(4L), m(5L)), // not batchable - too big.
+        g(del(5L, 6L)), // not point delete.
+        g(all),
+        g(prefix),
+        g(range)));*/
   }
 
   @Test
@@ -855,7 +881,7 @@ public class SpannerIOWriteTest implements Serializable {
 
     // Capture the outputs.
     doNothing().when(mockProcessContext).output(mutationGroupCaptor.capture());
-    doNothing().when(mockProcessContext).output(any(), mutationGroupListCaptor.capture());
+    doNothing().when(mockProcessContext).output(any(), mutationGroupListWithCountCaptor.capture());
 
     // Process all elements.
     for (MutationGroup m : mutationGroups) {
@@ -869,16 +895,30 @@ public class SpannerIOWriteTest implements Serializable {
         containsInAnyOrder(g(m(1L)), g(m(2L), m(3L)), g(del(1L))));
 
     // Verify captured unbatchable mutations
-    Iterable<MutationGroup> unbatchableMutations =
-        Iterables.concat(mutationGroupListCaptor.getAllValues());
+    List<KV<Iterable<MutationGroup>, Long>> unbatchables =
+        mutationGroupListWithCountCaptor.getAllValues();
+    assertEquals(5, unbatchables.size());
+    // Verify captured unbatchable mutations
     assertThat(
-        unbatchableMutations,
-        containsInAnyOrder(
-            g(m(1L), m(3L), m(4L), m(5L)), // not batchable - too many rows.
-            g(del(5L, 6L)), // not point delete.
-            g(all),
-            g(prefix),
-            g(range)));
+        unbatchables.get(0).getKey(),
+        contains(g(m(1L), m(3L), m(4L), m(5L)))); // not batchable - too big.
+    assertThat(unbatchables.get(0).getValue(), equalTo(32L));
+    assertThat(unbatchables.get(1).getKey(), contains(g(del(5L, 6L)))); // not point delete.
+    assertThat(unbatchables.get(1).getValue(), equalTo(16L));
+    assertThat(unbatchables.get(2).getKey(), contains(g(all)));
+    assertThat(unbatchables.get(2).getValue(), equalTo(0L));
+    assertThat(unbatchables.get(3).getKey(), contains(g(prefix)));
+    assertThat(unbatchables.get(3).getValue(), equalTo(16L));
+    assertThat(unbatchables.get(4).getKey(), contains(g(range)));
+    assertThat(unbatchables.get(4).getValue(), equalTo(8L));
+    /*assertThat(
+    unbatchableMutations,
+    containsInAnyOrder(
+        g(m(1L), m(3L), m(4L), m(5L)), // not batchable - too many rows.
+        g(del(5L, 6L)), // not point delete.
+        g(all),
+        g(prefix),
+        g(range)));*/
   }
 
   @Test
@@ -893,7 +933,7 @@ public class SpannerIOWriteTest implements Serializable {
 
     // Capture the outputs.
     doNothing().when(mockProcessContext).output(mutationGroupCaptor.capture());
-    doNothing().when(mockProcessContext).output(any(), mutationGroupListCaptor.capture());
+    doNothing().when(mockProcessContext).output(any(), mutationGroupListWithCountCaptor.capture());
 
     // Process all elements.
     for (MutationGroup m : mutationGroups) {
@@ -905,9 +945,16 @@ public class SpannerIOWriteTest implements Serializable {
     assertTrue(mutationGroupCaptor.getAllValues().isEmpty());
 
     // Verify captured unbatchable mutations
-    Iterable<MutationGroup> unbatchableMutations =
-        Iterables.concat(mutationGroupListCaptor.getAllValues());
-    assertThat(unbatchableMutations, containsInAnyOrder(mutationGroups));
+    List<KV<Iterable<MutationGroup>, Long>> unbatchables =
+        mutationGroupListWithCountCaptor.getAllValues();
+    assertThat(unbatchables.get(0).getKey(), contains(g(m(1L))));
+    assertThat(unbatchables.get(0).getValue(), equalTo(8L));
+    assertThat(unbatchables.get(1).getKey(), contains(g(m(2L))));
+    assertThat(unbatchables.get(1).getValue(), equalTo(8L));
+    assertThat(unbatchables.get(2).getKey(), contains(g(del(1L))));
+    assertThat(unbatchables.get(2).getValue(), equalTo(8L));
+    assertThat(unbatchables.get(3).getKey(), contains(g(del(5L, 6L))));
+    assertThat(unbatchables.get(3).getValue(), equalTo(16L));
   }
 
   @Test
@@ -928,7 +975,7 @@ public class SpannerIOWriteTest implements Serializable {
     // Capture the outputs.
     doNothing()
         .when(mockFinishBundleContext)
-        .output(mutationGroupListCaptor.capture(), any(), any());
+        .output(mutationGroupListWithCountCaptor.capture(), any(), any());
 
     MutationGroup[] mutationGroups =
         new MutationGroup[] {
@@ -962,12 +1009,19 @@ public class SpannerIOWriteTest implements Serializable {
     verify(mockFinishBundleContext, times(3)).output(any(), any(), any());
 
     // Verify output are 3 batches of sorted values
+    List<KV<Iterable<MutationGroup>, Long>> mgListWithCountGroups =
+        mutationGroupListWithCountCaptor.getAllValues();
+    assertEquals(3, mgListWithCountGroups.size());
     assertThat(
-        mutationGroupListCaptor.getAllValues(),
-        contains(
-            Arrays.asList(g(m(1L)), g(m(2L)), g(m(3L)), g(m(4L)), g(m(5L))),
-            Arrays.asList(g(m(6L)), g(m(7L)), g(del(8L)), g(m(9L)), g(m(10L))),
-            Arrays.asList(g(m(11L)), g(m(12L)))));
+        mgListWithCountGroups.get(0).getKey(),
+        contains(g(m(1L)), g(m(2L)), g(m(3L)), g(m(4L)), g(m(5L))));
+    assertThat(mgListWithCountGroups.get(0).getValue(), equalTo(40L));
+    assertThat(
+        mgListWithCountGroups.get(1).getKey(),
+        contains(g(m(6L)), g(m(7L)), g(del(8L)), g(m(9L)), g(m(10L))));
+    assertThat(mgListWithCountGroups.get(1).getValue(), equalTo(40L));
+    assertThat(mgListWithCountGroups.get(2).getKey(), contains(g(m(11L)), g(m(12L))));
+    assertThat(mgListWithCountGroups.get(2).getValue(), equalTo(16L));
   }
 
   @Test
@@ -985,14 +1039,15 @@ public class SpannerIOWriteTest implements Serializable {
     ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
     FinishBundleContext mockFinishBundleContext = Mockito.mock(FinishBundleContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
-    OutputReceiver<Iterable<MutationGroup>> mockOutputReceiver = mock(OutputReceiver.class);
+    OutputReceiver<KV<Iterable<MutationGroup>, Long>> mockOutputReceiver =
+        mock(OutputReceiver.class);
 
     // Capture the outputs.
-    doNothing().when(mockOutputReceiver).output(mutationGroupListCaptor.capture());
+    doNothing().when(mockOutputReceiver).output(mutationGroupListWithCountCaptor.capture());
     // Capture the outputs.
     doNothing()
         .when(mockFinishBundleContext)
-        .output(mutationGroupListCaptor.capture(), any(), any());
+        .output(mutationGroupListWithCountCaptor.capture(), any(), any());
 
     MutationGroup[] mutationGroups =
         new MutationGroup[] {
@@ -1027,19 +1082,26 @@ public class SpannerIOWriteTest implements Serializable {
     // finsihBundleContext output should be called 3 times when the bundle was finished.
     verify(mockFinishBundleContext, times(3)).output(any(), any(), any());
 
-    List<Iterable<MutationGroup>> mgListGroups = mutationGroupListCaptor.getAllValues();
+    List<KV<Iterable<MutationGroup>, Long>> mgListGroups =
+        mutationGroupListWithCountCaptor.getAllValues();
 
     assertEquals(6, mgListGroups.size());
     // verify contents of 6 sorted groups.
     // first group should be 1,3,4,7,9,11
-    assertThat(mgListGroups.get(0), contains(g(m(1L)), g(m(4L))));
-    assertThat(mgListGroups.get(1), contains(g(m(7L)), g(m(9L))));
-    assertThat(mgListGroups.get(2), contains(g(m(10L)), g(m(11L))));
+    assertThat(mgListGroups.get(0).getKey(), contains(g(m(1L)), g(m(4L))));
+    assertThat(mgListGroups.get(0).getValue(), equalTo(16L));
+    assertThat(mgListGroups.get(1).getKey(), contains(g(m(7L)), g(m(9L))));
+    assertThat(mgListGroups.get(1).getValue(), equalTo(16L));
+    assertThat(mgListGroups.get(2).getKey(), contains(g(m(10L)), g(m(11L))));
+    assertThat(mgListGroups.get(2).getValue(), equalTo(16L));
 
     // second group at finishBundle should be 2,3,5,6,8
-    assertThat(mgListGroups.get(3), contains(g(m(2L)), g(m(3L))));
-    assertThat(mgListGroups.get(4), contains(g(m(5L)), g(m(6L))));
-    assertThat(mgListGroups.get(5), contains(g(del(8L))));
+    assertThat(mgListGroups.get(3).getKey(), contains(g(m(2L)), g(m(3L))));
+    assertThat(mgListGroups.get(3).getValue(), equalTo(16L));
+    assertThat(mgListGroups.get(4).getKey(), contains(g(m(5L)), g(m(6L))));
+    assertThat(mgListGroups.get(4).getValue(), equalTo(16L));
+    assertThat(mgListGroups.get(5).getKey(), contains(g(del(8L))));
+    assertThat(mgListGroups.get(5).getValue(), equalTo(8L));
   }
 
   @Test
@@ -1097,7 +1159,7 @@ public class SpannerIOWriteTest implements Serializable {
     // Capture the output at finish bundle..
     doNothing()
         .when(mockFinishBundleContext)
-        .output(mutationGroupListCaptor.capture(), any(), any());
+        .output(mutationGroupListWithCountCaptor.capture(), any(), any());
 
     List<MutationGroup> mutationGroups =
         Arrays.asList(
@@ -1118,14 +1180,21 @@ public class SpannerIOWriteTest implements Serializable {
 
     verify(mockFinishBundleContext, times(4)).output(any(), any(), any());
 
-    List<Iterable<MutationGroup>> batches = mutationGroupListCaptor.getAllValues();
+    List<KV<Iterable<MutationGroup>, Long>> batches =
+        mutationGroupListWithCountCaptor.getAllValues();
     assertEquals(4, batches.size());
 
     // verify contents of 4 batches.
-    assertThat(batches.get(0), contains(g(m(1L)), g(m(2L)), g(m(3L))));
-    assertThat(batches.get(1), contains(g(m(4L)))); // small batch : next mutation group is too big.
-    assertThat(batches.get(2), contains(g(m(5L), m(6L), m(7L), m(8L), m(9L))));
-    assertThat(batches.get(3), contains(g(m(10L)), g(m(11L))));
+    assertThat(batches.get(0).getKey(), contains(g(m(1L)), g(m(2L)), g(m(3L))));
+    assertThat(batches.get(0).getValue(), equalTo(24L));
+    assertThat(
+        batches.get(1).getKey(),
+        contains(g(m(4L)))); // small batch : next mutation group is too big.
+    assertThat(batches.get(1).getValue(), equalTo(8L));
+    assertThat(batches.get(2).getKey(), contains(g(m(5L), m(6L), m(7L), m(8L), m(9L))));
+    assertThat(batches.get(2).getValue(), equalTo(40L));
+    assertThat(batches.get(3).getKey(), contains(g(m(10L)), g(m(11L))));
+    assertThat(batches.get(3).getValue(), equalTo(16L));
   }
 
   @Test

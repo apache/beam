@@ -71,6 +71,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -1012,8 +1013,8 @@ public class SpannerIO {
     private final Write spec;
     private static final TupleTag<MutationGroup> BATCHABLE_MUTATIONS_TAG =
         new TupleTag<MutationGroup>("batchableMutations") {};
-    private static final TupleTag<Iterable<MutationGroup>> UNBATCHABLE_MUTATIONS_TAG =
-        new TupleTag<Iterable<MutationGroup>>("unbatchableMutations") {};
+    private static final TupleTag<KV<Iterable<MutationGroup>, Long>> UNBATCHABLE_MUTATIONS_TAG =
+        new TupleTag<KV<Iterable<MutationGroup>, Long>>("unbatchableMutations") {};
 
     private static final TupleTag<Void> MAIN_OUT_TAG = new TupleTag<Void>("mainOut") {};
     private static final TupleTag<MutationGroup> FAILED_MUTATIONS_TAG =
@@ -1033,16 +1034,22 @@ public class SpannerIO {
 
     @Override
     public SpannerWriteResult expand(PCollection<MutationGroup> input) {
-      PCollection<Iterable<MutationGroup>> batches;
+      PCollection<KV<Iterable<MutationGroup>, Long>> batches;
 
       if (spec.getBatchSizeBytes() <= 1
           || spec.getMaxNumMutations() <= 1
           || spec.getMaxNumRows() <= 1) {
         LOG.info("Batching of mutationGroups is disabled");
-        TypeDescriptor<Iterable<MutationGroup>> descriptor =
-            new TypeDescriptor<Iterable<MutationGroup>>() {};
+        TypeDescriptor<KV<Iterable<MutationGroup>, Long>> descriptor =
+            new TypeDescriptor<KV<Iterable<MutationGroup>, Long>>() {};
         batches =
-            input.apply(MapElements.into(descriptor).via(element -> ImmutableList.of(element)));
+            input.apply(
+                MapElements.into(descriptor)
+                    .via(
+                        element ->
+                            KV.of(
+                                ImmutableList.of(element),
+                                MutationSizeEstimator.sizeOf((MutationGroup) element))));
       } else {
 
         // First, read the Cloud Spanner schema.
@@ -1083,7 +1090,7 @@ public class SpannerIO {
 
         // Build a set of Mutation groups from the current bundle,
         // sort them by table/key then split into batches.
-        PCollection<Iterable<MutationGroup>> batchedMutations =
+        PCollection<KV<Iterable<MutationGroup>, Long>> batchedMutations =
             filteredMutations
                 .get(BATCHABLE_MUTATIONS_TAG)
                 .apply(
@@ -1163,7 +1170,8 @@ public class SpannerIO {
    * occur, Therefore this DoFn has to be tested in isolation.
    */
   @VisibleForTesting
-  static class GatherSortCreateBatchesFn extends DoFn<MutationGroup, Iterable<MutationGroup>> {
+  static class GatherSortCreateBatchesFn
+      extends DoFn<MutationGroup, KV<Iterable<MutationGroup>, Long>> {
 
     private final long maxBatchSizeBytes;
     private final long maxBatchNumMutations;
@@ -1215,8 +1223,8 @@ public class SpannerIO {
       sortAndOutputBatches(new OutputReceiverForFinishBundle(c));
     }
 
-    private synchronized void sortAndOutputBatches(OutputReceiver<Iterable<MutationGroup>> out)
-        throws IOException {
+    private synchronized void sortAndOutputBatches(
+        OutputReceiver<KV<Iterable<MutationGroup>, Long>> out) throws IOException {
       try {
         if (mutationsToSort.isEmpty()) {
           // nothing to output.
@@ -1225,7 +1233,11 @@ public class SpannerIO {
 
         if (maxSortableNumMutations == maxBatchNumMutations) {
           // no grouping is occurring, no need to sort and make batches, just output what we have.
-          outputBatch(out, 0, mutationsToSort.size());
+          long mutationGroupSize =
+              mutationsToSort.stream()
+                  .mapToLong(mgc -> MutationSizeEstimator.sizeOf(mgc.mutationGroup))
+                  .sum();
+          outputBatch(out, 0, mutationsToSort.size(), mutationGroupSize);
           return;
         }
 
@@ -1249,7 +1261,7 @@ public class SpannerIO {
               || ((batchSizeBytes + mg.sizeBytes) > maxBatchSizeBytes
                   || (batchRows + mg.numRows > maxBatchNumRows))) {
             // Cannot add new element, current batch is full; output.
-            outputBatch(out, batchStart, batchEnd);
+            outputBatch(out, batchStart, batchEnd, batchSizeBytes);
             batchStart = batchEnd;
             batchSizeBytes = 0;
             batchCells = 0;
@@ -1264,7 +1276,7 @@ public class SpannerIO {
 
         if (batchStart < batchEnd) {
           // output remaining elements
-          outputBatch(out, batchStart, mutationsToSort.size());
+          outputBatch(out, batchStart, mutationsToSort.size(), batchSizeBytes);
         }
       } finally {
         initSorter();
@@ -1272,16 +1284,21 @@ public class SpannerIO {
     }
 
     private void outputBatch(
-        OutputReceiver<Iterable<MutationGroup>> out, int batchStart, int batchEnd) {
+        OutputReceiver<KV<Iterable<MutationGroup>, Long>> out,
+        int batchStart,
+        int batchEnd,
+        Long batchSizeBytes) {
       out.output(
-          mutationsToSort.subList(batchStart, batchEnd).stream()
-              .map(o -> o.mutationGroup)
-              .collect(Collectors.toList()));
+          KV.of(
+              mutationsToSort.subList(batchStart, batchEnd).stream()
+                  .map(o -> o.mutationGroup)
+                  .collect(Collectors.toList()),
+              batchSizeBytes));
     }
 
     @ProcessElement
     public synchronized void processElement(
-        ProcessContext c, OutputReceiver<Iterable<MutationGroup>> out) throws Exception {
+        ProcessContext c, OutputReceiver<KV<Iterable<MutationGroup>, Long>> out) throws Exception {
       SpannerSchema spannerSchema = c.sideInput(schemaView);
       MutationKeyEncoder encoder = new MutationKeyEncoder(spannerSchema);
       MutationGroup mg = c.element();
@@ -1337,7 +1354,7 @@ public class SpannerIO {
     // TODO(BEAM-1287): Remove this when FinishBundle has added support for an {@link
     // OutputReceiver}
     private static class OutputReceiverForFinishBundle
-        implements OutputReceiver<Iterable<MutationGroup>> {
+        implements OutputReceiver<KV<Iterable<MutationGroup>, Long>> {
 
       private final FinishBundleContext c;
 
@@ -1346,12 +1363,12 @@ public class SpannerIO {
       }
 
       @Override
-      public void output(Iterable<MutationGroup> output) {
+      public void output(KV<Iterable<MutationGroup>, Long> output) {
         outputWithTimestamp(output, Instant.now());
       }
 
       @Override
-      public void outputWithTimestamp(Iterable<MutationGroup> output, Instant timestamp) {
+      public void outputWithTimestamp(KV<Iterable<MutationGroup>, Long> output, Instant timestamp) {
         c.output(output, timestamp, GlobalWindow.INSTANCE);
       }
     }
@@ -1368,7 +1385,7 @@ public class SpannerIO {
   static class BatchableMutationFilterFn extends DoFn<MutationGroup, MutationGroup> {
 
     private final PCollectionView<SpannerSchema> schemaView;
-    private final TupleTag<Iterable<MutationGroup>> unbatchableMutationsTag;
+    private final TupleTag<KV<Iterable<MutationGroup>, Long>> unbatchableMutationsTag;
     private final long batchSizeBytes;
     private final long maxNumMutations;
     private final long maxNumRows;
@@ -1379,7 +1396,7 @@ public class SpannerIO {
 
     BatchableMutationFilterFn(
         PCollectionView<SpannerSchema> schemaView,
-        TupleTag<Iterable<MutationGroup>> unbatchableMutationsTag,
+        TupleTag<KV<Iterable<MutationGroup>, Long>> unbatchableMutationsTag,
         long batchSizeBytes,
         long maxNumMutations,
         long maxNumRows) {
@@ -1395,7 +1412,8 @@ public class SpannerIO {
       MutationGroup mg = c.element();
       if (mg.primary().getOperation() == Op.DELETE && !isPointDelete(mg.primary())) {
         // Ranged deletes are not batchable.
-        c.output(unbatchableMutationsTag, Arrays.asList(mg));
+        c.output(
+            unbatchableMutationsTag, KV.of(Arrays.asList(mg), MutationSizeEstimator.sizeOf(mg)));
         unBatchableMutationGroupsCounter.inc();
         return;
       }
@@ -1406,7 +1424,7 @@ public class SpannerIO {
       long groupRows = Iterables.size(mg);
 
       if (groupSize >= batchSizeBytes || groupCells >= maxNumMutations || groupRows >= maxNumRows) {
-        c.output(unbatchableMutationsTag, Arrays.asList(mg));
+        c.output(unbatchableMutationsTag, KV.of(Arrays.asList(mg), groupSize));
         unBatchableMutationGroupsCounter.inc();
       } else {
         c.output(mg);
@@ -1416,7 +1434,7 @@ public class SpannerIO {
   }
 
   @VisibleForTesting
-  static class WriteToSpannerFn extends DoFn<Iterable<MutationGroup>, Void> {
+  static class WriteToSpannerFn extends DoFn<KV<Iterable<MutationGroup>, Long>, Void> {
 
     private final SpannerConfig spannerConfig;
     private final FailureMode failureMode;
@@ -1449,6 +1467,8 @@ public class SpannerIO {
 
     private final Counter spannerWriteSuccess =
         Metrics.counter(WriteGrouped.class, "spanner_write_success");
+    private final Counter spannerEstimatedMutationBytes =
+        Metrics.counter(WriteGrouped.class, "spanner_estimated_mutation_bytes");
     private final Counter spannerWriteFail =
         Metrics.counter(WriteGrouped.class, "spanner_write_fail");
     private final Distribution spannerWriteLatency =
@@ -1486,7 +1506,9 @@ public class SpannerIO {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      Iterable<MutationGroup> mutations = c.element();
+      KV<Iterable<MutationGroup>, Long> mutationSizePair = c.element();
+      Iterable<MutationGroup> mutations = mutationSizePair.getKey();
+      Long bytes = mutationSizePair.getValue();
 
       // Batch upsert rows.
       try {
@@ -1495,6 +1517,7 @@ public class SpannerIO {
         Iterable<Mutation> batch = Iterables.concat(mutations);
         writeMutations(batch);
         mutationGroupBatchesWriteSuccess.inc();
+        spannerEstimatedMutationBytes.inc(bytes);
         mutationGroupsWriteSuccess.inc(Iterables.size(mutations));
         return;
       } catch (SpannerException e) {
@@ -1515,6 +1538,7 @@ public class SpannerIO {
           spannerWriteRetries.inc();
           writeMutations(mg);
           mutationGroupsWriteSuccess.inc();
+          spannerEstimatedMutationBytes.inc(MutationSizeEstimator.sizeOf(mg));
         } catch (SpannerException e) {
           mutationGroupsWriteFail.inc();
           LOG.warn("Failed to write the mutation group: " + mg, e);
