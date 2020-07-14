@@ -81,6 +81,7 @@ licenseReport {
               project.rootProject.findProject(':sdks:java:harness'),
               project.rootProject.findProject(':sdks:java:io:kafka')]
   excludeOwnGroup = true
+  excludeGroups = ["beam.*"] // project dependencies do not match their maven coords
   configurations = ALL
   renderers = [new JsonReportRenderer()]
 }
