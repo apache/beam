@@ -685,7 +685,7 @@ class BundleContextManager(object):
       if (proto.spec.urn == bundle_processor.DATA_INPUT_URN and
           input_pcoll in proto.outputs.values()):
         return read_id
-      # The GrpcRead is follwoed by the SDF/Truncate -> SDF/Process.
+      # The GrpcRead is followed by the SDF/Truncate -> SDF/Process.
       if (proto.spec.urn ==
           common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn and
           input_pcoll in proto.outputs.values()):

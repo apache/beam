@@ -243,16 +243,16 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
   # Inherits all other tests from fn_api_runner_test.FnApiRunnerTest
 
   def test_sdf_default_truncate_when_bounded(self):
-    raise unittest.SkipTest("Portable runners don't support drain now")
+    raise unittest.SkipTest("Portable runners don't support drain yet.")
 
   def test_sdf_default_truncate_when_unbounded(self):
-    raise unittest.SkipTest("Portable runners don't support drain now")
+    raise unittest.SkipTest("Portable runners don't support drain yet.")
 
   def test_sdf_with_truncate(self):
-    raise unittest.SkipTest("Portable runners don't support drain now")
+    raise unittest.SkipTest("Portable runners don't support drain yet.")
 
   def test_draining_sdf_with_sdf_initiated_checkpointing(self):
-    raise unittest.SkipTest("Portable runners don't support drain now")
+    raise unittest.SkipTest("Portable runners don't support drain yet.")
 
 
 @unittest.skip("BEAM-7248")

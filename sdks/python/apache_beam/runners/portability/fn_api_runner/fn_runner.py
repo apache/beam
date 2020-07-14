@@ -92,7 +92,7 @@ class FnApiRunner(runner.PipelineRunner):
       use_state_iterables=False,
       provision_info=None,  # type: Optional[ExtendedProvisionInfo]
       progress_request_frequency=None,
-      is_drain = False):
+      is_drain=False):
     # type: (...) -> None
 
     """Creates a new Fn API Runner.
@@ -106,6 +106,7 @@ class FnApiRunner(runner.PipelineRunner):
       provision_info: provisioning info to make available to workers, or None
       progress_request_frequency: The frequency (in seconds) that the runner
           waits before requesting progress from the SDK.
+      is_drain: identify whether expand the sdf graph in the drain mode.
     """
     super(FnApiRunner, self).__init__()
     self._default_environment = (

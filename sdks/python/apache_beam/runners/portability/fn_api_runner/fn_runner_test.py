@@ -1450,7 +1450,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
         yield 0
         breakpoint.clear()
 
-      # Everything should be perfectly split.
+    # Everything should be perfectly split.
 
     elements = [2, 3]
     expected_groups = [[(2, 0)], [(2, 1)], [(3, 0)], [(3, 1)], [(3, 2)]]
@@ -1713,7 +1713,7 @@ class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
     return restriction.size()
 
 
-class SimpleUnboundedOffsetRangeRestrictionTracker(
+class UnboundedOffsetRestrictionTracker(
     restriction_trackers.OffsetRestrictionTracker):
   def is_bounded(self):
     return False
@@ -1729,7 +1729,7 @@ class OffsetRangeProvider(beam.transforms.core.RestrictionProvider):
   def create_tracker(self, restriction):
     if self.use_bounded_offset_range:
       return restriction_trackers.OffsetRestrictionTracker(restriction)
-    return SimpleUnboundedOffsetRangeRestrictionTracker(restriction)
+    return UnboundedOffsetRestrictionTracker(restriction)
 
   def split(self, element, restriction):
     return [restriction]

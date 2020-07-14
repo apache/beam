@@ -1244,15 +1244,19 @@ class RestrictionTracker(object):
     raise NotImplementedError
 
   def is_bounded(self):
-    """Identify whether the output produced by the current restriction is
-    bounded.
+    """Returns whether the amount of work represented by the current restriction
+    is bounded.
 
-    The value is important for the default behavior of truncate when the
-    pipeline starts to drain. If the current restriction is
-    bounded, it will be processed completely by default. If the restriction is
-    unbounded, it will be truncated into null and finish processing immediately.
+    The boundedness of the restriction is used to determine the default behavior
+    of how to truncate restrictions when a pipeline is being
+    `drained <https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#>`_.
+    If the restriction is bounded, then the entire restriction will be processed
+    otherwise the restriction will be processed till a checkpoint is possible.
 
     The API is required to be implemented.
+
+    Returns: ``True`` if the restriction represents a finite amount of work.
+    Otherwise, returns ``False``.
     """
     raise NotImplementedError
 

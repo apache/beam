@@ -321,13 +321,18 @@ class RestrictionProvider(object):
       yield part, self.restriction_size(element, part)
 
   def truncate(self, element, restriction):
-    """Truncate the given restriction into finite amount of work when the
-    pipeline starts to drain.
+    """Truncates the provided restriction into a restriction representing a
+    finite amount of work when the pipeline is
+    `draining <https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#> for additional details about drain.>_`.
+    By default, if the restriction is bounded then the restriction will be
+    returned otherwise None will be returned.
 
-    By default, if the restriction is bounded, it will return the entire
-    restriction. If the restriction is unbounded, it will not return anything.
+    This API is optional and should only be implemented if more granularity is
+    required.
 
-    It's recommended to implement this API if more granularity is required.
+    Return a truncated finite restriction if further processing is required
+    otherwise return None to represent that no further processing of this
+    restriction is required.
     """
     restriction_tracker = self.create_tracker(restriction)
     if restriction_tracker.is_bounded():
