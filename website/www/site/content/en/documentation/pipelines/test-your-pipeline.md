@@ -28,124 +28,20 @@ After you test your pipeline using the `DirectRunner`, you can use the runner of
 
 The Beam SDKs provide a number of ways to unit test your pipeline code, from the lowest to the highest levels. From the lowest to the highest level, these are:
 
-*   You can test the individual function objects, such as [DoFn](/documentation/programming-guide/#pardo)s, inside your pipeline's core transforms.
-*   You can test an entire [Composite Transform](/documentation/programming-guide/#composite-transforms) as a unit.
+*   You can test the individual functions used in your pipeline.
+*   You can test an entire [Transform](/documentation/programming-guide/#composite-transforms) as a unit.
 *   You can perform an end-to-end test for an entire pipeline.
 
 To support unit testing, the Beam SDK for Java provides a number of test classes in the [testing package](https://github.com/apache/beam/tree/master/sdks/java/core/src/test/java/org/apache/beam/sdk). You can use these tests as references and guides.
 
-## Testing Individual DoFn Objects
+## Testing Transforms
 
-The code in your pipeline's `DoFn` functions runs often, and often across multiple Compute Engine instances. Unit-testing your `DoFn` objects before running them using a runner service can save a great deal of debugging time and energy.
-
-The Beam SDK for Java provides a convenient way to test an individual `DoFn` called [DoFnTester](https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/DoFnTesterTest.java), which is included in the SDK `Transforms` package.
-
-`DoFnTester`uses the [JUnit](https://junit.org) framework. To use `DoFnTester`, you'll need to do the following:
-
-1.  Create a `DoFnTester`. You'll need to pass an instance of the `DoFn` you want to test to the static factory method for `DoFnTester`.
-2.  Create one or more main test inputs of the appropriate type for your `DoFn`. If your `DoFn` takes side inputs and/or produces [multiple outputs](/documentation/programming-guide#additional-outputs), you should also create the side inputs and the output tags.
-3.  Call `DoFnTester.processBundle` to process the main inputs.
-4.  Use JUnit's `Assert.assertThat` method to ensure the test outputs returned from `processBundle` match your expected values.
-
-### Creating a DoFnTester
-
-To create a `DoFnTester`, first create an instance of the `DoFn` you want to test. You then use that instance when you create a `DoFnTester` using the `.of()` static factory method:
-
-{{< highlight java >}}
-static class MyDoFn extends DoFn<String, Integer> { ... }
-  MyDoFn myDoFn = ...;
-
-  DoFnTester<String, Integer> fnTester = DoFnTester.of(myDoFn);
-{{< /highlight >}}
-
-### Creating Test Inputs
-
-You'll need to create one or more test inputs for `DoFnTester` to send to your `DoFn`. To create test inputs, simply create one or more input variables of the same input type that your `DoFn` accepts. In the case above:
-
-{{< highlight java >}}
-static class MyDoFn extends DoFn<String, Integer> { ... }
-MyDoFn myDoFn = ...;
-DoFnTester<String, Integer> fnTester = DoFnTester.of(myDoFn);
-
-String testInput = "test1";
-{{< /highlight >}}
-
-#### Side Inputs
-
-If your `DoFn` accepts side inputs, you can create those side inputs by using the method `DoFnTester.setSideInputs`.
-
-{{< highlight java >}}
-static class MyDoFn extends DoFn<String, Integer> { ... }
-MyDoFn myDoFn = ...;
-DoFnTester<String, Integer> fnTester = DoFnTester.of(myDoFn);
-
-PCollectionView<List<Integer>> sideInput = ...;
-Iterable<Integer> value = ...;
-fnTester.setSideInputInGlobalWindow(sideInput, value);
-{{< /highlight >}}
-
-See the `ParDo` documentation on [side inputs](/documentation/programming-guide/#side-inputs) for more information.
-
-#### Additional Outputs
-
-If your `DoFn` produces multiple output `PCollection`s, you'll need to set the
-appropriate `TupleTag` objects that you'll use to access each output. A `DoFn`
-with multiple outputs produces a `PCollectionTuple` for each output; you'll need
-to provide a `TupleTagList` that corresponds to each output in that tuple.
-
-Suppose your `DoFn` produces outputs of type `String` and `Integer`. You create
-`TupleTag` objects for each, and bundle them into a `TupleTagList`, then set it
-for the `DoFnTester` as follows:
-
-{{< highlight java >}}
-static class MyDoFn extends DoFn<String, Integer> { ... }
-MyDoFn myDoFn = ...;
-DoFnTester<String, Integer> fnTester = DoFnTester.of(myDoFn);
-
-TupleTag<String> tag1 = ...;
-TupleTag<Integer> tag2 = ...;
-TupleTagList tags = TupleTagList.of(tag1).and(tag2);
-
-fnTester.setOutputTags(tags);
-{{< /highlight >}}
-
-See the `ParDo` documentation on [additional outputs](/documentation/programming-guide/#additional-outputs) for more information.
-
-### Processing Test Inputs and Checking Results
-
-To process the inputs (and thus run the test on your `DoFn`), you call the method `DoFnTester.processBundle`. When you call `processBundle`, you pass one or more main test input values for your `DoFn`. If you set side inputs, the side inputs are available to each batch of main inputs that you provide.
-
-`DoFnTester.processBundle` returns a `List` of outputs—that is, objects of the same type as the `DoFn`'s specified output type. For a `DoFn<String, Integer>`, `processBundle` returns a `List<Integer>`:
-
-{{< highlight java >}}  
-static class MyDoFn extends DoFn<String, Integer> { ... }
-MyDoFn myDoFn = ...;
-DoFnTester<String, Integer> fnTester = DoFnTester.of(myDoFn);
-
-String testInput = "test1";
-List<Integer> testOutputs = fnTester.processBundle(testInput);
-{{< /highlight >}}
-
-To check the results of `processBundle`, you use JUnit's `Assert.assertThat` method to test if the `List` of outputs contains the values you expect:
-
-{{< highlight java >}}  
-String testInput = "test1";
-List<Integer> testOutputs = fnTester.processBundle(testInput);
-
-Assert.assertThat(testOutputs, Matchers.hasItems(...));
-
-// Process a larger batch in a single step.
-Assert.assertThat(fnTester.processBundle("input1", "input2", "input3"), Matchers.hasItems(...));
-{{< /highlight >}}
-
-## Testing Composite Transforms
-
-To test a composite transform you've created, you can use the following pattern:
+To test a transform you've created, you can use the following pattern:
 
 *   Create a `TestPipeline`.
 *   Create some static, known test input data.
 *   Use the `Create` transform to create a `PCollection` of your input data.
-*   `Apply` your composite transform to the input `PCollection` and save the resulting output `PCollection`.
+*   `Apply` your transform to the input `PCollection` and save the resulting output `PCollection`.
 *   Use `PAssert` and its subclasses to verify that the output `PCollection` contains the elements that you expect.
 
 ### TestPipeline
@@ -170,7 +66,7 @@ You can use the `Create` transform to create a `PCollection` out of a standard i
 
 For a given `PCollection`, you can use `PAssert` to verify the contents as follows:
 
-{{< highlight java >}}  
+{{< highlight java >}}
 PCollection<String> output = ...;
 
 // Check whether a PCollection contains some elements in any order.
@@ -198,7 +94,7 @@ For more information on how these classes work, see the [org.apache.beam.sdk.tes
 
 The following code shows a complete test for a composite transform. The test applies the `Count` transform to an input `PCollection` of `String` elements. The test uses the `Create` transform to create the input `PCollection` from a Java `List<String>`.
 
-{{< highlight java >}}  
+{{< highlight java >}}
 public class CountTest {
 
 // Our static input data, which will make up the initial PCollection.
