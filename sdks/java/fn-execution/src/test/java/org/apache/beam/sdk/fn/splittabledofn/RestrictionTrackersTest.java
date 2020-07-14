@@ -59,6 +59,11 @@ public class RestrictionTrackersTest {
           public void checkDone() throws IllegalStateException {
             throw new UnsupportedOperationException();
           }
+
+          @Override
+          public RestrictionBoundness isBounded() {
+            return RestrictionBoundness.IS_BOUNDED;
+          }
         };
 
     List<String> positionsObserved = new ArrayList<>();
