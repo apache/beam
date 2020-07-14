@@ -312,7 +312,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   /** Default implementation of {@link TruncateRestriction}, for delegation by bytebuddy. */
   public static class DefaultTruncateRestriction {
 
-    /** Return the current restriction if it's bounded.Otherwise, return null. */
+    /** Output the current restriction if it is bounded. Otherwise, return null. */
     @SuppressWarnings("unused")
     public static Optional<?> invokeTruncateRestriction(
         DoFnInvoker.ArgumentProvider argumentProvider) {
@@ -331,7 +331,6 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       this.restrictionType = restrictionType;
     }
 
-    /** Doesn't split the restriction. */
     @SuppressWarnings({"unused", "unchecked"})
     public <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder(CoderRegistry registry)
         throws CannotProvideCoderException {
