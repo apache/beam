@@ -117,8 +117,8 @@ public class SplittableParDoProcessFnTest {
     public void checkDone() {}
 
     @Override
-    public IsBounded isBounded() {
-      return IsBounded.IS_BOUNDED;
+    public RestrictionTracker.IsBounded isBounded() {
+      return RestrictionTracker.IsBounded.BOUNDED;
     }
   }
 
