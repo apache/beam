@@ -57,3 +57,5 @@ Output `PCollection` after `Filter`:
 
 * [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally) to combine elements.
 * [GroupByKey](/documentation/transforms/python/aggregation/groupbykey) takes one input collection.
+
+{{< button-pydoc path="apache_beam.transforms.util" class="CoGroupByKey" >}}
