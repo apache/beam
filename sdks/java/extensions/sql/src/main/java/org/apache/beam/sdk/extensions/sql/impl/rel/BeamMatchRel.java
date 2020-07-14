@@ -29,7 +29,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPPattern;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPUtil;
 import org.apache.beam.sdk.extensions.sql.impl.cep.OrderKey;
@@ -173,6 +172,8 @@ public class BeamMatchRel extends Match implements BeamRelNode {
           groupedUpstream.apply(ParDo.of(new SortPerKey(collectionSchema, orderKeys)));
 
       // apply the pattern match in each partition
+      // TODO: add support for quantifiers
+      //  (Pattern_Quantifier(String patternVar, int start, int end, boolean isReluctant)
       ArrayList<CEPPattern> cepPattern =
           CEPUtil.getCEPPatternFromPattern(collectionSchema, (RexCall) pattern, patternDefs);
       String regexPattern = CEPUtil.getRegexFromPattern((RexCall) pattern);
@@ -180,7 +181,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
           orderedUpstream.apply(ParDo.of(new MatchPattern(cepPattern, regexPattern)));
 
       // apply the ParDo for the measures clause
-      // for now, output the all rows of each pattern matched (for testing purpose)
+      // for now, output all rows of each pattern matched (for testing purpose)
       PCollection<Row> outStream =
           matchedUpstream.apply(ParDo.of(new Measure())).setRowSchema(collectionSchema);
 
@@ -221,7 +222,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
           for (int j = 0; j < pattern.size(); ++j) {
             CEPPattern tryPattern = pattern.get(j);
             if (tryPattern.evalRow(i)) {
-              patternOfRow = tryPattern.toString();
+              patternOfRow = tryPattern.getPatternVar();
             }
           }
           patternString.append(patternOfRow);
@@ -315,7 +316,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
             case BOOLEAN:
               return o1.getBoolean(fIndex).compareTo(o2.getBoolean(fIndex)) * inv;
             default:
-              throw new SqlConversionException("Order not supported for specified column");
+              throw new UnsupportedOperationException("Order not supported for specified column");
           }
         }
       }

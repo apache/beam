@@ -21,7 +21,6 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
@@ -34,11 +33,14 @@ public class CEPPattern implements Serializable {
   private final PatternCondition patternCondition;
   private final Quantifier quant;
 
-  private CEPPattern(Schema mySchema, String patternVar, @Nullable RexCall patternDef) {
+  private CEPPattern(Schema mySchema,
+                     String patternVar,
+                     @Nullable RexCall patternDef,
+                     Quantifier quant) {
 
     this.mySchema = mySchema;
     this.patternVar = patternVar;
-    this.quant = Quantifier.NONE;
+    this.quant = quant;
 
     if (patternDef == null) {
       this.patternCondition =
@@ -104,7 +106,7 @@ public class CEPPattern implements Serializable {
             };
         break;
       default:
-        throw new SqlConversionException("Comparison operator not recognized.");
+        throw new UnsupportedOperationException("Comparison operator not recognized.");
     }
   }
 
@@ -143,11 +145,11 @@ public class CEPPattern implements Serializable {
           case BOOLEAN:
             return rowEle.getBoolean(fIndex).compareTo(lit.getBoolean());
           default:
-            throw new SqlConversionException("specified column not comparable");
+            throw new UnsupportedOperationException("specified column not comparable");
         }
       }
     }
-    throw new SqlConversionException("backward functions (PREV, NEXT) not supported for now");
+    throw new UnsupportedOperationException("backward functions (PREV, NEXT) not supported for now");
   }
 
   public boolean evalRow(Row rowEle) {
@@ -159,7 +161,14 @@ public class CEPPattern implements Serializable {
     return patternVar + quant.toString();
   }
 
-  public static CEPPattern of(Schema theSchema, String patternVar, RexCall patternDef) {
-    return new CEPPattern(theSchema, patternVar, patternDef);
+  public String getPatternVar() {
+    return patternVar;
+  }
+
+  public static CEPPattern of(Schema theSchema,
+                              String patternVar,
+                              RexCall patternDef,
+                              Quantifier quant) {
+    return new CEPPattern(theSchema, patternVar, patternDef, quant);
   }
 }
