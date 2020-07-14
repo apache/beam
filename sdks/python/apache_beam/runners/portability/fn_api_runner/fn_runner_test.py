@@ -1342,7 +1342,7 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
 class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
   def create_pipeline(self, is_drain=False):
     return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(bundle_repeat=3), is_drain=is_drain)
+        runner=fn_api_runner.FnApiRunner(bundle_repeat=3, is_drain=is_drain))
 
   def test_register_finalizations(self):
     raise unittest.SkipTest("TODO: Avoid bundle finalizations on repeat.")
@@ -1365,6 +1365,9 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_sdf_initiated_checkpointing(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_draining_sdf_with_sdf_initiated_checkpointing(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_watermark_tracking(self):

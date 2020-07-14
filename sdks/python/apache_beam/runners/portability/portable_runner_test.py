@@ -251,6 +251,9 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
   def test_sdf_with_truncate(self):
     raise unittest.SkipTest("Portable runners don't support drain now")
 
+  def test_draining_sdf_with_sdf_initiated_checkpointing(self):
+    raise unittest.SkipTest("Portable runners don't support drain now")
+
 
 @unittest.skip("BEAM-7248")
 class PortableRunnerOptimized(PortableRunnerTest):
