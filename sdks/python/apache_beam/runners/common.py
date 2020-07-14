@@ -460,8 +460,8 @@ class DoFnInvoker(object):
 
   def invoke_process(self,
                      windowed_value,  # type: WindowedValue
-                     restriction_tracker=None,  # type: Optional[RestrictionTracker]
-                     watermark_estimator=None,  # type: Optional[WatermarkEstimator]
+                     restriction=None,
+                     watermark_estimator_state=None,
                      additional_args=None,
                      additional_kwargs=None
                     ):
@@ -473,6 +473,11 @@ class DoFnInvoker(object):
       windowed_value: a WindowedValue object that gives the element for which
                       process() method should be invoked along with the window
                       the element belongs to.
+      restriction: The restriction to use when executing this splittable DoFn.
+                   Should only be specified for splittable DoFns.
+      watermark_estimator_state: The watermark estimator state to use when
+                                 executing this splittable DoFn. Should only
+                                 be specified for splittable DoFns.
       additional_args: additional arguments to be passed to the current
                       `DoFn.process()` invocation, usually as side inputs.
       additional_kwargs: additional keyword arguments to be passed to the
@@ -544,8 +549,8 @@ class SimpleInvoker(DoFnInvoker):
 
   def invoke_process(self,
                      windowed_value,  # type: WindowedValue
-                     restriction_tracker=None,  # type: Optional[RestrictionTracker]
-                     watermark_estimator=None, # type: Optional[WatermarkEstimator]
+                     restriction=None,
+                     watermark_estimator_state=None,
                      additional_args=None,
                      additional_kwargs=None
                     ):
@@ -661,8 +666,8 @@ class PerWindowInvoker(DoFnInvoker):
 
   def invoke_process(self,
                      windowed_value,  # type: WindowedValue
-                     restriction_tracker=None, # type: Optional[RestrictionTracker]
-                     watermark_estimator=None, # type: Optional[WatermarkEstimator]
+                     restriction=None,
+                     watermark_estimator_state=None,
                      additional_args=None,
                      additional_kwargs=None
                     ):
@@ -677,11 +682,11 @@ class PerWindowInvoker(DoFnInvoker):
     # or if the process accesses the window parameter. We can just call it once
     # otherwise as none of the arguments are changing
 
-    if self.is_splittable and not restriction_tracker:
-      restriction = self.invoke_initial_restriction(windowed_value.value)
+    if self.is_splittable:
       restriction_tracker = self.invoke_create_tracker(restriction)
+      watermark_estimator = self.invoke_create_watermark_estimator(
+          watermark_estimator_state)
 
-    if restriction_tracker is not None:
       if len(windowed_value.windows) > 1 and self.has_windowed_inputs:
         # Should never get here due to window explosion in
         # the upstream pair-with-restriction.
@@ -691,8 +696,8 @@ class PerWindowInvoker(DoFnInvoker):
           self.signature.process_method.restriction_provider_arg_name)
       if not restriction_tracker_param:
         raise ValueError(
-            'A RestrictionTracker %r was provided but DoFn does not have a '
-            'RestrictionTrackerParam defined' % restriction_tracker)
+            'DoFn is splittable but DoFn does not have a '
+            'RestrictionTrackerParam defined')
       self.threadsafe_restriction_tracker = ThreadsafeRestrictionTracker(
           restriction_tracker)
       additional_kwargs[restriction_tracker_param] = (
@@ -966,13 +971,10 @@ class DoFnRunner:
   def process_with_sized_restriction(self, windowed_value):
     # type: (WindowedValue) -> Optional[SplitResultResidual]
     (element, (restriction, estimator_state)), _ = windowed_value.value
-    watermark_estimator = (
-        self.do_fn_invoker.invoke_create_watermark_estimator(estimator_state))
     return self.do_fn_invoker.invoke_process(
         windowed_value.with_value(element),
-        restriction_tracker=self.do_fn_invoker.invoke_create_tracker(
-            restriction),
-        watermark_estimator=watermark_estimator)
+        restriction=restriction,
+        watermark_estimator_state=estimator_state)
 
   def try_split(self, fraction):
     # type: (...) -> Optional[Tuple[SplitResultPrimary, SplitResultResidual]]

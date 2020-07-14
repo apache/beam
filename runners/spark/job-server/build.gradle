@@ -154,7 +154,7 @@ createCrossLanguageValidatesRunnerTask(
   startJobServer: setupTask,
   cleanupJobServer: cleanupTask,
   jobEndpoint: "localhost:${jobPort}",
-  testClasspathConfiguration: configurations.validatesPortableRunner,
+  classpath: configurations.validatesPortableRunner,
   numParallelTests: 1
 )
 

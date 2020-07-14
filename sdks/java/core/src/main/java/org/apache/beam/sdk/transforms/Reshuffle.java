@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import java.util.concurrent.ThreadLocalRandom;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -109,16 +110,33 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
   public static class ViaRandomKey<T> extends PTransform<PCollection<T>, PCollection<T>> {
     private ViaRandomKey() {}
 
+    private ViaRandomKey(@Nullable Integer numBuckets) {
+      this.numBuckets = numBuckets;
+    }
+
+    // The number of buckets to shard into. This is a performance optimization to prevent having
+    // unit sized bundles on the output. If unset, uses a random integer key.
+    private @Nullable Integer numBuckets;
+
+    public ViaRandomKey<T> withNumBuckets(@Nullable Integer numBuckets) {
+      return new ViaRandomKey<>(numBuckets);
+    }
+
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       return input
-          .apply("Pair with random key", ParDo.of(new AssignShardFn<>()))
+          .apply("Pair with random key", ParDo.of(new AssignShardFn<>(numBuckets)))
           .apply(Reshuffle.of())
           .apply(Values.create());
     }
 
     private static class AssignShardFn<T> extends DoFn<T, KV<Integer, T>> {
       private int shard;
+      private @Nullable Integer numBuckets;
+
+      private AssignShardFn(@Nullable Integer numBuckets) {
+        this.numBuckets = numBuckets;
+      }
 
       @Setup
       public void setup() {
@@ -137,6 +155,9 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
         // This hashing strategy is copied from
         // org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Hashing.smear().
         int hashOfShard = 0x1b873593 * Integer.rotateLeft(shard * 0xcc9e2d51, 15);
+        if (numBuckets != null) {
+          hashOfShard %= numBuckets;
+        }
         r.output(KV.of(hashOfShard, element));
       }
     }

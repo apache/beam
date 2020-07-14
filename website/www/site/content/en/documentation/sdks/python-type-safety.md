@@ -178,6 +178,7 @@ The following parameterized type hints are permitted:
 * `KV[T, U]`
 * `Dict[T, U]`
 * `Set[T]`
+* `FrozenSet[T]`
 * `Iterable[T]`
 * `Iterator[T]`
 * `Generator[T]`
