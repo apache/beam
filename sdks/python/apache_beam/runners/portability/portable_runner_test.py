@@ -197,7 +197,7 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
         'data_buffer_time_limit_ms=1000')
     return options
 
-  def create_pipeline(self):
+  def create_pipeline(self, unused_is_drain=False):
     return beam.Pipeline(self.get_runner(), self.create_options())
 
   def test_pardo_state_with_custom_key_coder(self):
