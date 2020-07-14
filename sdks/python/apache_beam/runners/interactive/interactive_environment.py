@@ -329,6 +329,7 @@ class InteractiveEnvironment(object):
     """Evicts the cache manager held by current Interactive Environment for the
     given pipeline. Noop if the pipeline is absent from the environment. If no
     pipeline is specified, evicts for all pipelines."""
+    self.cleanup(pipeline)
     if pipeline:
       return self._cache_managers.pop(str(id(pipeline)), None)
     self._cache_managers.clear()

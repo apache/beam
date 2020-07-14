@@ -233,6 +233,19 @@ class InteractiveEnvironmentTest(unittest.TestCase):
         ie.current_env().get_cache_manager(
             dummy_pipeline, create_if_absent=True))
 
+  @patch(
+      'apache_beam.runners.interactive.interactive_environment'
+      '.InteractiveEnvironment.cleanup')
+  def test_cleanup_invoked_when_cache_manager_is_evicted(self, mocked_cleanup):
+    ie._interactive_beam_env = None
+    ie.new_env()
+    dummy_pipeline = 'dummy'
+    ie.current_env().set_cache_manager(
+        cache.FileBasedCacheManager(), dummy_pipeline)
+    mocked_cleanup.assert_not_called()
+    ie.current_env().evict_cache_manager(dummy_pipeline)
+    mocked_cleanup.assert_called_once()
+
 
 if __name__ == '__main__':
   unittest.main()
