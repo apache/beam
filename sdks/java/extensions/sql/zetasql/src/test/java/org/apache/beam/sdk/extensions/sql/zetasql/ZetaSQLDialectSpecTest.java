@@ -5067,6 +5067,23 @@ public class ZetaSQLDialectSpecTest extends ZetaSQLTestBase {
   }
 
   @Test
+  public void testZetaSQLStddev() {
+    String sql = "SELECT STDDEV(row_id) FROM table_all_types GROUP BY bool_col";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addDoubleField("field1").build();
+    PAssert.that(stream)
+            .containsInAnyOrder(
+                    Row.withSchema(schema).addValues(1.4142135623730951).build(),
+                    Row.withSchema(schema).addValue(1.5275252315428378).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   @Ignore("NULL values don't work correctly. (https://issues.apache.org/jira/browse/BEAM-10379)")
   public void testZetaSQLBitAnd() {
     String sql = "SELECT BIT_AND(row_id) FROM table_all_types GROUP BY bool_col";

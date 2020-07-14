@@ -251,6 +251,7 @@ public class SqlStdOperatorMappingTable {
           .put("bit_or", SqlStdOperatorTable.BIT_OR)
           .put("stddev_pop", SqlStdOperatorTable.STDDEV_POP)
           .put("stddev_samp", SqlStdOperatorTable.STDDEV_SAMP)
+          .put("stddev", SqlStdOperatorTable.STDDEV)
           // built-in statistical aggregate function
           // .put("covar_pop", SqlStdOperatorTable.COVAR_POP)
           // .put("covar_samp", SqlStdOperatorTable.COVAR_SAMP)

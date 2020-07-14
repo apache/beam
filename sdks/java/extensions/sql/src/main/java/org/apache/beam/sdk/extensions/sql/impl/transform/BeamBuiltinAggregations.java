@@ -64,6 +64,7 @@ public class BeamBuiltinAggregations {
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
               .put("STDDEV_POP", t -> StandardDeviationFn.newPopulation(t.getTypeName()))
               .put("STDDEV_SAMP", t -> StandardDeviationFn.newSample(t.getTypeName()))
+              .put("STDDEV", t -> StandardDeviationFn.newSample(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
               .put("COVAR_POP", t -> CovarianceFn.newPopulation(t.getTypeName()))
               .put("COVAR_SAMP", t -> CovarianceFn.newSample(t.getTypeName()))
