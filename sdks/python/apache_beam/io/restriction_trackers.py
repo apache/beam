@@ -30,7 +30,11 @@ from apache_beam.io.range_trackers import OffsetRangeTracker
 
 
 class OffsetRange(object):
-  def __init__(self, start, stop):
+  def __init__(
+      self,
+      start,  # type: int
+      stop,  # type: int
+  ):
     if start > stop:
       raise ValueError(
           'Start offset must be not be larger than the stop offset. '
@@ -50,6 +54,9 @@ class OffsetRange(object):
 
   def __hash__(self):
     return hash((type(self), self.start, self.stop))
+
+  def __repr__(self):
+    return 'OffsetRange(%s, %s)' % (self.start, self.stop)
 
   def split(self, desired_num_offsets_per_split, min_num_offsets_per_split=1):
     current_split_start = self.start
@@ -89,10 +96,10 @@ class OffsetRestrictionTracker(RestrictionTracker):
     self._range = offset_range
     self._current_position = None
     self._last_claim_attempt = None
-    self._checkpointed = False
 
   def check_done(self):
-    if self._last_claim_attempt < self._range.stop - 1:
+    if (self._range.start != self._range.stop and
+        self._last_claim_attempt < self._range.stop - 1):
       raise ValueError(
           'OffsetRestrictionTracker is not done since work in range [%s, %s) '
           'has not been claimed.' % (
@@ -105,16 +112,18 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
   def current_progress(self):
     # type: () -> RestrictionProgress
-    if self._current_position is None:
-      fraction = 0.0
-    elif self._range.stop == self._range.start:
-      # If self._current_position is not None, we must be done.
-      fraction = 1.0
+    if self._range.stop == self._range.start:
+      return RestrictionProgress(fraction=1.0)
+    if self._last_claim_attempt is None:
+      return RestrictionProgress(
+          completed=0.0, remaining=float(self._range.stop - self._range.start))
     else:
-      fraction = (
-          float(self._current_position - self._range.start) /
-          (self._range.stop - self._range.start))
-    return RestrictionProgress(fraction=fraction)
+      total_work = self._range.stop - self._range.start
+      completed_work = min(
+          total_work, self._range.stop - self._last_claim_attempt)
+      remaining_work = total_work - completed_work
+      return RestrictionProgress(
+          completed=float(completed_work), remaining=float(remaining_work))
 
   def start_position(self):
     return self._range.start
@@ -129,30 +138,25 @@ class OffsetRestrictionTracker(RestrictionTracker):
           'Positions claimed should strictly increase. Trying to claim '
           'position %d while last claim attempt was %d.' %
           (position, self._last_claim_attempt))
-
-    self._last_claim_attempt = position
     if position < self._range.start:
       raise ValueError(
           'Position to be claimed cannot be smaller than the start position '
           'of the range. Tried to claim position %r for the range [%r, %r)' %
           (position, self._range.start, self._range.stop))
-
-    if self._range.start <= position < self._range.stop:
+    self._last_claim_attempt = position
+    if position < self._range.stop:
       self._current_position = position
       return True
 
     return False
 
   def try_split(self, fraction_of_remainder):
-    if not self._checkpointed:
-      if self._current_position is None:
-        cur = self._range.start - 1
-      else:
-        cur = self._current_position
-      split_point = (
-          cur + int(max(1, (self._range.stop - cur) * fraction_of_remainder)))
-      if split_point < self._range.stop:
-        if fraction_of_remainder == 0:
-          self._checkpointed = True
-        self._range, residual_range = self._range.split_at(split_point)
-        return self._range, residual_range
+    cur_position = (
+        self._last_claim_attempt
+        if self._last_claim_attempt is not None else self._range.start - 1)
+    split_position = cur_position + max(
+        1, int((self._range.stop - cur_position) * fraction_of_remainder))
+    if split_position >= self._range.stop:
+      return None
+    self._range, residual_range = self._range.split_at(split_position)
+    return self._range, residual_range

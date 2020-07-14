@@ -1301,17 +1301,21 @@ class RestrictionProgress(object):
   @property
   def completed_work(self):
     # type: () -> float
-    if self._completed:
+    if self._completed is not None:
       return self._completed
-    elif self._remaining and self._fraction:
+    elif self._fraction == 0:
+      return 0.0
+    elif self._remaining is not None and self._fraction is not None:
       return self._remaining * self._fraction / (1 - self._fraction)
 
   @property
   def remaining_work(self):
     # type: () -> float
-    if self._remaining:
+    if self._remaining is not None:
       return self._remaining
-    elif self._completed:
+    elif self._fraction == 1:
+      return 0.0
+    elif self._completed is not None and self._fraction is not None:
       return self._completed * (1 - self._fraction) / self._fraction
 
   @property
@@ -1324,7 +1328,9 @@ class RestrictionProgress(object):
     # type: () -> float
     if self._fraction is not None:
       return self._fraction
-    else:
+    elif self.total_work == 0:
+      return 1.0
+    elif self._completed is not None and self.total_work is not None:
       return float(self._completed) / self.total_work
 
   @property
@@ -1332,7 +1338,9 @@ class RestrictionProgress(object):
     # type: () -> float
     if self._fraction is not None:
       return 1 - self._fraction
-    else:
+    elif self.total_work == 0:
+      return 1.0
+    elif self._remaining is not None and self.total_work is not None:
       return float(self._remaining) / self.total_work
 
   def with_completed(self, completed):

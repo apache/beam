@@ -117,9 +117,10 @@ class OffsetRestrictionTrackerTest(unittest.TestCase):
     self.assertTrue(tracker.try_claim(160))
     self.assertFalse(tracker.try_claim(240))
 
-    _, checkpoint = tracker.try_split(0)
-    self.assertTrue(OffsetRange(100, 161), tracker.current_restriction())
-    self.assertTrue(OffsetRange(161, 200), checkpoint)
+    # Checkpointing is allowed to return None if the restriction is done.
+    tracker.check_done()
+    self.assertIsNone(tracker.try_split(0))
+    self.assertTrue(OffsetRange(100, 200), tracker.current_restriction())
 
   def test_non_monotonic_claim(self):
     with self.assertRaises(ValueError):
