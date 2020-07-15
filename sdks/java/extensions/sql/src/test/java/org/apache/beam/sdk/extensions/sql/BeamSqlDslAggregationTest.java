@@ -388,6 +388,42 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     pipeline.run().waitUntilFinish();
   }
 
+
+  @Test
+  public void testVarianceFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+            Schema.builder().addDoubleField("f_double").addInt32Field("f_int2").build();
+
+    List<Row> rowsInTableA =
+            TestUtils.RowsBuilder.of(schemaInTableA)
+                    .addRows(
+                            1.0, 0,
+                            3.0, 0,
+                            10.2, 0)
+                    .getRows();
+
+    String sql = "SELECT variance(f_double) as variances " + "FROM PCOLLECTION GROUP BY f_int2";
+
+    PCollection<Row> inputRows =
+            pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result)
+            .satisfies(
+                    input -> {
+                      Row row = Iterables.getOnlyElement(input);
+                      assertNotNull(row);
+                      assertEquals(23.41333333333333, row.getDouble(0), 1e-7);
+                      return null;
+                    });
+
+    pipeline.run().waitUntilFinish();
+  }
+
+
+
   /**
    * NULL values don't work correctly. (https://issues.apache.org/jira/browse/BEAM-10379)
    *

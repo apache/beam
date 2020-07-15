@@ -62,6 +62,7 @@ public class BeamBuiltinAggregations {
               // .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
+              .put("VARIANCE", t -> VarianceFn.newSample(t.getTypeName()))
               .put("COVAR_POP", t -> CovarianceFn.newPopulation(t.getTypeName()))
               .put("COVAR_SAMP", t -> CovarianceFn.newSample(t.getTypeName()))
               .build();

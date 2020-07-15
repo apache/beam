@@ -676,6 +676,7 @@ public class SqlStdOperatorMappingTable {
           .put("bit_or", SqlStdOperatorTable.BIT_OR)
           .put("var_pop", SqlStdOperatorTable.VAR_POP)
           .put("var_samp", SqlStdOperatorTable.VAR_SAMP)
+          .put("variance", SqlStdOperatorTable.VAR_SAMP)
           .put("ceil", SqlStdOperatorTable.CEIL)
           .put("floor", SqlStdOperatorTable.FLOOR)
           .put("mod", SqlStdOperatorTable.MOD)
