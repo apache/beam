@@ -256,7 +256,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
   """A Doctest runner suitable for replacing the `pd` module with one backed
   by beam.
   """
-  def __init__(self, env, use_beam=True, skip=dict(), **kwargs):
+  def __init__(self, env, use_beam=True, skip=None, **kwargs):
     self._test_env = env
 
     def to_callable(cond):
@@ -268,7 +268,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
     self._skip = {
         test: [to_callable(cond) for cond in examples]
         for test,
-        examples in skip.items()
+        examples in (skip or {}).items()
     }
     super(BeamDataframeDoctestRunner, self).__init__(
         checker=_DeferrredDataframeOutputChecker(self._test_env, use_beam),
@@ -277,7 +277,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
   def run(self, test, **kwargs):
     self._checker.reset()
     if test.name in self._skip:
-      for ix, example in enumerate(test.examples):
+      for example in test.examples:
         if any(should_skip(example) for should_skip in self._skip[test.name]):
           example.source = 'pass'
           example.want = ''
