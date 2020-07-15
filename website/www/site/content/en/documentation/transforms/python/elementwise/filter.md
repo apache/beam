@@ -41,7 +41,7 @@ We define a function `is_perennial` which returns `True` if the element's durati
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Filter`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -61,7 +61,7 @@ We can also use lambda functions to simplify **Example 1**.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Filter`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -84,7 +84,7 @@ In this example, `has_duration` takes `plant` and `duration` as arguments.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Filter`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -108,7 +108,7 @@ We then use that value to filter out perennials.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Filter`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -130,7 +130,7 @@ so it is possible to iterate over large `PCollection`s that won't fit into memor
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Filter`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -156,7 +156,7 @@ If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Filter`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
