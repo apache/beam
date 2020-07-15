@@ -67,7 +67,7 @@ dependencies {
 //
 // ./gradlew :buildSrc:spotlessApply -PdisableSpotlessCheck=true
 def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
-        project.disableSpotlessCheck == 'true'
+    project.disableSpotlessCheck == 'true'
 
 spotless {
   enforceCheck !disableSpotlessCheck

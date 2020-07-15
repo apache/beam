@@ -30,5 +30,5 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^examples/kotlin/.*$',
       '^.test-infra/jenkins/.*$',
     ]
-)
+    )
 builder.build()
