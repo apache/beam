@@ -87,6 +87,7 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
           .put("$extract_time", "TIME")
           .put("$extract_datetime", "DATETIME")
           .build();
+  public static final String NUMERIC_LITERAL_FUNCTION = "numeric_literal";
 
   public BeamBigQuerySqlDialect(Context context) {
     super(context);
@@ -156,7 +157,11 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
         break;
       case OTHER_FUNCTION:
         String funName = call.getOperator().getName();
-        if (FUNCTIONS_USING_INTERVAL.contains(funName)) {
+        if (NUMERIC_LITERAL_FUNCTION.equals(funName)) {
+          // self-designed function dealing with the unparsing of ZetaSQL numeric literal
+          unparseNumericLiteralWrapperFunction(writer, call, leftPrec, rightPrec);
+          break;
+        } else if (FUNCTIONS_USING_INTERVAL.contains(funName)) {
           unparseFunctionsUsingInterval(writer, call, leftPrec, rightPrec);
           break;
         } else if (EXTRACT_FUNCTIONS.containsKey(funName)) {
@@ -232,6 +237,13 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
       call.operand(1).unparse(writer, leftPrec, rightPrec);
     }
     writer.endFunCall(trimFrame);
+  }
+
+  private void unparseNumericLiteralWrapperFunction(
+      SqlWriter writer, SqlCall call, int leftPrec, int rightPrec) {
+    writer.literal("NUMERIC '");
+    call.operand(0).unparse(writer, leftPrec, rightPrec);
+    writer.literal("'");
   }
 
   /**
