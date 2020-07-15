@@ -89,6 +89,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SortedSetMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeBasedTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultimap;
+import org.checkerframework.checker.nullness.qual.KeyFor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -198,7 +200,7 @@ public class PipelineOptionsFactory {
 
     // Do not allow direct instantiation
     private Builder() {
-      this(null, false, true, false);
+      this(new String[0], false, true, false);
     }
 
     private Builder(String[] args, boolean validation, boolean strictParsing, boolean isCli) {
@@ -603,16 +605,22 @@ public class PipelineOptionsFactory {
           getRequiredGroupNamesToProperties(propertyNamesToGetters);
 
       out.format("%s:%n", currentIface.getName());
-      prettyPrintDescription(out, currentIface.getAnnotation(Description.class));
+      Description ifaceDescription = currentIface.getAnnotation(Description.class);
+      if (ifaceDescription != null && ifaceDescription.value() != null) {
+        prettyPrintDescription(out, ifaceDescription);
+      }
 
       out.println();
 
-      List<String> lists = Lists.newArrayList(propertyNamesToGetters.keySet());
+      List<@KeyFor("propertyNamesToGetters") String> lists =
+          Lists.newArrayList(propertyNamesToGetters.keySet());
       lists.sort(String.CASE_INSENSITIVE_ORDER);
       for (String propertyName : lists) {
         Method method = propertyNamesToGetters.get(propertyName);
         String printableType = method.getReturnType().getSimpleName();
         if (method.getReturnType().isEnum()) {
+          @Nullable Object[] enumConstants = method.getReturnType().getEnumConstants();
+          assert enumConstants != null : "@AssumeAssertion(nullness): checked that it is an enum";
           printableType = Joiner.on(" | ").join(method.getReturnType().getEnumConstants());
         }
         out.format("  --%s=<%s>%n", propertyName, printableType);
@@ -620,7 +628,10 @@ public class PipelineOptionsFactory {
         if (defaultValue.isPresent()) {
           out.format("    Default: %s%n", defaultValue.get());
         }
-        prettyPrintDescription(out, method.getAnnotation(Description.class));
+        @Nullable Description methodDescription = method.getAnnotation(Description.class);
+        if (methodDescription != null && methodDescription.value() != null) {
+          prettyPrintDescription(out, methodDescription);
+        }
         prettyPrintRequiredGroups(
             out, method.getAnnotation(Validation.Required.class), requiredGroupNameToProperties);
       }
@@ -669,7 +680,8 @@ public class PipelineOptionsFactory {
         Class<?> currentIface = ifaceToPropertyMap.getKey();
         Map<String, Method> propertyNamesToGetters = ifaceToPropertyMap.getValue();
 
-        List<String> lists = Lists.newArrayList(propertyNamesToGetters.keySet());
+        List<@KeyFor("propertyNamesToGetters") String> lists =
+            Lists.newArrayList(propertyNamesToGetters.keySet());
         lists.sort(String.CASE_INSENSITIVE_ORDER);
         for (String propertyName : lists) {
           Method method = propertyNamesToGetters.get(propertyName);
@@ -737,10 +749,6 @@ public class PipelineOptionsFactory {
    * attempting to honor a line limit of {@code TERMINAL_WIDTH}.
    */
   private static void prettyPrintDescription(PrintStream out, Description description) {
-    if (description == null || description.value() == null) {
-      return;
-    }
-
     String[] words = description.value().split("\\s+");
     terminalPrettyPrint(out, words);
   }
