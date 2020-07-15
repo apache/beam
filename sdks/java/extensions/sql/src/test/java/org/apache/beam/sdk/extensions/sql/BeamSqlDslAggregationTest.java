@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimest
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Iterables;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Before;
@@ -316,6 +318,39 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
 
     PAssert.that(result).containsInAnyOrder(rowResult);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testVarPopFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+        Schema.builder().addDoubleField("f_double").addInt32Field("f_int2").build();
+
+    List<Row> rowsInTableA =
+        TestUtils.RowsBuilder.of(schemaInTableA)
+            .addRows(
+                1.0, 0,
+                3.0, 0,
+                10.2, 0)
+            .getRows();
+
+    String sql = "SELECT var_pop(f_double) as varpop " + "FROM PCOLLECTION GROUP BY f_int2";
+
+    PCollection<Row> inputRows =
+        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result)
+        .satisfies(
+            input -> {
+              Row row = Iterables.getOnlyElement(input);
+              assertNotNull(row);
+              assertEquals(15.60888889, row.getDouble(0), 1e-7);
+              return null;
+            });
 
     pipeline.run().waitUntilFinish();
   }

@@ -394,7 +394,8 @@ public class SqlStdOperatorMappingTable {
           // FunctionSignatureId.FN_SUM_BIGNUMERIC, // sum
           // JIRA link: https://issues.apache.org/jira/browse/BEAM-10379
           // FunctionSignatureId.FN_BIT_AND_INT64, // bit_and
-          FunctionSignatureId.FN_BIT_OR_INT64 // bit_or
+          FunctionSignatureId.FN_BIT_OR_INT64, // bit_or
+          FunctionSignatureId.FN_VAR_POP
           // FunctionSignatureId.FN_BIT_XOR_INT64, // bit_xor
           // FunctionSignatureId.FN_LOGICAL_AND, // logical_and
           // FunctionSignatureId.FN_LOGICAL_OR, // logical_or
@@ -674,6 +675,7 @@ public class SqlStdOperatorMappingTable {
           // https://issues.apache.org/jira/browse/BEAM-10379
           .put("string_agg", SqlOperators.STRING_AGG_STRING_FN) // NULL values not supported
           .put("bit_or", SqlStdOperatorTable.BIT_OR)
+          .put("var_pop", SqlStdOperatorTable.VAR_POP)
           .put("ceil", SqlStdOperatorTable.CEIL)
           .put("floor", SqlStdOperatorTable.FLOOR)
           .put("mod", SqlStdOperatorTable.MOD)

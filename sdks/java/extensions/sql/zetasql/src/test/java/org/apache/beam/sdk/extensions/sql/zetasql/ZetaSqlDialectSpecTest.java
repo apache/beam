@@ -4051,6 +4051,23 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testZetaSQLVarPop() {
+    String sql = "SELECT VAR_POP(row_id) FROM table_all_types GROUP BY bool_col";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addDoubleField("field1").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(1.0).build(),
+            Row.withSchema(schema).addValue(1.555555556).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   @Ignore("NULL values don't work correctly. (https://issues.apache.org/jira/browse/BEAM-10379)")
   public void testZetaSQLBitAnd() {
     String sql = "SELECT BIT_AND(row_id) FROM table_all_types GROUP BY bool_col";
