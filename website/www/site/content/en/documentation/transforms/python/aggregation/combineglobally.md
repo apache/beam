@@ -30,11 +30,11 @@ See more information in the [Beam Programming Guide](/documentation/programming-
 In the following examples, we create a pipeline with a `PCollection` of produce.
 Then, we apply `CombineGlobally` in multiple ways to combine all the elements in the `PCollection`.
 
-`CombineGlobally` accepts a function that takes a list of elements as an input, and combines them to return a single element.
+`CombineGlobally` accepts a function that takes an `iterable` of elements as an input, and combines them to return a single element.
 
 ### Example 1: Combining with a function
 
-We define a function `get_common_items` which takes a list of sets as an input, and calculates the intersection (common items) of those sets.
+We define a function `get_common_items` which takes an `iterable` of sets as an input, and calculates the intersection (common items) of those sets.
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" combineglobally_function >}}
