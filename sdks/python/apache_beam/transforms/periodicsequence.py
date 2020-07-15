@@ -17,6 +17,7 @@
 
 from __future__ import absolute_import
 
+import math
 import time
 
 import apache_beam as beam
@@ -35,42 +36,16 @@ from apache_beam.utils.timestamp import Timestamp
 class ImpulseSeqGenRestrictionProvider(core.RestrictionProvider):
   def initial_restriction(self, element):
     start, end, interval = element
-    return OffsetRange(start - interval, end)
+    assert start <= end
+    assert interval > 0
+    total_outputs = math.ceil((end - start) / interval)
+    return OffsetRange(0, total_outputs)
 
   def create_tracker(self, restriction):
-    return ImpulseSeqGenRestrictionTracker(restriction)
+    return OffsetRestrictionTracker(restriction)
 
   def restriction_size(self, unused_element, restriction):
     return restriction.size()
-
-
-class ImpulseSeqGenRestrictionTracker(OffsetRestrictionTracker):
-  def try_split(self, fraction_of_remainder):
-    if not self._checkpointed:
-      if fraction_of_remainder != 0:
-        return None
-
-      if self._current_position is None:
-        cur = self._range.start
-      else:
-        cur = self._current_position
-      split_point = cur
-
-      if split_point < self._range.stop:
-        self._checkpointed = True
-        self._range, residual_range = self._range.split_at(split_point)
-        return self._range, residual_range
-
-  def cur_pos(self):
-    return self._current_position
-
-  def try_claim(self, pos):
-    if ((self._last_claim_attempt is None) or
-        (pos > self._last_claim_attempt and pos == self._range.stop)):
-      self._last_claim_attempt = pos
-      return True
-    else:
-      return super(ImpulseSeqGenRestrictionTracker, self).try_claim(pos)
 
 
 class ImpulseSeqGenDoFn(beam.DoFn):
@@ -103,25 +78,25 @@ class ImpulseSeqGenDoFn(beam.DoFn):
     :return: yields elements at processing real-time intervals with value of
       target output timestamp for the element.
     '''
-    _, _, interval = element
+    start, _, interval = element
 
     assert isinstance(restriction_tracker, sdf_utils.RestrictionTrackerView)
 
+    current_output_index = restriction_tracker.current_restriction().start
+    current_output_timestamp = start + interval * current_output_index
     current_time = time.time()
-    restriction = restriction_tracker.current_restriction()
-    current_output_timestamp = restriction.start
 
-    restriction_tracker.try_claim(current_output_timestamp)
-    if current_output_timestamp <= current_time:
-      if restriction_tracker.try_claim(current_output_timestamp + interval):
-        current_output_timestamp += interval
+    while current_output_timestamp <= current_time:
+      if restriction_tracker.try_claim(current_output_index):
         yield current_output_timestamp
+        current_output_index += 1
+        current_output_timestamp = start + interval * current_output_index
+        current_time = time.time()
+      else:
+        return
 
-    if current_output_timestamp + interval >= restriction.stop:
-      restriction_tracker.try_claim(restriction.stop)
-    else:
-      restriction_tracker.defer_remainder(
-          timestamp.Timestamp(current_output_timestamp))
+    restriction_tracker.defer_remainder(
+        timestamp.Timestamp(current_output_timestamp))
 
 
 class PeriodicSequence(PTransform):
