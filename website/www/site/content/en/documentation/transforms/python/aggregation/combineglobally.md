@@ -41,7 +41,7 @@ We define a function `get_common_items` which takes an `iterable` of sets as an 
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombineGlobally`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -60,7 +60,7 @@ We can also use lambda functions to simplify **Example 1**.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombineGlobally`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -82,7 +82,7 @@ In this example, the lambda function takes `sets` and `exclude` as arguments.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombineGlobally`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -105,7 +105,7 @@ We then use that value to exclude specific items.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombineGlobally`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -126,7 +126,7 @@ so it is possible to iterate over large `PCollection`s that won't fit into memor
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombineGlobally`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -151,7 +151,7 @@ If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombineGlobally`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -184,7 +184,7 @@ The more general way to combine elements, and the most flexible, is with a class
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombineGlobally`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
