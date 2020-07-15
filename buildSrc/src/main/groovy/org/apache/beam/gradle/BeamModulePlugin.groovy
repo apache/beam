@@ -381,7 +381,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // a dependency version which should match across multiple
     // Maven artifacts.
     def aws_java_sdk_version = "1.11.718"
-    def aws_java_sdk2_version = "2.10.61"
+    def aws_java_sdk2_version = "2.13.54"
     def cassandra_driver_version = "3.8.0"
     def checkerframework_version = "3.5.0"
     def classgraph_version = "4.8.65"
