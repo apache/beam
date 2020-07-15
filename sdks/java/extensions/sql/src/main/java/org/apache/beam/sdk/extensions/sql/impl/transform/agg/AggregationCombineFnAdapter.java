@@ -23,6 +23,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
+import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAnalyticFunctions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -150,6 +151,29 @@ public class AggregationCombineFnAdapter<T> {
       combineFn = getUdafCombineFn(call);
     } else {
       combineFn = BeamBuiltinAggregations.create(functionName, field.getType());
+    }
+    if (call.getArgList().isEmpty()) {
+      return new SingleInputCombiner(combineFn);
+    } else if (call.getArgList().size() == 1) {
+      return new SingleInputCombiner(combineFn);
+    } else {
+      return new MultiInputCombiner(combineFn);
+    }
+  }
+
+  /** Creates either a UDAF or a built-in {@link CombineFn} for Analytic Functions. */
+  public static CombineFn<?, ?, ?> createCombineFnAnalyticsFunctions(
+      AggregateCall call, Schema.Field field, String functionName) {
+    if (call.isDistinct()) {
+      throw new UnsupportedOperationException(
+          "Does not support " + call.getAggregation().getName() + " DISTINCT");
+    }
+
+    CombineFn combineFn;
+    if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
+      combineFn = getUdafCombineFn(call);
+    } else {
+      combineFn = BeamBuiltinAnalyticFunctions.create(functionName, field.getType());
     }
     if (call.getArgList().isEmpty()) {
       return new SingleInputCombiner(combineFn);
