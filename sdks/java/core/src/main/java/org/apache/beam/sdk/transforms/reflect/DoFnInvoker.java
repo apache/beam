@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import java.util.Optional;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -96,7 +96,7 @@ public interface DoFnInvoker<InputT, OutputT> {
   void invokeSplitRestriction(ArgumentProvider<InputT, OutputT> arguments);
 
   /** Invoke the {@link TruncateRestriction} method on the bound {@link DoFn}. */
-  <RestrictionT> Optional<RestrictionT> invokeTruncateRestriction(
+  <RestrictionT> TruncateResult<RestrictionT> invokeTruncateRestriction(
       ArgumentProvider<InputT, OutputT> arguments);
 
   /**

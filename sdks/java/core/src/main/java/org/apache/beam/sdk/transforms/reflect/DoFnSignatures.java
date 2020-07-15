@@ -83,6 +83,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -1832,10 +1833,9 @@ public class DoFnSignatures {
       FnAnalysisContext fnContext) {
     // Method is of the form:
     // @TruncateRestriction
-    // Optional<RestrictionT> truncateRestriction(... parameters ...);
+    // TruncateResult<RestrictionT> truncateRestriction(... parameters ...);
     errors.checkArgument(
-        Optional.class.equals(m.getReturnType()), "Must return Optional<Restriction>");
-
+        TruncateResult.class.equals(m.getReturnType()), "Must return TruncateResult<Restriction>");
     Type[] params = m.getGenericParameterTypes();
     MethodAnalysisContext methodContext = MethodAnalysisContext.create();
     TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnT, m);

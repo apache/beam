@@ -38,7 +38,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -112,6 +111,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -1428,8 +1428,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     @TruncateRestriction
-    public Optional<OffsetRange> truncateRestriction(@Restriction OffsetRange range) {
-      return Optional.of(new OffsetRange(range.getFrom(), range.getTo() / 2));
+    public TruncateResult<OffsetRange> truncateRestriction(@Restriction OffsetRange range) {
+      return TruncateResult.of(new OffsetRange(range.getFrom(), range.getTo() / 2));
     }
 
     @GetInitialWatermarkEstimatorState

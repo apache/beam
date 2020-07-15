@@ -175,4 +175,16 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
     /** The known amount of work remaining. */
     public abstract double getWorkRemaining();
   }
+
+  /** A representation of the truncate result. */
+  @AutoValue
+  public abstract static class TruncateResult<RestrictionT> {
+    /** Returns a {@link TruncateResult} for the given restriction. */
+    public static <RestrictionT> TruncateResult of(RestrictionT restriction) {
+      return new AutoValue_RestrictionTracker_TruncateResult(restriction);
+    }
+
+    @Nullable
+    public abstract RestrictionT getTruncatedRestriction();
+  }
 }

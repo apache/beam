@@ -26,7 +26,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Matchers.eq;
@@ -42,7 +41,6 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderProviders;
@@ -67,6 +65,7 @@ import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
@@ -848,7 +847,7 @@ public class DoFnInvokersTest {
               }
             });
     assertThat(tracker, instanceOf(BoundedDefaultTracker.class));
-    Optional result =
+    TruncateResult<?> result =
         invoker.invokeTruncateRestriction(
             new FakeArgumentProvider<String, String>() {
               @Override
@@ -866,8 +865,7 @@ public class DoFnInvokersTest {
                 return "foo";
               }
             });
-    assertTrue(result.isPresent());
-    assertEquals("foo", result.get());
+    assertEquals("foo", result.getTruncatedRestriction());
     assertEquals(stop(), invoker.invokeProcessElement(mockArgumentProvider));
     assertThat(
         invoker.invokeNewWatermarkEstimator(
@@ -927,7 +925,7 @@ public class DoFnInvokersTest {
               }
             });
     assertThat(tracker, instanceOf(UnboundedDefaultTracker.class));
-    Optional result =
+    TruncateResult<?> result =
         invoker.invokeTruncateRestriction(
             new FakeArgumentProvider<String, String>() {
               @Override
@@ -945,7 +943,7 @@ public class DoFnInvokersTest {
                 return "foo";
               }
             });
-    assertFalse(result.isPresent());
+    assertNull(result.getTruncatedRestriction());
     assertEquals(stop(), invoker.invokeProcessElement(mockArgumentProvider));
     assertThat(
         invoker.invokeNewWatermarkEstimator(

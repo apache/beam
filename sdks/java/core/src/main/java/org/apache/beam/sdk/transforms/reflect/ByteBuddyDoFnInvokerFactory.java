@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -65,6 +64,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimato
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.IsBounded;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -314,12 +314,12 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     /** Output the current restriction if it is bounded. Otherwise, return null. */
     @SuppressWarnings("unused")
-    public static Optional<?> invokeTruncateRestriction(
+    public static TruncateResult<?> invokeTruncateRestriction(
         DoFnInvoker.ArgumentProvider argumentProvider) {
       if (argumentProvider.restrictionTracker().isBounded() == IsBounded.BOUNDED) {
-        return Optional.of(argumentProvider.restriction());
+        return TruncateResult.of(argumentProvider.restriction());
       }
-      return Optional.empty();
+      return null;
     }
   }
 

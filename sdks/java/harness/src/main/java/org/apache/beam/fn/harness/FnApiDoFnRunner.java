@@ -33,7 +33,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -99,6 +98,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.TimestampObservingWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
@@ -843,10 +843,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               public void onClaimFailed(PositionT position) {}
             });
     try {
-      Optional<OutputT> truncatedRestriction =
+      TruncateResult<OutputT> truncatedRestriction =
           doFnInvoker.invokeTruncateRestriction(processContext);
-      if (truncatedRestriction.isPresent()) {
-        processContext.output(truncatedRestriction.get());
+      if (truncatedRestriction != null) {
+        processContext.output(truncatedRestriction.getTruncatedRestriction());
       }
     } finally {
       currentTracker = null;
@@ -879,10 +879,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   @Override
                   public void onClaimFailed(PositionT position) {}
                 });
-        Optional<OutputT> truncatedRestriction =
+        TruncateResult<OutputT> truncatedRestriction =
             doFnInvoker.invokeTruncateRestriction(processContext);
-        if (truncatedRestriction.isPresent()) {
-          processContext.output(truncatedRestriction.get());
+        if (truncatedRestriction != null) {
+          processContext.output(truncatedRestriction.getTruncatedRestriction());
         }
       }
     } finally {

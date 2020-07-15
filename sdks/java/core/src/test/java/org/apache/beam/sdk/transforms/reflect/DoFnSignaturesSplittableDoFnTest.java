@@ -49,6 +49,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -306,7 +307,7 @@ public class DoFnSignaturesSplittableDoFnTest {
           @Timestamp Instant timestamp) {}
 
       @TruncateRestriction
-      public Optional<SomeRestriction> truncateRestriction(
+      public TruncateResult<SomeRestriction> truncateRestriction(
           @Element Integer element,
           @Restriction SomeRestriction restriction,
           RestrictionTracker<SomeRestriction, Void> restrictionTracker,
@@ -314,7 +315,7 @@ public class DoFnSignaturesSplittableDoFnTest {
           BoundedWindow boundedWindow,
           PaneInfo paneInfo,
           @Timestamp Instant timestamp) {
-        return Optional.empty();
+        return TruncateResult.of(null);
       }
 
       @NewTracker
@@ -450,8 +451,9 @@ public class DoFnSignaturesSplittableDoFnTest {
           @Restriction RestrictionT restriction, OutputReceiver<RestrictionT> receiver) {}
 
       @TruncateRestriction
-      public Optional<RestrictionT> truncateRestriction(@Restriction RestrictionT restriction) {
-        return Optional.empty();
+      public TruncateResult<RestrictionT> truncateRestriction(
+          @Restriction RestrictionT restriction) {
+        return TruncateResult.of(null);
       }
 
       @NewTracker
@@ -988,7 +990,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
   @Test
   public void testTruncateRestrictionReturnsWrongType() throws Exception {
-    thrown.expectMessage("Must return Optional<Restriction>");
+    thrown.expectMessage("Must return TruncateResult<Restriction>");
     DoFnSignatures.analyzeTruncateRestrictionMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
@@ -1074,9 +1076,9 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
 
       @DoFn.TruncateRestriction
-      public Optional<OtherRestriction> truncateRestriction(
+      public TruncateResult<OtherRestriction> truncateRestriction(
           @Element Integer element, @Restriction OtherRestriction restriction) {
-        return Optional.empty();
+        return TruncateResult.of(null);
       }
     }
 
