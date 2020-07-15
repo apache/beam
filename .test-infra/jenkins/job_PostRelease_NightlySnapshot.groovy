@@ -28,11 +28,11 @@ job('beam_PostRelease_NightlySnapshot') {
 
   parameters {
     stringParam('snapshot_version',
-                '',
-                'Version of the repository snapshot to install')
+        '',
+        'Version of the repository snapshot to install')
     stringParam('snapshot_url',
-                '',
-                'Repository URL to install from')
+        '',
+        'Repository URL to install from')
   }
 
   // This is a post-commit job that runs once per day, not for every push.

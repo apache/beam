@@ -36,7 +36,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       // Test regressions of cross-language KafkaIO test
       '^sdks/java/io/kafka/.*$',
     ]
-)
+    )
 builder.build {
-    previousNames('beam_PreCommit_Python_PVR_Flink')
+  previousNames('beam_PreCommit_Python_PVR_Flink')
 }
