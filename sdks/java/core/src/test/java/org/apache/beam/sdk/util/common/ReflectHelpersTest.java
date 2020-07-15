@@ -39,16 +39,6 @@ import org.junit.runners.JUnit4;
 public class ReflectHelpersTest {
 
   @Test
-  public void testClassName() {
-    assertEquals(getClass().getName(), ReflectHelpers.CLASS_NAME.apply(getClass()));
-  }
-
-  @Test
-  public void testClassSimpleName() {
-    assertEquals(getClass().getSimpleName(), ReflectHelpers.CLASS_SIMPLE_NAME.apply(getClass()));
-  }
-
-  @Test
   public void testMethodFormatter() throws Exception {
     assertEquals(
         "testMethodFormatter()",

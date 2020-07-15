@@ -2319,7 +2319,7 @@ public class DoFnSignatures {
   }
 
   private static String format(Class<?> kls) {
-    return ReflectHelpers.CLASS_SIMPLE_NAME.apply(kls);
+    return kls.getSimpleName();
   }
 
   static class ErrorReporter {

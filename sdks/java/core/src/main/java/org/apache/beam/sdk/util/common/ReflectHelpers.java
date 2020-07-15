@@ -59,7 +59,7 @@ public class ReflectHelpers {
         public String apply(@Nonnull Method input) {
           String parameterTypes =
               FluentIterable.from(asList(input.getParameterTypes()))
-                  .transform(CLASS_SIMPLE_NAME)
+                  .transform(Class::getSimpleName)
                   .join(COMMA_SEPARATOR);
           return String.format("%s(%s)", input.getName(), parameterTypes);
         }
@@ -74,15 +74,9 @@ public class ReflectHelpers {
         @Override
         public String apply(@Nonnull Method input) {
           return String.format(
-              "%s#%s", CLASS_NAME.apply(input.getDeclaringClass()), METHOD_FORMATTER.apply(input));
+              "%s#%s", input.getDeclaringClass().getName(), METHOD_FORMATTER.apply(input));
         }
       };
-
-  /** A {@link Function} with returns the classes name. */
-  public static final Function<Class<?>, String> CLASS_NAME = Class::getName;
-
-  /** A {@link Function} with returns the classes name. */
-  public static final Function<Class<?>, String> CLASS_SIMPLE_NAME = Class::getSimpleName;
 
   /** A {@link Function} that returns a concise string for a {@link Annotation}. */
   public static final Function<Annotation, String> ANNOTATION_FORMATTER =
