@@ -164,57 +164,57 @@ read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "============Staging Python Binaries on dist.apache.org========="
   cd ~
-  if [[ -d ${LOCAL_PYTHON_STAGING_DIR} ]]; then
-    rm -rf ${LOCAL_PYTHON_STAGING_DIR}
+  if [[ -d "${LOCAL_PYTHON_STAGING_DIR}" ]]; then
+    rm -rf "${LOCAL_PYTHON_STAGING_DIR}"
   fi
-  mkdir -p ${LOCAL_PYTHON_STAGING_DIR}
-  cd ${LOCAL_PYTHON_STAGING_DIR}
+  mkdir -p "${LOCAL_PYTHON_STAGING_DIR}"
+  cd "${LOCAL_PYTHON_STAGING_DIR}"
 
   echo '-------------------Cloning Beam Release Branch-----------------'
-  git clone ${GIT_REPO_URL}
-  cd ${BEAM_ROOT_DIR}
-  git checkout ${RELEASE_BRANCH}
+  git clone "${GIT_REPO_URL}"
+  cd "${BEAM_ROOT_DIR}"
+  git checkout "${RELEASE_BRANCH}"
   git push origin "${RELEASE_BRANCH}"
   RELEASE_COMMIT=$(git rev-parse --verify HEAD)
 
   echo '-------------------Creating Python Virtualenv-----------------'
-  python3 -m venv ${LOCAL_PYTHON_VIRTUALENV}
-  source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
+  python3 -m venv "${LOCAL_PYTHON_VIRTUALENV}"
+  source "${LOCAL_PYTHON_VIRTUALENV}/bin/activate"
   pip install requests python-dateutil
 
   echo '--------------Fetching GitHub Actions Artifacts--------------'
   python release/src/main/scripts/download_github_actions_artifacts.py \
-    --github-user ${USER_GITHUB_ID} \
-    --repo-url ${GIT_REPO_BASE_URL} \
-    --release-branch ${RELEASE_BRANCH} \
-    --release-commit ${RELEASE_COMMIT} \
-    --artifacts_dir ${PYTHON_ARTIFACTS_DIR}
+    --github-user "${USER_GITHUB_ID}" \
+    --repo-url "${GIT_REPO_BASE_URL}" \
+    --release-branch "${RELEASE_BRANCH}" \
+    --release-commit "${RELEASE_COMMIT}" \
+    --artifacts_dir "${PYTHON_ARTIFACTS_DIR}"
 
   svn co https://dist.apache.org/repos/dist/dev/beam
-  mkdir -p beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
-  cp -ar ${PYTHON_ARTIFACTS_DIR}/ beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}/
-  cd beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
+  mkdir -p "beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}"
+  cp -ar "${PYTHON_ARTIFACTS_DIR}/" "beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}/"
+  cd "beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}"
 
   echo "------Checking Hash Value for apache-beam-${RELEASE}.zip-----"
-  sha512sum -c apache-beam-${RELEASE}.zip.sha512
+  sha512sum -c "apache-beam-${RELEASE}.zip.sha512"
 
   echo "------Signing Source Release apache-beam-${RELEASE}.zip------"
-  gpg --local-user ${SIGNING_KEY} --armor --detach-sig apache-beam-${RELEASE}.zip
+  gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "apache-beam-${RELEASE}.zip"
 
   echo "-----Checking Hash Value for apache-beam-${RELEASE}.tar.gz----"
-  sha512sum -c apache-beam-${RELEASE}.tar.gz.sha512
+  sha512sum -c "apache-beam-${RELEASE}.tar.gz.sha512"
 
   echo "-----Signing Source Release apache-beam-${RELEASE}.tar.gz-----"
-  gpg --local-user ${SIGNING_KEY} --armor --detach-sig apache-beam-${RELEASE}.tar.gz
+  gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "apache-beam-${RELEASE}.tar.gz"
 
   echo "-----Checking Hash Value for apache-beam-${RELEASE} wheels-----"
   for artifact in *.whl; do
-    sha512sum -c ${artifact}.sha512
+    sha512sum -c "${artifact}.sha512"
   done
 
   echo "---------Signing Release wheels apache-beam-${RELEASE}--------"
   for artifact in *.whl; do
-    gpg --local-user ${SIGNING_KEY} --armor --detach-sig $artifact
+    gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "${artifact}"
   done
 
   cd ..
@@ -224,11 +224,11 @@ if [[ $confirmation = "y" ]]; then
   read confirmation
   if [[ $confirmation != "y" ]]; then
     echo "Exit without staging python artifacts on dist.apache.org."
-    rm -rf ~/${PYTHON_ARTIFACTS_DIR}
+    rm -rf "${HOME:?}/${PYTHON_ARTIFACTS_DIR}"
     exit
   fi
   svn commit --no-auth-cache
-  rm -rf ~/${PYTHON_ARTIFACTS_DIR}
+  rm -rf "${HOME:?}/${PYTHON_ARTIFACTS_DIR}"
 fi
 
 echo "[Current Step]: Stage docker images"
