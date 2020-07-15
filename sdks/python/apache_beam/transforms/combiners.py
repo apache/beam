@@ -64,7 +64,7 @@ TimestampType = Union[int, float, Timestamp, Duration]
 
 
 class CombinerWithoutDefaults(ptransform.PTransform):
-  """Parent class to inherit  without_defaults to built-in Combiners"""
+  """Parent class to inherit without_defaults to built-in Combiners"""
   def __init__(self, has_defaults=True):
     self.has_defaults = has_defaults
 
