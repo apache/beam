@@ -31,6 +31,8 @@ import static org.junit.Assert.assertThrows;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
@@ -448,6 +450,14 @@ public class BigQueryUtilsTest {
         BigQueryUtils.convertAvroFormat(
             FieldType.logicalType(SqlTypes.TIME), t.toNanoOfDay() / 1000, REJECT_OPTIONS),
         equalTo(t));
+  }
+
+  @Test
+  public void testBytesType() {
+    byte[] bytes = "hello".getBytes(StandardCharsets.UTF_8);
+    assertThat(
+        BigQueryUtils.convertAvroFormat(FieldType.BYTES, ByteBuffer.wrap(bytes), REJECT_OPTIONS),
+        equalTo(bytes));
   }
 
   @Test
