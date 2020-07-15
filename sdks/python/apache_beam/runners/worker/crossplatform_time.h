@@ -26,24 +26,32 @@
 
 /**
  * Alternative to POSIX clock_gettime that may be run on Windows platform. The clk_id parameter is
- * ignored, and function always act as for CLOCK_MONOTONIC. Windows performance counter is used.
+ * ignored and function act as for CLOCK_MONOTONIC. On Windows XP or later Performance Counter is used.
+ * On older platforms, where there's no Performance Counter, SystemTime will be used as a failover.
  */
 int clock_gettime(int clk_id, struct timespec *tv) {
     static LARGE_INTEGER counterFrequency = {0};
-    LARGE_INTEGER counterValue;
+    static BOOL performanceCounterAvailable = TRUE;
+    LARGE_INTEGER counterValue = {0};
 
-    if (0 == counterFrequency.QuadPart) {
+    //initialization
+    if (0 == counterFrequency.QuadPart && performanceCounterAvailable) {
         if (0 == QueryPerformanceFrequency(&counterFrequency)) {
-            /* System doesn't support performance counters. It's guaranteed to not happen
-            on systems that run Windows XP or later */
-            return -1;
+            performanceCounterAvailable = FALSE;
+            counterFrequency.QuadPart = 10000000; // failover SystemTime is provided in 100-nanosecond intervals
         }
     }
-    if (0 == QueryPerformanceCounter(&counterValue)){
-        /* Again, it may only fail on systems before Windows XP */
-        return -1;
-    }
 
+    if (performanceCounterAvailable) {
+        QueryPerformanceCounter(&counterValue);
+    }
+    else {
+        FILETIME filetime = {0};
+        GetSystemTimeAsFileTime(&filetime);
+        counterValue.QuadPart = filetime.dwHighDateTime;
+        counterValue.QuadPart <<= 32;
+        counterValue.QuadPart |= filetime.dwLowDateTime;
+    }
     tv->tv_sec = counterValue.QuadPart / counterFrequency.QuadPart;
     #pragma warning( suppress : 4244 ) // nanoseconds may not exceed billion, therefore it's safe to cast
     tv->tv_nsec = ((counterValue.QuadPart % counterFrequency.QuadPart) * 1000000000) / counterFrequency.QuadPart;
