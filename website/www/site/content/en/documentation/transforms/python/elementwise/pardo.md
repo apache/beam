@@ -46,7 +46,7 @@ and it can yield zero or more output elements.
 {{</ highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `ParDo`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -75,7 +75,7 @@ In this example, we add new parameters to the `process` method to bind parameter
 {{</ highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-`stdout` output:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -136,7 +136,7 @@ starts and finishes with `start_bundle` and `finish_bundle`.
 {{</ highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-`stdout` output:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
