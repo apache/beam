@@ -40,12 +40,12 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         influxMeasurement     : "java_${mode}_gbk_1",
         publishToInfluxDB     : true,
         sourceOptions         : """
-                                            {
-                                              "numRecords": 200000000,
-                                              "keySizeBytes": 1,
-                                              "valueSizeBytes": 9
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 200000000,
+                                    "keySizeBytes": 1,
+                                    "valueSizeBytes": 9
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         fanout                : 1,
         iterations            : 1,
         numWorkers            : 5,
@@ -68,12 +68,12 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         influxMeasurement     : "java_${mode}_gbk_2",
         publishToInfluxDB     : true,
         sourceOptions         : """
-                                            {
-                                              "numRecords": 20000000,
-                                              "keySizeBytes": 10,
-                                              "valueSizeBytes": 90
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 20000000,
+                                    "keySizeBytes": 10,
+                                    "valueSizeBytes": 90
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         fanout                : 1,
         iterations            : 1,
         numWorkers            : 5,
@@ -97,12 +97,12 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         influxMeasurement     : "java_${mode}_gbk_3",
         publishToInfluxDB     : true,
         sourceOptions         : """
-                                            {
-                                              "numRecords": 20000,
-                                              "keySizeBytes": 10000,
-                                              "valueSizeBytes": 90000
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 20000,
+                                    "keySizeBytes": 10000,
+                                    "valueSizeBytes": 90000
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         fanout                : 1,
         iterations            : 1,
         numWorkers            : 5,
@@ -126,12 +126,12 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         influxMeasurement     : "java_${mode}_gbk_4",
         publishToInfluxDB     : true,
         sourceOptions         : """
-                                            {
-                                              "numRecords": 5000000,
-                                              "keySizeBytes": 10,
-                                              "valueSizeBytes": 90
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 5000000,
+                                    "keySizeBytes": 10,
+                                    "valueSizeBytes": 90
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         fanout                : 4,
         iterations            : 1,
         numWorkers            : 16,
@@ -154,12 +154,12 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         influxMeasurement     : "java_${mode}_gbk_5",
         publishToInfluxDB     : true,
         sourceOptions         : """
-                                            {
-                                              "numRecords": 2500000,
-                                              "keySizeBytes": 10,
-                                              "valueSizeBytes": 90
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 2500000,
+                                    "keySizeBytes": 10,
+                                    "valueSizeBytes": 90
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         fanout                : 8,
         iterations            : 1,
         numWorkers            : 16,
@@ -182,14 +182,14 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         influxMeasurement     : "java_${mode}_gbk_6",
         publishToInfluxDB     : true,
         sourceOptions         : """
-                                            {
-                                              "numRecords": 20000000,
-                                              "keySizeBytes": 10,
-                                              "valueSizeBytes": 90,
-                                              "numHotKeys": 200,
-                                              "hotKeyFraction": 1
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 20000000,
+                                    "keySizeBytes": 10,
+                                    "valueSizeBytes": 90,
+                                    "numHotKeys": 200,
+                                    "hotKeyFraction": 1
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         fanout                : 1,
         iterations            : 4,
         numWorkers            : 5,
@@ -212,14 +212,14 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         influxMeasurement     : "java_${mode}_gbk_7",
         publishToInfluxDB     : true,
         sourceOptions         : """
-                                            {
-                                              "numRecords": 20000000,
-                                              "keySizeBytes": 10,
-                                              "valueSizeBytes": 90,
-                                              "numHotKeys": 10,
-                                              "hotKeyFraction": 1
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 20000000,
+                                    "keySizeBytes": 10,
+                                    "valueSizeBytes": 90,
+                                    "numHotKeys": 10,
+                                    "hotKeyFraction": 1
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         fanout                : 1,
         iterations            : 4,
         numWorkers            : 5,

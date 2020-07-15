@@ -38,12 +38,12 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         influxMeasurement   : "java_${jobType}_combine_1",
         publishToInfluxDB   : true,
         sourceOptions       : """
-                                            {
-                                              "numRecords": 200000000,
-                                              "keySizeBytes": 1,
-                                              "valueSizeBytes": 9
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
+                                {
+                                  "numRecords": 200000000,
+                                  "keySizeBytes": 1,
+                                  "valueSizeBytes": 9
+                                }
+                              """.trim().replaceAll("\\s", ""),
         fanout              : 1,
         iterations          : 1,
         topCount            : 20,
@@ -65,12 +65,12 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         influxMeasurement   : "java_${jobType}_combine_4",
         publishToInfluxDB   : true,
         sourceOptions       : """
-                                                    {
-                                                      "numRecords": 5000000,
-                                                      "keySizeBytes": 10,
-                                                      "valueSizeBytes": 90
-                                                    }
-                                               """.trim().replaceAll("\\s", ""),
+                                {
+                                  "numRecords": 5000000,
+                                  "keySizeBytes": 10,
+                                  "valueSizeBytes": 90
+                                }
+                              """.trim().replaceAll("\\s", ""),
         fanout              : 4,
         iterations          : 1,
         topCount            : 20,
@@ -92,12 +92,12 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         influxMeasurement   : "java_${jobType}_combine_5",
         publishToInfluxDB   : true,
         sourceOptions       : """
-                                                    {
-                                                      "numRecords": 2500000,
-                                                      "keySizeBytes": 10,
-                                                      "valueSizeBytes": 90
-                                                    }
-                                               """.trim().replaceAll("\\s", ""),
+                                {
+                                  "numRecords": 2500000,
+                                  "keySizeBytes": 10,
+                                  "valueSizeBytes": 90
+                                }
+                              """.trim().replaceAll("\\s", ""),
         fanout              : 8,
         iterations          : 1,
         topCount            : 20,

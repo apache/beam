@@ -38,12 +38,12 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         influxMeasurement   : "java_${jobType}_pardo_1",
         publishToInfluxDB   : true,
         sourceOptions       : """
-                                            {
-                                              "numRecords": 20000000,
-                                              "keySizeBytes": 10,
-                                              "valueSizeBytes": 90
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
+                                {
+                                  "numRecords": 20000000,
+                                  "keySizeBytes": 10,
+                                  "valueSizeBytes": 90
+                                }
+                              """.trim().replaceAll("\\s", ""),
         iterations          : 10,
         numberOfCounters    : 1,
         numberOfCounterOperations: 0,
@@ -64,12 +64,12 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         influxMeasurement   : "java_${jobType}_pardo_2",
         publishToInfluxDB   : true,
         sourceOptions       : """
-                                                    {
-                                                      "numRecords": 20000000,
-                                                      "keySizeBytes": 10,
-                                                      "valueSizeBytes": 90
-                                                    }
-                                               """.trim().replaceAll("\\s", ""),
+                                {
+                                  "numRecords": 20000000,
+                                  "keySizeBytes": 10,
+                                  "valueSizeBytes": 90
+                                }
+                              """.trim().replaceAll("\\s", ""),
         iterations          : 200,
         numberOfCounters    : 1,
         numberOfCounterOperations: 0,
@@ -91,12 +91,12 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         influxMeasurement   : "java_${jobType}_pardo_3",
         publishToInfluxDB   : true,
         sourceOptions       : """
-                                                    {
-                                                      "numRecords": 20000000,
-                                                      "keySizeBytes": 10,
-                                                      "valueSizeBytes": 90
-                                                    }
-                                               """.trim().replaceAll("\\s", ""),
+                                {
+                                  "numRecords": 20000000,
+                                  "keySizeBytes": 10,
+                                  "valueSizeBytes": 90
+                                }
+                              """.trim().replaceAll("\\s", ""),
         iterations          : 1,
         numberOfCounters    : 1,
         numberOfCounterOperations: 10,
@@ -118,12 +118,12 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         influxMeasurement   : "java_${jobType}_pardo_4",
         publishToInfluxDB   : true,
         sourceOptions       : """
-                                                    {
-                                                      "numRecords": 20000000,
-                                                      "keySizeBytes": 10,
-                                                      "valueSizeBytes": 90
-                                                    }
-                                               """.trim().replaceAll("\\s", ""),
+                                {
+                                  "numRecords": 20000000,
+                                  "keySizeBytes": 10,
+                                  "valueSizeBytes": 90
+                                }
+                              """.trim().replaceAll("\\s", ""),
         iterations          : 1,
         numberOfCounters    : 1,
         numberOfCounterOperations: 100,
