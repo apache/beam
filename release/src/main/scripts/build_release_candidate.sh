@@ -19,7 +19,7 @@
 # This script will create a Release Candidate, includes:
 # 1. Build and stage java artifacts
 # 2. Stage source release on dist.apache.org
-# 3. Stage python binaries
+# 3. Stage python binaries and wheels on dist.apache.org
 # 4. Stage SDK docker images
 # 5. Create a PR to update beam-site
 
@@ -195,26 +195,26 @@ if [[ $confirmation = "y" ]]; then
   cp -ar ${PYTHON_ARTIFACTS_DIR}/ beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}/
   cd beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
 
+  echo "------Checking Hash Value for apache-beam-${RELEASE}.zip-----"
+  sha512sum -c apache-beam-${RELEASE}.zip.sha512
+
   echo "------Signing Source Release apache-beam-${RELEASE}.zip------"
   gpg --local-user ${SIGNING_KEY} --armor --detach-sig apache-beam-${RELEASE}.zip
 
-  echo "------Creating Hash Value for apache-beam-${RELEASE}.zip-----"
-  sha512sum apache-beam-${RELEASE}.zip > apache-beam-${RELEASE}.zip.sha512
+  echo "-----Checking Hash Value for apache-beam-${RELEASE}.tar.gz----"
+  sha512sum -c apache-beam-${RELEASE}.tar.gz.sha512
 
   echo "-----Signing Source Release apache-beam-${RELEASE}.tar.gz-----"
   gpg --local-user ${SIGNING_KEY} --armor --detach-sig apache-beam-${RELEASE}.zip
 
-  echo "-----Creating Hash Value for apache-beam-${RELEASE}.tar.gz----"
-  sha512sum apache-beam-${RELEASE}.zip > apache-beam-${RELEASE}.zip.sha512
+  echo "-----Checking Hash Value for apache-beam-${RELEASE} wheels-----"
+  for artifact in *.whl; do
+    sha512sum -c ${artifact}.sha512
+  done
 
   echo "---------Signing Release wheels apache-beam-${RELEASE}--------"
   for artifact in *.whl; do
     gpg --local-user ${SIGNING_KEY} --armor --detach-sig $artifact
-  done
-
-  echo "-----Creating Hash Value for apache-beam-${RELEASE} wheels-----"
-  for artifact in *.whl; do
-    sha512sum $artifact > ${artifact}.sha512
   done
 
   cd ..
