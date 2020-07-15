@@ -103,9 +103,9 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
   @Override
   public Schema configurationSchema() {
     return Schema.builder()
-            .addNullableField("timestampAttributeKey", FieldType.STRING)
-            .addNullableField("deadLetterQueue", FieldType.STRING)
-            .build();
+        .addNullableField("timestampAttributeKey", FieldType.STRING)
+        .addNullableField("deadLetterQueue", FieldType.STRING)
+        .build();
   }
 
   /**
@@ -133,14 +133,14 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
   private void validateDataSchema(Schema schema) {
     if (schema == null) {
       throw new InvalidSchemaException(
-              "Unsupported schema specified for Pubsub source in CREATE TABLE."
-                      + "CREATE TABLE for Pubsub topic must not be null");
+          "Unsupported schema specified for Pubsub source in CREATE TABLE."
+              + "CREATE TABLE for Pubsub topic must not be null");
     }
     if (!PubsubSchemaIO.fieldPresent(schema, TIMESTAMP_FIELD, TIMESTAMP)) {
       throw new InvalidSchemaException(
-              "Unsupported schema specified for Pubsub source in CREATE TABLE."
-                      + "CREATE TABLE for Pubsub topic must include at least 'event_timestamp' field of "
-                      + "type 'TIMESTAMP'");
+          "Unsupported schema specified for Pubsub source in CREATE TABLE."
+              + "CREATE TABLE for Pubsub topic must include at least 'event_timestamp' field of "
+              + "type 'TIMESTAMP'");
     }
   }
 
@@ -153,7 +153,7 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
   private void validateConfigurationSchema(Row configuration) {
     if (!configuration.getSchema().equals(configurationSchema())) {
       throw new InvalidConfigurationException(
-              "Configuration schema provided does not match expected");
+          "Configuration schema provided does not match expected");
     }
   }
 
@@ -183,15 +183,15 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
         @Override
         public PCollection<Row> expand(PBegin begin) {
           PCollectionTuple rowsWithDlq =
-                  begin
-                          .apply("ReadFromPubsub", readMessagesWithAttributes())
-                          .apply(
-                                  "PubsubMessageToRow",
-                                  PubsubMessageToRow.builder()
-                                          .messageSchema(dataSchema)
-                                          .useDlq(useDlqCheck(config))
-                                          .useFlatSchema(useFlatSchema)
-                                          .build());
+              begin
+                  .apply("ReadFromPubsub", readMessagesWithAttributes())
+                  .apply(
+                      "PubsubMessageToRow",
+                      PubsubMessageToRow.builder()
+                          .messageSchema(dataSchema)
+                          .useDlq(useDlqCheck(config))
+                          .useFlatSchema(useFlatSchema)
+                          .build());
           rowsWithDlq.get(MAIN_TAG).setRowSchema(dataSchema);
 
           if (useDlqCheck(config)) {
@@ -207,17 +207,17 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
     public PTransform<PCollection<Row>, POutput> buildWriter() {
       if (!useFlatSchema) {
         throw new UnsupportedOperationException(
-                "Writing to a Pubsub topic is only supported for flattened schemas");
+            "Writing to a Pubsub topic is only supported for flattened schemas");
       }
 
       return new PTransform<PCollection<Row>, POutput>() {
         @Override
         public POutput expand(PCollection<Row> input) {
           return input
-                  .apply(
-                          RowToPubsubMessage.fromConfig(
-                                  config, useFlatSchema, useTimestampAttribute(config)))
-                  .apply(createPubsubMessageWrite());
+              .apply(
+                  RowToPubsubMessage.fromConfig(
+                      config, useFlatSchema, useTimestampAttribute(config)))
+              .apply(createPubsubMessageWrite());
         }
       };
     }
@@ -226,8 +226,8 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
       PubsubIO.Read<PubsubMessage> read = PubsubIO.readMessagesWithAttributes().fromTopic(location);
 
       return useTimestampAttribute(config)
-              ? read.withTimestampAttribute(config.getValue("timestampAttributeKey"))
-              : read;
+          ? read.withTimestampAttribute(config.getValue("timestampAttributeKey"))
+          : read;
     }
 
     private PubsubIO.Write<PubsubMessage> createPubsubMessageWrite() {
@@ -240,11 +240,11 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
 
     private PubsubIO.Write<PubsubMessage> writeMessagesToDlq() {
       PubsubIO.Write<PubsubMessage> write =
-              PubsubIO.writeMessages().to(config.getString("deadLetterQueue"));
+          PubsubIO.writeMessages().to(config.getString("deadLetterQueue"));
 
       return useTimestampAttribute(config)
-              ? write.withTimestampAttribute(config.getString("timestampAttributeKey"))
-              : write;
+          ? write.withTimestampAttribute(config.getString("timestampAttributeKey"))
+          : write;
     }
 
     private boolean useDlqCheck(Row config) {
@@ -258,14 +258,14 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
     private boolean definesAttributeAndPayload(Schema schema) {
       return fieldPresent(
               schema, ATTRIBUTES_FIELD, Schema.FieldType.map(VARCHAR.withNullable(false), VARCHAR))
-              && (schema.hasField(PAYLOAD_FIELD)
+          && (schema.hasField(PAYLOAD_FIELD)
               && ROW.equals(schema.getField(PAYLOAD_FIELD).getType().getTypeName()));
     }
 
     private static boolean fieldPresent(
-            Schema schema, String field, Schema.FieldType expectedType) {
+        Schema schema, String field, Schema.FieldType expectedType) {
       return schema.hasField(field)
-              && expectedType.equivalent(
+          && expectedType.equivalent(
               schema.getField(field).getType(), Schema.EquivalenceNullablePolicy.IGNORE);
     }
   }

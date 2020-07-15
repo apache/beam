@@ -50,87 +50,87 @@ import org.apache.beam.sdk.values.Row;
 @Internal
 @Experimental
 public abstract class SchemaCapableIOTableProviderWrapper extends InMemoryMetaTableProvider
-        implements Serializable {
-    private SchemaIOProvider schemaCapableIOProvider;
+    implements Serializable {
+  private SchemaIOProvider schemaCapableIOProvider;
 
-    public SchemaCapableIOTableProviderWrapper(SchemaIOProvider schemaCapableIOProvider) {
-        this.schemaCapableIOProvider = schemaCapableIOProvider;
+  public SchemaCapableIOTableProviderWrapper(SchemaIOProvider schemaCapableIOProvider) {
+    this.schemaCapableIOProvider = schemaCapableIOProvider;
+  }
+
+  @Override
+  public String getTableType() {
+    return schemaCapableIOProvider.identifier();
+  }
+
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table tableDefinition) {
+    JSONObject tableProperties = tableDefinition.getProperties();
+
+    try {
+      RowJson.RowJsonDeserializer deserializer =
+          RowJson.RowJsonDeserializer.forSchema(schemaCapableIOProvider.configurationSchema())
+              .withNullBehavior(RowJson.RowJsonDeserializer.NullBehavior.ACCEPT_MISSING_OR_NULL);
+
+      Row configurationRow =
+          newObjectMapperWith(deserializer).readValue(tableProperties.toString(), Row.class);
+
+      SchemaIO schemaIO =
+          schemaCapableIOProvider.from(
+              tableDefinition.getLocation(), configurationRow, tableDefinition.getSchema());
+
+      return new SchemaIOTableWrapper(schemaIO);
+    } catch (InvalidConfigurationException | InvalidSchemaException e) {
+      throw new InvalidTableException(e.getMessage());
+    } catch (JsonProcessingException e) {
+      throw new AssertionError(
+          "Failed to re-parse TBLPROPERTIES JSON " + tableProperties.toString());
+    }
+  }
+
+  private BeamTableStatistics getTableStatistics(PipelineOptions options) {
+    if (isBounded().equals(PCollection.IsBounded.BOUNDED)) {
+      return BeamTableStatistics.BOUNDED_UNKNOWN;
+    }
+    return BeamTableStatistics.UNBOUNDED_UNKNOWN;
+  }
+
+  private PCollection.IsBounded isBounded() {
+    return schemaCapableIOProvider.isBounded();
+  }
+
+  /** A generalized {@link Table} for IOs to create IO readers and writers. */
+  private class SchemaIOTableWrapper extends BaseBeamTable {
+    protected final SchemaIO schemaIO;
+
+    private SchemaIOTableWrapper(SchemaIO schemaIO) {
+      this.schemaIO = schemaIO;
     }
 
     @Override
-    public String getTableType() {
-        return schemaCapableIOProvider.identifier();
+    public PCollection.IsBounded isBounded() {
+      return SchemaCapableIOTableProviderWrapper.this.isBounded();
     }
 
     @Override
-    public BeamSqlTable buildBeamSqlTable(Table tableDefinition) {
-        JSONObject tableProperties = tableDefinition.getProperties();
-
-        try {
-            RowJson.RowJsonDeserializer deserializer =
-                    RowJson.RowJsonDeserializer.forSchema(schemaCapableIOProvider.configurationSchema())
-                            .withNullBehavior(RowJson.RowJsonDeserializer.NullBehavior.ACCEPT_MISSING_OR_NULL);
-
-            Row configurationRow =
-                    newObjectMapperWith(deserializer).readValue(tableProperties.toString(), Row.class);
-
-            SchemaIO schemaIO =
-                    schemaCapableIOProvider.from(
-                            tableDefinition.getLocation(), configurationRow, tableDefinition.getSchema());
-
-            return new SchemaIOTableWrapper(schemaIO);
-        } catch (InvalidConfigurationException | InvalidSchemaException e) {
-            throw new InvalidTableException(e.getMessage());
-        } catch (JsonProcessingException e) {
-            throw new AssertionError(
-                    "Failed to re-parse TBLPROPERTIES JSON " + tableProperties.toString());
-        }
+    public Schema getSchema() {
+      return schemaIO.schema();
     }
 
-    private BeamTableStatistics getTableStatistics(PipelineOptions options) {
-        if (isBounded().equals(PCollection.IsBounded.BOUNDED)) {
-            return BeamTableStatistics.BOUNDED_UNKNOWN;
-        }
-        return BeamTableStatistics.UNBOUNDED_UNKNOWN;
+    @Override
+    public PCollection<Row> buildIOReader(PBegin begin) {
+      PTransform<PBegin, PCollection<Row>> readerTransform = schemaIO.buildReader();
+      return begin.apply(readerTransform);
     }
 
-    private PCollection.IsBounded isBounded() {
-        return schemaCapableIOProvider.isBounded();
+    @Override
+    public POutput buildIOWriter(PCollection<Row> input) {
+      PTransform<PCollection<Row>, POutput> writerTransform = schemaIO.buildWriter();
+      return input.apply(writerTransform);
     }
 
-    /** A generalized {@link Table} for IOs to create IO readers and writers. */
-    private class SchemaIOTableWrapper extends BaseBeamTable {
-        protected final SchemaIO schemaIO;
-
-        private SchemaIOTableWrapper(SchemaIO schemaIO) {
-            this.schemaIO = schemaIO;
-        }
-
-        @Override
-        public PCollection.IsBounded isBounded() {
-            return SchemaCapableIOTableProviderWrapper.this.isBounded();
-        }
-
-        @Override
-        public Schema getSchema() {
-            return schemaIO.schema();
-        }
-
-        @Override
-        public PCollection<Row> buildIOReader(PBegin begin) {
-            PTransform<PBegin, PCollection<Row>> readerTransform = schemaIO.buildReader();
-            return begin.apply(readerTransform);
-        }
-
-        @Override
-        public POutput buildIOWriter(PCollection<Row> input) {
-            PTransform<PCollection<Row>, POutput> writerTransform = schemaIO.buildWriter();
-            return input.apply(writerTransform);
-        }
-
-        @Override
-        public BeamTableStatistics getTableStatistics(PipelineOptions options) {
-            return SchemaCapableIOTableProviderWrapper.this.getTableStatistics(options);
-        }
+    @Override
+    public BeamTableStatistics getTableStatistics(PipelineOptions options) {
+      return SchemaCapableIOTableProviderWrapper.this.getTableStatistics(options);
     }
+  }
 }
