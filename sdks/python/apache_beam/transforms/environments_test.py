@@ -73,6 +73,8 @@ class RunnerApiTest(unittest.TestCase):
     sdk_capabilities = environments.python_sdk_capabilities()
     self.assertIn(common_urns.coders.LENGTH_PREFIX.urn, sdk_capabilities)
     self.assertIn(common_urns.protocols.WORKER_STATUS.urn, sdk_capabilities)
+    self.assertIn(common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn,
+                  sdk_capabilities)
 
   def test_default_capabilities(self):
     environment = DockerEnvironment.from_options(
