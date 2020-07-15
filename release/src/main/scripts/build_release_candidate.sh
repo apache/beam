@@ -205,7 +205,7 @@ if [[ $confirmation = "y" ]]; then
   sha512sum -c apache-beam-${RELEASE}.tar.gz.sha512
 
   echo "-----Signing Source Release apache-beam-${RELEASE}.tar.gz-----"
-  gpg --local-user ${SIGNING_KEY} --armor --detach-sig apache-beam-${RELEASE}.zip
+  gpg --local-user ${SIGNING_KEY} --armor --detach-sig apache-beam-${RELEASE}.tar.gz
 
   echo "-----Checking Hash Value for apache-beam-${RELEASE} wheels-----"
   for artifact in *.whl; do
