@@ -80,7 +80,7 @@ jobs:
     name: Prepare GCS
     needs: build_source
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: github.repository_owner == 'apache' && github.event_name != 'pull_request'
     steps:
       - name: Authenticate on GCP
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -94,6 +94,7 @@ jobs:
     name: Upload source to GCS bucket
     needs: prepare_gcs
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'apache'
     steps:
       - name: Download compressed sources from artifacts
         uses: actions/download-artifact@v2
@@ -153,7 +154,7 @@ jobs:
     name: Upload wheels to GCS bucket
     needs: build_wheels
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: github.repository_owner == 'apache' && github.event_name != 'pull_request'
     strategy:
       matrix:
         os : [ubuntu-latest, macos-latest]
@@ -195,7 +196,7 @@ jobs:
     name: List files on Google Cloud Storage Bucket
     needs: upload_wheels_to_gcs
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: github.repository_owner == 'apache' && github.event_name != 'pull_request'
     steps:
     - name: Authenticate on GCP
       uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -212,7 +213,7 @@ jobs:
       - build_wheels
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: github.event_name == 'schedule'
+    if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
       - name: Checkout code on master branch
         uses: actions/checkout@master
