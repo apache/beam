@@ -43,7 +43,7 @@ The values of each output element are dictionaries where the names correspond to
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Filter`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}

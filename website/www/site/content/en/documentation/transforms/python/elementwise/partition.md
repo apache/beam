@@ -51,7 +51,7 @@ We partition the `PCollection` into one `PCollection` for every duration type.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection`s:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -71,7 +71,7 @@ We can also use lambda functions to simplify **Example 1**.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection`s:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -119,7 +119,7 @@ You might want to adapt the bucket assignment to use a more appropriate or rando
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection`s:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
