@@ -39,6 +39,7 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.api.services.dataflow.model.WorkerPool;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -290,7 +291,28 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       validator.validateOutputFilePrefixSupported(dataflowOptions.getSaveProfilesToGcs());
     }
 
-    if (dataflowOptions.getFilesToStage() == null) {
+    if (dataflowOptions.getFilesToStage() != null) {
+      // The user specifically requested these files, so fail now if they do not exist.
+      // (automatically detected classpath elements are permitted to not exist, so later
+      // staging will not fail on nonexistent files)
+      dataflowOptions.getFilesToStage().stream()
+          .forEach(
+              stagedFileSpec -> {
+                File localFile;
+                if (stagedFileSpec.contains("=")) {
+                  String[] components = stagedFileSpec.split("=", 2);
+                  localFile = new File(components[1]);
+                } else {
+                  localFile = new File(stagedFileSpec);
+                }
+                if (!localFile.exists()) {
+                  // should be FileNotFoundException, but for build-time backwards compatibility
+                  // cannot add checked exception
+                  throw new RuntimeException(
+                      String.format("Non-existent files specified in filesToStage: %s", localFile));
+                }
+              });
+    } else {
       dataflowOptions.setFilesToStage(
           detectClassPathResourcesToStage(DataflowRunner.class.getClassLoader(), options));
       if (dataflowOptions.getFilesToStage().isEmpty()) {

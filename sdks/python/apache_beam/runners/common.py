@@ -25,6 +25,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
+import threading
 import traceback
 from builtins import next
 from builtins import object
@@ -588,6 +589,8 @@ class PerWindowInvoker(DoFnInvoker):
     self.current_windowed_value = None  # type: Optional[WindowedValue]
     self.bundle_finalizer_param = bundle_finalizer_param
     self.is_key_param_required = False
+    if self.is_splittable:
+      self.splitting_lock = threading.Lock()
 
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
@@ -692,19 +695,21 @@ class PerWindowInvoker(DoFnInvoker):
         # the upstream pair-with-restriction.
         raise NotImplementedError(
             'SDFs in multiply-windowed values with windowed arguments.')
+      with self.splitting_lock:
+        self.threadsafe_restriction_tracker = ThreadsafeRestrictionTracker(
+            restriction_tracker)
+        self.current_windowed_value = windowed_value
+        self.threadsafe_watermark_estimator = (
+            ThreadsafeWatermarkEstimator(watermark_estimator))
+
       restriction_tracker_param = (
           self.signature.process_method.restriction_provider_arg_name)
       if not restriction_tracker_param:
         raise ValueError(
             'DoFn is splittable but DoFn does not have a '
             'RestrictionTrackerParam defined')
-      self.threadsafe_restriction_tracker = ThreadsafeRestrictionTracker(
-          restriction_tracker)
       additional_kwargs[restriction_tracker_param] = (
           RestrictionTrackerView(self.threadsafe_restriction_tracker))
-
-      self.threadsafe_watermark_estimator = (
-          ThreadsafeWatermarkEstimator(watermark_estimator))
       watermark_param = (
           self.signature.process_method.watermark_estimator_provider_arg_name)
       # When the watermark_estimator is a NoOpWatermarkEstimator, the system
@@ -712,13 +717,13 @@ class PerWindowInvoker(DoFnInvoker):
       if watermark_param is not None:
         additional_kwargs[watermark_param] = self.threadsafe_watermark_estimator
       try:
-        self.current_windowed_value = windowed_value
         return self._invoke_process_per_window(
             windowed_value, additional_args, additional_kwargs)
       finally:
-        self.threadsafe_restriction_tracker = None
-        self.threadsafe_watermark_estimator = None
-        self.current_windowed_value = windowed_value
+        with self.splitting_lock:
+          self.threadsafe_restriction_tracker = None
+          self.threadsafe_watermark_estimator = None
+          self.current_windowed_value = windowed_value
 
     elif self.has_windowed_inputs and len(windowed_value.windows) != 1:
       for w in windowed_value.windows:
@@ -842,18 +847,27 @@ class PerWindowInvoker(DoFnInvoker):
 
   def try_split(self, fraction):
     # type: (...) -> Optional[Tuple[SplitResultPrimary, SplitResultResidual]]
-    if self.threadsafe_restriction_tracker and self.current_windowed_value:
+    if not self.is_splittable:
+      return None
+
+    with self.splitting_lock:
+      # Make a local reference to member variables that change references during
+      # processing under lock before attempting to split so we have a consistent
+      # view of all the references.
+      current_windowed_value = self.current_windowed_value
+      threadsafe_restriction_tracker = self.threadsafe_restriction_tracker
+      threadsafe_watermark_estimator = self.threadsafe_watermark_estimator
+
+    if threadsafe_restriction_tracker:
       # Temporary workaround for [BEAM-7473]: get current_watermark before
       # split, in case watermark gets advanced before getting split results.
       # In worst case, current_watermark is always stale, which is ok.
-      split = self.threadsafe_restriction_tracker.try_split(fraction)
-      current_watermark = (
-          self.threadsafe_watermark_estimator.current_watermark())
-      estimator_state = (
-          self.threadsafe_watermark_estimator.get_estimator_state())
+      current_watermark = (threadsafe_watermark_estimator.current_watermark())
+      estimator_state = (threadsafe_watermark_estimator.get_estimator_state())
+      split = threadsafe_restriction_tracker.try_split(fraction)
       if split:
         primary, residual = split
-        element = self.current_windowed_value.value
+        element = current_windowed_value.value
         restriction_provider = self.signature.get_restriction_provider()
         primary_size = restriction_provider.restriction_size(element, primary)
         residual_size = restriction_provider.restriction_size(element, residual)
@@ -861,10 +875,9 @@ class PerWindowInvoker(DoFnInvoker):
         residual_value = ((element, (residual, estimator_state)), residual_size)
         return (
             SplitResultPrimary(
-                primary_value=self.current_windowed_value.with_value(
-                    primary_value)),
+                primary_value=current_windowed_value.with_value(primary_value)),
             SplitResultResidual(
-                residual_value=self.current_windowed_value.with_value(
+                residual_value=current_windowed_value.with_value(
                     residual_value),
                 current_watermark=current_watermark,
                 deferred_timestamp=None))

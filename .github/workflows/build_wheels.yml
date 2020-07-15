@@ -53,6 +53,12 @@ jobs:
       - name: Build source
         working-directory: ./sdks/python
         run: python setup.py sdist --formats=gztar,zip
+      - name: Add checksums
+        working-directory: ./sdks/python/dist
+        run: |
+          for file in *.zip *.tar.gz; do
+            sha512sum $file > ${file}.sha512
+          done
       - name: Unzip source
         working-directory: ./sdks/python
         run: unzip dist/$(ls dist | grep .zip | head -n 1)
@@ -74,7 +80,7 @@ jobs:
     name: Prepare GCS
     needs: build_source
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: github.repository_owner == 'apache' && github.event_name != 'pull_request'
     steps:
       - name: Authenticate on GCP
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -88,6 +94,7 @@ jobs:
     name: Upload source to GCS bucket
     needs: prepare_gcs
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'apache'
     steps:
       - name: Download compressed sources from artifacts
         uses: actions/download-artifact@v2
@@ -128,6 +135,15 @@ jobs:
         CIBW_BEFORE_BUILD: pip install cython
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
+    - name: install sha512sum on MacOS
+      if: startsWith(matrix.os, 'macos')
+      run: brew install coreutils
+    - name: Add checksums
+      working-directory: apache-beam-source/wheelhouse/
+      run: |
+        for file in *.whl; do
+          sha512sum $file > ${file}.sha512
+        done
     - name: Upload wheels as artifacts
       uses: actions/upload-artifact@v2
       with:
@@ -138,7 +154,7 @@ jobs:
     name: Upload wheels to GCS bucket
     needs: build_wheels
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: github.repository_owner == 'apache' && github.event_name != 'pull_request'
     strategy:
       matrix:
         os : [ubuntu-latest, macos-latest]
@@ -180,7 +196,7 @@ jobs:
     name: List files on Google Cloud Storage Bucket
     needs: upload_wheels_to_gcs
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: github.repository_owner == 'apache' && github.event_name != 'pull_request'
     steps:
     - name: Authenticate on GCP
       uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -197,7 +213,7 @@ jobs:
       - build_wheels
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: github.event_name == 'schedule'
+    if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
       - name: Checkout code on master branch
         uses: actions/checkout@master

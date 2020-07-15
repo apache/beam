@@ -857,6 +857,49 @@ public class DataflowRunnerTest implements Serializable {
         workflowJob.getEnvironment().getUserAgent().get("version"));
   }
 
+  /**
+   * Tests that {@link DataflowRunner} throws an appropriate exception when an explicitly specified
+   * file to stage does not exist locally.
+   */
+  @Test(expected = RuntimeException.class)
+  public void testRunWithMissingFiles() throws IOException {
+    final String cloudDataflowDataset = "somedataset";
+
+    File temp = new File("/this/is/not/a/path/that/will/exist");
+
+    String overridePackageName = "alias.txt";
+
+    when(mockGcsUtil.getObjects(anyListOf(GcsPath.class)))
+        .thenReturn(
+            ImmutableList.of(
+                GcsUtil.StorageObjectOrIOException.create(new FileNotFoundException("some/path"))));
+
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setFilesToStage(ImmutableList.of(overridePackageName + "=" + temp.getAbsolutePath()));
+    options.setStagingLocation(VALID_STAGING_BUCKET);
+    options.setTempLocation(VALID_TEMP_BUCKET);
+    options.setTempDatasetId(cloudDataflowDataset);
+    options.setProject(PROJECT_ID);
+    options.setRegion(REGION_ID);
+    options.setJobName("job");
+    options.setDataflowClient(buildMockDataflow());
+    options.setGcsUtil(mockGcsUtil);
+    options.setGcpCredential(new TestCredential());
+
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+        .then(
+            invocation ->
+                FileChannel.open(
+                    Files.createTempFile("channel-", ".tmp"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.DELETE_ON_CLOSE));
+
+    Pipeline p = buildDataflowPipeline(options);
+
+    DataflowPipelineJob job = (DataflowPipelineJob) p.run();
+  }
+
   @Test
   public void runWithDefaultFilesToStage() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();

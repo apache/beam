@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.util.common;
 
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -141,10 +143,16 @@ public class ReflectHelpersTest {
 
   @Test
   public void testAnnotationFormatter() throws Exception {
-    assertEquals(
-        "Default.String(value=package.OuterClass$InnerClass#method())",
+    // Java 11 puts quotes in unparsed string, Java 8 does not.
+    // It would be an improvement for our own formatter to make it have the
+    // Java 11 behavior even when running on Java 8, but we can just
+    // wait it out.
+    assertThat(
         ReflectHelpers.ANNOTATION_FORMATTER.apply(
-            Options.class.getMethod("getString").getAnnotations()[0]));
+            Options.class.getMethod("getString").getAnnotations()[0]),
+        anyOf(
+            equalTo("Default.String(value=package.OuterClass$InnerClass#method())"),
+            equalTo("Default.String(value=\"package.OuterClass$InnerClass#method()\")")));
 
     assertEquals(
         "JsonIgnore(value=true)",
