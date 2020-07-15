@@ -28,6 +28,7 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaCapableIOProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
@@ -51,11 +52,7 @@ import org.apache.beam.sdk.values.Row;
 @Experimental
 public abstract class SchemaCapableIOTableProviderWrapper extends InMemoryMetaTableProvider
     implements Serializable {
-  private SchemaIOProvider schemaCapableIOProvider;
-
-  public SchemaCapableIOTableProviderWrapper(SchemaIOProvider schemaCapableIOProvider) {
-    this.schemaCapableIOProvider = schemaCapableIOProvider;
-  }
+  private SchemaIOProvider schemaCapableIOProvider = new PubsubSchemaCapableIOProvider();
 
   @Override
   public String getTableType() {

@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaCapableIOProvider;
 @AutoService(TableProvider.class)
 public class PubsubJsonTableProvider extends SchemaCapableIOTableProviderWrapper {
   public PubsubJsonTableProvider() {
-    super(new PubsubSchemaCapableIOProvider());
+    super();
   }
+
 }
