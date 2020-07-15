@@ -43,12 +43,12 @@ job(jobName) {
     project                      : 'apache-beam-testing',
     runner                       : 'DataflowRunner',
     sourceOptions                : """
-                                          {
-                                            "numRecords": "100000000",
-                                            "keySizeBytes": "1",
-                                            "valueSizeBytes": "90"
-                                          }
-                            """.trim().replaceAll("\\s", ""),
+                                     {
+                                       "numRecords": "100000000",
+                                       "keySizeBytes": "1",
+                                       "valueSizeBytes": "90"
+                                     }
+                                   """.trim().replaceAll("\\s", ""),
     bigQueryDataset              : 'beam_performance',
     bigQueryTable                : 'kafkaioit_results',
     influxMeasurement            : 'kafkaioit_results',

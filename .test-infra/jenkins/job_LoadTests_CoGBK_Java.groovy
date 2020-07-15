@@ -40,21 +40,21 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         influxMeasurement     : "java_${mode}_cogbk_1",
         publishToInfluxDB     : true,
         sourceOptions         : """
-                                            {
-                                              "numRecords": 20000000,
-                                              "keySizeBytes": 10,
-                                              "valueSizeBytes": 90,
-                                              "numHotKeys": 1
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 20000000,
+                                    "keySizeBytes": 10,
+                                    "valueSizeBytes": 90,
+                                    "numHotKeys": 1
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         coSourceOptions       : """
-                                            {
-                                              "numRecords": 2000000,
-                                              "keySizeBytes": 10,
-                                              "valueSizeBytes": 90,
-                                              "numHotKeys": 1000
-                                            }
-                                        """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 2000000,
+                                    "keySizeBytes": 10,
+                                    "valueSizeBytes": 90,
+                                    "numHotKeys": 1000
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         iterations            : 1,
         numWorkers            : 5,
         autoscalingAlgorithm  : "NONE",
@@ -76,21 +76,21 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         influxMeasurement     : "java_${mode}_cogbk_2",
         publishToInfluxDB     : true,
         sourceOptions         : """
-                                            {
-                                              "numRecords": 20000000,
-                                              "keySizeBytes": 10,
-                                              "valueSizeBytes": 90,
-                                              "numHotKeys": 5
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 20000000,
+                                    "keySizeBytes": 10,
+                                    "valueSizeBytes": 90,
+                                    "numHotKeys": 5
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         coSourceOptions       : """
-                                            {
-                                              "numRecords": 2000000,
-                                              "keySizeBytes": 10,
-                                              "valueSizeBytes": 90,
-                                              "numHotKeys": 1000
-                                            }
-                                        """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 2000000,
+                                    "keySizeBytes": 10,
+                                    "valueSizeBytes": 90,
+                                    "numHotKeys": 1000
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         iterations            : 1,
         numWorkers            : 5,
         autoscalingAlgorithm  : "NONE",
@@ -113,21 +113,21 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         influxMeasurement     : "java_${mode}_cogbk_3",
         publishToInfluxDB     : true,
         sourceOptions         : """
-                                            {
-                                              "numRecords": 2000000,
-                                              "keySizeBytes": 10,
-                                              "valueSizeBytes": 90,
-                                              "numHotKeys": 200000
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 2000000,
+                                    "keySizeBytes": 10,
+                                    "valueSizeBytes": 90,
+                                    "numHotKeys": 200000
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         coSourceOptions       : """
-                                            {
-                                              "numRecords": 2000000,
-                                              "keySizeBytes": 10,
-                                              "valueSizeBytes": 90,
-                                              "numHotKeys": 1000
-                                            }
-                                        """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 2000000,
+                                    "keySizeBytes": 10,
+                                    "valueSizeBytes": 90,
+                                    "numHotKeys": 1000
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         iterations            : 4,
         numWorkers            : 5,
         autoscalingAlgorithm  : "NONE",
@@ -150,21 +150,21 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         influxMeasurement     : "java_${mode}_cogbk_4",
         publishToInfluxDB     : true,
         sourceOptions         : """
-                                            {
-                                              "numRecords": 2000000,
-                                              "keySizeBytes": 10,
-                                              "valueSizeBytes": 90,
-                                              "numHotKeys": 1000
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 2000000,
+                                    "keySizeBytes": 10,
+                                    "valueSizeBytes": 90,
+                                    "numHotKeys": 1000
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         coSourceOptions       : """
-                                            {
-                                              "numRecords": 2000000,
-                                              "keySizeBytes": 10,
-                                              "valueSizeBytes": 90,
-                                              "numHotKeys": 1000
-                                            }
-                                        """.trim().replaceAll("\\s", ""),
+                                  {
+                                    "numRecords": 2000000,
+                                    "keySizeBytes": 10,
+                                    "valueSizeBytes": 90,
+                                    "numHotKeys": 1000
+                                  }
+                                """.trim().replaceAll("\\s", ""),
         iterations            : 4,
         numWorkers            : 5,
         autoscalingAlgorithm  : "NONE",

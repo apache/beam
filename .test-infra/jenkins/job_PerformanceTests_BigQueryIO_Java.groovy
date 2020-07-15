@@ -26,7 +26,7 @@ def jobConfigs = [
   [
     title        : 'BigQueryIO Streaming Performance Test Java 10 GB',
     triggerPhrase: 'Run BigQueryIO Streaming Performance Test Java',
-    name      : 'beam_BiqQueryIO_Streaming_Performance_Test_Java',
+    name         : 'beam_BiqQueryIO_Streaming_Performance_Test_Java',
     itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
     properties: [
       project               : 'apache-beam-testing',
@@ -40,12 +40,12 @@ def jobConfigs = [
       metricsBigQueryTable  : 'bqio_10GB_results_java_stream',
       influxMeasurement     : 'bqio_10GB_results_java_stream',
       sourceOptions         : """
-                                            {
-                                              "numRecords": "10485760",
-                                              "keySizeBytes": "1",
-                                              "valueSizeBytes": "1024"
-                                            }
-                                       """.trim().replaceAll("\\s", ""),
+                                {
+                                  "numRecords": "10485760",
+                                  "keySizeBytes": "1",
+                                  "valueSizeBytes": "1024"
+                                }
+                              """.trim().replaceAll("\\s", ""),
       runner                : 'DataflowRunner',
       maxNumWorkers         : '5',
       numWorkers            : '5',
@@ -55,7 +55,7 @@ def jobConfigs = [
   [
     title        : 'BigQueryIO Batch Performance Test Java 10 GB JSON',
     triggerPhrase: 'Run BigQueryIO Batch Performance Test Java Json',
-    name      : 'beam_BiqQueryIO_Batch_Performance_Test_Java_Json',
+    name         : 'beam_BiqQueryIO_Batch_Performance_Test_Java_Json',
     itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
     properties: [
       project               : 'apache-beam-testing',
@@ -69,12 +69,12 @@ def jobConfigs = [
       metricsBigQueryTable  : 'bqio_10GB_results_java_batch_json',
       influxMeasurement     : 'bqio_10GB_results_java_batch_json',
       sourceOptions         : """
-                                            {
-                                              "numRecords": "10485760",
-                                              "keySizeBytes": "1",
-                                              "valueSizeBytes": "1024"
-                                            }
-                                      """.trim().replaceAll("\\s", ""),
+                                {
+                                  "numRecords": "10485760",
+                                  "keySizeBytes": "1",
+                                  "valueSizeBytes": "1024"
+                                }
+                              """.trim().replaceAll("\\s", ""),
       runner                : "DataflowRunner",
       maxNumWorkers         : '5',
       numWorkers            : '5',
@@ -84,7 +84,7 @@ def jobConfigs = [
   [
     title        : 'BigQueryIO Batch Performance Test Java 10 GB AVRO',
     triggerPhrase: 'Run BigQueryIO Batch Performance Test Java Avro',
-    name      : 'beam_BiqQueryIO_Batch_Performance_Test_Java_Avro',
+    name         : 'beam_BiqQueryIO_Batch_Performance_Test_Java_Avro',
     itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
     properties: [
       project               : 'apache-beam-testing',
@@ -98,12 +98,12 @@ def jobConfigs = [
       metricsBigQueryTable  : 'bqio_10GB_results_java_batch_avro',
       influxMeasurement     : 'bqio_10GB_results_java_batch_avro',
       sourceOptions         : """
-                                            {
-                                              "numRecords": "10485760",
-                                              "keySizeBytes": "1",
-                                              "valueSizeBytes": "1024"
-                                            }
-                                      """.trim().replaceAll("\\s", ""),
+                                {
+                                  "numRecords": "10485760",
+                                  "keySizeBytes": "1",
+                                  "valueSizeBytes": "1024"
+                                }
+                              """.trim().replaceAll("\\s", ""),
       runner                : "DataflowRunner",
       maxNumWorkers         : '5',
       numWorkers            : '5',
