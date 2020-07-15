@@ -17,63 +17,25 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
-import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
-
-import com.alibaba.fastjson.JSONObject;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
+import org.apache.beam.sdk.extensions.sql.meta.provider.SchemaCapableIOTableProviderWrapper;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaCapableIOProvider;
-import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
-import org.apache.beam.sdk.schemas.io.InvalidSchemaException;
-import org.apache.beam.sdk.schemas.io.SchemaIO;
-import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
-import org.apache.beam.sdk.values.Row;
 
 /**
- * {@link TableProvider} for {@link PubsubIOJsonTable} which wraps {@link PubsubIO} for consumption
- * by Beam SQL.
+ * {@link TableProvider} for {@link PubsubIO} for consumption by Beam SQL.
+ *
+ * <p>Passes the {@link PubsubSchemaCapableIOProvider} to the generalized table provider wrapper,
+ * {@link SchemaCapableIOTableProviderWrapper}, for Pubsub specific behavior.
  */
 @Internal
 @Experimental
 @AutoService(TableProvider.class)
-public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
-
-  @Override
-  public String getTableType() {
-    return "pubsub";
-  }
-
-  @Override
-  public BeamSqlTable buildBeamSqlTable(Table tableDefinition) {
-    JSONObject tableProperties = tableDefinition.getProperties();
-    PubsubSchemaCapableIOProvider ioProvider = new PubsubSchemaCapableIOProvider();
-
-    try {
-      RowJsonDeserializer deserializer =
-          RowJsonDeserializer.forSchema(ioProvider.configurationSchema())
-              .withNullBehavior(RowJsonDeserializer.NullBehavior.ACCEPT_MISSING_OR_NULL);
-
-      Row configurationRow =
-          newObjectMapperWith(deserializer).readValue(tableProperties.toString(), Row.class);
-
-      SchemaIO pubsubSchemaIO =
-          ioProvider.from(
-              tableDefinition.getLocation(), configurationRow, tableDefinition.getSchema());
-
-      return PubsubIOJsonTable.fromSchemaIO(pubsubSchemaIO);
-    } catch (InvalidConfigurationException | InvalidSchemaException e) {
-      throw new InvalidTableException(e.getMessage());
-    } catch (JsonProcessingException e) {
-      throw new AssertionError(
-          "Failed to re-parse TBLPROPERTIES JSON " + tableProperties.toString());
-    }
+public class PubsubJsonTableProvider extends SchemaCapableIOTableProviderWrapper {
+  public PubsubJsonTableProvider() {
+    super(new PubsubSchemaCapableIOProvider());
   }
 }

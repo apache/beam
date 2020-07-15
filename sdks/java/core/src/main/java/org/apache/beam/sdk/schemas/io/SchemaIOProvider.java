@@ -22,6 +22,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -52,4 +53,6 @@ public interface SchemaIOProvider {
 
   /** Indicates whether the dataSchema value is necessary. */
   boolean requiresDataSchema();
+
+  PCollection.IsBounded isBounded();
 }
