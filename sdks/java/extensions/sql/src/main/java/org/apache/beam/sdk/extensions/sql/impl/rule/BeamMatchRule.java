@@ -25,6 +25,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.Con
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Match;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalMatch;
 
+/** {@code ConverterRule} to replace {@code Match} with {@code BeamMatchRel}. */
 public class BeamMatchRule extends ConverterRule {
   public static final BeamMatchRule INSTANCE = new BeamMatchRule();
 

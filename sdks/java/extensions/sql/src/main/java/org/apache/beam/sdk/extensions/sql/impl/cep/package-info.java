@@ -16,5 +16,11 @@
  * limitations under the License.
  */
 
-/** Utilities for Complex Event Processing (CEP). */
+/**
+ * Utilities for Complex Event Processing (CEP).
+ *
+ * <p>For serialization, Beam needs serializable classes to replace Calcite's classes. This package
+ * includes some "cloned" classes to replace Calcite {@code RexNode}, {@code RelCollation}, {@code
+ * SqlOperator} etc.
+ */
 package org.apache.beam.sdk.extensions.sql.impl.cep;

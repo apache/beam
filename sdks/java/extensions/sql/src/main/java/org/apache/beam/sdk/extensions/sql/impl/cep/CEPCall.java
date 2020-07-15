@@ -25,6 +25,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexPatternFieldRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 
+/**
+ * A {@code CEPCall} instance represents an operation (node) that contains an operator and a list of
+ * operands. It has the similar functionality as Calcite's {@code RexCall}.
+ */
 public class CEPCall extends CEPOperation {
 
   private final CEPOperator operator;

@@ -20,6 +20,10 @@ package org.apache.beam.sdk.extensions.sql.impl.cep;
 import java.io.Serializable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 
+/**
+ * The {@code CEPOperator} records the operators (i.e. functions) in the {@code DEFINE} clause of
+ * {@code MATCH_RECOGNIZE}.
+ */
 public class CEPOperator implements Serializable {
   private final CEPKind cepKind;
 

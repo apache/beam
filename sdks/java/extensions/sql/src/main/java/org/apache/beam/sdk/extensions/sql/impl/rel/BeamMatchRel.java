@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static org.apache.beam.sdk.extensions.sql.impl.cep.CEPUtil.makeOrderKeysFromCollation;
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
@@ -47,18 +46,22 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptClus
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollation;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Match;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexVariable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** {@link BeamRelNode} to replace a {@link Match} node. */
+/**
+ * {@code BeamRelNode} to replace a {@code Match} node.
+ *
+ * <p>The {@code BeamMatchRel} is the Beam implementation of {@code MATCH_RECOGNIZE} in SQL.
+ *
+ * <p>For now, the underline implementation is based on java.util.regex.
+ */
 public class BeamMatchRel extends Match implements BeamRelNode {
 
   public static final Logger LOG = LoggerFactory.getLogger(BeamMatchRel.class);
@@ -148,13 +151,13 @@ public class BeamMatchRel extends Match implements BeamRelNode {
           pinput);
       PCollection<Row> upstream = pinput.get(0);
 
-      Schema collectionSchema = upstream.getSchema();
+      Schema upstreamSchema = upstream.getSchema();
 
       Schema.Builder schemaBuilder = new Schema.Builder();
       for (RexNode i : parKeys) {
         RexVariable varNode = (RexVariable) i;
         int index = Integer.parseInt(varNode.getName().substring(1)); // get rid of `$`
-        schemaBuilder.addField(collectionSchema.getField(index));
+        schemaBuilder.addField(upstreamSchema.getField(index));
       }
       Schema mySchema = schemaBuilder.build();
 
@@ -164,26 +167,26 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       // group by keys
       PCollection<KV<Row, Iterable<Row>>> groupedUpstream =
           keyedUpstream
-              .setCoder(KvCoder.of(RowCoder.of(mySchema), RowCoder.of(collectionSchema)))
+              .setCoder(KvCoder.of(RowCoder.of(mySchema), RowCoder.of(upstreamSchema)))
               .apply(GroupByKey.create());
 
       // sort within each keyed partition
+      ArrayList<OrderKey> myOrderKeys = makeOrderKeysFromCollation(orderKeys);
       PCollection<KV<Row, Iterable<Row>>> orderedUpstream =
-          groupedUpstream.apply(ParDo.of(new SortPerKey(collectionSchema, orderKeys)));
+          groupedUpstream.apply(ParDo.of(new SortPerKey(upstreamSchema, myOrderKeys)));
 
       // apply the pattern match in each partition
-      // TODO: add support for quantifiers
-      //  (Pattern_Quantifier(String patternVar, int start, int end, boolean isReluctant)
       ArrayList<CEPPattern> cepPattern =
-          CEPUtil.getCEPPatternFromPattern(collectionSchema, (RexCall) pattern, patternDefs);
-      String regexPattern = CEPUtil.getRegexFromPattern((RexCall) pattern);
+          CEPUtil.getCEPPatternFromPattern(upstreamSchema, pattern, patternDefs);
+      String regexPattern = CEPUtil.getRegexFromPattern(pattern);
       PCollection<KV<Row, Iterable<Row>>> matchedUpstream =
           orderedUpstream.apply(ParDo.of(new MatchPattern(cepPattern, regexPattern)));
 
       // apply the ParDo for the measures clause
       // for now, output all rows of each pattern matched (for testing purpose)
+      // TODO: add ONE ROW PER MATCH and MEASURES implementation.
       PCollection<Row> outStream =
-          matchedUpstream.apply(ParDo.of(new Measure())).setRowSchema(collectionSchema);
+          matchedUpstream.apply(ParDo.of(new Measure())).setRowSchema(upstreamSchema);
 
       return outStream;
     }
@@ -243,23 +246,9 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       private final Schema cSchema;
       private final ArrayList<OrderKey> orderKeys;
 
-      public SortPerKey(Schema cSchema, RelCollation orderKeys) {
+      public SortPerKey(Schema cSchema, ArrayList<OrderKey> orderKeys) {
         this.cSchema = cSchema;
-
-        List<RelFieldCollation> revOrderKeys = orderKeys.getFieldCollations();
-        Collections.reverse(revOrderKeys);
-        ArrayList<OrderKey> revOrderKeysList = new ArrayList<>();
-        for (RelFieldCollation i : revOrderKeys) {
-          int fIndex = i.getFieldIndex();
-          RelFieldCollation.Direction dir = i.getDirection();
-          if (dir == RelFieldCollation.Direction.ASCENDING) {
-            revOrderKeysList.add(new OrderKey(fIndex, false));
-          } else {
-            revOrderKeysList.add(new OrderKey(fIndex, true));
-          }
-        }
-
-        this.orderKeys = revOrderKeysList;
+        this.orderKeys = orderKeys;
       }
 
       @ProcessElement
@@ -269,56 +258,19 @@ public class BeamMatchRel extends Match implements BeamRelNode {
         for (Row i : keyRows.getValue()) {
           rows.add(i);
         }
+
+        ArrayList<Integer> fIndexList = new ArrayList<>();
+        ArrayList<Boolean> dirList = new ArrayList<>();
+        ArrayList<Boolean> nullDirList = new ArrayList<>();
         for (OrderKey i : orderKeys) {
-          int fIndex = i.getIndex();
-          boolean dir = i.getDir();
-          rows.sort(new SortComparator(fIndex, dir));
+          fIndexList.add(i.getIndex());
+          dirList.add(i.getDir());
+          nullDirList.add(i.getNullFirst());
         }
-        // TODO: Change the comparator to the row comparator:
-        // https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/impl/rel/BeamSortRel.java#L373
+
+        rows.sort(new BeamSortRel.BeamSqlRowComparator(fIndexList, dirList, nullDirList));
 
         out.output(KV.of(keyRows.getKey(), rows));
-      }
-
-      private class SortComparator implements Comparator<Row> {
-
-        private final int fIndex;
-        private final int inv;
-
-        public SortComparator(int fIndex, boolean inverse) {
-          this.fIndex = fIndex;
-          this.inv = inverse ? -1 : 1;
-        }
-
-        @Override
-        public int compare(Row o1, Row o2) {
-          Schema.Field fd = cSchema.getField(fIndex);
-          Schema.FieldType dtype = fd.getType();
-          switch (dtype.getTypeName()) {
-            case BYTE:
-              return o1.getByte(fIndex).compareTo(o2.getByte(fIndex)) * inv;
-            case INT16:
-              return o1.getInt16(fIndex).compareTo(o2.getInt16(fIndex)) * inv;
-            case INT32:
-              return o1.getInt32(fIndex).compareTo(o2.getInt32(fIndex)) * inv;
-            case INT64:
-              return o1.getInt64(fIndex).compareTo(o2.getInt64(fIndex)) * inv;
-            case DECIMAL:
-              return o1.getDecimal(fIndex).compareTo(o2.getDecimal(fIndex)) * inv;
-            case FLOAT:
-              return o1.getFloat(fIndex).compareTo(o2.getFloat(fIndex)) * inv;
-            case DOUBLE:
-              return o1.getDouble(fIndex).compareTo(o2.getDouble(fIndex)) * inv;
-            case STRING:
-              return o1.getString(fIndex).compareTo(o2.getString(fIndex)) * inv;
-            case DATETIME:
-              return o1.getDateTime(fIndex).compareTo(o2.getDateTime(fIndex)) * inv;
-            case BOOLEAN:
-              return o1.getBoolean(fIndex).compareTo(o2.getBoolean(fIndex)) * inv;
-            default:
-              throw new UnsupportedOperationException("Order not supported for specified column");
-          }
-        }
       }
     }
   }

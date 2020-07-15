@@ -20,6 +20,10 @@ package org.apache.beam.sdk.extensions.sql.impl.cep;
 import java.io.Serializable;
 import org.apache.beam.sdk.values.Row;
 
+/**
+ * {@code PatternCondition} stores the function to decide whether a row is a match of a single
+ * pattern.
+ */
 public abstract class PatternCondition implements Serializable {
 
   private String patternVar;

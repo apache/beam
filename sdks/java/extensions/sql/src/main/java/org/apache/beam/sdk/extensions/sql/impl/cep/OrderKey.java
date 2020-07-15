@@ -18,15 +18,29 @@
 package org.apache.beam.sdk.extensions.sql.impl.cep;
 
 import java.io.Serializable;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation;
 
+/**
+ * The {@code OrderKey} class stores the information to sort a column. {@param fIndex} is the field
+ * (column) index. {@param dir} is the direction (true for ascending). {@param nullFirst} states
+ * whether to put null values first.
+ *
+ * <h3>Constraints</h3>
+ *
+ * <ul>
+ *   <ui>Strict orders are not supported for now.
+ * </ul>
+ */
 public class OrderKey implements Serializable {
 
   private final int fIndex;
-  private final boolean inv;
+  private final boolean dir;
+  private final boolean nullFirst;
 
-  public OrderKey(int fIndex, boolean inv) {
+  private OrderKey(int fIndex, boolean dir, boolean nullFirst) {
     this.fIndex = fIndex;
-    this.inv = inv;
+    this.dir = dir;
+    this.nullFirst = nullFirst;
   }
 
   public int getIndex() {
@@ -34,6 +48,29 @@ public class OrderKey implements Serializable {
   }
 
   public boolean getDir() {
-    return inv;
+    return dir;
+  }
+
+  public boolean getNullFirst() {
+    return nullFirst;
+  }
+
+  public static OrderKey of(RelFieldCollation orderKey) {
+    int fieldIndex = orderKey.getFieldIndex();
+    RelFieldCollation.Direction dir = orderKey.direction;
+    RelFieldCollation.NullDirection nullDir = orderKey.nullDirection;
+    if (!dir.isDescending()) {
+      if (nullDir == RelFieldCollation.NullDirection.FIRST) {
+        return new OrderKey(fieldIndex, true, true);
+      } else {
+        return new OrderKey(fieldIndex, true, false);
+      }
+    } else {
+      if (nullDir == RelFieldCollation.NullDirection.FIRST) {
+        return new OrderKey(fieldIndex, false, true);
+      } else {
+        return new OrderKey(fieldIndex, false, false);
+      }
+    }
   }
 }
