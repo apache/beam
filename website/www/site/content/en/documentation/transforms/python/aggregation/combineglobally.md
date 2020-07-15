@@ -166,7 +166,6 @@ Output `PCollection` after `CombineGlobally`:
 The more general way to combine elements, and the most flexible, is with a class that inherits from `CombineFn`.
 
 * [`CombineFn.create_accumulator()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineFn.create_accumulator):
-  Called *once per `CombineFn` instance* when the `CombineFn` instance is initialized.
   This creates an empty accumulator.
   For example, an empty accumulator for a sum would be `0`, while an empty accumulator for a product (multiplication) would be `1`.
 
@@ -175,13 +174,10 @@ The more general way to combine elements, and the most flexible, is with a class
   Takes an accumulator and an input element, combines them and returns the updated accumulator.
 
 * [`CombineFn.merge_accumulators()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineFn.merge_accumulators):
-  Called *once per bundle of elements* after processing the last element of the bundle.
   Multiple accumulators could be processed in parallel, so this function helps merging them into a single accumulator.
 
 * [`CombineFn.extract_output()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineFn.extract_output):
-  Called *once per `CombineFn` instance* when the `CombineFn` instance is done.
-  After all accumulators have been merged into a single final accumulator, `extract_output` allows to do additional calculations.
-  This is useful for calculating averages, percentages, or anything that needs aggregate information from all the elements.
+  It allows to do additional calculations before extracting a result.
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" combineglobally_combinefn >}}
