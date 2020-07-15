@@ -16,15 +16,20 @@
 # limitations under the License.
 ################################################################################
 
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: influxdb-backups
-  labels:
-    app: beammetrics
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
+FROM python:3-slim
+
+RUN pip install --no-cache-dir gsutil
+
+WORKDIR /
+
+RUN gsutil cp gs://apache-beam-testing-metrics/influxdb-backup.tar.gz . && \
+tar xzf influxdb-backup.tar.gz
+
+
+FROM influxdb:1.8.0
+
+ADD https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh /wait-for-it.sh
+
+RUN chmod +x /wait-for-it.sh
+
+COPY --from=0 /backup /backup
