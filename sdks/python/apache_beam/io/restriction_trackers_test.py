@@ -154,6 +154,12 @@ class OffsetRestrictionTrackerTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       tracker.check_done()
 
+  def test_check_done_with_no_claims(self):
+    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
+
+    with self.assertRaises(ValueError):
+      tracker.check_done()
+
   def test_try_split(self):
     tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
     tracker.try_claim(100)

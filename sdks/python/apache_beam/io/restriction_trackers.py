@@ -93,7 +93,8 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
   def check_done(self):
     if (self._range.start != self._range.stop and
-        self._last_claim_attempt < self._range.stop - 1):
+        (self._last_claim_attempt is None or
+         self._last_claim_attempt < self._range.stop - 1)):
       raise ValueError(
           'OffsetRestrictionTracker is not done since work in range [%s, %s) '
           'has not been claimed.' % (
