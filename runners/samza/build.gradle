@@ -91,6 +91,10 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
+  filter {
+    // TODO(BEAM-10025)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
+  }
 }
 
 // Generates :runners:samza:runQuickstartJavaSamza
