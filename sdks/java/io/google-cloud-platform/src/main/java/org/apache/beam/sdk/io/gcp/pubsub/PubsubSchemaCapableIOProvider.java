@@ -25,8 +25,11 @@ import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.TIMESTAMP_FIE
 import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
 
 import com.google.auto.service.AutoService;
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
@@ -39,6 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * An implementation of {@link SchemaIOProvider} for reading and writing JSON payloads with {@link
@@ -155,16 +159,17 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
   /** An abstraction to create schema aware IOs. */
   @Internal
   private static class PubsubSchemaIO implements SchemaIO, Serializable {
-    protected final Row config;
     protected final Schema dataSchema;
     protected final String location;
     protected final Boolean useFlatSchema;
+    protected final Config config;
 
     private PubsubSchemaIO(String location, Row config, Schema dataSchema) {
-      this.config = config;
       this.dataSchema = dataSchema;
       this.location = location;
       this.useFlatSchema = !definesAttributeAndPayload(dataSchema);
+      this.config =
+          new AutoValueSchema().fromRowFunction(TypeDescriptor.of(Config.class)).apply(config);
     }
 
     @Override
@@ -184,12 +189,12 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
                       "PubsubMessageToRow",
                       PubsubMessageToRow.builder()
                           .messageSchema(dataSchema)
-                          .useDlq(useDlqCheck(config))
+                          .useDlq(config.useDlqCheck())
                           .useFlatSchema(useFlatSchema)
                           .build());
           rowsWithDlq.get(MAIN_TAG).setRowSchema(dataSchema);
 
-          if (useDlqCheck(config)) {
+          if (config.useDlqCheck()) {
             rowsWithDlq.get(DLQ_TAG).apply(writeMessagesToDlq());
           }
 
@@ -211,7 +216,11 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
           return input
               .apply(
                   RowToPubsubMessage.fromConfig(
-                      config, useFlatSchema, useTimestampAttribute(config)))
+                      new AutoValueSchema()
+                          .toRowFunction(TypeDescriptor.of(Config.class))
+                          .apply(config),
+                      useFlatSchema,
+                      config.useTimestampAttribute()))
               .apply(createPubsubMessageWrite());
         }
       };
@@ -220,34 +229,26 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
     private PubsubIO.Read<PubsubMessage> readMessagesWithAttributes() {
       PubsubIO.Read<PubsubMessage> read = PubsubIO.readMessagesWithAttributes().fromTopic(location);
 
-      return useTimestampAttribute(config)
-          ? read.withTimestampAttribute(config.getValue("timestampAttributeKey"))
+      return config.useTimestampAttribute()
+          ? read.withTimestampAttribute(config.getTimestampAttributeKey())
           : read;
     }
 
     private PubsubIO.Write<PubsubMessage> createPubsubMessageWrite() {
       PubsubIO.Write<PubsubMessage> write = PubsubIO.writeMessages().to(location);
-      if (useTimestampAttribute(config)) {
-        write = write.withTimestampAttribute(config.getValue("timestampAttributeKey"));
+      if (config.useTimestampAttribute()) {
+        write = write.withTimestampAttribute(config.getTimestampAttributeKey());
       }
       return write;
     }
 
     private PubsubIO.Write<PubsubMessage> writeMessagesToDlq() {
       PubsubIO.Write<PubsubMessage> write =
-          PubsubIO.writeMessages().to(config.getString("deadLetterQueue"));
+          PubsubIO.writeMessages().to(config.getDeadLetterQueue());
 
-      return useTimestampAttribute(config)
-          ? write.withTimestampAttribute(config.getString("timestampAttributeKey"))
+      return config.useTimestampAttribute()
+          ? write.withTimestampAttribute(config.getTimestampAttributeKey())
           : write;
-    }
-
-    private boolean useDlqCheck(Row config) {
-      return config.getValue("deadLetterQueue") != null;
-    }
-
-    private boolean useTimestampAttribute(Row config) {
-      return config.getValue("timestampAttributeKey") != null;
     }
 
     private boolean definesAttributeAndPayload(Schema schema) {
@@ -262,6 +263,24 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
       return schema.hasField(field)
           && expectedType.equivalent(
               schema.getField(field).getType(), Schema.EquivalenceNullablePolicy.IGNORE);
+    }
+  }
+
+  @Internal
+  @AutoValue
+  public abstract static class Config implements Serializable {
+    @Nullable
+    public abstract String getTimestampAttributeKey();
+
+    @Nullable
+    public abstract String getDeadLetterQueue();
+
+    private boolean useDlqCheck() {
+      return getDeadLetterQueue() != null;
+    }
+
+    private boolean useTimestampAttribute() {
+      return getTimestampAttributeKey() != null;
     }
   }
 }
