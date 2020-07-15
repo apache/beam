@@ -59,6 +59,7 @@ public abstract class ZetaSqlTestBase {
     testBoundedTableMap.put("table_with_map", TestInput.TABLE_WITH_MAP);
     testBoundedTableMap.put("table_with_date", TestInput.TABLE_WITH_DATE);
     testBoundedTableMap.put("table_with_time", TestInput.TABLE_WITH_TIME);
+    testBoundedTableMap.put("table_with_numeric", TestInput.TABLE_WITH_NUMERIC);
     testBoundedTableMap.put(
         "table_with_struct_ts_string", TestInput.TABLE_WITH_STRUCT_TIMESTAMP_STRING);
     testBoundedTableMap.put("streaming_sql_test_table_a", TestInput.STREAMING_SQL_TABLE_A);

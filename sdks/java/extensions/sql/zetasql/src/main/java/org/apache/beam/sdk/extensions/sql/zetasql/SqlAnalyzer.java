@@ -174,6 +174,7 @@ public class SqlAnalyzer {
         .setEnabledLanguageFeatures(
             new HashSet<>(
                 Arrays.asList(
+                    LanguageFeature.FEATURE_NUMERIC_TYPE,
                     LanguageFeature.FEATURE_DISALLOW_GROUP_BY_FLOAT,
                     LanguageFeature.FEATURE_V_1_2_CIVIL_TIME,
                     LanguageFeature.FEATURE_V_1_1_SELECT_STAR_EXCEPT_REPLACE,
