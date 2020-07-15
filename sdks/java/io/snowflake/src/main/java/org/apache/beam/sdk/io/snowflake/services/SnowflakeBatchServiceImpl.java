@@ -42,17 +42,28 @@ public class SnowflakeBatchServiceImpl implements SnowflakeService<SnowflakeBatc
   private static final String SNOWFLAKE_GCS_PREFIX = "gcs://";
   private static final String GCS_PREFIX = "gs://";
 
+  /** Writing data to Snowflake in batch mode. */
   @Override
   public void write(SnowflakeBatchServiceConfig config) throws Exception {
     copyToTable(config);
   }
 
+  /** Reading data from Snowflake tables in batch processing. */
   @Override
   public String read(SnowflakeBatchServiceConfig config) throws Exception {
     return copyIntoStage(config);
   }
 
-  public String copyIntoStage(SnowflakeBatchServiceConfig config) throws SQLException {
+  /**
+   * Copies data from specified table to stage (bucket and directory). Uses Snowflake's <a
+   * href="https://docs.snowflake.com/en/sql-reference/sql/copy-into-location.html">COPY method</a>.
+   * All the details needed for COPY are inside passed configuration.
+   *
+   * @param config object with configuration to perform COPY query.
+   * @return destination where files were copied into
+   * @throws SQLException in case COPY query failed.
+   */
+  private String copyIntoStage(SnowflakeBatchServiceConfig config) throws SQLException {
     SerializableFunction<Void, DataSource> dataSourceProviderFn = config.getDataSourceProviderFn();
     String database = config.getDatabase();
     String schema = config.getSchema();
@@ -86,7 +97,15 @@ public class SnowflakeBatchServiceImpl implements SnowflakeService<SnowflakeBatc
     return String.format("0x%x", new BigInteger(1, input.getBytes(Charset.defaultCharset())));
   }
 
-  public void copyToTable(SnowflakeBatchServiceConfig config) throws SQLException {
+  /**
+   * Copies staged data from bucket directory to table. Uses Snowflake's <a
+   * href="https://docs.snowflake.com/en/sql-reference/sql/copy-into-table.html">COPY method</a>.
+   * All the details needed for COPY are inside passed configuration.
+   *
+   * @param config object with configuration to perform COPY query.
+   * @throws SQLException
+   */
+  private void copyToTable(SnowflakeBatchServiceConfig config) throws SQLException {
 
     SerializableFunction<Void, DataSource> dataSourceProviderFn = config.getDataSourceProviderFn();
     List<String> filesList = config.getFilesList();

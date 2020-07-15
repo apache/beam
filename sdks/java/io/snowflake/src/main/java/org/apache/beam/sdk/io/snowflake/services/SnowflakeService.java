@@ -21,8 +21,6 @@ import java.io.Serializable;
 
 /** Interface which defines common methods for interacting with Snowflake. */
 public interface SnowflakeService<T extends ServiceConfig> extends Serializable {
-  String CSV_QUOTE_CHAR_FOR_COPY = "''";
-
   String read(T config) throws Exception;
 
   void write(T config) throws Exception;

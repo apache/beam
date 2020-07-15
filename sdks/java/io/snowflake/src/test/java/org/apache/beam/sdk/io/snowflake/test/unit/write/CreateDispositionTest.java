@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.snowflake.test.unit.write;
 
-import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBatchServiceImpl;
 import static org.apache.beam.sdk.io.snowflake.test.TestUtils.getCsvMapper;
 import static org.junit.Assert.assertTrue;
 
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.io.snowflake.data.text.SnowflakeVarchar;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
+import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBatchServiceImpl;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;

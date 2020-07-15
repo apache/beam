@@ -20,11 +20,20 @@ package org.apache.beam.sdk.io.snowflake.services;
 import java.util.List;
 import net.snowflake.ingest.SimpleIngestManager;
 
+/** Class for preparing configuration for streaming write. */
 public class SnowflakeStreamingServiceConfig extends ServiceConfig {
-  SimpleIngestManager ingestManager;
-  List<String> filesList;
-  String stagingBucketDir;
+  private SimpleIngestManager ingestManager;
+  private List<String> filesList;
+  private String stagingBucketDir;
 
+  /**
+   * Constructor to create configuration for streaming write.
+   *
+   * @param filesList list of strings of staged files' names.
+   * @param stagingBucketDir name of a bucket and directory inside where files are staged and awaits
+   *     for being loaded to Snowflake.
+   * @param ingestManager instance of {@link SimpleIngestManager}.
+   */
   public SnowflakeStreamingServiceConfig(
       List<String> filesList, String stagingBucketDir, SimpleIngestManager ingestManager) {
     this.filesList = filesList;
@@ -32,14 +41,30 @@ public class SnowflakeStreamingServiceConfig extends ServiceConfig {
     this.ingestManager = ingestManager;
   }
 
+  /**
+   * Getter for ingest manager which serves API to load data in streaming mode and retrieve a report
+   * about loaded data.
+   *
+   * @return instance of {@link SimpleIngestManager}.
+   */
   public SimpleIngestManager getIngestManager() {
     return ingestManager;
   }
 
+  /**
+   * Getter for a list of staged files which are will be loaded to Snowflake.
+   *
+   * @return list of strings of staged files' names.
+   */
   public List<String> getFilesList() {
     return filesList;
   }
 
+  /**
+   * Getter for a bucket name with directory where files were staged and waiting for loading.
+   *
+   * @return name of a bucket and directory inside in form {@code gs://mybucket/dir/}
+   */
   public String getStagingBucketDir() {
     return stagingBucketDir;
   }

@@ -19,12 +19,12 @@ package org.apache.beam.sdk.io.snowflake.services;
 
 import java.util.List;
 import javax.sql.DataSource;
-
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
+/** Class for preparing configuration for batch write and read. */
 public class SnowflakeBatchServiceConfig extends ServiceConfig {
   private SerializableFunction<Void, DataSource> dataSourceProviderFn;
 
@@ -38,9 +38,9 @@ public class SnowflakeBatchServiceConfig extends ServiceConfig {
   private CreateDisposition createDisposition;
   private SnowflakeTableSchema tableSchema;
   private String stagingBucketDir;
-
   private String quotationMark;
 
+  /** Creating a batch configuration for reading. */
   public SnowflakeBatchServiceConfig(
       SerializableFunction<Void, DataSource> dataSourceProviderFn,
       String database,
@@ -60,6 +60,7 @@ public class SnowflakeBatchServiceConfig extends ServiceConfig {
     this.quotationMark = quotationMark;
   }
 
+  /** Creating a batch configuration for writing. */
   public SnowflakeBatchServiceConfig(
       SerializableFunction<Void, DataSource> dataSourceProviderFn,
       List<String> filesList,
@@ -87,42 +88,52 @@ public class SnowflakeBatchServiceConfig extends ServiceConfig {
     this.quotationMark = quotationMark;
   }
 
+  /** Getting a DataSource provider function for connection credentials. */
   public SerializableFunction<Void, DataSource> getDataSourceProviderFn() {
     return dataSourceProviderFn;
   }
 
+  /** Getting a table as a source of reading or destination to write. */
   public String getTable() {
     return table;
   }
 
+  /** Getting a query which can be source for reading. */
   public String getQuery() {
     return query;
   }
 
+  /** Getting Snowflake integration which is used in COPY statement. */
   public String getStorageIntegrationName() {
     return storageIntegrationName;
   }
 
+  /** Getting directory where files are staged. */
   public String getStagingBucketDir() {
     return stagingBucketDir;
   }
 
+  /** Getting list of names of staged files. */
   public List<String> getFilesList() {
     return filesList;
   }
 
+  /** Getting disposition how write data to table, see: {@link WriteDisposition}. */
   public WriteDisposition getWriteDisposition() {
     return writeDisposition;
   }
 
+  /** Getting a character that will surround {@code String} in staged CSV files. */
   public String getQuotationMark() {
     return quotationMark;
   }
 
+  /** Getting a Snowflake database. */
   public String getDatabase() {
     return database;
   }
 
+  /** Getting a schema of a Snowflake table. */
   public String getSchema() {
     return schema;
   }

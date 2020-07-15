@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.stream.Collectors;
 import net.snowflake.ingest.SimpleIngestManager;
 import net.snowflake.ingest.connection.IngestResponseException;
@@ -34,32 +33,37 @@ public class SnowflakeStreamingServiceImpl
   private static final Logger LOG = LoggerFactory.getLogger(SnowflakeStreamingServiceImpl.class);
   private transient SimpleIngestManager ingestManager;
 
+  /** Writing data to Snowflake in streaming mode. */
   @Override
   public void write(SnowflakeStreamingServiceConfig config) throws Exception {
     ingest(config);
   }
 
+  /** Reading data from Snowflake in streaming mode is not supported. */
   @Override
   public String read(SnowflakeStreamingServiceConfig config) throws Exception {
     throw new UnsupportedOperationException("Not supported by SnowflakeIO.");
   }
 
-  public void ingest(SnowflakeStreamingServiceConfig config)
+  /**
+   * SnowPipe is processing files from stage in streaming mode.
+   *
+   * @param config configuration object containing parameters for writing files to Snowflake
+   * @throws IngestResponseException REST API response error
+   * @throws IOException Snowflake problem while streaming
+   * @throws URISyntaxException creating request error
+   */
+  private void ingest(SnowflakeStreamingServiceConfig config)
       throws IngestResponseException, IOException, URISyntaxException {
-    List<String> filesList = config.filesList;
-    String stagingBucketDir = config.stagingBucketDir;
-    ingestManager = config.ingestManager;
+    List<String> filesList = config.getFilesList();
+    String stagingBucketDir = config.getStagingBucketDir();
+    ingestManager = config.getIngestManager();
 
-    List<String> newList =
+    Set<String> files =
         filesList.stream()
             .map(e -> e.replaceAll(String.valueOf(stagingBucketDir), ""))
             .map(e -> e.replaceAll("'", ""))
-            .collect(Collectors.toList());
-
-    Set<String> files = new TreeSet<>();
-    for (String file : newList) {
-      files.add(file);
-    }
+            .collect(Collectors.toSet());
 
     if (!files.isEmpty()) {
       this.ingestManager.ingestFiles(SimpleIngestManager.wrapFilepaths(files), null);
