@@ -19,6 +19,10 @@ package org.apache.beam.sdk.extensions.sql.impl.cep;
 
 import java.io.Serializable;
 
+/**
+ * For deciding the value type of a {@code CEPLiteral}, {@code CEPTypeName} intends for storing the
+ * type for a literal.
+ */
 public enum CEPTypeName implements Serializable {
   BYTE,
   INT16,

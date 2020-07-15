@@ -30,6 +30,7 @@ import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
 
+/** Test for {@code BeamMatchRel}. */
 public class BeamMatchRelTest {
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
@@ -83,7 +84,8 @@ public class BeamMatchRelTest {
             .build();
 
     registerTable(
-        "TestTable", TestBoundedTable.of(schemaType).addRows(1, "a", 1, 1, "a", 2, 1, "b", 3, 1, "c", 4));
+        "TestTable",
+        TestBoundedTable.of(schemaType).addRows(1, "a", 1, 1, "a", 2, 1, "b", 3, 1, "c", 4));
 
     String sql =
         "SELECT * "
@@ -103,9 +105,9 @@ public class BeamMatchRelTest {
     PAssert.that(result)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                Schema.FieldType.INT32, "id",
-                Schema.FieldType.STRING, "name",
-                Schema.FieldType.INT32, "proctime")
+                    Schema.FieldType.INT32, "id",
+                    Schema.FieldType.STRING, "name",
+                    Schema.FieldType.INT32, "proctime")
                 .addRows(1, "a", 1, 1, "a", 2, 1, "b", 3, 1, "c", 4)
                 .getRows());
 

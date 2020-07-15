@@ -19,6 +19,10 @@ package org.apache.beam.sdk.extensions.sql.impl.cep;
 
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexPatternFieldRef;
 
+/**
+ * A {@code CEPFieldRef} instance represents a node that points to a specified field in a {@code
+ * Row}. It has similar functionality as Calcite's {@code RexPatternFieldRef}.
+ */
 public class CEPFieldRef extends CEPOperation {
   private final int fieldIndex;
 

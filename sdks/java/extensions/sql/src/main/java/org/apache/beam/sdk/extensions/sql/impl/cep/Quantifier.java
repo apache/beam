@@ -19,7 +19,10 @@ package org.apache.beam.sdk.extensions.sql.impl.cep;
 
 import java.io.Serializable;
 
-// TODO: add support for {num} quantifier
+/**
+ * The {@code Quantifier} class is intended for storing the information of the quantifier for a
+ * pattern variable.
+ */
 public class Quantifier implements Serializable {
 
   public static final Quantifier NONE = new Quantifier("");

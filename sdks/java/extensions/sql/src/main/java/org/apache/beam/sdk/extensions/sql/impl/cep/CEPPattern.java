@@ -25,7 +25,12 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 
-// a pattern class that stores the definition of a single pattern
+/**
+ * Core pattern class that stores the definition of a single pattern. {@param mySchema} stores the
+ * row schema. {@param patternVar} stores the pattern variable. {@param patternCondition} stores the
+ * evaluation function for the pattern. {@param quant} is the quantifier attached to the pattern
+ * variable.
+ */
 public class CEPPattern implements Serializable {
 
   private final Schema mySchema;
@@ -33,10 +38,8 @@ public class CEPPattern implements Serializable {
   private final PatternCondition patternCondition;
   private final Quantifier quant;
 
-  private CEPPattern(Schema mySchema,
-                     String patternVar,
-                     @Nullable RexCall patternDef,
-                     Quantifier quant) {
+  private CEPPattern(
+      Schema mySchema, String patternVar, @Nullable RexCall patternDef, Quantifier quant) {
 
     this.mySchema = mySchema;
     this.patternVar = patternVar;
@@ -149,7 +152,8 @@ public class CEPPattern implements Serializable {
         }
       }
     }
-    throw new UnsupportedOperationException("backward functions (PREV, NEXT) not supported for now");
+    throw new UnsupportedOperationException(
+        "backward functions (PREV, NEXT) not supported for now");
   }
 
   public boolean evalRow(Row rowEle) {
@@ -165,10 +169,8 @@ public class CEPPattern implements Serializable {
     return patternVar;
   }
 
-  public static CEPPattern of(Schema theSchema,
-                              String patternVar,
-                              RexCall patternDef,
-                              Quantifier quant) {
+  public static CEPPattern of(
+      Schema theSchema, String patternVar, RexCall patternDef, Quantifier quant) {
     return new CEPPattern(theSchema, patternVar, patternDef, quant);
   }
 }

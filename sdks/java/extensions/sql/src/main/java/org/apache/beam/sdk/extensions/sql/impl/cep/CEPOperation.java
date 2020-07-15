@@ -24,6 +24,11 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexPatternFieldRef;
 
+/**
+ * {@code CEPOperation} is the base class for the evaluation operations defined in the {@code
+ * DEFINE} syntax of {@code MATCH_RECOGNIZE}. {@code CEPCall}, {@code CEPFieldRef}, {@code
+ * CEPLiteral} are the subclasses of it.
+ */
 public abstract class CEPOperation implements Serializable {
 
   public static CEPOperation of(RexNode operation) {
