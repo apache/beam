@@ -53,7 +53,9 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionDescriptor;
@@ -67,13 +69,11 @@ import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -960,12 +960,17 @@ public class PipelineOptionsFactory {
     validateReturnType(iface);
 
     SortedSet<Method> allInterfaceMethods =
-        FluentIterable.from(
-                ReflectHelpers.getClosureOfMethodsOnInterfaces(validatedPipelineOptionsInterfaces))
-            .append(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
+        Stream.concat(
+                StreamSupport.stream(
+                    ReflectHelpers.getClosureOfMethodsOnInterfaces(
+                            validatedPipelineOptionsInterfaces)
+                        .spliterator(),
+                    false),
+                StreamSupport.stream(
+                    ReflectHelpers.getClosureOfMethodsOnInterface(iface).spliterator(), false))
             .filter(NOT_SYNTHETIC_PREDICATE)
             .filter(NOT_STATIC_PREDICATE)
-            .toSortedSet(MethodComparator.INSTANCE);
+            .collect(ImmutableSortedSet.toImmutableSortedSet(MethodComparator.INSTANCE));
 
     List<PropertyDescriptor> descriptors = getPropertyDescriptors(allInterfaceMethods, iface);
 
@@ -989,9 +994,10 @@ public class PipelineOptionsFactory {
    */
   private static void validateReturnType(Class<? extends PipelineOptions> iface) {
     Iterable<Method> interfaceMethods =
-        FluentIterable.from(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
+        StreamSupport.stream(
+                ReflectHelpers.getClosureOfMethodsOnInterface(iface).spliterator(), false)
             .filter(NOT_SYNTHETIC_PREDICATE)
-            .toSortedSet(MethodComparator.INSTANCE);
+            .collect(ImmutableSortedSet.toImmutableSortedSet(MethodComparator.INSTANCE));
     SortedSetMultimap<Method, Method> methodNameToMethodMap =
         TreeMultimap.create(MethodNameComparator.INSTANCE, MethodComparator.INSTANCE);
     for (Method method : interfaceMethods) {
@@ -1000,11 +1006,12 @@ public class PipelineOptionsFactory {
     List<MultipleDefinitions> multipleDefinitions = Lists.newArrayList();
     for (Map.Entry<Method, Collection<Method>> entry : methodNameToMethodMap.asMap().entrySet()) {
       Set<Class<?>> returnTypes =
-          FluentIterable.from(entry.getValue())
-              .transform(ReturnTypeFetchingFunction.INSTANCE)
-              .toSet();
+          entry.getValue().stream()
+              .map(ReturnTypeFetchingFunction.INSTANCE)
+              .collect(Collectors.toSet());
       SortedSet<Method> collidingMethods =
-          FluentIterable.from(entry.getValue()).toSortedSet(MethodComparator.INSTANCE);
+          StreamSupport.stream(entry.getValue().spliterator(), false)
+              .collect(ImmutableSortedSet.toImmutableSortedSet(MethodComparator.INSTANCE));
       if (returnTypes.size() > 1) {
         MultipleDefinitions defs = new MultipleDefinitions();
         defs.method = entry.getKey();
@@ -1069,66 +1076,41 @@ public class PipelineOptionsFactory {
       SortedSet<Method> gettersWithTheAnnotation =
           Sets.filter(getters, annotationPredicates.forMethod);
       Set<Annotation> distinctAnnotations =
-          Sets.newLinkedHashSet(
-              FluentIterable.from(gettersWithTheAnnotation)
-                  .transformAndConcat(
-                      new Function<Method, Iterable<? extends Annotation>>() {
-                        @SuppressFBWarnings(
-                            value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
-                            justification = "https://github.com/google/guava/issues/920")
-                        @Nonnull
-                        @Override
-                        public Iterable<? extends Annotation> apply(@Nonnull Method method) {
-                          return FluentIterable.from(method.getAnnotations());
-                        }
-                      })
-                  .filter(annotationPredicates.forAnnotation));
+          gettersWithTheAnnotation.stream()
+              .flatMap(method -> Arrays.stream(method.getAnnotations()))
+              .filter(annotationPredicates.forAnnotation)
+              .collect(Collectors.toSet());
 
       if (distinctAnnotations.size() > 1) {
         throw new IllegalArgumentException(
             String.format(
                 "Property [%s] is marked with contradictory annotations. Found [%s].",
                 descriptor.getName(),
-                FluentIterable.from(gettersWithTheAnnotation)
-                    .transformAndConcat(
-                        new Function<Method, Iterable<String>>() {
-                          @SuppressFBWarnings(
-                              value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
-                              justification = "https://github.com/google/guava/issues/920")
-                          @Nonnull
-                          @Override
-                          public Iterable<String> apply(final @Nonnull Method method) {
-                            return FluentIterable.from(method.getAnnotations())
+                gettersWithTheAnnotation.stream()
+                    .flatMap(
+                        method ->
+                            Arrays.stream(method.getAnnotations())
                                 .filter(annotationPredicates.forAnnotation)
-                                .transform(
-                                    new Function<Annotation, String>() {
-                                      @SuppressFBWarnings(
-                                          value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
-                                          justification =
-                                              "https://github.com/google/guava/issues/920")
-                                      @Nonnull
-                                      @Override
-                                      public String apply(@Nonnull Annotation annotation) {
-                                        return String.format(
+                                .map(
+                                    annotation ->
+                                        String.format(
                                             "[%s on %s]",
                                             ReflectHelpers.ANNOTATION_FORMATTER.apply(annotation),
                                             ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(
-                                                method));
-                                      }
-                                    });
-                          }
-                        })
-                    .join(Joiner.on(", "))));
+                                                method))))
+                    .collect(Collectors.joining(", "))));
       }
 
       Iterable<String> getterClassNames =
-          FluentIterable.from(getters)
-              .transform(MethodToDeclaringClassFunction.INSTANCE)
-              .transform(ReflectHelpers.CLASS_NAME);
+          getters.stream()
+              .map(MethodToDeclaringClassFunction.INSTANCE)
+              .map(ReflectHelpers.CLASS_NAME)
+              .collect(Collectors.toList());
       Iterable<String> gettersWithTheAnnotationClassNames =
-          FluentIterable.from(gettersWithTheAnnotation)
-              .transform(MethodToDeclaringClassFunction.INSTANCE)
-              .transform(ReflectHelpers.CLASS_NAME);
+          gettersWithTheAnnotation.stream()
+              .map(MethodToDeclaringClassFunction.INSTANCE)
+              .map(ReflectHelpers.CLASS_NAME)
+              .collect(Collectors.toList());
 
       if (!(gettersWithTheAnnotation.isEmpty()
           || getters.size() == gettersWithTheAnnotation.size())) {
@@ -1160,9 +1142,10 @@ public class PipelineOptionsFactory {
               annotationPredicates.forMethod);
 
       Iterable<String> settersWithTheAnnotationClassNames =
-          FluentIterable.from(settersWithTheAnnotation)
-              .transform(MethodToDeclaringClassFunction.INSTANCE)
-              .transform(ReflectHelpers.CLASS_NAME);
+          settersWithTheAnnotation.stream()
+              .map(MethodToDeclaringClassFunction.INSTANCE)
+              .map(ReflectHelpers.CLASS_NAME)
+              .collect(Collectors.toList());
 
       if (!settersWithTheAnnotation.isEmpty()) {
         AnnotatedSetter annotated = new AnnotatedSetter();
@@ -1252,8 +1235,10 @@ public class PipelineOptionsFactory {
                 NOT_STATIC_PREDICATE)));
     checkArgument(
         unknownMethods.isEmpty(),
-        "Methods %s on [%s] do not conform to being bean properties.",
-        FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
+        "Methods [%s] on [%s] do not conform to being bean properties.",
+        unknownMethods.stream()
+            .map(ReflectHelpers.METHOD_FORMATTER)
+            .collect(Collectors.joining(",")),
         iface.getName());
   }
 
@@ -1278,8 +1263,8 @@ public class PipelineOptionsFactory {
     StringBuilder errorBuilder =
         new StringBuilder(
             String.format(
-                "All inherited interfaces of [%s] should inherit from the PipelineOptions interface. "
-                    + "The following inherited interfaces do not:",
+                "All inherited interfaces of [%s] should inherit from the PipelineOptions"
+                    + " interface. The following inherited interfaces do not:",
                 klass.getName()));
 
     for (Class<?> invalidKlass : nonPipelineOptionsClasses) {
@@ -1314,7 +1299,8 @@ public class PipelineOptionsFactory {
       StringBuilder errorBuilder =
           new StringBuilder(
               String.format(
-                  "Interface [%s] has Methods with multiple definitions with different return types:",
+                  "Interface [%s] has Methods with multiple definitions with different return"
+                      + " types:",
                   iface.getName()));
       for (MultipleDefinitions errDef : definitions) {
         errorBuilder.append(
@@ -1493,7 +1479,9 @@ public class PipelineOptionsFactory {
 
     private static final Set<Class<?>> DEFAULT_ANNOTATION_CLASSES =
         Sets.newHashSet(
-            FluentIterable.from(Default.class.getDeclaredClasses()).filter(Class::isAnnotation));
+            Arrays.stream(Default.class.getDeclaredClasses())
+                .filter(Class::isAnnotation)
+                .collect(Collectors.toSet()));
 
     static final AnnotationPredicates DEFAULT_VALUE =
         new AnnotationPredicates(
@@ -1604,7 +1592,8 @@ public class PipelineOptionsFactory {
     @SuppressWarnings("unchecked")
     Iterable<PropertyDescriptor> propertyDescriptors =
         cache.getPropertyDescriptors(
-            FluentIterable.from(getRegisteredOptions()).append(klass).toSet());
+            Stream.concat(getRegisteredOptions().stream(), Stream.of(klass))
+                .collect(Collectors.toSet()));
     for (PropertyDescriptor descriptor : propertyDescriptors) {
       propertyNamesToGetters.put(descriptor.getName(), descriptor.getReadMethod());
     }
@@ -1667,9 +1656,9 @@ public class PipelineOptionsFactory {
         } else if (isCollectionOrArrayOfAllowedTypes(returnType, type)) {
           // Split any strings with ","
           List<String> values =
-              FluentIterable.from(entry.getValue())
-                  .transformAndConcat(input -> Arrays.asList(input.split(",")))
-                  .toList();
+              entry.getValue().stream()
+                  .flatMap(input -> Arrays.stream(input.split(",")))
+                  .collect(Collectors.toList());
 
           if (values.contains("")) {
             checkEmptyStringAllowed(returnType, type, method.getGenericReturnType().toString());
@@ -1774,9 +1763,9 @@ public class PipelineOptionsFactory {
     if (!containedType.equals(String.class)) {
       String msg =
           String.format(
-              "Empty argument value is only allowed for String, String Array, "
-                  + "Collections of Strings or any of these types in a parameterized ValueProvider, "
-                  + "but received: %s",
+              "Empty argument value is only allowed for String, String Array, Collections of"
+                  + " Strings or any of these types in a parameterized ValueProvider, but"
+                  + " received: %s",
               genericTypeName);
       throw new IllegalArgumentException(msg);
     }
@@ -1889,7 +1878,8 @@ public class PipelineOptionsFactory {
 
       @SuppressWarnings("unchecked")
       Set<Class<? extends PipelineOptions>> combinedPipelineOptionsInterfaces =
-          FluentIterable.from(validatedPipelineOptionsInterfaces).append(iface).toSet();
+          Stream.concat(validatedPipelineOptionsInterfaces.stream(), Stream.of(iface))
+              .collect(Collectors.toSet());
       // Validate that the view of all currently passed in options classes is well formed.
       if (!combinedCache.containsKey(combinedPipelineOptionsInterfaces)) {
         final Class<?>[] interfaces = combinedPipelineOptionsInterfaces.toArray(EMPTY_CLASS_ARRAY);
