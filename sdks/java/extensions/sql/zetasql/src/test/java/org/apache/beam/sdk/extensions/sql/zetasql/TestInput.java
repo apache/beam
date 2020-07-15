@@ -258,6 +258,14 @@ class TestInput {
           .addRows(LocalTime.of(15, 30, 0), "s")
           .addRows(LocalTime.of(23, 35, 59), "s");
 
+  private static final Schema TABLE_WTH_NUMERIC_SCHEMA =
+      Schema.builder().addDecimalField("numeric_field").addStringField("str_field").build();
+  public static final TestBoundedTable TABLE_WITH_NUMERIC =
+      TestBoundedTable.of(TABLE_WTH_NUMERIC_SCHEMA)
+          .addRows(ZetaSqlTypesUtils.bigDecimalAsNumeric("123.4567"), "str1")
+          .addRows(ZetaSqlTypesUtils.bigDecimalAsNumeric("765.4321"), "str2")
+          .addRows(ZetaSqlTypesUtils.bigDecimalAsNumeric("-555.5555"), "str3");
+
   private static byte[] stringToBytes(String s) {
     return s.getBytes(StandardCharsets.UTF_8);
   }

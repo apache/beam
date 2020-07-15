@@ -76,6 +76,7 @@ import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
+import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperatorRewriter;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperators;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
@@ -567,6 +568,7 @@ public class ExpressionConverter {
       case TYPE_FLOAT:
       case TYPE_DOUBLE:
       case TYPE_STRING:
+      case TYPE_NUMERIC:
       case TYPE_TIMESTAMP:
       case TYPE_DATE:
       case TYPE_TIME:
@@ -730,6 +732,7 @@ public class ExpressionConverter {
       case TYPE_FLOAT:
       case TYPE_DOUBLE:
       case TYPE_STRING:
+      case TYPE_NUMERIC:
       case TYPE_TIMESTAMP:
       case TYPE_DATE:
       case TYPE_TIME:
@@ -804,6 +807,25 @@ public class ExpressionConverter {
             rexBuilder()
                 .makeLiteral(
                     value.getStringValue(), typeFactory().createSqlType(SqlTypeName.VARCHAR), true);
+        break;
+      case TYPE_NUMERIC:
+        // Cannot simply call makeExactLiteral() for ZetaSQL NUMERIC type because later it will be
+        // unparsed to the string representation of the BigDecimal itself (e.g. "SELECT NUMERIC '0'"
+        // will be unparsed to "SELECT 0E-9"), and Calcite does not allow customize unparsing of
+        // SqlNumericLiteral. So we create a wrapper function here such that we can later recognize
+        // it and customize its unparsing in BeamBigQuerySqlDialect.
+        ret =
+            rexBuilder()
+                .makeCall(
+                    SqlOperators.createSimpleSqlFunction(
+                        BeamBigQuerySqlDialect.NUMERIC_LITERAL_FUNCTION,
+                        ZetaSqlCalciteTranslationUtils.toCalciteTypeName(kind)),
+                    ImmutableList.of(
+                        rexBuilder()
+                            .makeExactLiteral(
+                                value.getNumericValue(),
+                                ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(
+                                    kind, rexBuilder()))));
         break;
       case TYPE_TIMESTAMP:
         ret =
