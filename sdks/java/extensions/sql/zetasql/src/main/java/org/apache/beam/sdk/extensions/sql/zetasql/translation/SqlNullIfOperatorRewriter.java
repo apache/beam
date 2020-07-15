@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql;
+package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import java.util.List;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
@@ -26,24 +26,26 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
- * Rewrites IFNULL calls as CASE ($case_no_value) calls.
+ * Rewrites NULLIF calls as CASE ($case_no_value) calls.
  *
- * <p>Turns <code>IFNULL(expr, null_result)</code> into: <code><pre>CASE
- *   WHEN expr IS NULL THEN null_result
- *   ELSE expr
+ * <p>Turns <code>NULLIF(expression, expression_to_match)</code> into: <code><pre>CASE
+ *   WHEN expression == expression_to_match THEN NULL
+ *   ELSE expression
  *   END</pre></code>
  */
-public class SqlIfNullOperatorRewriter implements SqlOperatorRewriter {
+class SqlNullIfOperatorRewriter implements SqlOperatorRewriter {
   @Override
   public RexNode apply(RexBuilder rexBuilder, List<RexNode> operands) {
     Preconditions.checkArgument(
-        operands.size() == 2, "IFNULL should have two arguments in function call.");
+        operands.size() == 2, "NULLIF should have two arguments in function call.");
 
-    SqlOperator op = SqlStdOperatorTable.CASE;
+    SqlOperator op =
+        SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get("$case_no_value");
     List<RexNode> newOperands =
         ImmutableList.of(
-            rexBuilder.makeCall(SqlStdOperatorTable.IS_NULL, ImmutableList.of(operands.get(0))),
-            operands.get(1),
+            rexBuilder.makeCall(
+                SqlStdOperatorTable.EQUALS, ImmutableList.of(operands.get(0), operands.get(1))),
+            rexBuilder.makeNullLiteral(operands.get(1).getType()),
             operands.get(0));
 
     return rexBuilder.makeCall(op, newOperands);

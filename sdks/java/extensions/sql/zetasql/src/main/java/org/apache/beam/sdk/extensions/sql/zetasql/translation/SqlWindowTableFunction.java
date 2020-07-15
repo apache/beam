@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql;
+package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +36,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTyp
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlValidator;
 
 /** Base class for table-valued function windowing operator (TUMBLE, HOP and SESSION). */
-public class SqlWindowTableFunction extends SqlFunction {
+class SqlWindowTableFunction extends SqlFunction {
   public SqlWindowTableFunction(String name) {
     super(
         name,

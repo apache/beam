@@ -77,10 +77,6 @@ import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
-import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperatorRewriter;
-import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperators;
-import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
-import org.apache.beam.sdk.extensions.sql.zetasql.SqlWindowTableFunction;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
@@ -817,7 +813,7 @@ public class ExpressionConverter {
         ret =
             rexBuilder()
                 .makeCall(
-                    SqlOperators.createSimpleSqlFunction(
+                    SqlOperators.createOtherKindSqlFunction(
                         BeamBigQuerySqlDialect.NUMERIC_LITERAL_FUNCTION,
                         ZetaSqlCalciteTranslationUtils.toCalciteTypeName(kind)),
                     ImmutableList.of(
@@ -1000,7 +996,7 @@ public class ExpressionConverter {
         Type returnType = functionCall.getSignature().getResultType().getType();
         if (returnType != null) {
           op =
-              SqlOperators.createSimpleSqlFunction(
+              SqlOperators.createOtherKindSqlFunction(
                   funName, ZetaSqlCalciteTranslationUtils.toCalciteTypeName(returnType.getKind()));
         } else {
           throw new UnsupportedOperationException("Does not support ZetaSQL function: " + funName);

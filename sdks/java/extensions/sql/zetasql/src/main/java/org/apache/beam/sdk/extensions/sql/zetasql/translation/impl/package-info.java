@@ -15,24 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import java.util.TimeZone;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
+/**
+ * Java implementation of ZetaSQL functions.
+ *
+ * <p>Used only by {@link org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel}.
+ */
+@Experimental
+package org.apache.beam.sdk.extensions.sql.zetasql.translation.impl;
 
-/** DateFunctions. */
-public class DateFunctions {
-  public DateTime date(Integer year, Integer month, Integer day) {
-    return DateTimeUtils.parseDate(
-        String.join("-", year.toString(), month.toString(), day.toString()));
-  }
-
-  public DateTime date(DateTime ts) {
-    return date(ts, "UTC");
-  }
-
-  public DateTime date(DateTime ts, String timezone) {
-    return ts.withZoneRetainFields(DateTimeZone.forTimeZone(TimeZone.getTimeZone(timezone)));
-  }
-}
+import org.apache.beam.sdk.annotations.Experimental;
