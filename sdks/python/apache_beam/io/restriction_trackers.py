@@ -92,7 +92,8 @@ class OffsetRestrictionTracker(RestrictionTracker):
     self._checkpointed = False
 
   def check_done(self):
-    if self._last_claim_attempt < self._range.stop - 1:
+    if (self._range.start != self._range.stop and
+        self._last_claim_attempt < self._range.stop - 1):
       raise ValueError(
           'OffsetRestrictionTracker is not done since work in range [%s, %s) '
           'has not been claimed.' % (
@@ -145,10 +146,10 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
   def try_split(self, fraction_of_remainder):
     if not self._checkpointed:
-      if self._current_position is None:
+      if self._last_claim_attempt is None:
         cur = self._range.start - 1
       else:
-        cur = self._current_position
+        cur = self._last_claim_attempt
       split_point = (
           cur + int(max(1, (self._range.stop - cur) * fraction_of_remainder)))
       if split_point < self._range.stop:
