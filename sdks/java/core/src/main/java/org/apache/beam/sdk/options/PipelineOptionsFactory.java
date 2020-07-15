@@ -378,7 +378,7 @@ public class PipelineOptionsFactory {
               "Multiple matches found for %s: %s.%n",
               helpOption,
               StreamSupport.stream(matches.spliterator(), false)
-                  .map(ReflectHelpers.CLASS_NAME::apply)
+                  .map(Class::getName)
                   .collect(Collectors.toList()));
           printHelp(printStream);
         }
@@ -1104,12 +1104,12 @@ public class PipelineOptionsFactory {
       Iterable<String> getterClassNames =
           getters.stream()
               .map(MethodToDeclaringClassFunction.INSTANCE)
-              .map(ReflectHelpers.CLASS_NAME)
+              .map(Class::getName)
               .collect(Collectors.toList());
       Iterable<String> gettersWithTheAnnotationClassNames =
           gettersWithTheAnnotation.stream()
               .map(MethodToDeclaringClassFunction.INSTANCE)
-              .map(ReflectHelpers.CLASS_NAME)
+              .map(Class::getName)
               .collect(Collectors.toList());
 
       if (!(gettersWithTheAnnotation.isEmpty()
@@ -1144,7 +1144,7 @@ public class PipelineOptionsFactory {
       Iterable<String> settersWithTheAnnotationClassNames =
           settersWithTheAnnotation.stream()
               .map(MethodToDeclaringClassFunction.INSTANCE)
-              .map(ReflectHelpers.CLASS_NAME)
+              .map(Class::getName)
               .collect(Collectors.toList());
 
       if (!settersWithTheAnnotation.isEmpty()) {
