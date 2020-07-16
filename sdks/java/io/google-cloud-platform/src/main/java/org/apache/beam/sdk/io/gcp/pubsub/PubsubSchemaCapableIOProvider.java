@@ -157,7 +157,6 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
   }
 
   /** An abstraction to create schema aware IOs. */
-  @Internal
   private static class PubsubSchemaIO implements SchemaIO, Serializable {
     protected final Schema dataSchema;
     protected final String location;
@@ -189,12 +188,12 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
                       "PubsubMessageToRow",
                       PubsubMessageToRow.builder()
                           .messageSchema(dataSchema)
-                          .useDlq(config.useDlqCheck())
+                          .useDlq(config.useDeadLetterQueue())
                           .useFlatSchema(useFlatSchema)
                           .build());
           rowsWithDlq.get(MAIN_TAG).setRowSchema(dataSchema);
 
-          if (config.useDlqCheck()) {
+          if (config.useDeadLetterQueue()) {
             rowsWithDlq.get(DLQ_TAG).apply(writeMessagesToDlq());
           }
 
@@ -214,13 +213,7 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
         @Override
         public POutput expand(PCollection<Row> input) {
           return input
-              .apply(
-                  RowToPubsubMessage.fromConfig(
-                      new AutoValueSchema()
-                          .toRowFunction(TypeDescriptor.of(Config.class))
-                          .apply(config),
-                      useFlatSchema,
-                      config.useTimestampAttribute()))
+              .apply(RowToPubsubMessage.fromConfig(config.useTimestampAttribute()))
               .apply(createPubsubMessageWrite());
         }
       };
@@ -266,20 +259,19 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
     }
   }
 
-  @Internal
   @AutoValue
-  public abstract static class Config implements Serializable {
+  abstract static class Config implements Serializable {
     @Nullable
-    public abstract String getTimestampAttributeKey();
+    abstract String getTimestampAttributeKey();
 
     @Nullable
-    public abstract String getDeadLetterQueue();
+    abstract String getDeadLetterQueue();
 
-    private boolean useDlqCheck() {
+    boolean useDeadLetterQueue() {
       return getDeadLetterQueue() != null;
     }
 
-    private boolean useTimestampAttribute() {
+    boolean useTimestampAttribute() {
       return getTimestampAttributeKey() != null;
     }
   }
