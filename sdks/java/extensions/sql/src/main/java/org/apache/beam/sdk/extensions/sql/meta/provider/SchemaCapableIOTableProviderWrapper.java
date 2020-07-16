@@ -28,7 +28,6 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaCapableIOProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
@@ -52,11 +51,12 @@ import org.apache.beam.sdk.values.Row;
 @Experimental
 public abstract class SchemaCapableIOTableProviderWrapper extends InMemoryMetaTableProvider
     implements Serializable {
-  private SchemaIOProvider schemaCapableIOProvider = new PubsubSchemaCapableIOProvider();
+
+  public abstract SchemaIOProvider getSchemaIOProvider();
 
   @Override
   public String getTableType() {
-    return schemaCapableIOProvider.identifier();
+    return getSchemaIOProvider().identifier();
   }
 
   @Override
@@ -65,15 +65,15 @@ public abstract class SchemaCapableIOTableProviderWrapper extends InMemoryMetaTa
 
     try {
       RowJson.RowJsonDeserializer deserializer =
-          RowJson.RowJsonDeserializer.forSchema(schemaCapableIOProvider.configurationSchema())
+          RowJson.RowJsonDeserializer.forSchema(getSchemaIOProvider().configurationSchema())
               .withNullBehavior(RowJson.RowJsonDeserializer.NullBehavior.ACCEPT_MISSING_OR_NULL);
 
       Row configurationRow =
           newObjectMapperWith(deserializer).readValue(tableProperties.toString(), Row.class);
 
       SchemaIO schemaIO =
-          schemaCapableIOProvider.from(
-              tableDefinition.getLocation(), configurationRow, tableDefinition.getSchema());
+          getSchemaIOProvider()
+              .from(tableDefinition.getLocation(), configurationRow, tableDefinition.getSchema());
 
       return new SchemaIOTableWrapper(schemaIO);
     } catch (InvalidConfigurationException | InvalidSchemaException e) {
@@ -92,7 +92,7 @@ public abstract class SchemaCapableIOTableProviderWrapper extends InMemoryMetaTa
   }
 
   private PCollection.IsBounded isBounded() {
-    return schemaCapableIOProvider.isBounded();
+    return getSchemaIOProvider().isBounded();
   }
 
   /** A generalized {@link Table} for IOs to create IO readers and writers. */
