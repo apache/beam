@@ -111,8 +111,9 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    * finite amount of work, it should return {@link IsBounded#BOUNDED}. Otherwise, it should return
    * {@link IsBounded#UNBOUNDED}.
    *
-   * <p>It is valid to return {@link IsBounded#BOUNDED} after returning {@link IsBounded#UNBOUNDED} once
-   * the end of a restriction is discovered. It is not valid to return {@link IsBounded#UNBOUNDED} after returning {@link IsBounded#BOUNDED}.
+   * <p>It is valid to return {@link IsBounded#BOUNDED} after returning {@link IsBounded#UNBOUNDED}
+   * once the end of a restriction is discovered. It is not valid to return {@link
+   * IsBounded#UNBOUNDED} after returning {@link IsBounded#BOUNDED}.
    */
   public abstract IsBounded isBounded();
 
