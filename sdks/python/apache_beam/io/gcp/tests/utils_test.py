@@ -17,15 +17,11 @@
 
 """Unittest for GCP testing utils."""
 
-# pytype: skip-file
-
 from __future__ import absolute_import
 
 import logging
 import unittest
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import mock
 
 from apache_beam.io.gcp.pubsub import PubsubMessage
@@ -37,15 +33,18 @@ try:
   from google.api_core import exceptions as gexc
   from google.cloud import bigquery
   from google.cloud import pubsub
+  from google.protobuf.timestamp_pb2 import Timestamp
 except ImportError:
   gexc = None
   bigquery = None
   pubsub = None
+  Timestamp = None
 
 
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
 @mock.patch.object(bigquery, 'Client')
 class UtilsTest(unittest.TestCase):
+
   def setUp(self):
     test_utils.patch_retry(self, utils)
 
@@ -66,7 +65,9 @@ class UtilsTest(unittest.TestCase):
     mock_client.return_value.dataset.return_value.table.return_value = (
         'table_ref')
 
-    utils.delete_bq_table('unused_project', 'unused_dataset', 'unused_table')
+    utils.delete_bq_table('unused_project',
+                          'unused_dataset',
+                          'unused_table')
     mock_client.return_value.delete_table.assert_called_with('table_ref')
 
   def test_delete_table_fails_not_found(self, mock_client):
@@ -74,19 +75,23 @@ class UtilsTest(unittest.TestCase):
         'table_ref')
     mock_client.return_value.delete_table.side_effect = gexc.NotFound('test')
 
-    with self.assertRaisesRegex(Exception, r'does not exist:.*table_ref'):
-      utils.delete_bq_table('unused_project', 'unused_dataset', 'unused_table')
+    with self.assertRaisesRegexp(Exception, r'does not exist:.*table_ref'):
+      utils.delete_bq_table('unused_project',
+                            'unused_dataset',
+                            'unused_table')
 
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class PubSubUtilTest(unittest.TestCase):
+
   def test_write_to_pubsub(self):
     mock_pubsub = mock.Mock()
     topic_path = "project/fakeproj/topics/faketopic"
     data = b'data'
     utils.write_to_pubsub(mock_pubsub, topic_path, [data])
     mock_pubsub.publish.assert_has_calls(
-        [mock.call(topic_path, data), mock.call().result()])
+        [mock.call(topic_path, data),
+         mock.call().result()])
 
   def test_write_to_pubsub_with_attributes(self):
     mock_pubsub = mock.Mock()
@@ -97,7 +102,8 @@ class PubSubUtilTest(unittest.TestCase):
     utils.write_to_pubsub(
         mock_pubsub, topic_path, [message], with_attributes=True)
     mock_pubsub.publish.assert_has_calls(
-        [mock.call(topic_path, data, **attributes), mock.call().result()])
+        [mock.call(topic_path, data, **attributes),
+         mock.call().result()])
 
   def test_write_to_pubsub_delay(self):
     number_of_elements = 2
@@ -113,8 +119,8 @@ class PubSubUtilTest(unittest.TestCase):
           delay_between_chunks=123)
     mock_time.sleep.assert_called_with(123)
     mock_pubsub.publish.assert_has_calls(
-        [mock.call(topic_path, data), mock.call().result()] *
-        number_of_elements)
+        [mock.call(topic_path, data),
+         mock.call().result()] * number_of_elements)
 
   def test_write_to_pubsub_many_chunks(self):
     number_of_elements = 83
@@ -158,9 +164,18 @@ class PubSubUtilTest(unittest.TestCase):
     data = b'data'
     ack_id = 'ack_id'
     attributes = {'key': 'value'}
-    message = PubsubMessage(data, attributes)
+    message_id = '0123456789'
+    publish_seconds = 1520861821
+    publish_nanos = 234567000
+    publish_time = Timestamp(seconds=publish_seconds, nanos=publish_nanos)
+    message = PubsubMessage(data, attributes, message_id, publish_time)
     pull_response = test_utils.create_pull_response(
-        [test_utils.PullResponseMessage(data, attributes, ack_id=ack_id)])
+        [test_utils.PullResponseMessage(data, attributes,
+                                        message_id=message_id,
+                                        publish_time=publish_time,
+                                        publish_time_secs=publish_seconds,
+                                        publish_time_nanos=publish_nanos,
+                                        ack_id=ack_id)])
     mock_pubsub.pull.return_value = pull_response
     output = utils.read_from_pubsub(
         mock_pubsub,
@@ -180,6 +195,7 @@ class PubSubUtilTest(unittest.TestCase):
         [test_utils.PullResponseMessage(data, ack_id=ack_id)])
 
     class FlakyPullResponse(object):
+
       def __init__(self, pull_response):
         self.pull_response = pull_response
         self._state = -1
@@ -208,21 +224,34 @@ class PubSubUtilTest(unittest.TestCase):
         'data {}'.format(i).encode("utf-8") for i in range(number_of_elements)
     ]
     attributes_list = [{
-        'key': 'value {}'.format(i)
-    } for i in range(number_of_elements)]
+        'key': 'value {}'.format(i)} for i in range(number_of_elements)]
+    message_id_list = ['0123456789_{}'.format(i)
+                       for i in range(number_of_elements)]
+    publish_time_secs = 1520861821
+    publish_time_nanos = 234567000
+    publish_time_list = [Timestamp(seconds=publish_time_secs,
+                                   nanos=publish_time_nanos)
+                         for i in range(number_of_elements)]
     ack_ids = ['ack_id_{}'.format(i) for i in range(number_of_elements)]
     messages = [
-        PubsubMessage(data, attributes) for data,
-        attributes in zip(data_list, attributes_list)
+        PubsubMessage(data, attributes, message_id, publish_time)
+        for data, attributes, message_id, publish_time
+        in zip(data_list, attributes_list,
+               message_id_list, publish_time_list)
     ]
     response_messages = [
-        test_utils.PullResponseMessage(data, attributes, ack_id=ack_id)
-        for data,
-        attributes,
-        ack_id in zip(data_list, attributes_list, ack_ids)
+        test_utils.PullResponseMessage(
+            data, attributes, message_id,
+            publish_time_secs=publish_time.seconds,
+            publish_time_nanos=publish_time.nanos,
+            ack_id=ack_id)
+        for data, attributes, message_id, publish_time, ack_id
+        in zip(data_list, attributes_list, message_id_list,
+               publish_time_list, ack_ids)
     ]
 
     class SequentialPullResponse(object):
+
       def __init__(self, response_messages, response_size):
         self.response_messages = response_messages
         self.response_size = response_size
@@ -248,9 +277,9 @@ class PubSubUtilTest(unittest.TestCase):
   def test_read_from_pubsub_invalid_arg(self):
     sub_client = mock.Mock()
     subscription_path = "project/fakeproj/subscriptions/fakesub"
-    with self.assertRaisesRegex(ValueError, "number_of_elements"):
+    with self.assertRaisesRegexp(ValueError, "number_of_elements"):
       utils.read_from_pubsub(sub_client, subscription_path)
-    with self.assertRaisesRegex(ValueError, "number_of_elements"):
+    with self.assertRaisesRegexp(ValueError, "number_of_elements"):
       utils.read_from_pubsub(
           sub_client, subscription_path, with_attributes=True)
 
