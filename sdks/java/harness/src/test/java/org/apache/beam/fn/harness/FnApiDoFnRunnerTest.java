@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -2945,7 +2946,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
   }
 
   @Test
-  public void testProcessElementForTruncateAndSizeRestrictionForwardSplitAndProgress()
+  public void testProcessElementForTruncateAndSizeRestrictionForwardSplitWhenObservingWindow()
       throws Exception {
     Pipeline p = Pipeline.create();
     PCollection<String> valuePCollection = p.apply(Create.of("unused"));
@@ -3019,8 +3020,82 @@ public class FnApiDoFnRunnerTest implements Serializable {
         consumers.getMultiplexingConsumer(inputPCollectionId);
     assertThat(mainInput, instanceOf(HandlesSplits.class));
 
+    assertEquals(0, ((HandlesSplits) mainInput).getProgress(), 0.0);
+    assertNull(((HandlesSplits) mainInput).trySplit(0.4));
+  }
+
+  @Test
+  public void testProcessElementForTruncateAndSizeRestrictionForwardSplitWhenoutObservingWindow()
+      throws Exception {
+    Pipeline p = Pipeline.create();
+    PCollection<String> valuePCollection = p.apply(Create.of("unused"));
+    valuePCollection.apply(TEST_TRANSFORM_ID, ParDo.of(new NonWindowObservingTestSplittableDoFn()));
+
+    RunnerApi.Pipeline pProto =
+        ProtoOverrides.updateTransform(
+            PTransformTranslation.PAR_DO_TRANSFORM_URN,
+            PipelineTranslation.toProto(p, SdkComponents.create(p.getOptions()), true),
+            SplittableParDoExpander.createTruncateReplacement());
+    String expandedTransformId =
+        Iterables.find(
+                pProto.getComponents().getTransformsMap().entrySet(),
+                entry ->
+                    entry
+                            .getValue()
+                            .getSpec()
+                            .getUrn()
+                            .equals(PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN)
+                        && entry.getValue().getUniqueName().contains(TEST_TRANSFORM_ID))
+            .getKey();
+    RunnerApi.PTransform pTransform =
+        pProto.getComponents().getTransformsOrThrow(expandedTransformId);
+    String inputPCollectionId =
+        pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform));
+    String outputPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
+
+    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(ImmutableMap.of());
+
+    List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    consumers.register(
+        outputPCollectionId,
+        TEST_TRANSFORM_ID,
+        (FnDataReceiver) new SplittableFnDataReceiver(mainOutputValues));
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
+
+    new FnApiDoFnRunner.Factory<>()
+        .createRunnerForPTransform(
+            PipelineOptionsFactory.create(),
+            null /* beamFnDataClient */,
+            fakeClient,
+            null /* beamFnTimerClient */,
+            TEST_TRANSFORM_ID,
+            pTransform,
+            Suppliers.ofInstance("57L")::get,
+            pProto.getComponents().getPcollectionsMap(),
+            pProto.getComponents().getCodersMap(),
+            pProto.getComponents().getWindowingStrategiesMap(),
+            consumers,
+            startFunctionRegistry,
+            finishFunctionRegistry,
+            teardownFunctions::add,
+            null /* addProgressRequestCallback */,
+            null /* bundleSplitListener */,
+            null /* bundleFinalizer */);
+    FnDataReceiver<WindowedValue<?>> mainInput =
+        consumers.getMultiplexingConsumer(inputPCollectionId);
+    assertThat(mainInput, instanceOf(HandlesSplits.class));
+
     assertEquals(0.7, ((HandlesSplits) mainInput).getProgress(), 0.0);
-    double fractionOfRemainder = 0.4;
     assertEquals(createSplitResult(0.4), ((HandlesSplits) mainInput).trySplit(0.4));
   }
 
