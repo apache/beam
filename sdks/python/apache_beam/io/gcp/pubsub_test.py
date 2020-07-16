@@ -149,7 +149,7 @@ class TestReadFromPubSubOverride(unittest.TestCase):
         p
         | ReadFromPubSub(
             'projects/fakeprj/topics/a_topic',
-            None,
+             None,
             'a_label',
             with_attributes=False,
             timestamp_attribute=None)
@@ -200,24 +200,36 @@ class TestReadFromPubSubOverride(unittest.TestCase):
   def test_expand_with_no_topic_or_subscription(self):
     with self.assertRaisesRegex(
         ValueError, "Either a topic or subscription must be provided."):
-      ReadFromPubSub(None, None, 'a_label', with_attributes=False,
-                     timestamp_attribute=None)
+      ReadFromPubSub(
+          None,
+          None,
+          'a_label',
+          with_attributes=False,
+          timestamp_attribute=None)
 
   def test_expand_with_both_topic_and_subscription(self):
     with self.assertRaisesRegex(
         ValueError, "Only one of topic or subscription should be provided."):
-      ReadFromPubSub('a_topic', 'a_subscription', 'a_label',
-                     with_attributes=False, timestamp_attribute=None)
+      ReadFromPubSub(
+          'a_topic',
+          'a_subscription',
+          'a_label',
+          with_attributes=False,
+          timestamp_attribute=None)
 
   def test_expand_with_other_options(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub('projects/fakeprj/topics/a_topic',
-                              None, 'a_label', with_attributes=True,
-                              timestamp_attribute='time')
-             | beam.Map(lambda x: x))
+    pcoll = (
+        p
+        | ReadFromPubSub(
+            'projects/fakeprj/topics/a_topic',
+            None,
+            'a_label',
+            with_attributes=True,
+            timestamp_attribute='time')
+        | beam.Map(lambda x: x))
     self.assertEqual(PubsubMessage, pcoll.element_type)
 
     # Apply the necessary PTransformOverrides.
@@ -240,10 +252,11 @@ class TestWriteStringsToPubSubOverride(unittest.TestCase):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub('projects/fakeprj/topics/baz')
-             | WriteStringsToPubSub('projects/fakeprj/topics/a_topic')
-             | beam.Map(lambda x: x))
+    pcoll = (
+         p
+         | ReadFromPubSub('projects/fakeprj/topics/baz')
+         | WriteStringsToPubSub('projects/fakeprj/topics/a_topic')
+         | beam.Map(lambda x: x))
 
     # Apply the necessary PTransformOverrides.
     overrides = _get_transform_overrides(options)
@@ -260,11 +273,11 @@ class TestWriteStringsToPubSubOverride(unittest.TestCase):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub('projects/fakeprj/topics/baz')
-             | WriteToPubSub('projects/fakeprj/topics/a_topic',
-                             with_attributes=True)
-             | beam.Map(lambda x: x))
+    pcoll = (
+         p
+         | ReadFromPubSub('projects/fakeprj/topics/baz')
+         | WriteToPubSub('projects/fakeprj/topics/a_topic', with_attributes=True)
+         | beam.Map(lambda x: x))
 
     # Apply the necessary PTransformOverrides.
     overrides = _get_transform_overrides(options)
