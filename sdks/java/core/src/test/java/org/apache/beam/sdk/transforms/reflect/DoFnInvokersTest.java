@@ -943,7 +943,7 @@ public class DoFnInvokersTest {
                 return "foo";
               }
             });
-    assertNull(result.getTruncatedRestriction());
+    assertNull(result);
     assertEquals(stop(), invoker.invokeProcessElement(mockArgumentProvider));
     assertThat(
         invoker.invokeNewWatermarkEstimator(

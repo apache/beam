@@ -25,7 +25,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Method;
 import java.util.List;
-import java.util.Optional;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -1009,11 +1008,11 @@ public class DoFnSignaturesSplittableDoFnTest {
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
-          Optional<SomeRestriction> method(
+          TruncateResult<SomeRestriction> method(
               @Element Integer element,
               @Restriction SomeRestriction restriction,
               DoFn.OutputReceiver<SomeRestriction> receiver) {
-            return Optional.empty();
+            return null;
           }
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
@@ -1029,9 +1028,9 @@ public class DoFnSignaturesSplittableDoFnTest {
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
-          Optional<SomeRestriction> method(
+          TruncateResult<SomeRestriction> method(
               @Element String element, @Restriction SomeRestriction restriction) {
-            return Optional.empty();
+            return null;
           }
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
@@ -1046,9 +1045,9 @@ public class DoFnSignaturesSplittableDoFnTest {
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
-          private Optional<SomeRestriction> method(
+          private TruncateResult<SomeRestriction> method(
               @Element Integer element, @Restriction SomeRestriction restriction, Object extra) {
-            return Optional.empty();
+            return null;
           }
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
