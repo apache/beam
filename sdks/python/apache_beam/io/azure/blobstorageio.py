@@ -44,6 +44,7 @@ try:
   # pylint: disable=wrong-import-order, wrong-import-position
   # pylint: disable=ungrouped-imports
   from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+  from apitools.base.py.exceptions import HttpError
 except ImportError:
   raise ImportError('Missing `azure` requirement')
 
@@ -185,12 +186,13 @@ class BlobStorageIO(object):
     blob_to_delete = self.client.get_blob_client(container, blob)
     try:
       blob_to_delete.delete_blob()
-    except ResourceNotFoundError as e:
-      if e.code == 404:
-        return 
+    except HttpError as http_error:
+      if http_error.status_code == 404:
+        # Return success when the file doesn't exist anymore for idempotency.
+        return
       else:
         logging.error('HTTP error while deleting file %s', path)
-        raise e
+        raise http_error
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
@@ -212,7 +214,7 @@ class BlobStorageIO(object):
         return False
       else:
         # We re-raise all other exceptions
-        raise 
+        raise
 
 
 class BlobStorageDownloader(Downloader):
