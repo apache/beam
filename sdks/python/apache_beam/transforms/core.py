@@ -2289,14 +2289,14 @@ class Partition(PTransformWithSideInputs):
 
 
 class Windowing(object):
-  def __init__(
-      self,
-      windowfn,  # type: WindowFn
-      triggerfn=None,  # type: typing.Optional[TriggerFn]
-      accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
-      timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
-      allowed_lateness=0,  # type: typing.Union[int, float]
-  ):
+  def __init__(self,
+               windowfn,  # type: WindowFn
+               triggerfn=None,  # type: typing.Optional[TriggerFn]
+               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
+               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
+               allowed_lateness=0, # type: typing.Union[int, float]
+               environment_id=None, # type: str
+               ):
     """Class representing the window strategy.
 
     Args:
@@ -2309,6 +2309,8 @@ class Windowing(object):
       allowed_lateness: Maximum delay in seconds after end of window
         allowed for any late data to be processed without being discarded
         directly.
+      environment_id: Environment where the current window_fn should be
+        applied in.
     """
     global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
     # pylint: disable=wrong-import-order, wrong-import-position
@@ -2330,6 +2332,7 @@ class Windowing(object):
     self.triggerfn = triggerfn
     self.accumulation_mode = accumulation_mode
     self.allowed_lateness = Duration.of(allowed_lateness)
+    self.environment_id = environment_id
     self.timestamp_combiner = (
         timestamp_combiner or TimestampCombiner.OUTPUT_AT_EOW)
     self._is_default = (
@@ -2340,11 +2343,12 @@ class Windowing(object):
         self.allowed_lateness == 0)
 
   def __repr__(self):
-    return "Windowing(%s, %s, %s, %s)" % (
+    return "Windowing(%s, %s, %s, %s, %s)" % (
         self.windowfn,
         self.triggerfn,
         self.accumulation_mode,
-        self.timestamp_combiner)
+        self.timestamp_combiner,
+        self.environment_id)
 
   def __eq__(self, other):
     if type(self) == type(other):
@@ -2355,7 +2359,8 @@ class Windowing(object):
           self.triggerfn == other.triggerfn and
           self.accumulation_mode == other.accumulation_mode and
           self.timestamp_combiner == other.timestamp_combiner and
-          self.allowed_lateness == other.allowed_lateness)
+          self.allowed_lateness == other.allowed_lateness and
+          self.environment_id == self.environment_id)
     return False
 
   def __ne__(self, other):
@@ -2368,13 +2373,15 @@ class Windowing(object):
         self.triggerfn,
         self.accumulation_mode,
         self.allowed_lateness,
-        self.timestamp_combiner))
+        self.timestamp_combiner,
+        self.environment_id))
 
   def is_default(self):
     return self._is_default
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.WindowingStrategy
+    environment_id = self.environment_id or context.default_environment_id()
     return beam_runner_api_pb2.WindowingStrategy(
         window_fn=self.windowfn.to_runner_api(context),
         # TODO(robertwb): Prohibit implicit multi-level merging.
@@ -2390,7 +2397,7 @@ class Windowing(object):
         closing_behavior=beam_runner_api_pb2.ClosingBehavior.EMIT_ALWAYS,
         OnTimeBehavior=beam_runner_api_pb2.OnTimeBehavior.FIRE_ALWAYS,
         allowed_lateness=self.allowed_lateness.micros // 1000,
-        environment_id=context.default_environment_id())
+        environment_id=environment_id)
 
   @staticmethod
   def from_runner_api(proto, context):
@@ -2401,7 +2408,8 @@ class Windowing(object):
         triggerfn=TriggerFn.from_runner_api(proto.trigger, context),
         accumulation_mode=proto.accumulation_mode,
         timestamp_combiner=proto.output_time,
-        allowed_lateness=Duration(micros=proto.allowed_lateness * 1000))
+        allowed_lateness=Duration(micros=proto.allowed_lateness * 1000),
+        environment_id=proto.environment_id)
 
 
 @typehints.with_input_types(T)
