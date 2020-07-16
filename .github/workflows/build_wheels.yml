@@ -148,6 +148,7 @@ jobs:
         for file in *.whl; do
           sha512sum $file > ${file}.sha512
         done
+      shell: bash
     - name: Upload wheels as artifacts
       uses: actions/upload-artifact@v2
       with:
