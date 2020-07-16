@@ -24,7 +24,6 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -53,6 +52,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -89,7 +89,8 @@ import org.joda.time.Instant;
  * @param <InputT> the type of the (main) input elements
  * @param <OutputT> the type of the (main) output elements
  */
-public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayData {
+public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nullable Object>
+    implements Serializable, HasDisplayData {
   /** Information accessible while within the {@link StartBundle} method. */
   @SuppressWarnings("ClassCanBeStatic") // Converting class to static is an API change.
   public abstract class StartBundleContext {
@@ -117,7 +118,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from the {@link
      * FinishBundle} method.
      */
-    public abstract void output(@Nullable OutputT output, Instant timestamp, BoundedWindow window);
+    public abstract void output(OutputT output, Instant timestamp, BoundedWindow window);
 
     /**
      * Adds the given element to the output {@code PCollection} with the given tag at the given
