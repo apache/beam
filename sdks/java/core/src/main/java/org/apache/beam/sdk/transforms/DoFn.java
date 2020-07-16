@@ -1071,9 +1071,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <p>This method must satisfy the following constraints:
    *
    * <ul>
-   *   <li>If one of the arguments is of type {@link OutputReceiver}, then it will be passed an
-   *       output receiver for outputting the truncated restrictions. All truncated restrictions
-   *       must be output through this parameter.
    *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
    *       passed the current element being processed; the argument must be of type {@code InputT}.
    *       Note that automatic conversion of {@link Row}s and {@link FieldAccess} parameters are
