@@ -213,7 +213,7 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
         @Override
         public POutput expand(PCollection<Row> input) {
           return input
-              .apply(RowToPubsubMessage.fromConfig(config.useTimestampAttribute()))
+              .apply(RowToPubsubMessage.withTimestampAttribute(config.useTimestampAttribute()))
               .apply(createPubsubMessageWrite());
         }
       };

@@ -45,7 +45,7 @@ class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<Pubsub
     this.useTimestampAttribute = useTimestampAttribute;
   }
 
-  public static RowToPubsubMessage fromConfig(Boolean useTimestampAttribute) {
+  public static RowToPubsubMessage withTimestampAttribute(boolean useTimestampAttribute) {
     return new RowToPubsubMessage(useTimestampAttribute);
   }
 
