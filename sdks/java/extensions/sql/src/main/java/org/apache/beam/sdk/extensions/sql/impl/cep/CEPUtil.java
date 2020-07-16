@@ -89,12 +89,12 @@ public class CEPUtil {
 
   /** Construct a list of {@code CEPPattern}s from a {@code RexNode}. */
   public static ArrayList<CEPPattern> getCEPPatternFromPattern(
-      Schema mySchema, RexNode call, Map<String, RexNode> patternDefs) {
+      Schema upStreamSchema, RexNode call, Map<String, RexNode> patternDefs) {
     ArrayList<CEPPattern> patternList = new ArrayList<>();
     if (call.getClass() == RexLiteral.class) {
       String p = ((RexLiteral) call).getValueAs(String.class);
       RexNode pd = patternDefs.get(p);
-      patternList.add(CEPPattern.of(mySchema, p, (RexCall) pd, Quantifier.NONE));
+      patternList.add(CEPPattern.of(upStreamSchema, p, (RexCall) pd, Quantifier.NONE));
     } else {
       RexCall patCall = (RexCall) call;
       SqlOperator operator = patCall.getOperator();
@@ -109,10 +109,10 @@ public class CEPUtil {
         boolean isReluctant = ((RexLiteral) operands.get(3)).getValueAs(Boolean.class);
 
         patternList.add(
-            CEPPattern.of(mySchema, p, (RexCall) pd, getQuantifier(start, end, isReluctant)));
+            CEPPattern.of(upStreamSchema, p, (RexCall) pd, getQuantifier(start, end, isReluctant)));
       } else {
         for (RexNode i : operands) {
-          patternList.addAll(getCEPPatternFromPattern(mySchema, i, patternDefs));
+          patternList.addAll(getCEPPatternFromPattern(upStreamSchema, i, patternDefs));
         }
       }
     }

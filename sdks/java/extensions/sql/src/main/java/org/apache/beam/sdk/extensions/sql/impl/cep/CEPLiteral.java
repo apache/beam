@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.cep;
 
 import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.joda.time.ReadableDateTime;
 
@@ -27,9 +28,9 @@ import org.joda.time.ReadableDateTime;
  */
 public class CEPLiteral extends CEPOperation {
 
-  private final CEPTypeName typeName;
+  private final Schema.TypeName typeName;
 
-  private CEPLiteral(CEPTypeName typeName) {
+  private CEPLiteral(Schema.TypeName typeName) {
     this.typeName = typeName;
   }
 
@@ -60,7 +61,7 @@ public class CEPLiteral extends CEPOperation {
   }
 
   public static CEPLiteral of(Byte myByte) {
-    return new CEPLiteral(CEPTypeName.BYTE) {
+    return new CEPLiteral(Schema.TypeName.BYTE) {
       @Override
       public Byte getByte() {
         return myByte;
@@ -69,7 +70,7 @@ public class CEPLiteral extends CEPOperation {
   }
 
   public static CEPLiteral of(Short myShort) {
-    return new CEPLiteral(CEPTypeName.INT16) {
+    return new CEPLiteral(Schema.TypeName.INT16) {
       @Override
       public Short getInt16() {
         return myShort;
@@ -78,7 +79,7 @@ public class CEPLiteral extends CEPOperation {
   }
 
   public static CEPLiteral of(Integer myInt) {
-    return new CEPLiteral(CEPTypeName.INT32) {
+    return new CEPLiteral(Schema.TypeName.INT32) {
       @Override
       public Integer getInt32() {
         return myInt;
@@ -87,7 +88,7 @@ public class CEPLiteral extends CEPOperation {
   }
 
   public static CEPLiteral of(Long myLong) {
-    return new CEPLiteral(CEPTypeName.INT64) {
+    return new CEPLiteral(Schema.TypeName.INT64) {
       @Override
       public Long getInt64() {
         return myLong;
@@ -96,7 +97,7 @@ public class CEPLiteral extends CEPOperation {
   }
 
   public static CEPLiteral of(BigDecimal myDecimal) {
-    return new CEPLiteral(CEPTypeName.DECIMAL) {
+    return new CEPLiteral(Schema.TypeName.DECIMAL) {
       @Override
       public BigDecimal getDecimal() {
         return myDecimal;
@@ -105,7 +106,7 @@ public class CEPLiteral extends CEPOperation {
   }
 
   public static CEPLiteral of(Float myFloat) {
-    return new CEPLiteral(CEPTypeName.FLOAT) {
+    return new CEPLiteral(Schema.TypeName.FLOAT) {
       @Override
       public Float getFloat() {
         return myFloat;
@@ -114,7 +115,7 @@ public class CEPLiteral extends CEPOperation {
   }
 
   public static CEPLiteral of(Double myDouble) {
-    return new CEPLiteral(CEPTypeName.DOUBLE) {
+    return new CEPLiteral(Schema.TypeName.DOUBLE) {
       @Override
       public Double getDouble() {
         return myDouble;
@@ -123,7 +124,7 @@ public class CEPLiteral extends CEPOperation {
   }
 
   public static CEPLiteral of(ReadableDateTime myDateTime) {
-    return new CEPLiteral(CEPTypeName.DATETIME) {
+    return new CEPLiteral(Schema.TypeName.DATETIME) {
       @Override
       public ReadableDateTime getDateTime() {
         return myDateTime;
@@ -132,7 +133,7 @@ public class CEPLiteral extends CEPOperation {
   }
 
   public static CEPLiteral of(Boolean myBoolean) {
-    return new CEPLiteral(CEPTypeName.BOOLEAN) {
+    return new CEPLiteral(Schema.TypeName.BOOLEAN) {
       @Override
       public Boolean getBoolean() {
         return myBoolean;
@@ -141,7 +142,7 @@ public class CEPLiteral extends CEPOperation {
   }
 
   public static CEPLiteral of(String myString) {
-    return new CEPLiteral(CEPTypeName.STRING) {
+    return new CEPLiteral(Schema.TypeName.STRING) {
       @Override
       public String getString() {
         return myString;
@@ -189,7 +190,7 @@ public class CEPLiteral extends CEPOperation {
     throw new SqlConversionException("the class must be subclassed properly to get the value");
   }
 
-  public CEPTypeName getTypeName() {
+  public Schema.TypeName getTypeName() {
     return typeName;
   }
 }
