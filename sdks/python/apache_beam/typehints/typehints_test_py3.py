@@ -27,7 +27,9 @@ import unittest
 
 from apache_beam import Map
 from apache_beam import PTransform
+from apache_beam.pvalue import PBegin
 from apache_beam.pvalue import PCollection
+from apache_beam.pvalue import PDone
 from apache_beam.transforms.core import DoFn
 from apache_beam.typehints import KV
 from apache_beam.typehints import Iterable
@@ -141,6 +143,24 @@ class TestPTransformAnnotations(unittest.TestCase):
     th = MyPTransform().get_type_hints()
     self.assertEqual(th.input_types, None)
     self.assertEqual(th.output_types, None)
+
+  def test_annotations_with_pbegin(self):
+    class MyPTransform(PTransform):
+      def expand(self, pcoll: PBegin):
+        return pcoll | Map(lambda num: str(num))
+
+    th = MyPTransform().get_type_hints()
+    self.assertEqual(th.input_types, ((Any, ), {}))
+    self.assertEqual(th.output_types, ((Any, ), {}))
+
+  def test_annotations_with_pdone(self):
+    class MyPTransform(PTransform):
+      def expand(self, pcoll) -> PDone:
+        return pcoll | Map(lambda num: str(num))
+
+    th = MyPTransform().get_type_hints()
+    self.assertEqual(th.input_types, ((Any, ), {}))
+    self.assertEqual(th.output_types, ((Any, ), {}))
 
 
 if __name__ == '__main__':

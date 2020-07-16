@@ -105,7 +105,11 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
+from typing import Union
 
+from apache_beam.pvalue import PBegin
+from apache_beam.pvalue import PCollection
+from apache_beam.pvalue import PDone
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
@@ -382,7 +386,7 @@ class IOTypeHints(NamedTuple(
     return self.strip_pcoll_helper(self.input_types,
                                    self._has_input_types,
                                    'input_types',
-                                   ['apache_beam.pvalue.PBegin'],
+                                    [PBegin],
                                    'An input typehint to a PTransform must be'
                                    ' a single (or nested) type wrapped by '
                                    'a PCollection or PBegin. ',
@@ -390,7 +394,7 @@ class IOTypeHints(NamedTuple(
                 strip_pcoll_helper(self.output_types,
                                    self.has_simple_output_type,
                                    'output_types',
-                                   ['apache_beam.pvalue.PDone'],
+                                   [PDone],
                                    'An output typehint to a PTransform must be'
                                    ' a single (or nested) type wrapped by '
                                    'a PCollection or PDone. ',
@@ -401,7 +405,7 @@ class IOTypeHints(NamedTuple(
       my_type,            # type: any
       has_my_type,        # type: Callable[[], bool]
       my_key,             # type: str
-      my_valid_classes,   # type: List[str]
+      special_containers,   # type: List[Union[PBegin, PDone]]
       error_str,          # type: str
       source_str          # type: str
       ):
@@ -415,9 +419,9 @@ class IOTypeHints(NamedTuple(
     if isinstance(my_type, typehints.AnyTypeConstraint) or my_type is None:
       return self
 
-    valid_classes = ['apache_beam.pvalue.PCollection'] + my_valid_classes
-
-    if not any(valid_class in str(my_type) for valid_class in valid_classes):
+    if my_type not in special_containers and \
+      my_type != PCollection and \
+      (not hasattr(my_type, '__origin__') or my_type.__origin__ != PCollection):
       raise TypeCheckError(error_str)
 
     kwarg_dict = {}
@@ -425,7 +429,7 @@ class IOTypeHints(NamedTuple(
     if not hasattr(my_type, '__args__') \
             or my_type.__args__ is None \
             or len(my_type.__args__) == 0:
-      # e.g. PCollection
+      # e.g. PCollection (or PBegin/PDone)
       kwarg_dict[my_key] = ((typehints.Any, ), {})
     else:
       # e.g. PCollection[type]
