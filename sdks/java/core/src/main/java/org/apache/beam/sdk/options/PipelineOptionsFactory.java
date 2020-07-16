@@ -1089,9 +1089,8 @@ public class PipelineOptionsFactory {
                                     annotation ->
                                         String.format(
                                             "[%s on %s]",
-                                            ReflectHelpers.ANNOTATION_FORMATTER.apply(annotation),
-                                            ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(
-                                                method))))
+                                            ReflectHelpers.formatAnnotation(annotation),
+                                            ReflectHelpers.formatMethodWithClass(method))))
                     .collect(Collectors.joining(", "))));
       }
 
@@ -1230,9 +1229,7 @@ public class PipelineOptionsFactory {
     checkArgument(
         unknownMethods.isEmpty(),
         "Methods [%s] on [%s] do not conform to being bean properties.",
-        unknownMethods.stream()
-            .map(ReflectHelpers.METHOD_FORMATTER)
-            .collect(Collectors.joining(",")),
+        unknownMethods.stream().map(ReflectHelpers::formatMethod).collect(Collectors.joining(",")),
         iface.getName());
   }
 

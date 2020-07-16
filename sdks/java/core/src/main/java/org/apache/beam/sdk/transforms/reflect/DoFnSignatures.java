@@ -2311,11 +2311,11 @@ public class DoFnSignatures {
   }
 
   private static String format(Method method) {
-    return ReflectHelpers.METHOD_FORMATTER.apply(method);
+    return ReflectHelpers.formatMethod(method);
   }
 
   private static String format(TypeDescriptor<?> t) {
-    return ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(t.getType());
+    return ReflectHelpers.simpleTypeDescription(t.getType());
   }
 
   private static String format(Class<?> kls) {
