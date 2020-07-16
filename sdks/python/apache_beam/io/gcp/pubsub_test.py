@@ -18,12 +18,16 @@
 
 """Unit tests for PubSub sources and sinks."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
 import unittest
 from builtins import object
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
 
@@ -68,9 +72,9 @@ class TestPubsubMessage(unittest.TestCase):
     _ = PubsubMessage(None, {'k': 'v'})
 
   def test_payload_invalid(self):
-    with self.assertRaisesRegexp(ValueError, r'data.*attributes.*must be set'):
+    with self.assertRaisesRegex(ValueError, r'data.*attributes.*must be set'):
       _ = PubsubMessage(None, None)
-    with self.assertRaisesRegexp(ValueError, r'data.*attributes.*must be set'):
+    with self.assertRaisesRegex(ValueError, r'data.*attributes.*must be set'):
       _ = PubsubMessage(None, {})
 
   @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
@@ -141,11 +145,15 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub('projects/fakeprj/topics/a_topic',
-                              None, 'a_label', with_attributes=False,
-                              timestamp_attribute=None)
-             | beam.Map(lambda x: x))
+    pcoll = (
+        p
+        | ReadFromPubSub(
+            'projects/fakeprj/topics/a_topic',
+            None,
+            'a_label',
+            with_attributes=False,
+            timestamp_attribute=None)
+        | beam.Map(lambda x: x))
     self.assertEqual(bytes, pcoll.element_type)
 
     # Apply the necessary PTransformOverrides.
@@ -165,11 +173,15 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub(
-                 None, 'projects/fakeprj/subscriptions/a_subscription',
-                 'a_label', with_attributes=False, timestamp_attribute=None)
-             | beam.Map(lambda x: x))
+    pcoll = (
+            p
+            | ReadFromPubSub(
+        None,
+        'projects/fakeprj/subscriptions/a_subscription',
+        'a_label',
+        with_attributes=False,
+        timestamp_attribute=None)
+            | beam.Map(lambda x: x))
     self.assertEqual(bytes, pcoll.element_type)
 
     # Apply the necessary PTransformOverrides.
