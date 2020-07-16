@@ -759,7 +759,6 @@ class SdfTruncateSizedRestrictions(DoOperation):
     # type: (Operation, int) -> None
     if isinstance(operation, SdfProcessSizedElements):
       self.sdf_process_op = operation
-      self.sdf_process_op.sdf_truncate_op = self
     super(SdfTruncateSizedRestrictions,
           self).add_receiver(operation, output_index)
 
@@ -769,7 +768,6 @@ class SdfProcessSizedElements(DoOperation):
     super(SdfProcessSizedElements, self).__init__(*args, **kwargs)
     self.lock = threading.RLock()
     self.element_start_output_bytes = None  # type: Optional[int]
-    self.sdf_truncate_op = None
 
   def process(self, o):
     # type: (WindowedValue) -> None
