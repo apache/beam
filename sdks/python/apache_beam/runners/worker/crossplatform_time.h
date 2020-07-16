@@ -35,7 +35,7 @@ int clock_gettime(int clk_id, struct timespec *tv) {
     LARGE_INTEGER counterValue = {0};
 
     //initialization
-    if (0 == counterFrequency.QuadPart && performanceCounterAvailable) {
+    if (0 == counterFrequency.QuadPart) {
         if (0 == QueryPerformanceFrequency(&counterFrequency)) {
             performanceCounterAvailable = FALSE;
             counterFrequency.QuadPart = 10000000; // failover SystemTime is provided in 100-nanosecond intervals
