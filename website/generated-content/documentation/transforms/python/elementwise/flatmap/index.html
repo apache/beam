@@ -16,7 +16,7 @@ This pipeline splits the input element using whitespaces, creating a list of zer
           <span class=s1>&#39;🍅Tomato 🥔Potato&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Split words&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>FlatMap</span><span class=p>(</span><span class=nb>str</span><span class=o>.</span><span class=n>split</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>FlatMap</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -33,7 +33,7 @@ This pipeline splits the input element using whitespaces, creating a list of zer
           <span class=s1>&#39;🍅Tomato,🥔Potato&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Split words&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>FlatMap</span><span class=p>(</span><span class=n>split_words</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>FlatMap</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -49,7 +49,7 @@ We use a lambda function that returns the same input element it received.</p><di
           <span class=p>[</span><span class=s1>&#39;🍅Tomato&#39;</span><span class=p>,</span> <span class=s1>&#39;🥔Potato&#39;</span><span class=p>],</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Flatten lists&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>FlatMap</span><span class=p>(</span><span class=k>lambda</span> <span class=n>elements</span><span class=p>:</span> <span class=n>elements</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>FlatMap</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -69,7 +69,7 @@ Each yielded result in the generator is an element in the resulting <code>PColle
           <span class=p>[</span><span class=s1>&#39;🍅Tomato&#39;</span><span class=p>,</span> <span class=s1>&#39;🥔Potato&#39;</span><span class=p>],</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Flatten lists&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>FlatMap</span><span class=p>(</span><span class=n>generate_elements</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>FlatMap</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -92,7 +92,7 @@ you can use <code>FlatMapTuple</code> to unpack them into different function arg
           <span class=p>(</span><span class=bp>None</span><span class=p>,</span> <span class=s1>&#39;Invalid&#39;</span><span class=p>),</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Format&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>FlatMapTuple</span><span class=p>(</span><span class=n>format_plant</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>FlatMapTuple</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -110,7 +110,7 @@ They are passed as additional positional arguments or keyword arguments to the f
           <span class=s1>&#39;🍅Tomato,🥔Potato&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Split words&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>FlatMap</span><span class=p>(</span><span class=n>split_words</span><span class=p>,</span> <span class=n>delimiter</span><span class=o>=</span><span class=s1>&#39;,&#39;</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>FlatMap</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -132,7 +132,7 @@ We then use that value as the delimiter for the <code>str.split</code> method.</
           <span class=n>delimiter</span><span class=p>:</span> <span class=n>text</span><span class=o>.</span><span class=n>split</span><span class=p>(</span><span class=n>delimiter</span><span class=p>),</span>
           <span class=n>delimiter</span><span class=o>=</span><span class=n>beam</span><span class=o>.</span><span class=n>pvalue</span><span class=o>.</span><span class=n>AsSingleton</span><span class=p>(</span><span class=n>delimiter</span><span class=p>),</span>
       <span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>FlatMap</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -175,7 +175,7 @@ so it is possible to iterate over large <code>PCollection</code>s that won&rsquo
           <span class=n>normalize_and_validate_durations</span><span class=p>,</span>
           <span class=n>valid_durations</span><span class=o>=</span><span class=n>beam</span><span class=o>.</span><span class=n>pvalue</span><span class=o>.</span><span class=n>AsIter</span><span class=p>(</span><span class=n>valid_durations</span><span class=p>),</span>
       <span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>FlatMap</code>:</p><div class=notebook-skip><pre><code>{&#39;icon&#39;: &#39;🍓&#39;, &#39;name&#39;: &#39;Strawberry&#39;, &#39;duration&#39;: &#39;perennial&#39;}
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>{&#39;icon&#39;: &#39;🍓&#39;, &#39;name&#39;: &#39;Strawberry&#39;, &#39;duration&#39;: &#39;perennial&#39;}
 {&#39;icon&#39;: &#39;🥕&#39;, &#39;name&#39;: &#39;Carrot&#39;, &#39;duration&#39;: &#39;biennial&#39;}
 {&#39;icon&#39;: &#39;🍆&#39;, &#39;name&#39;: &#39;Eggplant&#39;, &#39;duration&#39;: &#39;perennial&#39;}
 {&#39;icon&#39;: &#39;🍅&#39;, &#39;name&#39;: &#39;Tomato&#39;, &#39;duration&#39;: &#39;annual&#39;}</code></pre></div><table align=left style=margin-right:1em class=".language-py .notebook-skip"><td><a class=button target=_blank href=https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/flatmap-py.ipynb><img src=https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png width=32px height=32px alt="Run code now"> Run code now</a></td></table><table align=left style=margin-right:1em class=.language-py><td><a class=button target=_blank href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py><img src=https://www.tensorflow.org/images/GitHub-Mark-32px.png width=32px height=32px alt="View source code"> View source code</a></td></table><p><br><br><br></p><blockquote><p><strong>Note</strong>: You can pass the <code>PCollection</code> as a <em>list</em> with <code>beam.pvalue.AsList(pcollection)</code>,
@@ -219,7 +219,7 @@ If the <code>PCollection</code> won&rsquo;t fit into memory, use <code>beam.pval
           <span class=n>replace_duration_if_valid</span><span class=p>,</span>
           <span class=n>durations</span><span class=o>=</span><span class=n>beam</span><span class=o>.</span><span class=n>pvalue</span><span class=o>.</span><span class=n>AsDict</span><span class=p>(</span><span class=n>durations</span><span class=p>),</span>
       <span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>FlatMap</code>:</p><div class=notebook-skip><pre><code>{&#39;icon&#39;: &#39;🍓&#39;, &#39;name&#39;: &#39;Strawberry&#39;, &#39;duration&#39;: &#39;perennial&#39;}
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>{&#39;icon&#39;: &#39;🍓&#39;, &#39;name&#39;: &#39;Strawberry&#39;, &#39;duration&#39;: &#39;perennial&#39;}
 {&#39;icon&#39;: &#39;🥕&#39;, &#39;name&#39;: &#39;Carrot&#39;, &#39;duration&#39;: &#39;biennial&#39;}
 {&#39;icon&#39;: &#39;🍆&#39;, &#39;name&#39;: &#39;Eggplant&#39;, &#39;duration&#39;: &#39;perennial&#39;}
 {&#39;icon&#39;: &#39;🍅&#39;, &#39;name&#39;: &#39;Tomato&#39;, &#39;duration&#39;: &#39;annual&#39;}</code></pre></div><table align=left style=margin-right:1em class=".language-py .notebook-skip"><td><a class=button target=_blank href=https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/flatmap-py.ipynb><img src=https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png width=32px height=32px alt="Run code now"> Run code now</a></td></table><table align=left style=margin-right:1em class=.language-py><td><a class=button target=_blank href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py><img src=https://www.tensorflow.org/images/GitHub-Mark-32px.png width=32px height=32px alt="View source code"> View source code</a></td></table><p><br><br><br></p><h2 id=related-transforms>Related transforms</h2><ul><li><a href=/documentation/transforms/python/elementwise/filter>Filter</a> is useful if the function is just

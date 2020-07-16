@@ -25,7 +25,7 @@ in the form of seconds.</p><div class=language-py><div class=highlight><pre clas
           <span class=k>lambda</span> <span class=n>plant</span><span class=p>:</span> <span class=n>beam</span><span class=o>.</span><span class=n>window</span><span class=o>.</span><span class=n>TimestampedValue</span><span class=p>(</span><span class=n>plant</span><span class=p>,</span> <span class=n>plant</span><span class=p>[</span><span class=s1>&#39;season&#39;</span><span class=p>]))</span>
       <span class=o>|</span> <span class=s1>&#39;Get timestamp&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>GetTimestamp</span><span class=p>())</span>
       <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>)</span>
-  <span class=p>)</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after getting the timestamps:</p><div class=notebook-skip><pre><code>2020-04-01 00:00:00 - Strawberry
+  <span class=p>)</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>2020-04-01 00:00:00 - Strawberry
 2020-06-01 00:00:00 - Carrot
 2020-03-01 00:00:00 - Artichoke
 2020-05-01 00:00:00 - Tomato
@@ -68,7 +68,7 @@ These numbers have to be converted to a <em>&ldquo;seconds&rdquo;</em> equivalen
           <span class=n>beam</span><span class=o>.</span><span class=n>window</span><span class=o>.</span><span class=n>TimestampedValue</span><span class=p>(</span><span class=n>plant</span><span class=p>,</span> <span class=n>plant</span><span class=p>[</span><span class=s1>&#39;event_id&#39;</span><span class=p>]))</span>
       <span class=o>|</span> <span class=s1>&#39;Get timestamp&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>GetTimestamp</span><span class=p>())</span>
       <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>)</span>
-  <span class=p>)</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after getting the timestamps:</p><div class=notebook-skip><pre><code>1 - Strawberry
+  <span class=p>)</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>1 - Strawberry
 4 - Carrot
 2 - Artichoke
 3 - Tomato
@@ -95,7 +95,7 @@ Workers might have time deltas, so using this method is not a reliable way to do
           <span class=n>beam</span><span class=o>.</span><span class=n>window</span><span class=o>.</span><span class=n>TimestampedValue</span><span class=p>(</span><span class=n>plant</span><span class=p>,</span> <span class=n>time</span><span class=o>.</span><span class=n>time</span><span class=p>()))</span>
       <span class=o>|</span> <span class=s1>&#39;Get timestamp&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>GetTimestamp</span><span class=p>())</span>
       <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>)</span>
-  <span class=p>)</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after getting the timestamps:</p><div class=notebook-skip><pre><code>2020-03-20 20:12:42.145594 - Strawberry
+  <span class=p>)</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>2020-03-20 20:12:42.145594 - Strawberry
 2020-03-20 20:12:42.145827 - Carrot
 2020-03-20 20:12:42.145962 - Artichoke
 2020-03-20 20:12:42.146093 - Tomato

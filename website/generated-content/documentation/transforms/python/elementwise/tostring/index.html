@@ -19,7 +19,7 @@ You can specify a different delimiter using the <code>delimiter</code> argument.
           <span class=p>(</span><span class=s1>&#39;🥔&#39;</span><span class=p>,</span> <span class=s1>&#39;Potato&#39;</span><span class=p>),</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;To string&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ToString</span><span class=o>.</span><span class=n>Kvs</span><span class=p>()</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>ToString</code>:</p><div class=notebook-skip><pre><code>🍓,Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓,Strawberry
 🥕,Carrot
 🍆,Eggplant
 🍅,Tomato
@@ -37,7 +37,7 @@ The string output will be equivalent to <code>str(element)</code>.</p><div class
           <span class=p>[</span><span class=s1>&#39;🥔&#39;</span><span class=p>,</span> <span class=s1>&#39;Potato&#39;</span><span class=p>,</span> <span class=s1>&#39;perennial&#39;</span><span class=p>],</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;To string&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ToString</span><span class=o>.</span><span class=n>Element</span><span class=p>()</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>ToString</code>:</p><div class=notebook-skip><pre><code>[&#39;🍓&#39;, &#39;Strawberry&#39;, &#39;perennial&#39;]
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>[&#39;🍓&#39;, &#39;Strawberry&#39;, &#39;perennial&#39;]
 [&#39;🥕&#39;, &#39;Carrot&#39;, &#39;biennial&#39;]
 [&#39;🍆&#39;, &#39;Eggplant&#39;, &#39;perennial&#39;]
 [&#39;🍅&#39;, &#39;Tomato&#39;, &#39;annual&#39;]
@@ -57,7 +57,7 @@ The string output will be equivalent to <code>iterable.join(delimiter)</code>.</
           <span class=p>[</span><span class=s1>&#39;🥔&#39;</span><span class=p>,</span> <span class=s1>&#39;Potato&#39;</span><span class=p>,</span> <span class=s1>&#39;perennial&#39;</span><span class=p>],</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;To string&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ToString</span><span class=o>.</span><span class=n>Iterables</span><span class=p>()</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>ToString</code>:</p><div class=notebook-skip><pre><code>🍓,Strawberry,perennial
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓,Strawberry,perennial
 🥕,Carrot,biennial
 🍆,Eggplant,perennial
 🍅,Tomato,annual

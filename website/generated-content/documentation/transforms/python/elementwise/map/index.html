@@ -17,7 +17,7 @@ It strips the input element&rsquo;s whitespaces, including newlines and tabs.</p
           <span class=s1>&#39;   🥔Potato   </span><span class=se>\n</span><span class=s1>&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Strip&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=nb>str</span><span class=o>.</span><span class=n>strip</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Map</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -37,7 +37,7 @@ It strips the input element&rsquo;s whitespaces, including newlines and tabs.</p
           <span class=s1>&#39;# 🥔Potato</span><span class=se>\n</span><span class=s1>&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Strip header&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=n>strip_header_and_newline</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Map</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -54,7 +54,7 @@ It strips the input element&rsquo;s whitespaces, including newlines and tabs.</p
           <span class=s1>&#39;# 🥔Potato</span><span class=se>\n</span><span class=s1>&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Strip header&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>lambda</span> <span class=n>text</span><span class=p>:</span> <span class=n>text</span><span class=o>.</span><span class=n>strip</span><span class=p>(</span><span class=s1>&#39;# </span><span class=se>\n</span><span class=s1>&#39;</span><span class=p>))</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Map</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -75,7 +75,7 @@ They are passed as additional positional arguments or keyword arguments to the f
           <span class=s1>&#39;# 🥔Potato</span><span class=se>\n</span><span class=s1>&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Strip header&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=n>strip</span><span class=p>,</span> <span class=n>chars</span><span class=o>=</span><span class=s1>&#39;# </span><span class=se>\n</span><span class=s1>&#39;</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Map</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -94,7 +94,7 @@ you can use <code>MapTuple</code> to unpack them into different function argumen
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Format&#39;</span> <span class=o>&gt;&gt;</span>
       <span class=n>beam</span><span class=o>.</span><span class=n>MapTuple</span><span class=p>(</span><span class=k>lambda</span> <span class=n>icon</span><span class=p>,</span> <span class=n>plant</span><span class=p>:</span> <span class=s1>&#39;{}{}&#39;</span><span class=o>.</span><span class=n>format</span><span class=p>(</span><span class=n>icon</span><span class=p>,</span> <span class=n>plant</span><span class=p>))</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>MapTuple</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -119,7 +119,7 @@ We then use that value as the characters for the <code>str.strip</code> method.<
           <span class=n>chars</span><span class=p>:</span> <span class=n>text</span><span class=o>.</span><span class=n>strip</span><span class=p>(</span><span class=n>chars</span><span class=p>),</span>
           <span class=n>chars</span><span class=o>=</span><span class=n>beam</span><span class=o>.</span><span class=n>pvalue</span><span class=o>.</span><span class=n>AsSingleton</span><span class=p>(</span><span class=n>chars</span><span class=p>),</span>
       <span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Map</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -144,7 +144,7 @@ so it is possible to iterate over large <code>PCollection</code>s that won&rsquo
           <span class=n>chars</span><span class=p>:</span> <span class=n>text</span><span class=o>.</span><span class=n>strip</span><span class=p>(</span><span class=s1>&#39;&#39;</span><span class=o>.</span><span class=n>join</span><span class=p>(</span><span class=n>chars</span><span class=p>)),</span>
           <span class=n>chars</span><span class=o>=</span><span class=n>beam</span><span class=o>.</span><span class=n>pvalue</span><span class=o>.</span><span class=n>AsIter</span><span class=p>(</span><span class=n>chars</span><span class=p>),</span>
       <span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Map</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -188,7 +188,7 @@ If the <code>PCollection</code> won&rsquo;t fit into memory, use <code>beam.pval
           <span class=n>replace_duration</span><span class=p>,</span>
           <span class=n>durations</span><span class=o>=</span><span class=n>beam</span><span class=o>.</span><span class=n>pvalue</span><span class=o>.</span><span class=n>AsDict</span><span class=p>(</span><span class=n>durations</span><span class=p>),</span>
       <span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Map</code>:</p><div class=notebook-skip><pre><code>{&#39;icon&#39;: &#39;🍓&#39;, &#39;name&#39;: &#39;Strawberry&#39;, &#39;duration&#39;: &#39;perennial&#39;}
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>{&#39;icon&#39;: &#39;🍓&#39;, &#39;name&#39;: &#39;Strawberry&#39;, &#39;duration&#39;: &#39;perennial&#39;}
 {&#39;icon&#39;: &#39;🥕&#39;, &#39;name&#39;: &#39;Carrot&#39;, &#39;duration&#39;: &#39;biennial&#39;}
 {&#39;icon&#39;: &#39;🍆&#39;, &#39;name&#39;: &#39;Eggplant&#39;, &#39;duration&#39;: &#39;perennial&#39;}
 {&#39;icon&#39;: &#39;🍅&#39;, &#39;name&#39;: &#39;Tomato&#39;, &#39;duration&#39;: &#39;annual&#39;}

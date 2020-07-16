@@ -39,7 +39,7 @@ To match until the end of the string, add <code>'$'</code> at the end of the reg
           <span class=s1>&#39;invalid, 🍉, format&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Parse plants&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Regex</span><span class=o>.</span><span class=n>matches</span><span class=p>(</span><span class=n>regex</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Regex.matches</code>:</p><div class=notebook-skip><pre><code>🍓, Strawberry, perennial
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓, Strawberry, perennial
 🥕, Carrot, biennial
 🍆, Eggplant, perennial
 🍅, Tomato, annual
@@ -65,7 +65,7 @@ To match until the end of the string, add <code>'$'</code> at the end of the reg
           <span class=s1>&#39;invalid, 🍉, format&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Parse plants&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Regex</span><span class=o>.</span><span class=n>all_matches</span><span class=p>(</span><span class=n>regex</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Regex.all_matches</code>:</p><div class=notebook-skip><pre><code>[&#39;🍓, Strawberry, perennial&#39;, &#39;🍓&#39;, &#39;Strawberry&#39;, &#39;perennial&#39;]
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>[&#39;🍓, Strawberry, perennial&#39;, &#39;🍓&#39;, &#39;Strawberry&#39;, &#39;perennial&#39;]
 [&#39;🥕, Carrot, biennial&#39;, &#39;🥕&#39;, &#39;Carrot&#39;, &#39;biennial&#39;]
 [&#39;🍆, Eggplant, perennial&#39;, &#39;🍆&#39;, &#39;Eggplant&#39;, &#39;perennial&#39;]
 [&#39;🍅, Tomato, annual&#39;, &#39;🍅&#39;, &#39;Tomato&#39;, &#39;annual&#39;]
@@ -92,7 +92,7 @@ To match until the end of the string, add <code>'$'</code> at the end of the reg
           <span class=s1>&#39;invalid, 🍉, format&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Parse plants&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Regex</span><span class=o>.</span><span class=n>matches_kv</span><span class=p>(</span><span class=n>regex</span><span class=p>,</span> <span class=n>keyGroup</span><span class=o>=</span><span class=s1>&#39;icon&#39;</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Regex.matches_kv</code>:</p><div class=notebook-skip><pre><code>(&#39;🍓&#39;, &#39;🍓, Strawberry, perennial&#39;)
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>(&#39;🍓&#39;, &#39;🍓, Strawberry, perennial&#39;)
 (&#39;🥕&#39;, &#39;🥕, Carrot, biennial&#39;)
 (&#39;🍆&#39;, &#39;🍆, Eggplant, perennial&#39;)
 (&#39;🍅&#39;, &#39;🍅, Tomato, annual&#39;)
@@ -117,7 +117,7 @@ To match until the end of the string, add <code>'$'</code> at the end of the reg
           <span class=s1>&#39;# 🥔, Potato, perennial&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Parse plants&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Regex</span><span class=o>.</span><span class=n>find</span><span class=p>(</span><span class=n>regex</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Regex.find</code>:</p><div class=notebook-skip><pre><code>🍓, Strawberry, perennial
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓, Strawberry, perennial
 🥕, Carrot, biennial
 🍆, Eggplant, perennial
 🍅, Tomato, annual
@@ -142,7 +142,7 @@ To match until the end of the string, add <code>'$'</code> at the end of the reg
           <span class=s1>&#39;# 🥔, Potato, perennial&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Parse plants&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Regex</span><span class=o>.</span><span class=n>find_all</span><span class=p>(</span><span class=n>regex</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Regex.find_all</code>:</p><div class=notebook-skip><pre><code>[&#39;🍓, Strawberry, perennial&#39;]
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>[&#39;🍓, Strawberry, perennial&#39;]
 [&#39;🥕, Carrot, biennial&#39;]
 [&#39;🍆, Eggplant, perennial&#39;, &#39;🍌, Banana, perennial&#39;]
 [&#39;🍅, Tomato, annual&#39;, &#39;🍉, Watermelon, annual&#39;]
@@ -168,7 +168,7 @@ To match until the end of the string, add <code>'$'</code> at the end of the reg
           <span class=s1>&#39;# 🥔, Potato, perennial&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Parse plants&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Regex</span><span class=o>.</span><span class=n>find_kv</span><span class=p>(</span><span class=n>regex</span><span class=p>,</span> <span class=n>keyGroup</span><span class=o>=</span><span class=s1>&#39;icon&#39;</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Regex.find_kv</code>:</p><div class=notebook-skip><pre><code>(&#39;🍓&#39;, &#39;🍓, Strawberry, perennial&#39;)
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>(&#39;🍓&#39;, &#39;🍓, Strawberry, perennial&#39;)
 (&#39;🥕&#39;, &#39;🥕, Carrot, biennial&#39;)
 (&#39;🍆&#39;, &#39;🍆, Eggplant, perennial&#39;)
 (&#39;🍌&#39;, &#39;🍌, Banana, perennial&#39;)
@@ -190,7 +190,7 @@ on the <code>replacement</code>.</p><div class=language-py><div class=highlight>
           <span class=s1>&#39;🥔 : Potato : perennial&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;To CSV&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Regex</span><span class=o>.</span><span class=n>replace_all</span><span class=p>(</span><span class=sa>r</span><span class=s1>&#39;\s*:\s*&#39;</span><span class=p>,</span> <span class=s1>&#39;,&#39;</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Regex.replace_all</code>:</p><div class=notebook-skip><pre><code>🍓,Strawberry,perennial
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓,Strawberry,perennial
 🥕,Carrot,biennial
 🍆,Eggplant,perennial
 🍅,Tomato,annual
@@ -210,7 +210,7 @@ on the <code>replacement</code>.</p><div class=language-py><div class=highlight>
           <span class=s1>&#39;🥔, Potato, perennial&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;As dictionary&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Regex</span><span class=o>.</span><span class=n>replace_first</span><span class=p>(</span><span class=sa>r</span><span class=s1>&#39;\s*,\s*&#39;</span><span class=p>,</span> <span class=s1>&#39;: &#39;</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Regex.replace_first</code>:</p><div class=notebook-skip><pre><code>🍓: Strawberry, perennial
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓: Strawberry, perennial
 🥕: Carrot, biennial
 🍆: Eggplant, perennial
 🍅: Tomato, annual
@@ -228,7 +228,7 @@ The argument <code>outputEmpty</code> is set to <code>False</code> by default, b
           <span class=s1>&#39;🥔 : Potato : perennial&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Parse plants&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Regex</span><span class=o>.</span><span class=n>split</span><span class=p>(</span><span class=sa>r</span><span class=s1>&#39;\s*:\s*&#39;</span><span class=p>)</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>Regex.split</code>:</p><div class=notebook-skip><pre><code>[&#39;🍓&#39;, &#39;Strawberry&#39;, &#39;perennial&#39;]
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>[&#39;🍓&#39;, &#39;Strawberry&#39;, &#39;perennial&#39;]
 [&#39;🥕&#39;, &#39;Carrot&#39;, &#39;biennial&#39;]
 [&#39;🍆&#39;, &#39;Eggplant&#39;, &#39;perennial&#39;]
 [&#39;🍅&#39;, &#39;Tomato&#39;, &#39;annual&#39;]

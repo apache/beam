@@ -28,7 +28,7 @@ and it can yield zero or more output elements.</p><div class=language-py><div cl
           <span class=s1>&#39;🍅Tomato,🥔Potato&#39;</span><span class=p>,</span>
       <span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;Split words&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>SplitWords</span><span class=p>(</span><span class=s1>&#39;,&#39;</span><span class=p>))</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>ParDo</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
@@ -72,7 +72,7 @@ object.</li></ul><div class=language-py><div class=highlight><pre class=chroma><
       <span class=o>|</span>
       <span class=s1>&#39;Fixed 30sec windows&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>WindowInto</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>window</span><span class=o>.</span><span class=n>FixedWindows</span><span class=p>(</span><span class=mi>30</span><span class=p>))</span>
       <span class=o>|</span> <span class=s1>&#39;Analyze element&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>AnalyzeElement</span><span class=p>())</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip><code>stdout</code> output:</p><div class=notebook-skip><pre><code># timestamp
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code># timestamp
 type(timestamp) -&gt; &lt;class &#39;apache_beam.utils.timestamp.Timestamp&#39;&gt;
 timestamp.micros -&gt; 1584675660000000
 timestamp.to_rfc3339() -&gt; &#39;2020-03-20T03:41:00Z&#39;
@@ -139,7 +139,7 @@ For example, if the worker crashes, <code>teardown</code> might not be called.</
       <span class=n>pipeline</span>
       <span class=o>|</span> <span class=s1>&#39;Create inputs&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>([</span><span class=s1>&#39;🍓&#39;</span><span class=p>,</span> <span class=s1>&#39;🥕&#39;</span><span class=p>,</span> <span class=s1>&#39;🍆&#39;</span><span class=p>,</span> <span class=s1>&#39;🍅&#39;</span><span class=p>,</span> <span class=s1>&#39;🥔&#39;</span><span class=p>])</span>
       <span class=o>|</span> <span class=s1>&#39;DoFn methods&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>DoFnMethods</span><span class=p>())</span>
-      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip><code>stdout</code> output:</p><div class=notebook-skip><pre><code>__init__
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output:</p><div class=notebook-skip><pre><code>__init__
 setup
 start_bundle
 * process: 🍓
