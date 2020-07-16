@@ -198,13 +198,13 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     self.assertEqual('a_label', source.id_label)
 
   def test_expand_with_no_topic_or_subscription(self):
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, "Either a topic or subscription must be provided."):
       ReadFromPubSub(None, None, 'a_label', with_attributes=False,
                      timestamp_attribute=None)
 
   def test_expand_with_both_topic_and_subscription(self):
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, "Only one of topic or subscription should be provided."):
       ReadFromPubSub('a_topic', 'a_subscription', 'a_label',
                      with_attributes=False, timestamp_attribute=None)
@@ -589,7 +589,7 @@ class TestReadFromPubSub(unittest.TestCase):
          | ReadFromPubSub(
              'projects/fakeprj/topics/a_topic', None, None,
              with_attributes=True, timestamp_attribute='time'))
-    with self.assertRaisesRegexp(ValueError, r'parse'):
+    with self.assertRaisesRegex(ValueError, r'parse'):
       p.run()
     mock_pubsub.return_value.acknowledge.assert_not_called()
 
@@ -602,7 +602,7 @@ class TestReadFromPubSub(unittest.TestCase):
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
     _ = (p | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, 'a_label'))
-    with self.assertRaisesRegexp(NotImplementedError,
+    with self.assertRaisesRegex(NotImplementedError,
                                  r'id_label is not supported'):
       p.run()
 
@@ -668,7 +668,7 @@ class TestWriteToPubSub(unittest.TestCase):
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
                          with_attributes=True))
-    with self.assertRaisesRegexp(AttributeError,
+    with self.assertRaisesRegex(AttributeError,
                                  r'str.*has no attribute.*data'):
       p.run()
 
@@ -684,7 +684,7 @@ class TestWriteToPubSub(unittest.TestCase):
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
                          id_label='a_label'))
-    with self.assertRaisesRegexp(NotImplementedError,
+    with self.assertRaisesRegex(NotImplementedError,
                                  r'id_label is not supported'):
       p.run()
     options = PipelineOptions([])
@@ -694,7 +694,7 @@ class TestWriteToPubSub(unittest.TestCase):
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
                          timestamp_attribute='timestamp'))
-    with self.assertRaisesRegexp(NotImplementedError,
+    with self.assertRaisesRegex(NotImplementedError,
                                  r'timestamp_attribute is not supported'):
       p.run()
 
