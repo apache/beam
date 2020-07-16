@@ -60,7 +60,7 @@ options
     .as(BeamSqlPipelineOptions.class)
     .setPlannerName("org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner");
 ```
-Note, Use of the `ZetaSQLQueryPlanner` requires an additional dependency on `beam-sdks-java-extensions-sql-zetasql` in addition to the `beam-sdks-java-extensions-sql` package required for `CalcuiteQueryPlanner`.
+Note, Use of the `ZetaSQLQueryPlanner` requires an additional dependency on `beam-sdks-java-extensions-sql-zetasql` in addition to the `beam-sdks-java-extensions-sql` package required for `CalciteQueryPlanner`.
 
 ## Beam SQL extensions
 Beam SQL has additional extensions leveraging Beam’s unified batch/streaming model and processing complex data types. You can use these extensions with all Beam SQL dialects.
