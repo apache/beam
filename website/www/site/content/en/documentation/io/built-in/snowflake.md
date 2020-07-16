@@ -46,12 +46,11 @@ To use username/password authentication in SnowflakeIO, invoke your pipeline wit
 --username=<USERNAME> --password=<PASSWORD>
 {{< /highlight >}}
 ### Key pair
-To use this authentication method, you must first generate a key pair and associate the public key with the Snowflake user that will connect using the IO transform. For instructions,  see the [Snowflake documentation](https://docs.snowflake.com/en/user-guide/jdbc-configure.html).
+To use this authentication method, you must first generate a key pair and associate the public key with the Snowflake user that will connect using the IO transform. For instructions, see the [Snowflake documentation](https://docs.snowflake.com/en/user-guide/jdbc-configure.html).
 
-To use key pair authentication with SnowflakeIO, invoke your pipeline with one of the following set of Pipeline options:
+To use key pair authentication with SnowflakeIO, invoke your pipeline with following Pipeline options:
 {{< highlight >}}
 --username=<USERNAME> --privateKeyPath=<PATH_TO_P8_FILE> --privateKeyPassphrase=<PASSWORD_FOR_KEY>
---username=<USERNAME> --rawPrivateKey=<PRIVATE_KEY> --privateKeyPassphrase=<PASSWORD_FOR_KEY>
 {{< /highlight >}}
 
 ### OAuth token
@@ -69,7 +68,7 @@ DataSource configuration is required in both read and write object for configuri
 Create the DataSource configuration:
 {{< highlight java >}}
  SnowflakeIO.DataSourceConfiguration
-            .create()
+            .create(SnowflakeCredentialsFactory.of(options))
             .withUrl(options.getUrl())
             .withServerName(options.getServerName())
             .withDatabase(options.getDatabase())
@@ -93,15 +92,6 @@ Where parameters can be:
 - `.withSchema(...)`
   - Name of the schema in the database to use. This parameter is optional.
   - Example: `.withSchema("PUBLIC")`
-- `.withUsernamePasswordAuth(username, password)`
-  - Sets username/password authentication.
-  - Example: `.withUsernamePasswordAuth("USERNAME", "PASSWORD")`
-- `.withOAuth(token)`
-  - Sets OAuth authentication.
-  - Example: `.withOAuth("TOKEN")`
-- `.withKeyPairAuth(username, privateKey)`
-  - Sets key pair authentication using username and [PrivateKey](https://docs.oracle.com/javase/8/docs/api/java/security/PrivateKey.html)
-  - Example: `.withKeyPairAuth("USERNAME",` [PrivateKey](https://docs.oracle.com/javase/8/docs/api/java/security/PrivateKey.html)`)`
 
 
 **Note** - either `.withUrl(...)` or `.withServerName(...)` **is required**.
@@ -120,6 +110,8 @@ Snowflake IO library supports following options that can be passed via the [comm
 `--oauthToken` Required for OAuth authentication only.
 
 `--password` Required for username/password authentication only.
+
+`--privateKeyPath` Path to Private Key file. Required for Private Key authentication only.
 
 `--privateKeyPassphrase` Private Key's passphrase. Required for Private Key authentication only.
 
@@ -142,6 +134,8 @@ Snowflake IO library supports following options that can be passed via the [comm
 `--authenticator` Authenticator to use. Optional.
 
 `--portNumber` Port number. Optional.
+
+`--loginTimeout` Login timeout. Optional.
 
 ## Running pipelines on Dataflow
 By default, pipelines are run on [Direct Runner](https://beam.apache.org/documentation/runners/direct/) on your local machine. To run a pipeline on [Google Dataflow](https://cloud.google.com/dataflow/), you must provide the following Pipeline options:
@@ -187,7 +181,7 @@ All the below parameters are required:
 
 - `.withDataSourceConfiguration()` Accepts a DatasourceConfiguration object.
 
-- `.toTable()` Accepts the target Snowflake table name.
+- `.to()` Accepts the target Snowflake table name.
 
 - `.withStagingBucketName()` Accepts a cloud bucket path ended with slash.
  -Example: `.withStagingBucketName("gs://mybucket/my/dir/")`
@@ -344,7 +338,7 @@ Then:
 
 - `.withCsvMapper(mapper)`
   - Accepts a [CSVMapper](https://beam.apache.org/documentation/io/built-in/snowflake/#csvmapper) instance for mapping String[] to USER_DATA_TYPE.
-- `withCoder(coder)`
+- `.withCoder(coder)`
   - Accepts the [Coder](https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/coders/Coder.html) for USER_DATA_TYPE.
 
 **Note**:
