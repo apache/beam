@@ -297,8 +297,8 @@ public class SplittableParDoExpander {
     return prefix + i;
   }
 
-  /** See {@link #createTruncateReplacement()} ()} for details. */
-  private static class TruncateReplacement extends SizedReplacement {
+  /** See {@link #createTruncateReplacement} for details. */
+  private static class TruncateReplacement implements TransformReplacement {
     private static final TruncateReplacement INSTANCE = new TruncateReplacement();
 
     @Override
