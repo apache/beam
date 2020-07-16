@@ -1079,12 +1079,6 @@ class BundleProcessor(object):
                                   ):
     # type: (...) -> beam_fn_api_pb2.BundleApplication
     transform_id, main_input_tag, main_input_coder, outputs = op.input_info
-    # The main_input_coder should be the main_input_coder of
-    # SdfTruncateSizedRestrictions if SdfProcessSizedElements is following
-    # SdfTruncateSizedRestrictions.
-    if (isinstance(op, operations.SdfProcessSizedElements) and
-        op.sdf_truncate_op is not None):
-      _, _, main_input_coder, _ = op.sdf_truncate_op.input_info
 
     if output_watermark:
       proto_output_watermark = proto_utils.from_micros(

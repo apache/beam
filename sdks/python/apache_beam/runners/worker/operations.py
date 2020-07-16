@@ -753,10 +753,7 @@ class SdfTruncateSizedRestrictions(DoOperation):
     return self.sdf_process_op.current_element_progress()
 
   def try_split(self, fraction_of_remainder):  # type: (...) -> Optional[Any]
-    result = self.sdf_process_op.try_split(fraction_of_remainder)
-    if result is not None:
-      return result
-    return None
+    return self.sdf_process_op.try_split(fraction_of_remainder)
 
   def add_receiver(self, operation, output_index=0):
     # type: (Operation, int) -> None

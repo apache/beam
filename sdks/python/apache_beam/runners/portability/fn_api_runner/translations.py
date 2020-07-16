@@ -1004,6 +1004,8 @@ def expand_sdf(stages, context):
               main_input_id,
               '_truncate_restriction',
               coder_id=sized_coder_id)
+          # Lengthprefix the truncate output.
+          context.length_prefix_pcoll_coders(truncate_pcoll_id)
           truncate_transform_id = copy_like(
               context.components.transforms,
               transform,
