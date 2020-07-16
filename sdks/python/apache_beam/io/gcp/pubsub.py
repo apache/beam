@@ -44,8 +44,6 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.annotations import deprecated
 
-from google.protobuf.timestamp_pb2 import Timestamp
-
 try:
   from google.cloud import pubsub
 except ImportError:
