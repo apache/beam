@@ -185,8 +185,12 @@ class BlobStorageIO(object):
     blob_to_delete = self.client.get_blob_client(container, blob)
     try:
       blob_to_delete.delete_blob()
-    except ResourceNotFoundError:
-      raise ValueError('Blob not found')
+    except ResourceNotFoundError as e:
+      if e.code == 404:
+        return 
+      else:
+        logging.error('HTTP error while deleting file %s', path)
+        raise e
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
@@ -247,3 +251,4 @@ class BlobStorageDownloader(Downloader):
     blob_data = self._blob_to_download.download_blob(start, end - start)
     # Returns the content as bytes
     return blob_data.readall()
+   

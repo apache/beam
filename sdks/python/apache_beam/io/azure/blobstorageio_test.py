@@ -152,6 +152,35 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertFalse(file_name in files)
     # TODO : use exists instead
 
+  def test_delete_batch(self):
+    file_name_pattern = self.TEST_DATA_PATH + 'delete_batch/%d'
+    file_size = 1024
+    num_files = 5
+
+    # Test deletion of non-existent files.
+    result = self.azfs.delete_batch(
+        [file_name_pattern % i for i in range(num_files)])
+    self.assertTrue(result)
+    for i, (file_name, exception) in enumerate(result):
+      self.assertEqual(file_name, file_name_pattern % i)
+      self.assertEqual(exception, None)
+      self.assertFalse(self.azfs.exists(file_name_pattern % i))
+
+    # Insert some files.
+    for i in range(num_files):
+      self._insert_random_file(self.client, file_name_pattern % i, file_size)
+
+    # Check files inserted properly.
+    for i in range(num_files):
+      self.assertTrue(self.azfs.exists(file_name_pattern % i))
+
+    # Execute batch delete.
+    self.azfs.delete_batch([file_name_pattern % i for i in range(num_files)])
+
+    # Check files deleted properly.
+    for i in range(num_files):
+      self.assertFalse(self.azfs.exists(file_name_pattern % i))
+
   def test_exists(self):
     file_name = self.TEST_DATA_PATH + 'test_file'
 
