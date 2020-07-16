@@ -510,50 +510,57 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             || (doFnSignature.newTracker() != null && doFnSignature.newTracker().observesWindow())
             || (doFnSignature.getSize() != null && doFnSignature.getSize().observesWindow())
             || !sideInputMapping.isEmpty()) {
-          mainInputConsumer =
-              new SplittableFnDataReceiver() {
-                private final HandlesSplits splitDelegate =
-                    (HandlesSplits) Iterables.get(mainOutputConsumers, 0);
+          if (Iterables.get(mainOutputConsumers, 0) instanceof HandlesSplits) {
+            mainInputConsumer =
+                new SplittableFnDataReceiver() {
+                  @Override
+                  public void accept(WindowedValue input) throws Exception {
+                    processElementForWindowObservingTruncateRestriction(input);
+                  }
 
-                @Override
-                public void accept(WindowedValue input) throws Exception {
-                  processElementForWindowObservingTruncateRestriction(input);
-                }
+                  // TODO(BEAM-10303): Split should work with window observing optimization.
+                  @Override
+                  public SplitResult trySplit(double fractionOfRemainder) {
+                    return null;
+                  }
 
-                @Override
-                public SplitResult trySplit(double fractionOfRemainder) {
-                  return splitDelegate.trySplit(fractionOfRemainder);
-                }
-
-                @Override
-                public double getProgress() {
-                  return splitDelegate.getProgress();
-                }
-              };
+                  // TODO(BEAM-10303): Progress should work with window observing optimization.
+                  @Override
+                  public double getProgress() {
+                    return 0;
+                  }
+                };
+          } else {
+            mainInputConsumer = this::processElementForWindowObservingTruncateRestriction;
+          }
           this.processContext =
               new SizedRestrictionWindowObservingProcessBundleContext(
                   PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN);
         } else {
-          mainInputConsumer =
-              new SplittableFnDataReceiver() {
-                private final HandlesSplits splitDelegate =
-                    (HandlesSplits) Iterables.get(mainOutputConsumers, 0);
+          if (Iterables.get(mainOutputConsumers, 0) instanceof HandlesSplits) {
+            mainInputConsumer =
+                new SplittableFnDataReceiver() {
+                  private final HandlesSplits splitDelegate =
+                      (HandlesSplits) Iterables.get(mainOutputConsumers, 0);
 
-                @Override
-                public void accept(WindowedValue input) throws Exception {
-                  processElementForTruncateRestriction(input);
-                }
+                  @Override
+                  public void accept(WindowedValue input) throws Exception {
+                    processElementForTruncateRestriction(input);
+                  }
 
-                @Override
-                public SplitResult trySplit(double fractionOfRemainder) {
-                  return splitDelegate.trySplit(fractionOfRemainder);
-                }
+                  @Override
+                  public SplitResult trySplit(double fractionOfRemainder) {
+                    return splitDelegate.trySplit(fractionOfRemainder);
+                  }
 
-                @Override
-                public double getProgress() {
-                  return splitDelegate.getProgress();
-                }
-              };
+                  @Override
+                  public double getProgress() {
+                    return splitDelegate.getProgress();
+                  }
+                };
+          } else {
+            mainInputConsumer = this::processElementForTruncateRestriction;
+          }
           this.processContext =
               new SizedRestrictionNonWindowObservingProcessBundleContext(
                   PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN);
