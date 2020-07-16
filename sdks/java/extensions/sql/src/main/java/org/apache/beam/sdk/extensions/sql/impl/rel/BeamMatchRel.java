@@ -159,21 +159,26 @@ public class BeamMatchRel extends Match implements BeamRelNode {
         int index = Integer.parseInt(varNode.getName().substring(1)); // get rid of `$`
         schemaBuilder.addField(upstreamSchema.getField(index));
       }
-      Schema mySchema = schemaBuilder.build();
+      Schema partitionKeySchema = schemaBuilder.build();
 
       // partition according to the partition keys
-      PCollection<KV<Row, Row>> keyedUpstream = upstream.apply(ParDo.of(new MapKeys(mySchema)));
+      PCollection<KV<Row, Row>> keyedUpstream =
+          upstream.apply(ParDo.of(new MapKeys(partitionKeySchema)));
 
       // group by keys
       PCollection<KV<Row, Iterable<Row>>> groupedUpstream =
           keyedUpstream
-              .setCoder(KvCoder.of(RowCoder.of(mySchema), RowCoder.of(upstreamSchema)))
+              .setCoder(KvCoder.of(RowCoder.of(partitionKeySchema), RowCoder.of(upstreamSchema)))
               .apply(GroupByKey.create());
 
       // sort within each keyed partition
-      ArrayList<OrderKey> myOrderKeys = makeOrderKeysFromCollation(orderKeys);
+      ArrayList<OrderKey> orderKeyList = makeOrderKeysFromCollation(orderKeys);
+      // This will rely on an assumption that Fusion will fuse
+      // operators here so the sorted result will be preserved
+      // for the next match transform.
+      // In most of the runners (if not all) this should be true.
       PCollection<KV<Row, Iterable<Row>>> orderedUpstream =
-          groupedUpstream.apply(ParDo.of(new SortPerKey(upstreamSchema, myOrderKeys)));
+          groupedUpstream.apply(ParDo.of(new SortPerKey(upstreamSchema, orderKeyList)));
 
       // apply the pattern match in each partition
       ArrayList<CEPPattern> cepPattern =
@@ -277,18 +282,18 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
   private static class MapKeys extends DoFn<Row, KV<Row, Row>> {
 
-    private final Schema mySchema;
+    private final Schema partitionKeySchema;
 
-    public MapKeys(Schema mySchema) {
-      this.mySchema = mySchema;
+    public MapKeys(Schema partitionKeySchema) {
+      this.partitionKeySchema = partitionKeySchema;
     }
 
     @ProcessElement
     public void processElement(@Element Row eleRow, OutputReceiver<KV<Row, Row>> out) {
-      Row.Builder newRowBuilder = Row.withSchema(mySchema);
+      Row.Builder newRowBuilder = Row.withSchema(partitionKeySchema);
 
       // no partition specified would result in empty row as keys for rows
-      for (Schema.Field i : mySchema.getFields()) {
+      for (Schema.Field i : partitionKeySchema.getFields()) {
         String fieldName = i.getName();
         newRowBuilder.addValue(eleRow.getValue(fieldName));
       }
