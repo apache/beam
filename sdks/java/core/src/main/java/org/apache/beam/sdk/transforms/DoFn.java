@@ -1066,7 +1066,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <p>This method is used to perform truncation of the restriction while it is not actively being
    * processed.
    *
-   * <p>Signature: {@code TruncateResult<RestrictionT> truncateRestriction(<arguments>);}
+   * <p>Signature: {@code @Nullable TruncateResult<RestrictionT> truncateRestriction(<arguments>);}
    *
    * <p>This method must satisfy the following constraints:
    *
