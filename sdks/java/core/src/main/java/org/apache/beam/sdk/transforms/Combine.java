@@ -30,7 +30,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -73,6 +72,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code PTransform}s for combining {@code PCollection} elements globally and per-key.
@@ -385,7 +385,10 @@ public class Combine {
    * @param <AccumT> type of mutable accumulator values
    * @param <OutputT> type of output values
    */
-  public abstract static class CombineFn<InputT, AccumT, OutputT>
+  public abstract static class CombineFn<
+          InputT extends @Nullable Object,
+          AccumT extends @Nullable Object,
+          OutputT extends @Nullable Object>
       extends AbstractGlobalCombineFn<InputT, AccumT, OutputT> {
 
     /**
