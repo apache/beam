@@ -140,7 +140,7 @@ jobs:
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: install sha512sum on MacOS
-      if: startsWith(matrix.os, 'macos')
+      if: startsWith(matrix.os_python.os, 'macos')
       run: brew install coreutils
     - name: Add checksums
       working-directory: apache-beam-source/wheelhouse/
@@ -167,7 +167,7 @@ jobs:
     - name: Download wheels from artifacts
       uses: actions/download-artifact@v2
       with:
-        name: wheelhouse-${{ matrix.os }}
+        name: wheelhouse-${{ matrix.os_python.os }}
         path: wheelhouse/
     - name: Authenticate on GCP
       uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
