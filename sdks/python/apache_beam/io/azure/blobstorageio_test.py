@@ -114,7 +114,7 @@ class TestBlobStorageIO(unittest.TestCase):
       self.assertEqual(
           set(self.azfs.list_prefix(file_pattern).items()),
           set(expected_file_names))
-
+  
   def test_copy(self):
     src_file_name = self.TEST_DATA_PATH + 'mysource'
     dest_file_name = self.TEST_DATA_PATH + 'mydest'
@@ -223,6 +223,11 @@ class TestBlobStorageIO(unittest.TestCase):
 
     # Clean up
     self.azfs.delete(file_name)
+
+  def test_checksum(self):
+    file_name = self.TEST_DATA_PATH + 'test_checksum'
+    
+    # TODO : add insert_random_file functionality
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
