@@ -85,7 +85,7 @@ public class SplittableParDoExpander {
    * sideInputA ---------\---------------------\----------------------\--------------------------\
    * sideInputB ---------V---------------------V----------------------V--------------------------V
    * mainInput ---> PairWithRestriction --> SplitAndSize --> TruncateAndSize --> ProcessSizedElementsAndRestriction --> outputA
-   *                                                                                                               \-> outputB
+   *                                                                                                                \-> outputB
    * }</pre>
    */
   public static TransformReplacement createTruncateReplacement() {
