@@ -195,8 +195,11 @@ class MethodWrapper(object):
     self.restriction_provider_arg_name = None
     self.watermark_estimator_provider = None
     self.watermark_estimator_provider_arg_name = None
-    self.unbounded_per_element = getattr(
-        self.method_value, 'unbounded_per_element', False)
+
+    if hasattr(self.method_value, 'unbounded_per_element'):
+      self.unbounded_per_element = True
+    else:
+      self.unbounded_per_element = False
 
     for kw, v in zip(self.args[-len(self.defaults):], self.defaults):
       if isinstance(v, core.DoFn.StateParam):
