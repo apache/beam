@@ -37,6 +37,7 @@ import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.specific.SpecificData;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -333,14 +334,13 @@ public class ParquetIO {
         }
 
         SeekableByteChannel seekableByteChannel = file.openSeekable();
-        ReadSupport<GenericRecord> readSupport = null;
+        ReadSupport<GenericRecord> readSupport;
         InputFile inputFile = new BeamParquetInputFile(seekableByteChannel);
-        Configuration conf = new Configuration();
+        Configuration conf = setConf();
         GenericData model = null;
         if (modelClass != null) {
           model = (GenericData) modelClass.getMethod("get").invoke(null);
         }
-        conf.setBoolean(AvroReadSupport.AVRO_COMPATIBILITY, false);
         readSupport = new AvroReadSupport<GenericRecord>(model);
         ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
         ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
@@ -389,6 +389,21 @@ public class ParquetIO {
         }
       }
 
+      private Configuration setConf() throws Exception {
+        Configuration conf = new Configuration();
+        GenericData model = null;
+        if (modelClass != null) {
+          model = (GenericData) modelClass.getMethod("get").invoke(null);
+        }
+        if (model != null
+            && (model.getClass() == GenericData.class || model.getClass() == SpecificData.class)) {
+          conf.setBoolean(AvroReadSupport.AVRO_COMPATIBILITY, true);
+        } else {
+          conf.setBoolean(AvroReadSupport.AVRO_COMPATIBILITY, false);
+        }
+        return conf;
+      }
+
       @GetInitialRestriction
       public OffsetRange getInitialRestriction(@Element FileIO.ReadableFile file) throws Exception {
         if (!file.getMetadata().isReadSeekEfficient()) {
@@ -397,8 +412,7 @@ public class ParquetIO {
         }
         SeekableByteChannel seekableByteChannel = file.openSeekable();
         InputFile inputFile = new BeamParquetInputFile(seekableByteChannel);
-        Configuration conf = new Configuration();
-        conf.setBoolean(AvroReadSupport.AVRO_COMPATIBILITY, false);
+        Configuration conf = setConf();
         ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
         ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
         return new OffsetRange(0, reader.getRowGroups().size());
