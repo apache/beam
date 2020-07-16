@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.parquet;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.parquet.Preconditions.checkNotNull;
 import static org.apache.parquet.hadoop.ParquetFileWriter.Mode.OVERWRITE;
-import static org.apache.parquet.hadoop.ParquetInputFormat.RECORD_FILTERING_ENABLED;
 import static org.apache.parquet.hadoop.ParquetInputFormat.STRICT_TYPE_CHECKING;
 
 import com.google.auto.value.AutoValue;
@@ -38,7 +37,6 @@ import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.specific.SpecificData;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -57,16 +55,15 @@ import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.commons.cli.OptionBuilder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.HadoopReadOptions;
 import org.apache.parquet.ParquetReadOptions;
-import org.apache.parquet.Preconditions;
 import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.avro.AvroReadSupport;
 import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.filter2.compat.FilterCompat;
+import org.apache.parquet.filter2.compat.FilterCompat.Filter;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.ParquetWriter;
@@ -84,6 +81,8 @@ import org.apache.parquet.io.RecordReader;
 import org.apache.parquet.io.SeekableInputStream;
 import org.apache.parquet.io.api.RecordMaterializer;
 import org.apache.parquet.schema.MessageType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * IO to read and write Parquet files.
@@ -266,98 +265,18 @@ public class ParquetIO {
     public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
       return input
-          .apply(ParDo.of(new ReadFn(getAvroDataModel())))
+          .apply(ParDo.of(new SplitReadFn(getAvroDataModel())))
           .setCoder(AvroCoder.of(getSchema()));
     }
 
     @DoFn.BoundedPerElement
-    static class ReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
+    static class SplitReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
       private Class<? extends GenericData> modelClass;
+      private static final Logger LOG = LoggerFactory.getLogger(SplitReadFn.class);
+      ReadSupport<GenericRecord> readSupport;
 
-      ReadFn(GenericData model) {
+      SplitReadFn(GenericData model) {
         this.modelClass = model != null ? model.getClass() : null;
-      }
-      private ReadSupport getReadSupport(Configuration conf) throws Exception {
-        GenericData model=null;
-        boolean isReflect = true;
-        if (modelClass != null) {
-          model = (GenericData) modelClass.getMethod("get").invoke(null);
-        }
-        else{
-          return new AvroReadSupport(null);
-        }
-        if (model.getClass() != GenericData.class && model.getClass() != SpecificData.class) {
-          isReflect = true;
-        }
-        if (conf == null) {
-          conf = new Configuration();
-        }
-        if (isReflect) {
-          conf.setBoolean(AvroReadSupport.AVRO_COMPATIBILITY, false);
-        } else {
-          conf.setBoolean(AvroReadSupport.AVRO_COMPATIBILITY, true);
-        }
-        return new AvroReadSupport(model);
-      }
-
-      private ParquetFileReader getFileReader(FileIO.ReadableFile file) throws Exception {
-        if (!file.getMetadata().isReadSeekEfficient()) {
-          ResourceId filename = file.getMetadata().resourceId();
-          throw new RuntimeException(String.format("File has to be seekable: %s", filename));
-        }
-        SeekableByteChannel seekableByteChannel = file.openSeekable();
-        Configuration conf = new Configuration();
-        getReadSupport(conf);
-        InputFile parquetInputFile = new BeamParquetInputFile(seekableByteChannel);
-        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
-        ParquetFileReader fileReader = ParquetFileReader.open(parquetInputFile, options);
-        return fileReader;
-      }
-
-      @ProcessElement
-      public void processElement(@Element  FileIO.ReadableFile file,
-                                 RestrictionTracker<OffsetRange, Long> tracker,
-                                 OutputReceiver<GenericRecord> outputReceiver)
-          throws Exception {
-        //FileIO.ReadableFile file = processContext.element();
-        ParquetFileReader fileReader = getFileReader(file);
-        Configuration conf = new Configuration();
-        ReadSupport readSupport = getReadSupport(conf);
-        FileMetaData parquetFileMetadata = fileReader.getFooter().getFileMetaData();
-        MessageType fileSchema = parquetFileMetadata.getSchema();
-        Map<String, String> fileMetadata = parquetFileMetadata.getKeyValueMetaData();
-        InitContext initContext = new InitContext(conf, toSetMultiMap(fileMetadata), fileSchema);
-        ReadSupport.ReadContext readContext = readSupport.init(initContext);
-        ColumnIOFactory columnIOFactory = new ColumnIOFactory(parquetFileMetadata.getCreatedBy());
-        RecordMaterializer recordConverter =
-                readSupport.prepareForRead(conf, fileMetadata, fileSchema, readContext);
-        MessageType requestedSchema = readContext.getRequestedSchema();
-        fileReader.setRequestedSchema(requestedSchema);
-        boolean strictTypeChecking = conf.getBoolean(STRICT_TYPE_CHECKING, true);
-        boolean filterRecords = conf.getBoolean(RECORD_FILTERING_ENABLED, true);
-        FilterCompat.Filter filter = Preconditions.checkNotNull(FilterCompat.NOOP, "filter");
-
-        MessageColumnIO columnIO =
-                columnIOFactory.getColumnIO(requestedSchema, fileSchema, strictTypeChecking);
-        for (int i = 0; i < fileReader.getRowGroups().size(); i++) {
-          if (i<tracker.currentRestriction().getFrom()) {
-              continue;
-          }
-          if(tracker.tryClaim((long)i)) {
-            PageReadStore pages = fileReader.readNextRowGroup();
-            i+=1;
-            RecordReader<GenericRecord> recordReader =
-                    columnIO.getRecordReader(
-                            pages, recordConverter, filterRecords ? filter : FilterCompat.NOOP);
-            GenericRecord read;
-            while ((read = recordReader.read()) != null) {
-              outputReceiver.output(read);
-            }
-          }
-          else{
-            break;
-          }
-      }
       }
 
       private static <K, V> Map<K, Set<V>> toSetMultiMap(Map<K, V> map) {
@@ -370,18 +289,92 @@ public class ParquetIO {
         return Collections.unmodifiableMap(setMultiMap);
       }
 
+      @ProcessElement
+      public void processElement(
+          @Element FileIO.ReadableFile file,
+          RestrictionTracker<OffsetRange, Long> tracker,
+          OutputReceiver<GenericRecord> outputReceiver)
+          throws Exception {
+        if (!file.getMetadata().isReadSeekEfficient()) {
+          ResourceId filename = file.getMetadata().resourceId();
+          throw new RuntimeException(String.format("File has to be seekable: %s", filename));
+        }
+
+        SeekableByteChannel seekableByteChannel = file.openSeekable();
+        ReadSupport<GenericRecord> readSupport = null;
+        InputFile inputFile = new BeamParquetInputFile(seekableByteChannel);
+        Configuration conf = new Configuration();
+        GenericData model = null;
+        if (modelClass != null) {
+          model = (GenericData) modelClass.getMethod("get").invoke(null);
+        }
+        conf.setBoolean(AvroReadSupport.AVRO_COMPATIBILITY, false);
+        readSupport = new AvroReadSupport<GenericRecord>(model);
+        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
+        ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
+        Filter filter = checkNotNull(options.getRecordFilter(), "filter");
+        conf = ((HadoopReadOptions) options).getConf();
+        for (String property : options.getPropertyNames()) {
+          conf.set(property, options.getProperty(property));
+        }
+        FileMetaData parquetFileMetadata = reader.getFooter().getFileMetaData();
+        MessageType fileSchema = parquetFileMetadata.getSchema();
+        Map<String, String> fileMetadata = parquetFileMetadata.getKeyValueMetaData();
+
+        ReadSupport.ReadContext readContext =
+            readSupport.init(new InitContext(conf, toSetMultiMap(fileMetadata), fileSchema));
+        ColumnIOFactory columnIOFactory = new ColumnIOFactory(parquetFileMetadata.getCreatedBy());
+        MessageType requestedSchema = readContext.getRequestedSchema();
+        RecordMaterializer<GenericRecord> recordConverter =
+            readSupport.prepareForRead(conf, fileMetadata, fileSchema, readContext);
+        boolean strictTypeChecking = options.isEnabled(STRICT_TYPE_CHECKING, true);
+        boolean filterRecords = options.useRecordFilter();
+        reader.setRequestedSchema(requestedSchema);
+        MessageColumnIO columnIO =
+            columnIOFactory.getColumnIO(requestedSchema, fileSchema, strictTypeChecking);
+        for (int i = 0; i < reader.getRowGroups().size(); i++) {
+          if (i < tracker.currentRestriction().getFrom()) {
+            reader.skipNextRowGroup();
+            continue;
+          }
+          if (tracker.tryClaim((long) i)) {
+            PageReadStore pages = reader.readNextRowGroup();
+            i += 1;
+            RecordReader<GenericRecord> recordReader =
+                columnIO.getRecordReader(
+                    pages, recordConverter, filterRecords ? filter : FilterCompat.NOOP);
+            GenericRecord read;
+            long current = 0;
+            long totalRows = pages.getRowCount();
+            while (current < totalRows) {
+              read = recordReader.read();
+              outputReceiver.output(read);
+              current += 1;
+            }
+          } else {
+            break;
+          }
+        }
+      }
+
       @GetInitialRestriction
       public OffsetRange getInitialRestriction(@Element FileIO.ReadableFile file) throws Exception {
-        ParquetFileReader fileReader = getFileReader(file);
-
-        return new OffsetRange(0, fileReader.getRowGroups().size());
+        if (!file.getMetadata().isReadSeekEfficient()) {
+          ResourceId filename = file.getMetadata().resourceId();
+          throw new RuntimeException(String.format("File has to be seekable: %s", filename));
+        }
+        SeekableByteChannel seekableByteChannel = file.openSeekable();
+        InputFile inputFile = new BeamParquetInputFile(seekableByteChannel);
+        Configuration conf = new Configuration();
+        conf.setBoolean(AvroReadSupport.AVRO_COMPATIBILITY, false);
+        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
+        ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
+        return new OffsetRange(0, reader.getRowGroups().size());
       }
 
       @SplitRestriction
-      public void split(
-          @Restriction OffsetRange restriction,
-          OutputReceiver<OffsetRange> out) {
-        for (OffsetRange range : restriction.split(1,0)) {
+      public void split(@Restriction OffsetRange restriction, OutputReceiver<OffsetRange> out) {
+        for (OffsetRange range : restriction.split(1, 0)) {
           out.output(range);
         }
       }
@@ -389,6 +382,41 @@ public class ParquetIO {
       @NewTracker
       public OffsetRangeTracker newTracker(@Restriction OffsetRange restriction) {
         return new OffsetRangeTracker(restriction);
+      }
+    }
+
+    static class ReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
+
+      private Class<? extends GenericData> modelClass;
+
+      ReadFn(GenericData model) {
+        this.modelClass = model != null ? model.getClass() : null;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext processContext) throws Exception {
+        FileIO.ReadableFile file = processContext.element();
+
+        if (!file.getMetadata().isReadSeekEfficient()) {
+          ResourceId filename = file.getMetadata().resourceId();
+          throw new RuntimeException(String.format("File has to be seekable: %s", filename));
+        }
+
+        SeekableByteChannel seekableByteChannel = file.openSeekable();
+
+        AvroParquetReader.Builder builder =
+            AvroParquetReader.<GenericRecord>builder(new BeamParquetInputFile(seekableByteChannel));
+        if (modelClass != null) {
+          // all GenericData implementations have a static get method
+          builder = builder.withDataModel((GenericData) modelClass.getMethod("get").invoke(null));
+        }
+
+        try (ParquetReader<GenericRecord> reader = builder.build()) {
+          GenericRecord read;
+          while ((read = reader.read()) != null) {
+            processContext.output(read);
+          }
+        }
       }
     }
 
