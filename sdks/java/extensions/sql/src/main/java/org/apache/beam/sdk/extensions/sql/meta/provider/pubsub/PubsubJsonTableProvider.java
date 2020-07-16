@@ -40,4 +40,9 @@ public class PubsubJsonTableProvider extends SchemaCapableIOTableProviderWrapper
   public SchemaIOProvider getSchemaIOProvider() {
     return new PubsubSchemaCapableIOProvider();
   }
+
+  @Override
+  public String getTableType() {
+    return "pubsub";
+  }
 }
