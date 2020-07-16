@@ -1094,6 +1094,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *       options for the current pipeline.
    * </ul>
    *
+   * <p>Returns a truncated restriction representing a bounded amount of work that must be processed before the pipeline can be drained or {@code null} if no work is necessary.
+   *
    * <p>The default behavior when a pipeline is being drained is that {@link
    * org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.IsBounded#BOUNDED}
    * restrictions process entirely while {@link
