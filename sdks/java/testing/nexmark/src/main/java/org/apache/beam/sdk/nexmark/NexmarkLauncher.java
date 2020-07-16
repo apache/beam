@@ -475,7 +475,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
           cancelJob = true;
         } else if (configuration.debug
             && configuration.numEvents > 0
-            && currPerf.numEvents == configuration.numEvents
+            && currPerf.numEvents >= configuration.numEvents
             && currPerf.numResults >= 0
             && quietFor.isLongerThan(DONE_DELAY)) {
           NexmarkUtils.console("streaming query appears to have finished waiting for completion.");
