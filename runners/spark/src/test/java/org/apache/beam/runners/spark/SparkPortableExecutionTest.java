@@ -81,7 +81,7 @@ public class SparkPortableExecutionTest implements Serializable {
     sparkJobExecutor = null;
   }
 
-  @Test(timeout = 120_000)
+  @Test(timeout = 600_000)
   public void testExecution() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.fromArgs("--experiments=beam_fn_api").create();
     options.setRunner(CrashingRunner.class);
