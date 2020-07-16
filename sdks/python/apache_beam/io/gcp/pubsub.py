@@ -105,7 +105,7 @@ class PubsubMessage(object):
     return not self == other
 
   def __repr__(self):
-    return 'PubsubMessage(%s, %s)' % (self.data, self.attributes, self.message_id, self.publish_time)
+    return 'PubsubMessage(%s, %s, %s, %s)' % (self.data, self.attributes, self.message_id, self.publish_time)
 
   @staticmethod
   def _from_proto_str(proto_msg):
