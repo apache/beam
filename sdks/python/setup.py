@@ -193,8 +193,6 @@ REQUIRED_TEST_PACKAGES = [
     'requests_mock>=1.7,<2.0',
     'tenacity>=5.0.2,<6.0',
     'pytest>=4.4.0,<5.0',
-    # More recent versions of pytest-cov do not support pytest 4.4.0
-    'pytest-cov==2.9.0',
     'pytest-xdist>=1.29.0,<2',
     'pytest-timeout>=1.3.3,<2',
     'rsa<4.1; python_version < "3.0"',
