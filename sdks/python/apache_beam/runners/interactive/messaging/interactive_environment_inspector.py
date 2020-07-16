@@ -41,6 +41,7 @@ class InteractiveEnvironmentInspector(object):
   def __init__(self):
     self._inspectables = {}
     self._anonymous = {}
+    self._inspectable_pipelines = set()
 
   @property
   def inspectables(self):
@@ -48,6 +49,20 @@ class InteractiveEnvironmentInspector(object):
     """
     self._inspectables = inspect()
     return self._inspectables
+
+  @property
+  def inspectable_pipelines(self):
+    """Returns a dictionary of all inspectable pipelines. The keys are
+    stringified id of pipeline instances.
+
+    This includes user defined pipeline assigned to variables and anonymous
+    pipelines with inspectable PCollections.
+    If a user defined pipeline is not within the returned dict, it can be
+    considered out of scope, and all resources and memory states related to it
+    should be released.
+    """
+    _ = self.list_inspectables()
+    return self._inspectable_pipelines
 
   @as_json
   def list_inspectables(self):
@@ -89,6 +104,8 @@ class InteractiveEnvironmentInspector(object):
           pipeline_identifier = obfuscate(meta(pipelines[pipeline], pipeline))
           listing[pipeline_identifier]['pcolls'][identifier] = inspectable[
               'metadata']
+    self._inspectable_pipelines = dict(
+        (str(id(pipeline)), pipeline) for pipeline in pipelines)
     return listing
 
   def get_val(self, identifier):
