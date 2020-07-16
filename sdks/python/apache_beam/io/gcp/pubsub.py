@@ -155,7 +155,7 @@ class PubsubMessage(object):
     """
     # Convert ScalarMapContainer to dict.
     attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
-    return PubsubMessage(msg.data, attributes, msg.message_id, msg.publish_time)
+    return PubsubMessage(msg.data, attributes, msg.message_id, msg.publish_time.ToDatetime())
 
 
 class ReadFromPubSub(PTransform):
