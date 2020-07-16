@@ -44,6 +44,7 @@ cdef class MethodWrapper(object):
   cdef object restriction_provider_arg_name
   cdef object watermark_estimator_provider
   cdef object watermark_estimator_provider_arg_name
+  cdef bint unbounded_per_element
 
 
 cdef class DoFnSignature(object):
