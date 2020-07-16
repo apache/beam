@@ -84,8 +84,28 @@ public class ParquetIOTest implements Serializable {
     PCollection<GenericRecord> readBack =
         readPipeline.apply(
             ParquetIO.read(SCHEMA).from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
-
     PAssert.that(readBack).containsInAnyOrder(records);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteAndReadWithSplit() {
+    List<GenericRecord> records = generateGenericRecords(1000);
+
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    PCollection<GenericRecord> readBackWithSplit =
+        readPipeline.apply(
+            ParquetIO.read(SCHEMA)
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
+                .withSplit());
+    PAssert.that(readBackWithSplit).containsInAnyOrder(records);
     readPipeline.run().waitUntilFinish();
   }
 

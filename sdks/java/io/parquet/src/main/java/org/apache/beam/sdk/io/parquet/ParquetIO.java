@@ -183,10 +183,16 @@ public class ParquetIO {
     @Nullable
     abstract GenericData getAvroDataModel();
 
+    @Nullable
+    abstract Boolean getSplit();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
+
+      abstract Builder setSplit(Boolean split);
+
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
 
       abstract Builder setSchema(Schema schema);
@@ -206,6 +212,10 @@ public class ParquetIO {
       return from(ValueProvider.StaticValueProvider.of(filepattern));
     }
 
+    public Read withSplit() {
+      return toBuilder().setSplit(true).build();
+    }
+
     /**
      * Define the Avro data model; see {@link AvroParquetReader.Builder#withDataModel(GenericData)}.
      */
@@ -216,12 +226,19 @@ public class ParquetIO {
     @Override
     public PCollection<GenericRecord> expand(PBegin input) {
       checkNotNull(getFilepattern(), "Filepattern cannot be null.");
-
-      return input
-          .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
-          .apply(FileIO.matchAll())
-          .apply(FileIO.readMatches())
-          .apply(readFiles(getSchema()).withAvroDataModel(getAvroDataModel()));
+      if (getSplit() != null) {
+        return input
+            .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+            .apply(FileIO.matchAll())
+            .apply(FileIO.readMatches())
+            .apply(readFiles(getSchema()).withSplit().withAvroDataModel(getAvroDataModel()));
+      } else {
+        return input
+            .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+            .apply(FileIO.matchAll())
+            .apply(FileIO.readMatches())
+            .apply(readFiles(getSchema()).withAvroDataModel(getAvroDataModel()));
+      }
     }
 
     @Override
@@ -243,6 +260,9 @@ public class ParquetIO {
     @Nullable
     abstract GenericData getAvroDataModel();
 
+    @Nullable
+    abstract Boolean getSplit();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -250,6 +270,8 @@ public class ParquetIO {
       abstract Builder setSchema(Schema schema);
 
       abstract Builder setAvroDataModel(GenericData model);
+
+      abstract Builder setSplit(Boolean split);
 
       abstract ReadFiles build();
     }
@@ -261,12 +283,22 @@ public class ParquetIO {
       return toBuilder().setAvroDataModel(model).build();
     }
 
+    public ReadFiles withSplit() {
+      return toBuilder().setSplit(true).build();
+    }
+
     @Override
     public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
-      return input
-          .apply(ParDo.of(new SplitReadFn(getAvroDataModel())))
-          .setCoder(AvroCoder.of(getSchema()));
+      if (getSplit() != null) {
+        return input
+            .apply(ParDo.of(new SplitReadFn(getAvroDataModel())))
+            .setCoder(AvroCoder.of(getSchema()));
+      } else {
+        return input
+            .apply(ParDo.of(new ReadFn(getAvroDataModel())))
+            .setCoder(AvroCoder.of(getSchema()));
+      }
     }
 
     @DoFn.BoundedPerElement
