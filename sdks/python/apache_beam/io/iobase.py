@@ -1304,7 +1304,7 @@ class RestrictionProgress(object):
     # type: () -> float
     if self._completed is not None:
       return self._completed
-    elif self._remaining is not None and self._fraction:
+    elif self._remaining is not None and self._fraction is not None:
       return self._remaining * self._fraction / (1 - self._fraction)
     else:
       return self._fraction

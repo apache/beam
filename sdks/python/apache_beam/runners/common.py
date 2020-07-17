@@ -696,7 +696,7 @@ class PerWindowInvoker(DoFnInvoker):
         self.restriction = restriction
         self.watermark_estimator_state = watermark_estimator_state
       try:
-        if self.has_windowed_inputs and len(windowed_value.windows) != 1:
+        if self.has_windowed_inputs and len(windowed_value.windows) > 1:
           for i, w in enumerate(windowed_value.windows):
             if not self._should_process_window_for_sdf(
                 windowed_value, additional_kwargs, i):
@@ -1111,6 +1111,8 @@ class PerWindowInvoker(DoFnInvoker):
     if not current_window_index or not progress:
       return progress
 
+    # stop_window_index should always be set if current_window_index is set,
+    # it is an error otherwise.
     assert stop_window_index
     return PerWindowInvoker._scale_progress(
         progress, current_window_index, stop_window_index)
