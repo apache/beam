@@ -99,6 +99,18 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
   }
 
   @Override
+  public String toString() {
+    return "KeyedTimerData{"
+        + "key="
+        + key
+        + ", keyBytes="
+        + Arrays.toString(keyBytes)
+        + ", timerData="
+        + timerData
+        + '}';
+  }
+
+  @Override
   public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
