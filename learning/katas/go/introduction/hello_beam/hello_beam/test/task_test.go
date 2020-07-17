@@ -16,7 +16,7 @@
 package test
 
 import (
-	"apache.org/beam/learning/katas/introduction/hello_beam/hello_beam/pkg/task"
+	"beam.apache.org/learning/katas/introduction/hello_beam/hello_beam/pkg/task"
 	"context"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
