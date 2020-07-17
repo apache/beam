@@ -53,6 +53,19 @@ class PipelineContextTest(unittest.TestCase):
     self.assertEqual(
         coders.BytesCoder(), context2.coders.get_by_id(bytes_coder_ref))
 
+  def test_common_id_assignment(self):
+    context = pipeline_context.PipelineContext()
+    float_coder_ref = context.coders.get_id(coders.FloatCoder())
+    bytes_coder_ref = context.coders.get_id(coders.BytesCoder())
+    context2 = pipeline_context.PipelineContext(
+        component_id_map=context.component_id_map)
+
+    bytes_coder_ref2 = context2.coders.get_id(coders.BytesCoder())
+    float_coder_ref2 = context2.coders.get_id(coders.FloatCoder())
+
+    self.assertEqual(bytes_coder_ref, bytes_coder_ref2)
+    self.assertEqual(float_coder_ref, float_coder_ref2)
+
 
 if __name__ == '__main__':
   unittest.main()
