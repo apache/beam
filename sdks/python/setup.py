@@ -21,7 +21,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import os
-import platform
 import sys
 import warnings
 from distutils.errors import DistutilsError
@@ -122,16 +121,11 @@ except DistributionNotFound:
   # do nothing if Cython is not installed
   pass
 
-# Currently all compiled modules are optional  (for performance only).
-if platform.system() == 'Windows':
-  # Windows doesn't always provide int64_t.
+try:
+  # pylint: disable=wrong-import-position
+  from Cython.Build import cythonize
+except ImportError:
   cythonize = lambda *args, **kwargs: []
-else:
-  try:
-    # pylint: disable=wrong-import-position
-    from Cython.Build import cythonize
-  except ImportError:
-    cythonize = lambda *args, **kwargs: []
 
 REQUIRED_PACKAGES = [
     # Apache Avro does not follow semantic versioning, so we should not auto
@@ -282,8 +276,8 @@ setuptools.setup(
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
     package_data={'apache_beam': [
-        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml',
-        'portability/api/*.yaml']},
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', '*/*.h', '*/*/*.h',
+        'testing/data/*.yaml', 'portability/api/*.yaml']},
     ext_modules=cythonize([
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
