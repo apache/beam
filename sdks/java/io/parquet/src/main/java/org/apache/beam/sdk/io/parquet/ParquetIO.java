@@ -160,7 +160,7 @@ public class ParquetIO {
    * pattern).
    */
   public static Read read(Schema schema) {
-    return new AutoValue_ParquetIO_Read.Builder().setSchema(schema).build();
+    return new AutoValue_ParquetIO_Read.Builder().setSchema(schema).setSplit(false).build();
   }
 
   /**
@@ -168,7 +168,7 @@ public class ParquetIO {
    * org.apache.beam.sdk.io.FileIO.ReadableFile}, which allows more flexible usage.
    */
   public static ReadFiles readFiles(Schema schema) {
-    return new AutoValue_ParquetIO_ReadFiles.Builder().setSchema(schema).build();
+    return new AutoValue_ParquetIO_ReadFiles.Builder().setSchema(schema).setSplit(false).build();
   }
 
   /** Implementation of {@link #read(Schema)}. */
@@ -184,15 +184,14 @@ public class ParquetIO {
     @Nullable
     abstract GenericData getAvroDataModel();
 
-    @Nullable
-    abstract Boolean getSplit();
+    abstract boolean getSplit();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
 
-      abstract Builder setSplit(Boolean split);
+      abstract Builder setSplit(boolean split);
 
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
 
@@ -227,18 +226,17 @@ public class ParquetIO {
     @Override
     public PCollection<GenericRecord> expand(PBegin input) {
       checkNotNull(getFilepattern(), "Filepattern cannot be null.");
-      if (getSplit() != null) {
-        return input
-            .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
-            .apply(FileIO.matchAll())
-            .apply(FileIO.readMatches())
-            .apply(readFiles(getSchema()).withSplit().withAvroDataModel(getAvroDataModel()));
+      PCollection<FileIO.ReadableFile> inputFiles =
+          input
+              .apply(
+                  "Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+              .apply(FileIO.matchAll())
+              .apply(FileIO.readMatches());
+      if (!getSplit()) {
+        return inputFiles.apply(
+            readFiles(getSchema()).withSplit().withAvroDataModel(getAvroDataModel()));
       } else {
-        return input
-            .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
-            .apply(FileIO.matchAll())
-            .apply(FileIO.readMatches())
-            .apply(readFiles(getSchema()).withAvroDataModel(getAvroDataModel()));
+        return inputFiles.apply(readFiles(getSchema()).withAvroDataModel(getAvroDataModel()));
       }
     }
 
@@ -261,8 +259,7 @@ public class ParquetIO {
     @Nullable
     abstract GenericData getAvroDataModel();
 
-    @Nullable
-    abstract Boolean getSplit();
+    abstract boolean getSplit();
 
     abstract Builder toBuilder();
 
@@ -272,7 +269,7 @@ public class ParquetIO {
 
       abstract Builder setAvroDataModel(GenericData model);
 
-      abstract Builder setSplit(Boolean split);
+      abstract Builder setSplit(boolean split);
 
       abstract ReadFiles build();
     }
@@ -291,7 +288,7 @@ public class ParquetIO {
     @Override
     public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
-      if (getSplit() != null) {
+      if (!getSplit()) {
         return input
             .apply(ParDo.of(new SplitReadFn(getAvroDataModel())))
             .setCoder(AvroCoder.of(getSchema()));
@@ -322,20 +319,22 @@ public class ParquetIO {
         return Collections.unmodifiableMap(setMultiMap);
       }
 
+      private InputFile getInputFile(FileIO.ReadableFile file) throws IOException {
+        if (!file.getMetadata().isReadSeekEfficient()) {
+          throw new RuntimeException(
+              String.format("File has to be seekable: %s", file.getMetadata().resourceId()));
+        }
+        return new BeamParquetInputFile(file.openSeekable());
+      }
+
       @ProcessElement
       public void processElement(
           @Element FileIO.ReadableFile file,
           RestrictionTracker<OffsetRange, Long> tracker,
           OutputReceiver<GenericRecord> outputReceiver)
           throws Exception {
-        if (!file.getMetadata().isReadSeekEfficient()) {
-          ResourceId filename = file.getMetadata().resourceId();
-          throw new RuntimeException(String.format("File has to be seekable: %s", filename));
-        }
-
-        SeekableByteChannel seekableByteChannel = file.openSeekable();
         ReadSupport<GenericRecord> readSupport;
-        InputFile inputFile = new BeamParquetInputFile(seekableByteChannel);
+        InputFile inputFile = getInputFile(file);
         Configuration conf = setConf();
         GenericData model = null;
         if (modelClass != null) {
@@ -379,8 +378,7 @@ public class ParquetIO {
             long current = 0;
             long totalRows = pages.getRowCount();
             while (current < totalRows) {
-              read = recordReader.read();
-              outputReceiver.output(read);
+              outputReceiver.output(recordReader.read());
               current += 1;
             }
           } else {
@@ -406,12 +404,7 @@ public class ParquetIO {
 
       @GetInitialRestriction
       public OffsetRange getInitialRestriction(@Element FileIO.ReadableFile file) throws Exception {
-        if (!file.getMetadata().isReadSeekEfficient()) {
-          ResourceId filename = file.getMetadata().resourceId();
-          throw new RuntimeException(String.format("File has to be seekable: %s", filename));
-        }
-        SeekableByteChannel seekableByteChannel = file.openSeekable();
-        InputFile inputFile = new BeamParquetInputFile(seekableByteChannel);
+        InputFile inputFile = getInputFile(file);
         Configuration conf = setConf();
         ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
         ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
