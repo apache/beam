@@ -29,6 +29,7 @@ import logging
 import re
 import time
 import os
+import tempfile
 from builtins import object
 
 from azure.core.exceptions import ResourceNotFoundError
@@ -135,7 +136,6 @@ class BlobStorageIO(object):
       copied_blob.start_copy_from_url(source_blob)
     except ResourceNotFoundError:
       raise ValueError('Blob not found')
-    
     
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
@@ -253,4 +253,26 @@ class BlobStorageDownloader(Downloader):
     blob_data = self._blob_to_download.download_blob(start, end - start)
     # Returns the content as bytes
     return blob_data.readall()
-   
+  
+
+class BlobStorageUploader(Uploader):
+  def __init__(self, client, path, mime_type):
+    self._client = client
+    self._path = path
+    self._storage_account, self._container, self._blob = parse_azfs_path(path)
+    self._mime_type = mime_type
+
+    self._blob_to_upload = self._client.get_blob_client(
+        self._container, self._blob)
+
+    # Temporary file
+    self._temporary_file = tempfile.NamedTemporaryFile()
+
+  def put(self, data):
+    self._temporary_file.write(data.tobytes())
+
+  def finish(self):
+    self._temporary_file.seek(0)
+    # The temporary file is deleted immediately after the operation
+    with open(self._temporary_file.name, "rb") as f:
+      self._blob_to_upload.upload_blob(f.read())
