@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql;
+package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -24,6 +24,8 @@ import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.impl.udaf.StringAgg;
+import org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils;
+import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.BeamBuiltinMethods;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -57,7 +59,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * A separate SqlOperators table for those functions that do not exist or not compatible with
  * Calcite. Most of functions within this class is copied from Calcite.
  */
-public class SqlOperators {
+class SqlOperators {
   public static final RelDataType TIMESTAMP_WITH_NULLABILITY =
       createSqlType(SqlTypeName.TIMESTAMP, true);
   public static final RelDataType OTHER = createSqlType(SqlTypeName.OTHER, false);
@@ -65,7 +67,7 @@ public class SqlOperators {
   public static final RelDataType BIGINT = createSqlType(SqlTypeName.BIGINT, false);
 
   public static final SqlOperator TIMESTAMP_ADD_FN =
-      createSimpleSqlFunction("timestamp_add", SqlTypeName.TIMESTAMP);
+      createOtherKindSqlFunction("timestamp_add", SqlTypeName.TIMESTAMP);
 
   public static final SqlOperator STRING_AGG_STRING_FN =
       createUdafOperator(
@@ -73,7 +75,11 @@ public class SqlOperators {
           x -> createTypeFactory().createSqlType(SqlTypeName.VARCHAR),
           new UdafImpl<>(new StringAgg.StringAggString()));
 
-  public static SqlFunction createSimpleSqlFunction(String name, SqlTypeName returnType) {
+  /**
+   * Create a dummy SqlFunction of type OTHER_FUNCTION from given function name and return type.
+   * These functions will be unparsed in BeamZetaSqlCalcRel and then executed by ZetaSQL evaluator.
+   */
+  public static SqlFunction createOtherKindSqlFunction(String name, SqlTypeName returnType) {
     return new SqlFunction(
         name,
         SqlKind.OTHER_FUNCTION,

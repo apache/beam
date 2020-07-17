@@ -15,21 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql;
+package org.apache.beam.sdk.extensions.sql.zetasql.translation.impl;
 
-import java.util.List;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import java.util.TimeZone;
+import org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
-/** Interface for rewriting calls a specific ZetaSQL operator. */
-public interface SqlOperatorRewriter {
-  /**
-   * Create and return a new {@link RexNode} that represents a call to this operator with the
-   * specified operands.
-   *
-   * @param rexBuilder A {@link RexBuilder} instance to use for creating new {@link RexNode}s
-   * @param operands The original list of {@link RexNode} operands passed to this operator call
-   * @return The created RexNode
-   */
-  RexNode apply(RexBuilder rexBuilder, List<RexNode> operands);
+/** DateFunctions. */
+public class DateFunctions {
+  public DateTime date(Integer year, Integer month, Integer day) {
+    return DateTimeUtils.parseDate(
+        String.join("-", year.toString(), month.toString(), day.toString()));
+  }
+
+  public DateTime date(DateTime ts) {
+    return date(ts, "UTC");
+  }
+
+  public DateTime date(DateTime ts, String timezone) {
+    return ts.withZoneRetainFields(DateTimeZone.forTimeZone(TimeZone.getTimeZone(timezone)));
+  }
 }

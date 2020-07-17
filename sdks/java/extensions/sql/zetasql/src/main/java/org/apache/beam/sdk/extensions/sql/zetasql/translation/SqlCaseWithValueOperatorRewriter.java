@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql;
+package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,44 +23,54 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Util;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
- * Rewrites COALESCE calls as CASE ($case_no_value) calls.
+ * Rewrites $case_with_value calls as $case_no_value calls.
  *
- * <p>Turns <code>COALESCE(a, b, c)</code> into:
+ * <p>Turns:
  *
- * <pre><code>CASE
- *   WHEN a IS NOT NULL THEN a
- *   WHEN b IS NOT NULL THEN b
- *   ELSE c
+ * <pre><code>CASE x
+ *   WHEN w1 THEN t1
+ *   WHEN w2 THEN t2
+ *   ELSE e
  *   END</code></pre>
  *
- * <p>There is also a special case for the single-argument case: <code>COALESCE(a)</code> becomes
- * just <code>a</code>.
+ * <p>into:
+ *
+ * <pre><code>CASE
+ *   WHEN x == w1 THEN t1
+ *   WHEN x == w2 THEN t2
+ *   ELSE expr
+ *   END</code></pre>
+ *
+ * <p>Note that the ELSE statement is actually optional, but we don't need to worry about that here
+ * because the ZetaSQL analyzer populates the ELSE argument as a NULL literal if it's not specified.
  */
-public class SqlCoalesceOperatorRewriter implements SqlOperatorRewriter {
+class SqlCaseWithValueOperatorRewriter implements SqlOperatorRewriter {
   @Override
   public RexNode apply(RexBuilder rexBuilder, List<RexNode> operands) {
     Preconditions.checkArgument(
-        operands.size() >= 1, "COALESCE should have at least one argument in function call.");
-
-    // No need for a case operator if there's only one operand
-    if (operands.size() == 1) {
-      return operands.get(0);
-    }
-
+        operands.size() % 2 == 0 && !operands.isEmpty(),
+        "$case_with_value should have an even number of arguments greater than 0 in function call"
+            + " (The value operand, the else operand, and paired when/then operands).");
     SqlOperator op = SqlStdOperatorTable.CASE;
 
     List<RexNode> newOperands = new ArrayList<>();
-    for (RexNode operand : Util.skipLast(operands)) {
+    RexNode value = operands.get(0);
+
+    for (int i = 1; i < operands.size() - 2; i += 2) {
+      RexNode when = operands.get(i);
+      RexNode then = operands.get(i + 1);
       newOperands.add(
-          rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, ImmutableList.of(operand)));
-      newOperands.add(operand);
+          rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, ImmutableList.of(value, when)));
+      newOperands.add(then);
     }
-    newOperands.add(Util.last(operands));
+
+    RexNode elseOperand = Iterables.getLast(operands);
+    newOperands.add(elseOperand);
 
     return rexBuilder.makeCall(op, newOperands);
   }
