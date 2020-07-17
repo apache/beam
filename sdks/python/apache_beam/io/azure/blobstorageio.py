@@ -44,7 +44,7 @@ _LOGGER = logging.getLogger(__name__)
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
   # pylint: disable=ungrouped-imports
-  from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+  from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, ContentSettings
   from apitools.base.py.exceptions import HttpError
 except ImportError:
   raise ImportError('Missing `azure` requirement')
@@ -106,7 +106,7 @@ class BlobStorageIO(object):
               downloader, read_buffer_size=read_buffer_size, mode=mode),
           buffer_size=read_buffer_size)
     elif mode == 'w' or mode == 'wb':
-      uploader = BlobStorageUploader(self.client, filename, None)
+      uploader = BlobStorageUploader(self.client, filename, mime_type)
       return io.BufferedWriter(
           UploaderStream(uploader, mode=mode), buffer_size=128 * 1024)
     else:
@@ -118,9 +118,9 @@ class BlobStorageIO(object):
     """Copies a single Azure Blob Storage blob from src to dest.
     
     Args:
-      src: Blob Storage file path pattern in the form 
+      src: Blob Storage file path pattern in the form
            azfs://<storage-account>/<container>/[name].
-      dest: Blob Storage file path pattern in the form 
+      dest: Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
     
     Raises:
@@ -256,11 +256,11 @@ class BlobStorageDownloader(Downloader):
   
 
 class BlobStorageUploader(Uploader):
-  def __init__(self, client, path, mime_type):
+  def __init__(self, client, path, mime_type='application/octet-stream'):
     self._client = client
     self._path = path
     self._storage_account, self._container, self._blob = parse_azfs_path(path)
-    self._mime_type = mime_type
+    self._content_settings = ContentSettings(mime_type)
 
     self._blob_to_upload = self._client.get_blob_client(
         self._container, self._blob)
@@ -275,4 +275,4 @@ class BlobStorageUploader(Uploader):
     self._temporary_file.seek(0)
     # The temporary file is deleted immediately after the operation
     with open(self._temporary_file.name, "rb") as f:
-      self._blob_to_upload.upload_blob(f.read())
+      self._blob_to_upload.upload_blob(f.read(), content_settings=self._content_settings)
