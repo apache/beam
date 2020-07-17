@@ -73,7 +73,7 @@ class TestAZFSPathParser(unittest.TestCase):
 
 class TestBlobStorageIO(unittest.TestCase):
   def _insert_random_file(self, path, size):
-    storage_account, container, blob = blobstorageio.parse_azfs_path(path)
+    # TODO : fake client implementation
     contents = os.urandom(size)
 
     f = self.azfs.open(path, 'w')
@@ -90,6 +90,9 @@ class TestBlobStorageIO(unittest.TestCase):
       assert f.mode == 'w'
     with self.azfs.open(file_name, 'r') as f:
       assert f.mode == 'r'
+
+    # Clean up
+    self.azfs.delete(file_name)
 
   def test_list_prefix(self):
 

@@ -275,4 +275,5 @@ class BlobStorageUploader(Uploader):
     self._temporary_file.seek(0)
     # The temporary file is deleted immediately after the operation
     with open(self._temporary_file.name, "rb") as f:
-      self._blob_to_upload.upload_blob(f.read(), content_settings=self._content_settings)
+      self._blob_to_upload.upload_blob(f.read(), overwrite=True,
+                                       content_settings=self._content_settings)
