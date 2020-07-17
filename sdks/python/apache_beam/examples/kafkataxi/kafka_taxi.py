@@ -26,7 +26,6 @@
 
 from __future__ import absolute_import
 
-import argparse
 import logging
 import typing
 
@@ -38,8 +37,57 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 
 
-def run(argv=None):
-  """Main entry point; defines and runs the wordcount pipeline."""
+def run(bootstrap_servers, topic, pipeline_args):
+  # bootstrap_servers = '...'
+  # topic = 'kafka_taxirides_realtime'
+  # pipeline_args = ['--project', 'my-project', '--runner', 'DataflowRunner',
+  #                  '--temp_location', 'my-temp-location',
+  #                  '--region', 'my-region', '--num_workers',
+  #                  'my-num-workers', '--experiments', 'use_runner_v2']
+
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  pipeline_options.view_as(StandardOptions).streaming = True
+  window_size = 15  # size of the Window in seconds.
+
+  def log_ride(ride_bytes):
+    # Converting bytes record from Kafka to a dictionary.
+    import ast
+    ride = ast.literal_eval(ride_bytes.decode("UTF-8"))
+    logging.info(
+        'Found ride at latitude %r and longitude %r with %r '
+        'passengers',
+        ride['latitude'],
+        ride['longitude'],
+        ride['passenger_count'])
+
+  with beam.Pipeline(options=pipeline_options) as pipeline:
+    _ = (
+        pipeline
+        | beam.io.ReadFromPubSub(
+            topic='projects/pubsub-public-data/topics/taxirides-realtime').
+        with_output_types(bytes)
+        | beam.Map(lambda x: (b'', x)).with_output_types(
+            typing.Tuple[bytes, bytes])  # Kafka write transforms expects KVs.
+        | beam.WindowInto(beam.window.FixedWindows(window_size))
+        | WriteToKafka(
+            producer_config={'bootstrap.servers': bootstrap_servers},
+            topic=topic))
+
+    _ = (
+        pipeline
+        | ReadFromKafka(
+            consumer_config={'bootstrap.servers': bootstrap_servers},
+            topics=[topic])
+        | beam.FlatMap(lambda kv: log_ride(kv[1])))
+
+    pipeline.run().wait_until_finish()
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  import argparse
+
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--bootstrap_servers',
@@ -52,36 +100,6 @@ def run(argv=None):
       dest='topic',
       default='kafka_taxirides_realtime',
       help='Kafka topic to write to and read from')
-  known_args, pipeline_args = parser.parse_known_args(argv)
+  known_args, pipeline_args = parser.parse_known_args()
 
-  pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
-  pipeline_options.view_as(StandardOptions).streaming = True
-
-  pipeline = beam.Pipeline(options=pipeline_options)
-  bootstrap_servers = known_args.bootstrap_servers
-  _ = (
-      pipeline
-      | beam.io.ReadFromPubSub(
-          topic='projects/pubsub-public-data/topics/taxirides-realtime').
-      with_output_types(bytes)
-      | beam.Map(lambda x: (b'', x)).with_output_types(
-          typing.Tuple[bytes, bytes])
-      | beam.WindowInto(beam.window.FixedWindows(15))
-      | WriteToKafka(
-          producer_config={'bootstrap.servers': bootstrap_servers},
-          topic=known_args.topic))
-
-  _ = (
-      pipeline
-      | ReadFromKafka(
-          consumer_config={'bootstrap.servers': bootstrap_servers},
-          topics=[known_args.topic])
-      | beam.FlatMap(lambda x: []))
-
-  pipeline.run().wait_until_finish()
-
-
-if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  run()
+  run(known_args.bootstrap_servers, known_args.topic, pipeline_args)
