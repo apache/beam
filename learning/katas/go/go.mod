@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module apache.org/beam/learning/katas
+module beam.apache.org/learning/katas
 
 go 1.14
 
