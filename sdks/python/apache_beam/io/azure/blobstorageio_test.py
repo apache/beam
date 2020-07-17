@@ -25,6 +25,7 @@ import unittest
 import os
 
 from apache_beam.io.azure import blobstorageio
+from apitools.base.py.exceptions import HttpError
 
 
 class TestAZFSPathParser(unittest.TestCase):
@@ -158,10 +159,12 @@ class TestBlobStorageIO(unittest.TestCase):
     self.azfs.delete(self.TEST_DATA_PATH + 'mydest')
     
     # Test copy of non-existent files.
-    # with self.assertRaisesRegex(ValueError, 'Blob not found'):
-    #   self.azfs.copy(
-    #       self.TEST_DATA_PATH + 'non-existent',
-    #       self.TEST_DATA_PATH + 'non-existent-destination')
+    with self.assertRaises(blobstorageio.BlobStorageError) as err:
+      self.azfs.copy(
+          self.TEST_DATA_PATH + 'non-existent',
+          self.TEST_DATA_PATH + 'non-existent-destination')
+
+    self.assertTrue('The specified blob does not exist.' in err.exception.message)
 
   def test_delete(self):
     file_name = self.TEST_DATA_PATH + 'test_file'

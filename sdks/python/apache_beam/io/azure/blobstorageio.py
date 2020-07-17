@@ -65,10 +65,17 @@ def get_azfs_url(storage_account, container, blob=''):
   """Returns the url in the form of https://account.blob.core.windows.net/container/blob-name"""
   return 'https://' + storage_account + '.blob.core.windows.net/' + container + '/' + blob
 
+
 class BlobStorageIOError(IOError, retry.PermanentException):
   """Blob Strorage IO error that should not be retried."""
   pass
 
+
+class BlobStorageError(Exception):
+  def __init__(self, message=None, code=None):
+    self.message = message
+    self.code = code
+   
 
 class BlobStorageIO(object):
   """Azure Blob Storage I/O client."""
@@ -134,8 +141,10 @@ class BlobStorageIO(object):
 
     try:
       copied_blob.start_copy_from_url(source_blob)
-    except ResourceNotFoundError:
-      raise ValueError('Blob not found')
+    except Exception as e:
+      message = e.reason
+      code = e.status_code
+      raise BlobStorageError(message, code)
     
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
