@@ -48,7 +48,6 @@ def flinkCompatibilityMatrix = {
   tasks.create(name: name) {
     dependsOn 'setupVirtualenv'
     dependsOn ':runners:flink:1.10:job-server:shadowJar'
-    dependsOn ':sdks:java:container:docker' // required for test_external_transforms
     if (workerType.toLowerCase() == 'docker')
       dependsOn pythonContainerTask
     else if (workerType.toLowerCase() == 'process')
