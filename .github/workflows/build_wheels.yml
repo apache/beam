@@ -110,12 +110,16 @@ jobs:
         run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
 
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
+    name: Build wheels on ${{ matrix.os_python.os }}
     needs: build_source
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os_python.os }}
     strategy:
       matrix:
-        os : [ubuntu-latest, macos-latest]
+        os_python: [
+          {"os": "ubuntu-latest", "python": "cp27-* cp35-* cp36-* cp37-* cp38-*"},
+          {"os": "macos-latest", "python": "cp27-* cp35-* cp36-* cp37-* cp38-*"},
+          {"os": "windows-latest", "python": "cp35-* cp36-* cp37-* cp38-*"},
+        ]
     steps:
     - name: Download source from artifacts
       uses: actions/download-artifact@v2
@@ -131,12 +135,12 @@ jobs:
     - name: Build wheel
       working-directory: apache-beam-source
       env:
-        CIBW_BUILD: cp27-* cp35-* cp36-* cp37-* cp38-*
+        CIBW_BUILD: ${{ matrix.os_python.python }}
         CIBW_BEFORE_BUILD: pip install cython
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: install sha512sum on MacOS
-      if: startsWith(matrix.os, 'macos')
+      if: startsWith(matrix.os_python.os, 'macos')
       run: brew install coreutils
     - name: Add checksums
       working-directory: apache-beam-source/wheelhouse/
@@ -144,10 +148,11 @@ jobs:
         for file in *.whl; do
           sha512sum $file > ${file}.sha512
         done
+      shell: bash
     - name: Upload wheels as artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: wheelhouse-${{ matrix.os }}
+        name: wheelhouse-${{ matrix.os_python.os }}
         path: apache-beam-source/wheelhouse/
 
   upload_wheels_to_gcs:
@@ -157,12 +162,12 @@ jobs:
     if: github.repository_owner == 'apache' && github.event_name != 'pull_request'
     strategy:
       matrix:
-        os : [ubuntu-latest, macos-latest]
+        os : [ubuntu-latest, macos-latest, windows-latest]
     steps:
     - name: Download wheels from artifacts
       uses: actions/download-artifact@v2
       with:
-        name: wheelhouse-${{ matrix.os }}
+        name: wheelhouse-${{ matrix.os_python.os }}
         path: wheelhouse/
     - name: Authenticate on GCP
       uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
