@@ -47,12 +47,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileStream;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.Encoder;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -1486,6 +1491,73 @@ public class AvroIOTest implements Serializable {
 
       runTestWrite(expectedElements, 4);
     }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testAvroSinkWriteWithCustomFactory() throws Exception {
+      Integer[] expectedElements = new Integer[] {1, 2, 3, 4, 5};
+
+      File baseOutputFile = new File(tmpFolder.getRoot(), "prefix");
+      String outputFilePrefix = baseOutputFile.getAbsolutePath();
+
+      Schema recordSchema = SchemaBuilder.record("root").fields().requiredInt("i1").endRecord();
+
+      AvroIO.TypedWrite<Integer, Void, Integer> write =
+          AvroIO.<Integer, Integer>writeCustomType()
+              .to(outputFilePrefix)
+              .withSchema(recordSchema)
+              .withFormatFunction(f -> f)
+              .withDatumWriterFactory(
+                  f ->
+                      new DatumWriter<Integer>() {
+                        private DatumWriter<GenericRecord> inner = new GenericDatumWriter<>(f);
+
+                        @Override
+                        public void setSchema(Schema schema) {
+                          inner.setSchema(schema);
+                        }
+
+                        @Override
+                        public void write(Integer datum, Encoder out) throws IOException {
+                          GenericRecord record =
+                              new GenericRecordBuilder(f).set("i1", datum).build();
+                          inner.write(record, out);
+                        }
+                      })
+              .withSuffix(".avro");
+
+      write = write.withoutSharding();
+
+      writePipeline.apply(Create.of(ImmutableList.copyOf(expectedElements))).apply(write);
+      writePipeline.run();
+
+      File expectedFile =
+          new File(
+              DefaultFilenamePolicy.constructName(
+                      FileBasedSink.convertToFileResourceIfPossible(outputFilePrefix),
+                      "",
+                      ".avro",
+                      1,
+                      1,
+                      null,
+                      null)
+                  .toString());
+
+      assertTrue("Expected output file " + expectedFile.getName(), expectedFile.exists());
+      DataFileReader<GenericRecord> dataFileReader =
+          new DataFileReader<>(expectedFile, new GenericDatumReader<>(recordSchema));
+
+      List<GenericRecord> actualRecords = new ArrayList<>();
+      Iterators.addAll(actualRecords, dataFileReader);
+
+      GenericRecord[] expectedRecords =
+          Arrays.stream(expectedElements)
+              .map(i -> new GenericRecordBuilder(recordSchema).set("i1", i).build())
+              .toArray(GenericRecord[]::new);
+
+      assertThat(actualRecords, containsInAnyOrder(expectedRecords));
+    }
+
     // TODO: for Write only, test withSuffix,
     // withShardNameTemplate and withoutSharding.
   }
