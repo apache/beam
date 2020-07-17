@@ -103,6 +103,7 @@ class CommonJobProperties {
                                          String commitStatusContext,
                                          String prTriggerPhrase = '',
                                          boolean onlyTriggerPhraseToggle = true,
+                                         boolean prPermitAll = true,
                                          List<String> triggerPathPatterns = [],
                                          List<String> excludePathPatterns = []) {
     context.triggers {
@@ -111,7 +112,7 @@ class CommonJobProperties {
         useGitHubHooks()
         orgWhitelist(['apache'])
         allowMembersOfWhitelistedOrgsAsAdmin()
-        permitAll()
+        permitAll(prPermitAll)
         // prTriggerPhrase is the argument which gets set when we want to allow
         // post-commit builds to run against pending pull requests. This block
         // overrides the default trigger phrase with the new one. Setting this
@@ -175,12 +176,14 @@ class CommonJobProperties {
   // tests not in the presubmit suite for additional confidence.
   static void enablePhraseTriggeringFromPullRequest(context,
                                                     String commitStatusName,
-                                                    String prTriggerPhrase) {
+                                                    String prTriggerPhrase,
+                                                    boolean prPermitAll = true) {
     setPullRequestBuildTrigger(
       context,
       commitStatusName,
       prTriggerPhrase,
-      true)
+      true,
+      prPermitAll)
   }
 
   // Sets this as a cron job, running on a schedule.

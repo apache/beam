@@ -89,6 +89,7 @@ class PrecommitJobBuilder {
         githubUiHint(),
         '',
         false,
+        true,
         triggerPathPatterns,
         excludePathPatterns)
     }

@@ -28,7 +28,9 @@ job('beam_Dependency_Check') {
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
     delegate,
     'Beam Dependency Check',
-    'Run Dependency Check')
+    'Run Dependency Check',
+    false
+  )
 
   // This is a job that runs weekly.
   commonJobProperties.setAutoJob(
