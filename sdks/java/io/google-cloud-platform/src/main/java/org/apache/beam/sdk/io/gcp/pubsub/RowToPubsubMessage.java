@@ -39,9 +39,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * whether config.getValue("timestampAttributeKey") is set.
  */
 class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<PubsubMessage>> {
-  private final Boolean useTimestampAttribute;
+  private final boolean useTimestampAttribute;
 
-  private RowToPubsubMessage(Boolean useTimestampAttribute) {
+  private RowToPubsubMessage(boolean useTimestampAttribute) {
     this.useTimestampAttribute = useTimestampAttribute;
   }
 

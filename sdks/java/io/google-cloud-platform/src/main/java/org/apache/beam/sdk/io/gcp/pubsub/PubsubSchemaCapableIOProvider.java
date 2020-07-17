@@ -160,7 +160,7 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
   private static class PubsubSchemaIO implements SchemaIO, Serializable {
     protected final Schema dataSchema;
     protected final String location;
-    protected final Boolean useFlatSchema;
+    protected final boolean useFlatSchema;
     protected final Config config;
 
     private PubsubSchemaIO(String location, Row config, Schema dataSchema) {
