@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
+import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
@@ -112,6 +113,10 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract SplitRestrictionMethod splitRestriction();
 
+  /** Details about this {@link DoFn}'s {@link TruncateRestriction} method. */
+  @Nullable
+  public abstract TruncateRestrictionMethod truncateRestriction();
+
   /** Details about this {@link DoFn}'s {@link DoFn.GetRestrictionCoder} method. */
   @Nullable
   public abstract GetRestrictionCoderMethod getRestrictionCoder();
@@ -185,6 +190,8 @@ public abstract class DoFnSignature {
     abstract Builder setGetInitialRestriction(GetInitialRestrictionMethod getInitialRestriction);
 
     abstract Builder setSplitRestriction(SplitRestrictionMethod splitRestriction);
+
+    abstract Builder setTruncateRestriction(TruncateRestrictionMethod truncateRestriction);
 
     abstract Builder setGetRestrictionCoder(GetRestrictionCoderMethod getRestrictionCoder);
 
@@ -1325,6 +1332,31 @@ public abstract class DoFnSignature {
         TypeDescriptor<? extends BoundedWindow> windowT,
         List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_SplitRestrictionMethod(
+          targetMethod, windowT, extraParameters);
+    }
+  }
+
+  /** Describes a {@link TruncateRestriction} method. */
+  @AutoValue
+  public abstract static class TruncateRestrictionMethod implements MethodWithExtraParameters {
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static TruncateRestrictionMethod create(
+        Method targetMethod,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_TruncateRestrictionMethod(
           targetMethod, windowT, extraParameters);
     }
   }
