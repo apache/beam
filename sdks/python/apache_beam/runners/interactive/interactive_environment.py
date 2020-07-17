@@ -319,7 +319,7 @@ class InteractiveEnvironment(object):
     if not cache_manager and create_if_absent:
       cache_dir = tempfile.mkdtemp(
           suffix=str(id(pipeline)),
-          prefix='interactive-temp-',
+          prefix='it-',
           dir=os.environ.get('TEST_TMPDIR', None))
       cache_manager = cache.FileBasedCacheManager(cache_dir)
       self._cache_managers[str(id(pipeline))] = cache_manager
