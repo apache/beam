@@ -142,8 +142,8 @@ class TestBlobStorageIO(unittest.TestCase):
   def test_copy(self):
     src_file_name = self.TEST_DATA_PATH + 'mysource'
     dest_file_name = self.TEST_DATA_PATH + 'mydest'
-    
-    # TODO : add insert_random_file functionality
+    file_size = 1024
+    self._insert_random_file(src_file_name, file_size)    
     
     self.assertTrue(src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
     self.assertFalse(dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
@@ -153,6 +153,9 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertTrue(src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
     self.assertTrue(dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
 
+    # TODO : Add delete_files functionality
+    self.azfs.delete(self.TEST_DATA_PATH + 'mysource')
+    self.azfs.delete(self.TEST_DATA_PATH + 'mydest')
     
     # Test copy of non-existent files.
     # with self.assertRaisesRegex(ValueError, 'Blob not found'):
