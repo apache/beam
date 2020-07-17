@@ -47,7 +47,9 @@ class DeferredBase(object):
       wrapper_type = cls._pandas_type_map[proxy_type]
     else:
       if expr.requires_partition_by() != partitionings.Singleton():
-        raise ValueError('Scalar expression %s partitoned by non-singleton %s' % (expr, expr.requires_partition_by()))
+        raise ValueError(
+            'Scalar expression %s partitoned by non-singleton %s' %
+            (expr, expr.requires_partition_by()))
       wrapper_type = _DeferredScaler
     return wrapper_type(expr)
 
@@ -56,7 +58,6 @@ class DeferredBase(object):
 
 
 class DeferredFrame(DeferredBase):
-
   @property
   def dtypes(self):
     return self._expr.proxy().dtypes
@@ -120,7 +121,7 @@ def _elementwise_function(func, name=None, restrictions=None, inplace=False):
 def _proxy_function(
       func,  # type: Union[callable, str]
       name=None,  # type: Optional[str]
-      restrictions=None,  # type: Dict[str, Union[Any, List[Any]]
+      restrictions=None,  # type: Dict[str, Union[Any, List[Any]]]
       inplace=False,  # type: bool
       requires_partition_by=partitionings.Singleton(),  # type: partition.Partitioning
       preserves_partition_by=partitionings.Nothing(),  # type: partition.Partitioning
@@ -132,7 +133,7 @@ def _proxy_function(
     restrictions = {}
 
   def wrapper(*args, **kwargs):
-    for key, values in restrictions.items():
+    for key, values in ():  #restrictions.items():
       if key in kwargs:
         value = kwargs[key]
       else:
@@ -192,6 +193,7 @@ def _proxy_function(
 def _agg_method(func):
   def wrapper(self, *args, **kwargs):
     return self.agg(func, *args, **kwargs)
+
   return wrapper
 
 
@@ -203,6 +205,7 @@ def _associative_agg_method(func):
 def wont_implement_method(msg):
   def wrapper(self, *args, **kwargs):
     raise WontImplementError(msg)
+
   return wrapper
 
 
