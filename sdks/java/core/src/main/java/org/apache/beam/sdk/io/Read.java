@@ -57,7 +57,6 @@ import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
@@ -154,7 +153,7 @@ public class Read {
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(),
           WindowingStrategy.globalDefault(),
-          IsBounded.BOUNDED,
+          PCollection.IsBounded.BOUNDED,
           source.getOutputCoder());
     }
 
@@ -244,7 +243,7 @@ public class Read {
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(),
           WindowingStrategy.globalDefault(),
-          IsBounded.UNBOUNDED,
+          PCollection.IsBounded.UNBOUNDED,
           source.getOutputCoder());
     }
 
@@ -429,6 +428,11 @@ public class Read {
             claimedAll,
             "Expected all records to have been claimed but finished processing "
                 + "bounded source while some records may have not been read.");
+      }
+
+      @Override
+      public IsBounded isBounded() {
+        return IsBounded.BOUNDED;
       }
     }
   }
@@ -862,6 +866,11 @@ public class Read {
             currentReader instanceof EmptyUnboundedSource.EmptyUnboundedReader,
             "Expected all records to have been claimed but finished processing "
                 + "unbounded source while some records may have not been read.");
+      }
+
+      @Override
+      public IsBounded isBounded() {
+        return IsBounded.UNBOUNDED;
       }
 
       @Override
