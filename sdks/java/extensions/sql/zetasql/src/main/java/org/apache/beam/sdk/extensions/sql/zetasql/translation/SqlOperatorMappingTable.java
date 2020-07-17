@@ -22,8 +22,8 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
-/** SqlStdOperatorMappingTable. */
-class SqlStdOperatorMappingTable {
+/** SqlOperatorMappingTable. */
+class SqlOperatorMappingTable {
 
   // todo: Some of operators defined here are later overridden in ZetaSQLPlannerImpl.
   // We should remove them from this table and add generic way to provide custom

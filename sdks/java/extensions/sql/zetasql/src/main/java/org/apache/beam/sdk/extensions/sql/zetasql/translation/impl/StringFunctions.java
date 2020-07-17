@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.translation.impl;
 
 import java.util.regex.Pattern;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.function.Strict;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.runtime.SqlFunctions;
 
 /** StringFunctions. */
+@Internal
 public class StringFunctions {
   public static final String SUBSTR_PARAMETER_EXCEED_INTEGER =
       "SUBSTR function only allows: "
