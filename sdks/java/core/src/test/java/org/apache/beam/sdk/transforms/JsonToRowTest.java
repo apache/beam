@@ -146,8 +146,9 @@ public class JsonToRowTest implements Serializable {
     PCollection<Row> personRows =
         jsonPersons
             .apply(
-                ((JsonToRowFn) JsonToRow.withSchema(PERSON_SCHEMA_WITH_NULLABLE_FIELD))
-                    .withNullBehavior(NullBehavior.ACCEPT_MISSING_OR_NULL))
+                ((JsonToRowFn)
+                    JsonToRow.withSchemaAndNullBehavior(
+                        PERSON_SCHEMA_WITH_NULLABLE_FIELD, NullBehavior.ACCEPT_MISSING_OR_NULL)))
             .setRowSchema(PERSON_SCHEMA_WITH_NULLABLE_FIELD);
 
     PAssert.that(personRows).containsInAnyOrder(PERSON_ROWS_WITH_NULLS);

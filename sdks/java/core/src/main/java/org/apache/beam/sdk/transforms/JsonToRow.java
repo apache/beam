@@ -77,37 +77,35 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * <p>Only JSON string values can be parsed into {@link TypeName#STRING}. Numbers, booleans are not
  * automatically converted, exceptions are thrown in these cases.
  *
- * <p>If a schema field is missing from the JSON value, an exception will be thrown.
- *
- * <p>Explicit {@code null} literals are allowed in JSON objects. No other values are parsed into
- * {@code null}.
+ * <p>If a schema field is missing from the JSON value, by default the field will be assumed to have
+ * a null value, and will be converted into a null in the row if the schema has this field being
+ * nullable. This behavior can be changed by setting the {@link NullBehavior} using the {@link
+ * JsonToRow#withSchemaAndNullBehavior}. For example, setting it with {@link
+ * NullBehavior#REQUIRE_NULL} means that JSON values must be null to be parsed as null, otherwise an
+ * error will be thrown, as with previous versions of Beam.
  */
 @Experimental(Kind.SCHEMAS)
 public class JsonToRow {
 
   public static PTransform<PCollection<String>, PCollection<Row>> withSchema(Schema rowSchema) {
-    return JsonToRowFn.forSchema(rowSchema);
+    RowJson.verifySchemaSupported(rowSchema);
+    return new JsonToRowFn(rowSchema, NullBehavior.ACCEPT_MISSING_OR_NULL);
+  }
+
+  public static PTransform<PCollection<String>, PCollection<Row>> withSchemaAndNullBehavior(
+      Schema rowSchema, NullBehavior nullBehavior) {
+    RowJson.verifySchemaSupported(rowSchema);
+    return new JsonToRowFn(rowSchema, nullBehavior);
   }
 
   static class JsonToRowFn extends PTransform<PCollection<String>, PCollection<Row>> {
     private transient volatile @Nullable ObjectMapper objectMapper;
-    private Schema schema;
-    private volatile NullBehavior nullBehavior = NullBehavior.ACCEPT_MISSING_OR_NULL;
+    private final Schema schema;
+    private final NullBehavior nullBehavior;
 
-    static JsonToRowFn forSchema(Schema rowSchema) {
-      // Throw exception if this schema is not supported by RowJson
-      RowJson.verifySchemaSupported(rowSchema);
-      return new JsonToRowFn(rowSchema);
-    }
-
-    private JsonToRowFn(Schema schema) {
+    private JsonToRowFn(Schema schema, NullBehavior nullBehavior) {
       this.schema = schema;
-    }
-
-    /** Sets the behavior of the deserializer according to {@link NullBehavior}. */
-    public JsonToRowFn withNullBehavior(NullBehavior nullBehavior) {
       this.nullBehavior = nullBehavior;
-      return this;
     }
 
     @Override
