@@ -510,7 +510,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             || (doFnSignature.newTracker() != null && doFnSignature.newTracker().observesWindow())
             || (doFnSignature.getSize() != null && doFnSignature.getSize().observesWindow())
             || !sideInputMapping.isEmpty()) {
-          if (Iterables.get(mainOutputConsumers, 0) instanceof HandlesSplits) {
+          // Only forward split/progress when the only consumer is splittable.
+          if (mainOutputConsumers.size() == 1
+              && Iterables.get(mainOutputConsumers, 0) instanceof HandlesSplits) {
             mainInputConsumer =
                 new SplittableFnDataReceiver() {
                   @Override
@@ -537,7 +539,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               new SizedRestrictionWindowObservingProcessBundleContext(
                   PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN);
         } else {
-          if (Iterables.get(mainOutputConsumers, 0) instanceof HandlesSplits) {
+          // Only forward split/progress when the only consumer is splittable.
+          if (mainOutputConsumers.size() == 1
+              && Iterables.get(mainOutputConsumers, 0) instanceof HandlesSplits) {
             mainInputConsumer =
                 new SplittableFnDataReceiver() {
                   private final HandlesSplits splitDelegate =
