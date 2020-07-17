@@ -96,6 +96,16 @@ class TestBlobStorageIO(unittest.TestCase):
 
   def test_list_prefix(self):
 
+    blobs = [
+      ('sloth/pictures/sleeping', 2),
+      ('sloth/videos/smiling', 3),
+      ('sloth/institute/costarica', 5),
+    ]
+
+    for (blob_name, size) in blobs:
+      file_name = self.TEST_DATA_PATH + blob_name
+      self._insert_random_file(file_name, size)
+
     test_cases = [
         (
             self.TEST_DATA_PATH + 's',
@@ -124,6 +134,10 @@ class TestBlobStorageIO(unittest.TestCase):
       self.assertEqual(
           set(self.azfs.list_prefix(file_pattern).items()),
           set(expected_file_names))
+
+    # Clean up
+    for (blob_name, size) in blobs:
+      self.azfs.delete(self.TEST_DATA_PATH + blob_name)
   
   def test_copy(self):
     src_file_name = self.TEST_DATA_PATH + 'mysource'
