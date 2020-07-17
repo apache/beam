@@ -16,6 +16,7 @@
 
 from __future__ import absolute_import
 
+import numpy as np
 import pandas as pd
 
 from apache_beam.dataframe import expressions
@@ -34,6 +35,49 @@ class DeferredSeries(frame_base.DeferredFrame):
 
   transform = frame_base._elementwise_method(
       'transform', restrictions={'axis': 0})
+
+  def agg(self, *args, **kwargs):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'agg',
+            lambda df: df.agg(*args, **kwargs), [self._expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=partitionings.Singleton()))
+
+  all = frame_base._associative_agg_method('all')
+  any = frame_base._associative_agg_method('any')
+  min = frame_base._associative_agg_method('min')
+  max = frame_base._associative_agg_method('max')
+  prod = product = frame_base._associative_agg_method('prod')
+  sum = frame_base._associative_agg_method('sum')
+
+  cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
+      'order-sensitive')
+  diff = frame_base.wont_implement_method('order-sensitive')
+
+  def replace(
+      self,
+      to_replace=None,
+      value=None,
+      inplace=False,
+      limit=None,
+      *args,
+      **kwargs):
+    if limit is None:
+      requires_partition_by = partitionings.Nothing()
+    else:
+      requires_partition_by = partitionings.Singleton()
+    result = frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'replace',
+            lambda df: df.replace(
+                to_replace, value, False, limit, *args, **kwargs), [self._expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=requires_partition_by))
+    if inplace:
+      self._expr = result._expr
+    else:
+      return result
 
   def unstack(self, *args, **kwargs):
     raise frame_base.WontImplementError('non-deferred column values')
@@ -120,13 +164,14 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   def loc(self):
     return _DeferredLoc(self)
 
-  def aggregate(self, func, axis=0, *args, **kwargs):
-    if axis != 0:
-      raise NotImplementedError()
+  def aggregate(self, *args, **kwargs):
+    if 'axis' in kwargs and kwargs['axis'] is None:
+      return self.agg(*args, **dict(kwargs, axis=1)).agg(
+          *args, **dict(kwargs, axis=0))
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'aggregate',
-            lambda df: df.agg(func, axis, *args, **kwargs),
+            lambda df: df.agg(*args, **kwargs),
             [self._expr],
             # TODO(robertwb): Sub-aggregate when possible.
             requires_partition_by=partitionings.Singleton()))
@@ -167,14 +212,15 @@ class DeferredDataFrame(frame_base.DeferredFrame):
     else:
       return result
 
-  itertuples = iterrows = iteritems = frame_base.wont_implement_method('non-lazy')
+  items = itertuples = iterrows = iteritems = frame_base.wont_implement_method(
+      'non-lazy')
 
   isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
 
-  prod = frame_base._associative_agg_method('prod')
+  prod = product = frame_base._associative_agg_method('prod')
 
-  def quantile(q=0.5, axis=0, *args, **kwargs):
+  def quantile(self, q=0.5, axis=0, *args, **kwargs):
     if axis != 0:
       raise frame_base.WontImplementError('non-deferred column values')
     return frame_base.DeferredFrame.wrap(
@@ -239,15 +285,16 @@ class DeferredDataFrame(frame_base.DeferredFrame):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'shift',
-            lambda df: df.shift(periods, freq, axis, False, *args, **kwargs),
+            lambda df: df.shift(periods, freq, axis, *args, **kwargs),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
 
-  def shape(self, *args, **kwargs):
+  @property
+  def shape(self):
     raise frame_base.WontImplementError('scalar value')
 
-  def sort_values(self, by, axis=0, ascending=True, *args, **kwargs):
+  def sort_values(self, by, axis=0, ascending=True, inplace=False, *args, **kwargs):
     if axis == 1:
       requires_partition_by = partitionings.Nothing()
     else:
@@ -273,7 +320,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
 
   to_records = to_dict = to_numpy = to_string
 
-  to_sparse = frame_base._elementwise_method('to_sparse')
+  to_sparse = to_string # frame_base._elementwise_method('to_sparse')
 
   transform = frame_base._elementwise_method('transform', restrictions={'axis': 0})
 

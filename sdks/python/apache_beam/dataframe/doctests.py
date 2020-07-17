@@ -209,6 +209,7 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
           return pd.concat(values)
         else:
           return values[0]
+
       return {
           name: concat(recorder.get_recorded(name))
           for name in to_compute.keys()
@@ -224,8 +225,13 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
         computed = self.compute(to_compute)
         for name, frame in computed.items():
           got = got.replace(name, repr(frame))
+
         def sort_and_normalize(text):
-          return '\n'.join(sorted(line.rstrip() for line in text.split('\n') if line.strip())) + '\n'
+          return '\n'.join(
+              sorted(
+                  line.rstrip()
+                  for line in text.split('\n') if line.strip())) + '\n'
+
         got = sort_and_normalize(got)
         want = sort_and_normalize(want)
       except Exception:
@@ -310,7 +316,8 @@ def teststring(text, report=True, **runner_kwargs):
       doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
 
   parser = doctest.DocTestParser()
-  runner = BeamDataframeDoctestRunner(TestEnvironment(), optionflags=optionflags, **runner_kwargs)
+  runner = BeamDataframeDoctestRunner(
+      TestEnvironment(), optionflags=optionflags, **runner_kwargs)
   test = parser.get_doctest(
       text, {
           'pd': runner.fake_pandas_module(), 'np': np
