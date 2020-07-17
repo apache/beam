@@ -174,11 +174,6 @@ if __name__ == '__main__':
     def get_runner(cls):
       return portable_runner.PortableRunner()
 
-    @classmethod
-    def get_expansion_service(cls):
-      # TODO Move expansion address resides into PipelineOptions
-      return 'localhost:%s' % cls.expansion_port
-
     def create_options(self):
       options = super(FlinkRunnerTest, self).create_options()
       options.view_as(
@@ -201,79 +196,6 @@ if __name__ == '__main__':
 
     def test_no_subtransform_composite(self):
       raise unittest.SkipTest("BEAM-4781")
-
-    def test_external_transform(self):
-      with self.create_pipeline() as p:
-        res = (
-            p
-            | GenerateSequence(
-                start=1,
-                stop=10,
-                expansion_service=self.get_expansion_service()))
-
-        assert_that(res, equal_to([i for i in range(1, 10)]))
-
-    def test_expand_kafka_read(self):
-      # We expect to fail here because we do not have a Kafka cluster handy.
-      # Nevertheless, we check that the transform is expanded by the
-      # ExpansionService and that the pipeline fails during execution.
-      with self.assertRaises(Exception) as ctx:
-        with self.create_pipeline() as p:
-          # pylint: disable=expression-not-assigned
-          (
-              p
-              | ReadFromKafka(
-                  consumer_config={
-                      'bootstrap.servers': 'notvalid1:7777, notvalid2:3531'
-                  },
-                  topics=['topic1', 'topic2'],
-                  key_deserializer='org.apache.kafka.'
-                  'common.serialization.'
-                  'ByteArrayDeserializer',
-                  value_deserializer='org.apache.kafka.'
-                  'common.serialization.'
-                  'LongDeserializer',
-                  expansion_service=self.get_expansion_service()))
-      self.assertTrue(
-          'No resolvable bootstrap urls given in bootstrap.servers' in str(
-              ctx.exception),
-          'Expected to fail due to invalid bootstrap.servers, but '
-          'failed due to:\n%s' % str(ctx.exception))
-
-    def test_expand_kafka_write(self):
-      # We just test the expansion but do not execute.
-      # pylint: disable=expression-not-assigned
-      (
-          self.create_pipeline()
-          | Impulse()
-          | Map(lambda input: (1, input))
-          | WriteToKafka(
-              producer_config={
-                  'bootstrap.servers': 'localhost:9092, notvalid2:3531'
-              },
-              topic='topic1',
-              key_serializer='org.apache.kafka.'
-              'common.serialization.'
-              'LongSerializer',
-              value_serializer='org.apache.kafka.'
-              'common.serialization.'
-              'ByteArraySerializer',
-              expansion_service=self.get_expansion_service()))
-
-    def test_sql(self):
-      with self.create_pipeline() as p:
-        output = (
-            p
-            | 'Create' >> beam.Create([Row(x, str(x)) for x in range(5)])
-            | 'Sql' >> SqlTransform(
-                """SELECT col1, col2 || '*' || col2 as col2,
-                          power(col1, 2) as col3
-                   FROM PCOLLECTION
-                """,
-                expansion_service=self.get_expansion_service()))
-        assert_that(
-            output,
-            equal_to([(x, '{x}*{x}'.format(x=x), x * x) for x in range(5)]))
 
     def test_flattened_side_input(self):
       # Blocked on support for transcoding
@@ -395,18 +317,6 @@ if __name__ == '__main__':
           'pre_optimize=all'
       ] + options.view_as(DebugOptions).experiments
       return options
-
-    def test_external_transform(self):
-      raise unittest.SkipTest("BEAM-7252")
-
-    def test_expand_kafka_read(self):
-      raise unittest.SkipTest("BEAM-7252")
-
-    def test_expand_kafka_write(self):
-      raise unittest.SkipTest("BEAM-7252")
-
-    def test_sql(self):
-      raise unittest.SkipTest("BEAM-7252")
 
   # Run the tests.
   logging.getLogger().setLevel(logging.INFO)
