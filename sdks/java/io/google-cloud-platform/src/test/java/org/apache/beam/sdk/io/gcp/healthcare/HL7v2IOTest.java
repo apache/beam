@@ -65,7 +65,7 @@ public class HL7v2IOTest {
     List<HL7v2Message> emptyMessages = Collections.singletonList(HL7v2Message.fromModel(msg));
 
     PCollection<HL7v2Message> messages =
-        pipeline.apply(Create.of(emptyMessages).withCoder(new HL7v2MessageCoder()));
+        pipeline.apply(Create.of(emptyMessages).withCoder(HL7v2MessageCoder.of()));
 
     HL7v2IO.Write.Result writeResult =
         messages.apply(

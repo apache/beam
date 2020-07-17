@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.healthcare.v1beta1.model.Message;
+import com.google.api.services.healthcare.v1beta1.model.ParsedData;
 import com.google.api.services.healthcare.v1beta1.model.SchematizedData;
 import java.io.IOException;
 import java.util.Map;
@@ -26,14 +27,15 @@ import javax.annotation.Nullable;
 
 /** The type HL7v2 message to wrap the {@link Message} model. */
 public class HL7v2Message {
-  private final String name;
-  private final String messageType;
-  private final String sendTime;
-  private final String createTime;
-  private final String data;
-  private final String sendFacility;
+  private String name;
+  private String messageType;
+  private String sendTime;
+  private String createTime;
+  private String data;
+  private String sendFacility;
+  private ParsedData parsedData;
   private String schematizedData;
-  private final Map<String, String> labels;
+  private Map<String, String> labels;
 
   @Override
   public String toString() {
@@ -52,6 +54,7 @@ public class HL7v2Message {
    * @return the hl7v2 message
    */
   public static HL7v2Message fromModel(Message msg) {
+    ParsedData parsedData = msg.getParsedData();
     SchematizedData schematizedData = msg.getSchematizedData();
     return new HL7v2Message(
         msg.getName(),
@@ -60,6 +63,7 @@ public class HL7v2Message {
         msg.getCreateTime(),
         msg.getData(),
         msg.getSendFacility(),
+        parsedData,
         schematizedData != null ? schematizedData.getData() : null,
         msg.getLabels());
   }
@@ -77,10 +81,13 @@ public class HL7v2Message {
     out.setCreateTime(this.getCreateTime());
     out.setData(this.getData());
     out.setSendFacility(this.getSendFacility());
+    out.setParsedData(this.getParsedData());
     out.setSchematizedData(new SchematizedData().setData(this.schematizedData));
     out.setLabels(this.labels);
     return out;
   }
+
+  public HL7v2Message() {}
 
   public HL7v2Message(
       String name,
@@ -89,6 +96,7 @@ public class HL7v2Message {
       String createTime,
       String data,
       String sendFacility,
+      @Nullable ParsedData parsedData,
       @Nullable String schematizedData,
       @Nullable Map<String, String> labels) {
     this.name = name;
@@ -97,6 +105,7 @@ public class HL7v2Message {
     this.createTime = createTime;
     this.data = data;
     this.sendFacility = sendFacility;
+    this.parsedData = parsedData;
     this.schematizedData = schematizedData;
     this.labels = labels;
   }
@@ -155,6 +164,18 @@ public class HL7v2Message {
     return sendFacility;
   }
 
+  /**
+   * Gets parsed data.
+   *
+   * @return the parsed data
+   */
+  public ParsedData getParsedData() {
+    return parsedData;
+  }
+
+  public void setParsedData(ParsedData parsedData) {
+    this.parsedData = parsedData;
+  }
   /**
    * Gets schematized data.
    *
