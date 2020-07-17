@@ -396,7 +396,13 @@ if __name__ == '__main__':
       ] + options.view_as(DebugOptions).experiments
       return options
 
-    def test_external_transforms(self):
+    def test_external_transform(self):
+      raise unittest.SkipTest("BEAM-7252")
+
+    def test_expand_kafka_read(self):
+      raise unittest.SkipTest("BEAM-7252")
+
+    def test_expand_kafka_write(self):
       raise unittest.SkipTest("BEAM-7252")
 
     def test_sql(self):
