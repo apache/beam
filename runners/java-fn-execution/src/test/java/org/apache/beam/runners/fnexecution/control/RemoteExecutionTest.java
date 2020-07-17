@@ -719,7 +719,6 @@ public class RemoteExecutionTest implements Serializable {
           @Override
           public void onCompleted(ProcessBundleResponse response) {
             List<Matcher<MonitoringInfo>> matchers = new ArrayList<>();
-
             // User Counters.
             SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
             builder
