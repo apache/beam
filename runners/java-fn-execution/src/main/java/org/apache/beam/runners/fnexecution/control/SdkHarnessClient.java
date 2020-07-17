@@ -341,7 +341,7 @@ public class SdkHarnessClient implements AutoCloseable {
         // Ensure that we mark when the bundle is completed
         this.response.whenComplete(
             (processBundleResponse, throwable) -> {
-              synchronized (this) {
+              synchronized (ActiveBundle.this) {
                 this.bundleIsCompleted = true;
               }
             });
