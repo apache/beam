@@ -70,8 +70,15 @@ class TestAZFSPathParser(unittest.TestCase):
     for path in self.BAD_AZFS_PATHS:
       self.assertRaises(ValueError, blobstorageio.parse_azfs_path, path, True)
 
-class TestBlobStorageIO(unittest.TestCase):
 
+class TestBlobStorageIO(unittest.TestCase):
+  def _insert_random_file(self, path, size):
+    storage_account, container, blob = blobstorageio.parse_azfs_path(path)
+    contents = os.urandom(size)
+
+    f = self.azfs.open(path, 'w')
+    f.write(contents)
+    f.close()
 
   def setUp(self):
     self.azfs = blobstorageio.BlobStorageIO()
