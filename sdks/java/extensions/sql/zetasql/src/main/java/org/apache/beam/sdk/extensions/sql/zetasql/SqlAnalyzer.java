@@ -21,7 +21,6 @@ import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLV
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_TABLE_FUNCTION_STMT;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable.ZETASQL_BUILTIN_FUNCTION_ALLOWLIST;
 import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils.toZetaType;
 
 import com.google.common.collect.ImmutableList;
@@ -226,7 +225,7 @@ public class SqlAnalyzer {
     ZetaSQLBuiltinFunctionOptions zetasqlBuiltinFunctionOptions =
         new ZetaSQLBuiltinFunctionOptions(options.getLanguageOptions());
 
-    ZETASQL_BUILTIN_FUNCTION_ALLOWLIST.forEach(
+    SupportedZetaSqlBuiltinFunctions.ALLOWLIST.forEach(
         zetasqlBuiltinFunctionOptions::includeFunctionSignatureId);
 
     catalog.addZetaSQLFunctions(zetasqlBuiltinFunctionOptions);
