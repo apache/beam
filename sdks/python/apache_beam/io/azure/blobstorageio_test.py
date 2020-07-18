@@ -255,18 +255,18 @@ class TestBlobStorageIO(unittest.TestCase):
 
   def test_full_file_read(self):
     file_name = self.TEST_DATA_PATH + 'test_file_read'
-    file_size = 22
-    # TODO : add insert_random_file functionality
+    file_size = 1024
+    
+    new_file = self._insert_random_file(file_name, file_size)
+    contents = new_file.contents
 
-    contents = b'Hi beam, how are you?\n'
-
-    f = self.azfs.open(file_name)
-    self.assertEqual(f.mode, 'r')
-    f.seek(0, os.SEEK_END)
-    self.assertEqual(f.tell(), file_size)
-    self.assertEqual(f.read(), b'')
-    f.seek(0)
-    self.assertEqual(f.read(), contents)
+    new_file = self.azfs.open(file_name)
+    self.assertEqual(new_file.mode, 'r')
+    new_file.seek(0, os.SEEK_END)
+    self.assertEqual(new_file.tell(), file_size)
+    self.assertEqual(new_file.read(), b'')
+    new_file.seek(0)
+    self.assertEqual(new_file.read(), contents)
 
     # Clean up
     self.azfs.delete(file_name)
