@@ -24,4 +24,4 @@ summary: "This course provides a series of katas to get familiar with Apache Bea
 programming_language: Go
 content:
 - introduction
-- Core Transforms
+- core_transforms
