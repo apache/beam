@@ -104,13 +104,13 @@ class TestBlobStorageIO(unittest.TestCase):
   def _insert_random_file(self, path, size):
     storage_account, container, blob = blobstorageio.parse_azfs_path(path)
     contents = os.urandom(size)
-    fakeFile = FakeFile(container, blob, contents)
+    fake_file = FakeFile(container, blob, contents)
 
     f = self.azfs.open(path, 'w')
     f.write(contents)
     f.close()
 
-    return fakeFile
+    return fake_file
 
   def setUp(self):
     self.azfs = blobstorageio.BlobStorageIO()
