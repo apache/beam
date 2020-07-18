@@ -74,6 +74,21 @@ class DoFnSignatureTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       DoFnSignature(MyDoFn())
 
+  def test_unbounded_element_process_fn(self):
+    class UnboundedDoFn(DoFn):
+      @DoFn.unbounded_per_element()
+      def process(self, element):
+        pass
+
+    class BoundedDoFn(DoFn):
+      def process(self, element):
+        pass
+
+    signature = DoFnSignature(UnboundedDoFn())
+    self.assertTrue(signature.is_unbounded_per_element())
+    signature = DoFnSignature(BoundedDoFn())
+    self.assertFalse(signature.is_unbounded_per_element())
+
 
 class DoFnProcessTest(unittest.TestCase):
   # pylint: disable=expression-not-assigned
