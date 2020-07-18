@@ -164,24 +164,22 @@ class TestBlobStorageIO(unittest.TestCase):
           self.TEST_DATA_PATH + 'non-existent',
           self.TEST_DATA_PATH + 'non-existent-destination')
 
-    #self.assertTrue('The specified blob does not exist.' in err.exception.message)
-    #self.assertEqual(err.exception.code, 404)
+    self.assertTrue('The specified blob does not exist.' in err.exception.message)
+    self.assertEqual(err.exception.code, 404)
 
   def test_delete(self):
-    file_name = self.TEST_DATA_PATH + 'test_file'
+    file_name = self.TEST_DATA_PATH + 'test_file_delete'
     file_size = 1024
     
-    # # Test deletion of non-existent file.
-    # self.azfs.delete(file_name) 
+    # Test deletion of non-existent file.
+    self.azfs.delete(file_name)
 
     self._insert_random_file(file_name, file_size)
     files = self.azfs.list_prefix(self.TEST_DATA_PATH)
     self.assertTrue(file_name in files)
 
     self.azfs.delete(file_name)
-    files = self.azfs.list_prefix(self.TEST_DATA_PATH)
-    self.assertFalse(file_name in files)
-    # TODO : use exists instead
+    self.assertFalse(self.azfs.exists(file_name))
 
   def test_delete_batch(self):
     file_name_pattern = self.TEST_DATA_PATH + 'delete_batch/%d'

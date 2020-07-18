@@ -120,7 +120,7 @@ class BlobStorageIO(object):
       raise ValueError('Invalid file open mode: %s.' % mode)
 
   @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+      retry_filter=retry.retry_on_beam_io_error_filter)
   def copy(self, src, dest):
     """Copies a single Azure Blob Storage blob from src to dest.
     
@@ -195,8 +195,8 @@ class BlobStorageIO(object):
     blob_to_delete = self.client.get_blob_client(container, blob)
     try:
       blob_to_delete.delete_blob()
-    except BlobStorageError as e:
-      if e.code == 404:
+    except ResourceNotFoundError as e:
+      if e.status_code == 404:
         # Return success when the file doesn't exist anymore for idempotency.
         return
       else:
