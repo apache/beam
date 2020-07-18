@@ -31,6 +31,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -70,6 +71,7 @@ import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.api.InitContext;
 import org.apache.parquet.hadoop.api.ReadSupport;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.hadoop.metadata.FileMetaData;
 import org.apache.parquet.io.ColumnIOFactory;
@@ -363,26 +365,22 @@ public class ParquetIO {
         reader.setRequestedSchema(requestedSchema);
         MessageColumnIO columnIO =
             columnIOFactory.getColumnIO(requestedSchema, fileSchema, strictTypeChecking);
-        for (int i = 0; i < reader.getRowGroups().size(); i++) {
-          if (i < tracker.currentRestriction().getFrom()) {
-            reader.skipNextRowGroup();
-            continue;
-          }
-          if (tracker.tryClaim((long) i)) {
-            PageReadStore pages = reader.readNextRowGroup();
-            i += 1;
-            RecordReader<GenericRecord> recordReader =
-                columnIO.getRecordReader(
-                    pages, recordConverter, filterRecords ? filter : FilterCompat.NOOP);
-            GenericRecord read;
-            long current = 0;
-            long totalRows = pages.getRowCount();
-            while (current < totalRows) {
-              outputReceiver.output(recordReader.read());
-              current += 1;
-            }
-          } else {
-            break;
+        long currentBlock = tracker.currentRestriction().getFrom();
+        for (int i = 0; i < currentBlock; i++) {
+          reader.skipNextRowGroup();
+        }
+        while (tracker.tryClaim(currentBlock)) {
+          PageReadStore pages = reader.readNextRowGroup();
+          currentBlock += 1;
+          RecordReader<GenericRecord> recordReader =
+              columnIO.getRecordReader(
+                  pages, recordConverter, filterRecords ? filter : FilterCompat.NOOP);
+          GenericRecord read;
+          long currentRow = 0;
+          long totalRows = pages.getRowCount();
+          while (currentRow < totalRows) {
+            outputReceiver.output(recordReader.read());
+            currentRow += 1;
           }
         }
       }
@@ -421,6 +419,27 @@ public class ParquetIO {
       @NewTracker
       public OffsetRangeTracker newTracker(@Restriction OffsetRange restriction) {
         return new OffsetRangeTracker(restriction);
+      }
+
+      @GetSize
+      public double getSize(@Element FileIO.ReadableFile file, @Restriction OffsetRange restriction)
+          throws Exception {
+        InputFile inputFile = getInputFile(file);
+        Configuration conf = setConf();
+        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
+        ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
+        if (restriction == null) {
+          return reader.getRecordCount();
+        } else {
+          long start = restriction.getFrom();
+          long end = restriction.getTo();
+          List<BlockMetaData> blocks = reader.getRowGroups();
+          double size = 0;
+          for (long i = start; i < end; i++) {
+            size += blocks.get((int) i).getRowCount();
+          }
+          return size;
+        }
       }
     }
 
