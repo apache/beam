@@ -13,31 +13,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package test
 
 import (
-	"context"
+	"beam.apache.org/learning/katas/core_transforms/map/pardo/pkg/task"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
-	"pardo/pkg/task"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"testing"
 )
 
-func main() {
-	ctx := context.Background()
-
+func TestApplyTransform(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
-
-	input := beam.Create(s, 1, 2, 3, 4, 5)
-
-	output := task.ApplyTransform(s, input)
-
-	debug.Print(s, output)
-
-	err := beamx.Run(ctx, p)
-
-	if err != nil {
-		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+	tests := []struct {
+		input beam.PCollection
+		want []interface{}
+	}{
+		{
+			input: beam.Create(s, 1, 2, 3, 4, 5),
+			want: []interface{}{10, 20, 30, 40, 50},
+		},
+	}
+	for _, tt := range tests {
+		got := task.ApplyTransform(s, tt.input)
+		passert.Equals(s, got, tt.want...)
+		if err := ptest.Run(p); err != nil {
+			t.Error(err)
+		}
 	}
 }
+
