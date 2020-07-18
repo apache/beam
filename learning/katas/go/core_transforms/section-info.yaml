@@ -18,7 +18,7 @@
 #
 
 content:
-- Map
+- map
 - GroupByKey
 - CoGroupByKey
 - Combine
