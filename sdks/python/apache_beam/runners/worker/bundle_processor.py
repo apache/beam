@@ -231,7 +231,7 @@ class DataInputOperation(RunnerIOOperation):
 
   def try_split(
       self, fraction_of_remainder, total_buffer_size, allowed_split_points):
-    # type: (...) -> Optional[Tuple[int, Optional[operations.SdfSplitResultsPrimary], Optional[operations.SdfSplitResultsResidual], int]]
+    # type: (...) -> Optional[Tuple[int, Iterable[operations.SdfSplitResultsPrimary], Iterable[operations.SdfSplitResultsResidual], int]]
     with self.splitting_lock:
       if not self.started:
         return None
@@ -287,10 +287,10 @@ class DataInputOperation(RunnerIOOperation):
           is_valid_split_point(index + 1)):
         split = try_split(
             keep_of_element_remainder
-        )  # type: Optional[Tuple[operations.SdfSplitResultsPrimary, operations.SdfSplitResultsResidual]]
+        )  # type: Optional[Tuple[Iterable[operations.SdfSplitResultsPrimary], Iterable[operations.SdfSplitResultsResidual]]]
         if split:
-          element_primary, element_residual = split
-          return index - 1, element_primary, element_residual, index + 1
+          element_primaries, element_residuals = split
+          return index - 1, element_primaries, element_residuals, index + 1
     # Otherwise, split at the closest element boundary.
     # pylint: disable=round-builtin
     stop_index = index + max(1, int(round(current_element_progress + keep)))
@@ -310,7 +310,7 @@ class DataInputOperation(RunnerIOOperation):
         else:
           stop_index = next
     if index < stop_index < stop:
-      return stop_index - 1, None, None, stop_index
+      return stop_index - 1, [], [], stop_index
     else:
       return None
 
@@ -1025,14 +1025,14 @@ class BundleProcessor(object):
             if split:
               (
                   primary_end,
-                  element_primary,
-                  element_residual,
+                  element_primaries,
+                  element_residuals,
                   residual_start,
               ) = split
-              if element_primary:
+              for element_primary in element_primaries:
                 split_response.primary_roots.add().CopyFrom(
                     self.bundle_application(*element_primary))
-              if element_residual:
+              for element_residual in element_residuals:
                 split_response.residual_roots.add().CopyFrom(
                     self.delayed_bundle_application(*element_residual))
               split_response.channel_splits.extend([
@@ -1390,10 +1390,7 @@ def create_pair_with_restriction(*args):
       self.restriction_provider = restriction_provider
       self.watermark_estimator_provider = watermark_estimator_provider
 
-    # An unused window is requested to force explosion of multi-window
-    # WindowedValues.
-    def process(
-        self, element, _unused_window=beam.DoFn.WindowParam, *args, **kwargs):
+    def process(self, element, *args, **kwargs):
       # TODO(SDF): Do we want to allow mutation of the element?
       # (E.g. it could be nice to shift bulky description to the portion
       # that can be distributed.)
