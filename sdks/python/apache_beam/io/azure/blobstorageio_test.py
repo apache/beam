@@ -23,9 +23,37 @@ from __future__ import absolute_import
 import logging
 import unittest
 import os
+import datetime
+from builtins import object
 
 from apache_beam.io.azure import blobstorageio
 from apitools.base.py.exceptions import HttpError
+
+
+class FakeFile(object):
+  def __init__(self, container, blob, contents, last_updated=None, etag=None):
+    self.container = container
+    self.blob = blob 
+    self.contents = contents
+    self.last_updated = last_updated
+    
+    if not etag:
+      self.etag = '"%s-1"' % ('x' * 32)
+    else:
+      self.etag = etag
+
+  def get_metadata(self):
+    last_updated_datetime = None 
+    if self.last_updated:
+      last_updated_datetime = datetime.datetime.utcfromtimestamp(
+          self.last_updated)
+    
+    return blobstorageio.Blob(
+        self.etag,
+        self.blob,
+        last_updated_datetime,
+        len(self.contents),
+        mime_type=None)
 
 
 class TestAZFSPathParser(unittest.TestCase):
@@ -255,7 +283,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertEqual(new_file_contents, contents)
 
     # Clean up
-    #self.azfs.delete(file_name)
+    self.azfs.delete(file_name)
    
   def test_checksum(self):
     file_name = self.TEST_DATA_PATH + 'test_checksum'

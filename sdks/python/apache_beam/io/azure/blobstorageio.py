@@ -66,6 +66,18 @@ def get_azfs_url(storage_account, container, blob=''):
   return 'https://' + storage_account + '.blob.core.windows.net/' + container + '/' + blob
 
 
+class Blob():
+  """
+  A Blob in Azure Blob Storage
+  """
+  def __init__(self, etag, name, last_updated, size, mime_type):
+    self.etag = etag 
+    self.name = name 
+    self.last_updated = last_updated
+    self.size = size 
+    self.mime_type = mime_type
+
+
 class BlobStorageIOError(IOError, retry.PermanentException):
   """Blob Strorage IO error that should not be retried."""
   pass
@@ -217,8 +229,8 @@ class BlobStorageIO(object):
     try:
       blob_to_check.get_blob_properties()
       return True
-    except ResourceNotFoundError as http_error:
-      if http_error.status_code == 404:
+    except ResourceNotFoundError as e:
+      if e.status_code == 404:
         # HTTP 404 indicates that the file did not exist
         return False
       else:
