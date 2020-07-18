@@ -211,12 +211,16 @@ class TestBlobStorageIO(unittest.TestCase):
       self.assertFalse(self.azfs.exists(file_name_pattern % i))
 
   def test_exists(self):
-    file_name = self.TEST_DATA_PATH + 'test_file'
+    file_name = self.TEST_DATA_PATH + 'test_file_exists'
+    file_size = 1024 
 
-    # TODO : add insert_random_file functionality
-    
-    self.assertFalse(self.azfs.exists(file_name + 'xyz'))
+    self.assertFalse(self.azfs.exists(file_name))
+    self._insert_random_file(file_name, file_size)    
     self.assertTrue(self.azfs.exists(file_name))
+
+    # Clean up
+    self.azfs.delete(file_name)
+    self.assertFalse(self.azfs.exists(file_name))
 
   def test_full_file_read(self):
     file_name = self.TEST_DATA_PATH + 'test_file_read'
