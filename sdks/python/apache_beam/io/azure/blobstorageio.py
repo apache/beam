@@ -195,13 +195,13 @@ class BlobStorageIO(object):
     blob_to_delete = self.client.get_blob_client(container, blob)
     try:
       blob_to_delete.delete_blob()
-    except HttpError as http_error:
-      if http_error.status_code == 404:
+    except BlobStorageError as e:
+      if e.code == 404:
         # Return success when the file doesn't exist anymore for idempotency.
         return
       else:
         logging.error('HTTP error while deleting file %s', path)
-        raise http_error
+        raise e
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
