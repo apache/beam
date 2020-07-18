@@ -43,7 +43,7 @@ class FakeFile(object):
       self.etag = etag
 
   def get_metadata(self):
-    last_updated_datetime = None 
+    last_updated_datetime = None
     if self.last_updated:
       last_updated_datetime = datetime.datetime.utcfromtimestamp(
           self.last_updated)
@@ -102,12 +102,15 @@ class TestAZFSPathParser(unittest.TestCase):
 
 class TestBlobStorageIO(unittest.TestCase):
   def _insert_random_file(self, path, size):
-    # TODO : fake client implementation
+    storage_account, container, blob = blobstorageio.parse_azfs_path(path)
     contents = os.urandom(size)
+    fakeFile = FakeFile(container, blob, contents)
 
     f = self.azfs.open(path, 'w')
     f.write(contents)
     f.close()
+
+    return fakeFile
 
   def setUp(self):
     self.azfs = blobstorageio.BlobStorageIO()
