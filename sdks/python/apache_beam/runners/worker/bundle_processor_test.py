@@ -26,14 +26,12 @@ from apache_beam.runners.worker.bundle_processor import DataInputOperation
 
 
 def simple_split(first_residual_index):
-  return first_residual_index - 1, None, None, first_residual_index
+  return first_residual_index - 1, [], [], first_residual_index
 
 
 def element_split(frac, index):
   return (
-      index - 1,
-      'Primary(%0.1f)' % frac,
-      'Residual(%0.1f)' % (1 - frac),
+      index - 1, ['Primary(%0.1f)' % frac], ['Residual(%0.1f)' % (1 - frac)],
       index + 1)
 
 
@@ -107,10 +105,12 @@ class SplitTest(unittest.TestCase):
 
     # If the split falls inside the first, splittable element, split there.
     self.assertEqual(
-        self.sdf_split(0, 0, 0.20, 4), (-1, 'Primary(0.8)', 'Residual(0.2)', 1))
+        self.sdf_split(0, 0, 0.20, 4),
+        (-1, ['Primary(0.8)'], ['Residual(0.2)'], 1))
     # The choice of split depends on the progress into the first element.
     self.assertEqual(
-        self.sdf_split(0, 0, .125, 4), (-1, 'Primary(0.5)', 'Residual(0.5)', 1))
+        self.sdf_split(0, 0, .125, 4),
+        (-1, ['Primary(0.5)'], ['Residual(0.5)'], 1))
     # Here we are far enough into the first element that splitting at 0.2 of the
     # remainder falls outside the first element.
     self.assertEqual(self.sdf_split(0, .5, 0.2, 4), simple_split(1))
@@ -119,13 +119,14 @@ class SplitTest(unittest.TestCase):
     self.assertEqual(self.sdf_split(2, 0, 0.6, 4), simple_split(3))
     self.assertEqual(self.sdf_split(2, 0.9, 0.6, 4), simple_split(4))
     self.assertEqual(
-        self.sdf_split(2, 0.5, 0.2, 4), (1, 'Primary(0.6)', 'Residual(0.4)', 3))
+        self.sdf_split(2, 0.5, 0.2, 4),
+        (1, ['Primary(0.6)'], ['Residual(0.4)'], 3))
 
   def test_sdf_split_with_allowed_splits(self):
     # This is where we would like to split, when all split points are available.
     self.assertEqual(
         self.sdf_split(2, 0, 0.2, 5, allowed=(1, 2, 3, 4, 5)),
-        (1, 'Primary(0.6)', 'Residual(0.4)', 3))
+        (1, ['Primary(0.6)'], ['Residual(0.4)'], 3))
     # We can't split element at index 2, because 3 is not a split point.
     self.assertEqual(
         self.sdf_split(2, 0, 0.2, 5, allowed=(1, 2, 4, 5)), simple_split(4))
