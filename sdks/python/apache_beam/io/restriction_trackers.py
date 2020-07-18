@@ -161,3 +161,6 @@ class OffsetRestrictionTracker(RestrictionTracker):
           self._checkpointed = True
         self._range, residual_range = self._range.split_at(split_point)
         return self._range, residual_range
+
+  def is_bounded(self):
+    return True

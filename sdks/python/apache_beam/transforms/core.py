@@ -320,6 +320,24 @@ class RestrictionProvider(object):
     for part in self.split(element, restriction):
       yield part, self.restriction_size(element, part)
 
+  def truncate(self, element, restriction):
+    """Truncates the provided restriction into a restriction representing a
+    finite amount of work when the pipeline is
+    `draining <https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#> for additional details about drain.>_`.  # pylint: disable=line-too-long
+    By default, if the restriction is bounded then the restriction will be
+    returned otherwise None will be returned.
+
+    This API is optional and should only be implemented if more granularity is
+    required.
+
+    Return a truncated finite restriction if further processing is required
+    otherwise return None to represent that no further processing of this
+    restriction is required.
+    """
+    restriction_tracker = self.create_tracker(restriction)
+    if restriction_tracker.is_bounded():
+      return restriction
+
 
 def get_function_arguments(obj, func):
   # type: (...) -> typing.Tuple[typing.List[str], typing.List[typing.Any]]
@@ -621,6 +639,16 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   @staticmethod
   def from_callable(fn):
     return CallableWrapperDoFn(fn)
+
+  @staticmethod
+  def unbounded_per_element():
+    """A decorator on process fn specifying that the fn performs an unbounded
+    amount of work per input element."""
+    def wrapper(process_fn):
+      process_fn.unbounded_per_element = True
+      return process_fn
+
+    return wrapper
 
   def default_label(self):
     return self.__class__.__name__

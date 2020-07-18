@@ -199,6 +199,11 @@ class MethodWrapper(object):
     self.watermark_estimator_provider = None
     self.watermark_estimator_provider_arg_name = None
 
+    if hasattr(self.method_value, 'unbounded_per_element'):
+      self.unbounded_per_element = True
+    else:
+      self.unbounded_per_element = False
+
     for kw, v in zip(self.args[-len(self.defaults):], self.defaults):
       if isinstance(v, core.DoFn.StateParam):
         self.state_args_to_replace[kw] = v.state_spec
@@ -306,6 +311,9 @@ class DoFnSignature(object):
   def get_watermark_estimator_provider(self):
     # type: () -> WatermarkEstimatorProvider
     return self.process_method.watermark_estimator_provider
+
+  def is_unbounded_per_element(self):
+    return self.process_method.unbounded_per_element
 
   def _validate(self):
     # type: () -> None
