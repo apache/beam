@@ -169,12 +169,12 @@ class TestBlobStorageIO(unittest.TestCase):
 
   def test_delete(self):
     file_name = self.TEST_DATA_PATH + 'test_file'
+    file_size = 1024
     
     # # Test deletion of non-existent file.
     # self.azfs.delete(file_name) 
 
-    # TODO : add insert_random_file functionality
-
+    self._insert_random_file(file_name, file_size)
     files = self.azfs.list_prefix(self.TEST_DATA_PATH)
     self.assertTrue(file_name in files)
 
