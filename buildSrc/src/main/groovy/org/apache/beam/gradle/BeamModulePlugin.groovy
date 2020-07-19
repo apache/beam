@@ -402,7 +402,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def hadoop_version = "2.8.5"
     def hamcrest_version = "2.1"
     def jackson_version = "2.10.2"
-    def jaxb_api_version = "2.2.12"
+    def jaxb_api_version = "2.3.3"
     def kafka_version = "1.0.0"
     def nemo_version = "0.1"
     def netty_version = "4.1.30.Final"
@@ -524,7 +524,8 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_dataformat_yaml                     : "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jackson_version",
         jackson_datatype_joda                       : "com.fasterxml.jackson.datatype:jackson-datatype-joda:$jackson_version",
         jackson_module_scala                        : "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
-        jaxb_api                                    : "javax.xml.bind:jaxb-api:$jaxb_api_version",
+        jaxb_api                                    : "jakarta.xml.bind:jakarta.xml.bind-api:$jaxb_api_version",
+        jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
         joda_time                                   : "joda-time:joda-time:2.10.5",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:3.0.2",
