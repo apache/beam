@@ -28,6 +28,7 @@ dependencies {
   compile library.java.stax2_api
   compile library.java.woodstox_core_asl
   testCompile library.java.jaxb_api
+  testCompile library.java.jaxb_impl
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
