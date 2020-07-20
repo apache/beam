@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
+import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAnalyticFunctions;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -133,9 +134,13 @@ public class BeamWindowRel extends Window implements BeamRelNode {
               aggregateCalls.stream()
                   .forEach(
                       anAggCall -> {
-                        List<Integer> argList = anAggCall.getArgList();
+                        List<Integer> argList = Lists.newArrayList(anAggCall.getArgList());
+                        if (argList.size() == 2) {
+                          argList.set(1, getLiteralValueConstants(argList.get(1)).intValue());
+                        }
                         Schema.Field field =
-                            CalciteUtils.toField(anAggCall.getName(), anAggCall.getType());
+                            CalciteUtils.toField(anAggCall.getName(), anAggCall.getType())
+                                .withNullable(true);
                         Combine.CombineFn combineFn =
                             AggregationCombineFnAdapter.createCombineFnAnalyticsFunctions(
                                 anAggCall, field, anAggCall.getAggregation().getName());
@@ -160,6 +165,11 @@ public class BeamWindowRel extends Window implements BeamRelNode {
 
   private BigDecimal getLiteralValueConstants(RexNode n) {
     int idx = ((RexInputRef) n).getIndex() - input.getRowType().getFieldCount();
+    return (BigDecimal) this.constants.get(idx).getValue();
+  }
+
+  private BigDecimal getLiteralValueConstants(Integer n) {
+    int idx = n - input.getRowType().getFieldCount();
     return (BigDecimal) this.constants.get(idx).getValue();
   }
 
@@ -289,6 +299,10 @@ public class BeamWindowRel extends Window implements BeamRelNode {
             aggRange = getRows(sortedRowsAsList, idx);
           } else {
             aggRange = getRange(indexRange, sortedRowsAsList.get(idx));
+          }
+          if (fieldAgg.combineFn instanceof BeamBuiltinAnalyticFunctions.ConfigurableCombineFn) {
+            ((BeamBuiltinAnalyticFunctions.ConfigurableCombineFn) fieldAgg.combineFn)
+                .setConfig(fieldAgg.inputFields.get(1));
           }
           Object accumulator = fieldAgg.combineFn.createAccumulator();
           final int aggFieldIndex = fieldAgg.inputFields.get(0);

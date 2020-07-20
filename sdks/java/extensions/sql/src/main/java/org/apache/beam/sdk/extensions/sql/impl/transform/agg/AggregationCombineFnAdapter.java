@@ -175,13 +175,7 @@ public class AggregationCombineFnAdapter<T> {
     } else {
       combineFn = BeamBuiltinAnalyticFunctions.create(functionName, field.getType());
     }
-    if (call.getArgList().isEmpty()) {
-      return new SingleInputCombiner(combineFn);
-    } else if (call.getArgList().size() == 1) {
-      return new SingleInputCombiner(combineFn);
-    } else {
-      return new MultiInputCombiner(combineFn);
-    }
+    return combineFn;
   }
 
   public static CombineFn<Row, ?, Row> createConstantCombineFn() {

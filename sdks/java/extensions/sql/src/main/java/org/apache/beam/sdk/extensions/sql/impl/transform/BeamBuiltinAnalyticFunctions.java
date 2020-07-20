@@ -32,6 +32,7 @@ public class BeamBuiltinAnalyticFunctions {
               .putAll(BeamBuiltinAggregations.BUILTIN_AGGREGATOR_FACTORIES)
               .put("FIRST_VALUE", typeName -> navigationFirstValue())
               .put("LAST_VALUE", typeName -> navigationLastValue())
+              .put("NTH_VALUE", typeName -> navigationNthValue())
               // Pending Numbering functions
               .build();
 
@@ -51,6 +52,10 @@ public class BeamBuiltinAnalyticFunctions {
 
   public static <T> Combine.CombineFn<T, ?, T> navigationLastValue() {
     return new LastValueCombineFn();
+  }
+
+  public static <T> Combine.CombineFn<T, ?, T> navigationNthValue() {
+    return new NthValueCombineFn();
   }
 
   private static class FirstValueCombineFn<T> extends Combine.CombineFn<T, Optional<T>, T> {
@@ -98,6 +103,61 @@ public class BeamBuiltinAnalyticFunctions {
     @Override
     public Optional<T> addInput(Optional<T> accumulator, T input) {
       Optional<T> r = Optional.of(input);
+      return r;
+    }
+
+    @Override
+    public Optional<T> mergeAccumulators(Iterable<Optional<T>> accumulators) {
+      Optional<T> r = Optional.empty();
+      for (Optional<T> ac : accumulators) {
+        if (ac.isPresent()) {
+          r = ac;
+        }
+      }
+      return r;
+    }
+
+    @Override
+    public T extractOutput(Optional<T> accumulator) {
+      return accumulator.isPresent() ? accumulator.get() : null;
+    }
+  }
+
+  public abstract static class ConfigurableCombineFn<InputT, AccumT, OutputT, Param>
+      extends Combine.CombineFn<InputT, AccumT, OutputT> {
+    private Param config;
+
+    public Param getConfig() {
+      return config;
+    }
+
+    public void setConfig(Param config) {
+      this.config = config;
+    }
+  }
+
+  private static class NthValueCombineFn<T>
+      extends ConfigurableCombineFn<T, Optional<T>, T, Integer> {
+
+    private int count;
+
+    private NthValueCombineFn() {}
+
+    @Override
+    public Optional<T> createAccumulator() {
+      count = 0;
+      return Optional.empty();
+    }
+
+    @Override
+    public Optional<T> addInput(Optional<T> accumulator, T input) {
+      count++;
+      Optional<T> r = accumulator;
+      if (!accumulator.isPresent()) {
+        if (this.getConfig() == count) {
+          r = Optional.of(input);
+        }
+      }
       return r;
     }
 
