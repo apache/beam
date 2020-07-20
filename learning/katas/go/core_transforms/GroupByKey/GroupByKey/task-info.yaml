@@ -23,13 +23,9 @@ files:
   visible: false
 - name: cmd/main.go
   visible: true
-- name: go.mod
-  visible: false
 - name: pkg/task/task.go
   visible: true
   placeholders:
   - offset: 937
     length: 138
     placeholder_text: TODO()
-- name: go.sum
-  visible: false

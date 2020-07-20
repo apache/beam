@@ -19,7 +19,7 @@
 
 content:
 - map
-- GroupByKey
+- groupbykey
 - CoGroupByKey
 - Combine
 - Flatten
