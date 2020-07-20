@@ -167,7 +167,7 @@ jobs:
     - name: Download wheels from artifacts
       uses: actions/download-artifact@v2
       with:
-        name: wheelhouse-${{ matrix.os_python.os }}
+        name: wheelhouse-${{ matrix.os }}
         path: wheelhouse/
     - name: Authenticate on GCP
       uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
