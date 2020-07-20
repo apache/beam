@@ -121,6 +121,9 @@ jsp-api:
 jsr166e:
   '1.1.0':
     license: "https://raw.githubusercontent.com/twitter-archive/jsr166e/master/LICENSE"
+junrar:
+  '4.0.0':
+    license: "https://raw.githubusercontent.com/junrar/junrar/v4.0.0/license.txt"
 jpam:
   '1.1': "http://jpam.sourceforge.net/LICENSE.txt"
 log4j:
