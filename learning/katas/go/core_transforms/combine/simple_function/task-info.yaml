@@ -17,7 +17,15 @@
 # under the License.
 #
 
-content:
-- Simple Function
-- CombineFn
-- Combine PerKey
+type: edu
+files:
+- name: test/task_test.go
+  visible: false
+- name: cmd/main.go
+  visible: true
+- name: pkg/task/task.go
+  visible: true
+  placeholders:
+  - offset: 949
+    length: 72
+    placeholder_text: TODO()

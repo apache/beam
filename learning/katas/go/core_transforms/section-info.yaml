@@ -21,7 +21,7 @@ content:
 - map
 - groupbykey
 - cogroupbykey
-- Combine
+- combine
 - Flatten
 - Partition
 - Side Input
