@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
@@ -29,7 +30,8 @@ public class BeamBuiltinAnalyticFunctions {
       BUILTIN_ANALYTIC_FACTORIES =
           ImmutableMap.<String, Function<Schema.FieldType, Combine.CombineFn<?, ?, ?>>>builder()
               .putAll(BeamBuiltinAggregations.BUILTIN_AGGREGATOR_FACTORIES)
-              // Pending Navigation functions
+              .put("FIRST_VALUE", typeName -> NavigationFirstValue())
+              .put("LAST_VALUE", typeName -> NavigationLastValue())
               // Pending Numbering functions
               .build();
 
@@ -41,5 +43,78 @@ public class BeamBuiltinAnalyticFunctions {
     }
     throw new UnsupportedOperationException(
         String.format("Analytics Function [%s] is not supported", functionName));
+  }
+
+  public static <T> Combine.CombineFn<T, ?, T> NavigationFirstValue() {
+    return new FirstValueCombineFn();
+  }
+
+  public static <T> Combine.CombineFn<T, ?, T> NavigationLastValue() {
+    return new LastValueCombineFn();
+  }
+
+  private static class FirstValueCombineFn<T> extends Combine.CombineFn<T, Optional<T>, T> {
+    private FirstValueCombineFn() {}
+
+    @Override
+    public Optional<T> createAccumulator() {
+      return Optional.empty();
+    }
+
+    @Override
+    public Optional<T> addInput(Optional<T> accumulator, T input) {
+      Optional<T> r = accumulator;
+      if (!accumulator.isPresent()) {
+        r = Optional.of(input);
+      }
+      return r;
+    }
+
+    @Override
+    public Optional<T> mergeAccumulators(Iterable<Optional<T>> accumulators) {
+      Optional<T> r = Optional.empty();
+      for (Optional<T> ac : accumulators) {
+        if (!r.isPresent() && ac.isPresent()) {
+          r = ac;
+        }
+      }
+      return r;
+    }
+
+    @Override
+    public T extractOutput(Optional<T> accumulator) {
+      return accumulator.isPresent() ? accumulator.get() : null;
+    }
+  }
+
+  private static class LastValueCombineFn<T> extends Combine.CombineFn<T, Optional<T>, T> {
+    private LastValueCombineFn() {}
+
+    @Override
+    public Optional<T> createAccumulator() {
+      return Optional.empty();
+    }
+
+    @Override
+    public Optional<T> addInput(Optional<T> accumulator, T input) {
+      Optional<T> r = Optional.of(input);
+      return r;
+    }
+
+    @Override
+    public Optional<T> mergeAccumulators(Iterable<Optional<T>> accumulators) {
+      Optional<T> r = Optional.empty();
+      for (Optional<T> ac : accumulators) {
+        if (ac.isPresent()) {
+          r = ac;
+        }
+      }
+      return r;
+    }
+
+    @Override
+    public T extractOutput(Optional<T> accumulator) {
+      return accumulator.isPresent() ? accumulator.get() : null;
+    }
   }
 }
