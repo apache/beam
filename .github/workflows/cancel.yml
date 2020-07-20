@@ -25,7 +25,7 @@ jobs:
     steps:
       - name: Get workflow id
         run: |
-          WORKFLOW_ID=$(curl "Authorization: token ${{ github.token }}" https://api.github.com/repos/${{ github.repository }}/actions/workflows/build_wheels.yml | jq '.id')
+          WORKFLOW_ID=$(curl "Authorization: token ${{ github.token }}" https://api.github.com/repos/${{ github.repository }}/actions/workflows/ci.yml | jq '.id')
           echo "Workflow id: ${WORKFLOW_ID}"
           echo "::set-env name=WORKFLOW_ID::${WORKFLOW_ID}"
       - uses: styfle/cancel-workflow-action@0.3.2
