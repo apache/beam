@@ -35,7 +35,3 @@ files:
     placeholder_text: TODO()
 - name: cmd/main.go
   visible: true
-- name: go.mod
-  visible: false
-- name: go.sum
-  visible: false
