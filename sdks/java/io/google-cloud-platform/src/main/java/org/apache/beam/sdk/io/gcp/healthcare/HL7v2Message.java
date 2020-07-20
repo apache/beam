@@ -22,7 +22,6 @@ import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.ParsedData;
 import com.google.api.services.healthcare.v1beta1.model.SchematizedData;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 
 /** The type HL7v2 message to wrap the {@link Message} model. */
@@ -63,22 +62,10 @@ public class HL7v2Message {
             msg.getCreateTime(),
             msg.getData(),
             msg.getSendFacility());
-    if (msg.getParsedData() != null) {
-      mb.setParsedData(msg.getParsedData());
-    } else {
-      mb.setParsedData(new ParsedData());
-    }
-    if (msg.getSchematizedData() != null) {
-      mb.setSchematizedData(msg.getSchematizedData().getData());
-    } else {
-      mb.setSchematizedData("empty");
-    }
-    if (msg.getLabels() != null) {
-      mb.setLabels(msg.getLabels());
-    } else {
-      mb.setLabels(new HashMap<>());
-    }
-
+    mb.parsedData = msg.getParsedData();
+    mb.schematizedData =
+        msg.getSchematizedData() != null ? msg.getSchematizedData().getData() : null;
+    mb.labels = msg.getLabels();
     return mb.build();
   }
 
@@ -162,15 +149,68 @@ public class HL7v2Message {
     this.createTime = mb.createTime;
     this.data = mb.data;
     this.sendFacility = mb.sendFacility;
-    if (mb.parsedData != null) {
-      this.parsedData = mb.parsedData;
+    this.parsedData = mb.parsedData;
+    this.schematizedData = mb.schematizedData;
+    this.labels = mb.labels;
+  }
+
+  @Override
+  public int hashCode() {
+    int hash = 5;
+    hash = 31 * hash + (this.name != null ? this.name.hashCode() : 0);
+    hash = 31 * hash + (this.messageType != null ? this.messageType.hashCode() : 0);
+    hash = 31 * hash + (this.sendTime != null ? this.sendTime.hashCode() : 0);
+    hash = 31 * hash + (this.createTime != null ? this.createTime.hashCode() : 0);
+    hash = 31 * hash + (this.data != null ? this.data.hashCode() : 0);
+    hash = 31 * hash + (this.sendFacility != null ? this.sendFacility.hashCode() : 0);
+    hash = 31 * hash + (this.messageType != null ? this.messageType.hashCode() : 0);
+    hash = 31 * hash + (this.parsedData != null ? this.parsedData.hashCode() : 0);
+    hash = 31 * hash + (this.schematizedData != null ? this.schematizedData.hashCode() : 0);
+    hash = 31 * hash + (this.labels != null ? this.labels.hashCode() : 0);
+    return hash;
+  }
+
+  // Overriding equals() to compare two HL7v2Message objects
+  @Override
+  public boolean equals(Object o) {
+
+    // If the object is compared with itself then return true
+    if (o == this) {
+      return true;
     }
-    if (mb.schematizedData != null) {
-      this.schematizedData = mb.schematizedData;
+
+    /* Check if o is an instance of HL7v2Message or not
+    "null instanceof [type]" also returns false */
+    if (!(o instanceof HL7v2Message)) {
+      return false;
     }
-    if (mb.labels != null) {
-      this.labels = mb.labels;
+
+    // typecast o to HLv2Message so that we can compare data members
+    HL7v2Message c = (HL7v2Message) o;
+
+    boolean parsedDataCompare = true;
+    boolean schematizedDataCompare = true;
+    boolean labelsCompare = true;
+    boolean messageCompare = true;
+
+    // Compare the data members and return accordingly
+    if (parsedData != null) {
+      parsedDataCompare = parsedData.equals(c.parsedData);
     }
+    if (schematizedData != null) {
+      schematizedDataCompare = schematizedData.equals(c.schematizedData);
+    }
+    if (labels != null) {
+      labelsCompare = labels.equals(c.labels);
+    }
+    messageCompare =
+        name.equals(c.name)
+            && messageType.equals(c.messageType)
+            && sendTime.equals(c.sendTime)
+            && createTime.equals(c.createTime)
+            && data.equals(c.data)
+            && sendFacility.equals(c.sendFacility);
+    return parsedDataCompare && schematizedDataCompare && labelsCompare && messageCompare;
   }
 
   /**
