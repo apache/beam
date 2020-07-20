@@ -1325,7 +1325,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other == null || !(other instanceof KeyedHold)) {
         return false;
       }
@@ -1723,7 +1723,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other == null || !(other instanceof TimerUpdate)) {
         return false;
       }

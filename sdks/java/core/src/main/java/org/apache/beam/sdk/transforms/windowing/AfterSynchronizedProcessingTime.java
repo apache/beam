@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -56,7 +57,7 @@ public class AfterSynchronizedProcessingTime extends OnceTrigger {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     return this == obj || obj instanceof AfterSynchronizedProcessingTime;
   }
 

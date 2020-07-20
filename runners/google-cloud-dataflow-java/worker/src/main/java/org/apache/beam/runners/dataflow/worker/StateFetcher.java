@@ -229,7 +229,7 @@ class StateFetcher {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other instanceof SideInputId) {
         SideInputId otherId = (SideInputId) other;
         return tag.equals(otherId.tag) && window.equals(otherId.window);

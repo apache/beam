@@ -344,7 +344,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -921,7 +921,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (o == null || getClass() != o.getClass()) {
         return false;
       }

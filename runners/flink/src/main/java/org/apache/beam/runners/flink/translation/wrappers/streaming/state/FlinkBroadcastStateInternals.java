@@ -304,7 +304,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -394,7 +394,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -508,7 +508,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -640,7 +640,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -775,7 +775,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

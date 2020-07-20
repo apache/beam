@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 // TODO: Think about making this a complete dynamic union by adding
 // a schema.  Type would then be defined by the corresponding schema entry.
-
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * This corresponds to an integer union tag and value. The mapping of union tag to type must come
@@ -50,7 +50,7 @@ public class RawUnionValue {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

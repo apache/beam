@@ -314,7 +314,7 @@ public class Combine {
    *     int count = 0;
    *
    *    {@literal @Override}
-   *     public boolean equals(Object other) {
+   *     public boolean equals(@Nullable Object other) {
    *       if (other == null) return false;
    *       if (other == this) return true;
    *       if (!(other instanceof Accum))return false;
@@ -718,7 +718,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof ToIntegerCodingFunction;
       }
 
@@ -736,7 +736,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof FromIntegerCodingFunction;
       }
 
@@ -815,7 +815,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof ToLongCodingFunction;
       }
 
@@ -833,7 +833,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof FromLongCodingFunction;
       }
 
@@ -914,7 +914,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof ToDoubleCodingFunction;
       }
 
@@ -932,7 +932,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof FromDoubleCodingFunction;
       }
 

@@ -143,7 +143,7 @@ public class IsmReaderFactory implements ReaderFactory {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (!(obj instanceof IsmReaderKey)) {
         return false;
       }

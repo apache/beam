@@ -103,7 +103,7 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

@@ -115,7 +115,7 @@ public class DisplayData implements Serializable {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (obj instanceof DisplayData) {
       DisplayData that = (DisplayData) obj;
       return Objects.equals(this.entries, that.entries);
@@ -555,7 +555,7 @@ public class DisplayData implements Serializable {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj instanceof Path && Objects.equals(components, ((Path) obj).components);
     }
 

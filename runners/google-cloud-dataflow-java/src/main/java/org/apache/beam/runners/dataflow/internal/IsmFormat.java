@@ -401,7 +401,7 @@ public class IsmFormat {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other == this) {
         return true;
       }
@@ -456,7 +456,7 @@ public class IsmFormat {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(@Nullable Object obj) {
           return this == obj;
         }
 

@@ -702,7 +702,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (other == this) {
       return true;
     }

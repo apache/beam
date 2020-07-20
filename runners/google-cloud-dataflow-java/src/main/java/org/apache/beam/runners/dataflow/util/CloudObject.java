@@ -185,7 +185,7 @@ public final class CloudObject extends GenericJson implements Cloneable {
   }
 
   @Override
-  public boolean equals(Object otherObject) {
+  public boolean equals(@Nullable Object otherObject) {
     if (!(otherObject instanceof CloudObject)) {
       return false;
     }

@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code PTransform}s for computing the arithmetic mean (a.k.a. average) of the elements in a
@@ -148,7 +149,7 @@ public class Mean {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (!(other instanceof CountSum)) {
         return false;
       }

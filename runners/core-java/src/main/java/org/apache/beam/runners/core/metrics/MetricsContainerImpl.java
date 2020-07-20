@@ -364,7 +364,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (object instanceof MetricsContainerImpl) {
       MetricsContainerImpl metricsContainerImpl = (MetricsContainerImpl) object;
       return Objects.equals(stepName, metricsContainerImpl.stepName)

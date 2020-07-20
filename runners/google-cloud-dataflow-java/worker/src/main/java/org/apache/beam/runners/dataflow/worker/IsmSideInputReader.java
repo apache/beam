@@ -86,6 +86,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A side input reader over a set of {@link IsmFormat} files constructed by Dataflow. This reader
@@ -1067,7 +1068,7 @@ public class IsmSideInputReader implements SideInputReader {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (!(o instanceof Map.Entry)) {
         return false;
       }

@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.windowing.Window.OnTimeBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -335,7 +336,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (!(object instanceof WindowingStrategy)) {
       return false;
     }

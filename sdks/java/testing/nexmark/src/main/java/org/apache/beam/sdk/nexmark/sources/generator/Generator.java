@@ -29,6 +29,7 @@ import java.util.Random;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
@@ -81,7 +82,7 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

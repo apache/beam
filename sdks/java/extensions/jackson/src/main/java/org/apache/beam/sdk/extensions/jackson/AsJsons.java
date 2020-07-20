@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.jackson;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link PTransform} for serializing objects to JSON {@link String Strings}. Transforms a {@code

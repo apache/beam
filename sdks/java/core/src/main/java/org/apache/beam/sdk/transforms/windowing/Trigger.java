@@ -184,7 +184,7 @@ public abstract class Trigger implements Serializable {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (this == obj) {
       return true;
     }

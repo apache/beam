@@ -157,7 +157,7 @@ class ImmutableListBundleFactory implements BundleFactory {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return this == obj;
     }
   }

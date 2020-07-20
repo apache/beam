@@ -94,7 +94,7 @@ public class RunnerPCollectionView<T> extends PValueBase implements PCollectionV
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (!(other instanceof PCollectionView)) {
       return false;
     }

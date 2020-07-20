@@ -361,7 +361,7 @@ public class MqttIO {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other instanceof MqttCheckpointMark) {
         MqttCheckpointMark that = (MqttCheckpointMark) other;
         return Objects.equals(this.clientId, that.clientId)

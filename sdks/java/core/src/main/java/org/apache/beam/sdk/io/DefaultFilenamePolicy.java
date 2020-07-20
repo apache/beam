@@ -148,7 +148,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (!(o instanceof Params)) {
         return false;
       }

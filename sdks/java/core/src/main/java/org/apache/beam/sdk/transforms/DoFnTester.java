@@ -30,7 +30,6 @@ import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;

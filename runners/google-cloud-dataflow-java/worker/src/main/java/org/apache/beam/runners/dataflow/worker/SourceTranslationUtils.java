@@ -80,7 +80,7 @@ public class SourceTranslationUtils {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (this == obj) {
         return true;
       } else if (!(obj instanceof DataflowReaderProgress)) {
@@ -109,7 +109,7 @@ public class SourceTranslationUtils {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (this == obj) {
         return true;
       } else if (!(obj instanceof DataflowReaderPosition)) {
@@ -146,7 +146,7 @@ public class SourceTranslationUtils {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (this == obj) {
         return true;
       } else if (!(obj instanceof DataflowDynamicSplitRequest)) {
