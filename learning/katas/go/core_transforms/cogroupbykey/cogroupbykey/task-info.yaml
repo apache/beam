@@ -17,5 +17,15 @@
 # under the License.
 #
 
-content:
-- CoGroupByKey
+type: edu
+files:
+- name: test/task_test.go
+  visible: false
+- name: cmd/main.go
+  visible: true
+- name: pkg/task/task.go
+  visible: true
+  placeholders:
+  - offset: 978
+    length: 533
+    placeholder_text: TODO()

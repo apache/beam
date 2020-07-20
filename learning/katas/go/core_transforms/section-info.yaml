@@ -20,7 +20,7 @@
 content:
 - map
 - groupbykey
-- CoGroupByKey
+- cogroupbykey
 - Combine
 - Flatten
 - Partition
