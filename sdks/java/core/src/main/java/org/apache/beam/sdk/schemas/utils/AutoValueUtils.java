@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -66,6 +65,7 @@ import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.byt
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.ClassWriter;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for managing AutoValue schemas. */
 @Experimental(Kind.SCHEMAS)
@@ -85,8 +85,7 @@ public class AutoValueUtils {
     }
   }
 
-  @Nullable
-  private static Class getAutoValueGeneratedBuilder(Class<?> clazz) {
+  private static @Nullable Class getAutoValueGeneratedBuilder(Class<?> clazz) {
     // TODO: Handle extensions. Find the class with the maximum number of $ character prefixexs.
     String builderName = getAutoValueGeneratedName(clazz.getName()) + "$Builder";
     try {
@@ -107,8 +106,7 @@ public class AutoValueUtils {
   /**
    * Try to find an accessible constructor for creating an AutoValue class. Otherwise return null.
    */
-  @Nullable
-  public static SchemaUserTypeCreator getConstructorCreator(
+  public static @Nullable SchemaUserTypeCreator getConstructorCreator(
       Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
     Class<?> generatedClass = getAutoValueGenerated(clazz);
     List<FieldValueTypeInformation> schemaTypes = fieldValueTypeSupplier.get(clazz, schema);
@@ -152,8 +150,7 @@ public class AutoValueUtils {
   /**
    * Try to find an accessible builder class for creating an AutoValue class. Otherwise return null.
    */
-  @Nullable
-  public static SchemaUserTypeCreator getBuilderCreator(
+  public static @Nullable SchemaUserTypeCreator getBuilderCreator(
       Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
     Class<?> builderClass = getAutoValueGeneratedBuilder(clazz);
     if (builderClass == null) {

@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -388,10 +388,10 @@ public class CountingSource {
     private long current;
 
     // Initialized on first advance()
-    @Nullable private Instant currentTimestamp;
+    private @Nullable Instant currentTimestamp;
 
     // Initialized in start()
-    @Nullable private Instant firstStarted;
+    private @Nullable Instant firstStarted;
 
     private final Counter elementsRead = SourceMetrics.elementsRead();
 

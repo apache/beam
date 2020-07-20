@@ -82,7 +82,7 @@ public class ReifyTimestampAndWindowsParDoFnFactoryTest {
 
   private static class SingleValueReceiver<T> implements Receiver {
 
-    @Nullable public T reified = null;
+    public @Nullable T reified = null;
 
     @Override
     public void process(Object outputElem) throws Exception {

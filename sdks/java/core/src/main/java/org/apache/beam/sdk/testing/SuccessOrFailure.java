@@ -18,23 +18,23 @@
 package org.apache.beam.sdk.testing;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.util.SerializableThrowable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Output of {@link PAssert}. Passed to a conclude function to act upon. */
 @DefaultCoder(SerializableCoder.class)
 public final class SuccessOrFailure implements Serializable {
 
   private final boolean isSuccess;
-  @Nullable private final PAssert.PAssertionSite site;
-  @Nullable private final SerializableThrowable throwable;
+  private final PAssert.@Nullable PAssertionSite site;
+  private final @Nullable SerializableThrowable throwable;
 
   private SuccessOrFailure(
-      boolean isSuccess, @Nullable PAssert.PAssertionSite site, @Nullable Throwable throwable) {
+      boolean isSuccess, PAssert.@Nullable PAssertionSite site, @Nullable Throwable throwable) {
     this.isSuccess = isSuccess;
     this.site = site;
     this.throwable = new SerializableThrowable(throwable);
@@ -44,8 +44,7 @@ public final class SuccessOrFailure implements Serializable {
     return isSuccess;
   }
 
-  @Nullable
-  public AssertionError assertionError() {
+  public @Nullable AssertionError assertionError() {
     return site == null ? null : site.wrap(throwable.getThrowable());
   }
 
@@ -54,7 +53,7 @@ public final class SuccessOrFailure implements Serializable {
   }
 
   public static SuccessOrFailure failure(
-      @Nullable PAssert.PAssertionSite site, @Nullable Throwable t) {
+      PAssert.@Nullable PAssertionSite site, @Nullable Throwable t) {
     return new SuccessOrFailure(false, site, t);
   }
 

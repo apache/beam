@@ -26,7 +26,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -76,8 +76,7 @@ public abstract class Timer<K> {
   }
 
   /** Returns the key that the timer is set on. */
-  @Nullable
-  public abstract K getUserKey();
+  public abstract @Nullable K getUserKey();
 
   /**
    * Returns the tag that the timer is set on. The tag is {@code ""} when the timer is for a {@link
@@ -99,22 +98,19 @@ public abstract class Timer<K> {
    * org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec} that is associated with this
    * timer.
    */
-  @Nullable
-  public abstract Instant getFireTimestamp();
+  public abstract @Nullable Instant getFireTimestamp();
 
   /**
    * Returns the watermark that the timer is supposed to be held. This field is nullable only when
    * the timer is being cleared.
    */
-  @Nullable
-  public abstract Instant getHoldTimestamp();
+  public abstract @Nullable Instant getHoldTimestamp();
 
   /**
    * Returns the {@link PaneInfo} that is related to the timer. This field is nullable only when the
    * timer is being cleared.
    */
-  @Nullable
-  public abstract PaneInfo getPane();
+  public abstract @Nullable PaneInfo getPane();
 
   @Override
   public boolean equals(Object other) {

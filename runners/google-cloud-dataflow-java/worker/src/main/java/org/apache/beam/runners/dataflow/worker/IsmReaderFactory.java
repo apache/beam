@@ -18,13 +18,13 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecordCoder;
 import org.apache.beam.runners.dataflow.util.CloudObject;
@@ -40,6 +40,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Creates an {@link IsmReader} from a {@link CloudObject} spec. Note that it is invalid to use a
@@ -59,20 +60,16 @@ public class IsmReaderFactory implements ReaderFactory {
 
   public IsmReaderFactory() {}
 
-  // Findbugs does not correctly understand inheritance + nullability.
-  //
-  // coder & executionContext may be null due to parent class signature, and must be checked,
-  // despite not being nullable here
   @Override
   public NativeReader<?> create(
       CloudObject spec,
-      Coder<?> coder,
+      @Nullable Coder<?> coder,
       @Nullable PipelineOptions options,
-      DataflowExecutionContext executionContext,
+      @Nullable DataflowExecutionContext executionContext,
       DataflowOperationContext operationContext)
       throws Exception {
-    checkArgument(coder != null, "coder must not be null");
-    checkArgument(executionContext != null, "executionContext must not be null");
+    coder = checkArgumentNotNull(coder);
+    executionContext = checkArgumentNotNull(executionContext);
     return createImpl(spec, coder, options, executionContext, operationContext);
   }
 

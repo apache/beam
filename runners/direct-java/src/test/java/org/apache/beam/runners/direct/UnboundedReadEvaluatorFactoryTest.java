@@ -47,7 +47,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.Executors;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.UnboundedReadDeduplicator.NeverDeduplicator;
 import org.apache.beam.runners.direct.UnboundedReadEvaluatorFactory.UnboundedSourceShard;
 import org.apache.beam.sdk.Pipeline;
@@ -82,6 +81,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.LinkedListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Range;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -519,8 +519,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     }
 
     @Override
-    @Nullable
-    public Coder<TestCheckpointMark> getCheckpointMarkCoder() {
+    public @Nullable Coder<TestCheckpointMark> getCheckpointMarkCoder() {
       return new TestCheckpointMark.Coder();
     }
 

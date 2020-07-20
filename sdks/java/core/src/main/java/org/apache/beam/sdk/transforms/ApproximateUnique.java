@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.TreeSet;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
@@ -38,6 +37,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashingOutputStream;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code PTransform}s for estimating the number of distinct elements in a {@code PCollection}, or
@@ -167,7 +167,7 @@ public class ApproximateUnique {
     private final long sampleSize;
 
     /** The desired maximum estimation error or null if not specified. */
-    @Nullable private final Double maximumEstimationError;
+    private final @Nullable Double maximumEstimationError;
 
     /** @see ApproximateUnique#globally(int) */
     public Globally(int sampleSize) {
@@ -224,7 +224,7 @@ public class ApproximateUnique {
     private final long sampleSize;
 
     /** The the desired maximum estimation error or null if not specified. */
-    @Nullable private final Double maximumEstimationError;
+    private final @Nullable Double maximumEstimationError;
 
     /** @see ApproximateUnique#perKey(int) */
     public PerKey(int sampleSize) {

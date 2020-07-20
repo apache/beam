@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
@@ -613,6 +614,7 @@ public class IsmSideInputReader implements SideInputReader {
 
     @Override
     public Iterable<V> get(K k) {
+      k = checkArgumentNotNull(k);
       try {
         return new ListOverReaderIterators<>(
             findAndStartReaders(readers, ImmutableList.of(k, window)), (V value) -> value);

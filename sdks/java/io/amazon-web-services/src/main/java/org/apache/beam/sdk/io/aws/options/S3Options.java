@@ -19,12 +19,12 @@ package org.apache.beam.sdk.io.aws.options;
 
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.aws.s3.DefaultS3ClientBuilderFactory;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options used to configure Amazon Web Services S3. */
 public interface S3Options extends AwsOptions {

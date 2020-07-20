@@ -44,7 +44,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -62,6 +61,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -149,50 +149,36 @@ public class CassandraIO {
    */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable
-    abstract ValueProvider<List<String>> hosts();
 
-    @Nullable
-    abstract ValueProvider<String> query();
+    abstract @Nullable ValueProvider<List<String>> hosts();
 
-    @Nullable
-    abstract ValueProvider<Integer> port();
+    abstract @Nullable ValueProvider<String> query();
 
-    @Nullable
-    abstract ValueProvider<String> keyspace();
+    abstract @Nullable ValueProvider<Integer> port();
 
-    @Nullable
-    abstract ValueProvider<String> table();
+    abstract @Nullable ValueProvider<String> keyspace();
 
-    @Nullable
-    abstract Class<T> entity();
+    abstract @Nullable ValueProvider<String> table();
 
-    @Nullable
-    abstract Coder<T> coder();
+    abstract @Nullable Class<T> entity();
 
-    @Nullable
-    abstract ValueProvider<String> username();
+    abstract @Nullable Coder<T> coder();
 
-    @Nullable
-    abstract ValueProvider<String> password();
+    abstract @Nullable ValueProvider<String> username();
 
-    @Nullable
-    abstract ValueProvider<String> localDc();
+    abstract @Nullable ValueProvider<String> password();
 
-    @Nullable
-    abstract ValueProvider<String> consistencyLevel();
+    abstract @Nullable ValueProvider<String> localDc();
 
-    @Nullable
-    abstract ValueProvider<Integer> minNumberOfSplits();
+    abstract @Nullable ValueProvider<String> consistencyLevel();
 
-    @Nullable
-    abstract ValueProvider<Integer> connectTimeout();
+    abstract @Nullable ValueProvider<Integer> minNumberOfSplits();
 
-    @Nullable
-    abstract ValueProvider<Integer> readTimeout();
+    abstract @Nullable ValueProvider<Integer> connectTimeout();
 
-    @Nullable
-    abstract SerializableFunction<Session, Mapper> mapperFactoryFn();
+    abstract @Nullable ValueProvider<Integer> readTimeout();
+
+    abstract @Nullable SerializableFunction<Session, Mapper> mapperFactoryFn();
 
     abstract Builder<T> builder();
 
@@ -833,40 +819,30 @@ public class CassandraIO {
    */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    @Nullable
-    abstract ValueProvider<List<String>> hosts();
 
-    @Nullable
-    abstract ValueProvider<Integer> port();
+    abstract @Nullable ValueProvider<List<String>> hosts();
 
-    @Nullable
-    abstract ValueProvider<String> keyspace();
+    abstract @Nullable ValueProvider<Integer> port();
 
-    @Nullable
-    abstract Class<T> entity();
+    abstract @Nullable ValueProvider<String> keyspace();
 
-    @Nullable
-    abstract ValueProvider<String> username();
+    abstract @Nullable Class<T> entity();
 
-    @Nullable
-    abstract ValueProvider<String> password();
+    abstract @Nullable ValueProvider<String> username();
 
-    @Nullable
-    abstract ValueProvider<String> localDc();
+    abstract @Nullable ValueProvider<String> password();
 
-    @Nullable
-    abstract ValueProvider<String> consistencyLevel();
+    abstract @Nullable ValueProvider<String> localDc();
+
+    abstract @Nullable ValueProvider<String> consistencyLevel();
 
     abstract MutationType mutationType();
 
-    @Nullable
-    abstract ValueProvider<Integer> connectTimeout();
+    abstract @Nullable ValueProvider<Integer> connectTimeout();
 
-    @Nullable
-    abstract ValueProvider<Integer> readTimeout();
+    abstract @Nullable ValueProvider<Integer> readTimeout();
 
-    @Nullable
-    abstract SerializableFunction<Session, Mapper> mapperFactoryFn();
+    abstract @Nullable SerializableFunction<Session, Mapper> mapperFactoryFn();
 
     abstract Builder<T> builder();
 

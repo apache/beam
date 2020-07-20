@@ -26,18 +26,18 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.UUID;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.commons.lang3.SystemUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link ResourceId} implementation for local files. */
 class LocalResourceId implements ResourceId {
 
   private final String pathString;
 
-  @Nullable private transient volatile Path cachedPath;
+  private transient @Nullable volatile Path cachedPath;
 
   private final boolean isDirectory;
 
@@ -87,8 +87,7 @@ class LocalResourceId implements ResourceId {
   }
 
   @Override
-  @Nullable
-  public String getFilename() {
+  public @Nullable String getFilename() {
     Path fileName = getPath().getFileName();
     return fileName == null ? null : fileName.toString();
   }

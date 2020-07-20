@@ -26,7 +26,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Beam-specific variants of {@link com.google.common.base.Preconditions} that throws more
+ * Beam-specific variants of {@link
+ * org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions} that throws more
  * appropriate exception classes while being static analysis friendly.
  */
 @Internal
@@ -85,7 +86,7 @@ public class Preconditions {
   public static <T extends @NonNull Object> T checkArgumentNotNull(
       @Nullable T reference,
       @Nullable String errorMessageTemplate,
-      @Nullable Object @Nullable ... errorMessageArgs) {
+      @Nullable Object... errorMessageArgs) {
     if (reference == null) {
       throw new IllegalArgumentException(lenientFormat(errorMessageTemplate, errorMessageArgs));
     }

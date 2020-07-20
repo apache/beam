@@ -19,10 +19,10 @@ package org.apache.beam.runners.core.triggers;
 
 import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 // This should not really have the superclass https://issues.apache.org/jira/browse/BEAM-1486
@@ -33,8 +33,7 @@ class AfterSynchronizedProcessingTimeStateMachine extends AfterDelayFromFirstEle
   }
 
   @Override
-  @Nullable
-  public Instant getCurrentTime(TriggerStateMachine.TriggerContext context) {
+  public @Nullable Instant getCurrentTime(TriggerStateMachine.TriggerContext context) {
     return context.currentSynchronizedProcessingTime();
   }
 

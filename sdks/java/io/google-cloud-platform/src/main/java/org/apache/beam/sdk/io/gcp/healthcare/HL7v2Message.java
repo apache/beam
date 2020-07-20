@@ -22,7 +22,7 @@ import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.SchematizedData;
 import java.io.IOException;
 import java.util.Map;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** The type HL7v2 message to wrap the {@link Message} model. */
 public class HL7v2Message {

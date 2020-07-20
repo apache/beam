@@ -933,7 +933,7 @@ public class AvroSourceTest {
     String quality;
     long quantity;
 
-    @Nullable String habitat;
+    @org.apache.avro.reflect.Nullable String habitat;
 
     @AvroDefault("\"MAXIMUM OVERDRIVE\"")
     String fancinessLevel;

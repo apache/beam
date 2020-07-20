@@ -23,7 +23,7 @@ import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Key;
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A representation of an arbitrary Java object to be instantiated by Dataflow workers.

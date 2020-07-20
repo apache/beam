@@ -25,9 +25,9 @@ import com.google.api.services.dataflow.model.Position;
 import com.google.api.services.dataflow.model.Source;
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for representing input-specific objects using Dataflow model protos. */
 public class SourceTranslationUtils {
@@ -42,16 +42,16 @@ public class SourceTranslationUtils {
   }
 
   public static ApproximateReportedProgress readerProgressToCloudProgress(
-      @Nullable NativeReader.Progress readerProgress) {
+      NativeReader.@Nullable Progress readerProgress) {
     return readerProgress == null ? null : ((DataflowReaderProgress) readerProgress).cloudProgress;
   }
 
-  public static Position toCloudPosition(@Nullable NativeReader.Position readerPosition) {
+  public static Position toCloudPosition(NativeReader.@Nullable Position readerPosition) {
     return readerPosition == null ? null : ((DataflowReaderPosition) readerPosition).cloudPosition;
   }
 
   public static ApproximateSplitRequest splitRequestToApproximateSplitRequest(
-      @Nullable NativeReader.DynamicSplitRequest splitRequest) {
+      NativeReader.@Nullable DynamicSplitRequest splitRequest) {
     return (splitRequest == null)
         ? null
         : ((DataflowDynamicSplitRequest) splitRequest).splitRequest;

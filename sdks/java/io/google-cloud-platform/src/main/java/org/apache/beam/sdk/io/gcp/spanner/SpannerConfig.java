@@ -24,10 +24,10 @@ import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /** Configuration for a Cloud Spanner client. */
@@ -40,23 +40,17 @@ public abstract class SpannerConfig implements Serializable {
   // Total allowable backoff time.
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardMinutes(15);
 
-  @Nullable
-  public abstract ValueProvider<String> getProjectId();
+  public abstract @Nullable ValueProvider<String> getProjectId();
 
-  @Nullable
-  public abstract ValueProvider<String> getInstanceId();
+  public abstract @Nullable ValueProvider<String> getInstanceId();
 
-  @Nullable
-  public abstract ValueProvider<String> getDatabaseId();
+  public abstract @Nullable ValueProvider<String> getDatabaseId();
 
-  @Nullable
-  public abstract ValueProvider<String> getHost();
+  public abstract @Nullable ValueProvider<String> getHost();
 
-  @Nullable
-  public abstract ValueProvider<Duration> getCommitDeadline();
+  public abstract @Nullable ValueProvider<Duration> getCommitDeadline();
 
-  @Nullable
-  public abstract ValueProvider<Duration> getMaxCumulativeBackoff();
+  public abstract @Nullable ValueProvider<Duration> getMaxCumulativeBackoff();
 
   @Nullable
   @VisibleForTesting

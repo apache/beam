@@ -757,7 +757,7 @@ public class AvroIOTest implements Serializable {
     static class GenericClassV2 {
       int intField;
       String stringField;
-      @Nullable String nullableField;
+      @org.apache.avro.reflect.Nullable String nullableField;
 
       GenericClassV2() {}
 

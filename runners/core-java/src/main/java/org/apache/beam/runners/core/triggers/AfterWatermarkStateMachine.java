@@ -20,9 +20,9 @@ package org.apache.beam.runners.core.triggers;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code AfterWatermark} triggers fire based on progress of the system watermark. This time is a
@@ -70,7 +70,7 @@ public class AfterWatermarkStateMachine {
     private static final int LATE_INDEX = 1;
 
     private final TriggerStateMachine earlyTrigger;
-    @Nullable private final TriggerStateMachine lateTrigger;
+    private final @Nullable TriggerStateMachine lateTrigger;
 
     @SuppressWarnings("unchecked")
     private AfterWatermarkEarlyAndLate(

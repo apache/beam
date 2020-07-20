@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink.translation.types;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -28,6 +27,7 @@ import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeinfo.TypeInformation} for Beam {@link
@@ -36,7 +36,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 public class CoderTypeInformation<T> extends TypeInformation<T> implements AtomicType<T> {
 
   private final Coder<T> coder;
-  @Nullable private final SerializablePipelineOptions pipelineOptions;
+  private final @Nullable SerializablePipelineOptions pipelineOptions;
 
   public CoderTypeInformation(Coder<T> coder) {
     checkNotNull(coder);

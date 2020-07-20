@@ -20,7 +20,7 @@ package org.apache.beam.runners.portability;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An {@link AutoCloseable} that wraps a resource that needs to be cleaned up but does not implement
@@ -46,7 +46,7 @@ public class CloseableResource<T> implements AutoCloseable {
    * ownership. However, newly-constructed {@link CloseableResource CloseableResources} must always
    * have non-null closers.
    */
-  @Nullable private Closer<T> closer;
+  private @Nullable Closer<T> closer;
 
   private boolean isClosed = false;
 

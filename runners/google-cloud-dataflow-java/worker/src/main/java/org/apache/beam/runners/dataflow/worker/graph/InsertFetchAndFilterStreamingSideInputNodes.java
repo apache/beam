@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.graph;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 
 import com.google.api.services.dataflow.model.ParDoInstruction;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
@@ -43,6 +42,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Inserts a {@link ParDoFn} that handles filtering blocked side inputs and fetching ready side
@@ -50,11 +50,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNet
  */
 public class InsertFetchAndFilterStreamingSideInputNodes {
   public static InsertFetchAndFilterStreamingSideInputNodes with(
-      @Nullable RunnerApi.Pipeline pipeline) {
+      RunnerApi.@Nullable Pipeline pipeline) {
     return new InsertFetchAndFilterStreamingSideInputNodes(pipeline);
   }
 
-  @Nullable private final RunnerApi.Pipeline pipeline;
+  private final RunnerApi.@Nullable Pipeline pipeline;
 
   private InsertFetchAndFilterStreamingSideInputNodes(RunnerApi.Pipeline pipeline) {
     this.pipeline = pipeline;

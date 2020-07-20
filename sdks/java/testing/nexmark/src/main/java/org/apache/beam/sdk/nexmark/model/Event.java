@@ -21,13 +21,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An event in the auction system, either a (new) {@link Person}, a (new) {@link Auction}, or a
@@ -114,11 +114,11 @@ public class Event implements KnownSize, Serializable {
         }
       };
 
-  @Nullable @org.apache.avro.reflect.Nullable public Person newPerson;
+  public @Nullable @org.apache.avro.reflect.Nullable Person newPerson;
 
-  @Nullable @org.apache.avro.reflect.Nullable public Auction newAuction;
+  public @Nullable @org.apache.avro.reflect.Nullable Auction newAuction;
 
-  @Nullable @org.apache.avro.reflect.Nullable public Bid bid;
+  public @Nullable @org.apache.avro.reflect.Nullable Bid bid;
 
   @SuppressWarnings("unused")
   public Event() {

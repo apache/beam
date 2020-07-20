@@ -54,7 +54,6 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.AnnotationPredicates;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.Registration;
@@ -73,6 +72,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.MutableClassToInstanceMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Represents an {@link InvocationHandler} for a {@link Proxy}. The invocation handler uses bean
@@ -185,8 +185,8 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
   /** Track whether options values are explicitly set, or retrieved from defaults. */
   @AutoValue
   abstract static class BoundValue {
-    @Nullable
-    abstract Object getValue();
+
+    abstract @Nullable Object getValue();
 
     abstract boolean isDefault();
 
@@ -561,8 +561,8 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
   }
 
   /** Helper method to return standard Default cases. */
-  @Nullable
-  private Object returnDefaultHelper(Annotation annotation, PipelineOptions proxy, Method method) {
+  private @Nullable Object returnDefaultHelper(
+      Annotation annotation, PipelineOptions proxy, Method method) {
     if (annotation instanceof Default.Class) {
       return ((Default.Class) annotation).value();
     } else if (annotation instanceof Default.String) {
