@@ -190,6 +190,12 @@ REQUIRED_TEST_PACKAGES = [
     'pytest-xdist>=1.29.0,<2',
     'pytest-timeout>=1.3.3,<2',
     'rsa<4.1; python_version < "3.0"',
+    # sqlalchemy is used only for running xlang jdbc test so limit to Py3
+    'sqlalchemy>=1.3,<2.0; python_version >= "3.5"',
+    # psycopg is used only for running xlang jdbc test so limit to Py3
+    'psycopg2-binary>=2.8.5,<3.0.0; python_version >= "3.5"',
+    # testcontainers is used only for running xlang jdbc test so limit to Py3
+    'testcontainers>=3.0.3,<4.0.0; python_version >= "3.5"',
     ]
 
 GCP_REQUIREMENTS = [
