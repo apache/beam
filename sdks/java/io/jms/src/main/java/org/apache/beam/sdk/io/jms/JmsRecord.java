@@ -135,7 +135,7 @@ public class JmsRecord implements Serializable {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (obj instanceof JmsRecord) {
       JmsRecord other = (JmsRecord) obj;
       return jmsDestination.equals(other.jmsDestination)

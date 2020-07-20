@@ -137,7 +137,7 @@ public class CountingSource {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof NowTimestampFn;
     }
 
@@ -191,7 +191,7 @@ public class CountingSource {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (!(other instanceof BoundedCountingSource)) {
         return false;
       }
@@ -360,7 +360,7 @@ public class CountingSource {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (!(other instanceof UnboundedCountingSource)) {
         return false;
       }

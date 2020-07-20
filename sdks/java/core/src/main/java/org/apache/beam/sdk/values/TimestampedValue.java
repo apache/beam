@@ -64,7 +64,7 @@ public class TimestampedValue<V> {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (!(other instanceof TimestampedValue)) {
       return false;
     }

@@ -47,7 +47,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.reflect.AvroDefault;
-import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -64,6 +63,7 @@ import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -847,7 +847,7 @@ public class AvroSourceTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (o instanceof FixedRecord) {
         FixedRecord other = (FixedRecord) o;
         return this.asInt() == other.asInt();
@@ -903,7 +903,7 @@ public class AvroSourceTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj instanceof Bird) {
         Bird other = (Bird) obj;
         return Objects.equals(species, other.species)
@@ -968,7 +968,7 @@ public class AvroSourceTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj instanceof FancyBird) {
         FancyBird other = (FancyBird) obj;
         return Objects.equals(species, other.species)

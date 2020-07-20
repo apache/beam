@@ -108,7 +108,7 @@ public class KafkaRecord<K, V> {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (obj instanceof KafkaRecord) {
       @SuppressWarnings("unchecked")
       KafkaRecord<Object, Object> other = (KafkaRecord<Object, Object>) obj;

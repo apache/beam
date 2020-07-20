@@ -195,7 +195,7 @@ public class PAssert {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -681,7 +681,7 @@ public class PAssert {
      */
     @Deprecated
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       throw new UnsupportedOperationException(
           "If you meant to test object equality, use .containsInAnyOrder instead.");
     }
@@ -911,7 +911,7 @@ public class PAssert {
     @SuppressFBWarnings("EQ_UNUSUAL")
     @Deprecated
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       throw new UnsupportedOperationException(
           String.format(
               "tests for Java equality of the %s object, not the PCollection in question. "
@@ -1048,7 +1048,7 @@ public class PAssert {
      */
     @Deprecated
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       throw new UnsupportedOperationException(
           String.format(
               "tests for Java equality of the %s object, not the PCollection in question. "

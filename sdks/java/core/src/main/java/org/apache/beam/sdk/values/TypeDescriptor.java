@@ -361,7 +361,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
 
   /** Two type descriptor are equal if and only if they represent the same type. */
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (!(other instanceof TypeDescriptor)) {
       return false;
     } else {

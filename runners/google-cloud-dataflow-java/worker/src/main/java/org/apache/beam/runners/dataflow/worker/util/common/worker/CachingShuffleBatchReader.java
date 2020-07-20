@@ -90,7 +90,7 @@ public class CachingShuffleBatchReader implements ShuffleBatchReader {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       return o == this
           || (o instanceof BatchRange
               && Objects.equal(((BatchRange) o).startPosition, startPosition)

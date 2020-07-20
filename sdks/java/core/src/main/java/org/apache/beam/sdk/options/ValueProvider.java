@@ -103,7 +103,7 @@ public interface ValueProvider<T> extends Serializable {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof StaticValueProvider
           && Objects.equals(value, ((StaticValueProvider) other).value);
     }
@@ -173,7 +173,7 @@ public interface ValueProvider<T> extends Serializable {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof NestedValueProvider
           && Objects.equals(value, ((NestedValueProvider) other).value)
           && Objects.equals(translator, ((NestedValueProvider) other).translator);
@@ -291,7 +291,7 @@ public interface ValueProvider<T> extends Serializable {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof RuntimeValueProvider
           && Objects.equals(klass, ((RuntimeValueProvider) other).klass)
           && Objects.equals(methodName, ((RuntimeValueProvider) other).methodName)

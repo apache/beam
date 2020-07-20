@@ -226,7 +226,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

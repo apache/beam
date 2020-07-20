@@ -69,7 +69,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (!(other instanceof ByteArrayWrapper)) {
         return false;
       }
@@ -292,7 +292,7 @@ public class Schema implements Serializable {
 
   /** Returns true if two Schemas have the same fields in the same order. */
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
@@ -793,7 +793,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (!(o instanceof FieldType)) {
         return false;
       }
@@ -1013,7 +1013,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (!(o instanceof Field)) {
         return false;
       }
@@ -1066,7 +1066,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -1116,7 +1116,7 @@ public class Schema implements Serializable {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         if (this == o) {
           return true;
         }

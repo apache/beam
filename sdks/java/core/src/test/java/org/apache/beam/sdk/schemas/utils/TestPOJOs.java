@@ -51,7 +51,7 @@ public class TestPOJOs {
     public POJOWithNullables() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -84,7 +84,7 @@ public class TestPOJOs {
     public POJOWithNestedNullable() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -178,7 +178,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -273,7 +273,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -394,7 +394,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -465,7 +465,7 @@ public class TestPOJOs {
     public NestedPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -503,7 +503,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -545,7 +545,7 @@ public class TestPOJOs {
     public NestedArrayPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -578,7 +578,7 @@ public class TestPOJOs {
     public NestedArraysPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -613,7 +613,7 @@ public class TestPOJOs {
     public NestedCollectionPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -650,7 +650,7 @@ public class TestPOJOs {
     public PrimitiveMapPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -684,7 +684,7 @@ public class TestPOJOs {
     public NestedMapPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -728,7 +728,7 @@ public class TestPOJOs {
     public POJOWithBoxedFields() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -773,7 +773,7 @@ public class TestPOJOs {
     public POJOWithByteArray() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -807,7 +807,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -841,7 +841,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -881,7 +881,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -953,7 +953,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

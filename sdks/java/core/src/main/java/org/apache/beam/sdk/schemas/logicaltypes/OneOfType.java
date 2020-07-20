@@ -202,7 +202,7 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

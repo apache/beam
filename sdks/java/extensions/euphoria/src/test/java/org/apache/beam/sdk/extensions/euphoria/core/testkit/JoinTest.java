@@ -833,7 +833,7 @@ public class JoinTest extends AbstractOperatorTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other instanceof NamedGlobalWindow) {
         return name.equals(((NamedGlobalWindow) other).name);
       }

@@ -269,7 +269,7 @@ public class TestCountingSource
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj instanceof FromCounterMark;
     }
   }
@@ -286,7 +286,7 @@ public class TestCountingSource
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj instanceof ToCounterMark;
     }
   }

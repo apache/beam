@@ -188,7 +188,7 @@ class S3ResourceId implements ResourceId {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (!(obj instanceof S3ResourceId)) {
       return false;
     }

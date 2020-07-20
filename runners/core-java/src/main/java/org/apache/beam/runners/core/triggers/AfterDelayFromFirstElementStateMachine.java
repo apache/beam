@@ -254,7 +254,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
     }
 
     @Override
-    public boolean equals(Object object) {
+    public boolean equals(@Nullable Object object) {
       if (object == this) {
         return true;
       }
@@ -298,7 +298,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
     }
 
     @Override
-    public boolean equals(Object object) {
+    public boolean equals(@Nullable Object object) {
       if (object == this) {
         return true;
       }

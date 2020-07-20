@@ -134,7 +134,7 @@ class LocalResourceId implements ResourceId {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (!(obj instanceof LocalResourceId)) {
       return false;
     }

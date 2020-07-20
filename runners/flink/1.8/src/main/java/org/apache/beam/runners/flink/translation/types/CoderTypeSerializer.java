@@ -130,7 +130,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

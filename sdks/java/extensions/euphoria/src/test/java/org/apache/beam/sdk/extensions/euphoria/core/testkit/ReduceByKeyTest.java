@@ -601,7 +601,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other instanceof CountWindow) {
         return value == (((CountWindow) other).value);
       }
@@ -634,7 +634,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj instanceof UniqueWindow && this.id == ((UniqueWindow) obj).id;
     }
 
@@ -711,7 +711,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

@@ -607,7 +607,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (!(o instanceof WriterKey)) {
         return false;
       }

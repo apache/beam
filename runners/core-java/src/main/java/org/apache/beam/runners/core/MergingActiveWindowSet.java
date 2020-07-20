@@ -366,7 +366,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof MergingActiveWindowSet)) {
       return false;
     }

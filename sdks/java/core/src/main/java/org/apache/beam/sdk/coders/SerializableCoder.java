@@ -206,7 +206,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     return !(other == null || getClass() != other.getClass())
         && type == ((SerializableCoder<?>) other).type;
   }

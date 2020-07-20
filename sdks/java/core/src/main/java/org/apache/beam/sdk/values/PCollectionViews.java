@@ -958,7 +958,7 @@ public class PCollectionViews {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof ListViewFn;
     }
 
@@ -1247,7 +1247,7 @@ public class PCollectionViews {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (!(other instanceof PCollectionView)) {
         return false;
       }

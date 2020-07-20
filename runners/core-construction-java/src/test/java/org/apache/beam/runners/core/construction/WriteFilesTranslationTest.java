@@ -124,7 +124,7 @@ public class WriteFilesTranslationTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (!(other instanceof DummySink)) {
         return false;
       }
@@ -174,7 +174,7 @@ public class WriteFilesTranslationTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof DummyFilenamePolicy;
     }
 

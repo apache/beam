@@ -75,7 +75,7 @@ public class MetricsMap<K, T> implements Serializable {
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (object instanceof MetricsMap) {
       MetricsMap<?, ?> metricsMap = (MetricsMap<?, ?>) object;
       return Objects.equals(metrics, metricsMap.metrics);

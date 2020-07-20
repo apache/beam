@@ -162,7 +162,7 @@ public class TableDestination implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof TableDestination)) {
       return false;
     }

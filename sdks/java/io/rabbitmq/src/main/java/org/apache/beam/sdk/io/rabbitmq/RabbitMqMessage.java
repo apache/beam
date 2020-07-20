@@ -295,7 +295,7 @@ public class RabbitMqMessage implements Serializable {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (obj instanceof RabbitMqMessage) {
       RabbitMqMessage other = (RabbitMqMessage) obj;
       return Objects.equals(routingKey, other.routingKey)

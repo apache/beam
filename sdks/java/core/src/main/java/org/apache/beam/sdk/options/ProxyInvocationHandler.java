@@ -241,7 +241,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
    *     same ProxyInvocationHandler as this.
    */
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     return obj != null
         && ((obj instanceof ProxyInvocationHandler && this == obj)
             || (Proxy.isProxyClass(obj.getClass()) && this == Proxy.getInvocationHandler(obj)));
