@@ -30,8 +30,8 @@ public class BeamBuiltinAnalyticFunctions {
       BUILTIN_ANALYTIC_FACTORIES =
           ImmutableMap.<String, Function<Schema.FieldType, Combine.CombineFn<?, ?, ?>>>builder()
               .putAll(BeamBuiltinAggregations.BUILTIN_AGGREGATOR_FACTORIES)
-              .put("FIRST_VALUE", typeName -> NavigationFirstValue())
-              .put("LAST_VALUE", typeName -> NavigationLastValue())
+              .put("FIRST_VALUE", typeName -> navigationFirstValue())
+              .put("LAST_VALUE", typeName -> navigationLastValue())
               // Pending Numbering functions
               .build();
 
@@ -45,11 +45,11 @@ public class BeamBuiltinAnalyticFunctions {
         String.format("Analytics Function [%s] is not supported", functionName));
   }
 
-  public static <T> Combine.CombineFn<T, ?, T> NavigationFirstValue() {
+  public static <T> Combine.CombineFn<T, ?, T> navigationFirstValue() {
     return new FirstValueCombineFn();
   }
 
-  public static <T> Combine.CombineFn<T, ?, T> NavigationLastValue() {
+  public static <T> Combine.CombineFn<T, ?, T> navigationLastValue() {
     return new LastValueCombineFn();
   }
 
