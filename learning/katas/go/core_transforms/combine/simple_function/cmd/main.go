@@ -16,12 +16,12 @@
 package main
 
 import (
+	"beam.apache.org/learning/katas/core_transforms/combine/simple_function/pkg/task"
 	"context"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
-	"simple_function/pkg/task"
 )
 
 func main() {
