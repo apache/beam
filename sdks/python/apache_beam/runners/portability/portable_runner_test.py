@@ -284,6 +284,7 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
     return options
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="does not run on windows")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_subprocesses = True
 

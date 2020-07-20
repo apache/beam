@@ -25,6 +25,7 @@ See additional runtime_type_check=True tests in ptransform_test.py.
 
 from __future__ import absolute_import
 
+import os
 import tempfile
 import unittest
 from typing import Iterable
@@ -92,23 +93,29 @@ class TypecheckTest(unittest.TestCase):
     # We use a file to check the result because the MyDoFn instance passed is
     # not the same one that actually runs in the pipeline (it is serialized
     # here and deserialized in the worker).
-    with tempfile.NamedTemporaryFile(mode='w+t') as f:
+
+    f = tempfile.NamedTemporaryFile(delete=False)
+    f.close()
+    try:
       dofn = MyDoFn(f.name)
       result = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
       assert_that(result, equal_to([1, 2, 3]))
       self.p.run()
-      f.seek(0)
-      lines = [line.strip() for line in f]
-      self.assertListEqual([
-          'setup',
-          'start_bundle',
-          'process',
-          'process',
-          'process',
-          'finish_bundle',
-          'teardown',
-      ],
-                           lines)
+      with open(f.name, mode="r") as ft:
+        lines = [line.strip() for line in ft]
+        self.assertListEqual([
+            'setup',
+            'start_bundle',
+            'process',
+            'process',
+            'process',
+            'finish_bundle',
+            'teardown',
+        ],
+                             lines)
+    finally:
+      if os.path.exists(f.name):
+        os.remove(f.name)
 
   def test_wrapper_pipeline_type_check(self):
     # Verifies that type hints are not masked by the wrapper. What actually

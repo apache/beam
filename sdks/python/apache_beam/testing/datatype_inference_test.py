@@ -19,6 +19,7 @@
 from __future__ import absolute_import
 
 import logging
+import sys
 import unittest
 from collections import OrderedDict
 
@@ -174,6 +175,9 @@ class DatatypeInferenceTest(unittest.TestCase):
   @parameterized.expand([(d["name"], d["data"], d["pyarrow_schema"])
                          for d in TEST_DATA])
   @unittest.skipIf(pa is None, "PyArrow is not installed")
+  @unittest.skipIf(
+      sys.platform == "win32",
+      "numpy array dtype is coming as int32 by default in a windows 64 bit")
   def test_infer_pyarrow_schema(self, _, data, schema):
     pyarrow_schema = datatype_inference.infer_pyarrow_schema(data)
     self.assertEqual(pyarrow_schema, schema)

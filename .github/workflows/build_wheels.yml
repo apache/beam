@@ -16,7 +16,7 @@
 # under the License.
 #
 
-name: Build python wheels
+name: CI
 
 on:
   schedule:
@@ -31,12 +31,15 @@ on:
 
 
 env:
-  GCP_PATH: "gs://beam-wheels-staging/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
-
+  GCP_WHEELS_STAGING_PATH: "gs://beam-wheels-staging/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
+  GCP_BUCKET: "beam-wheels-staging"
+  GCP_PROJECT_ID: "apache-beam-testing"
+  GCP_REGION: "us-central1"
 
 jobs:
 
-  build_source:
+  build_python_sdk_source:
+    name: Build Python SDK source
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -77,9 +80,9 @@ jobs:
 
   prepare_gcs:
     name: Prepare GCS
-    needs: build_source
+    needs: build_python_sdk_source
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'apache' && github.event_name != 'pull_request'
+    if: github.repository_owner == 'apache' && (github.event_name == 'push' || github.event_name == 'schedule')
     steps:
       - name: Authenticate on GCP
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -87,10 +90,10 @@ jobs:
           service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
       - name: Remove existing files on GCS bucket
-        run: gsutil rm -r ${{ env.GCP_PATH }} || true
+        run: gsutil rm -r ${{ env.GCP_WHEELS_STAGING_PATH }} || true
 
-  upload_source_to_gcs:
-    name: Upload source to GCS bucket
+  upload_python_sdk_source_to_gcs:
+    name: Upload Python SDK source to GCS bucket
     needs: prepare_gcs
     runs-on: ubuntu-latest
     if: github.repository_owner == 'apache'
@@ -106,11 +109,11 @@ jobs:
           service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
       - name: Copy sources to GCS bucket
-        run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
+        run: gsutil cp -r -a public-read source/* ${{ env.GCP_WHEELS_STAGING_PATH }}
 
-  build_wheels:
-    name: Build wheels on ${{ matrix.os_python.os }}
-    needs: build_source
+  build_python_sdk_wheels:
+    name: Build Python SDK wheels on ${{ matrix.os_python.os }}
+    needs: build_python_sdk_source
     runs-on: ${{ matrix.os_python.os }}
     strategy:
       matrix:
@@ -154,11 +157,11 @@ jobs:
         name: wheelhouse-${{ matrix.os_python.os }}
         path: apache-beam-source/wheelhouse/
 
-  upload_wheels_to_gcs:
-    name: Upload wheels to GCS bucket
-    needs: build_wheels
+  upload_python_sdk_wheels_to_gcs:
+    name: Upload Python SDK wheels to GCS bucket
+    needs: build_python_sdk_wheels
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'apache' && github.event_name != 'pull_request'
+    if: github.repository_owner == 'apache' && (github.event_name == 'push' || github.event_name == 'schedule')
     strategy:
       matrix:
         os : [ubuntu-latest, macos-latest, windows-latest]
@@ -174,7 +177,7 @@ jobs:
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}
     - name: Copy wheels to GCS bucket
-      run: gsutil cp -r -a public-read wheelhouse/* ${{ env.GCP_PATH }}
+      run: gsutil cp -r -a public-read wheelhouse/* ${{ env.GCP_WHEELS_STAGING_PATH }}
     - name: Create github action information file on GCS bucket
       run: |
         cat > github_action_info <<EOF
@@ -192,15 +195,15 @@ jobs:
         GITHUB_BASE_REF=$GITHUB_BASE_REF
         EOF
         echo $(cat github_action_info)
-        gsutil cp -a public-read github_action_info ${{ env.GCP_PATH }}
+        gsutil cp -a public-read github_action_info ${{ env.GCP_WHEELS_STAGING_PATH }}
     - name: Upload GitHub event file to GCS bucket
-      run: gsutil cp -a public-read ${GITHUB_EVENT_PATH} ${{ env.GCP_PATH }}
+      run: gsutil cp -a public-read ${GITHUB_EVENT_PATH} ${{ env.GCP_WHEELS_STAGING_PATH }}
 
   list_files_on_gcs:
     name: List files on Google Cloud Storage Bucket
-    needs: upload_wheels_to_gcs
+    needs: upload_python_sdk_wheels_to_gcs
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'apache' && github.event_name != 'pull_request'
+    if: github.repository_owner == 'apache' && (github.event_name == 'push' || github.event_name == 'schedule')
     steps:
     - name: Authenticate on GCP
       uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -208,13 +211,216 @@ jobs:
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}
     - name: List file on Google Cloud Storage Bucket
-      run: gsutil ls "${{ env.GCP_PATH }}*"
+      run: gsutil ls "${{ env.GCP_WHEELS_STAGING_PATH }}*"
+
+  python_unit_tests:
+    name: 'Python Unit Tests'
+    runs-on: ${{ matrix.os }}
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        params: [
+          {"py_ver": "3.5", "tox_env": "py35"},
+          {"py_ver": "3.6", "tox_env": "py36"},
+          {"py_ver": "3.7", "tox_env": "py37"},
+        ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.params.py_ver }}
+      - name: Get build dependencies
+        working-directory: ./sdks/python
+        run: python -m pip install -r build-requirements.txt
+      - name: Install tox
+        run: pip install tox
+      - name: Run tests basic unix
+        if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+        working-directory: ./sdks/python
+        run: tox -c tox.ini -e ${{ matrix.params.tox_env }}
+      - name: Run tests basic windows
+        if: startsWith(matrix.os, 'windows') && (matrix.params.py_ver != '2.7')
+        working-directory: ./sdks/python
+        run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-win
+
+  python_wordcount_direct_runner:
+    name: 'Python Wordcount Direct Runner'
+    runs-on: ${{ matrix.os }}
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: [3.5, 3.6, 3.7]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Get build dependencies
+        working-directory: ./sdks/python
+        run: python -m pip install -r build-requirements.txt
+      - name: Install requirements
+        working-directory: ./sdks/python
+        run: pip install -e .
+      - name: Run WordCount
+        working-directory: ./sdks/python
+        run: python -m apache_beam.examples.wordcount --input MANIFEST.in --output counts
+
+  python_wordcount_dataflow:
+    name: 'Python Wordcount Dataflow'
+    needs: build_python_sdk_source
+    runs-on: ${{ matrix.os }}
+    if: github.repository_owner == 'apache' && (github.event_name == 'push' || github.event_name == 'schedule')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: [3.5, 3.6, 3.7]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Download source from artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: source_gztar_zip
+          path: apache-beam-source
+      - name: Authenticate on GCP
+        uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+      - name: Get build dependencies
+        working-directory: ./sdks/python
+        run: python -m pip install -r build-requirements.txt
+      - name: Install requirements
+        working-directory: ./sdks/python
+        run: pip install -e ".[gcp]"
+      - name: Run WordCount
+        working-directory: ./sdks/python
+        shell: bash
+        run: |
+          python -m apache_beam.examples.wordcount \
+            --input gs://dataflow-samples/shakespeare/kinglear.txt \
+            --output gs://${{ env.GCP_BUCKET }}/counts \
+            --runner DataflowRunner \
+            --project ${{ env.GCP_PROJECT_ID }} \
+            --region ${{ env.GCP_REGION }} \
+            --temp_location gs://${{ env.GCP_BUCKET }}/tmp/ \
+            --sdk_location "../../apache-beam-source/$(ls ../../apache-beam-source | grep '^apache-beam.*zip$')"
+
+  java_unit_tests:
+    name: 'Java Unit Tests'
+    runs-on: ${{ matrix.os }}
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run tests
+        run: |
+          ./gradlew :sdks:java:core:test
+          ./gradlew :sdks:java:harness:test
+          ./gradlew :runners:core-java:test
+
+  java_wordcount_direct_runner:
+    name: 'Java Wordcount Direct Runner'
+    runs-on: ${{ matrix.os }}
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Get the WordCount Code
+        shell: bash
+        run: |
+          mvn archetype:generate \
+            -DarchetypeGroupId=org.apache.beam \
+            -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+            -DarchetypeVersion=2.22.0 \
+            -DgroupId=org.example \
+            -DartifactId=word-count-beam \
+            -Dversion="0.1" \
+            -Dpackage=org.apache.beam.examples \
+            -DinteractiveMode=false
+      - name: Run WordCount
+        working-directory: ./word-count-beam
+        shell: bash
+        run: |
+          mvn compile exec:java \
+            -Dexec.mainClass=org.apache.beam.examples.WordCount \
+            -Dexec.args="--inputFile=pom.xml --output=counts" \
+            -Pdirect-runner
+
+  java_wordcount_dataflow:
+    name: 'Java Wordcount Dataflow'
+    runs-on: ${{ matrix.os }}
+    if: github.repository_owner == 'apache' && (github.event_name == 'push' || github.event_name == 'schedule')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Authenticate on GCP
+        uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+      - name: Get the WordCount Code
+        shell: bash
+        run: |
+          mvn archetype:generate \
+            -DarchetypeGroupId=org.apache.beam \
+            -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+            -DarchetypeVersion=2.22.0 \
+            -DgroupId=org.example \
+            -DartifactId=word-count-beam \
+            -Dversion="0.1" \
+            -Dpackage=org.apache.beam.examples \
+            -DinteractiveMode=false
+      - name: Run WordCount
+        working-directory: ./word-count-beam
+        shell: bash
+        run: |
+          mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+            -Dexec.args="--runner=DataflowRunner --project=${{ env.GCP_PROJECT_ID }} \
+            --region=${{ env.GCP_REGION }} \
+            --gcpTempLocation=gs://${{ env.GCP_BUCKET }}/tmp \
+            --inputFile=gs://apache-beam-samples/shakespeare/* \
+            --output=gs://${{ env.GCP_BUCKET }}/counts" \
+            -Pdataflow-runner
 
   tag_repo_nightly:
     name: Tag repo nightly
     needs:
-      - build_source
-      - build_wheels
+      - build_python_sdk_source
+      - build_python_sdk_wheels
+      - python_unit_tests
+      - java_unit_tests
+      - python_wordcount_direct_runner
+      - java_wordcount_direct_runner
+      - python_wordcount_dataflow
+      - java_wordcount_dataflow
     runs-on: ubuntu-latest
     timeout-minutes: 60
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'

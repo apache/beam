@@ -167,6 +167,9 @@ class StagerTest(unittest.TestCase):
 
   # xdist adds unpicklable modules to the main session.
   @pytest.mark.no_xdist
+  @pytest.mark.skip(
+      sys.platform == 'win32',
+      "Windows raise TypeError: can't pickle zipimport.zipimporter objects")
   def test_with_main_session(self):
     staging_dir = self.make_temp_dir()
     options = PipelineOptions()
