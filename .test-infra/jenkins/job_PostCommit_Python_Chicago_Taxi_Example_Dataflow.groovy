@@ -47,7 +47,7 @@ def chicagoTaxiJob = { scope ->
 PostcommitJobBuilder.postCommitJob(
     'beam_PostCommit_Python_Chicago_Taxi_Dataflow',
     'Run Chicago Taxi on Dataflow',
-    'Google Cloud Dataflow Runner Chicago Taxi Example',
+    'Chicago Taxi Example on Dataflow ("Run Chicago Taxi on Dataflow")',
     this
 ) {
     chicagoTaxiJob(delegate)
