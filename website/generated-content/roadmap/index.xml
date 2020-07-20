@@ -301,7 +301,7 @@ language of choice and utilize these transforms from other languages reducing th
 &lt;h3 id="connectortransform-support">Connector/transform support&lt;/h3>
 &lt;p>Ongoing and planned work related to making existing connectors/transforms available to other SDKs through the cross-language transforms framework.&lt;/p>
 &lt;ul>
-&lt;li>Java JdbcIO - In progress - &lt;a href="https://issues.apache.org/jira/browse/BEAM-10135">BEAM-10135&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-10136">BEAM-10136&lt;/a>&lt;/li>
+&lt;li>Java JdbcIO - completed - &lt;a href="https://issues.apache.org/jira/browse/BEAM-10135">BEAM-10135&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-10136">BEAM-10136&lt;/a>&lt;/li>
 &lt;li>Java KafkaIO - completed - &lt;a href="https://issues.apache.org/jira/browse/BEAM-7029">BEAM-7029&lt;/a>&lt;/li>
 &lt;li>Java KinesisIO - In progress - &lt;a href="https://issues.apache.org/jira/browse/BEAM-10137">BEAM-10137&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-10138">BEAM-10138&lt;/a>&lt;/li>
 &lt;li>Java PubSubIO - In progress - &lt;a href="https://issues.apache.org/jira/browse/BEAM-7738">BEAM-7738&lt;/a>&lt;/li>
