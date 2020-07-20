@@ -177,7 +177,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       if (value.getTimestamp().isBefore(minStamp)) {
         minStamp = value.getTimestamp();
         minStampState.write(minStamp);
-        setupFlushTimerAndWatermarkHold(namespace, window, minStamp);
+        setupFlushTimer(namespace, window, minStamp);
       }
     } else {
       reportDroppedElement(value, window);
@@ -262,7 +262,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     keep.forEach(sortBuffer::add);
     minStampState.write(newMinStamp);
     if (newMinStamp.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-      setupFlushTimerAndWatermarkHold(namespace, window, newMinStamp);
+      setupFlushTimer(namespace, window, newMinStamp);
     } else {
       clearWatermarkHold(namespace);
     }
@@ -275,10 +275,10 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
    * <p>Note that this is equivalent to {@link org.apache.beam.sdk.state.Timer#withOutputTimestamp}
    * and should be reworked to use that feature once that is stable.
    */
-  private void setupFlushTimerAndWatermarkHold(
-      StateNamespace namespace, BoundedWindow window, Instant flush) {
+  private void setupFlushTimer(StateNamespace namespace, BoundedWindow window, Instant flush) {
     Instant flushWithLateness = flush.plus(windowingStrategy.getAllowedLateness());
-    Instant windowGcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
+    Instant windowGcTime =
+        LateDataUtils.garbageCollectionTime(window, windowingStrategy.getAllowedLateness());
     if (flushWithLateness.isAfter(windowGcTime)) {
       flushWithLateness = windowGcTime;
     }
@@ -292,8 +292,12 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
             flushWithLateness,
             flush,
             TimeDomain.EVENT_TIME);
-    watermark.clear();
-    watermark.add(flush);
+    // [BEAM-10533] check if the hold is set (pipelines before release of [BEAM-10533]
+    // this can be removed in soe future versions, when we can assume there is no
+    // running with this state (beam 2.23.0 and older)
+    if (!watermark.isEmpty().read()) {
+      watermark.clear();
+    }
   }
 
   private void clearWatermarkHold(StateNamespace namespace) {
