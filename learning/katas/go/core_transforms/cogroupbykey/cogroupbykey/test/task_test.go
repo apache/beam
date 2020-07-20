@@ -16,7 +16,7 @@
 package task
 
 import (
-	"cogroupbykey/pkg/task"
+	"beam.apache.org/learning/katas/core_transforms/cogroupbykey/cogroupbykey/pkg/task"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
