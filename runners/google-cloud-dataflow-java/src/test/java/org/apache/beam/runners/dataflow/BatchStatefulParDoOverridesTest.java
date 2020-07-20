@@ -28,7 +28,6 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.BatchStatefulParDoOverrides.StatefulMultiOutputParDo;
 import org.apache.beam.runners.dataflow.BatchStatefulParDoOverrides.StatefulSingleOutputParDo;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -51,6 +50,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -159,7 +159,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
 
   private static class FindBatchStatefulDoFnVisitor extends PipelineVisitor.Defaults {
 
-    @Nullable private DoFn<?, ?> batchStatefulDoFn;
+    private @Nullable DoFn<?, ?> batchStatefulDoFn;
 
     public DoFn<?, ?> getStatefulDoFn() {
       assertThat(batchStatefulDoFn, not(nullValue()));

@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.io.kafka;
 
 import java.util.Arrays;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.kafka.common.header.Headers;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * KafkaRecord contains key and value of the record as well as metadata for the record (topic name,

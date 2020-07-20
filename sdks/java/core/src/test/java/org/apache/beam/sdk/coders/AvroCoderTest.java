@@ -914,8 +914,7 @@ public class AvroCoderTest {
 
   private static class NullableField {
     @SuppressWarnings("unused")
-    @Nullable
-    private String nullable;
+    private @Nullable String nullable;
   }
 
   @Test
@@ -925,20 +924,17 @@ public class AvroCoderTest {
 
   private static class NullableNonDeterministicField {
     @SuppressWarnings("unused")
-    @Nullable
-    private NonDeterministicArray nullableNonDetArray;
+    private @Nullable NonDeterministicArray nullableNonDetArray;
   }
 
   private static class NullableCyclic {
     @SuppressWarnings("unused")
-    @Nullable
-    private NullableCyclic nullableNullableCyclicField;
+    private @Nullable NullableCyclic nullableNullableCyclicField;
   }
 
   private static class NullableCyclicField {
     @SuppressWarnings("unused")
-    @Nullable
-    private Cyclic nullableCyclicField;
+    private @Nullable Cyclic nullableCyclicField;
   }
 
   @Test

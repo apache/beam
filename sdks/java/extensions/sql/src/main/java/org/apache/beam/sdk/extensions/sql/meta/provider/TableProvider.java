@@ -20,11 +20,11 @@ package org.apache.beam.sdk.extensions.sql.meta.provider;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@code TableProvider} handles the metadata CRUD of a specified kind of tables.

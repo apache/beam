@@ -35,7 +35,6 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -47,6 +46,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)
@@ -96,7 +96,7 @@ public class Schema implements Serializable {
   private final int hashCode;
   // Every SchemaCoder has a UUID. The schemas created with the same UUID are guaranteed to be
   // equal, so we can short circuit comparison.
-  @Nullable private UUID uuid = null;
+  private @Nullable UUID uuid = null;
 
   private final Options options;
 
@@ -286,8 +286,7 @@ public class Schema implements Serializable {
   }
 
   /** Get this schema's UUID. */
-  @Nullable
-  public UUID getUUID() {
+  public @Nullable UUID getUUID() {
     return this.uuid;
   }
 
@@ -572,24 +571,24 @@ public class Schema implements Serializable {
     public abstract Boolean getNullable();
 
     // For logical types, return the implementing class.
-    @Nullable
-    public abstract LogicalType getLogicalType();
+
+    public abstract @Nullable LogicalType getLogicalType();
 
     // For container types (e.g. ARRAY or ITERABLE), returns the type of the contained element.
-    @Nullable
-    public abstract FieldType getCollectionElementType();
+
+    public abstract @Nullable FieldType getCollectionElementType();
 
     // For MAP type, returns the type of the key element, it must be a primitive type;
-    @Nullable
-    public abstract FieldType getMapKeyType();
+
+    public abstract @Nullable FieldType getMapKeyType();
 
     // For MAP type, returns the type of the value element, it can be a nested type;
-    @Nullable
-    public abstract FieldType getMapValueType();
+
+    public abstract @Nullable FieldType getMapValueType();
 
     // For ROW types, returns the schema for the row.
-    @Nullable
-    public abstract Schema getRowSchema();
+
+    public abstract @Nullable Schema getRowSchema();
 
     /**
      * Returns optional extra metadata.
@@ -773,8 +772,7 @@ public class Schema implements Serializable {
 
     /** @deprecated use schema options instead. */
     @Deprecated
-    @Nullable
-    public byte[] getMetadata(String key) {
+    public byte @Nullable [] getMetadata(String key) {
       ByteArrayWrapper metadata = getMetadata().get(key);
       return (metadata != null) ? metadata.array : null;
     }

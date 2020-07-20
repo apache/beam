@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.schemas.io;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Provider to create {@link SchemaIO} instances for use in Beam SQL and other SDKs.

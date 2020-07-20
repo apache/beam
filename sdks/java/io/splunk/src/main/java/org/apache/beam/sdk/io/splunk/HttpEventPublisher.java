@@ -39,7 +39,6 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
-import javax.annotation.Nullable;
 import javax.net.ssl.HostnameVerifier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
@@ -53,6 +52,7 @@ import org.apache.http.conn.ssl.TrustStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.ssl.SSLContextBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,8 +97,7 @@ abstract class HttpEventPublisher {
 
   abstract String token();
 
-  @Nullable
-  abstract Integer maxElapsedMillis();
+  abstract @Nullable Integer maxElapsedMillis();
 
   abstract Boolean disableCertificateValidation();
 

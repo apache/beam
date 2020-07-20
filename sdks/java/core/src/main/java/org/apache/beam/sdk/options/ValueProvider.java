@@ -39,12 +39,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link ValueProvider} abstracts the notion of fetching a value that may or may not be currently
@@ -76,7 +76,7 @@ public interface ValueProvider<T> extends Serializable {
    * static value to be provided.
    */
   class StaticValueProvider<T> implements ValueProvider<T>, Serializable {
-    @Nullable private final T value;
+    private final @Nullable T value;
 
     StaticValueProvider(@Nullable T value) {
       this.value = value;
@@ -199,7 +199,7 @@ public interface ValueProvider<T> extends Serializable {
     private final Class<? extends PipelineOptions> klass;
     private final String methodName;
     private final String propertyName;
-    @Nullable private final T defaultValue;
+    private final @Nullable T defaultValue;
     private final Long optionsId;
 
     /**

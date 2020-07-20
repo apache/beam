@@ -27,7 +27,6 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An implementation of {@link SchemaIOProvider} for reading and writing JSON payloads with {@link
@@ -261,11 +261,10 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
 
   @AutoValue
   abstract static class Config implements Serializable {
-    @Nullable
-    abstract String getTimestampAttributeKey();
 
-    @Nullable
-    abstract String getDeadLetterQueue();
+    abstract @Nullable String getTimestampAttributeKey();
+
+    abstract @Nullable String getDeadLetterQueue();
 
     boolean useDeadLetterQueue() {
       return getDeadLetterQueue() != null;

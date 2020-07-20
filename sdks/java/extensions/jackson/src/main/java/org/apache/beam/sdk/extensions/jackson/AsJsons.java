@@ -169,10 +169,10 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
   public class AsJsonsWithFailures<FailureT>
       extends PTransform<PCollection<InputT>, WithFailures.Result<PCollection<String>, FailureT>> {
 
-    @Nullable
-    private InferableFunction<WithFailures.ExceptionElement<InputT>, FailureT> exceptionHandler;
+    private @Nullable InferableFunction<WithFailures.ExceptionElement<InputT>, FailureT>
+        exceptionHandler;
 
-    @Nullable private final transient TypeDescriptor<FailureT> failureType;
+    private final transient @Nullable TypeDescriptor<FailureT> failureType;
 
     AsJsonsWithFailures(
         InferableFunction<WithFailures.ExceptionElement<InputT>, FailureT> exceptionHandler,

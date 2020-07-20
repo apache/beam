@@ -42,7 +42,6 @@ import java.util.RandomAccess;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
@@ -74,6 +73,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * <b>For internal use only; no backwards compatibility guarantees.</b>
@@ -289,9 +289,9 @@ public class PCollectionViews {
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   private static class SingletonViewFn2<T> extends ViewFn<IterableView<T>, T> {
-    @Nullable private byte[] encodedDefaultValue;
-    @Nullable private transient T defaultValue;
-    @Nullable private Coder<T> valueCoder;
+    private byte @Nullable [] encodedDefaultValue;
+    private transient @Nullable T defaultValue;
+    private @Nullable Coder<T> valueCoder;
     private boolean hasDefault;
     private TypeDescriptorSupplier<T> typeDescriptorSupplier;
 
@@ -379,9 +379,9 @@ public class PCollectionViews {
   @Deprecated
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class SingletonViewFn<T> extends ViewFn<MultimapView<Void, T>, T> {
-    @Nullable private byte[] encodedDefaultValue;
-    @Nullable private transient T defaultValue;
-    @Nullable private Coder<T> valueCoder;
+    private byte @Nullable [] encodedDefaultValue;
+    private transient @Nullable T defaultValue;
+    private @Nullable Coder<T> valueCoder;
     private boolean hasDefault;
     private TypeDescriptorSupplier<T> typeDescriptorSupplier;
 

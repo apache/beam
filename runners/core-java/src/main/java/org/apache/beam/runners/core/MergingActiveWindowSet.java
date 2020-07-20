@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.state.ValueState;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An {@link ActiveWindowSet} for merging {@link WindowFn} implementations. */
 public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWindowSet<W> {

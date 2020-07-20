@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespace;
@@ -73,6 +72,7 @@ import org.apache.samza.serializers.SerdeFactory;
 import org.apache.samza.storage.kv.Entry;
 import org.apache.samza.storage.kv.KeyValueIterator;
 import org.apache.samza.storage.kv.KeyValueStore;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** {@link StateInternals} that uses Samza local {@link KeyValueStore} to manage state. */
@@ -92,7 +92,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   private SamzaStoreStateInternals(
       Map<String, KeyValueStore<ByteArray, byte[]>> stores,
       @Nullable K key,
-      @Nullable byte[] keyBytes,
+      byte @Nullable [] keyBytes,
       String stageId,
       int batchGetSize) {
     this.stores = stores;
@@ -493,8 +493,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    @Nullable
-    public ReadableState<Boolean> addIfAbsent(T t) {
+    public @Nullable ReadableState<Boolean> addIfAbsent(T t) {
       return mapState.putIfAbsent(t, true);
     }
 
@@ -603,8 +602,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    @Nullable
-    public ReadableState<ValueT> putIfAbsent(KeyT key, ValueT value) {
+    public @Nullable ReadableState<ValueT> putIfAbsent(KeyT key, ValueT value) {
       final ByteArray encodedKey = encodeKey(key);
       final ValueT current = decodeValue(store.get(encodedKey));
       if (current == null) {

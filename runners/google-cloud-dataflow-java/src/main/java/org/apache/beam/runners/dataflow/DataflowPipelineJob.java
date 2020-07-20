@@ -35,7 +35,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
@@ -48,6 +47,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,10 +76,10 @@ public class DataflowPipelineJob implements PipelineResult {
   private final DataflowMetrics dataflowMetrics;
 
   /** The state the job terminated in or {@code null} if the job has not terminated. */
-  @Nullable private State terminalState = null;
+  private @Nullable State terminalState = null;
 
   /** The job that replaced this one or {@code null} if the job has not been replaced. */
-  @Nullable private DataflowPipelineJob replacedByJob = null;
+  private @Nullable DataflowPipelineJob replacedByJob = null;
 
   protected BiMap<AppliedPTransform<?, ?, ?>, String> transformStepNames;
 
@@ -171,14 +171,12 @@ public class DataflowPipelineJob implements PipelineResult {
   }
 
   @Override
-  @Nullable
-  public State waitUntilFinish() {
+  public @Nullable State waitUntilFinish() {
     return waitUntilFinish(Duration.millis(-1));
   }
 
   @Override
-  @Nullable
-  public State waitUntilFinish(Duration duration) {
+  public @Nullable State waitUntilFinish(Duration duration) {
     try {
       return waitUntilFinish(duration, new MonitoringUtil.LoggingHandler());
     } catch (Exception e) {
@@ -236,7 +234,7 @@ public class DataflowPipelineJob implements PipelineResult {
   @VisibleForTesting
   State waitUntilFinish(
       Duration duration,
-      @Nullable MonitoringUtil.JobMessagesHandler messageHandler,
+      MonitoringUtil.@Nullable JobMessagesHandler messageHandler,
       Sleeper sleeper,
       NanoClock nanoClock)
       throws IOException, InterruptedException {
@@ -271,7 +269,7 @@ public class DataflowPipelineJob implements PipelineResult {
   @VisibleForTesting
   State waitUntilFinish(
       Duration duration,
-      @Nullable MonitoringUtil.JobMessagesHandler messageHandler,
+      MonitoringUtil.@Nullable JobMessagesHandler messageHandler,
       Sleeper sleeper,
       NanoClock nanoClock,
       MonitoringUtil monitor)

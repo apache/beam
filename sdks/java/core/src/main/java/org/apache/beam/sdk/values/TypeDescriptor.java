@@ -24,12 +24,12 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Invokable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Parameter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.TypeResolver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.TypeToken;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A description of a Java type, including actual generic parameters where possible.
@@ -121,8 +121,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
    * Returns the enclosing instance if the field is synthetic and it is able to access it, or
    * {@literal null} if not.
    */
-  @Nullable
-  private Object getEnclosingInstance(Field field, Object instance) {
+  private @Nullable Object getEnclosingInstance(Field field, Object instance) {
     if (!field.isSynthetic()) {
       return null;
     }

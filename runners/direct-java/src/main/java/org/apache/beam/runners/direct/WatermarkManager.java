@@ -48,7 +48,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
@@ -74,6 +73,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SortedMultiset;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultiset;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -1812,13 +1812,11 @@ public class WatermarkManager<ExecutableT, CollectionT> {
   abstract static class PendingWatermarkUpdate<ExecutableT, CollectionT> {
     abstract ExecutableT getExecutable();
 
-    @Nullable
-    abstract Bundle<?, ? extends CollectionT> getInputBundle();
+    abstract @Nullable Bundle<?, ? extends CollectionT> getInputBundle();
 
     abstract TimerUpdate getTimerUpdate();
 
-    @Nullable
-    abstract Bundle<?, ? extends CollectionT> getUnprocessedInputs();
+    abstract @Nullable Bundle<?, ? extends CollectionT> getUnprocessedInputs();
 
     abstract Iterable<? extends Bundle<?, ? extends CollectionT>> getOutputs();
 

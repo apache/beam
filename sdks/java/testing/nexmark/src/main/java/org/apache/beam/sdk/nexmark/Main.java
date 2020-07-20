@@ -37,7 +37,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
@@ -47,6 +46,7 @@ import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -290,8 +290,7 @@ public class Main {
   }
 
   /** Load the baseline perf. */
-  @Nullable
-  private static Map<NexmarkConfiguration, NexmarkPerf> loadBaseline(
+  private static @Nullable Map<NexmarkConfiguration, NexmarkPerf> loadBaseline(
       @Nullable String baselineFilename) {
     if (baselineFilename == null) {
       return null;

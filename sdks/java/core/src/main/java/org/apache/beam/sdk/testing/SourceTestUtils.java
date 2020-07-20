@@ -35,7 +35,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -45,6 +44,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.slf4j.Logger;
@@ -820,14 +820,12 @@ public class SourceTestUtils {
       }
 
       @Override
-      @Nullable
-      public BoundedSource<T> splitAtFraction(double fraction) {
+      public @Nullable BoundedSource<T> splitAtFraction(double fraction) {
         return null;
       }
 
       @Override
-      @Nullable
-      public Double getFractionConsumed() {
+      public @Nullable Double getFractionConsumed() {
         return boundedReader.getFractionConsumed();
       }
 

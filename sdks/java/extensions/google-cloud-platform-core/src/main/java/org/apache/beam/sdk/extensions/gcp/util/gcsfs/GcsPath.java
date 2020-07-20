@@ -36,7 +36,7 @@ import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Implements the Java NIO {@link Path} API for Google Cloud Storage paths.
@@ -163,7 +163,7 @@ public class GcsPath implements Path, Serializable {
     return new GcsPath(null, bucket, object);
   }
 
-  @Nullable private transient FileSystem fs;
+  private transient @Nullable FileSystem fs;
   @Nonnull private final String bucket;
   @Nonnull private final String object;
 

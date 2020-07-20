@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -53,6 +52,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Describes the signature of a {@link DoFn}, in particular, which features it uses, which extra
@@ -76,24 +76,19 @@ public abstract class DoFnSignature {
   public abstract Map<String, StateDeclaration> stateDeclarations();
 
   /** Details about this {@link DoFn}'s {@link DoFn.StartBundle} method. */
-  @Nullable
-  public abstract BundleMethod startBundle();
+  public abstract @Nullable BundleMethod startBundle();
 
   /** Details about this {@link DoFn}'s {@link DoFn.FinishBundle} method. */
-  @Nullable
-  public abstract BundleMethod finishBundle();
+  public abstract @Nullable BundleMethod finishBundle();
 
   /** Details about this {@link DoFn}'s {@link DoFn.Setup} method. */
-  @Nullable
-  public abstract LifecycleMethod setup();
+  public abstract @Nullable LifecycleMethod setup();
 
   /** Details about this {@link DoFn}'s {@link DoFn.Teardown} method. */
-  @Nullable
-  public abstract LifecycleMethod teardown();
+  public abstract @Nullable LifecycleMethod teardown();
 
   /** Details about this {@link DoFn}'s {@link DoFn.OnWindowExpiration} method. */
-  @Nullable
-  public abstract OnWindowExpirationMethod onWindowExpiration();
+  public abstract @Nullable OnWindowExpirationMethod onWindowExpiration();
 
   /** Timer declarations present on the {@link DoFn} class. Immutable. */
   public abstract Map<String, TimerDeclaration> timerDeclarations();
@@ -102,52 +97,41 @@ public abstract class DoFnSignature {
   public abstract Map<String, TimerFamilyDeclaration> timerFamilyDeclarations();
 
   /** Field access declaration. */
-  @Nullable
-  public abstract Map<String, FieldAccessDeclaration> fieldAccessDeclarations();
+  public abstract @Nullable Map<String, FieldAccessDeclaration> fieldAccessDeclarations();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetInitialRestriction} method. */
-  @Nullable
-  public abstract GetInitialRestrictionMethod getInitialRestriction();
+  public abstract @Nullable GetInitialRestrictionMethod getInitialRestriction();
 
   /** Details about this {@link DoFn}'s {@link DoFn.SplitRestriction} method. */
-  @Nullable
-  public abstract SplitRestrictionMethod splitRestriction();
+  public abstract @Nullable SplitRestrictionMethod splitRestriction();
 
   /** Details about this {@link DoFn}'s {@link TruncateRestriction} method. */
-  @Nullable
-  public abstract TruncateRestrictionMethod truncateRestriction();
+  public abstract @Nullable TruncateRestrictionMethod truncateRestriction();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetRestrictionCoder} method. */
-  @Nullable
-  public abstract GetRestrictionCoderMethod getRestrictionCoder();
+  public abstract @Nullable GetRestrictionCoderMethod getRestrictionCoder();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetWatermarkEstimatorStateCoder} method. */
-  @Nullable
-  public abstract GetWatermarkEstimatorStateCoderMethod getWatermarkEstimatorStateCoder();
+  public abstract @Nullable GetWatermarkEstimatorStateCoderMethod getWatermarkEstimatorStateCoder();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetInitialWatermarkEstimatorState} method. */
-  @Nullable
-  public abstract GetInitialWatermarkEstimatorStateMethod getInitialWatermarkEstimatorState();
+  public abstract @Nullable GetInitialWatermarkEstimatorStateMethod
+      getInitialWatermarkEstimatorState();
 
   /** Details about this {@link DoFn}'s {@link DoFn.NewWatermarkEstimator} method. */
-  @Nullable
-  public abstract NewWatermarkEstimatorMethod newWatermarkEstimator();
+  public abstract @Nullable NewWatermarkEstimatorMethod newWatermarkEstimator();
 
   /** Details about this {@link DoFn}'s {@link DoFn.NewTracker} method. */
-  @Nullable
-  public abstract NewTrackerMethod newTracker();
+  public abstract @Nullable NewTrackerMethod newTracker();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetSize} method. */
-  @Nullable
-  public abstract GetSizeMethod getSize();
+  public abstract @Nullable GetSizeMethod getSize();
 
   /** Details about this {@link DoFn}'s {@link DoFn.OnTimer} methods. */
-  @Nullable
-  public abstract Map<String, OnTimerMethod> onTimerMethods();
+  public abstract @Nullable Map<String, OnTimerMethod> onTimerMethods();
 
   /** Details about this {@link DoFn}'s {@link DoFn.OnTimerFamily} methods. */
-  @Nullable
-  public abstract Map<String, OnTimerFamilyMethod> onTimerFamilyMethods();
+  public abstract @Nullable Map<String, OnTimerFamilyMethod> onTimerFamilyMethods();
 
   /** @deprecated use {@link #usesState()}, it's cleaner */
   @Deprecated
@@ -731,8 +715,7 @@ public abstract class DoFnSignature {
 
       public abstract TypeDescriptor<?> elementT();
 
-      @Nullable
-      public abstract String fieldAccessString();
+      public abstract @Nullable String fieldAccessString();
 
       public abstract int index();
 
@@ -984,12 +967,10 @@ public abstract class DoFnSignature {
     public abstract boolean requiresTimeSortedInput();
 
     /** Concrete type of the {@link RestrictionTracker} parameter, if present. */
-    @Nullable
-    public abstract TypeDescriptor<?> trackerT();
+    public abstract @Nullable TypeDescriptor<?> trackerT();
 
     /** Concrete type of the {@link WatermarkEstimator} parameter, if present. */
-    @Nullable
-    public abstract TypeDescriptor<?> watermarkEstimatorT();
+    public abstract @Nullable TypeDescriptor<?> watermarkEstimatorT();
 
     /** The window type used by this method, if any. */
     @Nullable
@@ -1019,16 +1000,14 @@ public abstract class DoFnSignature {
           hasReturnValue);
     }
 
-    @Nullable
-    public List<SchemaElementParameter> getSchemaElementParameters() {
+    public @Nullable List<SchemaElementParameter> getSchemaElementParameters() {
       return extraParameters().stream()
           .filter(Predicates.instanceOf(SchemaElementParameter.class)::apply)
           .map(SchemaElementParameter.class::cast)
           .collect(Collectors.toList());
     }
 
-    @Nullable
-    public List<SideInputParameter> getSideInputParameters() {
+    public @Nullable List<SideInputParameter> getSideInputParameters() {
       return extraParameters().stream()
           .filter(Predicates.instanceOf(SideInputParameter.class)::apply)
           .map(SideInputParameter.class::cast)
@@ -1036,8 +1015,7 @@ public abstract class DoFnSignature {
     }
 
     /** The {@link OutputReceiverParameter} for a main output, or null if there is none. */
-    @Nullable
-    public OutputReceiverParameter getMainOutputReceiver() {
+    public @Nullable OutputReceiverParameter getMainOutputReceiver() {
       Optional<Parameter> parameter =
           extraParameters().stream()
               .filter(Predicates.instanceOf(OutputReceiverParameter.class)::apply)
@@ -1225,8 +1203,7 @@ public abstract class DoFnSignature {
 
     /** The type of window expected by this method, if any. */
     @Override
-    @Nullable
-    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    public abstract @Nullable TypeDescriptor<? extends BoundedWindow> windowT();
 
     static BundleMethod create(Method targetMethod, List<Parameter> extraParameters) {
       /* start bundle/finish bundle currently do not get invoked on a per window basis and can't accept a BoundedWindow parameter */

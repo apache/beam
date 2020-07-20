@@ -21,23 +21,22 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Arrays;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A wrapper around {@link Throwable} that preserves the stack trace on serialization, unlike
  * regular {@link Throwable}.
  */
 public final class SerializableThrowable implements Serializable {
-  @Nullable private final Throwable throwable;
-  @Nullable private final StackTraceElement[] stackTrace;
+  private final @Nullable Throwable throwable;
+  private final StackTraceElement @Nullable [] stackTrace;
 
   public SerializableThrowable(@Nullable Throwable t) {
     this.throwable = t;
     this.stackTrace = (t == null) ? null : t.getStackTrace();
   }
 
-  @Nullable
-  public Throwable getThrowable() {
+  public @Nullable Throwable getThrowable() {
     return throwable;
   }
 

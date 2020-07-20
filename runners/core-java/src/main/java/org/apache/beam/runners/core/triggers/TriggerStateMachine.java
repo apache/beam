@@ -20,7 +20,6 @@ package org.apache.beam.runners.core.triggers;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.MergingStateAccessor;
 import org.apache.beam.runners.core.StateAccessor;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -28,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -186,12 +186,10 @@ public abstract class TriggerStateMachine implements Serializable {
     public abstract Instant currentProcessingTime();
 
     /** The current synchronized upstream processing time or {@code null} if unknown. */
-    @Nullable
-    public abstract Instant currentSynchronizedProcessingTime();
+    public abstract @Nullable Instant currentSynchronizedProcessingTime();
 
     /** The current event time for the input or {@code null} if unknown. */
-    @Nullable
-    public abstract Instant currentEventTime();
+    public abstract @Nullable Instant currentEventTime();
   }
 
   /**
@@ -249,7 +247,7 @@ public abstract class TriggerStateMachine implements Serializable {
     public abstract MergingTriggerInfo trigger();
   }
 
-  @Nullable protected final List<TriggerStateMachine> subTriggers;
+  protected final @Nullable List<TriggerStateMachine> subTriggers;
 
   protected TriggerStateMachine(@Nullable List<TriggerStateMachine> subTriggers) {
     this.subTriggers = subTriggers;

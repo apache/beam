@@ -19,12 +19,12 @@ package org.apache.beam.sdk.io;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** This returns a row count estimation for files associated with a file pattern. */
 @AutoValue
@@ -39,9 +39,8 @@ public abstract class TextRowCountEstimator {
 
   public abstract long getNumSampledBytesPerFile();
 
-  @Nullable
   @SuppressWarnings("mutable")
-  public abstract byte[] getDelimiters();
+  public abstract byte @Nullable [] getDelimiters();
 
   public abstract String getFilePattern();
 
@@ -152,7 +151,7 @@ public abstract class TextRowCountEstimator {
 
     public abstract Builder setCompression(Compression compression);
 
-    public abstract Builder setDelimiters(byte[] delimiters);
+    public abstract Builder setDelimiters(byte @Nullable [] delimiters);
 
     public abstract Builder setFilePattern(String filePattern);
 

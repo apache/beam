@@ -21,12 +21,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.List;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -73,7 +73,7 @@ public class AfterWatermark {
   public static class AfterWatermarkEarlyAndLate extends Trigger {
 
     private final OnceTrigger earlyTrigger;
-    @Nullable private final OnceTrigger lateTrigger;
+    private final @Nullable OnceTrigger lateTrigger;
 
     public OnceTrigger getEarlyTrigger() {
       return earlyTrigger;

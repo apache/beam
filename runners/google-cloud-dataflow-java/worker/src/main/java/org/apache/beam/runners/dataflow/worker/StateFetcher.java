@@ -25,7 +25,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.Coder;
@@ -46,6 +45,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Weigher;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,8 +104,7 @@ class StateFetcher {
    * <p>Returns {@literal null} if the side input was not ready, {@literal Optional.absent()} if the
    * side input was null, and {@literal Optional.present(...)} if the side input was non-null.
    */
-  @Nullable
-  public <T, SideWindowT extends BoundedWindow> Optional<T> fetchSideInput(
+  public @Nullable <T, SideWindowT extends BoundedWindow> Optional<T> fetchSideInput(
       final PCollectionView<T> view,
       final SideWindowT sideWindow,
       final String stateFamily,
@@ -275,8 +274,7 @@ class StateFetcher {
      * Returns {@literal null} if the side input was not ready, {@literal Optional.absent()} if the
      * side input was null, and {@literal Optional.present(...)} if the side input was non-null.
      */
-    @Nullable
-    public <T> Optional<T> getValue() {
+    public @Nullable <T> Optional<T> getValue() {
       @SuppressWarnings("unchecked")
       T typed = (T) value;
       return ready ? Optional.fromNullable(typed) : null;

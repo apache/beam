@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
 public class MetricsContainerImpl implements Serializable, MetricsContainer {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerImpl.class);
 
-  @Nullable private final String stepName;
+  private final @Nullable String stepName;
 
   private MetricsMap<MetricName, CounterCell> counters = new MetricsMap<>(CounterCell::new);
 
@@ -98,8 +98,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
    * Return a {@code CounterCell} named {@code metricName}. If it doesn't exist, return {@code
    * null}.
    */
-  @Nullable
-  public CounterCell tryGetCounter(MetricName metricName) {
+  public @Nullable CounterCell tryGetCounter(MetricName metricName) {
     return counters.tryGet(metricName);
   }
 
@@ -116,8 +115,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
    * Return a {@code DistributionCell} named {@code metricName}. If it doesn't exist, return {@code
    * null}.
    */
-  @Nullable
-  public DistributionCell tryGetDistribution(MetricName metricName) {
+  public @Nullable DistributionCell tryGetDistribution(MetricName metricName) {
     return distributions.tryGet(metricName);
   }
 
@@ -133,8 +131,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   /**
    * Return a {@code GaugeCell} named {@code metricName}. If it doesn't exist, return {@code null}.
    */
-  @Nullable
-  public GaugeCell tryGetGauge(MetricName metricName) {
+  public @Nullable GaugeCell tryGetGauge(MetricName metricName) {
     return gauges.tryGet(metricName);
   }
 
@@ -161,8 +158,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   /** @return The MonitoringInfo generated from the metricUpdate. */
-  @Nullable
-  private MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
+  private @Nullable MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
 
     MetricName metricName = metricUpdate.getKey().metricName();
@@ -199,8 +195,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
    * @param metricUpdate
    * @return The MonitoringInfo generated from the metricUpdate.
    */
-  @Nullable
-  private MonitoringInfo distributionUpdateToMonitoringInfo(
+  private @Nullable MonitoringInfo distributionUpdateToMonitoringInfo(
       MetricUpdate<org.apache.beam.runners.core.metrics.DistributionData> metricUpdate) {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
     MetricName metricName = metricUpdate.getKey().metricName();

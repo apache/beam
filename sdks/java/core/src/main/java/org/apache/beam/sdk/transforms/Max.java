@@ -19,9 +19,9 @@ package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
 import java.util.Comparator;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code PTransform}s for computing the maximum of the elements in a {@code PCollection}, or the
@@ -215,7 +215,7 @@ public class Max {
 
   private static class MaxFn<T> extends BinaryCombineFn<T> {
 
-    @Nullable private final T identity;
+    private final @Nullable T identity;
     private final Comparator<? super T> comparator;
 
     private <ComparatorT extends Comparator<? super T> & Serializable> MaxFn(

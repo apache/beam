@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@code Context} that holds only single value. There is no window associated with the value, so
@@ -33,7 +33,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
 @Audience(Audience.Type.EXECUTOR)
 public class SingleValueContext<T> implements Context, Collector<T> {
 
-  @Nullable private final Context wrap;
+  private final @Nullable Context wrap;
   private T value;
 
   public SingleValueContext() {

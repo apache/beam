@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
@@ -84,6 +83,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -151,13 +151,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   public abstract FileBasedSink<UserT, DestinationT, OutputT> getSink();
 
-  @Nullable
-  public abstract PTransform<PCollection<UserT>, PCollectionView<Integer>> getComputeNumShards();
+  public abstract @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>>
+      getComputeNumShards();
 
   // We don't use a side input for static sharding, as we want this value to be updatable
   // when a pipeline is updated.
-  @Nullable
-  public abstract ValueProvider<Integer> getNumShardsProvider();
+
+  public abstract @Nullable ValueProvider<Integer> getNumShardsProvider();
 
   public abstract boolean getWindowedWrites();
 
@@ -165,8 +165,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   abstract List<PCollectionView<?>> getSideInputs();
 
-  @Nullable
-  public abstract ShardingFunction<UserT, DestinationT> getShardingFunction();
+  public abstract @Nullable ShardingFunction<UserT, DestinationT> getShardingFunction();
 
   abstract Builder<UserT, DestinationT, OutputT> toBuilder();
 
@@ -487,7 +486,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    * WriteOperation} associated with the {@link FileBasedSink}.
    */
   private class WriteUnshardedTempFilesFn extends DoFn<UserT, FileResult<DestinationT>> {
-    @Nullable private final TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag;
+    private final @Nullable TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag;
     private final Coder<DestinationT> destinationCoder;
 
     // Initialized in startBundle()
@@ -796,7 +795,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   private class FinalizeTempFileBundles
       extends PTransform<
           PCollection<List<FileResult<DestinationT>>>, WriteFilesResult<DestinationT>> {
-    @Nullable private final PCollectionView<Integer> numShardsView;
+    private final @Nullable PCollectionView<Integer> numShardsView;
     private final Coder<DestinationT> destinationCoder;
 
     private FinalizeTempFileBundles(
@@ -877,7 +876,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   private static class GatherBundlesPerWindowFn<T> extends DoFn<T, List<T>> {
-    @Nullable private transient Multimap<BoundedWindow, T> bundles = null;
+    private transient @Nullable Multimap<BoundedWindow, T> bundles = null;
 
     @StartBundle
     public void startBundle() {

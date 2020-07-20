@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -84,6 +83,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Days;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -150,8 +150,7 @@ public class AvroUtils {
     }
 
     /** Create a {@link FixedBytesField} from a Beam {@link FieldType}. */
-    @Nullable
-    public static FixedBytesField fromBeamFieldType(FieldType fieldType) {
+    public static @Nullable FixedBytesField fromBeamFieldType(FieldType fieldType) {
       if (fieldType.getTypeName().isLogicalType()
           && fieldType.getLogicalType().getIdentifier().equals(FixedBytes.IDENTIFIER)) {
         int length = fieldType.getLogicalType(FixedBytes.class).getLength();
@@ -162,8 +161,7 @@ public class AvroUtils {
     }
 
     /** Create a {@link FixedBytesField} from an AVRO type. */
-    @Nullable
-    public static FixedBytesField fromAvroType(org.apache.avro.Schema type) {
+    public static @Nullable FixedBytesField fromAvroType(org.apache.avro.Schema type) {
       if (type.getType().equals(Type.FIXED)) {
         return new FixedBytesField(type.getFixedSize());
       } else {
@@ -366,7 +364,7 @@ public class AvroUtils {
    * from the Beam schema on the row.
    */
   public static GenericRecord toGenericRecord(
-      Row row, @Nullable org.apache.avro.Schema avroSchema) {
+      Row row, org.apache.avro.@Nullable Schema avroSchema) {
     Schema beamSchema = row.getSchema();
     // Use the provided AVRO schema if present, otherwise infer an AVRO schema from the row
     // schema.
@@ -394,7 +392,7 @@ public class AvroUtils {
 
   @SuppressWarnings("unchecked")
   public static <T> SerializableFunction<T, Row> getToRowFunction(
-      Class<T> clazz, @Nullable org.apache.avro.Schema schema) {
+      Class<T> clazz, org.apache.avro.@Nullable Schema schema) {
     if (GenericRecord.class.equals(clazz)) {
       Schema beamSchema = toBeamSchema(schema);
       return (SerializableFunction<T, Row>) getGenericRecordToRowFunction(beamSchema);
@@ -410,8 +408,8 @@ public class AvroUtils {
         : new AvroRecordSchema().fromRowFunction(TypeDescriptor.of(clazz));
   }
 
-  @Nullable
-  public static <T> Schema getSchema(Class<T> clazz, @Nullable org.apache.avro.Schema schema) {
+  public static @Nullable <T> Schema getSchema(
+      Class<T> clazz, org.apache.avro.@Nullable Schema schema) {
     if (schema != null) {
       return schema.getType().equals(Type.RECORD) ? toBeamSchema(schema) : null;
     }
@@ -465,14 +463,14 @@ public class AvroUtils {
    * org.apache.beam.sdk.values.PCollection#setSchema}.
    */
   public static SerializableFunction<Row, GenericRecord> getRowToGenericRecordFunction(
-      @Nullable org.apache.avro.Schema avroSchema) {
+      org.apache.avro.@Nullable Schema avroSchema) {
     return new RowToGenericRecordFn(avroSchema);
   }
 
   private static class RowToGenericRecordFn implements SerializableFunction<Row, GenericRecord> {
     private transient org.apache.avro.Schema avroSchema;
 
-    RowToGenericRecordFn(@Nullable org.apache.avro.Schema avroSchema) {
+    RowToGenericRecordFn(org.apache.avro.@Nullable Schema avroSchema) {
       this.avroSchema = avroSchema;
     }
 
@@ -846,8 +844,7 @@ public class AvroUtils {
     return fieldType.getNullable() ? ReflectData.makeNullable(baseType) : baseType;
   }
 
-  @Nullable
-  private static Object genericFromBeamField(
+  private static @Nullable Object genericFromBeamField(
       Schema.FieldType fieldType, org.apache.avro.Schema avroSchema, @Nullable Object value) {
     TypeWithNullability typeWithNullability = new TypeWithNullability(avroSchema);
     if (!fieldType.getNullable().equals(typeWithNullability.nullable)) {
@@ -963,8 +960,7 @@ public class AvroUtils {
    * @return value converted for {@link Row}
    */
   @SuppressWarnings("unchecked")
-  @Nullable
-  public static Object convertAvroFieldStrict(
+  public static @Nullable Object convertAvroFieldStrict(
       @Nullable Object value,
       @Nonnull org.apache.avro.Schema avroSchema,
       @Nonnull Schema.FieldType fieldType) {
