@@ -22,8 +22,8 @@ import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.ParsedData;
 import com.google.api.services.healthcare.v1beta1.model.SchematizedData;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 /** The type HL7v2 message to wrap the {@link Message} model. */
 public class HL7v2Message {
@@ -47,6 +47,7 @@ public class HL7v2Message {
     }
   }
 
+  public HL7v2Message() {}
   /**
    * From model {@link Message} to hl7v2 message.
    *
@@ -54,18 +55,31 @@ public class HL7v2Message {
    * @return the hl7v2 message
    */
   public static HL7v2Message fromModel(Message msg) {
-    ParsedData parsedData = msg.getParsedData();
-    SchematizedData schematizedData = msg.getSchematizedData();
-    return new HL7v2Message(
-        msg.getName(),
-        msg.getMessageType(),
-        msg.getSendTime(),
-        msg.getCreateTime(),
-        msg.getData(),
-        msg.getSendFacility(),
-        parsedData,
-        schematizedData != null ? schematizedData.getData() : null,
-        msg.getLabels());
+    HL7v2MessageBuilder mb =
+        new HL7v2MessageBuilder(
+            msg.getName(),
+            msg.getMessageType(),
+            msg.getSendTime(),
+            msg.getCreateTime(),
+            msg.getData(),
+            msg.getSendFacility());
+    if (msg.getParsedData() != null) {
+      mb.setParsedData(msg.getParsedData());
+    } else {
+      mb.setParsedData(new ParsedData());
+    }
+    if (msg.getSchematizedData() != null) {
+      mb.setSchematizedData(msg.getSchematizedData().getData());
+    } else {
+      mb.setSchematizedData("empty");
+    }
+    if (msg.getLabels() != null) {
+      mb.setLabels(msg.getLabels());
+    } else {
+      mb.setLabels(new HashMap<>());
+    }
+
+    return mb.build();
   }
 
   /**
@@ -81,33 +95,82 @@ public class HL7v2Message {
     out.setCreateTime(this.getCreateTime());
     out.setData(this.getData());
     out.setSendFacility(this.getSendFacility());
-    out.setParsedData(this.getParsedData());
-    out.setSchematizedData(new SchematizedData().setData(this.schematizedData));
-    out.setLabels(this.labels);
+    if (this.getParsedData() != null) {
+      out.setParsedData(this.getParsedData());
+    }
+    if (this.getSchematizedData() != null) {
+      out.setSchematizedData(new SchematizedData().setData(this.schematizedData));
+    }
+    if (this.getLabels() != null) {
+      out.setLabels(this.labels);
+    }
     return out;
   }
 
-  public HL7v2Message() {}
+  public static class HL7v2MessageBuilder {
+    private final String name;
+    private final String messageType;
+    private final String sendTime;
+    private final String createTime;
+    private final String data;
+    private final String sendFacility;
 
-  public HL7v2Message(
-      String name,
-      String messageType,
-      String sendTime,
-      String createTime,
-      String data,
-      String sendFacility,
-      @Nullable ParsedData parsedData,
-      @Nullable String schematizedData,
-      @Nullable Map<String, String> labels) {
-    this.name = name;
-    this.messageType = messageType;
-    this.sendTime = sendTime;
-    this.createTime = createTime;
-    this.data = data;
-    this.sendFacility = sendFacility;
-    this.parsedData = parsedData;
-    this.schematizedData = schematizedData;
-    this.labels = labels;
+    private ParsedData parsedData;
+    private String schematizedData;
+    private Map<String, String> labels;
+
+    public HL7v2MessageBuilder(
+        String name,
+        String messageType,
+        String sendTime,
+        String createTime,
+        String data,
+        String sendFacility) {
+      this.name = name;
+      this.messageType = messageType;
+      this.sendTime = sendTime;
+      this.createTime = createTime;
+      this.data = data;
+      this.sendFacility = sendFacility;
+    }
+
+    public HL7v2MessageBuilder setParsedData(ParsedData parsedData) {
+      this.parsedData = parsedData;
+      return this;
+    }
+
+    public HL7v2MessageBuilder setSchematizedData(String schematizedData) {
+      this.schematizedData = schematizedData;
+      return this;
+    }
+
+    public HL7v2MessageBuilder setLabels(Map<String, String> labels) {
+      this.labels = labels;
+      return this;
+    }
+
+    public HL7v2Message build() {
+      // call the private constructor in the outer class
+      return new HL7v2Message(this);
+    }
+  }
+
+  public HL7v2Message(HL7v2MessageBuilder mb) {
+    this.name = mb.name;
+    this.messageType = mb.messageType;
+    this.sendTime = mb.sendTime;
+    this.createTime = mb.createTime;
+    this.data = mb.data;
+    this.sendFacility = mb.sendFacility;
+    if (mb.parsedData != null) {
+      this.parsedData = mb.parsedData;
+    }
+    if (mb.schematizedData != null) {
+      this.schematizedData = mb.schematizedData;
+    }
+    if (mb.labels != null) {
+      this.labels = mb.labels;
+    }
   }
 
   /**
