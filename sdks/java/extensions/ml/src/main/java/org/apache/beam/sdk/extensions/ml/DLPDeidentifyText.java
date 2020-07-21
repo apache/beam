@@ -177,11 +177,9 @@ public abstract class DLPDeidentifyText
   @Override
   public PCollection<KV<String, DeidentifyContentResponse>> expand(
       PCollection<KV<String, String>> input) {
-    return input
-        .apply(ParDo.of(new MapStringToDlpRow(getColumnDelimiter())))
-        .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(getBatchSizeBytes())))
-        .apply(
-            "DLPDeidentify",
+
+    ParDo.SingleOutput<KV<String, Iterable<Table.Row>>, KV<String, DeidentifyContentResponse>>
+        deidentifyParDo =
             ParDo.of(
                 new DeidentifyText(
                     getProjectId(),
@@ -189,7 +187,14 @@ public abstract class DLPDeidentifyText
                     getDeidentifyTemplateName(),
                     getInspectConfig(),
                     getDeidentifyConfig(),
-                    getHeaderColumns())));
+                    getHeaderColumns()));
+    if (getHeaderColumns() != null) {
+      deidentifyParDo = deidentifyParDo.withSideInputs(getHeaderColumns());
+    }
+    return input
+        .apply(ParDo.of(new MapStringToDlpRow(getColumnDelimiter())))
+        .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(getBatchSizeBytes())))
+        .apply("DLPDeidentify", deidentifyParDo);
   }
 
   /** DoFn performing calls to Cloud DLP service on GCP. */
