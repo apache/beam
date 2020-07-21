@@ -422,15 +422,19 @@ class IOTypeHints(NamedTuple(
 
     special_containers += [PCollection]
 
-    if my_type not in special_containers and getattr(my_type, '__origin__', None) != PCollection:
+    if (my_type not in special_containers and
+        getattr(my_type, '__origin__', None) != PCollection):
       raise TypeCheckError(error_str)
 
     kwarg_dict = {}
 
-    if getattr(my_type, '__args__', -1) in [-1, None] or len(my_type.__args__) == 0:
-      kwarg_dict[my_key] = ((typehints.Any, ), {})          # e.g. PCollection (or PBegin/PDone)
+    if (getattr(my_type, '__args__', -1) in [-1, None] or
+        len(my_type.__args__) == 0):
+      # e.g. PCollection (or PBegin/PDone)
+      kwarg_dict[my_key] = ((typehints.Any, ), {})
     else:
-      kwarg_dict[my_key] = ((my_type.__args__[0], ), {})    # e.g. PCollection[type]
+      # e.g. PCollection[type]
+      kwarg_dict[my_key] = ((my_type.__args__[0], ), {})
 
     return self._replace(
         origin=self._make_origin([self], tb=False, msg=[source_str]),
