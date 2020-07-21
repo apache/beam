@@ -23,7 +23,7 @@ content:
 - cogroupbykey
 - combine
 - flatten
-- Partition
+- partition
 - Side Input
 - Additional Outputs
 - Branching
