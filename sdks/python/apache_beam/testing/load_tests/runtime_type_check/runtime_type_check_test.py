@@ -33,7 +33,7 @@ will be stored,
 
 Example test run:
 
-python -m apache_beam.testing.load_tests.runtime_type_check_test \
+python -m apache_beam.testing.load_tests.runtime_type_check_on_test \
     --test-pipeline-options="
     --project=apache-beam-testing
     --region=us-centrall
@@ -41,7 +41,24 @@ python -m apache_beam.testing.load_tests.runtime_type_check_test \
     --metrics_dataset=saavan_python_load_tests
     --metrics_table=gbk
     --nested_typehint=0
-    --fanout=10
+    --fanout=200
+    --input_options='{
+    \"num_records\": 300,
+    \"key_size\": 5,
+    \"value_size\": 15
+    }'"
+
+OR
+
+python -m apache_beam.testing.load_tests.runtime_type_check_off_test \
+    --test-pipeline-options="
+    --project=apache-beam-testing
+    --region=us-centrall
+    --publish_to_big_query=true
+    --metrics_dataset=saavan_python_load_tests
+    --metrics_table=gbk
+    --nested_typehint=0
+    --fanout=200
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
@@ -64,25 +81,28 @@ from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 class BaseRunTimeTypeCheckTest(LoadTest):
   def __init__(self):
-    super(BaseRunTimeTypeCheckTest, self).__init__(runtime_type_check=self.runtime_type_check)
+    runtime_type_check = getattr(self, 'runtime_type_check', False)
+    super(BaseRunTimeTypeCheckTest,
+          self).__init__(runtime_type_check=runtime_type_check)
     self.fanout = self.get_option_or_default('fanout', 1)
     self.nested_typehint = self.get_option_or_default('nested_typehint', 0)
 
   class SimpleInput(beam.DoFn):
     def process(self, element: Tuple[bytes, ...]):
-        yield element
+      yield element
 
   class SimpleOutput(beam.DoFn):
     def process(self, element) -> Iterable[Tuple[bytes, ...]]:
-        yield element
+      yield element
 
   class NestedInput(beam.DoFn):
     def process(self, element: Tuple[int, str, bytes, Iterable[int]]):
-        yield element
+      yield element
 
   class NestedOutput(beam.DoFn):
-    def process(self, element) -> Iterable[Tuple[int, str, bytes, Iterable[int]]]:
-        yield 1, 'a', element, [0]
+    def process(self,
+                element) -> Iterable[Tuple[int, str, bytes, Iterable[int]]]:
+      yield 1, 'a', element, [0]
 
   def test(self):
     pc = (
