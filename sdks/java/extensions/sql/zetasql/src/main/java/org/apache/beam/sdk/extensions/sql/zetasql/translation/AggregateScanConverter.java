@@ -199,7 +199,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
 
     SqlAggFunction sqlAggFunction =
         (SqlAggFunction)
-            SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
+            SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
                 aggregateFunctionCall.getFunction().getName());
     if (sqlAggFunction == null) {
       throw new UnsupportedOperationException(

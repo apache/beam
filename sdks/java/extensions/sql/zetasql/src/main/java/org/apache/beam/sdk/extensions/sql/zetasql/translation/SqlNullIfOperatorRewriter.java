@@ -40,7 +40,7 @@ class SqlNullIfOperatorRewriter implements SqlOperatorRewriter {
         operands.size() == 2, "NULLIF should have two arguments in function call.");
 
     SqlOperator op =
-        SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get("$case_no_value");
+        SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get("$case_no_value");
     List<RexNode> newOperands =
         ImmutableList.of(
             rexBuilder.makeCall(

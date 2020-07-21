@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql;
+package org.apache.beam.sdk.extensions.sql.zetasql.translation.impl;
 
 import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.RexImpTable.createImplementor;
 
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.CallImplementor;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.NotNullImplementor;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.NullPolicy;
@@ -31,22 +32,11 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Exp
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.FunctionParameter;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ImplementableFunction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 
 /** ZetaSQLCastFunctionImpl. */
-public class ZetaSQLCastFunctionImpl implements ImplementableFunction {
-  public static final SqlUserDefinedFunction ZETASQL_CAST_OP =
-      new SqlUserDefinedFunction(
-          new SqlIdentifier("CAST", SqlParserPos.ZERO),
-          null,
-          null,
-          null,
-          null,
-          new ZetaSQLCastFunctionImpl());
-
+@Internal
+public class CastFunctionImpl implements ImplementableFunction {
   @Override
   public CallImplementor getImplementor() {
     return createImplementor(new ZetaSQLCastCallNotNullImplementor(), NullPolicy.STRICT, false);
