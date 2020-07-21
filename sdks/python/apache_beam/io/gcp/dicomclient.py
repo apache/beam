@@ -15,8 +15,7 @@
 # limitations under the License.
 #
 
-import google.auth
-import json
+from google.auth import default
 from google.auth.transport import requests
 
 
@@ -32,7 +31,7 @@ class DicomApiHttpClient:
 
     # if the credential is not provided, use the default credential.
     if not credential:
-      credential, _ = google.auth.default()
+      credential, _ = default()
     new_seesion = requests.AuthorizedSession(credential)
     self.session = new_seesion
     return new_seesion
