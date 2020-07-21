@@ -41,6 +41,10 @@ class MainInputTest(unittest.TestCase):
                                 r'requires.*int.*got.*str'):
       _ = ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
 
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'requires.*int.*got.*str'):
+      _ = [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
+
   def test_typed_dofn_method_with_class_decorators(self):
     # Class decorators take precedence over PEP 484 hints.
     @typehints.with_input_types(typehints.Tuple[int, int])
