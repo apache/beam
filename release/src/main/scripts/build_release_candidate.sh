@@ -223,11 +223,11 @@ if [[ $confirmation = "y" ]]; then
   read confirmation
   if [[ $confirmation != "y" ]]; then
     echo "Exit without staging python artifacts on dist.apache.org."
-    rm -rf "${HOME:?}/${PYTHON_ARTIFACTS_DIR}"
+    rm -rf "${HOME:?}/${LOCAL_PYTHON_STAGING_DIR}"
     exit
   fi
   svn commit --no-auth-cache
-  rm -rf "${HOME:?}/${PYTHON_ARTIFACTS_DIR}"
+  rm -rf "${HOME:?}/${LOCAL_PYTHON_STAGING_DIR}"
 fi
 
 echo "[Current Step]: Stage docker images"
