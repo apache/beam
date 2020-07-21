@@ -174,7 +174,6 @@ if [[ $confirmation = "y" ]]; then
   git clone "${GIT_REPO_URL}"
   cd "${BEAM_ROOT_DIR}"
   git checkout "${RELEASE_BRANCH}"
-  git push origin "${RELEASE_BRANCH}"
   RELEASE_COMMIT=$(git rev-parse --verify HEAD)
 
   echo '-------------------Creating Python Virtualenv-----------------'
