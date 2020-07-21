@@ -93,13 +93,14 @@ class LoadTest(object):
   If using InfluxDB with Basic HTTP authentication enabled, provide the
   following environment options: `INFLUXDB_USER` and `INFLUXDB_USER_PASSWORD`.
   """
-  def __init__(self, metrics_namespace=None):
+  def __init__(self, metrics_namespace=None, runtime_type_check=False):
     # Be sure to set blocking to false for timeout_ms to work properly
     self.pipeline = TestPipeline(is_integration_test=True, blocking=False)
 
     assert not self.pipeline.blocking
 
-    self.pipeline._options.view_as(TypeOptions).runtime_type_check = True
+    self.pipeline._options.view_as(TypeOptions)\
+        .runtime_type_check = runtime_type_check
 
     options = self.pipeline.get_pipeline_options().view_as(LoadTestOptions)
     self.timeout_ms = options.timeout_ms

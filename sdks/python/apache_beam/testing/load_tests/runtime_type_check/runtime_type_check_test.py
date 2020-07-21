@@ -64,7 +64,7 @@ from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 class BaseRunTimeTypeCheckTest(LoadTest):
   def __init__(self):
-    super(BaseRunTimeTypeCheckTest, self).__init__()
+    super(BaseRunTimeTypeCheckTest, self).__init__(runtime_type_check=self.runtime_type_check)
     self.fanout = self.get_option_or_default('fanout', 1)
     self.nested_typehint = self.get_option_or_default('nested_typehint', 0)
 
