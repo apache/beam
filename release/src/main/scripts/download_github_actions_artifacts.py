@@ -159,14 +159,16 @@ def get_last_run_id(
       reverse=True,
   )
   last_run = sorted_runs[0]
+  last_run_id = safe_get(last_run, "id")
   print(
-      f"Found last run. SHA: {release_commit}, created_at: '{last_run['created_at']}', id: {last_run['id']}"
+      f"Found last run. SHA: {release_commit}, created_at: '{last_run['created_at']}', id: {last_run_id}"
   )
   workflow_run_web_url = GH_WEB_URL_WORKLOW_RUN_FMT.format(
-      repo_url=repo_url, run_id=last_run["id"])
+      repo_url=repo_url, run_id=last_run_id)
   print(f"Verify at {workflow_run_web_url}")
   print(
-      f"Upload to GCS available at: gs://beam-wheels-staging/{release_branch}/{release_commit}-{workflow_id}/"
+      f"GCS location corresponding to artifacts built in this run: "
+      f"gs://beam-wheels-staging/{release_branch}/{release_commit}-{last_run_id}/"
   )
   return safe_get(last_run, "id")
 
