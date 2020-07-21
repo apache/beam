@@ -57,7 +57,7 @@ def chicagoTaxiJob = { scope ->
 PostcommitJobBuilder.postCommitJob(
     'beam_PostCommit_Python_Chicago_Taxi_Flink',
     'Run Chicago Taxi on Flink',
-    'Google Cloud Flink Runner Chicago Taxi Example',
+    'Chicago Taxi Example on Flink ("Run Chicago Taxi on Flink")',
     this
 ) {
     chicagoTaxiJob(delegate)
