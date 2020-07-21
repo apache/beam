@@ -29,7 +29,10 @@ pythonVersion = '3.8'
 toxTask "formatter", "py3-yapf-check"
 check.dependsOn formatter
 
+toxTask "testPy38CloudCoverage", "py38-cloudcoverage"
+test.dependsOn "testPy38CloudCoverage"
+
 apply from: "../common.gradle"
 
 // TODO(BEAM-8954): Remove this once tox uses isolated builds.
-testPy38Cython.mustRunAfter testPython38, testPy38Cloud
+testPy38Cython.mustRunAfter testPython38, testPy38Cloud, testPy38CloudCoverage
