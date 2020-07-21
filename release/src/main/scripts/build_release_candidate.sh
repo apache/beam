@@ -206,13 +206,13 @@ if [[ $confirmation = "y" ]]; then
   echo "-----Signing Source Release apache-beam-${RELEASE}.tar.gz-----"
   gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "apache-beam-${RELEASE}.tar.gz"
 
-  echo "-----Checking Hash Value for apache-beam-${RELEASE} wheels-----"
   for artifact in *.whl; do
+    echo "----------Checking Hash Value for ${artifact} wheel-----------"
     sha512sum -c "${artifact}.sha512"
   done
 
-  echo "---------Signing Release wheels apache-beam-${RELEASE}--------"
   for artifact in *.whl; do
+    echo "------------------Signing ${artifact} wheel-------------------"
     gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "${artifact}"
   done
 
