@@ -33,10 +33,10 @@ from apitools.base.py.exceptions import HttpError
 class FakeFile(object):
   def __init__(self, container, blob, contents, last_updated=None, etag=None):
     self.container = container
-    self.blob = blob 
+    self.blob = blob
     self.contents = contents
     self.last_updated = last_updated
-    
+
     if not etag:
       self.etag = '"%s-1"' % ('x' * 32)
     else:
@@ -47,7 +47,7 @@ class FakeFile(object):
     if self.last_updated:
       last_updated_datetime = datetime.datetime.utcfromtimestamp(
           self.last_updated)
-    
+
     return blobstorageio.Blob(
         self.etag,
         self.blob,
@@ -59,40 +59,47 @@ class FakeFile(object):
 class TestAZFSPathParser(unittest.TestCase):
 
   BAD_AZFS_PATHS = [
-    'azfs://'
-    'azfs://storage-account/'
-    'azfs://storage-account/**'
-    'azfs://storage-account/**/*'
-    'azfs://container'
-    'azfs:///name'
-    'azfs:///'
-    'azfs:/blah/container/name'
-    'azfs://ab/container/name'
-    'azfs://accountwithmorethan24chars/container/name'
-    'azfs://***/container/name'
-    'azfs://storageaccount/my--container/name'
-    'azfs://storageaccount/CONTAINER/name'
-    'azfs://storageaccount/ct/name'
+      'azfs://'
+      'azfs://storage-account/'
+      'azfs://storage-account/**'
+      'azfs://storage-account/**/*'
+      'azfs://container'
+      'azfs:///name'
+      'azfs:///'
+      'azfs:/blah/container/name'
+      'azfs://ab/container/name'
+      'azfs://accountwithmorethan24chars/container/name'
+      'azfs://***/container/name'
+      'azfs://storageaccount/my--container/name'
+      'azfs://storageaccount/CONTAINER/name'
+      'azfs://storageaccount/ct/name'
   ]
-
 
   def test_azfs_path(self):
     self.assertEqual(
-      blobstorageio.parse_azfs_path('azfs://storageaccount/container/name'), ('storageaccount', 'container', 'name'))
+        blobstorageio.parse_azfs_path('azfs://storageaccount/container/name'),
+        ('storageaccount', 'container', 'name'))
     self.assertEqual(
-      blobstorageio.parse_azfs_path('azfs://storageaccount/container/name/sub'), ('storageaccount', 'container', 'name/sub'))
+        blobstorageio.parse_azfs_path(
+            'azfs://storageaccount/container/name/sub'),
+        ('storageaccount', 'container', 'name/sub'))
 
   def test_bad_azfs_path(self):
     for path in self.BAD_AZFS_PATHS:
       self.assertRaises(ValueError, blobstorageio.parse_azfs_path, path)
-    self.assertRaises(ValueError, blobstorageio.parse_azfs_path, 'azfs://storageaccount/container/')
+    self.assertRaises(
+        ValueError,
+        blobstorageio.parse_azfs_path,
+        'azfs://storageaccount/container/')
 
   def test_azfs_path_blob_optional(self):
     self.assertEqual(
-        blobstorageio.parse_azfs_path('azfs://storageaccount/container/name', blob_optional=True),
+        blobstorageio.parse_azfs_path(
+            'azfs://storageaccount/container/name', blob_optional=True),
         ('storageaccount', 'container', 'name'))
     self.assertEqual(
-        blobstorageio.parse_azfs_path('azfs://storageaccount/container/', blob_optional=True),
+        blobstorageio.parse_azfs_path(
+            'azfs://storageaccount/container/', blob_optional=True),
         ('storageaccount', 'container', ''))
 
   def test_bad_azfs_path_blob_optional(self):
@@ -129,9 +136,9 @@ class TestBlobStorageIO(unittest.TestCase):
   def test_list_prefix(self):
 
     blobs = [
-      ('sloth/pictures/sleeping', 2),
-      ('sloth/videos/smiling', 3),
-      ('sloth/institute/costarica', 5),
+        ('sloth/pictures/sleeping', 2),
+        ('sloth/videos/smiling', 3),
+        ('sloth/institute/costarica', 5),
     ]
 
     for (blob_name, size) in blobs:
@@ -154,8 +161,7 @@ class TestBlobStorageIO(unittest.TestCase):
                 ('sloth/institute/costarica', 5),
             ]),
         (
-            self.TEST_DATA_PATH + 'sloth/videos/smiling',
-            [
+            self.TEST_DATA_PATH + 'sloth/videos/smiling', [
                 ('sloth/videos/smiling', 3),
             ]),
     ]
@@ -170,38 +176,41 @@ class TestBlobStorageIO(unittest.TestCase):
     # Clean up
     for (blob_name, size) in blobs:
       self.azfs.delete(self.TEST_DATA_PATH + blob_name)
-  
+
   def test_copy(self):
     src_file_name = self.TEST_DATA_PATH + 'mysource'
     dest_file_name = self.TEST_DATA_PATH + 'mydest'
     file_size = 1024
-    self._insert_random_file(src_file_name, file_size)    
-    
+    self._insert_random_file(src_file_name, file_size)
+
     self.assertTrue(src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
-    self.assertFalse(dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+    self.assertFalse(
+        dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
 
     self.azfs.copy(src_file_name, dest_file_name)
 
     self.assertTrue(src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
-    self.assertTrue(dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(
+        dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
 
     # TODO : Add delete_files functionality
     self.azfs.delete(self.TEST_DATA_PATH + 'mysource')
     self.azfs.delete(self.TEST_DATA_PATH + 'mydest')
-    
+
     # Test copy of non-existent files.
     with self.assertRaises(blobstorageio.BlobStorageError) as err:
       self.azfs.copy(
           self.TEST_DATA_PATH + 'non-existent',
           self.TEST_DATA_PATH + 'non-existent-destination')
 
-    self.assertTrue('The specified blob does not exist.' in err.exception.message)
+    self.assertTrue(
+        'The specified blob does not exist.' in err.exception.message)
     self.assertEqual(err.exception.code, 404)
 
   def test_delete(self):
     file_name = self.TEST_DATA_PATH + 'test_file_delete'
     file_size = 1024
-    
+
     # Test deletion of non-existent file.
     self.azfs.delete(file_name)
 
@@ -243,10 +252,10 @@ class TestBlobStorageIO(unittest.TestCase):
 
   def test_exists(self):
     file_name = self.TEST_DATA_PATH + 'test_file_exists'
-    file_size = 1024 
+    file_size = 1024
 
     self.assertFalse(self.azfs.exists(file_name))
-    self._insert_random_file(file_name, file_size)    
+    self._insert_random_file(file_name, file_size)
     self.assertTrue(self.azfs.exists(file_name))
 
     # Clean up
@@ -256,7 +265,7 @@ class TestBlobStorageIO(unittest.TestCase):
   def test_full_file_read(self):
     file_name = self.TEST_DATA_PATH + 'test_file_read'
     file_size = 1024
-    
+
     new_file = self._insert_random_file(file_name, file_size)
     contents = new_file.contents
 
@@ -287,11 +296,12 @@ class TestBlobStorageIO(unittest.TestCase):
 
     # Clean up
     self.azfs.delete(file_name)
-   
+
   def test_checksum(self):
     file_name = self.TEST_DATA_PATH + 'test_checksum'
-    
+
     # TODO : add insert_random_file functionality
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

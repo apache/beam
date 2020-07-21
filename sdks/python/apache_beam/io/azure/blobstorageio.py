@@ -1,4 +1,3 @@
- 
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -56,10 +55,16 @@ MAX_BATCH_OPERATION_SIZE = 100
 
 def parse_azfs_path(azfs_path, blob_optional=False):
   """Return the storage account, the container and blob names of the given azfs:// path."""
-  match = re.match('^azfs://([a-z0-9]{3,24})/([a-z0-9](?![a-z0-9-]*--[a-z0-9-]*)[a-z0-9-]{1,61}[a-z0-9])/(.*)$', azfs_path)
+  match = re.match(
+      '^azfs://([a-z0-9]{3,24})/([a-z0-9](?![a-z0-9-]*--[a-z0-9-]*)'
+      '[a-z0-9-]{1,61}[a-z0-9])/(.*)$',
+      azfs_path)
   if match is None or (match.group(3) == '' and not blob_optional):
-    raise ValueError('Azure Blob Storage path must be in the form azfs://<storage-account>/<container>/<path>.')
+    raise ValueError(
+        'Azure Blob Storage path must be in the form azfs://<storage-account>/<container>/<path>.'
+    )
   return match.group(1), match.group(2), match.group(3)
+
 
 def get_azfs_url(storage_account, container, blob=''):
   """Returns the url in the form of https://account.blob.core.windows.net/container/blob-name"""
@@ -71,10 +76,10 @@ class Blob():
   A Blob in Azure Blob Storage
   """
   def __init__(self, etag, name, last_updated, size, mime_type):
-    self.etag = etag 
-    self.name = name 
+    self.etag = etag
+    self.name = name
     self.last_updated = last_updated
-    self.size = size 
+    self.size = size
     self.mime_type = mime_type
 
 
@@ -87,11 +92,10 @@ class BlobStorageError(Exception):
   def __init__(self, message=None, code=None):
     self.message = message
     self.code = code
-   
+
 
 class BlobStorageIO(object):
   """Azure Blob Storage I/O client."""
-
   def __init__(self, client=None):
     connect_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
     if client is None:
@@ -157,7 +161,7 @@ class BlobStorageIO(object):
       message = e.reason
       code = e.status_code
       raise BlobStorageError(message, code)
-    
+
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def list_prefix(self, path):
@@ -274,7 +278,7 @@ class BlobStorageDownloader(Downloader):
     blob_data = self._blob_to_download.download_blob(start, end - start)
     # Returns the content as bytes
     return blob_data.readall()
-  
+
 
 class BlobStorageUploader(Uploader):
   def __init__(self, client, path, mime_type='application/octet-stream'):
@@ -296,5 +300,5 @@ class BlobStorageUploader(Uploader):
     self._temporary_file.seek(0)
     # The temporary file is deleted immediately after the operation
     with open(self._temporary_file.name, "rb") as f:
-      self._blob_to_upload.upload_blob(f.read(), overwrite=True,
-                                       content_settings=self._content_settings)
+      self._blob_to_upload.upload_blob(
+          f.read(), overwrite=True, content_settings=self._content_settings)

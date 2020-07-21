@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Azure Blob Storage Implementation for accesing files on Azure Blob Storage."""
 
 from __future__ import absolute_import
@@ -26,7 +27,6 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.azure import blobstorageio
-
 
 __all__ = ['BlobStorageFileSystem']
 
@@ -57,7 +57,8 @@ class BlobStorageFileSystem(FileSystem):
     Returns: full path after combining all the passed components
     """
     if not basepath.startswith(BlobStorageFileSystem.AZURE_FILE_SYSTEM_PREFIX):
-      raise ValueError('Basepath %r must be an Azure Blob Storage path.' % basepath)
+      raise ValueError(
+          'Basepath %r must be an Azure Blob Storage path.' % basepath)
 
     path = basepath
     for p in paths:
@@ -130,7 +131,6 @@ class BlobStorageFileSystem(FileSystem):
         yield FileMetadata(path, size)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
-      
 
   def create(
       self,

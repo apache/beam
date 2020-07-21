@@ -41,22 +41,27 @@ except ImportError:
   blobstoragefilesystem = None  # type: ignore
 #pylint: enable=wrong-import-order, wrong-import-position
 
-@unittest.skipIf(blobstoragefilesystem is None, 'Azure dependencies are not installed')
+
+@unittest.skipIf(
+    blobstoragefilesystem is None, 'Azure dependencies are not installed')
 class BlobStorageFileSystemTest(unittest.TestCase):
   def setUp(self):
     pipeline_options = PipelineOptions()
-    self.fs = blobstoragefilesystem.BlobStorageFileSystem(pipeline_options=pipeline_options)
+    self.fs = blobstoragefilesystem.BlobStorageFileSystem(
+        pipeline_options=pipeline_options)
 
   def test_scheme(self):
     self.assertEqual(self.fs.scheme(), 'azfs')
-    self.assertEqual(blobstoragefilesystem.BlobStorageFileSystem.scheme(), 'azfs')
+    self.assertEqual(
+        blobstoragefilesystem.BlobStorageFileSystem.scheme(), 'azfs')
 
   def test_join(self):
     self.assertEqual(
         'azfs://account-name/container/path/to/file',
         self.fs.join('azfs://account-name/container/path', 'to', 'file'))
     self.assertEqual(
-        'azfs://account-name/container/path/to/file', self.fs.join('azfs://account-name/container/path', 'to/file'))
+        'azfs://account-name/container/path/to/file',
+        self.fs.join('azfs://account-name/container/path', 'to/file'))
     self.assertEqual(
         'azfs://account-name/container/path/to/file',
         self.fs.join('azfs://account-name/container/path', '/to/file'))
@@ -71,9 +76,10 @@ class BlobStorageFileSystemTest(unittest.TestCase):
         self.fs.join('azfs://account-name/container/path', '/to/file'))
     with self.assertRaises(ValueError):
       self.fs.join('account-name/container/path', '/to/file')
-      
+
   def test_split(self):
-    self.assertEqual(('azfs://foo/bar', 'baz'), self.fs.split('azfs://foo/bar/baz'))
+    self.assertEqual(('azfs://foo/bar', 'baz'),
+                     self.fs.split('azfs://foo/bar/baz'))
     self.assertEqual(('azfs://foo', ''), self.fs.split('azfs://foo/'))
     self.assertEqual(('azfs://foo', ''), self.fs.split('azfs://foo'))
 
@@ -86,7 +92,8 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = lambda: blobstorageio_mock  # type: ignore[misc]
     blobstorageio_mock.list_prefix.return_value = {
-        'azfs://storageaccount/container/file1': 1, 'azfs://storageaccount/container/file2': 2
+        'azfs://storageaccount/container/file1': 1,
+        'azfs://storageaccount/container/file2': 2
     }
     expected_results = set([
         FileMetadata('azfs://storageaccount/container/file1', 1),
@@ -95,7 +102,8 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     match_result = self.fs.match(['azfs://storageaccount/container/'])[0]
 
     self.assertEqual(set(match_result.metadata_list), expected_results)
-    blobstorageio_mock.list_prefix.assert_called_once_with('azfs://storageaccount/container/')
+    blobstorageio_mock.list_prefix.assert_called_once_with(
+        'azfs://storageaccount/container/')
 
   @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
   def test_match_multiples_limit(self, unused_mock_blobstorageio):
@@ -103,12 +111,17 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     blobstorageio_mock = mock.MagicMock()
     limit = 1
     blobstoragefilesystem.blobstorageio.BlobStorageIO = lambda: blobstorageio_mock
-    blobstorageio_mock.list_prefix.return_value = {'azfs://storageaccount/container/file1': 1}
-    expected_results = set([FileMetadata('azfs://storageaccount/container/file1', 1)])
-    match_result = self.fs.match(['azfs://storageaccount/container/'], [limit])[0]
+    blobstorageio_mock.list_prefix.return_value = {
+        'azfs://storageaccount/container/file1': 1
+    }
+    expected_results = set(
+        [FileMetadata('azfs://storageaccount/container/file1', 1)])
+    match_result = self.fs.match(['azfs://storageaccount/container/'],
+                                 [limit])[0]
     self.assertEqual(set(match_result.metadata_list), expected_results)
     self.assertEqual(len(match_result.metadata_list), limit)
-    blobstorageio_mock.list_prefix.assert_called_once_with('azfs://storageaccount/container/')
+    blobstorageio_mock.list_prefix.assert_called_once_with(
+        'azfs://storageaccount/container/')
 
   @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
   def test_match_multiples_error(self, unused_mock_blobstorageio):
@@ -118,12 +131,15 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     exception = IOError('Failed')
     blobstorageio_mock.list_prefix.side_effect = exception
 
-    with self.assertRaisesRegex(BeamIOError, r'^Match operation failed') as error:
+    with self.assertRaisesRegex(BeamIOError,
+                                r'^Match operation failed') as error:
       self.fs.match(['azfs://storageaccount/container/'])
 
     self.assertRegex(
-        str(error.exception.exception_details), r'azfs://storageaccount/container/.*%s' % exception)
-    blobstorageio_mock.list_prefix.assert_called_once_with('azfs://storageaccount/container/')
+        str(error.exception.exception_details),
+        r'azfs://storageaccount/container/.*%s' % exception)
+    blobstorageio_mock.list_prefix.assert_called_once_with(
+        'azfs://storageaccount/container/')
 
   @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
   def test_match_multiple_patterns(self, unused_mock_blobstorageio):
@@ -138,13 +154,17 @@ class BlobStorageFileSystemTest(unittest.TestCase):
             'azfs://storageaccount/container/file2': 2
         },
     ]
-    expected_results = [[FileMetadata('azfs://storageaccount/container/file1', 1)],
-                        [FileMetadata('azfs://storageaccount/container/file2', 2)]]
-    result = self.fs.match(['azfs://storageaccount/container/file1*', 'azfs://storageaccount/container/file2*'])
+    expected_results = [
+        [FileMetadata('azfs://storageaccount/container/file1', 1)],
+        [FileMetadata('azfs://storageaccount/container/file2', 2)]
+    ]
+    result = self.fs.match([
+        'azfs://storageaccount/container/file1*',
+        'azfs://storageaccount/container/file2*'
+    ])
     self.assertEqual([mr.metadata_list for mr in result], expected_results)
 
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
-
