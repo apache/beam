@@ -7455,20 +7455,132 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="count">Count&lt;/h1>
-&lt;table align="left">
-&lt;a target="_blank" class="button"
-href="https://beam.apache.org/releases/pydoc/2.12.0/apache_beam.transforms.combiners.html?#apache_beam.transforms.combiners.Count">
-&lt;img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px"
-alt="Pydoc" />
-Pydoc
-&lt;/a>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Count"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
 &lt;/table>
-&lt;br>&lt;br>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
 &lt;p>Counts the number of elements within each aggregation.&lt;/p>
 &lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>See &lt;a href="https://issues.apache.org/jira/browse/BEAM-7390">BEAM-7390&lt;/a> for updates.&lt;/p>
+&lt;p>In the following example, we create a pipeline with two &lt;code>PCollection&lt;/code>s of produce.
+Then, we apply &lt;code>Count&lt;/code> to get the total number of elements in different ways.&lt;/p>
+&lt;h3 id="example-1-counting-all-elements-in-a-pcollection">Example 1: Counting all elements in a PCollection&lt;/h3>
+&lt;p>We use &lt;code>Count.Globally()&lt;/code> to count &lt;em>all&lt;/em> elements in a &lt;code>PCollection&lt;/code>, even if there are duplicate elements.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">total_elements&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create plants&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;🍓&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🌽&amp;#39;&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Count all elements&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">combiners&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Count&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Globally&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class=notebook-skip>
+&lt;pre>&lt;code>10&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;table align="left" style="margin-right:1em" class=".language-py" >
+&lt;td>
+&lt;a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py">&lt;img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code&lt;/a>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;h3 id="example-2-counting-elements-for-each-key">Example 2: Counting elements for each key&lt;/h3>
+&lt;p>We use &lt;code>Count.PerKey()&lt;/code> to count the elements for each unique key in a &lt;code>PCollection&lt;/code> of key-values.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">total_elements_per_keys&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create plants&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍓&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fall&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;winter&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fall&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🌽&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">])&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Count elements per key&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">combiners&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Count&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PerKey&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class=notebook-skip>
+&lt;pre>&lt;code>(&amp;#39;spring&amp;#39;, 4)
+(&amp;#39;summer&amp;#39;, 3)
+(&amp;#39;fall&amp;#39;, 2)
+(&amp;#39;winter&amp;#39;, 1)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;table align="left" style="margin-right:1em" class=".language-py" >
+&lt;td>
+&lt;a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py">&lt;img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code&lt;/a>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;h3 id="example-3-counting-all-unique-elements">Example 3: Counting all unique elements&lt;/h3>
+&lt;p>We use &lt;code>Count.PerElement()&lt;/code> to count the only the unique elements in a &lt;code>PCollection&lt;/code>.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">total_unique_elements&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create produce&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;🍓&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🌽&amp;#39;&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Count unique elements&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">combiners&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Count&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PerElement&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class=notebook-skip>
+&lt;pre>&lt;code>(&amp;#39;🍓&amp;#39;, 1)
+(&amp;#39;🥕&amp;#39;, 3)
+(&amp;#39;🍆&amp;#39;, 2)
+(&amp;#39;🍅&amp;#39;, 3)
+(&amp;#39;🌽&amp;#39;, 1)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;table align="left" style="margin-right:1em" class=".language-py" >
+&lt;td>
+&lt;a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py">&lt;img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code&lt;/a>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;p>N/A&lt;/p></description></item><item><title>Documentation: Create</title><link>/documentation/transforms/java/other/create/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/other/create/</guid><description>
+&lt;p>N/A&lt;/p>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Count"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: Create</title><link>/documentation/transforms/java/other/create/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/other/create/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
