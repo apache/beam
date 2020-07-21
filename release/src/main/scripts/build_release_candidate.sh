@@ -182,17 +182,17 @@ if [[ $confirmation = "y" ]]; then
   pip install requests python-dateutil
 
   echo '--------------Fetching GitHub Actions Artifacts--------------'
+  SVN_ARTIFACTS_DIR="beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}"
+  svn co https://dist.apache.org/repos/dist/dev/beam
+  mkdir -p "${SVN_ARTIFACTS_DIR}"
   python release/src/main/scripts/download_github_actions_artifacts.py \
     --github-user "${USER_GITHUB_ID}" \
     --repo-url "${GIT_REPO_BASE_URL}" \
     --release-branch "${RELEASE_BRANCH}" \
     --release-commit "${RELEASE_COMMIT}" \
-    --artifacts_dir "${PYTHON_ARTIFACTS_DIR}"
+    --artifacts_dir "${SVN_ARTIFACTS_DIR}"
 
-  svn co https://dist.apache.org/repos/dist/dev/beam
-  mkdir -p "beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}"
-  cp -ar "${PYTHON_ARTIFACTS_DIR}/" "beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}/"
-  cd "beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}"
+  cd "${SVN_ARTIFACTS_DIR}"
 
   echo "------Checking Hash Value for apache-beam-${RELEASE}.zip-----"
   sha512sum -c "apache-beam-${RELEASE}.zip.sha512"
