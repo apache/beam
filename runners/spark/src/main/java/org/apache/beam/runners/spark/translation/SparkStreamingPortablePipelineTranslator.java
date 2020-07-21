@@ -52,6 +52,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
 import org.slf4j.Logger;
@@ -236,10 +237,21 @@ public class SparkStreamingPortablePipelineTranslator
           staged.flatMap(new SparkExecutableStageExtractionFunction<>(outputMap.get(outputId)));
       context.pushDataset(outputId, new UnboundedDataset<>(outStream, streamSources));
     }
+
+    if (outputs.isEmpty()) {
+      // Add sink to ensure all outputs are computed
+      JavaDStream<WindowedValue<OutputT>> outStream =
+          staged.flatMap((rawUnionValue) -> Collections.emptyIterator());
+      context.pushDataset(
+          String.format("EmptyOutputSink_%d", context.nextSinkId()),
+          new UnboundedDataset<>(outStream, streamSources));
+    }
   }
 
   private static <T> void translateFlatten(
-      PTransformNode transformNode, RunnerApi.Pipeline pipeline, SparkStreamingTranslationContext context) {
+      PTransformNode transformNode,
+      RunnerApi.Pipeline pipeline,
+      SparkStreamingTranslationContext context) {
     Map<String, String> inputsMap = transformNode.getTransform().getInputsMap();
     final List<JavaDStream<WindowedValue<T>>> dStreams = new ArrayList<>();
     final List<Integer> streamingSources = new ArrayList<>();
@@ -261,7 +273,8 @@ public class SparkStreamingPortablePipelineTranslator
     // Unify streams into a single stream.
     JavaDStream<WindowedValue<T>> unifiedStreams =
         SparkCompat.joinStreams(context.getStreamingContext(), dStreams);
-    context.pushDataset(getOutputId(transformNode), new UnboundedDataset<>(unifiedStreams, streamingSources));
+    context.pushDataset(
+        getOutputId(transformNode), new UnboundedDataset<>(unifiedStreams, streamingSources));
   }
 
   private static String getInputId(PTransformNode transformNode) {
