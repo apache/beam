@@ -692,68 +692,6 @@ def fix_side_input_pcoll_coders(stages, pipeline_context):
   return stages
 
 
-def eliminate_common_siblings(stages, context):
-  # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
-  """Runs common subexpression elimination for common siblings.
-
-  If stages have common input, an identical transform, and one output each,
-  then all but one stages will be eliminated, and the output of the remaining
-  will be connected to the original output PCollections of the eliminated
-  stages. This elimination runs only once, not recursively, and will only
-  eliminate the first stage after a common input, rather than a chain of
-  stages.
-  """
-
-  SiblingKey = collections.namedtuple(
-      'SiblingKey', ['spec_urn', 'spec_payload', 'inputs', 'environment_id'])
-
-  def get_sibling_key(transform):
-    """Returns a key that will be identical for common siblings."""
-    transform_output_keys = list(transform.outputs.keys())
-    # Return None as the sibling key for ineligible transforms.
-    if len(transform_output_keys
-          ) != 1 or transform.spec.urn != common_urns.primitives.PAR_DO.urn:
-      return None
-    return SiblingKey(
-        spec_urn=transform.spec.urn,
-        spec_payload=transform.spec.payload,
-        inputs=tuple(transform.inputs.items()),
-        environment_id=transform.environment_id)
-
-  # Group stages by keys.
-  stages_by_sibling_key = collections.defaultdict(list)
-  for stage in stages:
-    transform = only_transform(stage.transforms)
-    stages_by_sibling_key[get_sibling_key(transform)].append(stage)
-
-  # Eliminate stages and build the output PCollection remapping dictionary.
-  pcoll_id_remap = {}
-  for sibling_key, sibling_stages in stages_by_sibling_key.items():
-    if sibling_key is None or len(sibling_stages) == 1:
-      continue
-    output_pcoll_ids = [
-        only_element(stage.transforms[0].outputs.values())
-        for stage in sibling_stages
-    ]
-    to_delete_pcoll_ids = output_pcoll_ids[1:]
-    for to_delete_pcoll_id in to_delete_pcoll_ids:
-      pcoll_id_remap[to_delete_pcoll_id] = output_pcoll_ids[0]
-      del context.components.pcollections[to_delete_pcoll_id]
-    del sibling_stages[1:]
-
-  # Yield stages while remapping output PCollections if needed.
-  for sibling_key, sibling_stages in stages_by_sibling_key.items():
-    for stage in sibling_stages:
-      input_keys_to_remap = []
-      for input_key, input_pcoll_id in stage.transforms[0].inputs.items():
-        if input_pcoll_id in pcoll_id_remap:
-          input_keys_to_remap.append(input_key)
-      for input_key_to_remap in input_keys_to_remap:
-        stage.transforms[0].inputs[input_key_to_remap] = pcoll_id_remap[
-            stage.transforms[0].inputs[input_key_to_remap]]
-      yield stage
-
-
 def pack_combiners(stages, context):
   # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
   """Packs sibling CombinePerKey stages into a single CombinePerKey.
