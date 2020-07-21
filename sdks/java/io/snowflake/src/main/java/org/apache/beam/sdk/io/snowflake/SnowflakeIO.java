@@ -221,7 +221,7 @@ public class SnowflakeIO {
    */
   public static <T> Write<T> write() {
     return new AutoValue_SnowflakeIO_Write.Builder<T>()
-        .setFileNameTemplate("output*")
+        .setFileNameTemplate("output")
         .setWriteDisposition(WriteDisposition.APPEND)
         .build();
   }
