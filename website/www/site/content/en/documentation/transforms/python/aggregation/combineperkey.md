@@ -43,7 +43,7 @@ which takes an `iterable` of numbers and adds them together.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombinePerKey`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -62,7 +62,7 @@ We define a function `saturated_sum` which takes an `iterable` of numbers and ad
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombinePerKey`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -81,7 +81,7 @@ We can also use lambda functions to simplify **Example 2**.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombinePerKey`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -103,7 +103,7 @@ In this example, the lambda function takes `values` and `max_value` as arguments
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombinePerKey`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -126,7 +126,7 @@ We then use that value as the `max_value` for our saturated sum.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombinePerKey`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -147,7 +147,7 @@ so it is possible to iterate over large `PCollection`s that won't fit into memor
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombinePerKey`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -172,7 +172,7 @@ If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombinePerKey`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -205,7 +205,7 @@ The more general way to combine elements, and the most flexible, is with a class
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `CombinePerKey`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
