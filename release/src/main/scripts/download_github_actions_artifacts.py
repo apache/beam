@@ -83,7 +83,7 @@ def ask_for_github_token():
 
 
 def request_url(url, github_token, return_json=True, *args, **kwargs):
-  """Helper function form making requests authorized by GitHub token."""
+  """Helper function for making requests authorized by GitHub token."""
   r = requests.get(url, *args, auth=("token", github_token), **kwargs)
   if return_json:
     r.raise_for_status()
