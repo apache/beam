@@ -163,7 +163,8 @@ public class JsonToRow {
   }
 
   @AutoValue
-  abstract static class JsonToRowWithErrFn extends PTransform<PCollection<String>, ParseResult> {
+  public abstract static class JsonToRowWithErrFn
+      extends PTransform<PCollection<String>, ParseResult> {
 
     private static final String LINE_FIELD_NAME = "line";
     private static final String ERROR_FIELD_NAME = "err";
@@ -179,30 +180,30 @@ public class JsonToRow {
     static final TupleTag<Row> PARSED_LINE = new TupleTag<Row>() {};
     static final TupleTag<Row> PARSE_ERROR = new TupleTag<Row>() {};
 
-    public abstract Schema getSchema();
+    abstract Schema getSchema();
 
-    public abstract String getLineFieldName();
+    abstract String getLineFieldName();
 
-    public abstract String getErrorFieldName();
+    abstract String getErrorFieldName();
 
-    public abstract boolean getExtendedErrorInfo();
+    abstract boolean getExtendedErrorInfo();
 
-    public abstract Builder toBuilder();
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setSchema(Schema value);
+      abstract Builder setSchema(Schema value);
 
-      public abstract Builder setLineFieldName(String value);
+      abstract Builder setLineFieldName(String value);
 
-      public abstract Builder setErrorFieldName(String value);
+      abstract Builder setErrorFieldName(String value);
 
-      public abstract Builder setExtendedErrorInfo(boolean value);
+      abstract Builder setExtendedErrorInfo(boolean value);
 
-      public abstract JsonToRowWithErrFn build();
+      abstract JsonToRowWithErrFn build();
     }
 
-    public static JsonToRowWithErrFn forSchema(Schema rowSchema) {
+    static JsonToRowWithErrFn forSchema(Schema rowSchema) {
       // Throw exception if this schema is not supported by RowJson
       RowJson.verifySchemaSupported(rowSchema);
       return new AutoValue_JsonToRow_JsonToRowWithErrFn.Builder()
@@ -334,27 +335,27 @@ public class JsonToRow {
   @AutoValue
   public abstract static class ParseResult implements POutput {
 
-    public abstract JsonToRowWithErrFn getJsonToRowWithErrFn();
+    abstract JsonToRowWithErrFn getJsonToRowWithErrFn();
 
-    public abstract PCollection<Row> getParsedLine();
+    abstract PCollection<Row> getParsedLine();
 
-    public abstract PCollection<Row> getFailedParse();
+    abstract PCollection<Row> getFailedParse();
 
-    public abstract ParseResult.Builder toBuilder();
+    abstract ParseResult.Builder toBuilder();
 
-    public abstract Pipeline getCallingPipeline();
+    abstract Pipeline getCallingPipeline();
 
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setJsonToRowWithErrFn(JsonToRowWithErrFn value);
+      abstract Builder setJsonToRowWithErrFn(JsonToRowWithErrFn value);
 
-      public abstract Builder setParsedLine(PCollection<Row> value);
+      abstract Builder setParsedLine(PCollection<Row> value);
 
-      public abstract Builder setFailedParse(PCollection<Row> value);
+      abstract Builder setFailedParse(PCollection<Row> value);
 
-      public abstract Builder setCallingPipeline(Pipeline value);
+      abstract Builder setCallingPipeline(Pipeline value);
 
-      public abstract ParseResult build();
+      abstract ParseResult build();
     }
 
     public static ParseResult.Builder resultBuilder() {
