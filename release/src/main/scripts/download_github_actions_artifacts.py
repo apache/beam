@@ -92,7 +92,7 @@ def request_url(url, github_token, return_json=True, *args, **kwargs):
 
 
 def safe_get(data, key, url=None):
-  """Gets data by the key with informative Exception in case of non existent key."""
+  """Looks up attribute values from a parsed JSON HTTP response."""
   if key not in data:
     message = f'There is missing key: "{key}" in response data: {data}.'
     if url:
@@ -113,7 +113,7 @@ def get_yes_or_no_answer(question):
 
 
 def get_build_wheels_workflow_id(repo_url, github_token):
-  """Gets workflow id."""
+  """Gets the ID of the Github Actions workflow responsible for building wheels."""
   url = GH_API_URL_WORKLOW_FMT.format(repo_url=repo_url)
   data = request_url(url, github_token)
   return safe_get(data, "id", url)
