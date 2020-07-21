@@ -233,6 +233,9 @@ class CommonJobProperties {
           }
         }
       }
+
+      // Clean after job completes.
+      wsCleanup()
     }
   }
 
