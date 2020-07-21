@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -111,7 +112,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
     TypeDescriptor type = TypeDescriptor.of(field.getGenericType());
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(field.getName())
-        .setNullable(field.isAnnotationPresent(Nullable.class))
+        .setNullable(hasNullableAnnotation(field))
         .setType(type)
         .setRawType(type.getRawType())
         .setField(field)
@@ -133,7 +134,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
     }
 
     TypeDescriptor type = TypeDescriptor.of(method.getGenericReturnType());
-    boolean nullable = method.isAnnotationPresent(Nullable.class);
+    boolean nullable = hasNullableReturnType(method);
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(name)
         .setNullable(nullable)
@@ -145,6 +146,40 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setMapValueType(getMapValueType(type))
         .setOneOfTypes(Collections.emptyMap())
         .build();
+  }
+
+  private static boolean hasNullableAnnotation(Field field) {
+    for (Annotation annotation : field.getAnnotations()) {
+      if (isNullableAnnotation(annotation)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * If the method or its return type are annotated with any variant of Nullable, then the schema
+   * field is nullable.
+   */
+  private static boolean hasNullableReturnType(Method method) {
+    for (Annotation annotation : method.getAnnotations()) {
+      if (isNullableAnnotation(annotation)) {
+        return true;
+      }
+    }
+
+    for (Annotation annotation : method.getAnnotatedReturnType().getAnnotations()) {
+      if (isNullableAnnotation(annotation)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /** Try to accept any Nullable annotation. */
+  private static boolean isNullableAnnotation(Annotation annotation) {
+    return annotation.annotationType().getSimpleName().equals("Nullable");
   }
 
   public static FieldValueTypeInformation forSetter(Method method) {
@@ -163,7 +198,8 @@ public abstract class FieldValueTypeInformation implements Serializable {
     }
     TypeDescriptor type = TypeDescriptor.of(method.getGenericParameterTypes()[0]);
     boolean nullable =
-        Arrays.stream(method.getParameterAnnotations()[0]).anyMatch(Nullable.class::isInstance);
+        Arrays.stream(method.getParameters()[0].getAnnotatedType().getAnnotations())
+            .anyMatch(annotation -> isNullableAnnotation(annotation));
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(name)
         .setNullable(nullable)
