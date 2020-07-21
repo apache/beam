@@ -281,8 +281,8 @@ def download_single_artifact(
   ) as f, request_url(
     url, github_token, return_json=False, allow_redirects=True, stream=True
   ) as r:
-    with open(f.name, "wb") as f:
-      shutil.copyfileobj(r.raw, f)
+    with open(f.name, "wb") as _f:
+      shutil.copyfileobj(r.raw, _f)
     with zipfile.ZipFile(f.name, "r") as zip_ref:
       print(f"\tUnzipping {len(zip_ref.filelist)} files")
       zip_ref.extractall(artifacts_dir)
