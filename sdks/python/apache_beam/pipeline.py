@@ -537,10 +537,11 @@ class Pipeline(object):
 
   def __enter__(self):
     # type: () -> Pipeline
+    beam_services = self._options.view_as(CrossLanguageOptions).beam_services
     self._extra_context = subprocess_server.JavaJarServer.beam_services(
         dict(
-            service_override.split('=', 1) for service_override in
-            self._options.view_as(CrossLanguageOptions).beam_services))
+            service_override.split('=', 1) for service_override in beam_services
+        ) if beam_services is not None else {})
     self._extra_context.__enter__()
     return self
 
