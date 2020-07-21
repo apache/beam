@@ -13,35 +13,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package main
 
 import (
-	"flatten/pkg/task"
+	"beam.apache.org/learning/katas/core_transforms/flatten/flatten/pkg/task"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"testing"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
+	"context"
 )
 
-func TestApplyTransform(t *testing.T) {
+func main() {
+	ctx := context.Background()
+
 	p, s := beam.NewPipelineWithRoot()
-	tests := []struct {
-		aWords beam.PCollection
-		bWords beam.PCollection
-		want  []interface{}
-	}{
-		{
-			aWords: beam.Create(s, "apple", "ant", "arrow"),
-			bWords: beam.Create(s, "ball", "book", "bow"),
-			want:  []interface{}{"apple", "ant", "arrow", "ball", "book", "bow"},
-		},
-	}
-	for _, tt := range tests {
-		got := task.ApplyTransform(s, tt.aWords, tt.bWords)
-		passert.Equals(s, got, tt.want...)
-		if err := ptest.Run(p); err != nil {
-			t.Error(err)
-		}
+
+	aWords := beam.Create(s, "apple", "ant", "arrow")
+	bWords := beam.Create(s, "ball", "book", "bow")
+
+
+	output := task.ApplyTransform(s, aWords, bWords)
+
+	debug.Print(s, output)
+
+	err := beamx.Run(ctx, p)
+
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
 	}
 }
-
