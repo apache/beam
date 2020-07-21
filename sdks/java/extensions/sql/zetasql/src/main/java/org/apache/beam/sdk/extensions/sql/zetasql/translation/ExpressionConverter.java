@@ -29,7 +29,6 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertTi
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.safeMicrosToMillis;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.PRE_DEFINED_WINDOW_FUNCTIONS;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.USER_DEFINED_FUNCTIONS;
-import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLCastFunctionImpl.ZETASQL_CAST_OP;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Ascii;
@@ -402,12 +401,9 @@ public class ExpressionConverter {
       List<ResolvedColumn> refScanRightColumnList,
       List<RelDataTypeField> rightFieldList,
       List<ResolvedColumn> originalRightColumnList) {
-    RexNode ret;
-
     switch (expr.nodeKind()) {
       case RESOLVED_LITERAL:
-        ret = convertResolvedLiteral((ResolvedLiteral) expr);
-        break;
+        return convertResolvedLiteral((ResolvedLiteral) expr);
       case RESOLVED_COLUMN_REF:
         ResolvedColumnRef columnRef = (ResolvedColumnRef) expr;
         // first look for column ref on the left side
@@ -416,8 +412,7 @@ public class ExpressionConverter {
                 columnRef, refScanLeftColumnList, originalLeftColumnList, leftFieldList);
 
         if (colRexNode.isPresent()) {
-          ret = colRexNode.get();
-          break;
+          return colRexNode.get();
         }
 
         // if not found there look on the right
@@ -425,8 +420,7 @@ public class ExpressionConverter {
             convertRexNodeFromResolvedColumnRefWithRefScan(
                 columnRef, refScanRightColumnList, originalRightColumnList, rightFieldList);
         if (colRexNode.isPresent()) {
-          ret = colRexNode.get();
-          break;
+          return colRexNode.get();
         }
 
         throw new IllegalArgumentException(
@@ -451,13 +445,13 @@ public class ExpressionConverter {
         }
 
         SqlOperator op =
-            SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
+            SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
                 resolvedFunctionCall.getFunction().getName());
-        ret = rexBuilder().makeCall(op, operands);
-        break;
+        return rexBuilder().makeCall(op, operands);
       case RESOLVED_CAST:
         ResolvedCast resolvedCast = (ResolvedCast) expr;
-        RexNode operand =
+        return convertResolvedCast(
+            resolvedCast,
             convertRexNodeFromResolvedExprWithRefScan(
                 resolvedCast.getExpr(),
                 refScanLeftColumnList,
@@ -465,28 +459,11 @@ public class ExpressionConverter {
                 originalLeftColumnList,
                 refScanRightColumnList,
                 rightFieldList,
-                originalRightColumnList);
-
-        TypeKind fromType = resolvedCast.getExpr().getType().getKind();
-        TypeKind toType = resolvedCast.getType().getKind();
-        isCastingSupported(fromType, toType);
-
-        RelDataType outputType =
-            ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(
-                toType, rexBuilder(), operand.getType().isNullable());
-
-        if (isZetaSQLCast(fromType, toType)) {
-          ret = rexBuilder().makeCall(outputType, ZETASQL_CAST_OP, ImmutableList.of(operand));
-        } else {
-          ret = rexBuilder().makeCast(outputType, operand);
-        }
-        break;
+                originalRightColumnList));
       default:
         throw new UnsupportedOperationException(
             "Does not support expr node kind " + expr.nodeKind());
     }
-
-    return ret;
   }
 
   private RexNode convertRexNodeFromComputedColumnWithFieldList(
@@ -535,14 +512,14 @@ public class ExpressionConverter {
         operands.add(
             convertIntervalToRexIntervalLiteral(
                 (ResolvedLiteral) functionCall.getArgumentList().get(0)));
-        return rexBuilder().makeCall(SqlOperators.TIMESTAMP_ADD_FN, operands);
+        return rexBuilder().makeCall(SqlOperators.ZETASQL_TIMESTAMP_ADD, operands);
       case SLIDING_WINDOW_END:
         operands.add(
             rexBuilder().makeInputRef(fieldList.get(windowFieldIndex).getType(), windowFieldIndex));
         operands.add(
             convertIntervalToRexIntervalLiteral(
                 (ResolvedLiteral) functionCall.getArgumentList().get(1)));
-        return rexBuilder().makeCall(SqlOperators.TIMESTAMP_ADD_FN, operands);
+        return rexBuilder().makeCall(SqlOperators.ZETASQL_TIMESTAMP_ADD, operands);
       default:
         throw new UnsupportedOperationException(
             "Does not support window start/end: " + functionCall.getFunction().getName());
@@ -813,7 +790,7 @@ public class ExpressionConverter {
         ret =
             rexBuilder()
                 .makeCall(
-                    SqlOperators.createOtherKindSqlFunction(
+                    SqlOperators.createZetaSqlFunction(
                         BeamBigQuerySqlDialect.NUMERIC_LITERAL_FUNCTION,
                         ZetaSqlCalciteTranslationUtils.toCalciteTypeName(kind)),
                     ImmutableList.of(
@@ -949,8 +926,7 @@ public class ExpressionConverter {
       Map<String, RexNode> outerFunctionArguments) {
     final String funGroup = functionCall.getFunction().getGroup();
     final String funName = functionCall.getFunction().getName();
-    SqlOperator op =
-        SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(funName);
+    SqlOperator op = SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(funName);
     List<RexNode> operands = new ArrayList<>();
 
     if (funGroup.equals(PRE_DEFINED_WINDOW_FUNCTIONS)) {
@@ -996,7 +972,7 @@ public class ExpressionConverter {
         Type returnType = functionCall.getSignature().getResultType().getType();
         if (returnType != null) {
           op =
-              SqlOperators.createOtherKindSqlFunction(
+              SqlOperators.createZetaSqlFunction(
                   funName, ZetaSqlCalciteTranslationUtils.toCalciteTypeName(returnType.getKind()));
         } else {
           throw new UnsupportedOperationException("Does not support ZetaSQL function: " + funName);
@@ -1026,7 +1002,7 @@ public class ExpressionConverter {
     }
 
     SqlOperatorRewriter rewriter =
-        SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR_REWRITER.get(funName);
+        SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR_REWRITER.get(funName);
 
     if (rewriter != null) {
       return rewriter.apply(rexBuilder(), operands);
@@ -1128,22 +1104,26 @@ public class ExpressionConverter {
       List<ResolvedColumn> columnList,
       List<RelDataTypeField> fieldList,
       Map<String, RexNode> functionArguments) {
+    return convertResolvedCast(
+        resolvedCast,
+        convertRexNodeFromResolvedExpr(
+            resolvedCast.getExpr(), columnList, fieldList, functionArguments));
+  }
+
+  private RexNode convertResolvedCast(ResolvedCast resolvedCast, RexNode input) {
     TypeKind fromType = resolvedCast.getExpr().getType().getKind();
     TypeKind toType = resolvedCast.getType().getKind();
     isCastingSupported(fromType, toType);
 
-    RexNode inputNode =
-        convertRexNodeFromResolvedExpr(
-            resolvedCast.getExpr(), columnList, fieldList, functionArguments);
     // nullability of the output type should match that of the input node's type
     RelDataType outputType =
         ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(
-            resolvedCast.getType().getKind(), rexBuilder(), inputNode.getType().isNullable());
+            toType, rexBuilder(), input.getType().isNullable());
 
     if (isZetaSQLCast(fromType, toType)) {
-      return rexBuilder().makeCall(outputType, ZETASQL_CAST_OP, ImmutableList.of(inputNode));
+      return rexBuilder().makeCall(outputType, SqlOperators.CAST_OP, ImmutableList.of(input));
     } else {
-      return rexBuilder().makeCast(outputType, inputNode);
+      return rexBuilder().makeCast(outputType, input);
     }
   }
 
@@ -1156,7 +1136,7 @@ public class ExpressionConverter {
   }
 
   private static boolean isZetaSQLCast(TypeKind fromType, TypeKind toType) {
-    // TODO: Structure ZETASQL_CAST_OP so that we don't have to repeat the supported types
+    // TODO: Structure CAST_OP so that we don't have to repeat the supported types
     // here
     return (fromType.equals(TYPE_BYTES) && toType.equals(TYPE_STRING))
         || (fromType.equals(TYPE_INT64) && toType.equals(TYPE_BOOL))

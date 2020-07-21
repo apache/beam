@@ -15,12 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql;
+package org.apache.beam.sdk.extensions.sql.zetasql.translation.impl;
 
 import java.io.UnsupportedEncodingException;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils;
 import org.joda.time.DateTime;
 
 /** BeamCodegenUtils. */
+@Internal
 public class BeamCodegenUtils {
   // convert bytes to String in UTF8 encoding.
   public static String toStringUTF8(byte[] bytes) {
