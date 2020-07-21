@@ -107,9 +107,6 @@ from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
-from apache_beam.pvalue import PBegin
-from apache_beam.pvalue import PCollection
-from apache_beam.pvalue import PDone
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
@@ -383,6 +380,9 @@ class IOTypeHints(NamedTuple(
         not self.output_types[1])
 
   def strip_pcoll(self):
+    from apache_beam.pvalue import PBegin
+    from apache_beam.pvalue import PDone
+
     return self.strip_pcoll_helper(self.input_types,
                                    self._has_input_types,
                                    'input_types',
@@ -405,11 +405,12 @@ class IOTypeHints(NamedTuple(
       my_type,            # type: any
       has_my_type,        # type: Callable[[], bool]
       my_key,             # type: str
-      special_containers,   # type: List[Union[PBegin, PDone]]
+      special_containers,   # type: List[Union[PBegin, PDone, PCollection]]
       error_str,          # type: str
       source_str          # type: str
       ):
     # type: (...) -> IOTypeHints
+    from apache_beam.pvalue import PCollection
 
     if not has_my_type() or not my_type or len(my_type[0]) != 1:
       return self
@@ -419,21 +420,18 @@ class IOTypeHints(NamedTuple(
     if isinstance(my_type, typehints.AnyTypeConstraint) or my_type is None:
       return self
 
-    if my_type not in special_containers and \
-      my_type != PCollection and \
-      (not hasattr(my_type, '__origin__') or my_type.__origin__ != PCollection):
+    special_containers += [PCollection]
+
+    if my_type not in special_containers and getattr(my_type, '__origin__', None) != PCollection:
       raise TypeCheckError(error_str)
 
     kwarg_dict = {}
 
-    if not hasattr(my_type, '__args__') \
-            or my_type.__args__ is None \
-            or len(my_type.__args__) == 0:
-      # e.g. PCollection (or PBegin/PDone)
-      kwarg_dict[my_key] = ((typehints.Any, ), {})
+    if getattr(my_type, '__args__', -1) in [-1, None] or len(my_type.__args__) == 0:
+      kwarg_dict[my_key] = ((typehints.Any, ), {})          # e.g. PCollection (or PBegin/PDone)
     else:
-      # e.g. PCollection[type]
-      kwarg_dict[my_key] = ((my_type.__args__[0], ), {})
+      kwarg_dict[my_key] = ((my_type.__args__[0], ), {})    # e.g. PCollection[type]
+
     return self._replace(
         origin=self._make_origin([self], tb=False, msg=[source_str]),
         **kwarg_dict)
