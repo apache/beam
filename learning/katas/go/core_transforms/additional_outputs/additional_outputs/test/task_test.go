@@ -13,32 +13,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package test
 
 import (
-	"additional_outputs/pkg/task"
-	"context"
+	"beam.apache.org/learning/katas/core_transforms/additional_outputs/additional_outputs/pkg/task"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"testing"
 )
 
-func main() {
-	ctx := context.Background()
-
+func TestApplyTransform(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 
-	input := beam.Create(s, 10, 50, 120, 20, 200, 0)
+	tests := []struct{
+		input beam.PCollection
+		wantBelow100 []interface{}
+		wantAbove100 []interface{}
+	}{
+		{
+			input: beam.Create(s, 10, 50, 120, 20, 200, 0),
+			wantBelow100: []interface{}{0, 10, 20, 50},
+			wantAbove100: []interface{}{120, 200},
+		},
+	}
+	for _, tt := range tests {
+		gotBelow100, gotAbove100 := task.ApplyTransform(s, tt.input)
 
-	numBelow100, numAbove100 := task.ApplyTransform(s, input)
+		passert.Equals(s, gotBelow100, tt.wantBelow100...)
+		passert.Equals(s, gotAbove100, tt.wantAbove100...)
 
-	debug.Printf(s, "Number <= 100: %v", numBelow100)
-	debug.Printf(s, "Number > 100: %v", numAbove100)
-
-	err := beamx.Run(ctx, p)
-
-	if err != nil {
-		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+		if err := ptest.Run(p); err != nil {
+			t.Error(err)
+		}
 	}
 }

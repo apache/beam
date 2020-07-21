@@ -25,5 +25,5 @@ content:
 - flatten
 - partition
 - side_input
-- Additional Outputs
+- additional_outputs
 - Branching

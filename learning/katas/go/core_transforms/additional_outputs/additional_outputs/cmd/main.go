@@ -13,14 +13,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module additional_outputs
+package main
 
-go 1.14
-
-require (
-	cloud.google.com/go/storage v1.10.0 // indirect
-	github.com/apache/beam v2.22.0+incompatible
-	github.com/google/go-cmp v0.5.0 // indirect
-	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
-	google.golang.org/grpc v1.30.0 // indirect
+import (
+	"beam.apache.org/learning/katas/core_transforms/additional_outputs/additional_outputs/pkg/task"
+	"context"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
+
+func main() {
+	ctx := context.Background()
+
+	p, s := beam.NewPipelineWithRoot()
+
+	input := beam.Create(s, 10, 50, 120, 20, 200, 0)
+
+	numBelow100, numAbove100 := task.ApplyTransform(s, input)
+
+	debug.Printf(s, "Number <= 100: %v", numBelow100)
+	debug.Printf(s, "Number > 100: %v", numAbove100)
+
+	err := beamx.Run(ctx, p)
+
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+	}
+}
