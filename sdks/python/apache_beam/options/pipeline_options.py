@@ -429,18 +429,22 @@ class CrossLanguageOptions(PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
+        '--beam_service',
         '--beam_services',
-        type=json.loads,
-        default={},
+        dest='beam_services',
+        action='append',
+        type=str,
         help=(
-            'For convienience, Beam provides the ability to automatically '
+            'For convenience, Beam provides the ability to automatically '
             'download and start various services (such as expansion services) '
             'used at pipeline construction and execution. These services are '
             'identified by gradle target. This option provides the ability to '
             'use pre-started services or non-default pre-existing artifacts to '
             'start the given service. '
-            'Should be a json mapping of gradle build targets to pre-built '
-            'artifacts (e.g. jar files) expansion endpoints (e.g. host:port).'))
+            'Each value should map a gradle build target to a pre-built '
+            'artifact (e.g. --beam_service'
+            ':module:shadowJar=/path/to/something.jar) or service endpoint '
+            '(e.g. --beam_service :module:shadowJar=host:port).'))
 
 
 class TypeOptions(PipelineOptions):
