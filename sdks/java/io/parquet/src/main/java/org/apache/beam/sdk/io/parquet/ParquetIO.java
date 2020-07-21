@@ -375,7 +375,6 @@ public class ParquetIO {
           RecordReader<GenericRecord> recordReader =
               columnIO.getRecordReader(
                   pages, recordConverter, filterRecords ? filter : FilterCompat.NOOP);
-          GenericRecord read;
           long currentRow = 0;
           long totalRows = pages.getRowCount();
           while (currentRow < totalRows) {
@@ -421,6 +420,11 @@ public class ParquetIO {
         return new OffsetRangeTracker(restriction);
       }
 
+      @GetRestrictionCoder
+      public OffsetRange.Coder getRestrictionCoder() {
+        return new OffsetRange.Coder();
+      }
+
       @GetSize
       public double getSize(@Element FileIO.ReadableFile file, @Restriction OffsetRange restriction)
           throws Exception {
@@ -429,7 +433,7 @@ public class ParquetIO {
         ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
         ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
         if (restriction == null) {
-          return reader.getRecordCount();
+          return 0;
         } else {
           long start = restriction.getFrom();
           long end = restriction.getTo();
