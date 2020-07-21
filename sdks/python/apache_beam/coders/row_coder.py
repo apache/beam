@@ -24,14 +24,13 @@ from array import array
 
 from apache_beam.coders import typecoders
 from apache_beam.coders.coder_impl import StreamCoderImpl
+from apache_beam.coders.coders import BooleanCoder
 from apache_beam.coders.coders import BytesCoder
 from apache_beam.coders.coders import Coder
 from apache_beam.coders.coders import FastCoder
 from apache_beam.coders.coders import FloatCoder
 from apache_beam.coders.coders import IterableCoder
 from apache_beam.coders.coders import StrUtf8Coder
-from apache_beam.coders.coders import BooleanCoder
-from apache_beam.coders.coders import BytesCoder
 from apache_beam.coders.coders import TupleCoder
 from apache_beam.coders.coders import VarIntCoder
 from apache_beam.portability import common_urns

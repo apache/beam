@@ -35,7 +35,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints.schemas import typing_to_runner_api
-from typing import ByteString
 
 Person = typing.NamedTuple(
     "Person",
