@@ -16,20 +16,17 @@
 #
 
 import apache_beam as beam
-import google.auth
-import json
-from dicomclient import DicomApiHttpClient
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.transforms import PTransform
 from apache_beam.io.filesystem import BeamIOError
+from apache_beam.transforms import PTransform
+from dicomclient import DicomApiHttpClient
 
 
 class DicomSearch(PTransform):
   """A ``PTransform`` for QIDO search metadata from Cloud DICOM api.
-    It takes Pcollection of dicts as input and return a Pcollection 
+    It takes Pcollection of dicts as input and return a Pcollection
     of dict as results:
     INPUT:
-    The input dict represents DICOM web path parameter, which hasfollowing 
+    The input dict represents DICOM web path parameter, which hasfollowing
     string keys and values:
     {
       'project_id': str,
@@ -44,7 +41,7 @@ class DicomSearch(PTransform):
       region: Region where the DICOM store resides. (Required)
       dataset_id: Id of the dataset where DICOM store belongs to. (Required)
       dicom_store_id: Id of the dicom store. (Required)
-      search_type: Which type of search it is, cloud only be one of the three 
+      search_type: Which type of search it is, cloud only be one of the three
         values: 'instances', 'series' or 'studies'. (Required)
       params: A dict of Tag:value pairs used to refine QIDO search. (Optional)
         Supported tags in three categories:
@@ -60,8 +57,7 @@ class DicomSearch(PTransform):
             Modality
           3. Instances: all study/series level search terms and
             SOPInstanceUID
-        e.g. {"StudyInstanceUID":"1","SeriesInstanceUID":"2","SOPInstanceUID":"3"}
-    
+        e.g. {"StudyInstanceUID":"1","SeriesInstanceUID":"2"}
     OUTPUT:
     The output dict encodes results as well as error messages:
     {
@@ -74,7 +70,7 @@ class DicomSearch(PTransform):
   def __init__(self, credential=None):
     """Initializes ``DicomSearch``.
     Args:
-      credential: # type: Google credential object, if it isspecified, the 
+      credential: # type: Google credential object, if it isspecified, the
         Http client will use it instead of the default one.
     """
     self.credential = credential
@@ -116,14 +112,15 @@ class QidoSource(beam.DoFn):
           search_type, params, self.credential
         )
       else:
-        error_message = 'Search type can only be "studies", "instances" or "series"'
+        error_message = 'Search type can only be "studies",\
+        "instances" or "series"'
 
       if not error_message:
         out = {}
         out['result'] = result
         out['status'] = status_code
         out['input'] = element
-        out['success'] = True if status_code == 200 else False
+        out['success'] = (status_code == 200)
         return [out]
 
     # when the input dict dose not meet the requirements.
@@ -137,7 +134,7 @@ class QidoSource(beam.DoFn):
 
 class PubsubToQido(PTransform):
   """A ``PTransform`` for converting pubsub messages into search input dict.
-    Takes Pcollection of string as input and return a Pcollection of dict as 
+    Takes Pcollection of string as input and return a Pcollection of dict as
     result. Note that some pubsub messages may not be from DICOM api, which
     will be records as failed conversions.
     INPUT:
@@ -158,7 +155,7 @@ class PubsubToQido(PTransform):
 
     """Initializes ``PubsubToQido``.
     Args:
-      credential: # type: Google credential object, if it isspecified, the 
+      credential: # type: Google credential object, if it isspecified, the
         Http client will use it instead of the default one.
     """
     self.credential = credential
@@ -232,7 +229,7 @@ class ConvertPubsubToQido(beam.DoFn):
 
 class DicomStoreInstance(PTransform):
   """A ``PTransform`` for storing instances to a DICOM store.
-    Takes Pcollection of byte[] as input and return a Pcollection of dict as 
+    Takes Pcollection of byte[] as input and return a Pcollection of dict as
     result. The input are normally dicom file in bytes format.
     This sink needs to be initailzed by a destination dict:
     {
@@ -261,7 +258,7 @@ class DicomStoreInstance(PTransform):
     """Initializes ``DicomStoreInstance``.
     Args:
       destination_dict: # type: python dict, more details in ConvertPubsubToQido.
-      credential: # type: Google credential object, if it isspecified, the 
+      credential: # type: Google credential object, if it isspecified, the
         Http client will use it instead of the default one.
     """
     self.credential = credential
@@ -288,7 +285,7 @@ class StoreInstanceBytes(beam.DoFn):
     dataset_id = self.destination_dict['dataset_id']
     dicom_store_id = self.destination_dict['dicom_store_id']
 
-    result, status_code = DicomApiHttpClient().dicomweb_store_instance(
+    _, status_code = DicomApiHttpClient().dicomweb_store_instance(
       project_id, region, dataset_id, dicom_store_id, element,
       self.credential
     )
@@ -296,5 +293,5 @@ class StoreInstanceBytes(beam.DoFn):
     out = {}
     out['status'] = status_code
     out['input'] = None if status_code == 200 else element
-    out['success'] = True if status_code == 200 else False
+    out['success'] = (status_code == 200)
     return [out]
