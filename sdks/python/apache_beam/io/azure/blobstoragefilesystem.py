@@ -215,7 +215,10 @@ class BlobStorageFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if path doesn't exist.
     """
-    raise NotImplementedError
+    try:
+      return blobstorageio.BlobStorageIO().size(path)
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("size() operation failed", {path: e})
 
   def last_updated(self, path):
     """Get UNIX Epoch time in seconds on the FileSystem.
