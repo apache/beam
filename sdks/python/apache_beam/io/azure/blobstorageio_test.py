@@ -251,6 +251,19 @@ class TestBlobStorageIO(unittest.TestCase):
     for i in range(num_files):
       self.assertFalse(self.azfs.exists(file_name_pattern % i))
 
+  def test_size(self):
+    file_name = self.TEST_DATA_PATH + 'test_file_size'
+    file_size = 1024
+    
+    self._insert_random_file(file_name, file_size)
+    self.assertTrue(self.azfs.exists(file_name))
+    self.assertEqual(self.azfs.size(file_name), file_size)
+    self.assertNotEqual(self.azfs.size(file_name), 19)
+
+    # Clean up
+    self.azfs.delete(file_name)
+    self.assertFalse(self.azfs.exists(file_name))    
+
   def test_exists(self):
     file_name = self.TEST_DATA_PATH + 'test_file_exists'
     file_size = 1024

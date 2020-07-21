@@ -220,7 +220,7 @@ class BlobStorageIO(object):
         raise e
 
   @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+      retry_filter=retry.retry_on_beam_io_error_filter)
   def size(self, path):
     """Returns the size of a single Blob Storage blob.
 
