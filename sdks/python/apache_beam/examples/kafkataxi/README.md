@@ -63,7 +63,9 @@ export BOOTSTRAP_SERVER="123.45.67.89:123:9092"
 
 ## Running the example on latest released Beam version
 
-Perform Beam runner specific setup. Note that cross-language transforms require 
+Perform Beam runner specific setup.
+
+ℹ️ Note that cross-language transforms require 
 portable implementations of Spark/Flink/Direct runners. Dataflow requires
 [runner V2](https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2).
 See [here](https://beam.apache.org/documentation/runners/dataflow/) for 
@@ -76,7 +78,7 @@ Dataflow requires the `gcp` tag when installing Beam.
 ```sh
 python -m venv env
 source env/bin/activate
-pip install -e 'apache-beam[gcp]'
+pip install 'apache-beam[gcp]'
 ```
 
 Run the Beam pipeline. You can either use the default Kafka topic name or 
@@ -84,7 +86,7 @@ specify a Kafka topic name. Following command assumes Dataflow. See
 [here](https://beam.apache.org/get-started/quickstart-py/) for instructions on 
 running Beam Python programs on other runners.
 
-Note that this exemple is not available in Beam versions before 2.24.0 hence
+ℹ️ Note that this exemple is not available in Beam versions before 2.24.0 hence
 you'll have to either get the example program from Beam or follow steps
 provided in the section *Running the Example from a Beam Git Clone*.
 
@@ -165,15 +167,12 @@ a Kafka topic name. Following command assumes Dataflow. See
 [here](https://beam.apache.org/get-started/quickstart-py/) for instructions on 
 running Beam Python programs on other runners.
 
-See [here](https://cloud.google.com/dataflow/docs/concepts/regional-endpoints) 
-for more details regarding the selecting a GCP region for Dataflow.
-
 ```sh
 export PROJECT="$(gcloud config get-value project)"
 export TEMP_LOCATION="gs://MY-BUCKET/temp"
 export REGION="us-central1" 
 export JOB_NAME="kafka-taxi-`date +%Y%m%d-%H%M%S`"
-export export NUM_WORKERS="5"
+export NUM_WORKERS="5"
 export PYTHON_DISTRIBUTION="dist/'Name of Python distribution'"
 
 python -m apache_beam.examples.kafkataxi.kafka_taxi \

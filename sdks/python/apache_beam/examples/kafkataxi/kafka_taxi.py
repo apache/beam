@@ -33,21 +33,20 @@ import apache_beam as beam
 from apache_beam.io.kafka import ReadFromKafka
 from apache_beam.io.kafka import WriteToKafka
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.options.pipeline_options import StandardOptions
 
 
 def run(bootstrap_servers, topic, pipeline_args):
-  # bootstrap_servers = '...'
+  # bootstrap_servers = '123.45.67.89:123:9092'
   # topic = 'kafka_taxirides_realtime'
-  # pipeline_args = ['--project', 'my-project', '--runner', 'DataflowRunner',
+  # pipeline_args = ['--project', 'my-project',
+  #                  '--runner', 'DataflowRunner',
   #                  '--temp_location', 'my-temp-location',
-  #                  '--region', 'my-region', '--num_workers',
-  #                  'my-num-workers', '--experiments', 'use_runner_v2']
+  #                  '--region', 'my-region',
+  #                  '--num_workers', 'my-num-workers',
+  #                  '--experiments', 'use_runner_v2']
 
-  pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
-  pipeline_options.view_as(StandardOptions).streaming = True
+  pipeline_options = PipelineOptions(
+      pipeline_args, save_main_session=True, streaming=True)
   window_size = 15  # size of the Window in seconds.
 
   def log_ride(ride_bytes):
@@ -80,8 +79,6 @@ def run(bootstrap_servers, topic, pipeline_args):
             consumer_config={'bootstrap.servers': bootstrap_servers},
             topics=[topic])
         | beam.FlatMap(lambda kv: log_ride(kv[1])))
-
-    pipeline.run().wait_until_finish()
 
 
 if __name__ == '__main__':
