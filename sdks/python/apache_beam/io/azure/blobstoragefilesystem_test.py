@@ -90,7 +90,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
   def test_match_multiples(self, unused_mock_blobstorageio):
     # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
-    blobstoragefilesystem.blobstorageio.BlobStorageIO = lambda: blobstorageio_mock  # type: ignore[misc]
+    blobstoragefilesystem.blobstorageio.BlobStorageIO = lambda: blobstorageio_mock
     blobstorageio_mock.list_prefix.return_value = {
         'azfs://storageaccount/container/file1': 1,
         'azfs://storageaccount/container/file2': 2

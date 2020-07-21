@@ -157,7 +157,7 @@ class BlobStorageIO(object):
 
     try:
       copied_blob.start_copy_from_url(source_blob)
-    except Exception as e:
+    except ResourceNotFoundError as e:
       message = e.reason
       code = e.status_code
       raise BlobStorageError(message, code)
@@ -218,6 +218,27 @@ class BlobStorageIO(object):
       else:
         logging.error('HTTP error while deleting file %s', path)
         raise e
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def size(self, path):
+    """Returns the size of a single Blob Storage blob.
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single Blob Storage blob.
+
+    Returns: size of the Blob Storage blob in bytes.
+    """
+    storage_account, container, blob = parse_azfs_path(path)
+    blob_to_check = self.client.get_blob_properties(container, blob)
+    try:
+      properties = blob_to_check.get_blob_properties()
+    except ResourceNotFoundError as e:
+      message = e.reason
+      code = e.status_code
+      raise BlobStorageError(message, code)
+    
+    return properties.size
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)

@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
-"""Azure Blob Storage Implementation for accesing files on Azure Blob Storage."""
+"""Azure Blob Storage Implementation for accesing files on
+Azure Blob Storage.
+"""
 
 from __future__ import absolute_import
 
@@ -32,8 +34,8 @@ __all__ = ['BlobStorageFileSystem']
 
 
 class BlobStorageFileSystem(FileSystem):
-  """An Azure Blob Storage ``FileSystem`` implementation for accesing files on Azure
-  Blob Storage.
+  """An Azure Blob Storage ``FileSystem`` implementation for accesing files on
+  Azure Blob Storage.
   """
 
   CHUNK_SIZE = blobstorageio.MAX_BATCH_OPERATION_SIZE
@@ -46,8 +48,6 @@ class BlobStorageFileSystem(FileSystem):
     return 'azfs'
 
   def join(self, basepath, *paths):
-    # type: (str, *str) -> str
-
     """Join two or more pathname components for the filesystem
 
     Args:
@@ -66,8 +66,6 @@ class BlobStorageFileSystem(FileSystem):
     return path
 
   def split(self, path):
-    # type: (str) -> Tuple[str, str]
-
     """Splits the given path into two parts.
 
     Splits the path into a pair (head, tail) such that tail contains the last
@@ -194,8 +192,6 @@ class BlobStorageFileSystem(FileSystem):
     raise NotImplementedError
 
   def exists(self, path):
-    # type: (str) -> bool
-
     """Check if the provided path exists on the FileSystem.
     
     Args:
@@ -209,8 +205,6 @@ class BlobStorageFileSystem(FileSystem):
       raise BeamIOError("exists() operation failed", {path: e})
 
   def size(self, path):
-    # type: (str) -> int
-
     """Get size in bytes of a file on the FileSystem.
     
     Args:
