@@ -16,7 +16,12 @@
 #
 
 """
-This is runtime type=checking load test with Synthetic Source.
+This is runtime type-checking load test base class.
+
+It has two children:
+- runtime_type_check_on_test_py3
+- runtime_type_check_off_test_py3
+
 Besides of the standard input options there are additional options:
 * runtime_type_check (optional) - if it's enabled for the pipeline
 * nested_typehint (optional) - if the typehint on the DoFn is nested or simple
@@ -30,40 +35,6 @@ will be stored,
 * metrics_table (optional) - name of BigQuery table where metrics
 will be stored,
 * input_options - options for Synthetic Sources.
-
-Example test run:
-
-python -m apache_beam.testing.load_tests.runtime_type_check_on_test \
-    --test-pipeline-options="
-    --project=apache-beam-testing
-    --region=us-centrall
-    --publish_to_big_query=true
-    --metrics_dataset=saavan_python_load_tests
-    --metrics_table=gbk
-    --nested_typehint=0
-    --fanout=200
-    --input_options='{
-    \"num_records\": 300,
-    \"key_size\": 5,
-    \"value_size\": 15
-    }'"
-
-OR
-
-python -m apache_beam.testing.load_tests.runtime_type_check_off_test \
-    --test-pipeline-options="
-    --project=apache-beam-testing
-    --region=us-centrall
-    --publish_to_big_query=true
-    --metrics_dataset=saavan_python_load_tests
-    --metrics_table=gbk
-    --nested_typehint=0
-    --fanout=200
-    --input_options='{
-    \"num_records\": 300,
-    \"key_size\": 5,
-    \"value_size\": 15
-    }'"
 """
 
 # pytype: skip-file

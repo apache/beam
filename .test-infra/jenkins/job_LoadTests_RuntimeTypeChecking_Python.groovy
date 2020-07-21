@@ -25,7 +25,7 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 def loadTestConfigurations = { datasetName -> [
         [
                 title          : 'Runtime Type Checking Python Load Test: On | Simple Type Hints',
-                test           : 'python -m apache_beam.testing.load_tests.runtime_type_check_on_test',
+                test           : 'python -m apache_beam.testing.load_tests.runtime_type_check_on_test_py3',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-runtime-type-check-1-' + now,
@@ -47,7 +47,7 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'Runtime Type Checking Python Load Test: Off | Simple Type Hints',
-                test           : 'python -m apache_beam.testing.load_tests.runtime_type_check_off_test',
+                test           : 'python -m apache_beam.testing.load_tests.runtime_type_check_off_test_py3',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-runtime-type-check-2-' + now,
@@ -69,7 +69,7 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'Runtime Type Checking Python Load Test: On | Nested Type Hints',
-                test           : 'python -m apache_beam.testing.load_tests.runtime_type_check_on_test',
+                test           : 'python -m apache_beam.testing.load_tests.runtime_type_check_on_test_py3',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-runtime-type-check-3-' + now,
@@ -91,7 +91,7 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'Runtime Type Checking Python Load Test: Off | Nested Type Hints',
-                test           : 'python -m apache_beam.testing.load_tests.runtime_type_check_off_test',
+                test           : 'python -m apache_beam.testing.load_tests.runtime_type_check_off_test_py3',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-runtime-type-check-4-' + now,
