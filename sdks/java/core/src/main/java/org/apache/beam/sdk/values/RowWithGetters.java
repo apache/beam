@@ -70,7 +70,7 @@ public class RowWithGetters extends Row {
     FieldType type = field.getType();
     Object fieldValue = getters.get(fieldIdx).get(getterTarget);
     if (fieldValue == null && !field.getType().getNullable()) {
-      throw new RuntimeException("Null value set on non-nullable field" + field);
+      throw new RuntimeException("Null value set on non-nullable field " + field);
     }
     return fieldValue != null ? getValue(type, fieldValue, fieldIdx) : null;
   }
