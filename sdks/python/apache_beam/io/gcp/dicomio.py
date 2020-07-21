@@ -55,9 +55,7 @@ class DicomSearch(PTransform):
     }
   """
 
-  def __init__(self, credential=None): 
-    # type: google credential object in google.auth
-  
+  def __init__(self, credential=None):
     """Initializes ``DicomSearch``.
     Args:
       credential: # type: Google credential object, if it isspecified, the 
@@ -188,9 +186,9 @@ class ConvertPubsubToQido(beam.DoFn):
       qido_dict['dataset_id'] = entries[5]
       qido_dict['dicom_store_id'] = entries[7]
       qido_dict['search_type'] = 'instances'
-      params = {}
-      # compose instance level param for qido search
       
+      # compose instance level param for qido search
+      params = {}
       params['StudyInstanceUID'] = entries[10]
       params['SeriesInstanceUID'] = entries[12]
       params['SOPInstanceUID'] = entries[14]
@@ -240,8 +238,6 @@ class DicomStoreInstance(PTransform):
   """
 
   def __init__(self, destination_dict, credential=None): 
-    # type: google credential object in google.auth
-  
     """Initializes ``DicomStoreInstance``.
     Args:
       destination_dict: # type: python dict, more details in ConvertPubsubToQido.
