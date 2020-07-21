@@ -1,3 +1,20 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import apache_beam as beam
 import google.auth
 import json
@@ -54,7 +71,6 @@ class DicomSearch(PTransform):
       'status': status code from server, used as error message.
     }
   """
-
   def __init__(self, credential=None):
     """Initializes ``DicomSearch``.
     Args:
@@ -69,16 +85,15 @@ class DicomSearch(PTransform):
 
 class QidoSource(beam.DoFn):
   """A DoFn execute every query input."""
-  
   def __init__(self, credential=None):
     self.credential = credential
-  
+
   def process(self, element):
     # Check if all required keys present.
     required_keys = [
-      'project_id', 'region', 'dataset_id', 'dicom_store_id', 'search_type'
-      ]
-    
+        'project_id', 'region', 'dataset_id', 'dicom_store_id', 'search_type'
+    ]
+
     error_message = None
 
     for key in required_keys:
@@ -97,12 +112,12 @@ class QidoSource(beam.DoFn):
       # call http client based on different types of search
       if element['search_type'] in ['instances', "studies", "series"]:
         result, status_code = DicomApiHttpClient().qido_search(
-          project_id, region, dataset_id, dicom_store_id, 
+          project_id, region, dataset_id, dicom_store_id,
           search_type, params, self.credential
         )
       else:
         error_message = 'Search type can only be "studies", "instances" or "series"'
-      
+
       if not error_message:
         out = {}
         out['result'] = result
@@ -110,14 +125,15 @@ class QidoSource(beam.DoFn):
         out['input'] = element
         out['success'] = True if status_code == 200 else False
         return [out]
-    
-    # when the input dict dose not meet the requirements. 
+
+    # when the input dict dose not meet the requirements.
     out = {}
     out['result'] = []
     out['status'] = error_message
     out['input'] = element
     out['success'] = False
     return [out]
+
 
 class PubsubToQido(PTransform):
   """A ``PTransform`` for converting pubsub messages into search input dict.
@@ -137,10 +153,9 @@ class PubsubToQido(PTransform):
       'input': pubsub message string
     }
   """
-
-  def __init__(self, credential=None): 
+  def __init__(self, credential=None):
     # type: google credential object in google.auth
-  
+
     """Initializes ``PubsubToQido``.
     Args:
       credential: # type: Google credential object, if it isspecified, the 
@@ -157,27 +172,33 @@ class ConvertPubsubToQido(beam.DoFn):
   def process(self, element):
     # Check if all required keys present.
     required_keys = [
-      'projects', 'locations', 'datasets', 'dicomStores', 'dicomWeb',
-      'studies', 'series', 'instances'
-      ]
-    
+        'projects',
+        'locations',
+        'datasets',
+        'dicomStores',
+        'dicomWeb',
+        'studies',
+        'series',
+        'instances'
+    ]
+
     entries = element.split('/')
     valid = True
-    
+
     if len(entries) != 15:
       valid = False
-    
+
     if valid:
       # check if the position of keys are correct
       for i in range(5):
-        if required_keys[i] != entries[i*2]:
-            valid = False
-            break
-      for i in range(5,8):
-        if required_keys[i] != entries[i*2 - 1]:
-            valid = False
-            break
-    
+        if required_keys[i] != entries[i * 2]:
+          valid = False
+          break
+      for i in range(5, 8):
+        if required_keys[i] != entries[i * 2 - 1]:
+          valid = False
+          break
+
     if valid:
       # compose input dict for qido search
       qido_dict = {}
@@ -186,14 +207,14 @@ class ConvertPubsubToQido(beam.DoFn):
       qido_dict['dataset_id'] = entries[5]
       qido_dict['dicom_store_id'] = entries[7]
       qido_dict['search_type'] = 'instances'
-      
+
       # compose instance level param for qido search
       params = {}
       params['StudyInstanceUID'] = entries[10]
       params['SeriesInstanceUID'] = entries[12]
       params['SOPInstanceUID'] = entries[14]
       qido_dict['params'] = params
-      
+
       out = {}
       out['result'] = qido_dict
       out['input'] = element
@@ -236,8 +257,7 @@ class DicomStoreInstance(PTransform):
     }
     Todo: add stream object support for dcm file.
   """
-
-  def __init__(self, destination_dict, credential=None): 
+  def __init__(self, destination_dict, credential=None):
     """Initializes ``DicomStoreInstance``.
     Args:
       destination_dict: # type: python dict, more details in ConvertPubsubToQido.
@@ -248,12 +268,12 @@ class DicomStoreInstance(PTransform):
     self.destination_dict = destination_dict
 
   def expand(self, pcoll):
-    return pcoll | beam.ParDo(StoreInstanceBytes(self.destination_dict, self.credential))
+    return pcoll | beam.ParDo(
+        StoreInstanceBytes(self.destination_dict, self.credential))
 
 
 class StoreInstanceBytes(beam.DoFn):
   """A DoFn execute every file input."""
-  
   def __init__(self, destination_dict, credential=None):
     self.credential = credential
     required_keys = ['project_id', 'region', 'dataset_id', 'dicom_store_id']
@@ -261,7 +281,7 @@ class StoreInstanceBytes(beam.DoFn):
       if key not in destination_dict:
         raise BeamIOError('Must have %s in the dict.' % (key))
     self.destination_dict = destination_dict
-  
+
   def process(self, element):
     project_id = self.destination_dict['project_id']
     region = self.destination_dict['region']
@@ -269,10 +289,10 @@ class StoreInstanceBytes(beam.DoFn):
     dicom_store_id = self.destination_dict['dicom_store_id']
 
     result, status_code = DicomApiHttpClient().dicomweb_store_instance(
-      project_id, region, dataset_id, dicom_store_id, element, 
+      project_id, region, dataset_id, dicom_store_id, element,
       self.credential
     )
-    
+
     out = {}
     out['status'] = status_code
     out['input'] = None if status_code == 200 else element
