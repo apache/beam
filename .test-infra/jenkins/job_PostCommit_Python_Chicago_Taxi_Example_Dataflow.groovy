@@ -19,28 +19,38 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 import CronJobBuilder
+import LoadTestsBuilder
 
+def chicagoTaxiJob = { scope ->
+    scope.description('Runs the Chicago Taxi Example on the Dataflow runner.')
 
-// This job runs the Chicago Taxi Example script on Dataflow
+    // Set common parameters.
+    commonJobProperties.setTopLevelMainJobProperties(scope)
+
+    def pipelineOptions = [
+        num_workers          : 5,
+        autoscaling_algorithm: 'NONE',
+    ]
+
+    // Gradle goals for this job.
+    scope.steps {
+        gradle {
+            rootBuildScriptDir(commonJobProperties.checkoutDir)
+            commonJobProperties.setGradleSwitches(delegate)
+            tasks(':sdks:python:test-suites:dataflow:py2:chicagoTaxiExample')
+            switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
+            switches("-PpipelineOptions=\"${LoadTestsBuilder.parseOptions(pipelineOptions)}\"")
+        }
+    }
+}
+
 PostcommitJobBuilder.postCommitJob(
     'beam_PostCommit_Python_Chicago_Taxi_Dataflow',
     'Run Chicago Taxi on Dataflow',
-    'Google Cloud Dataflow Runner Chicago Taxi Example',
+    'Chicago Taxi Example on Dataflow ("Run Chicago Taxi on Dataflow")',
     this
 ) {
-    description('Runs the Chicago Taxi Example on the Dataflow runner.')
-
-    // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(delegate)
-
-    // Gradle goals for this job.
-    steps {
-        gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':sdks:python:test-suites:dataflow:py2:chicagoTaxiExample')
-            switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
-        }
-    }
+    chicagoTaxiJob(delegate)
 }
 
 CronJobBuilder.cronJob(
@@ -48,17 +58,5 @@ CronJobBuilder.cronJob(
     'H 14 * * *',
     this
 ) {
-    description('Runs the Chicago Taxi Example on the Dataflow runner.')
-
-    // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(delegate)
-
-    // Gradle goals for this job.
-    steps {
-        gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':sdks:python:test-suites:dataflow:py2:chicagoTaxiExample')
-            switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
-        }
-    }
+    chicagoTaxiJob(delegate)
 }
