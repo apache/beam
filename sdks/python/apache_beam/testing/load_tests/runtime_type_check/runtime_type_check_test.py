@@ -21,8 +21,6 @@ Besides of the standard input options there are additional options:
 * runtime_type_check (optional) - if it's enabled for the pipeline
 * nested_typehint (optional) - if the typehint on the DoFn is nested or simple
 * fanout (optional) - number of GBK operations to run in parallel
-* iterations (optional) - number of reiteraations over per-key-grouped
-values to perform
 * project (optional) - the gcp project in case of saving
 metrics in Big Query (in case of Dataflow Runner
 it is required to specify project of runner),
@@ -44,7 +42,6 @@ python -m apache_beam.testing.load_tests.runtime_type_check_test \
     --metrics_table=gbk
     --nested_typehint=0
     --fanout=10
-    --iterations=10
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
@@ -65,33 +62,26 @@ from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 
-class RunTimeTypeCheckTest(LoadTest):
+class BaseRunTimeTypeCheckTest(LoadTest):
   def __init__(self):
-    super(RunTimeTypeCheckTest, self).__init__()
+    super(BaseRunTimeTypeCheckTest, self).__init__()
     self.fanout = self.get_option_or_default('fanout', 1)
-    self.iterations = self.get_option_or_default('iterations', 1)
     self.nested_typehint = self.get_option_or_default('nested_typehint', 0)
 
   class SimpleInput(beam.DoFn):
-    def process(self, element: Tuple[bytes, ...], iterations):
-      for _ in range(iterations):
+    def process(self, element: Tuple[bytes, ...]):
         yield element
 
   class SimpleOutput(beam.DoFn):
-    def process(self, element, iterations) -> Iterable[Tuple[bytes, ...]]:
-      for _ in range(iterations):
+    def process(self, element) -> Iterable[Tuple[bytes, ...]]:
         yield element
 
   class NestedInput(beam.DoFn):
-    def process(
-        self, element: Tuple[int, str, bytes, Iterable[int]], iterations):
-      for _ in range(iterations):
+    def process(self, element: Tuple[int, str, bytes, Iterable[int]]):
         yield element
 
   class NestedOutput(beam.DoFn):
-    def process(self, element,
-                iterations) -> Iterable[Tuple[int, str, bytes, Iterable[int]]]:
-      for _ in range(iterations):
+    def process(self, element) -> Iterable[Tuple[int, str, bytes, Iterable[int]]]:
         yield 1, 'a', element, [0]
 
   def test(self):
@@ -113,13 +103,13 @@ class RunTimeTypeCheckTest(LoadTest):
       (  # pylint: disable=expression-not-assigned
               pc
               | 'Output Transform %i' % branch >>
-                beam.ParDo(output_transform(), self.iterations)
+                beam.ParDo(output_transform())
               | 'Input Transform %i' % branch >>
-                beam.ParDo(input_transform(), self.iterations)
+                beam.ParDo(input_transform())
               | 'Measure time: End %i' % branch >>
                 beam.ParDo(MeasureTime(self.metrics_namespace)))
 
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
-  RunTimeTypeCheckTest().run()
+  BaseRunTimeTypeCheckTest().run()
