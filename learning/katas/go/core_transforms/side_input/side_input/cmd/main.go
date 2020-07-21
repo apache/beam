@@ -16,12 +16,12 @@
 package main
 
 import (
+	"beam.apache.org/learning/katas/core_transforms/side_input/side_input/pkg/task"
 	"context"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
-	"side_input/pkg/task"
 )
 
 func main() {

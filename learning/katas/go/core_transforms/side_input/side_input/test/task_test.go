@@ -16,10 +16,10 @@
 package test
 
 import (
+	"beam.apache.org/learning/katas/core_transforms/side_input/side_input/pkg/task"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"side_input/pkg/task"
 	"testing"
 )
 
