@@ -134,7 +134,6 @@ class TestBlobStorageIO(unittest.TestCase):
     self.azfs.delete(file_name)
 
   def test_list_prefix(self):
-
     blobs = [
         ('sloth/pictures/sleeping', 2),
         ('sloth/videos/smiling', 3),
@@ -183,13 +182,15 @@ class TestBlobStorageIO(unittest.TestCase):
     file_size = 1024
     self._insert_random_file(src_file_name, file_size)
 
-    self.assertTrue(src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(
+        src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
     self.assertFalse(
         dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
 
     self.azfs.copy(src_file_name, dest_file_name)
 
-    self.assertTrue(src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(
+        src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
     self.assertTrue(
         dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
 
