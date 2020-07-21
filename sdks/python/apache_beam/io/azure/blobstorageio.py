@@ -230,7 +230,7 @@ class BlobStorageIO(object):
     Returns: size of the Blob Storage blob in bytes.
     """
     storage_account, container, blob = parse_azfs_path(path)
-    blob_to_check = self.client.get_blob_properties(container, blob)
+    blob_to_check = self.client.get_blob_client(container, blob)
     try:
       properties = blob_to_check.get_blob_properties()
     except ResourceNotFoundError as e:
