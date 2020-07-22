@@ -170,7 +170,7 @@ def get_last_run_id(
       f"GCS location corresponding to artifacts built in this run: "
       f"gs://beam-wheels-staging/{release_branch}/{release_commit}-{last_run_id}/"
   )
-  return safe_get(last_run, "id")
+  return last_run_id
 
 
 def validate_run(run_id, repo_url, github_token):
