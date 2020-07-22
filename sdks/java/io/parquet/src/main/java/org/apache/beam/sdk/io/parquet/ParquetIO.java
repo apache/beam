@@ -22,14 +22,16 @@ import static org.apache.parquet.hadoop.ParquetFileWriter.Mode.OVERWRITE;
 import static org.apache.parquet.hadoop.ParquetInputFormat.STRICT_TYPE_CHECKING;
 
 import com.google.auto.value.AutoValue;
-
-import java.awt.*;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -64,10 +66,16 @@ import org.apache.parquet.hadoop.api.InitContext;
 import org.apache.parquet.hadoop.api.ReadSupport;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.hadoop.metadata.FileMetaData;
-import org.apache.parquet.io.*;
+import org.apache.parquet.io.ColumnIOFactory;
+import org.apache.parquet.io.DelegatingSeekableInputStream;
+import org.apache.parquet.io.InputFile;
+import org.apache.parquet.io.MessageColumnIO;
+import org.apache.parquet.io.OutputFile;
+import org.apache.parquet.io.PositionOutputStream;
+import org.apache.parquet.io.RecordReader;
+import org.apache.parquet.io.SeekableInputStream;
 import org.apache.parquet.io.api.RecordMaterializer;
 import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.MessageTypeParser;
 
 /**
  * IO to read and write Parquet files.
@@ -196,7 +204,7 @@ public class ParquetIO {
       return from(ValueProvider.StaticValueProvider.of(filepattern));
     }
 
-    public Read withProjection(String schema){
+    public Read withProjection(String schema) {
       return toBuilder().setProjection(schema).build();
     }
 
@@ -215,7 +223,10 @@ public class ParquetIO {
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
           .apply(FileIO.matchAll())
           .apply(FileIO.readMatches())
-          .apply(readFiles(getSchema()).withAvroDataModel(getAvroDataModel()).withProjection(getProjection()));
+          .apply(
+              readFiles(getSchema())
+                  .withAvroDataModel(getAvroDataModel())
+                  .withProjection(getProjection()));
     }
 
     @Override
@@ -260,29 +271,32 @@ public class ParquetIO {
       return toBuilder().setAvroDataModel(model).build();
     }
 
-    public ReadFiles withProjection(String schema){
+    public ReadFiles withProjection(String schema) {
       return toBuilder().setProjection(schema).build();
     }
 
     @Override
     public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
-      if(getProjection()==null){
-        return input.apply(ParDo.of(new ReadFnWithProjection(getAvroDataModel(), null)))
-                .setCoder(AvroCoder.of(getSchema()));
+      if (getProjection() == null) {
+        return input
+            .apply(ParDo.of(new ReadFnWithProjection(getAvroDataModel(), null)))
+            .setCoder(AvroCoder.of(getSchema()));
       }
       return input
           .apply(ParDo.of(new ReadFnWithProjection(getAvroDataModel(), getProjection())))
           .setCoder(AvroCoder.of(new Schema.Parser().parse(getProjection())));
     }
+
     static class ReadFnWithProjection extends DoFn<FileIO.ReadableFile, GenericRecord> {
       private Class<? extends GenericData> modelClass;
       private String requestSchemaString;
 
       ReadFnWithProjection(GenericData model, String requestSchema) {
         this.modelClass = model != null ? model.getClass() : null;
-        this.requestSchemaString=requestSchema;
+        this.requestSchemaString = requestSchema;
       }
+
       private static <K, V> Map<K, Set<V>> toSetMultiMap(Map<K, V> map) {
         Map<K, Set<V>> setMultiMap = new HashMap<K, Set<V>>();
         for (Map.Entry<K, V> entry : map.entrySet()) {
@@ -296,7 +310,7 @@ public class ParquetIO {
       private InputFile getInputFile(FileIO.ReadableFile file) throws IOException {
         if (!file.getMetadata().isReadSeekEfficient()) {
           throw new RuntimeException(
-                  String.format("File has to be seekable: %s", file.getMetadata().resourceId()));
+              String.format("File has to be seekable: %s", file.getMetadata().resourceId()));
         }
         return new BeamParquetInputFile(file.openSeekable());
       }
@@ -308,7 +322,7 @@ public class ParquetIO {
           model = (GenericData) modelClass.getMethod("get").invoke(null);
         }
         if (model != null
-                && (model.getClass() == GenericData.class || model.getClass() == SpecificData.class)) {
+            && (model.getClass() == GenericData.class || model.getClass() == SpecificData.class)) {
           conf.setBoolean(AvroReadSupport.AVRO_COMPATIBILITY, true);
         } else {
           conf.setBoolean(AvroReadSupport.AVRO_COMPATIBILITY, false);
@@ -317,7 +331,7 @@ public class ParquetIO {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext processContext) throws Exception{
+      public void processElement(ProcessContext processContext) throws Exception {
         FileIO.ReadableFile file = processContext.element();
         AvroReadSupport<GenericRecord> readSupport;
         InputFile inputFile = getInputFile(file);
@@ -327,8 +341,10 @@ public class ParquetIO {
           model = (GenericData) modelClass.getMethod("get").invoke(null);
         }
         readSupport = new AvroReadSupport<GenericRecord>(model);
-        if(requestSchemaString!=null){
-        AvroReadSupport.setRequestedProjection(conf,new Schema.Parser().parse(requestSchemaString));}
+        if (requestSchemaString != null) {
+          AvroReadSupport.setRequestedProjection(
+              conf, new Schema.Parser().parse(requestSchemaString));
+        }
         ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
         ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
         FilterCompat.Filter filter = checkNotNull(options.getRecordFilter(), "filter");
@@ -339,22 +355,24 @@ public class ParquetIO {
         FileMetaData parquetFileMetadata = reader.getFooter().getFileMetaData();
         MessageType fileSchema = parquetFileMetadata.getSchema();
         Map<String, String> fileMetadata = parquetFileMetadata.getKeyValueMetaData();
-        ReadSupport.ReadContext readContext = readSupport.init(new InitContext(conf, toSetMultiMap(fileMetadata), fileSchema));
+        ReadSupport.ReadContext readContext =
+            readSupport.init(new InitContext(conf, toSetMultiMap(fileMetadata), fileSchema));
         ColumnIOFactory columnIOFactory = new ColumnIOFactory(parquetFileMetadata.getCreatedBy());
         RecordMaterializer<GenericRecord> recordConverter =
-                readSupport.prepareForRead(conf, fileMetadata, fileSchema, readContext);
+            readSupport.prepareForRead(conf, fileMetadata, fileSchema, readContext);
         boolean strictTypeChecking = options.isEnabled(STRICT_TYPE_CHECKING, true);
         boolean filterRecords = options.useRecordFilter();
-        //reader.setRequestedSchema(requestSchema);
+        // reader.setRequestedSchema(requestSchema);
         MessageColumnIO columnIO =
-                columnIOFactory.getColumnIO(readContext.getRequestedSchema(), fileSchema, strictTypeChecking);
+            columnIOFactory.getColumnIO(
+                readContext.getRequestedSchema(), fileSchema, strictTypeChecking);
         long currentBlock = 0;
-        int numBlock=reader.getRowGroups().size();
+        int numBlock = reader.getRowGroups().size();
         for (int i = 0; i < numBlock; i++) {
           PageReadStore pages = reader.readNextRowGroup();
           RecordReader<GenericRecord> recordReader =
-                  columnIO.getRecordReader(
-                          pages, recordConverter, filterRecords ? filter : FilterCompat.NOOP);
+              columnIO.getRecordReader(
+                  pages, recordConverter, filterRecords ? filter : FilterCompat.NOOP);
           long currentRow = 0;
           long totalRows = pages.getRowCount();
           while (currentRow < totalRows) {
@@ -365,7 +383,6 @@ public class ParquetIO {
       }
     }
 
-
     static class ReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
 
       private Class<? extends GenericData> modelClass;
@@ -373,6 +390,7 @@ public class ParquetIO {
       ReadFn(GenericData model) {
         this.modelClass = model != null ? model.getClass() : null;
       }
+
       @ProcessElement
       public void processElement(ProcessContext processContext) throws Exception {
         FileIO.ReadableFile file = processContext.element();

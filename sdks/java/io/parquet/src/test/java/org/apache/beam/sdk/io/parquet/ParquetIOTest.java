@@ -61,15 +61,15 @@ public class ParquetIOTest implements Serializable {
           + "    {\"name\":\"index\",\"type\":\"int\"}"
           + "  ]"
           + "}";
-  private static final String REQUESTED_SCHEMA_STRING=
-          "{"
-                  + "\"type\":\"record\", "
-                  + "\"name\":\"testrecord\","
-                  + "\"fields\":["
-                  + "    {\"name\":\"name\",\"type\":\"string\"}"
-                  + "  ]"
-                  + "}";
-  private static final Schema REQUESTED_SCHEMA=new Schema.Parser().parse(REQUESTED_SCHEMA_STRING);
+  private static final String REQUESTED_SCHEMA_STRING =
+      "{"
+          + "\"type\":\"record\", "
+          + "\"name\":\"testrecord\","
+          + "\"fields\":["
+          + "    {\"name\":\"name\",\"type\":\"string\"}"
+          + "  ]"
+          + "}";
+  private static final Schema REQUESTED_SCHEMA = new Schema.Parser().parse(REQUESTED_SCHEMA_STRING);
 
   private static final Schema SCHEMA = new Schema.Parser().parse(SCHEMA_STRING);
 
@@ -102,20 +102,22 @@ public class ParquetIOTest implements Serializable {
   @Test
   public void testWriteAndReadWithProjection() {
     List<GenericRecord> requestRecords = generateRequestedRecords(1000);
-    List<GenericRecord> records=generateGenericRecords(1000);
+    List<GenericRecord> records = generateGenericRecords(1000);
 
     mainPipeline
-            .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
-            .apply(
-                    FileIO.<GenericRecord>write()
-                            .via(ParquetIO.sink(SCHEMA))
-                            .to(temporaryFolder.getRoot().getAbsolutePath()));
+        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
     mainPipeline.run().waitUntilFinish();
 
     PCollection<GenericRecord> readBack =
-            readPipeline.apply(
-                    ParquetIO.read(SCHEMA).from(temporaryFolder.getRoot().getAbsolutePath() + "/*").withProjection(REQUESTED_SCHEMA_STRING));
-    //PAssert.that(readBack).empty();
+        readPipeline.apply(
+            ParquetIO.read(SCHEMA)
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
+                .withProjection(REQUESTED_SCHEMA_STRING));
+    // PAssert.that(readBack).empty();
     PAssert.that(readBack).containsInAnyOrder(requestRecords);
     PAssert.that(readBack).containsInAnyOrder(records);
     readPipeline.run().waitUntilFinish();
@@ -148,11 +150,12 @@ public class ParquetIOTest implements Serializable {
     GenericRecordBuilder builder = new GenericRecordBuilder(SCHEMA);
     for (int i = 0; i < count; i++) {
       int index = i % SCIENTISTS.length;
-      GenericRecord record = builder.set("name", SCIENTISTS[index]).set("index",index).build();
+      GenericRecord record = builder.set("name", SCIENTISTS[index]).set("index", index).build();
       data.add(record);
     }
     return data;
   }
+
   private List<GenericRecord> generateRequestedRecords(long count) {
     ArrayList<GenericRecord> data = new ArrayList<>();
     GenericRecordBuilder builder = new GenericRecordBuilder(REQUESTED_SCHEMA);
