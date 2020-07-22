@@ -125,7 +125,7 @@ class ConsumerSet(Receiver):
               ):
     self.consumers = consumers
     self.opcounter = opcounters.OperationCounters(
-        counter_factory, step_name, coder, output_index)
+        counter_factory, step_name, coder, output_index, consumers=consumers)
     # Used in repr.
     self.step_name = step_name
     self.output_index = output_index

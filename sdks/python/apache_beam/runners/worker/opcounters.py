@@ -32,6 +32,7 @@ from builtins import object
 from typing import TYPE_CHECKING
 from typing import Optional
 
+from apache_beam.internal import pickler
 from apache_beam.utils import counters
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
@@ -189,7 +190,8 @@ class OperationCounters(object):
       step_name,  # type: str
       coder,
       index,
-      suffix='out'):
+      suffix='out',
+      consumers=None):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(
         '%s-%s%s-ElementCount' % (step_name, suffix, index), Counter.SUM)
@@ -201,6 +203,17 @@ class OperationCounters(object):
     self.current_size = None  # type: Optional[int]
     self._sample_counter = 0
     self._next_sample = 0
+
+    if consumers and len(consumers):
+      consumer = consumers[0]
+      if hasattr(consumer, 'spec') and hasattr(consumer.spec, 'serialized_fn'):
+        fns = pickler.loads(consumer.spec.serialized_fn)
+        if fns and len(fns):
+          fn = fns[0]
+          if fn and hasattr(fn, '_type_hints'):
+            self.type_hints = fn._type_hints
+          else:
+            self.type_hints = None
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
