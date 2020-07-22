@@ -17,31 +17,31 @@
  */
 
 job('beam_Clean_tmp_directory') {
-    description('Cleans /tmp directory on the node machine by removing files that were not accessed for long (configurable) time.')
+  description('Cleans /tmp directory on the node machine by removing files that were not accessed for long (configurable) time.')
 
-    logRotator {
-        daysToKeep(14)
+  logRotator {
+    daysToKeep(14)
+  }
+
+  concurrentBuild()
+
+  parameters {
+    labelParam('machine_label') {
+      description("Label of the machine to be cleaned. Could be either a specific machine name or `beam` if you want to cleanup all the machines.")
+      allNodes('allCases','AllNodeEligibility')
     }
-
-    concurrentBuild()
-
-    parameters {
-        labelParam('machine_label') {
-            description("Label of the machine to be cleaned. Could be either a specific machine name or `beam` if you want to cleanup all the machines.")
-            allNodes('allCases','AllNodeEligibility')
-        }
-        stringParam {
-            name("unaccessed_for")
-            defaultValue("10")
-            description("Only files that were not accessed for last `unaccessed_for` hours will be deleted. Default value should be right in most cases. Modify it only if know what you're doing :)")
-            trim(true)
-        }
+    stringParam {
+      name("unaccessed_for")
+      defaultValue("10")
+      description("Only files that were not accessed for last `unaccessed_for` hours will be deleted. Default value should be right in most cases. Modify it only if know what you're doing :)")
+      trim(true)
     }
+  }
 
-    steps {
-        shell('echo "Current size of /tmp dir is \$(sudo du -sh /tmp)"')
-        shell('echo "Deleting files accessed later than \${unaccessed_for} hours ago"')
-        shell('sudo find /tmp -type f -amin +\$((60*\${unaccessed_for})) -print -delete')
-        shell('echo "Size of /tmp dir after cleanup is \$(sudo du -sh /tmp)"')
-    }
+  steps {
+    shell('echo "Current size of /tmp dir is \$(sudo du -sh /tmp)"')
+    shell('echo "Deleting files accessed later than \${unaccessed_for} hours ago"')
+    shell('sudo find /tmp -type f -amin +\$((60*\${unaccessed_for})) -print -delete')
+    shell('echo "Size of /tmp dir after cleanup is \$(sudo du -sh /tmp)"')
+  }
 }

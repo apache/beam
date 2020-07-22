@@ -19,20 +19,20 @@
 import CommonJobProperties as commonJobProperties
 
 job('beam_PostRelease_Python_Candidate') {
-    description('Runs verification of the Python release candidate.')
+  description('Runs verification of the Python release candidate.')
 
-    // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 360)
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 360)
 
-    // Allows triggering this build against pull requests.
-    commonJobProperties.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Python SDK Release Candidates Validation',
-            'Run Python ReleaseCandidate')
+  // Allows triggering this build against pull requests.
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Python SDK Release Candidates Validation',
+      'Run Python ReleaseCandidate')
 
-    // Execute shell command to test Python SDK.
-    steps {
-      shell('cd ' + commonJobProperties.checkoutDir +
+  // Execute shell command to test Python SDK.
+  steps {
+    shell('cd ' + commonJobProperties.checkoutDir +
         ' && bash release/src/main/python-release/python_release_automation.sh')
-    }
+  }
 }

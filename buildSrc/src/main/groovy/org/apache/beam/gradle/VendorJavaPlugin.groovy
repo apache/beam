@@ -109,7 +109,7 @@ class VendorJavaPlugin implements Plugin<Project> {
         outputs.file "${pomPropertiesFile}"
         doLast {
           new File("${pomPropertiesFile}").text =
-                  """version=${config.version}
+              """version=${config.version}
 groupId=${project.group}
 artifactId=${project.name}
 """
@@ -189,10 +189,10 @@ artifactId=${project.name}
             }
             maven {
               url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
-                      ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
-                      : 'https://repository.apache.org/content/repositories/snapshots')
+                  ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
+                  : 'https://repository.apache.org/content/repositories/snapshots')
               name(project.properties['distMgmtServerId'] ?: isRelease(project)
-                      ? 'apache.releases.https' : 'apache.snapshots.https')
+                  ? 'apache.releases.https' : 'apache.snapshots.https')
               // The maven settings plugin will load credentials from ~/.m2/settings.xml file that a user
               // has configured with the Apache release and snapshot staging credentials.
               // <settings>
@@ -331,7 +331,7 @@ artifactId=${project.name}
                 // TODO: Load this from file?
                 def elem = asElement()
                 def hdr = elem.getOwnerDocument().createComment(
-                        '''
+                    '''
     Licensed to the Apache Software Foundation (ASF) under one or more
     contributor license agreements.  See the NOTICE file distributed with
     this work for additional information regarding copyright ownership.

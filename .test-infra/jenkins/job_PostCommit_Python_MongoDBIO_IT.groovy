@@ -21,19 +21,19 @@ import PostcommitJobBuilder
 
 // This job runs the integration test of python mongodbio class.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_MongoDBIO_IT',
-        'Run Python MongoDBIO_IT', 'Python MongoDBIO Integration Test',this) {
-  description('Runs the Python MongoDBIO Integration Test.')
+    'Run Python MongoDBIO_IT', 'Python MongoDBIO Integration Test',this) {
+      description('Runs the Python MongoDBIO Integration Test.')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  // Gradle goals for this job.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:python:test-suites:direct:py2:mongodbioIT')
-      tasks(':sdks:python:test-suites:direct:py35:mongodbioIT')
-      commonJobProperties.setGradleSwitches(delegate)
+      // Gradle goals for this job.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:python:test-suites:direct:py2:mongodbioIT')
+          tasks(':sdks:python:test-suites:direct:py35:mongodbioIT')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}
