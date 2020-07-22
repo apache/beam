@@ -43,7 +43,12 @@ _LOGGER = logging.getLogger(__name__)
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
   # pylint: disable=ungrouped-imports
-  from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, ContentSettings
+  from azure.storage.blob import (
+    BlobServiceClient,
+    BlobClient,
+    ContainerClient,
+    ContentSettings,
+  )
 except ImportError:
   raise ImportError('Missing `azure` requirement')
 
@@ -53,21 +58,25 @@ MAX_BATCH_OPERATION_SIZE = 100
 
 
 def parse_azfs_path(azfs_path, blob_optional=False):
-  """Return the storage account, the container and blob names of the given azfs:// path."""
+  """Return the storage account, the container and
+  blob names of the given azfs:// path.
+  """
   match = re.match(
       '^azfs://([a-z0-9]{3,24})/([a-z0-9](?![a-z0-9-]*--[a-z0-9-]*)'
       '[a-z0-9-]{1,61}[a-z0-9])/(.*)$',
       azfs_path)
   if match is None or (match.group(3) == '' and not blob_optional):
-    raise ValueError(
-        'Azure Blob Storage path must be in the form azfs://<storage-account>/<container>/<path>.'
-    )
+    raise ValueError('Azure Blob Storage path must be in the form'
+                     'azfs://<storage-account>/<container>/<path>.')
   return match.group(1), match.group(2), match.group(3)
 
 
 def get_azfs_url(storage_account, container, blob=''):
-  """Returns the url in the form of https://account.blob.core.windows.net/container/blob-name"""
-  return 'https://' + storage_account + '.blob.core.windows.net/' + container + '/' + blob
+  """Returns the url in the form of
+   https://account.blob.core.windows.net/container/blob-name
+  """
+  return 'https://' + storage_account + '.blob.core.windows.net/' + \
+          container + '/' + blob
 
 
 class Blob():
@@ -260,7 +269,7 @@ class BlobStorageIO(object):
       else:
         # We re-raise all other exceptions
         raise
-  
+
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
   def last_updated(self, path):
@@ -284,6 +293,26 @@ class BlobStorageIO(object):
     return (
         time.mktime(datatime.timetuple()) - time.timezone +
         datatime.microsecond / 1000000.0)
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_beam_io_error_filter)
+  def checksum(self, path):
+    """Looks up the checksum of an Azure Blob Storage blob.
+    
+    Args:
+      path: Azure Blob Storage file path pattern in the form
+            azfs://<storage-account>/<container>/[name].
+    """
+    storage_account, container, blob = parse_azfs_path(path)
+    blob_to_check = self.client.get_blob_client(container, blob)
+    try:
+      properties = blob_to_check.get_blob_properties()
+    except ResourceNotFoundError as e:
+      message = e.reason
+      code = e.status_code
+      raise BlobStorageError(message, code)
+    
+    return properties.etag
 
 
 class BlobStorageDownloader(Downloader):
