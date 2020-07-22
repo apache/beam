@@ -249,8 +249,8 @@ def reset_directory(artifacts_dir):
     sys.exit(1)
 
 
-def download_artifacts(run_id, repo_url, artifacts_dir, github_token):
-  """Downloads github artifacts from given run."""
+def fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token):
+  """Downloads and extracts github artifacts with source dist and wheels from given run."""
   print("Starting downloading artifacts ... (it may take a while)")
   run_data = get_single_workflow_run_data(run_id, repo_url, github_token)
   artifacts_url = safe_get(run_data, "artifacts_url")
@@ -266,28 +266,36 @@ def download_artifacts(run_id, repo_url, artifacts_dir, github_token):
     name = safe_get(artifact, "name")
     size_in_bytes = safe_get(artifact, "size_in_bytes")
 
-    download_single_artifact(
-        url, name, size_in_bytes, artifacts_dir, github_token)
+    fd, temp_file_path = tempfile.mkstemp(prefix=name, suffix=".zip")
+    try:
+      os.close(fd)
+      download_single_artifact(
+          url, name, size_in_bytes, temp_file_path, github_token)
+      extract_single_artifact(temp_file_path, artifacts_dir)
+    finally:
+      os.remove(temp_file_path)
 
 
 def download_single_artifact(
-    url, name, size_in_bytes, artifacts_dir, github_token):
-  """Downloads single github artifact."""
+    url, name, size_in_bytes, target_file_path, github_token):
   artifacts_size_mb = round(size_in_bytes / (1024 * 1024), 2)
   print(
       f"\tDownloading {name}.zip artifact (size: {artifacts_size_mb} megabytes)"
   )
 
-  with tempfile.NamedTemporaryFile(
-    "wb", prefix=name, suffix=".zip"
-  ) as f, request_url(
-    url, github_token, return_json=False, allow_redirects=True, stream=True
-  ) as r:
-    with open(f.name, "wb") as _f:
-      shutil.copyfileobj(r.raw, _f)
-    with zipfile.ZipFile(f.name, "r") as zip_ref:
-      print(f"\tUnzipping {len(zip_ref.filelist)} files")
-      zip_ref.extractall(artifacts_dir)
+  with request_url(url,
+                   github_token,
+                   return_json=False,
+                   allow_redirects=True,
+                   stream=True) as r:
+    with open(target_file_path, "wb") as f:
+      shutil.copyfileobj(r.raw, f)
+
+
+def extract_single_artifact(file_path, output_dir):
+  with zipfile.ZipFile(file_path, "r") as zip_ref:
+    print(f"\tUnzipping {len(zip_ref.filelist)} files")
+    zip_ref.extractall(output_dir)
 
 
 if __name__ == "__main__":
@@ -309,7 +317,7 @@ if __name__ == "__main__":
         workflow_id, repo_url, release_branch, release_commit, github_token)
     validate_run(run_id, repo_url, github_token)
     reset_directory(artifacts_dir)
-    download_artifacts(run_id, repo_url, artifacts_dir, github_token)
+    fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token)
     print("Script finished successfully!")
     print(f"Artifacts available in directory: {artifacts_dir}")
   except KeyboardInterrupt as e:
