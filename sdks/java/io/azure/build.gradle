@@ -20,7 +20,6 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.azure', enableChecker: false)
 
 dependencies {
-  compile "com.azure:azure-storage-blob:12.6.0"
   compile project(path: ":sdks:java:core", configuration: "shadow")
   testCompile library.java.junit
 }
