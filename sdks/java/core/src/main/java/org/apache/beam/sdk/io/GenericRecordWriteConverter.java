@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
+package org.apache.beam.sdk.io;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -28,37 +29,39 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
-/** A {@link PTransform} to convert {@link GenericRecord} to {@link Row}. */
+/** A {@link PTransform} to convert {@link Row} to {@link GenericRecord}. */
 @AutoValue
-public abstract class GenericRecordReadConverter
-    extends PTransform<PCollection<GenericRecord>, PCollection<Row>> implements Serializable {
+public abstract class GenericRecordWriteConverter
+    extends PTransform<PCollection<Row>, PCollection<GenericRecord>> implements Serializable {
 
   public abstract Schema beamSchema();
 
   public static Builder builder() {
-    return new AutoValue_GenericRecordReadConverter.Builder();
+    return new AutoValue_GenericRecordWriteConverter.Builder();
   }
 
   @Override
-  public PCollection<Row> expand(PCollection<GenericRecord> input) {
+  public PCollection<GenericRecord> expand(PCollection<Row> input) {
     return input
         .apply(
-            "GenericRecordsToRows",
+            "RowsToGenericRecord",
             ParDo.of(
-                new DoFn<GenericRecord, Row>() {
+                new DoFn<Row, GenericRecord>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
-                    Row row = AvroUtils.toBeamRowStrict(c.element(), beamSchema());
-                    c.output(row);
+                    GenericRecord genericRecord =
+                        AvroUtils.toGenericRecord(
+                            c.element(), AvroUtils.toAvroSchema(beamSchema()));
+                    c.output(genericRecord);
                   }
                 }))
-        .setRowSchema(beamSchema());
+        .setCoder(AvroCoder.of(GenericRecord.class, AvroUtils.toAvroSchema(beamSchema())));
   }
 
   @AutoValue.Builder
   abstract static class Builder {
     public abstract Builder beamSchema(Schema beamSchema);
 
-    public abstract GenericRecordReadConverter build();
+    public abstract GenericRecordWriteConverter build();
   }
 }
