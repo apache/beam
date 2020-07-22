@@ -90,7 +90,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Internal
 @AutoService(SchemaIOProvider.class)
-public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
+public class PubsubSchemaIOProvider implements SchemaIOProvider {
   public static final FieldType VARCHAR = FieldType.STRING;
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
 
@@ -127,6 +127,11 @@ public class PubsubSchemaCapableIOProvider implements SchemaIOProvider {
   @Override
   public boolean requiresDataSchema() {
     return true;
+  }
+
+  @Override
+  public PCollection.IsBounded isBounded() {
+    return PCollection.IsBounded.UNBOUNDED;
   }
 
   private void validateDataSchema(Schema schema) {
