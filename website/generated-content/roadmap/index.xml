@@ -407,7 +407,8 @@ how it manages the SDK harness containers.&lt;/p>
 &lt;p>The goal is that all (non-direct) runners and SDKs eventually support
 the portability API, perhaps exclusively.&lt;/p>
 &lt;p>If you are interested in digging in to the designs, you can find
-them on the &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam developers&amp;rsquo; wiki&lt;/a>.&lt;/p>
+them on the &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Design+Documents">Beam developers&amp;rsquo; wiki&lt;/a>.
+Another overview can be found &lt;a href="https://docs.google.com/presentation/d/1Yg8Xm4fb-oRjiLQjwLt5153hpwwTLclZrVOKP2hQifo/edit#slide=id.g42e4c9aad6_1_3070">here&lt;/a>.&lt;/p>
 &lt;h2 id="milestones">Milestones&lt;/h2>
 &lt;p>The portability framework is a substantial effort that touches every
 Beam component. In addition to the sheer magnitude, a major challenge
@@ -471,9 +472,11 @@ feature is in &amp;ldquo;beam-model&amp;rdquo; with subtasks for each SDK and ru
 their respective components.&lt;/p>
 &lt;p>&lt;strong>JIRA:&lt;/strong> &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20%3D%20portability%20order%20by%20priority%20DESC%2Cupdated%20DESC">query&lt;/a>&lt;/p>
 &lt;h2 id="status">Status&lt;/h2>
-&lt;p>MVP, and FeatureCompletness nearly done (missing SDF, timers) for
+&lt;p>MVP, and FeatureCompletness nearly done for
 SDKs, Python ULR, and shared java runners library.
-Currently, the Flink and Spark runners support portable pipeline execution.
+Performance is good and multi-language pipelines are supported.
+Currently, the Flink and Spark runners support portable pipeline execution,
+as does Dataflow when using the &lt;a href="https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2">Dataflow Runner v2&lt;/a>.
 See the
 &lt;a href="https://s.apache.org/apache-beam-portability-support-table">Portability support table&lt;/a>
 for details.&lt;/p>
@@ -488,7 +491,9 @@ Please see the &lt;a href="/documentation/runners/spark/">Spark Runner page&lt;/
 how to run portable pipelines on top of Spark.&lt;/p>
 &lt;p>Python streaming mode is not yet supported on Spark.&lt;/p>
 &lt;h2 id="sdk-harness-config">SDK Harness Configuration&lt;/h2>
-&lt;p>See &lt;a href="/documentation/runtime/sdk-harness-config/">here&lt;/a> for more information on SDK harness deployment options.&lt;/p></description></item><item><title>Roadmap: Python SDK Roadmap</title><link>/roadmap/python-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/python-sdk/</guid><description>
+&lt;p>See &lt;a href="/documentation/runtime/sdk-harness-config/">here&lt;/a> for more information on SDK harness deployment options
+and &lt;a href="https://docs.google.com/presentation/d/1Cso0XP9dmj77OD9Bd53C1M3W1sPJF0ZnA20gzb2BPhE/edit?usp=sharing">here&lt;/a>
+for what goes into writing a portable SDK.&lt;/p></description></item><item><title>Roadmap: Python SDK Roadmap</title><link>/roadmap/python-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/python-sdk/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
