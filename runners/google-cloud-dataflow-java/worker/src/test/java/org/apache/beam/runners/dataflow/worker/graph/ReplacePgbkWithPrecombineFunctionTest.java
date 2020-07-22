@@ -30,7 +30,6 @@ import com.google.api.services.dataflow.model.PartialGroupByKeyInstruction;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.DefaultEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
@@ -40,6 +39,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.ImmutableN
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.NetworkBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

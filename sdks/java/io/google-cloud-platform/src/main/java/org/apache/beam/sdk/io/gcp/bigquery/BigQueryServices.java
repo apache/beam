@@ -37,10 +37,10 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An interface for real, mock, or fake implementations of Cloud BigQuery services. */
 public interface BigQueryServices extends Serializable {

@@ -29,6 +29,7 @@ import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -122,7 +123,7 @@ public class SchemaCoderTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -157,7 +158,7 @@ public class SchemaCoderTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -194,7 +195,7 @@ public class SchemaCoderTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

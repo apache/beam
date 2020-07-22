@@ -25,7 +25,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.SideInputReader;
@@ -59,6 +58,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,13 +97,13 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   private final Map<String, PCollectionView<?>> sideInputMapping;
 
   // Various DoFn helpers, null between bundles
-  @Nullable private DoFnRunner<InputT, OutputT> fnRunner;
+  private @Nullable DoFnRunner<InputT, OutputT> fnRunner;
   @Nullable DoFnInfo<InputT, OutputT> fnInfo;
-  @Nullable private Receiver[] receivers;
+  private Receiver @Nullable [] receivers;
 
   // This may additionally be null if it is not a real DoFn but an OldDoFn or
   // GroupAlsoByWindowViaWindowSetDoFn
-  @Nullable private DoFnSignature fnSignature;
+  private @Nullable DoFnSignature fnSignature;
 
   /** Creates a {@link SimpleParDoFn} using basic information about the step being executed. */
   SimpleParDoFn(
@@ -243,8 +243,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
         new OutputManager() {
           final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs = new HashMap<>();
 
-          @Nullable
-          private Receiver getReceiverOrNull(TupleTag<?> tag) {
+          private @Nullable Receiver getReceiverOrNull(TupleTag<?> tag) {
             Integer receiverIndex = outputTupleTagsToReceiverIndices.get(tag);
             if (receiverIndex != null) {
               return receivers[receiverIndex];

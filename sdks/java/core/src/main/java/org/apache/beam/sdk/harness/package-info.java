@@ -22,5 +22,5 @@
 package org.apache.beam.sdk.harness;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import org.apache.beam.sdk.annotations.Internal;
+import org.checkerframework.checker.nullness.qual.NonNull;

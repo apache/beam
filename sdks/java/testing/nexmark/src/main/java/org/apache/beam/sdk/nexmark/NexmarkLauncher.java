@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.AvroIO;
@@ -105,6 +104,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.LoggerFactory;
@@ -146,26 +146,26 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   private NexmarkConfiguration configuration;
 
   /** If in --pubsubMode=COMBINED, the event monitor for the publisher pipeline. Otherwise null. */
-  @Nullable private Monitor<Event> publisherMonitor;
+  private @Nullable Monitor<Event> publisherMonitor;
 
   /**
    * If in --pubsubMode=COMBINED, the pipeline result for the publisher pipeline. Otherwise null.
    */
-  @Nullable private PipelineResult publisherResult;
+  private @Nullable PipelineResult publisherResult;
 
   /** Result for the main pipeline. */
-  @Nullable private PipelineResult mainResult;
+  private @Nullable PipelineResult mainResult;
 
   /** Query name we are running. */
-  @Nullable private String queryName;
+  private @Nullable String queryName;
 
   /** Full path of the PubSub topic (when PubSub is enabled). */
-  @Nullable private String pubsubTopic;
+  private @Nullable String pubsubTopic;
 
   /** Full path of the PubSub subscription (when PubSub is enabled). */
-  @Nullable private String pubsubSubscription;
+  private @Nullable String pubsubSubscription;
 
-  @Nullable private PubsubHelper pubsubHelper;
+  private @Nullable PubsubHelper pubsubHelper;
   private final Map<NexmarkQueryName, NexmarkQuery> queries;
   private final Map<NexmarkQueryName, NexmarkQueryModel> models;
 
@@ -392,8 +392,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * Monitor the performance and progress of a running job. Return final performance if it was
    * measured.
    */
-  @Nullable
-  private NexmarkPerf monitor(NexmarkQuery query) {
+  private @Nullable NexmarkPerf monitor(NexmarkQuery query) {
     if (!options.getMonitorJobs()) {
       return null;
     }
@@ -1090,8 +1089,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   /** Run {@code configuration} and return its performance if possible. */
-  @Nullable
-  public NexmarkPerf run() throws IOException {
+  public @Nullable NexmarkPerf run() throws IOException {
     if (options.getManageResources() && !options.getMonitorJobs()) {
       throw new RuntimeException("If using --manageResources then must also use --monitorJobs.");
     }

@@ -21,10 +21,10 @@ import static com.google.api.client.util.Base64.decodeBase64;
 import static com.google.api.client.util.Base64.encodeBase64URLSafeString;
 
 import java.util.Arrays;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Represents a position of a {@code GroupingShuffleReader} as an opaque array of bytes, encoded in
@@ -76,7 +76,7 @@ public class ByteArrayShufflePosition implements Comparable<ShufflePosition>, Sh
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

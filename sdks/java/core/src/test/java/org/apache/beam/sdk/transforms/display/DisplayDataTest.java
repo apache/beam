@@ -62,6 +62,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.CustomTypeSafeMatcher;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
@@ -797,7 +798,7 @@ public class DisplayDataTest implements Serializable {
 
     @Override
     @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return true;
     }
   }
