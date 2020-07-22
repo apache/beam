@@ -52,13 +52,12 @@ jobs:
         run: python -m pip install wheel
       - name: Build source
         working-directory: ./sdks/python
-        run: python setup.py sdist --formats=gztar,zip
+        run: python setup.py sdist --formats=zip
       - name: Add checksums
         working-directory: ./sdks/python/dist
         run: |
-          for file in *.zip *.tar.gz; do
-            sha512sum $file > ${file}.sha512
-          done
+          file=$(ls | grep .zip | head -n 1)
+          sha512sum $file > ${file}.sha512
       - name: Unzip source
         working-directory: ./sdks/python
         run: unzip dist/$(ls dist | grep .zip | head -n 1)
@@ -73,7 +72,7 @@ jobs:
       - name: Upload compressed sources as artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: source_gztar_zip
+          name: source_zip
           path: sdks/python/dist
 
   prepare_gcs:
@@ -99,7 +98,7 @@ jobs:
       - name: Download compressed sources from artifacts
         uses: actions/download-artifact@v2
         with:
-          name: source_gztar_zip
+          name: source_zip
           path: source/
       - name: Authenticate on GCP
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master

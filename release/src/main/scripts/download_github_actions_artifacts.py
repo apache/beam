@@ -258,7 +258,7 @@ def download_artifacts(run_id, repo_url, artifacts_dir, github_token):
   artifacts = safe_get(data_artifacts, "artifacts", artifacts_url)
   filtered_artifacts = [
       a for a in artifacts if (
-          a["name"].startswith("source_gztar_zip") or
+          a["name"].startswith("source_zip") or
           a["name"].startswith("wheelhouse"))
   ]
   for artifact in filtered_artifacts:
