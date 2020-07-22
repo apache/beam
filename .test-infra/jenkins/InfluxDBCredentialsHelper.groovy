@@ -28,7 +28,7 @@ class InfluxDBCredentialsHelper {
   public static void useCredentials(job) {
     job.wrappers {
       credentialsBinding {
-        usernamePassword('INFLUXDB_USER', 'INFLUXDB_USER_PASSWORD', 'beam-influxdb-user-creds')
+            usernamePassword('INFLUXDB_USER', 'INFLUXDB_USER_PASSWORD', 'beam-influxdb-user-creds')
       }
     }
   }
