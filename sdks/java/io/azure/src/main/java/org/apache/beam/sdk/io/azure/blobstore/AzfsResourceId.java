@@ -100,13 +100,13 @@ class AzfsResourceId implements ResourceId {
   }
 
   boolean isWildcard() {
-    return GLOB_PREFIX.matcher(getBlob()).matches();
+    return GLOB_PREFIX.matcher(blob).matches();
   }
 
   String getBlobNonWildcardPrefix() {
-    Matcher m = GLOB_PREFIX.matcher(getBlob());
+    Matcher m = GLOB_PREFIX.matcher(blob);
     checkArgument(
-        m.matches(), String.format("Glob expression: [%s] is not expandable.", getBlob()));
+        m.matches(), String.format("Glob expression: [%s] is not expandable.", blob));
     return m.group("PREFIX");
   }
 
@@ -116,10 +116,10 @@ class AzfsResourceId implements ResourceId {
       return this;
     }
     if (blob.lastIndexOf('/') == -1) {
-      return fromComponents(getAccount(), getContainer());
+      return fromComponents(account, container);
     }
     return fromComponents(
-        getAccount(), getContainer(), blob.substring(0, blob.lastIndexOf('/') + 1));
+        account, container, blob.substring(0, blob.lastIndexOf('/') + 1));
   }
 
   @Nullable
@@ -150,11 +150,10 @@ class AzfsResourceId implements ResourceId {
       return false;
     }
     String otherBlob = ((AzfsResourceId) obj).blob;
-    String myBlob = getBlob();
-    boolean equalBlob = myBlob != null && otherBlob != null && myBlob.equals(otherBlob);
-    boolean noBlobs = myBlob == null && otherBlob == null;
-    return getAccount().equals(((AzfsResourceId) obj).account)
-        && getContainer().equals(((AzfsResourceId) obj).container)
+    boolean equalBlob = blob != null && otherBlob != null && blob.equals(otherBlob);
+    boolean noBlobs = blob == null && otherBlob == null;
+    return account.equals(((AzfsResourceId) obj).account)
+        && container.equals(((AzfsResourceId) obj).container)
         && (equalBlob || noBlobs);
   }
 
