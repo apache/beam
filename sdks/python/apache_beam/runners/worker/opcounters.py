@@ -238,7 +238,8 @@ class OperationCounters(object):
 
     return _observable_callback_inner
 
-  def type_check(self, value):
+  def type_check(self, value, is_input):
+    # type: (any, bool) -> None
     try:
       type_constraint = self.type_hints.input_types[0][0][0][0]
     except TypeError:
@@ -248,11 +249,11 @@ class OperationCounters(object):
     except IndexError:
       return
 
-    TypeCheckWrapperDoFn.type_check(type_constraint, value, True)
+    TypeCheckWrapperDoFn.type_check(type_constraint, value, is_input)
 
   def do_sample(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
-    self.type_check(windowed_value.value)
+    self.type_check(windowed_value.value, True)
 
     size, observables = (
         self.coder_impl.get_estimated_size_and_observables(windowed_value))
@@ -266,12 +267,17 @@ class OperationCounters(object):
             self._observable_callback(
                 inner_coder_impl, self.active_accumulator))
 
-  def update_collect(self):
+  def update_collect(self, windowed_value=None):
+    # type: (WindowedValue) -> None
     """Collects the accumulated size estimates.
 
     Now that the element has been processed, we ask our accumulator
     for the total and store the result in a counter.
     """
+
+    if windowed_value:
+      self.type_check(windowed_value.value, False)
+
     self.element_counter.update(1)
     if self.current_size is not None:
       self.mean_byte_counter.update(self.current_size)
