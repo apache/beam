@@ -163,8 +163,6 @@ class AzfsResourceId implements ResourceId {
   @Override
   public ResourceId resolve(String other, ResolveOptions resolveOptions) {
     checkState(isDirectory(), "Expected this resource to be a directory, but was [%s]", toString());
-    // checkArgument(!other.contains("/"), "Expected filename to not contain delimiters, but was
-    // [%s]", other);
     // TODO: check if resolve options are an illegal name in any way
 
     if (resolveOptions == ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY) {
