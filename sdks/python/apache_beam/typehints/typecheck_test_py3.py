@@ -94,14 +94,14 @@ class TypecheckTest(unittest.TestCase):
     # not the same one that actually runs in the pipeline (it is serialized
     # here and deserialized in the worker).
 
-    f = tempfile.NamedTemporaryFile(delete=False)
-    f.close()
+    fd, path = tempfile.mkstemp()
     try:
-      dofn = MyDoFn(f.name)
+      os.close(fd)
+      dofn = MyDoFn(path)
       result = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
       assert_that(result, equal_to([1, 2, 3]))
       self.p.run()
-      with open(f.name, mode="r") as ft:
+      with open(path, mode="r") as ft:
         lines = [line.strip() for line in ft]
         self.assertListEqual([
             'setup',
@@ -114,8 +114,8 @@ class TypecheckTest(unittest.TestCase):
         ],
                              lines)
     finally:
-      if os.path.exists(f.name):
-        os.remove(f.name)
+      if os.path.exists(path):
+        os.remove(path)
 
   def test_wrapper_pipeline_type_check(self):
     # Verifies that type hints are not masked by the wrapper. What actually

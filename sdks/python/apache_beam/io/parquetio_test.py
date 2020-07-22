@@ -296,10 +296,10 @@ class TestParquet(unittest.TestCase):
               path, self.SCHEMA96, num_shards=1, shard_name_template='')
 
   def test_sink_transform(self):
-    dst = tempfile.NamedTemporaryFile()
-    dst.close()
+    fd, path = tempfile.mkstemp()
     try:
-      path = dst.name
+      os.close(fd)
+      os.remove(path)
       with TestPipeline() as p:
         _ = p \
         | Create(self.RECORDS) \
@@ -313,14 +313,14 @@ class TestParquet(unittest.TestCase):
             | Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
     finally:
-      if os.path.exists(dst.name):
-        os.remove(dst.name)
+      if os.path.exists(path):
+        os.remove(path)
 
   def test_batched_read(self):
-    dst = tempfile.NamedTemporaryFile()
-    dst.close()
+    fd, path = tempfile.mkstemp()
     try:
-      path = dst.name
+      os.close(fd)
+      os.remove(path)
       with TestPipeline() as p:
         _ = p \
         | Create(self.RECORDS, reshuffle=False) \
@@ -333,8 +333,8 @@ class TestParquet(unittest.TestCase):
             | ReadFromParquetBatched(path)
         assert_that(readback, equal_to([self._records_as_arrow()]))
     finally:
-      if os.path.exists(dst.name):
-        os.remove(dst.name)
+      if os.path.exists(path):
+        os.remove(path)
 
   @parameterized.expand([
       param(compression_type='snappy'),
@@ -344,10 +344,10 @@ class TestParquet(unittest.TestCase):
       param(compression_type='zstd')
   ])
   def test_sink_transform_compressed(self, compression_type):
-    dst = tempfile.NamedTemporaryFile()
-    dst.close()
+    fd, path = tempfile.mkstemp()
     try:
-      path = dst.name
+      os.close(fd)
+      os.remove(path)
       with TestPipeline() as p:
         _ = p \
         | Create(self.RECORDS) \
@@ -362,8 +362,8 @@ class TestParquet(unittest.TestCase):
             | Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
     finally:
-      if os.path.exists(dst.name):
-        os.remove(dst.name)
+      if os.path.exists(path):
+        os.remove(path)
 
   def test_read_reentrant(self):
     file_name = self._write_data(count=6, row_group_size=3)
@@ -465,10 +465,10 @@ class TestParquet(unittest.TestCase):
     self._run_parquet_test(file_name, ['name'], None, False, expected_result)
 
   def test_sink_transform_multiple_row_group(self):
-    dst = tempfile.NamedTemporaryFile()
-    dst.close()
+    fd, path = tempfile.mkstemp()
     try:
-      path = dst.name
+      os.close(fd)
+      os.remove(path)
       with TestPipeline() as p:
         # writing 623200 bytes of data
         _ = p \
@@ -478,8 +478,8 @@ class TestParquet(unittest.TestCase):
             shard_name_template='', row_group_buffer_size=250000)
       self.assertEqual(pq.read_metadata(path).num_row_groups, 3)
     finally:
-      if os.path.exists(dst.name):
-        os.remove(dst.name)
+      if os.path.exists(path):
+        os.remove(path)
 
   def test_read_all_from_parquet_single_file(self):
     path = self._write_data()
