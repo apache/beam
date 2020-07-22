@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Useful {@link SerializableFunction} overrides. */
 public class SerializableFunctions {

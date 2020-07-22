@@ -28,10 +28,10 @@ class CommonJobProperties {
 
   // Sets common top-level job properties for main repository jobs.
   static void setTopLevelMainJobProperties(def context,
-                                           String defaultBranch = 'master',
-                                           int defaultTimeout = 100,
-                                           boolean allowRemotePoll = true,
-                                           String jenkinsExecutorLabel =  'beam') {
+      String defaultBranch = 'master',
+      int defaultTimeout = 100,
+      boolean allowRemotePoll = true,
+      String jenkinsExecutorLabel =  'beam') {
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/beam/')
@@ -56,7 +56,7 @@ class CommonJobProperties {
           // Single quotes here mean that ${ghprbPullId} is not interpolated and instead passed
           // through to Jenkins where it refers to the environment variable.
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
-                  '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
+              '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
         }
         branch('${sha1}')
         extensions {
@@ -100,12 +100,12 @@ class CommonJobProperties {
   // Sets the pull request build trigger. Accessed through precommit methods
   // below to insulate callers from internal parameter defaults.
   static void setPullRequestBuildTrigger(context,
-                                         String commitStatusContext,
-                                         String prTriggerPhrase = '',
-                                         boolean onlyTriggerPhraseToggle = true,
-                                         boolean prPermitAll = true,
-                                         List<String> triggerPathPatterns = [],
-                                         List<String> excludePathPatterns = []) {
+      String commitStatusContext,
+      String prTriggerPhrase = '',
+      boolean onlyTriggerPhraseToggle = true,
+      boolean prPermitAll = true,
+      List<String> triggerPathPatterns = [],
+      List<String> excludePathPatterns = []) {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -175,15 +175,15 @@ class CommonJobProperties {
   // specified in the postcommit job and have the job run against their PR to run
   // tests not in the presubmit suite for additional confidence.
   static void enablePhraseTriggeringFromPullRequest(context,
-                                                    String commitStatusName,
-                                                    String prTriggerPhrase,
-                                                    boolean prPermitAll = true) {
+      String commitStatusName,
+      String prTriggerPhrase,
+      boolean prPermitAll = true) {
     setPullRequestBuildTrigger(
-      context,
-      commitStatusName,
-      prTriggerPhrase,
-      true,
-      prPermitAll)
+        context,
+        commitStatusName,
+        prTriggerPhrase,
+        true,
+        prPermitAll)
   }
 
   // Sets this as a cron job, running on a schedule.
@@ -195,10 +195,10 @@ class CommonJobProperties {
 
   // Sets common config for jobs which run on a schedule; optionally on push
   static void setAutoJob(context,
-                         String buildSchedule = '0 */6 * * *',
-                         notifyAddress = 'builds@beam.apache.org',
-                         triggerOnCommit = false,
-                         emailIndividuals = false) {
+      String buildSchedule = '0 */6 * * *',
+      notifyAddress = 'builds@beam.apache.org',
+      triggerOnCommit = false,
+      emailIndividuals = false) {
 
     // Set build triggers
     context.triggers {
@@ -238,9 +238,9 @@ class CommonJobProperties {
 
   static def mapToArgString(LinkedHashMap<String, String> inputArgs) {
     List argList = []
-    inputArgs.each({
-        // FYI: Replacement only works with double quotes.
-      key, value -> argList.add("--$key=$value")
+    inputArgs.each({ // FYI: Replacement only works with double quotes.
+      key, value ->
+      argList.add("--$key=$value")
     })
     return argList.join(' ')
   }
@@ -263,8 +263,8 @@ class CommonJobProperties {
    */
   static String joinPipelineOptions(Map pipelineOptions) {
     List<String> pipelineArgList = []
-    pipelineOptions.each({
-      key, value -> pipelineArgList.add("\"--$key=$value\"")
+    pipelineOptions.each({ key, value ->
+      pipelineArgList.add("\"--$key=$value\"")
     })
     return "[" + pipelineArgList.join(',') + "]"
   }
@@ -279,8 +279,8 @@ class CommonJobProperties {
    */
   static String joinOptionsWithNestedJsonValues(Map pipelineOptions) {
     List<String> pipelineArgList = []
-    pipelineOptions.each({
-      key, value -> pipelineArgList.add("\"--$key=${value.replaceAll("\"", "\\\\\\\\\"")}\"")
+    pipelineOptions.each({ key, value ->
+      pipelineArgList.add("\"--$key=${value.replaceAll("\"", "\\\\\\\\\"")}\"")
     })
     return "[" + pipelineArgList.join(',') + "]"
   }

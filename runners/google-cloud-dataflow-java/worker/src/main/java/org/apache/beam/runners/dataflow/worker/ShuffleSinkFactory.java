@@ -20,17 +20,17 @@ package org.apache.beam.runners.dataflow.worker;
 import static com.google.api.client.util.Base64.decodeBase64;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.runners.dataflow.worker.ShuffleSink.parseShuffleKind;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Creates a {@link ShuffleSink} from a {@link CloudObject} spec. */
 public class ShuffleSinkFactory implements SinkFactory {
@@ -50,20 +50,17 @@ public class ShuffleSinkFactory implements SinkFactory {
     }
   }
 
-  // Findbugs does not correctly understand inheritance + nullability.
-  //
-  // coder & executionContext may be null due to parent class signature, and must be checked,
-  // despite not being nullable here
   @Override
   public ShuffleSink<?> create(
       CloudObject spec,
-      Coder<?> coder,
+      @Nullable Coder<?> coder,
       @Nullable PipelineOptions options,
-      DataflowExecutionContext executionContext,
+      @Nullable DataflowExecutionContext executionContext,
       DataflowOperationContext operationContext)
       throws Exception {
 
-    checkArgument(coder != null, "coder must not be null");
+    coder = checkArgumentNotNull(coder);
+    executionContext = checkArgumentNotNull(executionContext);
 
     @SuppressWarnings("unchecked")
     Coder<WindowedValue<Object>> typedCoder = (Coder<WindowedValue<Object>>) coder;

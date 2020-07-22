@@ -86,12 +86,12 @@ class PrecommitJobBuilder {
       description buildDescription('for each commit push.')
       concurrentBuild()
       commonJobProperties.setPullRequestBuildTrigger(delegate,
-        githubUiHint(),
-        '',
-        false,
-        true,
-        triggerPathPatterns,
-        excludePathPatterns)
+          githubUiHint(),
+          '',
+          false,
+          true,
+          triggerPathPatterns,
+          excludePathPatterns)
     }
     job.with additionalCustomization
   }
@@ -110,9 +110,9 @@ class PrecommitJobBuilder {
     def allowRemotePoll = !usesRegionFilter
     return scope.job("beam_PreCommit_${nameBase}_${nameSuffix}") {
       commonJobProperties.setTopLevelMainJobProperties(delegate,
-      'master',
-      timeoutMins,
-      allowRemotePoll) // needed for included regions PR triggering; see [JENKINS-23606]
+          'master',
+          timeoutMins,
+          allowRemotePoll) // needed for included regions PR triggering; see [JENKINS-23606]
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)

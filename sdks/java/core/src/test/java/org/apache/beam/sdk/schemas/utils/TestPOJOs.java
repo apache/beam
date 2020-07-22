@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
@@ -40,7 +40,7 @@ public class TestPOJOs {
   /** A POJO containing one nullable and one non-nullable type. */
   @DefaultSchema(JavaFieldSchema.class)
   public static class POJOWithNullables {
-    @Nullable public String str;
+    public @Nullable String str;
     public int anInt;
 
     public POJOWithNullables(@Nullable String str, int anInt) {
@@ -51,7 +51,7 @@ public class TestPOJOs {
     public POJOWithNullables() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -75,7 +75,7 @@ public class TestPOJOs {
   /** a POJO containing a nested nullable field. * */
   @DefaultSchema(JavaFieldSchema.class)
   public static class POJOWithNestedNullable {
-    @Nullable public POJOWithNullables nested;
+    public @Nullable POJOWithNullables nested;
 
     public POJOWithNestedNullable(@Nullable POJOWithNullables nested) {
       this.nested = nested;
@@ -84,7 +84,7 @@ public class TestPOJOs {
     public POJOWithNestedNullable() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -178,7 +178,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -273,7 +273,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -394,7 +394,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -465,7 +465,7 @@ public class TestPOJOs {
     public NestedPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -503,7 +503,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -545,7 +545,7 @@ public class TestPOJOs {
     public NestedArrayPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -578,7 +578,7 @@ public class TestPOJOs {
     public NestedArraysPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -613,7 +613,7 @@ public class TestPOJOs {
     public NestedCollectionPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -650,7 +650,7 @@ public class TestPOJOs {
     public PrimitiveMapPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -684,7 +684,7 @@ public class TestPOJOs {
     public NestedMapPOJO() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -728,7 +728,7 @@ public class TestPOJOs {
     public POJOWithBoxedFields() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -773,7 +773,7 @@ public class TestPOJOs {
     public POJOWithByteArray() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -807,7 +807,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -841,7 +841,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -881,7 +881,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -911,17 +911,17 @@ public class TestPOJOs {
   @DefaultSchema(JavaFieldSchema.class)
   public static class NullablePOJO {
     @Nullable public String str;
-    @Nullable public Byte aByte;
-    @Nullable public Short aShort;
-    @Nullable public Integer anInt;
-    @Nullable public Long aLong;
-    @Nullable public Boolean aBoolean;
-    @Nullable public DateTime dateTime;
-    @Nullable public Instant instant;
-    @Nullable public byte[] bytes;
-    @Nullable public ByteBuffer byteBuffer;
-    @Nullable public BigDecimal bigDecimal;
-    @Nullable public StringBuilder stringBuilder;
+    public @Nullable Byte aByte;
+    public @Nullable Short aShort;
+    public @Nullable Integer anInt;
+    public @Nullable Long aLong;
+    public @Nullable Boolean aBoolean;
+    public @Nullable DateTime dateTime;
+    public @Nullable Instant instant;
+    public byte @Nullable [] bytes;
+    public @Nullable ByteBuffer byteBuffer;
+    public @Nullable BigDecimal bigDecimal;
+    public @Nullable StringBuilder stringBuilder;
 
     public NullablePOJO() {}
 
@@ -953,7 +953,7 @@ public class TestPOJOs {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

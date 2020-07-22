@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -99,6 +98,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Utilities for working with {@link DoFnSignature}. See {@link #getSignature}. */
@@ -316,8 +316,7 @@ public class DoFnSignatures {
     }
 
     /** Field access declaration declared in this context. */
-    @Nullable
-    public Map<String, FieldAccessDeclaration> getFieldAccessDeclarations() {
+    public @Nullable Map<String, FieldAccessDeclaration> getFieldAccessDeclarations() {
       return fieldAccessDeclarations;
     }
 
@@ -375,8 +374,6 @@ public class DoFnSignatures {
     private final Map<String, TimerFamilyParameter> timerFamilyParameters = new HashMap<>();
     private final List<Parameter> extraParameters = new ArrayList<>();
 
-    @Nullable private TypeDescriptor<? extends BoundedWindow> windowT;
-
     private MethodAnalysisContext() {}
 
     /** Indicates whether the specified {@link Parameter} is known in this context. */
@@ -388,8 +385,7 @@ public class DoFnSignatures {
      * Returns the specified {@link Parameter} if it is known in this context. Throws {@link
      * IllegalStateException} if there is more than one instance of the parameter.
      */
-    @Nullable
-    public <T extends Parameter> Optional<T> findParameter(Class<T> type) {
+    public @Nullable <T extends Parameter> Optional<T> findParameter(Class<T> type) {
       List<T> parameters = findParameters(type);
       switch (parameters.size()) {
         case 0:
@@ -407,12 +403,6 @@ public class DoFnSignatures {
     public <T extends Parameter> List<T> findParameters(Class<T> type) {
       return (List<T>)
           extraParameters.stream().filter(Predicates.instanceOf(type)).collect(Collectors.toList());
-    }
-
-    /** The window type, if any, used by this method. */
-    @Nullable
-    public TypeDescriptor<? extends BoundedWindow> getWindowType() {
-      return windowT;
     }
 
     /** State parameters declared in this context, keyed by {@link StateId}. */
@@ -1537,20 +1527,17 @@ public class DoFnSignatures {
     }
   }
 
-  @Nullable
-  private static String getTimerId(List<Annotation> annotations) {
+  private static @Nullable String getTimerId(List<Annotation> annotations) {
     DoFn.TimerId timerId = findFirstOfType(annotations, DoFn.TimerId.class);
     return timerId != null ? TimerDeclaration.PREFIX + timerId.value() : null;
   }
 
-  @Nullable
-  private static String getTimerFamilyId(List<Annotation> annotations) {
+  private static @Nullable String getTimerFamilyId(List<Annotation> annotations) {
     DoFn.TimerFamily timerFamilyId = findFirstOfType(annotations, DoFn.TimerFamily.class);
     return timerFamilyId != null ? TimerFamilyDeclaration.PREFIX + timerFamilyId.value() : null;
   }
 
-  @Nullable
-  private static String getStateId(List<Annotation> annotations) {
+  private static @Nullable String getStateId(List<Annotation> annotations) {
     DoFn.StateId stateId = findFirstOfType(annotations, DoFn.StateId.class);
     return stateId != null ? stateId.value() : null;
   }
@@ -1560,20 +1547,17 @@ public class DoFnSignatures {
     return alwaysFetched != null;
   }
 
-  @Nullable
-  private static String getFieldAccessId(List<Annotation> annotations) {
+  private static @Nullable String getFieldAccessId(List<Annotation> annotations) {
     DoFn.FieldAccess access = findFirstOfType(annotations, DoFn.FieldAccess.class);
     return access != null ? access.value() : null;
   }
 
-  @Nullable
-  private static String getSideInputId(List<Annotation> annotations) {
+  private static @Nullable String getSideInputId(List<Annotation> annotations) {
     DoFn.SideInput sideInputId = findFirstOfType(annotations, DoFn.SideInput.class);
     return sideInputId != null ? sideInputId.value() : null;
   }
 
-  @Nullable
-  static <T> T findFirstOfType(List<Annotation> annotations, Class<T> clazz) {
+  static @Nullable <T> T findFirstOfType(List<Annotation> annotations, Class<T> clazz) {
     Optional<Annotation> annotation =
         annotations.stream().filter(a -> a.annotationType().equals(clazz)).findFirst();
     return annotation.isPresent() ? (T) annotation.get() : null;
@@ -1583,8 +1567,7 @@ public class DoFnSignatures {
     return annotations.stream().anyMatch(a -> a.annotationType().equals(annotation));
   }
 
-  @Nullable
-  private static TypeDescriptor<? extends BoundedWindow> getWindowType(
+  private static @Nullable TypeDescriptor<? extends BoundedWindow> getWindowType(
       TypeDescriptor<?> fnClass, Method method) {
     Type[] params = method.getGenericParameterTypes();
     for (Type param : params) {
@@ -2359,8 +2342,7 @@ public class DoFnSignatures {
     return ImmutableMap.copyOf(declarations);
   }
 
-  @Nullable
-  private static Method findAnnotatedMethod(
+  private static @Nullable Method findAnnotatedMethod(
       ErrorReporter errors, Class<? extends Annotation> anno, Class<?> fnClazz, boolean required) {
     Collection<Method> matches = declaredMethodsWithAnnotation(anno, fnClazz, DoFn.class);
 

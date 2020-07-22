@@ -41,11 +41,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.UserStateId;
-import org.apache.beam.runners.core.construction.*;
+import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
+import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.ImmutableExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -85,6 +90,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -114,7 +120,7 @@ public class CreateExecutableStageNodeFunction
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final IdGenerator idGenerator;
-  private final @Nullable RunnerApi.Pipeline pipeline;
+  private final RunnerApi.@Nullable Pipeline pipeline;
 
   public CreateExecutableStageNodeFunction(RunnerApi.Pipeline pipeline, IdGenerator idGenerator) {
     this.pipeline = pipeline;

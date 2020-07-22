@@ -29,7 +29,7 @@ import com.google.cloud.pubsublite.proto.PublisherServiceGrpc.PublisherServiceSt
 import io.grpc.StatusException;
 import java.io.Serializable;
 import java.util.Optional;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options needed for a Pub/Sub Lite Publisher. */
 @AutoValue
@@ -43,8 +43,7 @@ public abstract class PublisherOptions implements Serializable {
 
   // Optional parameters.
   /** A supplier for the stub to be used. If enabled, does not use the publisher cache. */
-  @Nullable
-  public abstract SerializableSupplier<PublisherServiceStub> stubSupplier();
+  public abstract @Nullable SerializableSupplier<PublisherServiceStub> stubSupplier();
 
   @Override
   public abstract int hashCode();

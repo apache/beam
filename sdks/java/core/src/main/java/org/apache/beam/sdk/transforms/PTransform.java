@@ -22,7 +22,6 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@code PTransform<InputT, OutputT>} is an operation that takes an {@code InputT} (some subtype
@@ -187,7 +187,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * The base name of this {@code PTransform}, e.g., from defaults, or {@code null} if not yet
    * assigned.
    */
-  @Nullable protected final transient String name;
+  protected final transient @Nullable String name;
 
   protected PTransform() {
     this.name = null;

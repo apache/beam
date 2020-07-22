@@ -34,10 +34,10 @@ import io.grpc.StatusException;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options needed for a Pub/Sub Lite Subscriber. */
 @AutoValue
@@ -56,26 +56,22 @@ public abstract class SubscriberOptions implements Serializable {
   abstract Set<Partition> partitions();
 
   /** A supplier for the subscriber stub to be used. */
-  @Nullable
-  abstract SerializableSupplier<SubscriberServiceStub> subscriberStubSupplier();
+  abstract @Nullable SerializableSupplier<SubscriberServiceStub> subscriberStubSupplier();
 
   /** A supplier for the cursor service stub to be used. */
-  @Nullable
-  abstract SerializableSupplier<CursorServiceStub> committerStubSupplier();
+  abstract @Nullable SerializableSupplier<CursorServiceStub> committerStubSupplier();
 
   /**
    * A factory to override subscriber creation entirely and delegate to another method. Primarily
    * useful for testing.
    */
-  @Nullable
-  abstract SubscriberFactory subscriberFactory();
+  abstract @Nullable SubscriberFactory subscriberFactory();
 
   /**
    * A supplier to override committer creation entirely and delegate to another method. Primarily
    * useful for testing.
    */
-  @Nullable
-  abstract SerializableSupplier<Committer> committerSupplier();
+  abstract @Nullable SerializableSupplier<Committer> committerSupplier();
 
   public static Builder newBuilder() {
     Builder builder = new AutoValue_SubscriberOptions.Builder();

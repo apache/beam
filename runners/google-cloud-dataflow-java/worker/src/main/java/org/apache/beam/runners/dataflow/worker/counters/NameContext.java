@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.counters;
 
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The {@link NameContext} represents the various names associated with a specific instruction in
@@ -44,8 +44,7 @@ public abstract class NameContext {
   }
 
   /** Returns the name of the stage this instruction is executing in. */
-  @Nullable
-  public abstract String stageName();
+  public abstract @Nullable String stageName();
 
   /**
    * Returns the "original" name of this instruction. This name is a short name assigned by the SDK
@@ -60,8 +59,7 @@ public abstract class NameContext {
    *
    * <p>Examples: "s2", "s4", "s8"
    */
-  @Nullable
-  public abstract String originalName();
+  public abstract @Nullable String originalName();
 
   /**
    * Returns the "system" name of this instruction. There may be multiple "system" names associated
@@ -73,8 +71,7 @@ public abstract class NameContext {
    *
    * <p>Examples: "s4", "s4-write-shuffle46", "s813-reify66", "partial-s89"
    */
-  @Nullable
-  public abstract String systemName();
+  public abstract @Nullable String systemName();
 
   /**
    * Returns the name given to this instruction by the SDK that created the workflow graph.
@@ -85,6 +82,5 @@ public abstract class NameContext {
    *
    * <p>Examples: "MapElements/Map", "BigShuffle.GroupByFirstNBytes/GroupByKey/Reify"
    */
-  @Nullable
-  public abstract String userName();
+  public abstract @Nullable String userName();
 }

@@ -37,9 +37,6 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
   @Override
   protected List<MatchResult> match(List<String> specs) throws IOException {
     // TODO
-    // S3Filesystem and GcsFilesystem have similar code for this,
-    // see if that code is relevant to this case
-    // Also see BlobContainerClient.listBlobs() method
     return null;
   }
 
@@ -53,9 +50,6 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
   @Override
   protected ReadableByteChannel open(AzfsResourceId resourceId) throws IOException {
     // TODO
-    // Download a blob to an OutputStream using a BlobClient.
-    // try(ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-    //  blobClient.download(outputStream); }
     return null;
   }
 

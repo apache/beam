@@ -23,7 +23,7 @@ import java.nio.file.FileSystems;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -159,7 +159,7 @@ public class SparkPortableExecutionTest implements Serializable {
             pipelineProto,
             options.as(SparkPipelineOptions.class));
     jobInvocation.start();
-    while (jobInvocation.getState() != Enum.DONE) {
+    while (jobInvocation.getState() != JobState.Enum.DONE) {
       Thread.sleep(1000);
     }
   }
@@ -202,7 +202,7 @@ public class SparkPortableExecutionTest implements Serializable {
             pipelineProto,
             options.as(SparkPipelineOptions.class));
     jobInvocation.start();
-    while (jobInvocation.getState() != Enum.DONE) {
+    while (jobInvocation.getState() != JobState.Enum.DONE) {
       Thread.sleep(1000);
     }
   }
@@ -244,7 +244,7 @@ public class SparkPortableExecutionTest implements Serializable {
             pipelineProto,
             options.as(SparkPipelineOptions.class));
     jobInvocation.start();
-    while (jobInvocation.getState() != Enum.DONE) {
+    while (jobInvocation.getState() != JobState.Enum.DONE) {
       Thread.sleep(1000);
     }
   }

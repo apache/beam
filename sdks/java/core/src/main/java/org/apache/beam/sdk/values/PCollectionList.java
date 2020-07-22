@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Partition;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link PCollectionList PCollectionList&lt;T&gt;} is an immutable list of homogeneously typed
@@ -240,7 +241,7 @@ public class PCollectionList<T> implements PInput, POutput {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (!(other instanceof PCollectionList)) {
       return false;
     }

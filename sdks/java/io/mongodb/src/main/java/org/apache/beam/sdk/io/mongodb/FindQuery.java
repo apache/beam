@@ -27,13 +27,13 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.model.Projections;
 import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.bson.BsonDocument;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Builds a MongoDB FindQuery object. */
 @Experimental(Kind.SOURCE_SINK)
@@ -41,8 +41,7 @@ import org.bson.conversions.Bson;
 public abstract class FindQuery
     implements SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> {
 
-  @Nullable
-  abstract BsonDocument filters();
+  abstract @Nullable BsonDocument filters();
 
   abstract int limit();
 

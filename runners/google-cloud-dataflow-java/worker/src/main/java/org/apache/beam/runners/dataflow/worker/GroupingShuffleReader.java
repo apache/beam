@@ -30,7 +30,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
@@ -57,6 +56,7 @@ import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,8 +71,8 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
 
   private final PipelineOptions options;
   final byte[] shuffleReaderConfig;
-  @Nullable final String startShufflePosition;
-  @Nullable final String stopShufflePosition;
+  final @Nullable String startShufflePosition;
+  final @Nullable String stopShufflePosition;
   final BatchModeExecutionContext executionContext;
   private final DataflowOperationContext operationContext;
   private final ShuffleReadCounterFactory shuffleReadCounterFactory;
