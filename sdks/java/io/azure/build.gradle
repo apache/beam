@@ -24,6 +24,5 @@ applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.azure', enableCheck
 dependencies {
   compile "com.azure:azure-storage-blob:12.6.0"
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile "com.azure:azure-identity:1.0.8"
   testCompile library.java.junit
 }
