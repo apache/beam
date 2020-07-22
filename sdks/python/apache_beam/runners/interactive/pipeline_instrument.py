@@ -69,7 +69,7 @@ class CacheKey:
   def __init__(self, var, version, producer_version, pipeline_id):
     # Makes sure that the variable name is obfuscated and only first 10
     # characters taken so that the CacheKey has a constant length.
-    self.var = obfuscate(var)[:10]
+    self.var = var
     self.version = version
     self.producer_version = producer_version
     self.pipeline_id = pipeline_id

@@ -128,6 +128,7 @@ def attempt_to_run_background_caching_job(
     from apache_beam.runners.interactive import pipeline_instrument as instr
     runner_pipeline = beam.pipeline.Pipeline.from_runner_api(
         user_pipeline.to_runner_api(use_fake_coders=True), runner, options)
+
     background_caching_job_result = beam.pipeline.Pipeline.from_runner_api(
         instr.build_pipeline_instrument(
             runner_pipeline).background_caching_pipeline_proto(),
@@ -181,7 +182,8 @@ def is_cache_complete(pipeline_id):
   """
   user_pipeline = ie.current_env().pipeline_id_to_pipeline(pipeline_id)
   job = ie.current_env().get_background_caching_job(user_pipeline)
-  is_done = job and job.is_done()
+
+  is_done = job and job.is_done()# and ie.current_env().is_terminated(user_pipeline)
   cache_changed = is_source_to_cache_changed(
       user_pipeline, update_cached_source_signature=False)
 

@@ -354,8 +354,8 @@ def show(*pcolls, **configs):
       'The only configs supported are include_window_info and '
       'visualize_data.')
 
-  recording_manager = RecordingManager(user_pipeline)
-  recording = recording_manager.record_all([pcoll])
+  recording_manager = RecordingManager(user_pipeline, limiters=None)
+  recording = recording_manager.record(pcolls, n=1000000, duration=100000)
 
   # If in notebook, static plotting computed pcolls as computation is done.
   if ie.current_env().is_in_notebook:
@@ -390,7 +390,7 @@ def show(*pcolls, **configs):
       visualize(pcoll, include_window_info=include_window_info)
 
 
-def collect(pcoll, include_window_info=False):
+def collect(pcoll, n=5, include_window_info=False):
   """Materializes all of the elements from a PCollection into a Dataframe.
 
   For example::
@@ -402,7 +402,7 @@ def collect(pcoll, include_window_info=False):
     # Run the pipeline and bring the PCollection into memory as a Dataframe.
     in_memory_square = collect(square)
   """
-  return head(pcoll, n=-1, include_window_info=include_window_info)
+  return head(pcoll, n=n, include_window_info=include_window_info)
 
 
 @progress_indicated
@@ -424,23 +424,19 @@ def head(pcoll, n=5, include_window_info=False):
       '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
 
   user_pipeline = pcoll.pipeline
-  recording_manager = RecordingManager(user_pipeline)
+  recording_manager = RecordingManager(user_pipeline, limiters=None)
 
-  recording = recording_manager.record_all([pcoll])
+  print('record()')
+  recording = recording_manager.record([pcoll], n=n, duration=1)
 
-  if not recording.is_computed():
-    # Invoke wait_until_finish to ensure the blocking nature of this API without
-    # relying on the run to be blocking.
-    recording.wait_until_finish()
+  print('read()')
   elements = recording.stream(pcoll).read()
+  # if not recording.is_computed():
+  #   # Invoke wait_until_finish to ensure the blocking nature of this API without
+  #   # relying on the run to be blocking.
+  #   recording.wait_until_finish()
 
-  results = []
-  for e in elements:
-    results.append(e)
-    if len(results) >= n > 0:
-      break
-
-  return elements_to_df(results, include_window_info=include_window_info)
+  return elements_to_df(list(elements), include_window_info=include_window_info)
 
 
 @progress_indicated

@@ -208,6 +208,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         if result:
           try:
             results = result.get(self.pcoll)
+            print(results)
           except ValueError:
             return False
           return len(results) >= 10
@@ -232,7 +233,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         ('question', 20000000, [IntervalWindow(20, 30)], pane_info)
     ], columns=[0, 'event_time', 'windows', 'pane_info']) # yapf: disable
 
-    data_df = ib.collect(data, include_window_info=True)
+    data_df = ib.collect(data, n=10, include_window_info=True)
     pd.testing.assert_frame_equal(expected_data_df, data_df)
 
     # This tests that the windowing was passed correctly so that all the data
@@ -249,7 +250,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         ('the', 1, 29999999, [IntervalWindow(20, 30)], pane_info),
     ], columns=[0, 1, 'event_time', 'windows', 'pane_info']) # yapf: disable
 
-    counts_df = ib.collect(counts, include_window_info=True)
+    counts_df = ib.collect(counts, n=10, include_window_info=True)
 
     # The group by key has no guarantee of order. So we post-process the DF by
     # sorting so we can test equality.

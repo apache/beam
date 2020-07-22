@@ -19,6 +19,7 @@ from __future__ import absolute_import
 
 import logging
 import threading
+import time
 import warnings
 
 import apache_beam as beam
@@ -31,13 +32,18 @@ from apache_beam.runners.interactive import utils
 
 _LOGGER = logging.getLogger(__name__)
 
+PipelineState = beam.runners.runner.PipelineState
+
 
 class ElementStream:
   """A stream of elements from a given PCollection."""
-  def __init__(self, pcoll, cache_key):
+  def __init__(self, pcoll, cache_key, n):
     self._pcoll = pcoll
     self._cache_key = cache_key
+    self._pipeline = pcoll.pipeline
     self._var = pi.CacheKey.from_str(cache_key).var
+    self._n = n
+    self._done = False
 
   def var(self):
     """Returns the variable named that defined this PCollection."""
@@ -49,44 +55,76 @@ class ElementStream:
 
   def is_computed(self):
     """Returns True if no more elements will be recorded."""
-    if ie.current_env().is_terminated(self._pcoll.pipeline):
-      return True
     return self._pcoll in ie.current_env().computed_pcollections
+
+  def is_done(self):
+    """Returns True if no more elements will be yielded."""
+    return self._done
 
   def read(self):
     """Reads the elements currently recorded."""
-    cache_manager = ie.current_env().cache_manager()
+    if self.is_done():
+      return iter([])
+
+    cache_manager = ie.current_env().get_cache_manager(self._pipeline)
+
+    while not cache_manager.exists('full', self._cache_key):
+      pass
+
     coder = cache_manager.load_pcoder('full', self._cache_key)
-    reader, _ = cache_manager.read('full', self._cache_key)
-    return utils.to_element_list(reader, coder, include_window_info=True)
+    if hasattr(cache_manager, 'read_multiple'):
+      reader = cache_manager.read_multiple([('full', self._cache_key)])
+    else:
+      reader, _ = cache_manager.read('full', self._cache_key)
+
+    count = 0
+    for e in utils.to_element_list(reader, coder, include_window_info=True):
+      if count >= self._n:
+        break
+
+      print('read', e)
+      yield e
+      count += 1
+    self._done = True
 
 
 class Recording:
   """A group of PCollections from a given pipeline run."""
-  def __init__(self, pcolls, result, pipeline_instrument):
+  def __init__(
+      self, user_pipeline, pcolls, result, pipeline_instrument, n, duration):
     self._result = result
     self._pcolls = pcolls
     self._streams = {
-        pcoll: ElementStream(pcoll, pipeline_instrument.cache_key(pcoll))
+        pcoll: ElementStream(pcoll, pipeline_instrument.cache_key(pcoll), n)
         for pcoll in pcolls
     }
+    self._start = time.time()
+    self._duration = duration
+    self._set_computed = bcj.is_cache_complete(str(id(user_pipeline)))
 
     # Run a separate thread for marking the PCollections done. This is because
     # the pipeline run may be asynchronous.
-    self._mark_computed = threading.Thread(
-        target=self._mark_all_computed, daemon=True)
-    self._mark_computed.run()
+    self._mark_computed = threading.Thread(target=self._mark_all_computed)
+    self._mark_computed.daemon = True
+    self._mark_computed.start()
 
   def _mark_all_computed(self):
     """Marks all the PCollections upon a successful pipeline run."""
     if not self._result:
       return
 
-    self._result.wait_until_finish()
+    while not PipelineState.is_terminal(self._result.state):
+      if time.time() - self._start >= self._duration:
+        self._result.cancel()
+        self._result.wait_until_finish()
+
+      if all(s.is_done() for s in self._streams.values()):
+        self._result.cancel()
+        self._result.wait_until_finish()
 
     # Mark the PCollection as computed so that Interactive Beam wouldn't need to
     # re-compute.
-    if self._result.state is beam.runners.runner.PipelineState.DONE:
+    if self._result.state is PipelineState.DONE and self._set_computed:
       ie.current_env().mark_pcollection_computed(self._pcolls)
 
   def is_computed(self):
@@ -144,7 +182,7 @@ class RecordingManager:
         ie.current_env().watch(
             {'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
 
-  def record(self, pcolls):
+  def record(self, pcolls, n, duration):
     # type: (List[beam.pvalue.PCollection]) -> Recording
 
     """Records the given PCollections."""
@@ -200,4 +238,10 @@ class RecordingManager:
     else:
       result = None
 
-    return Recording(pcolls, result, self._pipeline_instrument)
+    return Recording(
+        self.user_pipeline,
+        pcolls,
+        result,
+        self._pipeline_instrument,
+        n,
+        duration)
