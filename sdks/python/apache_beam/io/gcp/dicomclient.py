@@ -23,7 +23,6 @@ from google.auth import default
 from google.auth.transport import requests
 
 
-# Todo: add pagination support to client
 class DicomApiHttpClient:
   """DICOM api client that talk to api via http request"""
   healthcare_base_url = "https://healthcare.googleapis.com/v1"
@@ -58,17 +57,37 @@ class DicomApiHttpClient:
     # base of dicomweb path.
     dicomweb_path = "{}/datasets/{}/dicomStores/{}/dicomWeb/{}".format(
         api_endpoint, dataset_id, dicom_store_id, search_type)
+
     # Make an authenticated API request
     session = self.get_session(credential)
     headers = {"Content-Type": "application/dicom+json; charset=utf-8"}
-    response = session.get(dicomweb_path, headers=headers, params=params)
-    response.raise_for_status()
-    status = response.status_code
+    page_size = 500
 
-    if status != 200:
-      return [], status
-    results = response.json()
-    return results, status
+    if params and 'limit' in params:
+      page_size = params['limit']
+    elif params:
+      params['limit'] = page_size
+    else:
+      params = {'limit': page_size}
+
+    offset = 0
+    output = []
+    # iterate to get all the results
+    while True:
+      params['offset'] = offset
+      response = session.get(dicomweb_path, headers=headers, params=params)
+      response.raise_for_status()
+      status = response.status_code
+      if status != 200:
+        return [], status
+      results = response.json()
+      output += results
+      if len(results) < page_size:
+        # got all the results, return
+        break
+      offset += len(results)
+
+    return output, status
 
   def dicomweb_store_instance(
       self,
