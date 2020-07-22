@@ -148,7 +148,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
     def type_check_output(o):
       # TODO(robertwb): Multi-output.
       x = o.value if isinstance(o, (TaggedOutput, WindowedValue)) else o
-      self._type_check(self._output_type_hint, x, is_input=False)
+      self.type_check(self._output_type_hint, x, is_input=False)
 
     # If the return type is a generator, then we will need to interleave our
     # type-checking with its normal iteration so we don't deplete the
@@ -159,7 +159,8 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
       type_check_output(o)
     return transform_results
 
-  def _type_check(self, type_constraint, datum, is_input):
+  @staticmethod
+  def type_check(type_constraint, datum, is_input):
     """Typecheck a PTransform related datum according to a type constraint.
 
     This function is used to optionally type-check either an input or an output

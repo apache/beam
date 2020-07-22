@@ -36,6 +36,7 @@ from apache_beam.internal import pickler
 from apache_beam.utils import counters
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
+from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
 
 if TYPE_CHECKING:
   from apache_beam.utils import windowed_value
@@ -237,8 +238,22 @@ class OperationCounters(object):
 
     return _observable_callback_inner
 
+  def type_check(self, value):
+    try:
+      type_constraint = self.type_hints.input_types[0][0][0][0]
+    except TypeError:
+      return
+    except AttributeError:
+      return
+    except IndexError:
+      return
+
+    TypeCheckWrapperDoFn.type_check(type_constraint, value, True)
+
   def do_sample(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
+    self.type_check(windowed_value.value)
+
     size, observables = (
         self.coder_impl.get_estimated_size_and_observables(windowed_value))
     if not observables:
