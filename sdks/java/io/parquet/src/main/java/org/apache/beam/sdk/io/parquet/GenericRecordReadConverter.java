@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
+package org.apache.beam.sdk.io.parquet;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
@@ -30,7 +30,7 @@ import org.apache.beam.sdk.values.Row;
 
 /** A {@link PTransform} to convert {@link GenericRecord} to {@link Row}. */
 @AutoValue
-public abstract class GenericRecordReadConverter
+abstract class GenericRecordReadConverter
     extends PTransform<PCollection<GenericRecord>, PCollection<Row>> implements Serializable {
 
   public abstract Schema beamSchema();
