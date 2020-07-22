@@ -524,6 +524,10 @@ class Pipeline(object):
         from apache_beam.typehints import typecheck
         self.visit(typecheck.TypeCheckVisitor())
 
+      if self._options.view_as(TypeOptions).performance_runtime_type_check:
+        from apache_beam.typehints import typecheck
+        self.visit(typecheck.PerformanceTypeCheckVisitor())
+
       if self._options.view_as(SetupOptions).save_main_session:
         # If this option is chosen, verify we can pickle the main session early.
         tmpdir = tempfile.mkdtemp()
