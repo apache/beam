@@ -72,13 +72,7 @@ public class BeamBuiltinAnalyticFunctions {
 
     @Override
     public Optional<T> mergeAccumulators(Iterable<Optional<T>> accumulators) {
-      Optional<T> r = Optional.empty();
-      for (Optional<T> ac : accumulators) {
-        if (!r.isPresent() && ac.isPresent()) {
-          r = ac;
-        }
-      }
-      return r;
+      throw new UnsupportedOperationException();
     }
 
     @Override
@@ -103,13 +97,7 @@ public class BeamBuiltinAnalyticFunctions {
 
     @Override
     public Optional<T> mergeAccumulators(Iterable<Optional<T>> accumulators) {
-      Optional<T> r = Optional.empty();
-      for (Optional<T> ac : accumulators) {
-        if (ac.isPresent()) {
-          r = ac;
-        }
-      }
-      return r;
+      throw new UnsupportedOperationException();
     }
 
     @Override
