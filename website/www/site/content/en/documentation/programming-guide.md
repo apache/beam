@@ -109,7 +109,7 @@ sets as `PCollection`s and its operations as `Transform`s.
 To use Beam, your driver program must first create an instance of the Beam SDK
 class `Pipeline` (typically in the `main()` function). When you create your
 `Pipeline`, you'll also need to set some **configuration options**. You can set
-your pipeline's configuration options programatically, but it's often easier to
+your pipeline's configuration options programmatically, but it's often easier to
 set the options ahead of time (or read them from the command line) and pass them
 to the `Pipeline` object when you create the object.
 
@@ -375,9 +375,9 @@ public static void main(String[] args) {
 ### 3.2. PCollection characteristics {#pcollection-characteristics}
 
 A `PCollection` is owned by the specific `Pipeline` object for which it is
-created; multiple pipelines cannot share a `PCollection`. In some respects, a
-`PCollection` functions like a collection class. However, a `PCollection` can
-differ in a few key ways:
+created; multiple pipelines cannot share a `PCollection`. <span language="java">
+In some respects, a `PCollection` functions like a `Collection` class. However,
+a `PCollection` can differ in a few key ways:</span>
 
 #### 3.2.1. Element type {#element-type}
 
@@ -419,7 +419,7 @@ A `PCollection` can be either **bounded** or **unbounded** in size. A
 `PCollection` is bounded or unbounded depends on the source of the data set that
 it represents. Reading from a batch data source, such as a file or a database,
 creates a bounded `PCollection`. Reading from a streaming or
-continously-updating data source, such as Pub/Sub or Kafka, creates an unbounded
+continuously-updating data source, such as Pub/Sub or Kafka, creates an unbounded
 `PCollection` (unless you explicitly tell it not to).
 
 The bounded (or unbounded) nature of your `PCollection` affects how Beam
@@ -505,7 +505,10 @@ nested within (called [composite transforms](#composite-transforms) in the Beam
 SDKs).
 
 How you apply your pipeline's transforms determines the structure of your
-pipeline. The best way to think of your pipeline is as a directed acyclic graph, where `PTransform` nodes are subroutines that accept `PCollection` nodes as inputs and emit `PCollection` nodes as outputs. For example, you can chain together transforms to create a pipeline that successively modifies input data:
+pipeline. The best way to think of your pipeline is as a directed acyclic graph,
+where `PTransform` nodes are subroutines that accept `PCollection` nodes as
+inputs and emit `PCollection` nodes as outputs. For example, you can chain
+together transforms to create a pipeline that successively modifies input data:
 
 {{< highlight java >}}
 [Final Output PCollection] = [Initial Input PCollection].apply([First Transform])
@@ -527,7 +530,7 @@ The graph of this pipeline looks like the following:
 *Figure 1: A linear pipeline with three sequential transforms.*
 
 However, note that a transform *does not consume or otherwise alter* the input
-collection--remember that a `PCollection` is immutable by definition. This means
+collection — remember that a `PCollection` is immutable by definition. This means
 that you can apply multiple transforms to the same input `PCollection` to create
 a branching pipeline, like so:
 
@@ -552,7 +555,7 @@ The graph of this branching pipeline looks like the following:
 PCollection of database table rows.*
 
 You can also build your own [composite transforms](#composite-transforms) that
-nest multiple sub-steps inside a single, larger transform. Composite transforms
+nest multiple transforms inside a single, larger transform. Composite transforms
 are particularly useful for building a reusable sequence of simple steps that
 get used in a lot of different places.
 
@@ -571,7 +574,8 @@ processing paradigm:
 #### 4.2.1. ParDo {#pardo}
 
 `ParDo` is a Beam transform for generic parallel processing. The `ParDo`
-processing paradigm is similar to the "Map" phase of a Map/Shuffle/Reduce-style
+processing paradigm is similar to the "Map" phase of a
+[Map/Shuffle/Reduce](https://en.wikipedia.org/wiki/MapReduce)-style
 algorithm: a `ParDo` transform considers each element in the input
 `PCollection`, performs some processing function (your user code) on that
 element, and emits zero, one, or multiple elements to an output `PCollection`.
@@ -579,7 +583,7 @@ element, and emits zero, one, or multiple elements to an output `PCollection`.
 `ParDo` is useful for a variety of common data processing operations, including:
 
 * **Filtering a data set.** You can use `ParDo` to consider each element in a
-  `PCollection` and either output that element to a new collection, or discard
+  `PCollection` and either output that element to a new collection or discard
   it.
 * **Formatting or type-converting each element in a data set.** If your input
   `PCollection` contains elements that are of a different type or format than
@@ -655,7 +659,7 @@ the length of each string, and outputs the result to a new `PCollection` of
 
 The `DoFn` object that you pass to `ParDo` contains the processing logic that
 gets applied to the elements in the input collection. When you use Beam, often
-the most important pieces of code you'll write are these `DoFn`s--they're what
+the most important pieces of code you'll write are these `DoFn`s - they're what
 define your pipeline's exact data processing tasks.
 
 > **Note:** When you create your `DoFn`, be mindful of the [Requirements
@@ -683,18 +687,19 @@ that for you. Your `@ProcessElement` method should accept a parameter tagged wit
 `@Element`, which will be populated with the input element. In order to output
 elements, the method can also take a parameter of type `OutputReceiver` which
 provides a method for emitting elements. The parameter types must match the input
-and output types of your `DoFn` or the framework will raise an error. Note: @Element and
-OutputReceiver were introduced in Beam 2.5.0; if using an earlier release of Beam, a
-ProcessContext parameter should be used instead.
+and output types of your `DoFn` or the framework will raise an error. Note: `@Element` and
+`OutputReceiver` were introduced in Beam 2.5.0; if using an earlier release of Beam, a
+`ProcessContext` parameter should be used instead.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 Inside your `DoFn` subclass, you'll write a method `process` where you provide
 the actual processing logic. You don't need to manually extract the elements
-from the input collection; the Beam SDKs handle that for you. Your `process`
-method should accept an object of type `element`. This is the input element and
-output is emitted by using `yield` or `return` statement inside `process`
-method.
+from the input collection; the Beam SDKs handle that for you. Your `process` method
+should accept an argument `element`, which is the input element, and return an
+iterable with its output values. You can accomplish this by emitting individual 
+elements with `yield` statements. You can also use a `return` statement
+with an iterable, like a list or a generator.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -734,6 +739,13 @@ following requirements:
   the `@Element` annotation or `ProcessContext.sideInput()` (the incoming
   elements from the input collection).
 * Once you output a value using `OutputReceiver.output()` you should not modify
+  that value in any way.
+{{< /paragraph >}}
+
+{{< paragraph class="language-python" >}}
+* You should not in any way modify the `element` argument provided to the
+  `process` method, or any side inputs.
+* Once you output a value using `yield` or `return`, you should not modify
   that value in any way.
 {{< /paragraph >}}
 
@@ -823,7 +835,7 @@ Here is a sequence diagram that shows the lifecycle of the DoFn during
  the execution of the ParDo transform. The comments give useful 
  information to pipeline developers such as the constraints that 
  apply to the objects or particular cases such as failover or 
- instance reuse. They also give instanciation use cases.
+ instance reuse. They also give instantiation use cases.
  
 <!-- The source for the sequence diagram can be found in the the SVG resource. -->
 ![This is a sequence diagram that shows the lifecycle of the DoFn](/images/dofn-sequence-diagram.svg)
@@ -1506,7 +1518,7 @@ together.
   PCollection<String> words = ...;
 
   // The ParDo will filter words whose length is below a cutoff and add them to
-  // the main ouput PCollection<String>.
+  // the main output PCollection<String>.
   // If a word is above the cutoff, the ParDo will add the word length to an
   // output PCollection<Integer>.
   // If a word starts with the string "MARKER", the ParDo will add that word to an
@@ -1663,7 +1675,7 @@ import apache_beam as beam
 class ProcessRecord(beam.DoFn):
 
   def process(self, element, window=beam.DoFn.WindowParam):
-     # access window e.g window.end.micros
+     # access window e.g. window.end.micros
      pass  
   
 {{< /highlight >}}
@@ -1678,7 +1690,7 @@ you can determine whether this is an early or a late firing, and how many times 
 **PaneInfo:**
 When triggers are used, Beam provides a `DoFn.PaneInfoParam` object that contains information about the current firing. Using `DoFn.PaneInfoParam`
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key. 
-This feature implementation in python sdk is not fully completed, see more at [BEAM-3759](https://issues.apache.org/jira/browse/BEAM-3759).
+This feature implementation in Python SDK is not fully completed; see more at [BEAM-3759](https://issues.apache.org/jira/browse/BEAM-3759).
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -1693,7 +1705,7 @@ import apache_beam as beam
 class ProcessRecord(beam.DoFn):
 
   def process(self, element, pane_info=beam.DoFn.PaneInfoParam):
-     # access pane info e.g pane_info.is_first, pane_info.is_last, pane_info.timing
+     # access pane info, e.g. pane_info.is_first, pane_info.is_last, pane_info.timing
      pass  
   
 {{< /highlight >}}
@@ -1720,7 +1732,7 @@ Timers are explained in more detail in the
 
 {{< paragraph class="language-py" >}}
 **Timer and State:**
-In addition to aforementioned parameters, user defined Timer and State parameters can be used in a Stateful DoFn.
+In addition to aforementioned parameters, user defined Timer and State parameters can be used in a stateful DoFn.
 Timers and States are explained in more detail in the
 [Timely (and Stateful) Processing with Apache Beam](/blog/2017/08/28/timely-processing.html) blog post.
 {{< /paragraph >}}
@@ -1742,7 +1754,7 @@ class StatefulDoFn(beam.DoFn):
               buffer_2=beam.DoFn.StateParam(BUFFER_STATE_2),
               watermark_timer=beam.DoFn.TimerParam(WATERMARK_TIMER)):
 
-    # Do you processing here
+    # Do your processing here
     key, value = element
     # Read all the data from buffer1
     all_values_in_buffer_1 = [x for x in buffer_1.read()]
@@ -1812,13 +1824,6 @@ transform operations:
      word in the text, and each value represents the number of times that word
      appeared in the original data.
 
-Note that this is also an example of nested composite transforms, as `Count`
-is, by itself, a composite transform.
-
-Your composite transform's parameters and return value must match the initial
-input type and final return type for the entire transform, even if the
-transform's intermediate data changes type multiple times.
-
 {{< highlight java >}}
   public static class CountWords extends PTransform<PCollection<String>,
       PCollection<KV<String, Long>>> {
@@ -1841,6 +1846,9 @@ transform's intermediate data changes type multiple times.
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_monitoring_composite >}}
 {{< /highlight >}}
+
+> **Note:** Because `Count` is itself a composite transform,
+> `CountWords` is also a nested composite transform.
 
 #### 4.6.2. Creating a composite transform {#composite-transform-creation}
 
@@ -1899,6 +1907,10 @@ accept the appropriate input `PCollection`(s) and return the corresponding
 output `PCollection`(s), you can include as many transforms as you want. These
 transforms can include core transforms, composite transforms, or the transforms
 included in the Beam SDK libraries.
+
+Your composite transform's parameters and return value must match the initial
+input type and final return type for the entire transform, even if the
+transform's intermediate data changes type multiple times.
 
 **Note:** The `expand` method of a `PTransform` is not meant to be invoked
 directly by the user of a transform. Instead, you should call the `apply` method
@@ -1960,7 +1972,7 @@ output | beam.io.WriteToText('gs://some/outputData')
 Many read transforms support reading from multiple input files matching a glob
 operator you provide. Note that glob operators are filesystem-specific and obey
 filesystem-specific consistency models. The following TextIO example uses a glob
-operator (\*) to read all matching input files that have prefix "input-" and the
+operator (`*`) to read all matching input files that have prefix "input-" and the
 suffix ".csv" in the given location:
 
 {{< highlight java >}}
@@ -2011,7 +2023,7 @@ structures that can often be determined by examining the type. Even within a SDK
  clear structure that can be inferred by inspecting the class. By understanding the structure of a pipeline’s 
  records, we can provide much more concise APIs for data processing.
  
-### 6.1. What is a schema {#what-is-a-schema}
+### 6.1. What is a schema? {#what-is-a-schema}
 
 Most structured records share some common characteristics: 
 * They can be subdivided into separate named fields. Fields usually have string names, but sometimes - as in the case of indexed
@@ -2021,7 +2033,7 @@ Most structured records share some common characteristics:
 * Often a field type can be marked as optional (sometimes referred to as nullable) or required.
 
 Often records have a nested structure. A nested structure occurs when a field itself has subfields so the 
-type of the field itself has a schema. Fields that are  array or map types is also a common feature of these structured 
+type of the field itself has a schema. Fields that are array or map types is also a common feature of these structured 
 records.
 
 For example, consider the following schema, representing actions in a fictitious e-commerce company:
@@ -2188,7 +2200,7 @@ public class Transaction {
 
 Using JavaBean classes as above is one way to map a schema to Java classes. However multiple Java classes might have
 the same schema, in which case the different Java types can often be used interchangeably. Beam will add implicit
-conversions betweens types that have matching schemas. For example, the above
+conversions between types that have matching schemas. For example, the above
 `Transaction` class has the same schema as the following class:
 
 {{< highlight java >}}
@@ -2520,8 +2532,8 @@ public class TransactionBean {
 ##### **AutoValue**
 
 Java value classes are notoriously difficult to generate correctly. There is a lot of boilerplate you must create in 
-order to properly implement a value class. AutoValue is a popular library for easily generating such classes by i
-mplementing a simple abstract base class.
+order to properly implement a value class. AutoValue is a popular library for easily generating such classes by
+implementing a simple abstract base class.
 
 Beam can infer a schema from an AutoValue class. For example:
 
@@ -2634,8 +2646,8 @@ The following
 purchasesByType.apply(Select.fieldNames("purchases{}.userId"));
 {{< /highlight >}}
 
-Will result in a row containing an map field with key-type string and value-type string. The selected map will contain
-all of the keys from the original map, and the values will be the userId contained in the purchasee reecord. 
+Will result in a row containing a map field with key-type string and value-type string. The selected map will contain
+all of the keys from the original map, and the values will be the userId contained in the purchase record.
 
 While the use of {} brackets in the selector is recommended, to make it clear that map value elements are being selected, 
 they can be omitted for brevity. In the future, map slicing will be supported, allowing selection of specific keys from
@@ -3784,7 +3796,7 @@ the end of a window.
 When you set `.withAllowedLateness` on a `PCollection`, that allowed lateness
 propagates forward to any subsequent `PCollection` derived from the first
 `PCollection` you applied allowed lateness to. If you want to change the allowed
-lateness later in your pipeline, you must do so explictly by applying
+lateness later in your pipeline, you must do so explicitly by applying
 `Window.configure().withAllowedLateness()`.
 
 ### 8.5. Adding timestamps to a PCollection's elements {#adding-timestamps-to-a-pcollections-elements}
@@ -4426,7 +4438,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 #### BagState
 
 A common use case for state is to accumulate multiple elements. `BagState` allows for accumulating an unordered set
-ofelements. This allows for addition of elements to the collection without requiring the reading of the entire
+of elements. This allows for addition of elements to the collection without requiring the reading of the entire
 collection first, which is an efficiency gain. In addition, runners that support paged reads can allow individual
 bags larger than available memory.
 

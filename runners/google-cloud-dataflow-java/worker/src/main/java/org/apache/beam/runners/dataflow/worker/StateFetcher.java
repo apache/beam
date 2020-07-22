@@ -22,19 +22,19 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.Closeable;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.transforms.Materializations.IterableView;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -44,11 +44,18 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Weigher;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Class responsible for fetching state from the windmill server. */
 class StateFetcher {
+  private static final Set<String> SUPPORTED_MATERIALIZATIONS =
+      ImmutableSet.of(
+          Materializations.ITERABLE_MATERIALIZATION_URN,
+          Materializations.MULTIMAP_MATERIALIZATION_URN);
+
   private static final Logger LOG = LoggerFactory.getLogger(StateFetcher.class);
 
   private Cache<SideInputId, SideInputCacheEntry> sideInputCache;
@@ -97,8 +104,7 @@ class StateFetcher {
    * <p>Returns {@literal null} if the side input was not ready, {@literal Optional.absent()} if the
    * side input was null, and {@literal Optional.present(...)} if the side input was non-null.
    */
-  @Nullable
-  public <T, SideWindowT extends BoundedWindow> Optional<T> fetchSideInput(
+  public @Nullable <T, SideWindowT extends BoundedWindow> Optional<T> fetchSideInput(
       final PCollectionView<T> view,
       final SideWindowT sideWindow,
       final String stateFamily,
@@ -141,28 +147,43 @@ class StateFetcher {
           bytesRead += data.getSerializedSize();
 
           checkState(
-              Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
-                  view.getViewFn().getMaterialization().getUrn()),
+              SUPPORTED_MATERIALIZATIONS.contains(view.getViewFn().getMaterialization().getUrn()),
               "Only materializations of type %s supported, received %s",
-              Materializations.MULTIMAP_MATERIALIZATION_URN,
+              SUPPORTED_MATERIALIZATIONS,
               view.getViewFn().getMaterialization().getUrn());
-          KvCoder<Object, Object> sideInputValueCoder = (KvCoder) view.getCoderInternal();
-          Iterable<KV<Object, Object>> rawData;
+
+          Iterable<?> rawData;
           if (data.getIsReady()) {
             if (data.getData().size() > 0) {
               rawData =
-                  IterableCoder.of(sideInputValueCoder)
+                  IterableCoder.of(view.getCoderInternal())
                       .decode(data.getData().newInput(), Coder.Context.OUTER);
             } else {
               rawData = Collections.emptyList();
             }
 
-            return SideInputCacheEntry.ready(
-                ((ViewFn<MultimapView, Object>) (ViewFn) view.getViewFn())
-                    .apply(
-                        InMemoryMultimapSideInputView.fromIterable(
-                            sideInputValueCoder.getKeyCoder(), rawData)),
-                data.getData().size());
+            switch (view.getViewFn().getMaterialization().getUrn()) {
+              case Materializations.ITERABLE_MATERIALIZATION_URN:
+                {
+                  ViewFn<IterableView, T> viewFn = (ViewFn<IterableView, T>) view.getViewFn();
+                  return SideInputCacheEntry.ready(
+                      viewFn.apply(() -> rawData), data.getData().size());
+                }
+              case Materializations.MULTIMAP_MATERIALIZATION_URN:
+                {
+                  ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
+                  Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
+                  return SideInputCacheEntry.ready(
+                      viewFn.apply(
+                          InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) rawData)),
+                      data.getData().size());
+                }
+              default:
+                throw new IllegalStateException(
+                    String.format(
+                        "Unknown side input materialization format requested '%s'",
+                        view.getViewFn().getMaterialization().getUrn()));
+            }
           } else {
             return SideInputCacheEntry.notReady();
           }
@@ -208,7 +229,7 @@ class StateFetcher {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other instanceof SideInputId) {
         SideInputId otherId = (SideInputId) other;
         return tag.equals(otherId.tag) && window.equals(otherId.window);
@@ -253,8 +274,7 @@ class StateFetcher {
      * Returns {@literal null} if the side input was not ready, {@literal Optional.absent()} if the
      * side input was null, and {@literal Optional.present(...)} if the side input was non-null.
      */
-    @Nullable
-    public <T> Optional<T> getValue() {
+    public @Nullable <T> Optional<T> getValue() {
       @SuppressWarnings("unchecked")
       T typed = (T) value;
       return ready ? Optional.fromNullable(typed) : null;

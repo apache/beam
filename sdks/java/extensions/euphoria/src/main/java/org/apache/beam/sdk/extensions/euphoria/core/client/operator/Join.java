@@ -21,7 +21,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -183,15 +183,15 @@ public class Join<LeftT, RightT, KeyT, OutputT>
 
     private final WindowBuilder<Object> windowBuilder = new WindowBuilder<>();
 
-    @Nullable private final String name;
+    private final @Nullable String name;
     private final Type type;
     private PCollection<LeftT> left;
     private PCollection<RightT> right;
     private UnaryFunction<LeftT, KeyT> leftKeyExtractor;
     private UnaryFunction<RightT, KeyT> rightKeyExtractor;
-    @Nullable private TypeDescriptor<KeyT> keyType;
+    private @Nullable TypeDescriptor<KeyT> keyType;
     private BinaryFunctor<LeftT, RightT, OutputT> joinFunc;
-    @Nullable private TypeDescriptor<OutputT> outputType;
+    private @Nullable TypeDescriptor<OutputT> outputType;
 
     Builder(@Nullable String name, Type type) {
       this.name = name;

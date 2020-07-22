@@ -59,7 +59,7 @@ primary key(job_name, build_id)
 """
 
 def fetchJobs():
-  url = ('https://builds.apache.org/view/A-D/view/Beam/view/All/api/json'
+  url = ('https://ci-beam.apache.org/api/json'
          '?tree=jobs[name,url,lastCompletedBuild[id]]&depth=1')
   r = requests.get(url)
   jobs = r.json()[u'jobs']
@@ -186,7 +186,7 @@ def fetchNewData():
 
 def probeJenkinsIsUp():
   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  result = sock.connect_ex(('builds.apache.org', 443))
+  result = sock.connect_ex(('ci-beam.apache.org', 443))
   return True if result == 0 else False
 
 

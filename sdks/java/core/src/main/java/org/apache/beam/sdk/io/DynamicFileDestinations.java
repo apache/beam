@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.ParamsCoder;
@@ -28,6 +27,7 @@ import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Some helper classes that derive from {@link FileBasedSink.DynamicDestinations}. */
 public class DynamicFileDestinations {
@@ -49,20 +49,17 @@ public class DynamicFileDestinations {
     }
 
     @Override
-    @Nullable
-    public Void getDestination(UserT element) {
+    public @Nullable Void getDestination(UserT element) {
       return (Void) null;
     }
 
     @Override
-    @Nullable
-    public Coder<Void> getDestinationCoder() {
+    public @Nullable Coder<Void> getDestinationCoder() {
       return null;
     }
 
     @Override
-    @Nullable
-    public Void getDefaultDestination() {
+    public @Nullable Void getDefaultDestination() {
       return (Void) null;
     }
 

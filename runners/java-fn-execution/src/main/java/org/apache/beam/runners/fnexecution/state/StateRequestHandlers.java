@@ -20,13 +20,14 @@ package org.apache.beam.runners.fnexecution.state;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -52,6 +53,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 
@@ -198,11 +200,6 @@ public class StateRequestHandlers {
 
     /** Clears the bag user state for the given key and window. */
     void clear(K key, W window);
-
-    /** Returns the currently valid cache token. */
-    default Optional<ByteString> getCacheToken() {
-      return Optional.empty();
-    }
   }
 
   /**
@@ -503,6 +500,9 @@ public class StateRequestHandlers {
    *
    * <p>Instances of {@link MultimapSideInputHandler}s returned by the {@link
    * SideInputHandlerFactory} are cached.
+   *
+   * <p>In case of any failures, this handler must be discarded. Otherwise, the contained state
+   * cache token would be reused which would corrupt the state cache.
    */
   public static StateRequestHandler forBagUserStateHandlerFactory(
       ExecutableProcessBundleDescriptor processBundleDescriptor,
@@ -520,6 +520,7 @@ public class StateRequestHandlers {
     private final ExecutableProcessBundleDescriptor processBundleDescriptor;
     private final BagUserStateHandlerFactory handlerFactory;
     private final ConcurrentHashMap<BagUserStateSpec, BagUserStateHandler> handlerCache;
+    private final BeamFnApi.ProcessBundleRequest.CacheToken cacheToken;
 
     ByteStringStateRequestHandlerToBagUserStateHandlerFactoryAdapter(
         ExecutableProcessBundleDescriptor processBundleDescriptor,
@@ -527,6 +528,7 @@ public class StateRequestHandlers {
       this.processBundleDescriptor = processBundleDescriptor;
       this.handlerFactory = handlerFactory;
       this.handlerCache = new ConcurrentHashMap<>();
+      this.cacheToken = createCacheToken();
     }
 
     @Override
@@ -588,20 +590,7 @@ public class StateRequestHandlers {
 
     @Override
     public Iterable<BeamFnApi.ProcessBundleRequest.CacheToken> getCacheTokens() {
-      // Use a loop here due to the horrible performance of Java Streams:
-      // https://medium.com/@milan.mimica/slow-like-a-stream-fast-like-a-loop-524f70391182
-      Set<BeamFnApi.ProcessBundleRequest.CacheToken> cacheTokens = new HashSet<>();
-      for (BagUserStateHandler handler : handlerCache.values()) {
-        if (handler.getCacheToken().isPresent()) {
-          cacheTokens.add(
-              BeamFnApi.ProcessBundleRequest.CacheToken.newBuilder()
-                  .setUserState(
-                      BeamFnApi.ProcessBundleRequest.CacheToken.UserState.getDefaultInstance())
-                  .setToken((ByteString) handler.getCacheToken().get())
-                  .build());
-        }
-      }
-      return cacheTokens;
+      return Collections.singleton(cacheToken);
     }
 
     private static <W extends BoundedWindow>
@@ -659,6 +648,14 @@ public class StateRequestHandlers {
           cacheKey.keyCoder(),
           cacheKey.valueCoder(),
           cacheKey.windowCoder());
+    }
+
+    private static BeamFnApi.ProcessBundleRequest.CacheToken createCacheToken() {
+      ByteString token = ByteString.copyFrom(UUID.randomUUID().toString().getBytes(Charsets.UTF_8));
+      return BeamFnApi.ProcessBundleRequest.CacheToken.newBuilder()
+          .setUserState(BeamFnApi.ProcessBundleRequest.CacheToken.UserState.getDefaultInstance())
+          .setToken(token)
+          .build();
     }
   }
 }

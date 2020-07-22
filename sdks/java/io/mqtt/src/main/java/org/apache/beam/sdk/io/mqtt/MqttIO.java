@@ -30,7 +30,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.fusesource.mqtt.client.BlockingConnection;
 import org.fusesource.mqtt.client.MQTT;
 import org.fusesource.mqtt.client.Message;
@@ -127,14 +127,11 @@ public class MqttIO {
 
     abstract String getTopic();
 
-    @Nullable
-    abstract String getClientId();
+    abstract @Nullable String getClientId();
 
-    @Nullable
-    abstract String getUsername();
+    abstract @Nullable String getUsername();
 
-    @Nullable
-    abstract String getPassword();
+    abstract @Nullable String getPassword();
 
     abstract Builder builder();
 
@@ -251,13 +248,11 @@ public class MqttIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<byte[]>> {
 
-    @Nullable
-    abstract ConnectionConfiguration connectionConfiguration();
+    abstract @Nullable ConnectionConfiguration connectionConfiguration();
 
     abstract long maxNumRecords();
 
-    @Nullable
-    abstract Duration maxReadTime();
+    abstract @Nullable Duration maxReadTime();
 
     abstract Builder builder();
 
@@ -366,7 +361,7 @@ public class MqttIO {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other instanceof MqttCheckpointMark) {
         MqttCheckpointMark that = (MqttCheckpointMark) other;
         return Objects.equals(this.clientId, that.clientId)
@@ -527,8 +522,7 @@ public class MqttIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
 
-    @Nullable
-    abstract ConnectionConfiguration connectionConfiguration();
+    abstract @Nullable ConnectionConfiguration connectionConfiguration();
 
     abstract boolean retained();
 

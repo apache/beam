@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.examples')
+applyJavaNature(exportJavadoc: false, enableChecker:false, automaticModuleName: 'org.apache.beam.examples')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -32,7 +32,6 @@ artifact includes all Apache Beam Java SDK examples."""
  * Some runners are run from separate projects, see the preCommit task below
  * for details.
  */
-// TODO: Add apexRunner - https://issues.apache.org/jira/browse/BEAM-3583
 def preCommitRunners = ["directRunner", "flinkRunner", "sparkRunner"]
 for (String runner : preCommitRunners) {
   configurations.create(runner + "PreCommit")
@@ -75,8 +74,6 @@ dependencies {
     delegate.add(runner + "PreCommit", project(":examples:java"))
     delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "testRuntime"))
   }
-  // https://issues.apache.org/jira/browse/BEAM-3583
-  // apexRunnerPreCommit project(":runners:apex")
   directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
   flinkRunnerPreCommit project(":runners:flink:1.10")
   // TODO: Make the netty version used configurable, we add netty-all 4.1.17.Final so it appears on the classpath
@@ -93,7 +90,6 @@ dependencies {
  * of integration tests for WordCount and WindowedWordCount.
  */
 def preCommitRunnerClass = [
-  apexRunner: "org.apache.beam.runners.apex.TestApexRunner",
   directRunner: "org.apache.beam.runners.direct.DirectRunner",
   flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
   sparkRunner: "org.apache.beam.runners.spark.TestSparkRunner",

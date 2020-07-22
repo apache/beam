@@ -220,6 +220,11 @@ class MetricsFilter(object):
   def namespaces(self):
     return frozenset(self._namespaces)
 
+  def with_metric(self, metric):
+    return (
+        self.with_name(metric.metric_name.name).with_namespace(
+            metric.metric_name.namespace))
+
   def with_name(self, name):
     return self.with_names([name])
 

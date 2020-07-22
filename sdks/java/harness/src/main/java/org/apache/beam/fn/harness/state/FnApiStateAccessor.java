@@ -27,7 +27,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.coders.Coder;
@@ -47,6 +46,7 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
+import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
@@ -55,6 +55,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Provides access to side inputs and state via a {@link BeamFnStateClient}. */
 public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
@@ -124,12 +125,14 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     return new Supplier<ResultT>() {
       private ArgT memoizedArg;
       private ResultT memoizedResult;
+      private boolean initialized;
 
       @Override
       public ResultT get() {
         ArgT currentArg = arg.get();
-        if (currentArg != memoizedArg) {
+        if (currentArg != memoizedArg || !initialized) {
           memoizedResult = f.apply(this.memoizedArg = currentArg);
+          initialized = true;
         }
         return memoizedResult;
       }
@@ -137,13 +140,11 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
-  @Nullable
-  public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+  public @Nullable <T> T get(PCollectionView<T> view, BoundedWindow window) {
     TupleTag<?> tag = view.getTagInternal();
 
     SideInputSpec sideInputSpec = sideInputSpecMap.get(tag);
     checkArgument(sideInputSpec != null, "Attempting to access unknown side input %s.", view);
-    KvCoder<?, ?> kvCoder = (KvCoder) sideInputSpec.getCoder();
 
     ByteString.Output encodedWindowOut = ByteString.newOutput();
     try {
@@ -154,28 +155,64 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       throw new IllegalStateException(e);
     }
     ByteString encodedWindow = encodedWindowOut.toByteString();
-
     StateKey.Builder cacheKeyBuilder = StateKey.newBuilder();
-    cacheKeyBuilder
-        .getMultimapSideInputBuilder()
-        .setTransformId(ptransformId)
-        .setSideInputId(tag.getId())
-        .setWindow(encodedWindow);
+    Object sideInputAccessor;
+
+    switch (sideInputSpec.getAccessPattern()) {
+      case Materializations.ITERABLE_MATERIALIZATION_URN:
+        cacheKeyBuilder
+            .getIterableSideInputBuilder()
+            .setTransformId(ptransformId)
+            .setSideInputId(tag.getId())
+            .setWindow(encodedWindow);
+        sideInputAccessor =
+            new IterableSideInput<>(
+                beamFnStateClient,
+                processBundleInstructionId.get(),
+                ptransformId,
+                tag.getId(),
+                encodedWindow,
+                sideInputSpec.getCoder());
+        break;
+
+      case Materializations.MULTIMAP_MATERIALIZATION_URN:
+        checkState(
+            sideInputSpec.getCoder() instanceof KvCoder,
+            "Expected %s but received %s.",
+            KvCoder.class,
+            sideInputSpec.getCoder().getClass());
+        KvCoder<?, ?> kvCoder = (KvCoder) sideInputSpec.getCoder();
+        cacheKeyBuilder
+            .getMultimapSideInputBuilder()
+            .setTransformId(ptransformId)
+            .setSideInputId(tag.getId())
+            .setWindow(encodedWindow);
+        sideInputAccessor =
+            new MultimapSideInput<>(
+                beamFnStateClient,
+                processBundleInstructionId.get(),
+                ptransformId,
+                tag.getId(),
+                encodedWindow,
+                kvCoder.getKeyCoder(),
+                kvCoder.getValueCoder());
+        break;
+
+      default:
+        throw new IllegalStateException(
+            String.format(
+                "This SDK is only capable of dealing with %s materializations "
+                    + "but was asked to handle %s for PCollectionView with tag %s.",
+                ImmutableList.of(
+                    Materializations.ITERABLE_MATERIALIZATION_URN,
+                    Materializations.MULTIMAP_MATERIALIZATION_URN),
+                sideInputSpec.getAccessPattern(),
+                tag));
+    }
+
     return (T)
         stateKeyObjectCache.computeIfAbsent(
-            cacheKeyBuilder.build(),
-            key ->
-                sideInputSpec
-                    .getViewFn()
-                    .apply(
-                        new MultimapSideInput<>(
-                            beamFnStateClient,
-                            processBundleInstructionId.get(),
-                            ptransformId,
-                            tag.getId(),
-                            encodedWindow,
-                            kvCoder.getKeyCoder(),
-                            kvCoder.getValueCoder())));
+            cacheKeyBuilder.build(), key -> sideInputSpec.getViewFn().apply(sideInputAccessor));
   }
 
   @Override

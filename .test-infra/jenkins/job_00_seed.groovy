@@ -19,7 +19,7 @@
 // Defines the seed job, which creates or updates all other Jenkins projects.
 job('beam_SeedJob') {
   description('Automatically configures all Apache Beam Jenkins projects based' +
-              ' on Jenkins DSL groovy files checked into the code repository.')
+      ' on Jenkins DSL groovy files checked into the code repository.')
 
   properties {
     githubProjectUrl('https://github.com/apache/beam/')
@@ -39,9 +39,10 @@ job('beam_SeedJob') {
 
         // ${ghprbPullId} is not interpolated by groovy, but passed through to Jenkins where it
         // refers to the environment variable
-        refspec(['+refs/heads/*:refs/remotes/origin/*',
-                 '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*']
-                .join(' '))
+        refspec([
+          '+refs/heads/*:refs/remotes/origin/*',
+          '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*']
+        .join(' '))
 
         // The variable ${sha1} is not interpolated by groovy, but a parameter of the Jenkins job
         branch('${sha1}')
@@ -77,7 +78,6 @@ job('beam_SeedJob') {
       useGitHubHooks()
       orgWhitelist(['apache'])
       allowMembersOfWhitelistedOrgsAsAdmin()
-      permitAll()
 
       // Also run when manually kicked on a pull request
       triggerPhrase('Run Seed Job')

@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -31,6 +30,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
@@ -39,13 +39,12 @@ public class TestJavaBeans {
   /** A Bean containing one nullable and one non-nullable type. */
   @DefaultSchema(JavaBeanSchema.class)
   public static class NullableBean {
-    @Nullable private String str;
+    private @Nullable String str;
     private int anInt;
 
     public NullableBean() {}
 
-    @Nullable
-    public String getStr() {
+    public @Nullable String getStr() {
       return str;
     }
 
@@ -62,7 +61,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -82,12 +81,11 @@ public class TestJavaBeans {
   /** A Bean containing nullable getter but a non-nullable setter. */
   @DefaultSchema(JavaBeanSchema.class)
   public static class MismatchingNullableBean {
-    @Nullable private String str;
+    private @Nullable String str;
 
     public MismatchingNullableBean() {}
 
-    @Nullable
-    public String getStr() {
+    public @Nullable String getStr() {
       return str;
     }
 
@@ -96,7 +94,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -254,7 +252,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -316,18 +314,18 @@ public class TestJavaBeans {
   /** A simple Bean containing basic nullable types. * */
   @DefaultSchema(JavaBeanSchema.class)
   public static class AllNullableBean {
-    @Nullable private String str;
-    @Nullable private Byte aByte;
-    @Nullable private Short aShort;
-    @Nullable private Integer anInt;
-    @Nullable private Long aLong;
-    @Nullable private Boolean aBoolean;
-    @Nullable private DateTime dateTime;
-    @Nullable private Instant instant;
-    @Nullable private byte[] bytes;
-    @Nullable private ByteBuffer byteBuffer;
-    @Nullable private BigDecimal bigDecimal;
-    @Nullable private StringBuilder stringBuilder;
+    private @Nullable String str;
+    private @Nullable Byte aByte;
+    private @Nullable Short aShort;
+    private @Nullable Integer anInt;
+    private @Nullable Long aLong;
+    private @Nullable Boolean aBoolean;
+    private @Nullable DateTime dateTime;
+    private @Nullable Instant instant;
+    private byte @Nullable [] bytes;
+    private @Nullable ByteBuffer byteBuffer;
+    private @Nullable BigDecimal bigDecimal;
+    private @Nullable StringBuilder stringBuilder;
 
     public AllNullableBean() {
       this.str = null;
@@ -344,8 +342,7 @@ public class TestJavaBeans {
       this.stringBuilder = null;
     }
 
-    @Nullable
-    public String getStr() {
+    public @Nullable String getStr() {
       return str;
     }
 
@@ -353,8 +350,7 @@ public class TestJavaBeans {
       this.str = str;
     }
 
-    @Nullable
-    public Byte getaByte() {
+    public @Nullable Byte getaByte() {
       return aByte;
     }
 
@@ -362,8 +358,7 @@ public class TestJavaBeans {
       this.aByte = aByte;
     }
 
-    @Nullable
-    public Short getaShort() {
+    public @Nullable Short getaShort() {
       return aShort;
     }
 
@@ -371,8 +366,7 @@ public class TestJavaBeans {
       this.aShort = aShort;
     }
 
-    @Nullable
-    public Integer getAnInt() {
+    public @Nullable Integer getAnInt() {
       return anInt;
     }
 
@@ -380,8 +374,7 @@ public class TestJavaBeans {
       this.anInt = anInt;
     }
 
-    @Nullable
-    public Long getaLong() {
+    public @Nullable Long getaLong() {
       return aLong;
     }
 
@@ -389,8 +382,7 @@ public class TestJavaBeans {
       this.aLong = aLong;
     }
 
-    @Nullable
-    public Boolean isaBoolean() {
+    public @Nullable Boolean isaBoolean() {
       return aBoolean;
     }
 
@@ -398,8 +390,7 @@ public class TestJavaBeans {
       this.aBoolean = aBoolean;
     }
 
-    @Nullable
-    public DateTime getDateTime() {
+    public @Nullable DateTime getDateTime() {
       return dateTime;
     }
 
@@ -407,17 +398,15 @@ public class TestJavaBeans {
       this.dateTime = dateTime;
     }
 
-    @Nullable
-    public byte[] getBytes() {
+    public byte @Nullable [] getBytes() {
       return bytes;
     }
 
-    public void setBytes(@Nullable byte[] bytes) {
+    public void setBytes(byte @Nullable [] bytes) {
       this.bytes = bytes;
     }
 
-    @Nullable
-    public ByteBuffer getByteBuffer() {
+    public @Nullable ByteBuffer getByteBuffer() {
       return byteBuffer;
     }
 
@@ -425,8 +414,7 @@ public class TestJavaBeans {
       this.byteBuffer = byteBuffer;
     }
 
-    @Nullable
-    public Instant getInstant() {
+    public @Nullable Instant getInstant() {
       return instant;
     }
 
@@ -434,8 +422,7 @@ public class TestJavaBeans {
       this.instant = instant;
     }
 
-    @Nullable
-    public BigDecimal getBigDecimal() {
+    public @Nullable BigDecimal getBigDecimal() {
       return bigDecimal;
     }
 
@@ -443,8 +430,7 @@ public class TestJavaBeans {
       this.bigDecimal = bigDecimal;
     }
 
-    @Nullable
-    public StringBuilder getStringBuilder() {
+    public @Nullable StringBuilder getStringBuilder() {
       return stringBuilder;
     }
 
@@ -453,7 +439,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -611,7 +597,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -673,7 +659,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -735,7 +721,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -785,7 +771,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -826,7 +812,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -877,7 +863,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -922,7 +908,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -963,7 +949,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -1047,7 +1033,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -1108,7 +1094,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -1151,7 +1137,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -1192,7 +1178,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

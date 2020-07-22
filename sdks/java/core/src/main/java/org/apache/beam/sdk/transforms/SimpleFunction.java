@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.transforms;
 
 import java.lang.reflect.Method;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link SerializableFunction} which is not a <i>functional interface</i>. Concrete subclasses
@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public abstract class SimpleFunction<InputT, OutputT> extends InferableFunction<InputT, OutputT>
     implements SerializableFunction<InputT, OutputT> {
 
-  @Nullable private final SerializableFunction<InputT, OutputT> fn;
+  private final @Nullable SerializableFunction<InputT, OutputT> fn;
 
   protected SimpleFunction() {
     this.fn = null;

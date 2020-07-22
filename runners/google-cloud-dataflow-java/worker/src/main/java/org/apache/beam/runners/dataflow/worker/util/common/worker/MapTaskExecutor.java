@@ -20,11 +20,11 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 import java.io.Closeable;
 import java.util.List;
 import java.util.ListIterator;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,8 +111,7 @@ public class MapTaskExecutor implements WorkExecutor {
   }
 
   @Override
-  @Nullable
-  public NativeReader.DynamicSplitResult requestCheckpoint() throws Exception {
+  public NativeReader.@Nullable DynamicSplitResult requestCheckpoint() throws Exception {
     return getReadOperation().requestCheckpoint();
   }
 

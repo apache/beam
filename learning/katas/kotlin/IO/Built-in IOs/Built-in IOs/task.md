@@ -25,5 +25,4 @@ sources and write to many different sinks.
 See the [Beam-provided I/O Transforms](https://beam.apache.org/documentation/io/built-in/) page for 
 a list of the currently available I/O transforms.
 
-**Note:** There is no kata for this task. Please click the "Check" button and proceed to the next 
-task.
+**Note:** There is no kata for this task. Please proceed to the next task.

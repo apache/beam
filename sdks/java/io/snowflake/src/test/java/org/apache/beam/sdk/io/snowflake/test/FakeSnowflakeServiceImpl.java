@@ -22,33 +22,101 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
-import javax.sql.DataSource;
-import org.apache.beam.sdk.io.snowflake.SnowflakeService;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import net.snowflake.client.jdbc.SnowflakeSQLException;
+import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
+import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
+import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServiceConfig;
 
-/**
- * Fake implementation of {@link org.apache.beam.sdk.io.snowflake.SnowflakeService} used in tests.
- */
-public class FakeSnowflakeServiceImpl implements SnowflakeService {
+/** Fake implementation of {@link SnowflakeService} used in tests. */
+public class FakeSnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceConfig> {
 
   @Override
-  public String copyIntoStage(
-      SerializableFunction<Void, DataSource> dataSourceProviderFn,
-      String query,
-      String table,
-      String integrationName,
-      String stagingBucketName)
-      throws SQLException {
+  public void write(SnowflakeServiceConfig config) throws Exception {
+    copyToTable(config);
+  }
+
+  @Override
+  public String read(SnowflakeServiceConfig config) throws Exception {
+    return copyIntoStage(config);
+  }
+
+  public String copyIntoStage(SnowflakeServiceConfig config) throws SQLException {
+    String table = config.getTable();
+    String query = config.getQuery();
+
+    String stagingBucketDir = config.getStagingBucketDir();
 
     if (table != null) {
-      writeToFile(stagingBucketName, FakeSnowflakeDatabase.getElements(table));
+      writeToFile(stagingBucketDir, FakeSnowflakeDatabase.getElements(table));
     }
     if (query != null) {
-      writeToFile(stagingBucketName, FakeSnowflakeDatabase.runQuery(query));
+      writeToFile(stagingBucketDir, FakeSnowflakeDatabase.runQuery(query));
     }
 
-    return String.format("./%s/*", stagingBucketName);
+    return String.format("./%s/*", stagingBucketDir);
+  }
+
+  public void copyToTable(SnowflakeServiceConfig config) throws SQLException {
+    List<String> filesList = config.getFilesList();
+    String table = config.getTable();
+    SnowflakeTableSchema tableSchema = config.getTableSchema();
+    CreateDisposition createDisposition = config.getCreateDisposition();
+    WriteDisposition writeDisposition = config.getWriteDisposition();
+
+    List<String> rows = new ArrayList<>();
+    for (String file : filesList) {
+      rows.addAll(TestUtils.readGZIPFile(file.replace("'", "")));
+    }
+
+    prepareTableAccordingCreateDisposition(table, tableSchema, createDisposition);
+    prepareTableAccordingWriteDisposition(table, writeDisposition);
+
+    FakeSnowflakeDatabase.createTableWithElements(table, rows);
+  }
+
+  private void prepareTableAccordingCreateDisposition(
+      String table, SnowflakeTableSchema tableSchema, CreateDisposition createDisposition)
+      throws SQLException {
+    switch (createDisposition) {
+      case CREATE_NEVER:
+        if (!FakeSnowflakeDatabase.isTableExist(table)) {
+          throw new SnowflakeSQLException(
+              null, "SQL compilation error: Table does not exist", table, 0);
+        }
+        break;
+      case CREATE_IF_NEEDED:
+        if (FakeSnowflakeDatabase.isTableExist(table)) {
+          break;
+        } else if (tableSchema == null) {
+          throw new RuntimeException(
+              "The CREATE_IF_NEEDED disposition requires schema if table doesn't exists");
+        } else {
+          FakeSnowflakeDatabase.createTable(table);
+        }
+        break;
+    }
+  }
+
+  private void prepareTableAccordingWriteDisposition(
+      String table, WriteDisposition writeDisposition) throws SQLException {
+    switch (writeDisposition) {
+      case TRUNCATE:
+        FakeSnowflakeDatabase.truncateTable(table);
+        break;
+      case EMPTY:
+        if (!FakeSnowflakeDatabase.isTableEmpty(table)) {
+          throw new RuntimeException("Table is not empty. Aborting COPY with disposition EMPTY");
+        }
+        break;
+      case APPEND:
+
+      default:
+        break;
+    }
   }
 
   private void writeToFile(String stagingBucketNameTmp, List<String> rows) {

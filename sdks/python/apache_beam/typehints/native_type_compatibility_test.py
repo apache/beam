@@ -55,6 +55,9 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         ('simple iterable', typing.Iterable[int], typehints.Iterable[int]),
         ('simple optional', typing.Optional[int], typehints.Optional[int]),
         ('simple set', typing.Set[float], typehints.Set[float]),
+        ('simple frozenset',
+         typing.FrozenSet[float],
+         typehints.FrozenSet[float]),
         ('simple unary tuple', typing.Tuple[bytes],
          typehints.Tuple[bytes]),
         ('simple union', typing.Union[int, bytes, float],
@@ -104,15 +107,25 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         typehints.Iterator[int],
         convert_to_beam_type(typing.Generator[int, None, None]))
 
-  def test_string_literal_converted_to_any(self):
-    self.assertEqual(typehints.Any, convert_to_beam_type('typing.List[int]'))
-
   def test_newtype(self):
     self.assertEqual(
         typehints.Any, convert_to_beam_type(typing.NewType('Number', int)))
 
+  def test_pattern(self):
+    # TODO(BEAM-10254): Unsupported.
+    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Pattern))
+    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Pattern[str]))
+    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Pattern[bytes]))
+
+  def test_match(self):
+    # TODO(BEAM-10254): Unsupported.
+    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Match))
+    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Match[str]))
+    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Match[bytes]))
+
   def test_forward_reference(self):
     self.assertEqual(typehints.Any, convert_to_beam_type('int'))
+    self.assertEqual(typehints.Any, convert_to_beam_type('typing.List[int]'))
     self.assertEqual(
         typehints.List[typehints.Any], convert_to_beam_type(typing.List['int']))
 
@@ -136,6 +149,11 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
             typing.Tuple,
             typehints.Tuple[typehints.TypeVariable('T'), ...]),
         ('bare set', typing.Set, typehints.Set[typehints.TypeVariable('T')]),
+        (
+            'bare frozenset',
+            typing.FrozenSet,
+            typehints.FrozenSet[typehints.TypeVariable(
+                'T', use_name_in_eq=False)]),
         (
             'bare iterator',
             typing.Iterator,

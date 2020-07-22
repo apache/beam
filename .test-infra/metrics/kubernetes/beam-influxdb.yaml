@@ -24,6 +24,7 @@ metadata:
 data:
   init-script.iql: |
     CREATE RETENTION POLICY "a_year" ON "beam_test_metrics" DURATION 52w REPLICATION 1 DEFAULT
+    CREATE RETENTION POLICY "forever" ON "beam_test_metrics" DURATION INF REPLICATION 1
 ---
 apiVersion: apps/v1
 kind: Deployment

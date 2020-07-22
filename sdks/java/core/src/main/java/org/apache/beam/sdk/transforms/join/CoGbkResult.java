@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -37,6 +36,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.PeekingIterator;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -196,14 +196,12 @@ public class CoGbkResult {
    * <p>If tag was not part of the original {@link CoGroupByKey}, throws an
    * IllegalArgumentException.
    */
-  @Nullable
-  public <V> V getOnly(TupleTag<V> tag, @Nullable V defaultValue) {
+  public @Nullable <V> V getOnly(TupleTag<V> tag, @Nullable V defaultValue) {
     return innerGetOnly(tag, defaultValue, true);
   }
 
   /** Like {@link #getOnly(TupleTag, Object)} but using a String instead of a TupleTag. */
-  @Nullable
-  public <V> V getOnly(String tag, @Nullable V defaultValue) {
+  public @Nullable <V> V getOnly(String tag, @Nullable V defaultValue) {
     return getOnly(new TupleTag<>(tag), defaultValue);
   }
 
@@ -269,7 +267,7 @@ public class CoGbkResult {
     }
 
     @Override
-    public boolean equals(Object object) {
+    public boolean equals(@Nullable Object object) {
       if (this == object) {
         return true;
       }
@@ -337,8 +335,8 @@ public class CoGbkResult {
     this.valueMap = valueMap;
   }
 
-  @Nullable
-  private <V> V innerGetOnly(TupleTag<V> tag, @Nullable V defaultValue, boolean useDefault) {
+  private @Nullable <V> V innerGetOnly(
+      TupleTag<V> tag, @Nullable V defaultValue, boolean useDefault) {
     int index = schema.getIndex(tag);
     if (index < 0) {
       throw new IllegalArgumentException("TupleTag " + tag + " is not in the schema");

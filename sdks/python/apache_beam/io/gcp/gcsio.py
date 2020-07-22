@@ -110,6 +110,36 @@ def parse_gcs_path(gcs_path, object_optional=False):
   return match.group(1), match.group(2)
 
 
+def default_gcs_bucket_name(project, region):
+  from hashlib import md5
+  return 'dataflow-staging-%s-%s' % (
+      region, md5(project.encode('utf8')).hexdigest())
+
+
+def get_or_create_default_gcs_bucket(options):
+  """Create a default GCS bucket for this project."""
+  if getattr(options, 'dataflow_kms_key', None):
+    _LOGGER.warning(
+        'Cannot create a default bucket when --dataflow_kms_key is set.')
+    return None
+
+  project = getattr(options, 'project', None)
+  region = getattr(options, 'region', None)
+  if not project or not region:
+    return None
+
+  bucket_name = default_gcs_bucket_name(project, region)
+  bucket = GcsIO().get_bucket(bucket_name)
+  if bucket:
+    return bucket
+  else:
+    _LOGGER.warning(
+        'Creating default GCS bucket for project %s: gs://%s',
+        project,
+        bucket_name)
+    return GcsIO().create_bucket(bucket_name, project, location=region)
+
+
 class GcsIOError(IOError, retry.PermanentException):
   """GCS IO error that should not be retried."""
   pass
@@ -134,6 +164,30 @@ class GcsIO(object):
       callback: A function that receives ``storage.RewriteResponse``.
     """
     self._rewrite_cb = callback
+
+  def get_bucket(self, bucket_name):
+    """Returns an object bucket from its name, or None if it does not exist."""
+    try:
+      request = storage.StorageBucketsGetRequest(bucket=bucket_name)
+      return self.client.buckets.Get(request)
+    except HttpError:
+      return None
+
+  def create_bucket(self, bucket_name, project, kms_key=None, location=None):
+    """Create and return a GCS bucket in a specific project."""
+    encryption = None
+    if kms_key:
+      encryption = storage.Bucket.EncryptionValue(kms_key)
+
+    request = storage.StorageBucketsInsertRequest(
+        bucket=storage.Bucket(
+            name=bucket_name, location=location, encryption=encryption),
+        project=project,
+    )
+    try:
+      return self.client.buckets.Insert(request)
+    except HttpError:
+      return None
 
   def open(
       self,

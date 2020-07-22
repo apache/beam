@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.aws2.dynamodb;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.net.URI;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -30,7 +30,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 public class BasicDynamoDbClientProvider implements DynamoDbClientProvider {
   private final AwsCredentialsProvider awsCredentialsProvider;
   private final String region;
-  @Nullable private final URI serviceEndpoint;
+  private final @Nullable URI serviceEndpoint;
 
   BasicDynamoDbClientProvider(
       AwsCredentialsProvider awsCredentialsProvider, String region, @Nullable URI serviceEndpoint) {

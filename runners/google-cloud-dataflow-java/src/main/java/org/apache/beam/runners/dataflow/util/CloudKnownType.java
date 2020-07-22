@@ -20,8 +20,8 @@ package org.apache.beam.runners.dataflow.util;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A utility for manipulating well-known cloud types. */
 @SuppressWarnings("ImmutableEnumChecker")
@@ -112,8 +112,7 @@ enum CloudKnownType {
     return result;
   }
 
-  @Nullable
-  public static CloudKnownType forUri(@Nullable String uri) {
+  public static @Nullable CloudKnownType forUri(@Nullable String uri) {
     if (uri == null) {
       return null;
     }
@@ -133,8 +132,7 @@ enum CloudKnownType {
     return result;
   }
 
-  @Nullable
-  public static CloudKnownType forClass(Class<?> clazz) {
+  public static @Nullable CloudKnownType forClass(Class<?> clazz) {
     return typesByClass.get(clazz);
   }
 }

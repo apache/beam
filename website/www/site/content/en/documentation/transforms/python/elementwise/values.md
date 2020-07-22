@@ -33,7 +33,7 @@ Then, we apply `Values` to extract the values and discard the keys.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Values`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}

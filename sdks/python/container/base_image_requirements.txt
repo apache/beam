@@ -30,7 +30,7 @@ crcmod==1.7
 dill==0.3.1.1
 future==0.18.2
 futures==3.2.0;python_version<"3.0"
-grpcio==1.24.3
+grpcio==1.29.0
 hdfs==2.5.8
 httplib2==0.12.0
 mock==2.0.0
@@ -45,6 +45,7 @@ typing==3.7.4.1;python_full_version<"3.5.3"
 typing-extensions==3.7.4.1
 
 # GCP extra features
+google-api-core==1.20.0
 google-apitools==0.5.28
 google-cloud-pubsub==1.0.2
 google-cloud-bigquery==1.24.0

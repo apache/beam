@@ -25,13 +25,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.TreeMap;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ByteArrayShufflePosition;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntryReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShufflePosition;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A fake implementation of a ShuffleEntryReader, for testing. */
 public class TestShuffleReader implements ShuffleEntryReader {
@@ -99,7 +99,7 @@ public class TestShuffleReader implements ShuffleEntryReader {
         endKey == null ? null : endKey.getBytes(StandardCharsets.UTF_8));
   }
 
-  public Reiterator<ShuffleEntry> read(@Nullable byte[] startKey, @Nullable byte[] endKey) {
+  public Reiterator<ShuffleEntry> read(byte @Nullable [] startKey, byte @Nullable [] endKey) {
     List<ShuffleEntry> res = new ArrayList<>();
     for (byte[] key : records.keySet()) {
       if ((startKey == null || SHUFFLE_KEY_COMPARATOR.compare(startKey, key) <= 0)

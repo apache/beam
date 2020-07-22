@@ -173,7 +173,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
 
     final StateRequestHandler userStateHandler;
     if (executableStage.getUserStates().size() > 0) {
-      bagUserStateHandlerFactory = new InMemoryBagUserStateFactory();
+      bagUserStateHandlerFactory = new InMemoryBagUserStateFactory<>();
       userStateHandler =
           StateRequestHandlers.forBagUserStateHandlerFactory(
               processBundleDescriptor, bagUserStateHandlerFactory);

@@ -26,7 +26,7 @@ import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import javax.annotation.Nullable;
+import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -36,6 +36,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -44,6 +45,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.ParquetReader;
@@ -54,6 +56,7 @@ import org.apache.parquet.io.InputFile;
 import org.apache.parquet.io.OutputFile;
 import org.apache.parquet.io.PositionOutputStream;
 import org.apache.parquet.io.SeekableInputStream;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * IO to read and write Parquet files.
@@ -145,14 +148,11 @@ public class ParquetIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<GenericRecord>> {
 
-    @Nullable
-    abstract ValueProvider<String> getFilepattern();
+    abstract @Nullable ValueProvider<String> getFilepattern();
 
-    @Nullable
-    abstract Schema getSchema();
+    abstract @Nullable Schema getSchema();
 
-    @Nullable
-    abstract GenericData getAvroDataModel();
+    abstract @Nullable GenericData getAvroDataModel();
 
     abstract Builder toBuilder();
 
@@ -208,11 +208,9 @@ public class ParquetIO {
   public abstract static class ReadFiles
       extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<GenericRecord>> {
 
-    @Nullable
-    abstract Schema getSchema();
+    abstract @Nullable Schema getSchema();
 
-    @Nullable
-    abstract GenericData getAvroDataModel();
+    abstract @Nullable GenericData getAvroDataModel();
 
     abstract Builder toBuilder();
 
@@ -318,10 +316,11 @@ public class ParquetIO {
   @AutoValue
   public abstract static class Sink implements FileIO.Sink<GenericRecord> {
 
-    @Nullable
-    abstract String getJsonSchema();
+    abstract @Nullable String getJsonSchema();
 
     abstract CompressionCodecName getCompressionCodec();
+
+    abstract @Nullable SerializableConfiguration getConfiguration();
 
     abstract Builder toBuilder();
 
@@ -331,6 +330,8 @@ public class ParquetIO {
 
       abstract Builder setCompressionCodec(CompressionCodecName compressionCodec);
 
+      abstract Builder setConfiguration(SerializableConfiguration configuration);
+
       abstract Sink build();
     }
 
@@ -339,7 +340,18 @@ public class ParquetIO {
       return toBuilder().setCompressionCodec(compressionCodecName).build();
     }
 
-    @Nullable private transient ParquetWriter<GenericRecord> writer;
+    /** Specifies configuration to be passed into the sink's writer. */
+    public Sink withConfiguration(Map<String, String> configuration) {
+      Configuration hadoopConfiguration = new Configuration();
+      for (Map.Entry<String, String> entry : configuration.entrySet()) {
+        hadoopConfiguration.set(entry.getKey(), entry.getValue());
+      }
+      return toBuilder()
+          .setConfiguration(new SerializableConfiguration(hadoopConfiguration))
+          .build();
+    }
+
+    private transient @Nullable ParquetWriter<GenericRecord> writer;
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {
@@ -350,12 +362,17 @@ public class ParquetIO {
       BeamParquetOutputFile beamParquetOutputFile =
           new BeamParquetOutputFile(Channels.newOutputStream(channel));
 
-      this.writer =
+      AvroParquetWriter.Builder<GenericRecord> builder =
           AvroParquetWriter.<GenericRecord>builder(beamParquetOutputFile)
               .withSchema(schema)
               .withCompressionCodec(getCompressionCodec())
-              .withWriteMode(OVERWRITE)
-              .build();
+              .withWriteMode(OVERWRITE);
+
+      if (getConfiguration() != null) {
+        builder = builder.withConf(getConfiguration().get());
+      }
+
+      this.writer = builder.build();
     }
 
     @Override
