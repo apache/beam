@@ -15,10 +15,14 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
+from __future__ import absolute_import
+
 import apache_beam as beam
 from apache_beam.io.filesystem import BeamIOError
+from apache_beam.io.gcp.dicomclient import DicomApiHttpClient
 from apache_beam.transforms import PTransform
-from dicomclient import DicomApiHttpClient
 
 
 class DicomSearch(PTransform):
@@ -151,8 +155,6 @@ class PubsubToQido(PTransform):
     }
   """
   def __init__(self, credential=None):
-    # type: google credential object in google.auth
-
     """Initializes ``PubsubToQido``.
     Args:
       credential: # type: Google credential object, if it isspecified, the

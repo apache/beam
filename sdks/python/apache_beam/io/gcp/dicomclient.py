@@ -15,6 +15,10 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
+from __future__ import absolute_import
+
 from google.auth import default
 from google.auth.transport import requests
 
