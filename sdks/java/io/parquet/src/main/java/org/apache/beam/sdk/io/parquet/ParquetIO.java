@@ -77,7 +77,6 @@ import org.apache.parquet.io.RecordReader;
 import org.apache.parquet.io.SeekableInputStream;
 import org.apache.parquet.io.api.RecordMaterializer;
 import org.apache.parquet.schema.MessageType;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * IO to read and write Parquet files.
@@ -175,8 +174,7 @@ public class ParquetIO {
 
     abstract @Nullable GenericData getAvroDataModel();
 
-    @Nullable
-    abstract String getProjection();
+    abstract @Nullable String getProjection();
 
     abstract Builder toBuilder();
 
@@ -245,10 +243,9 @@ public class ParquetIO {
 
     abstract @Nullable GenericData getAvroDataModel();
 
-    abstract Builder toBuilder();
+    abstract @Nullable String getProjection();
 
-    @Nullable
-    abstract String getProjection();
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
