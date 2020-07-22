@@ -763,15 +763,45 @@ public class ExpressionConverter {
                     ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(kind, rexBuilder()));
         break;
       case TYPE_DOUBLE:
+        // Cannot simply call makeApproxLiteral() for ZetaSQL DOUBLE type because positive infinity,
+        // negative infinity and Nan cannot be directly converted to BigDecimal. So we create three
+        // wrapper functions here for these three cases such that we can later recognize it and
+        // customize its unparsing in BeamBigQuerySqlDialect.
         double val = value.getDoubleValue();
-        if (Double.isInfinite(val) || Double.isNaN(val)) {
-          throw new UnsupportedOperationException("Does not support Infinite or NaN literals.");
+        String wrapperFun = null;
+        if (val == Double.POSITIVE_INFINITY) {
+          wrapperFun = BeamBigQuerySqlDialect.DOUBLE_POSITIVE_INF_FUNCTION;
+        } else if (val == Double.NEGATIVE_INFINITY) {
+          wrapperFun = BeamBigQuerySqlDialect.DOUBLE_NEGATIVE_INF_FUNCTION;
+        } else if (Double.isNaN(val)) {
+          wrapperFun = BeamBigQuerySqlDialect.DOUBLE_NAN_FUNCTION;
         }
-        ret =
-            rexBuilder()
-                .makeApproxLiteral(
-                    new BigDecimal(val),
-                    ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(kind, rexBuilder()));
+
+        RelDataType returnType =
+            ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(kind, rexBuilder());
+        if (wrapperFun == null) {
+          ret = rexBuilder().makeApproxLiteral(new BigDecimal(val), returnType);
+        } else if (BeamBigQuerySqlDialect.DOUBLE_NAN_FUNCTION.equals(wrapperFun)) {
+          // TODO[BEAM-10550]: Update the temporary workaround below after vendored Calcite version
+
+          // Adding an additional random parameter for the wrapper function of NaN, to avoid
+          // triggering Calcite operation simplification. (e.g. 'NaN == NaN' would be simplify to
+          // 'null or NaN is not null' in Calcite. This would miscalculate the expression to be
+          // true, which should be false.)
+          ret =
+              rexBuilder()
+                  .makeCall(
+                      SqlOperators.createZetaSqlFunction(wrapperFun, returnType.getSqlTypeName()),
+                      ImmutableList.of(
+                          rexBuilder()
+                              .makeApproxLiteral(new BigDecimal(Math.random()), returnType)));
+          ;
+        } else {
+          ret =
+              rexBuilder()
+                  .makeCall(
+                      SqlOperators.createZetaSqlFunction(wrapperFun, returnType.getSqlTypeName()));
+        }
         break;
       case TYPE_STRING:
         // has to allow CAST because Calcite create CHAR type first and does a CAST to VARCHAR.
