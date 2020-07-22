@@ -44,7 +44,6 @@ try:
   # pylint: disable=wrong-import-order, wrong-import-position
   # pylint: disable=ungrouped-imports
   from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, ContentSettings
-  from apitools.base.py.exceptions import HttpError
 except ImportError:
   raise ImportError('Missing `azure` requirement')
 

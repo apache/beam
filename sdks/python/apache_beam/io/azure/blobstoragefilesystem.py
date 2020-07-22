@@ -231,7 +231,10 @@ class BlobStorageFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if path doesn't exist.
     """
-    raise NotImplementedError
+    try:
+      return blobstorageio.BlobStorageIO().last_updated(path)
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("last updated operation failed", {path: e})
 
   def checksum(self, path):
     """Fetch checksum metadata of a file on the

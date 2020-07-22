@@ -28,7 +28,6 @@ import time
 from builtins import object
 
 from apache_beam.io.azure import blobstorageio
-from apitools.base.py.exceptions import HttpError
 
 
 class FakeFile(object):
@@ -223,34 +222,34 @@ class TestBlobStorageIO(unittest.TestCase):
     self.azfs.delete(file_name)
     self.assertFalse(self.azfs.exists(file_name))
 
-  def test_delete_batch(self):
-    file_name_pattern = self.TEST_DATA_PATH + 'delete_batch/%d'
-    file_size = 1024
-    num_files = 5
+  # def test_delete_batch(self):
+  #   file_name_pattern = self.TEST_DATA_PATH + 'delete_batch/%d'
+  #   file_size = 1024
+  #   num_files = 5
 
-    # Test deletion of non-existent files.
-    result = self.azfs.delete_batch(
-        [file_name_pattern % i for i in range(num_files)])
-    self.assertTrue(result)
-    for i, (file_name, exception) in enumerate(result):
-      self.assertEqual(file_name, file_name_pattern % i)
-      self.assertEqual(exception, None)
-      self.assertFalse(self.azfs.exists(file_name_pattern % i))
+  #   # Test deletion of non-existent files.
+  #   result = self.azfs.delete_batch(
+  #       [file_name_pattern % i for i in range(num_files)])
+  #   self.assertTrue(result)
+  #   for i, (file_name, exception) in enumerate(result):
+  #     self.assertEqual(file_name, file_name_pattern % i)
+  #     self.assertEqual(exception, None)
+  #     self.assertFalse(self.azfs.exists(file_name_pattern % i))
 
-    # Insert some files.
-    for i in range(num_files):
-      self._insert_random_file(self.client, file_name_pattern % i, file_size)
+  #   # Insert some files.
+  #   for i in range(num_files):
+  #     self._insert_random_file(self.client, file_name_pattern % i, file_size)
 
-    # Check files inserted properly.
-    for i in range(num_files):
-      self.assertTrue(self.azfs.exists(file_name_pattern % i))
+  #   # Check files inserted properly.
+  #   for i in range(num_files):
+  #     self.assertTrue(self.azfs.exists(file_name_pattern % i))
 
-    # Execute batch delete.
-    self.azfs.delete_batch([file_name_pattern % i for i in range(num_files)])
+  #   # Execute batch delete.
+  #   self.azfs.delete_batch([file_name_pattern % i for i in range(num_files)])
 
-    # Check files deleted properly.
-    for i in range(num_files):
-      self.assertFalse(self.azfs.exists(file_name_pattern % i))
+  #   # Check files deleted properly.
+  #   for i in range(num_files):
+  #     self.assertFalse(self.azfs.exists(file_name_pattern % i))
 
   def test_size(self):
     file_name = self.TEST_DATA_PATH + 'test_file_size'
@@ -325,10 +324,10 @@ class TestBlobStorageIO(unittest.TestCase):
     # Clean up
     self.azfs.delete(file_name)
 
-  def test_checksum(self):
-    file_name = self.TEST_DATA_PATH + 'test_checksum'
+  # def test_checksum(self):
+  #   file_name = self.TEST_DATA_PATH + 'test_checksum'
 
-    # TODO : add insert_random_file functionality
+  #   # TODO : add insert_random_file functionality
 
 
 if __name__ == '__main__':
