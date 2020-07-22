@@ -209,7 +209,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertEqual(err.exception.code, 404)
 
   def test_delete(self):
-    file_name = self.TEST_DATA_PATH + 'test_file_delete'
+    file_name = self.TEST_DATA_PATH + 'test_delete'
     file_size = 1024
 
     # Test deletion of non-existent file.
@@ -252,7 +252,7 @@ class TestBlobStorageIO(unittest.TestCase):
   #     self.assertFalse(self.azfs.exists(file_name_pattern % i))
 
   def test_size(self):
-    file_name = self.TEST_DATA_PATH + 'test_file_size'
+    file_name = self.TEST_DATA_PATH + 'test_size'
     file_size = 1024
     
     self._insert_random_file(file_name, file_size)
@@ -265,7 +265,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertFalse(self.azfs.exists(file_name))    
 
   def test_exists(self):
-    file_name = self.TEST_DATA_PATH + 'test_file_exists'
+    file_name = self.TEST_DATA_PATH + 'test_exists'
     file_size = 1024
 
     self.assertFalse(self.azfs.exists(file_name))
@@ -312,7 +312,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.azfs.delete(file_name)
 
   def test_last_updated(self):
-    file_name = self.TEST_DATA_PATH + 'test_file_last_updated'
+    file_name = self.TEST_DATA_PATH + 'test_last_updated'
     file_size = 1024
     tolerance = 60
 
@@ -324,11 +324,24 @@ class TestBlobStorageIO(unittest.TestCase):
     # Clean up
     self.azfs.delete(file_name)
 
-  # def test_checksum(self):
-  #   file_name = self.TEST_DATA_PATH + 'test_checksum'
+  def test_checksum(self):
+    file_name = self.TEST_DATA_PATH + 'test_checksum'
+    file_size = 1024
 
-  #   # TODO : add insert_random_file functionality
+    new_file = self._insert_random_file(file_name, file_size)
+    original_etag = self.azfs.checksum(file_name)
+    self.azfs.delete(file_name)
+    print("original", original_etag)
+    #f = self.azfs.open(file_name, 'w')
+    #self.assertEqual(f.mode, 'w')
+    with self.azfs.open(file_name, 'w') as f:
+      f.write(new_file.contents)
+    rewritten_etag = self.azfs.checksum(file_name)
+    print("rewritten", rewritten_etag)
+    self.assertEqual(original_etag, rewritten_etag)
 
+    # Clean up
+    self.azfs.delete(file_name)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
