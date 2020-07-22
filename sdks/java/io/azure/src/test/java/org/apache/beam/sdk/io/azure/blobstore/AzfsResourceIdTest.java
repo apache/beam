@@ -304,8 +304,5 @@ public class AzfsResourceIdTest {
     AzfsResourceId.fromComponents("account", "invalid/", "");
   }
 
-  @Test
-  public void testResourceIdTester() {
-    // TODO ResourceIdTester.runResourceIdBattery();
-  }
+  // TODO: Consider adding a ResourceIdTester.runResourceIdBattery() test
 }
