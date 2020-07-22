@@ -663,6 +663,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public final void processWatermark1(Watermark mark) throws Exception {
+    // Flush any data buffered during snapshotState().
+    outputManager.flushBuffer();
+
     // We do the check here because we are guaranteed to at least get the +Inf watermark on the
     // main input when the job finishes.
     if (currentSideInputWatermark >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
@@ -778,8 +781,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
    */
   private void checkInvokeStartBundle() {
     if (!bundleStarted) {
-      LOG.debug("Starting bundle.");
+      // Flush any data buffered during snapshotState().
       outputManager.flushBuffer();
+      LOG.debug("Starting bundle.");
       if (preBundleCallback != null) {
         preBundleCallback.run();
       }
@@ -941,7 +945,10 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     protected final Output<StreamRecord<WindowedValue<OutputT>>> output;
 
+    /** Indicates whether we are buffering data as part of snapshotState(). */
     private boolean openBuffer = false;
+    /** For performance, to avoid having to access the state backend when the buffer is empty. */
+    private boolean bufferIsEmpty = false;
 
     BufferedOutputManager(
         Output<StreamRecord<WindowedValue<OutputT>>> output,
@@ -987,18 +994,21 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
         throw new RuntimeException("Couldn't pushback element.", e);
       } finally {
         bufferLock.unlock();
+        bufferIsEmpty = false;
       }
     }
 
     /**
-     * Flush elements of bufferState to Flink Output. This method can't be invoked in {@link
-     * #snapshotState(StateSnapshotContext)}. The buffer should be flushed before starting a new
-     * bundle when the buffer cannot be concurrently accessed and thus does not need to be guarded
-     * by a lock.
+     * Flush elements of bufferState to Flink Output. This method should not be invoked in {@link
+     * #snapshotState(StateSnapshotContext)} because the checkpoint barrier has already been sent
+     * downstream; emitting elements at this point would violate the checkpoint barrier alignment.
+     *
+     * <p>The buffer should be flushed before starting a new bundle when the buffer cannot be
+     * concurrently accessed and thus does not need to be guarded by a lock.
      */
     void flushBuffer() {
-      if (openBuffer) {
-        // Buffering currently in progress, do not proceed
+      if (openBuffer || bufferIsEmpty) {
+        // Checkpoint currently in progress or nothing buffered, do not proceed
         return;
       }
       try {
@@ -1008,6 +1018,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
                 element ->
                     emit(idsToTags.get(element.getKey()), (WindowedValue) element.getValue()));
         pushedBackElementsHandler.clear();
+        bufferIsEmpty = true;
       } catch (Exception e) {
         throw new RuntimeException("Couldn't flush pushed back elements.", e);
       }
