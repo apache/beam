@@ -15,13 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.datastore;
+package org.apache.beam.sdk.io.gcp.datastore;
 
 import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
-import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARBINARY;
-import static org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.DEFAULT_KEY_FIELD;
-import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BYTES;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DATETIME;
@@ -39,28 +36,30 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.EntityToRow;
-import org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.RowToEntity;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class DataStoreTableTest {
+public class EntityToRowRowToEntityTest {
   private static final String KIND = "kind";
   private static final String UUID_VALUE = UUID.randomUUID().toString();
   private static final Key.Builder KEY = makeKey(KIND, UUID_VALUE);
   private static final DateTime DATE_TIME = parseTimestampWithUTCTimeZone("2018-05-28 20:17:40");
+  static final String DEFAULT_KEY_FIELD = "__key__";
+  private static final FieldType VARBINARY = FieldType.BYTES;
+  public static final FieldType CHAR = FieldType.logicalType(new CharType());
 
   private static final Schema NESTED_ROW_SCHEMA =
       Schema.builder().addNullableField("nestedLong", INT64).build();
@@ -74,7 +73,7 @@ public class DataStoreTableTest {
           .addNullableField("rowArray", array(FieldType.row(NESTED_ROW_SCHEMA)))
           .addNullableField("double", DOUBLE)
           .addNullableField("bytes", BYTES)
-          .addNullableField("string", CalciteUtils.CHAR)
+          .addNullableField("string", CHAR)
           .addNullableField("nullable", INT64)
           .build();
   private static final Entity NESTED_ENTITY =
@@ -186,5 +185,22 @@ public class DataStoreTableTest {
 
   private static Row row(Schema schema, Object... values) {
     return Row.withSchema(schema).addValues(values).build();
+  }
+
+  /** A LogicalType corresponding to CHAR. */
+  private static class CharType extends PassThroughLogicalType<String> {
+    public static final String IDENTIFIER = "SqlCharType";
+
+    public CharType() {
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.STRING);
+    }
+  }
+
+  public static DateTime parseTimestampWithUTCTimeZone(String str) {
+    if (str.indexOf('.') == -1) {
+      return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC().parseDateTime(str);
+    } else {
+      return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS").withZoneUTC().parseDateTime(str);
+    }
   }
 }

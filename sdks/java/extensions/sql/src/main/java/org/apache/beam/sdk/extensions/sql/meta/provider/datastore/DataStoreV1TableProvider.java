@@ -18,13 +18,17 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.datastore;
 
 import com.google.auto.service.AutoService;
-import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.SchemaIOTableProviderWrapper;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.io.gcp.datastore.DataStoreV1SchemaIOProvider;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreIO;
+import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 
 /**
- * {@link TableProvider} for {@link DataStoreV1Table}.
+ * {@link TableProvider} for {@link DatastoreIO} for consumption by Beam SQL.
+ *
+ * <p>Passes the {@link DataStoreV1SchemaIOProvider} to the generalized table provider wrapper,
+ * {@link SchemaIOTableProviderWrapper}, for DataStoreV1 specific behavior.
  *
  * <p>A sample of DataStoreV1Table table is:
  *
@@ -39,15 +43,14 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
  * }</pre>
  */
 @AutoService(TableProvider.class)
-public class DataStoreV1TableProvider extends InMemoryMetaTableProvider {
+public class DataStoreV1TableProvider extends SchemaIOTableProviderWrapper {
+  @Override
+  public SchemaIOProvider getSchemaIOProvider() {
+    return new DataStoreV1SchemaIOProvider();
+  }
 
   @Override
   public String getTableType() {
     return "datastoreV1";
-  }
-
-  @Override
-  public BeamSqlTable buildBeamSqlTable(Table table) {
-    return new DataStoreV1Table(table);
   }
 }
