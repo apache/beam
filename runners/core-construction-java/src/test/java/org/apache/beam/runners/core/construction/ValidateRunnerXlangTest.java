@@ -32,14 +32,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesCrossLanguageTransforms;
 import org.apache.beam.sdk.testing.ValidatesRunner;
-import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Partition;
-import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -65,24 +59,24 @@ import org.junit.runners.JUnit4;
  *
  * <p>As per Beams's Portability Framework design, Cross-language transforms should work out of the
  * box. In spite of this, there always exists a possibility of rough edges existing. It could be
- * caused due to unpolished implementation of any part of the execution code path, for example:
- *
- * <ul>
- *   <li>Transform expansion [SDK]
- *   <li>Pipeline construction [SDK]
- *   <li>Cross-language artifact staging [Runner]
- *   <li>Language specific serialization/deserialization of PCollection (and other data types)
- *       [Runner/SDK]
- * </ul>
+ * caused due to unpolished implementation of any part of the execution code path, for example: –>
+ * Transform expansion [SDK] –> Pipeline construction [SDK] –> Cross-language artifact staging
+ * [Runner] –> Language specific serialization/deserialization of PCollection (and other data types)
+ * [Runner/SDK]
  *
  * <p>In an effort to improve developer visibility into potential problems, this test suite
- * validates a cross-language runner against <i>5 Core Beam transforms</i> from any foreign language
- * — {@link ParDo}, {@link GroupByKey}, {@link CoGroupByKey}, {@link Combine}, {@link Flatten} and
- * {@link Partition}.
+ * validates correct execution of 5 Core Beam transforms when used as cross-language transforms
+ * within the Java SDK from any foreign SDK: –> ParDo
+ * (https://beam.apache.org/documentation/programming-guide/#pardo) –> GroupByKey
+ * (https://beam.apache.org/documentation/programming-guide/#groupbykey) –> CoGroupByKey
+ * (https://beam.apache.org/documentation/programming-guide/#cogroupbykey) –> Combine
+ * (https://beam.apache.org/documentation/programming-guide/#combine) –> Flatten
+ * (https://beam.apache.org/documentation/programming-guide/#flatten) –> Partition
+ * (https://beam.apache.org/documentation/programming-guide/#partition)
  *
- * <p>See <a
- * href="https://docs.google.com/document/d/1xQp0ElIV84b8OCVz8CD2hvbiWdR8w4BvWxPTZJZA6NA">Runner
- * Validation Test Plan for Cross-language transforms</a>for further details.
+ * <p>See Runner Validation Test Plan for Cross-language transforms
+ * (https://docs.google.com/document/d/1xQp0ElIV84b8OCVz8CD2hvbiWdR8w4BvWxPTZJZA6NA") for further
+ * details.
  */
 @RunWith(JUnit4.class)
 public class ValidateRunnerXlangTest implements Serializable {
@@ -138,18 +132,12 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   * Motivation behind <i>singleInputOutputTest</i>.
+   * Motivation behind singleInputOutputTest.
    *
-   * <ul>
-   *   <li><b>Target transform</b> – {@link ParDo}
-   *   <li><b>Test scenario</b> – Mapping elements from a single input collection to a single output
-   *       collection
-   *   <li><b>Boundary conditions checked</b> –
-   *       <ul>
-   *         <li>PCollection<?> to external transforms
-   *         <li>PCollection<?> from external transforms
-   *       </ul>
-   * </ul>
+   * <p>Target transform – ParDo (https://beam.apache.org/documentation/programming-guide/#pardo)
+   * Test scenario – Mapping elements from a single input collection to a single output collection
+   * Boundary conditions checked – –> PCollection<?> to external transforms –> PCollection<?> from
+   * external transforms
    */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
@@ -162,18 +150,12 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   * Motivation behind <i>multiInputOutputWithSideInputTest</i>.
+   * Motivation behind multiInputOutputWithSideInputTest.
    *
-   * <ul>
-   *   <li><b>Target transform</b> – {@link ParDo}
-   *   <li><b>Test scenario</b> – Mapping elements from multiple input collections (main and side)
-   *       to multiple output collections (main and side)
-   *   <li><b>Boundary conditions checked</b> –
-   *       <ul>
-   *         <li>PCollectionTuple to external transforms
-   *         <li>PCollectionTuple from external transforms
-   *       </ul>
-   * </ul>
+   * <p>Target transform – ParDo (https://beam.apache.org/documentation/programming-guide/#pardo)
+   * Test scenario – Mapping elements from multiple input collections (main and side) to multiple
+   * output collections (main and side) Boundary conditions checked – –> PCollectionTuple to
+   * external transforms –> PCollectionTuple from external transforms
    */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
@@ -191,18 +173,13 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   * Motivation behind <i>groupByKeyTest</i>.
+   * Motivation behind groupByKeyTest.
    *
-   * <ul>
-   *   <li><b>Target transform</b> – {@link GroupByKey}
-   *   <li><b>Test scenario</b> – Grouping a collection of KV&lt;K,V&gt; to a collection of KV&lt;K,
-   *       Iterable&lt; V&gt;&gt; by key
-   *   <li><b>Boundary conditions checked</b> –
-   *       <ul>
-   *         <li>PCollection&lt;KV&lt;?, ?&gt;&gt; to external transforms
-   *         <li>PCollection&lt;KV&lt;?, Iterable&lt;?&gt;&gt;&gt; from external transforms
-   *       </ul>
-   * </ul>
+   * <p>Target transform – GroupByKey
+   * (https://beam.apache.org/documentation/programming-guide/#groupbykey) Test scenario – Grouping
+   * a collection of KV<K,V> to a collection of KV<K, Iterable<V>> by key Boundary conditions
+   * checked – –> PCollection<KV<?, ?>> to external transforms –> PCollection<KV<?, Iterable<?>>>
+   * from external transforms
    */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
@@ -224,18 +201,13 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   * Motivation behind <i>coGroupByKeyTest</i>.
+   * Motivation behind coGroupByKeyTest.
    *
-   * <ul>
-   *   <li><b>Target transform</b> – {@link CoGroupByKey}
-   *   <li><b>Test scenario</b> – Grouping multiple input collections with keys to a collection of
-   *       KV&lt;K, CoGbkResult&gt; by key
-   *   <li><b>Boundary conditions checked</b> –
-   *       <ul>
-   *         <li>KeyedPCollectionTuple<?> to external transforms
-   *         <li>PCollection&lt;KV&lt;?, Iterable&lt;?&gt;&gt;&gt; from external transforms
-   *       </ul>
-   * </ul>
+   * <p>Target transform – CoGroupByKey
+   * (https://beam.apache.org/documentation/programming-guide/#cogroupbykey) Test scenario –
+   * Grouping multiple input collections with keys to a collection of KV<K, CoGbkResult> by key
+   * Boundary conditions checked – –> KeyedPCollectionTuple<?> to external transforms –>
+   * PCollection<KV<?, Iterable<?>>> from external transforms
    */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
@@ -261,17 +233,12 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   * Motivation behind <i>combineGloballyTest</i>.
+   * Motivation behind combineGloballyTest.
    *
-   * <ul>
-   *   <li><b>Target transform</b> – {@link Combine}
-   *   <li><b>Test scenario</b> – Combining elements globally with a predefined simple CombineFn
-   *   <li><b>Boundary conditions checked</b> –
-   *       <ul>
-   *         <li>PCollection<?> to external transforms
-   *         <li>PCollection<?> from external transforms
-   *       </ul>
-   * </ul>
+   * <p>Target transform – Combine
+   * (https://beam.apache.org/documentation/programming-guide/#combine) Test scenario – Combining
+   * elements globally with a predefined simple CombineFn Boundary conditions checked – –>
+   * PCollection<?> to external transforms –> PCollection<?> from external transforms
    */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
@@ -284,18 +251,12 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   * Motivation behind <i>combinePerKeyTest</i>.
+   * Motivation behind combinePerKeyTest.
    *
-   * <ul>
-   *   <li><b>Target transform</b> – {@link Combine}
-   *   <li><b>Test scenario</b> – Combining elements per key with a predefined simple merging
-   *       function
-   *   <li><b>Boundary conditions checked</b> –
-   *       <ul>
-   *         <li>PCollection<?> to external transforms
-   *         <li>PCollection<?> from external transforms
-   *       </ul>
-   * </ul>
+   * <p>Target transform – Combine
+   * (https://beam.apache.org/documentation/programming-guide/#combine) Test scenario – Combining
+   * elements per key with a predefined simple merging function Boundary conditions checked – –>
+   * PCollection<?> to external transforms –> PCollection<?> from external transforms
    */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
@@ -308,17 +269,12 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   * Motivation behind <i>flattenTest</i>.
+   * Motivation behind flattenTest.
    *
-   * <ul>
-   *   <li><b>Target transform</b> – {@link Flatten}
-   *   <li><b>Test scenario</b> – Merging multiple collections into a single collection
-   *   <li><b>Boundary conditions checked</b> –
-   *       <ul>
-   *         <li>PCollectionList<?> to external transforms
-   *         <li>PCollection<?> from external transforms
-   *       </ul>
-   * </ul>
+   * <p>Target transform – Flatten
+   * (https://beam.apache.org/documentation/programming-guide/#flatten) Test scenario – Merging
+   * multiple collections into a single collection Boundary conditions checked – –>
+   * PCollectionList<?> to external transforms –> PCollection<?> from external transforms
    */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
@@ -333,18 +289,13 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   /**
-   * Motivation behind <i>partitionTest</i>.
+   * Motivation behind partitionTest.
    *
-   * <ul>
-   *   <li><b>Target transform</b> – {@link Partition}
-   *   <li><b>Test scenario</b> – Splitting a single collection into multiple collections with a
-   *       predefined simple PartitionFn
-   *   <li><b>Boundary conditions checked</b> –
-   *       <ul>
-   *         <li>PCollection<?> to external transforms
-   *         <li>PCollectionList<?> from external transforms
-   *       </ul>
-   * </ul>
+   * <p>Target transform – Partition
+   * (https://beam.apache.org/documentation/programming-guide/#partition) Test scenario – Splitting
+   * a single collection into multiple collections with a predefined simple PartitionFn Boundary
+   * conditions checked – –> PCollection<?> to external transforms –> PCollectionList<?> from
+   * external transforms
    */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
