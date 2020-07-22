@@ -73,7 +73,7 @@ or a table. Pipeline construction will fail with a validation error if neither
 or both are specified.
 
 When reading via `ReadFromBigQuery`, bytes are returned decoded as bytes.
-This is due to the fact that ReadFromBigQuery uses Avro expors by default.
+This is due to the fact that ReadFromBigQuery uses Avro exports by default.
 When reading from BigQuery using `apache_beam.io.BigQuerySource`, bytes are
 returned as base64-encoded bytes. To get base64-encoded bytes using
 `ReadFromBigQuery`, you can use the flag `use_json_exports` to export
