@@ -419,7 +419,7 @@ A `PCollection` can be either **bounded** or **unbounded** in size. A
 `PCollection` is bounded or unbounded depends on the source of the data set that
 it represents. Reading from a batch data source, such as a file or a database,
 creates a bounded `PCollection`. Reading from a streaming or
-continously-updating data source, such as Pub/Sub or Kafka, creates an unbounded
+continuously-updating data source, such as Pub/Sub or Kafka, creates an unbounded
 `PCollection` (unless you explicitly tell it not to).
 
 The bounded (or unbounded) nature of your `PCollection` affects how Beam
@@ -835,7 +835,7 @@ Here is a sequence diagram that shows the lifecycle of the DoFn during
  the execution of the ParDo transform. The comments give useful 
  information to pipeline developers such as the constraints that 
  apply to the objects or particular cases such as failover or 
- instance reuse. They also give instanciation use cases.
+ instance reuse. They also give instantiation use cases.
  
 <!-- The source for the sequence diagram can be found in the the SVG resource. -->
 ![This is a sequence diagram that shows the lifecycle of the DoFn](/images/dofn-sequence-diagram.svg)
@@ -1518,7 +1518,7 @@ together.
   PCollection<String> words = ...;
 
   // The ParDo will filter words whose length is below a cutoff and add them to
-  // the main ouput PCollection<String>.
+  // the main output PCollection<String>.
   // If a word is above the cutoff, the ParDo will add the word length to an
   // output PCollection<Integer>.
   // If a word starts with the string "MARKER", the ParDo will add that word to an
@@ -2200,7 +2200,7 @@ public class Transaction {
 
 Using JavaBean classes as above is one way to map a schema to Java classes. However multiple Java classes might have
 the same schema, in which case the different Java types can often be used interchangeably. Beam will add implicit
-conversions betweens types that have matching schemas. For example, the above
+conversions between types that have matching schemas. For example, the above
 `Transaction` class has the same schema as the following class:
 
 {{< highlight java >}}
@@ -2532,8 +2532,8 @@ public class TransactionBean {
 ##### **AutoValue**
 
 Java value classes are notoriously difficult to generate correctly. There is a lot of boilerplate you must create in 
-order to properly implement a value class. AutoValue is a popular library for easily generating such classes by i
-mplementing a simple abstract base class.
+order to properly implement a value class. AutoValue is a popular library for easily generating such classes by
+implementing a simple abstract base class.
 
 Beam can infer a schema from an AutoValue class. For example:
 
@@ -2646,8 +2646,8 @@ The following
 purchasesByType.apply(Select.fieldNames("purchases{}.userId"));
 {{< /highlight >}}
 
-Will result in a row containing an map field with key-type string and value-type string. The selected map will contain
-all of the keys from the original map, and the values will be the userId contained in the purchasee reecord. 
+Will result in a row containing a map field with key-type string and value-type string. The selected map will contain
+all of the keys from the original map, and the values will be the userId contained in the purchase record.
 
 While the use of {} brackets in the selector is recommended, to make it clear that map value elements are being selected, 
 they can be omitted for brevity. In the future, map slicing will be supported, allowing selection of specific keys from
@@ -3796,7 +3796,7 @@ the end of a window.
 When you set `.withAllowedLateness` on a `PCollection`, that allowed lateness
 propagates forward to any subsequent `PCollection` derived from the first
 `PCollection` you applied allowed lateness to. If you want to change the allowed
-lateness later in your pipeline, you must do so explictly by applying
+lateness later in your pipeline, you must do so explicitly by applying
 `Window.configure().withAllowedLateness()`.
 
 ### 8.5. Adding timestamps to a PCollection's elements {#adding-timestamps-to-a-pcollections-elements}
@@ -4438,7 +4438,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 #### BagState
 
 A common use case for state is to accumulate multiple elements. `BagState` allows for accumulating an unordered set
-ofelements. This allows for addition of elements to the collection without requiring the reading of the entire
+of elements. This allows for addition of elements to the collection without requiring the reading of the entire
 collection first, which is an efficiency gain. In addition, runners that support paged reads can allow individual
 bags larger than available memory.
 

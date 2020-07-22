@@ -48,6 +48,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -304,6 +305,18 @@ public class DoFnSignaturesSplittableDoFnTest {
           PaneInfo paneInfo,
           @Timestamp Instant timestamp) {}
 
+      @TruncateRestriction
+      public TruncateResult<SomeRestriction> truncateRestriction(
+          @Element Integer element,
+          @Restriction SomeRestriction restriction,
+          RestrictionTracker<SomeRestriction, Void> restrictionTracker,
+          PipelineOptions pipelineOptions,
+          BoundedWindow boundedWindow,
+          PaneInfo paneInfo,
+          @Timestamp Instant timestamp) {
+        return TruncateResult.of(null);
+      }
+
       @NewTracker
       public SomeRestrictionTracker newTracker(
           @Element Integer element,
@@ -375,6 +388,12 @@ public class DoFnSignaturesSplittableDoFnTest {
                 signature.splitRestriction().extraParameters(), RestrictionParameter.class)
             .restrictionT()
             .getRawType());
+    assertEquals(
+        SomeRestriction.class,
+        getParameterOfType(
+                signature.truncateRestriction().extraParameters(), RestrictionParameter.class)
+            .restrictionT()
+            .getRawType());
     assertEquals(SomeRestrictionTracker.class, signature.newTracker().trackerT().getRawType());
     assertEquals(
         SomeRestriction.class,
@@ -430,6 +449,12 @@ public class DoFnSignaturesSplittableDoFnTest {
       public void splitRestriction(
           @Restriction RestrictionT restriction, OutputReceiver<RestrictionT> receiver) {}
 
+      @TruncateRestriction
+      public TruncateResult<RestrictionT> truncateRestriction(
+          @Restriction RestrictionT restriction) {
+        return TruncateResult.of(null);
+      }
+
       @NewTracker
       public TrackerT newTracker(@Restriction RestrictionT restriction) {
         return null;
@@ -483,6 +508,12 @@ public class DoFnSignaturesSplittableDoFnTest {
         SomeRestriction.class,
         getParameterOfType(
                 signature.splitRestriction().extraParameters(), RestrictionParameter.class)
+            .restrictionT()
+            .getRawType());
+    assertEquals(
+        SomeRestriction.class,
+        getParameterOfType(
+                signature.truncateRestriction().extraParameters(), RestrictionParameter.class)
             .restrictionT()
             .getRawType());
     assertEquals(RestrictionTracker.class, signature.newTracker().trackerT().getRawType());
@@ -953,6 +984,106 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage("@GetInitialRestriction method uses restriction type SomeRestriction");
     thrown.expectMessage(
         "splitRestriction(Integer, OtherRestriction, OutputReceiver): Uses restriction type OtherRestriction");
+    DoFnSignatures.getSignature(BadFn.class);
+  }
+
+  @Test
+  public void testTruncateRestrictionReturnsWrongType() throws Exception {
+    thrown.expectMessage("Must return TruncateResult<Restriction>");
+    DoFnSignatures.analyzeTruncateRestrictionMethod(
+        errors(),
+        TypeDescriptor.of(FakeDoFn.class),
+        new AnonymousMethod() {
+          void method(@Element Integer element, @Restriction SomeRestriction restriction) {}
+        }.getMethod(),
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(SomeRestriction.class),
+        FnAnalysisContext.create());
+  }
+
+  @Test
+  public void testTruncateRestrictionUnsupportedOutputReceiverArgument() throws Exception {
+    thrown.expectMessage("Illegal parameter type: OutputReceiverParameter");
+    DoFnSignatures.analyzeTruncateRestrictionMethod(
+        errors(),
+        TypeDescriptor.of(FakeDoFn.class),
+        new AnonymousMethod() {
+          TruncateResult<SomeRestriction> method(
+              @Element Integer element,
+              @Restriction SomeRestriction restriction,
+              DoFn.OutputReceiver<SomeRestriction> receiver) {
+            return null;
+          }
+        }.getMethod(),
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(SomeRestriction.class),
+        FnAnalysisContext.create());
+  }
+
+  @Test
+  public void testTruncateRestrictionUnsupportedSchemaElementArgument() throws Exception {
+    thrown.expectMessage(
+        "Schema @Element are not supported for @TruncateRestriction method. Found String, did you mean to use Integer?");
+    DoFnSignatures.analyzeTruncateRestrictionMethod(
+        errors(),
+        TypeDescriptor.of(FakeDoFn.class),
+        new AnonymousMethod() {
+          TruncateResult<SomeRestriction> method(
+              @Element String element, @Restriction SomeRestriction restriction) {
+            return null;
+          }
+        }.getMethod(),
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(SomeRestriction.class),
+        FnAnalysisContext.create());
+  }
+
+  @Test
+  public void testTruncateRestrictionWrongArgumentType() throws Exception {
+    thrown.expectMessage("Object is not a valid context parameter.");
+    DoFnSignatures.analyzeTruncateRestrictionMethod(
+        errors(),
+        TypeDescriptor.of(FakeDoFn.class),
+        new AnonymousMethod() {
+          private TruncateResult<SomeRestriction> method(
+              @Element Integer element, @Restriction SomeRestriction restriction, Object extra) {
+            return null;
+          }
+        }.getMethod(),
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(SomeRestriction.class),
+        FnAnalysisContext.create());
+  }
+
+  @Test
+  public void testTruncateRestrictionConsistentButWrongType() throws Exception {
+    class OtherRestriction {}
+
+    class BadFn extends DoFn<Integer, String> {
+      @ProcessElement
+      public void process(
+          ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
+
+      @NewTracker
+      public SomeRestrictionTracker newTracker(@Restriction SomeRestriction restriction) {
+        return null;
+      }
+
+      @GetInitialRestriction
+      public SomeRestriction getInitialRestriction(@Element Integer element) {
+        return null;
+      }
+
+      @DoFn.TruncateRestriction
+      public TruncateResult<OtherRestriction> truncateRestriction(
+          @Element Integer element, @Restriction OtherRestriction restriction) {
+        return TruncateResult.of(null);
+      }
+    }
+
+    thrown.expectMessage("@GetInitialRestriction method uses restriction type SomeRestriction");
+    thrown.expectMessage(
+        "truncateRestriction(Integer, OtherRestriction): Uses restriction type OtherRestriction");
     DoFnSignatures.getSignature(BadFn.class);
   }
 

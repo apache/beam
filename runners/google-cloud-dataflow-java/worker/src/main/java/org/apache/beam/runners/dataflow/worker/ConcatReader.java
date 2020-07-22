@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.io.range.OffsetRangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,7 +95,7 @@ public class ConcatReader<T> extends NativeReader<T> {
   @VisibleForTesting
   static class ConcatIterator<T> extends NativeReaderIterator<T> {
     private int currentIteratorIndex = -1;
-    @Nullable private NativeReaderIterator<T> currentIterator = null;
+    private @Nullable NativeReaderIterator<T> currentIterator = null;
     private final List<Source> sources;
     private final PipelineOptions options;
     private final DataflowExecutionContext executionContext;

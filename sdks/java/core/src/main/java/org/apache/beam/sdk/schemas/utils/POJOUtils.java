@@ -25,7 +25,6 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
@@ -65,6 +64,7 @@ import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.byt
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.ClassWriter;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A set of utilities to generate getter and setter classes for POJOs. */
 @Experimental(Kind.SCHEMAS)
@@ -274,8 +274,7 @@ public class POJOUtils {
    * </code></pre>
    */
   @SuppressWarnings("unchecked")
-  @Nullable
-  static <ObjectT, ValueT> FieldValueGetter<ObjectT, ValueT> createGetter(
+  static @Nullable <ObjectT, ValueT> FieldValueGetter<ObjectT, ValueT> createGetter(
       FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
     Field field = typeInformation.getField();
     DynamicType.Builder<FieldValueGetter> builder =

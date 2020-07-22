@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
@@ -63,6 +62,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.ImmutableN
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.NetworkBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -175,7 +175,7 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
   }
 
   private static class TestDoFn extends DoFn<String, Iterable<String>> {
-    @Nullable private final PCollectionView<List<String>> pCollectionView;
+    private final @Nullable PCollectionView<List<String>> pCollectionView;
 
     private TestDoFn(@Nullable PCollectionView<List<String>> pCollectionView) {
       this.pCollectionView = pCollectionView;

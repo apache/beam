@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.function.IntFunction;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.rel.AbstractBeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
@@ -103,15 +104,16 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
                 SqlStdOperatorTable.CASE, condition, rex, rexBuilder.makeNullLiteral(getRowType()));
       }
 
-      boolean verifyRowValues =
-          pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getVerifyRowValues();
+      BeamSqlPipelineOptions options =
+          pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class);
       Schema outputSchema = CalciteUtils.toSchema(getRowType());
       CalcFn calcFn =
           new CalcFn(
               context.toSql(getProgram(), rex).toSqlString(DIALECT).getSql(),
               upstream.getSchema(),
               outputSchema,
-              verifyRowValues);
+              options.getZetaSqlDefaultTimezone(),
+              options.getVerifyRowValues());
 
       // validate prepared expressions
       calcFn.setup();
@@ -128,19 +130,29 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     private final String sql;
     private final Schema inputSchema;
     private final Schema outputSchema;
+    private final String defaultTimezone;
     private final boolean verifyRowValues;
     private transient PreparedExpression exp;
 
-    CalcFn(String sql, Schema inputSchema, Schema outputSchema, boolean verifyRowValues) {
+    CalcFn(
+        String sql,
+        Schema inputSchema,
+        Schema outputSchema,
+        String defaultTimezone,
+        boolean verifyRowValues) {
       this.sql = sql;
       this.inputSchema = inputSchema;
       this.outputSchema = outputSchema;
+      this.defaultTimezone = defaultTimezone;
       this.verifyRowValues = verifyRowValues;
     }
 
     @Setup
     public void setup() {
-      AnalyzerOptions options = SqlAnalyzer.initAnalyzerOptions();
+      // TODO[BEAM-9182]: support parameters in expression evaluation
+      // Query parameters are not set because they have already been substituted.
+      AnalyzerOptions options =
+          SqlAnalyzer.getAnalyzerOptions(QueryParameters.ofNone(), defaultTimezone);
       for (int i = 0; i < inputSchema.getFieldCount(); i++) {
         options.addExpressionColumn(
             columnName(i),
@@ -163,7 +175,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
                 row.getBaseValue(i, Object.class), inputSchema.getField(i).getType()));
       }
 
-      // TODO[BEAM-8630]: support parameters in expression evaluation
+      // TODO[BEAM-9182]: support parameters in expression evaluation
       // The map is empty because parameters in the query string have already been substituted.
       Map<String, Value> params = Collections.emptyMap();
 

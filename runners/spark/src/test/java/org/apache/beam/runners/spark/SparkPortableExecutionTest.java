@@ -21,8 +21,9 @@ import java.io.File;
 import java.io.Serializable;
 import java.nio.file.FileSystems;
 import java.util.UUID;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -65,7 +66,9 @@ public class SparkPortableExecutionTest implements Serializable {
 
   @BeforeClass
   public static void setup() {
-    sparkJobExecutor = MoreExecutors.newDirectExecutorService();
+    // Restrict this to only one thread to avoid multiple Spark clusters up at the same time
+    // which is not suitable for memory-constraint environments, i.e. Jenkins.
+    sparkJobExecutor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
   }
 
   @AfterClass
@@ -78,7 +81,7 @@ public class SparkPortableExecutionTest implements Serializable {
     sparkJobExecutor = null;
   }
 
-  @Test(timeout = 120_000)
+  @Test(timeout = 600_000)
   public void testExecution() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.fromArgs("--experiments=beam_fn_api").create();
     options.setRunner(CrashingRunner.class);
@@ -156,7 +159,9 @@ public class SparkPortableExecutionTest implements Serializable {
             pipelineProto,
             options.as(SparkPipelineOptions.class));
     jobInvocation.start();
-    Assert.assertEquals(Enum.DONE, jobInvocation.getState());
+    while (jobInvocation.getState() != JobState.Enum.DONE) {
+      Thread.sleep(1000);
+    }
   }
 
   /**
@@ -197,7 +202,9 @@ public class SparkPortableExecutionTest implements Serializable {
             pipelineProto,
             options.as(SparkPipelineOptions.class));
     jobInvocation.start();
-    Assert.assertEquals(Enum.DONE, jobInvocation.getState());
+    while (jobInvocation.getState() != JobState.Enum.DONE) {
+      Thread.sleep(1000);
+    }
   }
 
   /**
@@ -237,7 +244,9 @@ public class SparkPortableExecutionTest implements Serializable {
             pipelineProto,
             options.as(SparkPipelineOptions.class));
     jobInvocation.start();
-    Assert.assertEquals(Enum.DONE, jobInvocation.getState());
+    while (jobInvocation.getState() != JobState.Enum.DONE) {
+      Thread.sleep(1000);
+    }
   }
 
   /** A non-idempotent DoFn that cannot be run more than once without error. */

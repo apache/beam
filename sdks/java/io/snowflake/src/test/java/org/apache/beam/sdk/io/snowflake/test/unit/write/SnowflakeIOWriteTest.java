@@ -87,7 +87,7 @@ public class SnowflakeIOWriteTest {
   }
 
   @Test
-  public void writeToExternalWithIntegrationTest() throws SnowflakeSQLException {
+  public void writeWithIntegrationTest() throws SnowflakeSQLException {
     pipeline
         .apply(Create.of(testData))
         .apply(
@@ -95,7 +95,7 @@ public class SnowflakeIOWriteTest {
             SnowflakeIO.<Long>write()
                 .withDataSourceConfiguration(dc)
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
-                .withTable(FAKE_TABLE)
+                .to(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withSnowflakeService(snowflakeService));
@@ -108,13 +108,13 @@ public class SnowflakeIOWriteTest {
   }
 
   @Test
-  public void writeToExternalWithMapperTest() throws SnowflakeSQLException {
+  public void writeWithMapperTest() throws SnowflakeSQLException {
     pipeline
         .apply(Create.of(testData))
         .apply(
-            "External text write IO",
+            "text write IO",
             SnowflakeIO.<Long>write()
-                .withTable(FAKE_TABLE)
+                .to(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withDataSourceConfiguration(dc)
@@ -129,7 +129,7 @@ public class SnowflakeIOWriteTest {
   }
 
   @Test
-  public void writeToExternalWithKVInput() {
+  public void writeWithKVInputTest() throws SnowflakeSQLException {
     pipeline
         .apply(Create.of(testData))
         .apply(ParDo.of(new TestUtils.ParseToKv()))
@@ -138,16 +138,21 @@ public class SnowflakeIOWriteTest {
             SnowflakeIO.<KV<String, Long>>write()
                 .withDataSourceConfiguration(dc)
                 .withUserDataMapper(TestUtils.getLongCsvMapperKV())
-                .withTable(FAKE_TABLE)
+                .to(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withSnowflakeService(snowflakeService));
 
     pipeline.run(options).waitUntilFinish();
+
+    List<String> actualData = FakeSnowflakeDatabase.getElements(FAKE_TABLE);
+    List<String> testDataInStrings =
+        testData.stream().map(e -> e.toString()).collect(Collectors.toList());
+    assertTrue(TestUtils.areListsEqual(testDataInStrings, actualData));
   }
 
   @Test
-  public void writeToExternalWithTransformationTest() throws SQLException {
+  public void writeWithTransformationTest() throws SQLException {
     String query = "select t.$1 from %s t";
     pipeline
         .apply(Create.of(testData))
@@ -155,7 +160,7 @@ public class SnowflakeIOWriteTest {
         .apply(
             "Write SnowflakeIO",
             SnowflakeIO.<KV<String, Long>>write()
-                .withTable(FAKE_TABLE)
+                .to(FAKE_TABLE)
                 .withStagingBucketName(options.getStagingBucketName())
                 .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withUserDataMapper(TestUtils.getLongCsvMapperKV())

@@ -22,7 +22,6 @@ from __future__ import absolute_import
 import unittest
 
 from apache_beam import coders
-from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
@@ -269,8 +268,6 @@ class StreamingCacheTest(unittest.TestCase):
     cache = StreamingCache(cache_dir=None, sample_resolution_sec=1.0)
 
     options = StandardOptions(streaming=True)
-    options.view_as(DebugOptions).add_experiment(
-        'passthrough_pcollection_output_ids')
     with TestPipeline(options=options) as p:
       records = (p | test_stream)[CACHED_RECORDS]
 
@@ -351,8 +348,6 @@ class StreamingCacheTest(unittest.TestCase):
     coder = SafeFastPrimitivesCoder()
 
     options = StandardOptions(streaming=True)
-    options.view_as(DebugOptions).add_experiment(
-        'passthrough_pcollection_output_ids')
     with TestPipeline(options=options) as p:
       # pylint: disable=expression-not-assigned
       events = p | test_stream

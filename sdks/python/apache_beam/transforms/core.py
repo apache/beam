@@ -320,6 +320,24 @@ class RestrictionProvider(object):
     for part in self.split(element, restriction):
       yield part, self.restriction_size(element, part)
 
+  def truncate(self, element, restriction):
+    """Truncates the provided restriction into a restriction representing a
+    finite amount of work when the pipeline is
+    `draining <https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#> for additional details about drain.>_`.  # pylint: disable=line-too-long
+    By default, if the restriction is bounded then the restriction will be
+    returned otherwise None will be returned.
+
+    This API is optional and should only be implemented if more granularity is
+    required.
+
+    Return a truncated finite restriction if further processing is required
+    otherwise return None to represent that no further processing of this
+    restriction is required.
+    """
+    restriction_tracker = self.create_tracker(restriction)
+    if restriction_tracker.is_bounded():
+      return restriction
+
 
 def get_function_arguments(obj, func):
   # type: (...) -> typing.Tuple[typing.List[str], typing.List[typing.Any]]
@@ -621,6 +639,16 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   @staticmethod
   def from_callable(fn):
     return CallableWrapperDoFn(fn)
+
+  @staticmethod
+  def unbounded_per_element():
+    """A decorator on process fn specifying that the fn performs an unbounded
+    amount of work per input element."""
+    def wrapper(process_fn):
+      process_fn.unbounded_per_element = True
+      return process_fn
+
+    return wrapper
 
   def default_label(self):
     return self.__class__.__name__
@@ -1321,6 +1349,9 @@ class ParDo(PTransformWithSideInputs):
         ``'main'``.
     """
     main_tag = main_kw.pop('main', None)
+    if main_tag in tags:
+      raise ValueError(
+          'Main output tag must be different from side output tags.')
     if main_kw:
       raise ValueError('Unexpected keyword arguments: %s' % list(main_kw))
     return _MultiParDo(self, tags, main_tag)
@@ -2056,12 +2087,12 @@ class CombineValues(PTransformWithSideInputs):
 
 class CombineValuesDoFn(DoFn):
   """DoFn for performing per-key Combine transforms."""
-
-  def __init__(self,
-               input_pcoll_type,
-               combinefn,  # type: CombineFn
-               runtime_type_check,  # type: bool
-              ):
+  def __init__(
+      self,
+      input_pcoll_type,
+      combinefn,  # type: CombineFn
+      runtime_type_check,  # type: bool
+  ):
     super(CombineValuesDoFn, self).__init__()
     self.combinefn = combinefn
     self.runtime_type_check = runtime_type_check
@@ -2112,11 +2143,11 @@ class CombineValuesDoFn(DoFn):
 
 
 class _CombinePerKeyWithHotKeyFanout(PTransform):
-
-  def __init__(self,
-               combine_fn,  # type: CombineFn
-               fanout,  # type: typing.Union[int, typing.Callable[[typing.Any], int]]
-              ):
+  def __init__(
+      self,
+      combine_fn,  # type: CombineFn
+      fanout,  # type: typing.Union[int, typing.Callable[[typing.Any], int]]
+  ):
     # type: (...) -> None
     self._combine_fn = combine_fn
     self._fanout_fn = ((lambda key: fanout)
@@ -2292,6 +2323,7 @@ class Windowing(object):
                accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
                timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
                allowed_lateness=0, # type: typing.Union[int, float]
+               environment_id=None, # type: str
                ):
     """Class representing the window strategy.
 
@@ -2305,6 +2337,8 @@ class Windowing(object):
       allowed_lateness: Maximum delay in seconds after end of window
         allowed for any late data to be processed without being discarded
         directly.
+      environment_id: Environment where the current window_fn should be
+        applied in.
     """
     global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
     # pylint: disable=wrong-import-order, wrong-import-position
@@ -2326,6 +2360,7 @@ class Windowing(object):
     self.triggerfn = triggerfn
     self.accumulation_mode = accumulation_mode
     self.allowed_lateness = Duration.of(allowed_lateness)
+    self.environment_id = environment_id
     self.timestamp_combiner = (
         timestamp_combiner or TimestampCombiner.OUTPUT_AT_EOW)
     self._is_default = (
@@ -2336,11 +2371,12 @@ class Windowing(object):
         self.allowed_lateness == 0)
 
   def __repr__(self):
-    return "Windowing(%s, %s, %s, %s)" % (
+    return "Windowing(%s, %s, %s, %s, %s)" % (
         self.windowfn,
         self.triggerfn,
         self.accumulation_mode,
-        self.timestamp_combiner)
+        self.timestamp_combiner,
+        self.environment_id)
 
   def __eq__(self, other):
     if type(self) == type(other):
@@ -2351,7 +2387,8 @@ class Windowing(object):
           self.triggerfn == other.triggerfn and
           self.accumulation_mode == other.accumulation_mode and
           self.timestamp_combiner == other.timestamp_combiner and
-          self.allowed_lateness == other.allowed_lateness)
+          self.allowed_lateness == other.allowed_lateness and
+          self.environment_id == self.environment_id)
     return False
 
   def __ne__(self, other):
@@ -2364,13 +2401,15 @@ class Windowing(object):
         self.triggerfn,
         self.accumulation_mode,
         self.allowed_lateness,
-        self.timestamp_combiner))
+        self.timestamp_combiner,
+        self.environment_id))
 
   def is_default(self):
     return self._is_default
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.WindowingStrategy
+    environment_id = self.environment_id or context.default_environment_id()
     return beam_runner_api_pb2.WindowingStrategy(
         window_fn=self.windowfn.to_runner_api(context),
         # TODO(robertwb): Prohibit implicit multi-level merging.
@@ -2386,7 +2425,7 @@ class Windowing(object):
         closing_behavior=beam_runner_api_pb2.ClosingBehavior.EMIT_ALWAYS,
         OnTimeBehavior=beam_runner_api_pb2.OnTimeBehavior.FIRE_ALWAYS,
         allowed_lateness=self.allowed_lateness.micros // 1000,
-        environment_id=context.default_environment_id())
+        environment_id=environment_id)
 
   @staticmethod
   def from_runner_api(proto, context):
@@ -2397,7 +2436,8 @@ class Windowing(object):
         triggerfn=TriggerFn.from_runner_api(proto.trigger, context),
         accumulation_mode=proto.accumulation_mode,
         timestamp_combiner=proto.output_time,
-        allowed_lateness=Duration(micros=proto.allowed_lateness * 1000))
+        allowed_lateness=Duration(micros=proto.allowed_lateness * 1000),
+        environment_id=proto.environment_id)
 
 
 @typehints.with_input_types(T)
@@ -2423,12 +2463,13 @@ class WindowInto(ParDo):
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
 
-  def __init__(self,
-               windowfn,  # type: typing.Union[Windowing, WindowFn]
-               trigger=None,  # type: typing.Optional[TriggerFn]
-               accumulation_mode=None,
-               timestamp_combiner=None,
-               allowed_lateness=0):
+  def __init__(
+      self,
+      windowfn,  # type: typing.Union[Windowing, WindowFn]
+      trigger=None,  # type: typing.Optional[TriggerFn]
+      accumulation_mode=None,
+      timestamp_combiner=None,
+      allowed_lateness=0):
     """Initializes a WindowInto transform.
 
     Args:

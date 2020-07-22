@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import javax.annotation.CheckForNull;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code WithKeys<K, V>} takes a {@code PCollection<V>}, and either a constant key of type {@code
@@ -74,7 +74,7 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>, PCollection<KV<K,
    * paired with the given key.
    */
   @SuppressWarnings("unchecked")
-  public static <K, V> WithKeys<K, V> of(@Nullable final K key) {
+  public static <K, V> WithKeys<K, V> of(final @Nullable K key) {
     return new WithKeys<>(
         value -> key,
         (TypeDescriptor<K>)

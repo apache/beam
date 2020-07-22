@@ -67,10 +67,18 @@ class SqlTransform(ExternalTransform):
   """
   URN = 'beam:external:java:sql:v1'
 
-  def __init__(self, query, dialect=None):
+  def __init__(self, query, dialect=None, expansion_service=None):
+    """
+    Creates a SqlTransform which will be expanded to Java's SqlTransform.
+    (See class docs).
+    :param query: The SQL query.
+    :param dialect: (optional) The dialect, e.g. use 'zetasql' for ZetaSQL.
+    :param expansion_service: (optional) The URL of the expansion service to use
+    """
+    expansion_service = expansion_service or BeamJarExpansionService(
+        ':sdks:java:extensions:sql:expansion-service:shadowJar')
     super(SqlTransform, self).__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
             SqlTransformSchema(query=query, dialect=dialect)),
-        BeamJarExpansionService(
-            ':sdks:java:extensions:sql:expansion-service:shadowJar'))
+        expansion_service=expansion_service)

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.nexmark;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
@@ -25,6 +24,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Command line flags. */
 public interface NexmarkOptions
@@ -42,8 +42,7 @@ public interface NexmarkOptions
   void setMonitorJobs(boolean monitorJobs);
 
   @Description("Where the events come from.")
-  @Nullable
-  NexmarkUtils.SourceType getSourceType();
+  NexmarkUtils.@Nullable SourceType getSourceType();
 
   void setSourceType(NexmarkUtils.SourceType sourceType);
 
@@ -54,8 +53,7 @@ public interface NexmarkOptions
   void setInputPath(String inputPath);
 
   @Description("Where results go.")
-  @Nullable
-  NexmarkUtils.SinkType getSinkType();
+  NexmarkUtils.@Nullable SinkType getSinkType();
 
   void setSinkType(NexmarkUtils.SinkType sinkType);
 
@@ -66,8 +64,7 @@ public interface NexmarkOptions
   void setExportSummaryToBigQuery(Boolean exportSummaryToBigQuery);
 
   @Description("Which mode to run in when source is PUBSUB.")
-  @Nullable
-  NexmarkUtils.PubSubMode getPubSubMode();
+  NexmarkUtils.@Nullable PubSubMode getPubSubMode();
 
   void setPubSubMode(NexmarkUtils.PubSubMode pubSubMode);
 
@@ -139,6 +136,12 @@ public interface NexmarkOptions
 
   void setStreamTimeout(Integer streamTimeout);
 
+  @Description("Proactively cancels streaming job after query is completed")
+  @Default.Boolean(false)
+  boolean getCancelStreamingJobAfterFinish();
+
+  void setCancelStreamingJobAfterFinish(boolean cancelStreamingJobAfterFinish);
+
   @Description("Number of unbounded sources to create events.")
   @Nullable
   Integer getNumEventGenerators();
@@ -146,8 +149,7 @@ public interface NexmarkOptions
   void setNumEventGenerators(Integer numEventGenerators);
 
   @Description("Shape of event rate curve.")
-  @Nullable
-  NexmarkUtils.RateShape getRateShape();
+  NexmarkUtils.@Nullable RateShape getRateShape();
 
   void setRateShape(NexmarkUtils.RateShape rateShape);
 
@@ -164,8 +166,7 @@ public interface NexmarkOptions
   void setNextEventRate(Integer nextEventRate);
 
   @Description("Unit for rates.")
-  @Nullable
-  NexmarkUtils.RateUnit getRateUnit();
+  NexmarkUtils.@Nullable RateUnit getRateUnit();
 
   void setRateUnit(NexmarkUtils.RateUnit rateUnit);
 
@@ -303,8 +304,7 @@ public interface NexmarkOptions
   void setJustModelResultRate(boolean justModelResultRate);
 
   @Description("Coder strategy to use.")
-  @Nullable
-  NexmarkUtils.CoderStrategy getCoderStrategy();
+  NexmarkUtils.@Nullable CoderStrategy getCoderStrategy();
 
   void setCoderStrategy(NexmarkUtils.CoderStrategy coderStrategy);
 

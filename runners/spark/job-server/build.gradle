@@ -30,6 +30,7 @@ mainClassName = "org.apache.beam.runners.spark.SparkJobServerDriver"
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.spark.jobserver',
   validateShadowJar: false,
+  enableChecker: false,
   exportJavadoc: false,
   shadowClosure: {
     append "reference.conf"
@@ -153,7 +154,7 @@ createCrossLanguageValidatesRunnerTask(
   startJobServer: setupTask,
   cleanupJobServer: cleanupTask,
   jobEndpoint: "localhost:${jobPort}",
-  testClasspathConfiguration: configurations.validatesPortableRunner,
+  classpath: configurations.validatesPortableRunner,
   numParallelTests: 1
 )
 

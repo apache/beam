@@ -25,7 +25,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.direct.UnboundedReadDeduplicator.NeverDeduplicator;
 import org.apache.beam.sdk.io.Read;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -72,8 +72,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
-  @Nullable
-  public <InputT> TransformEvaluator<InputT> forApplication(
+  public @Nullable <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) {
     return createEvaluator((AppliedPTransform) application);
   }
@@ -305,11 +304,9 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     abstract UnboundedReadDeduplicator getDeduplicator();
 
-    @Nullable
-    abstract UnboundedReader<T> getExistingReader();
+    abstract @Nullable UnboundedReader<T> getExistingReader();
 
-    @Nullable
-    abstract CheckpointT getCheckpoint();
+    abstract @Nullable CheckpointT getCheckpoint();
   }
 
   static class InputProvider<T>

@@ -20,19 +20,19 @@ import PrecommitJobBuilder
 import CommonJobProperties as properties
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
-        scope: this,
-        nameBase: 'SQL_Java11',
-        gradleTask: ':sqlPreCommit',
-        gradleSwitches: [
-                '-PdisableSpotlessCheck=true',
-                '-PcompileAndRunTestsWithJava11',
-                "-Pjava11Home=${properties.JAVA_11_HOME}"
-        ], // spotless checked in job_PreCommit_Spotless
-        triggerPathPatterns: [
-                '^sdks/java/extensions/sql.*$',
-        ],
-        timeoutMins: 30
-)
+    scope: this,
+    nameBase: 'SQL_Java11',
+    gradleTask: ':sqlPreCommit',
+    gradleSwitches: [
+      '-PdisableSpotlessCheck=true',
+      '-PcompileAndRunTestsWithJava11',
+      "-Pjava11Home=${properties.JAVA_11_HOME}"
+    ], // spotless checked in job_PreCommit_Spotless
+    triggerPathPatterns: [
+      '^sdks/java/extensions/sql.*$',
+    ],
+    timeoutMins: 30
+    )
 builder.build {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
