@@ -261,6 +261,30 @@ class BlobStorageIO(object):
       else:
         # We re-raise all other exceptions
         raise
+  
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_beam_io_error_filter)
+  def last_updated(self, path):
+    """Returns the last updated epoch time of a single Azure Blob Storage blob.
+
+    This method does not perform glob expansion. Hence the given path must be
+    for a single S3 object.
+
+    Returns: last updated time of the Azure Blob Storage blob in seconds.
+    """
+    storage_account, container, blob = parse_azfs_path(path)
+    blob_to_check = self.client.get_blob_client(container, blob)
+    try:
+      properties = blob_to_check.get_blob_properties()
+    except ResourceNotFoundError as e:
+      message = e.reason
+      code = e.status_code
+      raise BlobStorageError(message, code)
+    
+    datatime = properties.last_updated
+    return (
+        time.mktime(datatime.timetuple()) - time.timezone +
+        datatime.microsecond / 1000000.0)
 
 
 class BlobStorageDownloader(Downloader):
