@@ -105,8 +105,7 @@ class AzfsResourceId implements ResourceId {
 
   String getBlobNonWildcardPrefix() {
     Matcher m = GLOB_PREFIX.matcher(blob);
-    checkArgument(
-        m.matches(), String.format("Glob expression: [%s] is not expandable.", blob));
+    checkArgument(m.matches(), String.format("Glob expression: [%s] is not expandable.", blob));
     return m.group("PREFIX");
   }
 
@@ -118,8 +117,7 @@ class AzfsResourceId implements ResourceId {
     if (blob.lastIndexOf('/') == -1) {
       return fromComponents(account, container);
     }
-    return fromComponents(
-        account, container, blob.substring(0, blob.lastIndexOf('/') + 1));
+    return fromComponents(account, container, blob.substring(0, blob.lastIndexOf('/') + 1));
   }
 
   @Nullable
