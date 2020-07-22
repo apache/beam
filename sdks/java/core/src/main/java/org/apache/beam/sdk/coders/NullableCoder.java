@@ -21,11 +21,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link NullableCoder} encodes nullable values of type {@code T} using a nested {@code Coder<T>}
@@ -80,8 +80,8 @@ public class NullableCoder<T> extends StructuredCoder<T> {
   }
 
   @Override
-  @Nullable
-  public T decode(InputStream inStream, Context context) throws IOException, CoderException {
+  public @Nullable T decode(InputStream inStream, Context context)
+      throws IOException, CoderException {
     int b = inStream.read();
     if (b == ENCODE_NULL) {
       return null;

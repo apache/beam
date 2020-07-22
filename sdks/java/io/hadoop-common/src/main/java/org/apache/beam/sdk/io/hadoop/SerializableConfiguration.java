@@ -23,9 +23,9 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A wrapper to allow Hadoop {@link Configuration}s to be serialized using Java's standard

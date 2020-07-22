@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@code BlockBasedSource} is a {@link FileBasedSource} where a file consists of blocks of
@@ -152,8 +152,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
      * BlockBasedReader#readNextBlock}). May return null initially, or if no block has been
      * successfully read.
      */
-    @Nullable
-    public abstract Block<T> getCurrentBlock();
+    public abstract @Nullable Block<T> getCurrentBlock();
 
     /**
      * Returns the size of the current block in bytes as it is represented in the underlying file,
@@ -218,8 +217,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
     }
 
     @Override
-    @Nullable
-    public Double getFractionConsumed() {
+    public @Nullable Double getFractionConsumed() {
       if (!isStarted()) {
         return 0.0;
       }

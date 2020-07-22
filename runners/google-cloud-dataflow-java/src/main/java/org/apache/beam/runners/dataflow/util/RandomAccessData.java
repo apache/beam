@@ -37,6 +37,7 @@ import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An elastic-sized byte array which allows you to manipulate it as a stream, or access it directly.
@@ -311,7 +312,7 @@ public class RandomAccessData {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (other == this) {
       return true;
     }

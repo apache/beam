@@ -759,6 +759,9 @@ class BeamModulePlugin implements Plugin<Project> {
           checkers = [
             'org.checkerframework.checker.nullness.NullnessChecker'
           ]
+          extraJavacArgs = [
+            '-AskipDefs=AutoValue_.*'
+          ]
         }
 
         project.dependencies {

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
@@ -30,6 +29,7 @@ import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link FileBasedSink} for Avro files. */
 class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, DestinationT, OutputT> {
@@ -76,7 +76,7 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
   private static class AvroWriter<DestinationT, OutputT> extends Writer<DestinationT, OutputT> {
 
     // Initialized in prepareWrite
-    @Nullable private DataFileWriter<OutputT> dataFileWriter;
+    private @Nullable DataFileWriter<OutputT> dataFileWriter;
 
     private final DynamicAvroDestinations<?, DestinationT, ?> dynamicDestinations;
     private final boolean genericRecords;
