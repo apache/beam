@@ -241,7 +241,10 @@ class OperationCounters(object):
   def type_check(self, value, is_input):
     # type: (any, bool) -> None
     try:
-      type_constraint = self.type_hints.input_types[0][0][0][0]
+      if is_input:
+        type_constraint = self.type_hints.input_types[0][0][0][0]
+      else:
+        type_constraint = self.type_hints.output_types[0][0][0][0]
     except (TypeError, AttributeError, IndexError):
       return
 
@@ -249,7 +252,11 @@ class OperationCounters(object):
 
   def do_sample(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
-    self.type_check(windowed_value.value, True)
+    is_input = True
+    if self.element_counter.name.startswith(('First', 'Second')):
+      is_input = False
+
+    self.type_check(windowed_value.value, is_input)
 
     size, observables = (
         self.coder_impl.get_estimated_size_and_observables(windowed_value))

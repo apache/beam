@@ -520,6 +520,12 @@ class Pipeline(object):
             self._options,
             allow_proto_holders=True).run(False)
 
+      if (self._options.view_as(TypeOptions).runtime_type_check and
+              self._options.view_as(TypeOptions).performance_runtime_type_check):
+        raise ValueError('You cannot turn on runtime_type_check '
+                         'and performance_runtime_type_check simultaneously. '
+                         'Pick one or the other.')
+
       if self._options.view_as(TypeOptions).runtime_type_check:
         from apache_beam.typehints import typecheck
         self.visit(typecheck.TypeCheckVisitor())
