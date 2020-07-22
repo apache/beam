@@ -19,6 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   exportJavadoc: false,
+  ignoreRawtypeErrors: true,
   automaticModuleName: 'org.apache.beam.runners.extensions.metrics',
   enableChecker:false)
 

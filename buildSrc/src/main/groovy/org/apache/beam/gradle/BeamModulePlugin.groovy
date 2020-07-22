@@ -84,8 +84,11 @@ class BeamModulePlugin implements Plugin<Project> {
     /** Controls whether the spotbugs plugin is enabled and configured. */
     boolean enableSpotbugs = true
 
-    /** Conatrols whether the checker framework plugin is enabled and configured. */
+    /** Controls whether the checker framework plugin is enabled and configured. */
     boolean enableChecker = true
+
+    /** Controls whether legacy rawtype usage is allowed. */
+    boolean ignoreRawtypeErrors = false
 
     /** Controls whether the dependency analysis plugin is enabled. */
     boolean enableStrictDependencies = false
@@ -695,12 +698,15 @@ class BeamModulePlugin implements Plugin<Project> {
         'deprecation',
         'fallthrough',
         'processing',
-        'rawtypes',
         'serial',
         'try',
         'unchecked',
         'varargs',
       ]
+
+      if (configuration.ignoreRawtypeErrors) {
+        defaultLintSuppressions.add("rawtypes")
+      }
 
       project.tasks.withType(JavaCompile) {
         options.encoding = "UTF-8"
