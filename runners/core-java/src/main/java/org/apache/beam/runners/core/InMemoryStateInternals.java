@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateTag.StateBinder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -49,6 +48,7 @@ import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -221,7 +221,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
 
     private final TimestampCombiner timestampCombiner;
 
-    @Nullable private Instant combinedHold = null;
+    private @Nullable Instant combinedHold = null;
 
     public InMemoryWatermarkHold(TimestampCombiner timestampCombiner) {
       this.timestampCombiner = timestampCombiner;

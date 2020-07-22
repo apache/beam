@@ -65,7 +65,7 @@ public class KV<K extends @Nullable Object, V extends @Nullable Object> implemen
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (this == other) {
       return true;
     }

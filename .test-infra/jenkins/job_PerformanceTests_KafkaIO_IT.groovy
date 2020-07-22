@@ -39,26 +39,26 @@ job(jobName) {
   (0..2).each { k8s.loadBalancerIP("outside-$it", "KAFKA_BROKER_$it") }
 
   Map pipelineOptions = [
-      tempRoot                     : 'gs://temp-storage-for-perf-tests',
-      project                      : 'apache-beam-testing',
-      runner                       : 'DataflowRunner',
-      sourceOptions                : """
-                                          {
-                                            "numRecords": "100000000",
-                                            "keySizeBytes": "1",
-                                            "valueSizeBytes": "90"
-                                          }
-                            """.trim().replaceAll("\\s", ""),
-      bigQueryDataset              : 'beam_performance',
-      bigQueryTable                : 'kafkaioit_results',
-      influxMeasurement            : 'kafkaioit_results',
-      influxDatabase               : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-      influxHost                   : InfluxDBCredentialsHelper.InfluxDBHostname,
-      kafkaBootstrapServerAddresses: "\$KAFKA_BROKER_0:32400,\$KAFKA_BROKER_1:32401,\$KAFKA_BROKER_2:32402",
-      kafkaTopic                   : 'beam',
-      readTimeout                  : '900',
-      numWorkers                   : '5',
-      autoscalingAlgorithm         : 'NONE'
+    tempRoot                     : 'gs://temp-storage-for-perf-tests',
+    project                      : 'apache-beam-testing',
+    runner                       : 'DataflowRunner',
+    sourceOptions                : """
+                                     {
+                                       "numRecords": "100000000",
+                                       "keySizeBytes": "1",
+                                       "valueSizeBytes": "90"
+                                     }
+                                   """.trim().replaceAll("\\s", ""),
+    bigQueryDataset              : 'beam_performance',
+    bigQueryTable                : 'kafkaioit_results',
+    influxMeasurement            : 'kafkaioit_results',
+    influxDatabase               : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influxHost                   : InfluxDBCredentialsHelper.InfluxDBHostname,
+    kafkaBootstrapServerAddresses: "\$KAFKA_BROKER_0:32400,\$KAFKA_BROKER_1:32401,\$KAFKA_BROKER_2:32402",
+    kafkaTopic                   : 'beam',
+    readTimeout                  : '900',
+    numWorkers                   : '5',
+    autoscalingAlgorithm         : 'NONE'
   ]
 
   steps {

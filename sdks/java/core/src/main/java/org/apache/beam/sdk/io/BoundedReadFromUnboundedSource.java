@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -228,13 +228,12 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
    */
   @AutoValue
   abstract static class Shard<T> implements Serializable {
-    @Nullable
-    abstract UnboundedSource<T, ?> getSource();
+
+    abstract @Nullable UnboundedSource<T, ?> getSource();
 
     abstract long getMaxNumRecords();
 
-    @Nullable
-    abstract Duration getMaxReadTime();
+    abstract @Nullable Duration getMaxReadTime();
 
     abstract Builder<T> toBuilder();
 

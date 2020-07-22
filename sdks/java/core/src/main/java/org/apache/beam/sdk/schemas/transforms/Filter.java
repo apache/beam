@@ -21,7 +21,6 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
@@ -35,6 +34,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link PTransform} for filtering a collection of schema types.
@@ -96,13 +96,11 @@ public class Filter {
 
       abstract SerializableFunction<FieldT, Boolean> getPredicate();
 
-      @Nullable
-      abstract Schema getSelectedSchema();
+      abstract @Nullable Schema getSelectedSchema();
 
       abstract boolean getSelectsSingleField();
 
-      @Nullable
-      abstract Schema getInputSchema();
+      abstract @Nullable Schema getInputSchema();
 
       abstract Builder<FieldT> toBuilder();
 

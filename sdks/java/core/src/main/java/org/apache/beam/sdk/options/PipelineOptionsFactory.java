@@ -619,7 +619,7 @@ public class PipelineOptionsFactory {
         Method method = propertyNamesToGetters.get(propertyName);
         String printableType = method.getReturnType().getSimpleName();
         if (method.getReturnType().isEnum()) {
-          @Nullable Object[] enumConstants = method.getReturnType().getEnumConstants();
+          Object @Nullable [] enumConstants = method.getReturnType().getEnumConstants();
           assert enumConstants != null : "@AssumeAssertion(nullness): checked that it is an enum";
           printableType = Joiner.on(" | ").join(method.getReturnType().getEnumConstants());
         }

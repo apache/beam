@@ -23,7 +23,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * This class provides the most general way of specifying dynamic BigQuery table destinations.
@@ -78,8 +78,8 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view);
   }
 
-  @Nullable private transient SideInputAccessor sideInputAccessor;
-  @Nullable private transient PipelineOptions options;
+  private transient @Nullable SideInputAccessor sideInputAccessor;
+  private transient @Nullable PipelineOptions options;
 
   static class SideInputAccessorViaProcessContext implements SideInputAccessor {
     private DoFn<?, ?>.ProcessContext processContext;
@@ -137,8 +137,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
    * {@link DestinationT} will be used as a key type in a {@link
    * org.apache.beam.sdk.transforms.GroupByKey}.
    */
-  @Nullable
-  public Coder<DestinationT> getDestinationCoder() {
+  public @Nullable Coder<DestinationT> getDestinationCoder() {
     return null;
   }
 

@@ -20,9 +20,9 @@ package org.apache.beam.runners.dataflow.worker.counters;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.ToStringHelper;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The name of a counter identifies the user-specified name, as well as the origin, the step the
@@ -218,16 +218,13 @@ public abstract class CounterName {
   public abstract String prefix();
 
   /** An optional {@code contextOriginalName}. */
-  @Nullable
-  public abstract String contextOriginalName();
+  public abstract @Nullable String contextOriginalName();
 
   /** An optional {@code contextSystemName}. */
-  @Nullable
-  public abstract String contextSystemName();
+  public abstract @Nullable String contextSystemName();
 
   /** An optional {@code originalRequestingStepName}. */
-  @Nullable
-  public abstract String originalRequestingStepName();
+  public abstract @Nullable String originalRequestingStepName();
 
   /**
    * An optional identifier of a PCollection by index in input list received by step.
@@ -235,8 +232,7 @@ public abstract class CounterName {
    * <p>A CounterName with inputIndex set to 1, and stepName set to 's1' would declare a counter
    * associated to s1's first side input.
    */
-  @Nullable
-  public abstract Integer inputIndex();
+  public abstract @Nullable Integer inputIndex();
 
   /**
    * Flat name is suitable only for hashing.

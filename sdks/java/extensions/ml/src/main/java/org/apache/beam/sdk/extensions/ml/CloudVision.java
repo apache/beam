@@ -25,10 +25,10 @@ import com.google.cloud.vision.v1.ImageSource;
 import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Factory class for implementations of {@link AnnotateImages}.

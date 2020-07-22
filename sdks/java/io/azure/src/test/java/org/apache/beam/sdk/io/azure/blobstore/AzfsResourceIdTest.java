@@ -91,7 +91,7 @@ public class AzfsResourceIdTest {
       assertEquals(testCase.expectedResult, resolved.toString());
     }
 
-    // Tests for common gcs paths.
+    // Tests for common Azure paths.
     assertEquals(
         AzfsResourceId.fromUri("azfs://account/container/tmp/aa"),
         AzfsResourceId.fromUri("azfs://account/container/tmp/").resolve("aa", RESOLVE_FILE));

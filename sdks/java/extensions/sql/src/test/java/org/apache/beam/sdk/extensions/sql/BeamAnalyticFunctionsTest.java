@@ -360,4 +360,117 @@ public class BeamAnalyticFunctionsTest extends BeamSqlDslBase {
 
     pipeline.run();
   }
+
+  // Tests for new functions
+  @Test
+  public void testFirstValueFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PCollection<Row> inputRows = inputData();
+    String sql =
+        "SELECT item, purchases, category, FIRST_VALUE(purchases) over "
+            + "("
+            + "PARTITION BY category "
+            + "ORDER BY purchases "
+            + "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"
+            + ")"
+            + " as total_purchases  FROM PCOLLECTION";
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Schema overResultSchema =
+        Schema.builder()
+            .addStringField("item")
+            .addInt32Field("purchases")
+            .addStringField("category")
+            .addInt32Field("total_purchases")
+            .build();
+
+    List<Row> overResult =
+        TestUtils.RowsBuilder.of(overResultSchema)
+            .addRows(
+                "orange",
+                2,
+                "fruit",
+                2,
+                "apple",
+                8,
+                "fruit",
+                2,
+                "leek",
+                2,
+                "vegetable",
+                2,
+                "cabbage",
+                9,
+                "vegetable",
+                2,
+                "lettuce",
+                10,
+                "vegetable",
+                2,
+                "kale",
+                23,
+                "vegetable",
+                2)
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(overResult);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testLastValueFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PCollection<Row> inputRows = inputData();
+    String sql =
+        "SELECT item, purchases, category, LAST_VALUE(purchases) over "
+            + "("
+            + "PARTITION BY category "
+            + "ORDER BY purchases "
+            + "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"
+            + ")"
+            + " as total_purchases  FROM PCOLLECTION";
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Schema overResultSchema =
+        Schema.builder()
+            .addStringField("item")
+            .addInt32Field("purchases")
+            .addStringField("category")
+            .addInt32Field("total_purchases")
+            .build();
+
+    List<Row> overResult =
+        TestUtils.RowsBuilder.of(overResultSchema)
+            .addRows(
+                "orange",
+                2,
+                "fruit",
+                2,
+                "apple",
+                8,
+                "fruit",
+                8,
+                "leek",
+                2,
+                "vegetable",
+                2,
+                "cabbage",
+                9,
+                "vegetable",
+                9,
+                "lettuce",
+                10,
+                "vegetable",
+                10,
+                "kale",
+                23,
+                "vegetable",
+                23)
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(overResult);
+
+    pipeline.run();
+  }
 }

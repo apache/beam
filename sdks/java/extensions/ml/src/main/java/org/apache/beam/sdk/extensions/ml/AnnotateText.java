@@ -23,12 +23,12 @@ import com.google.cloud.language.v1.AnnotateTextResponse;
 import com.google.cloud.language.v1.Document;
 import com.google.cloud.language.v1.LanguageServiceClient;
 import java.io.IOException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link PTransform} using the Cloud AI Natural language processing capability. Takes an input
@@ -43,8 +43,7 @@ import org.apache.beam.sdk.values.PCollection;
 public abstract class AnnotateText
     extends PTransform<PCollection<Document>, PCollection<AnnotateTextResponse>> {
 
-  @Nullable
-  public abstract String languageHint();
+  public abstract @Nullable String languageHint();
 
   public abstract AnnotateTextRequest.Features features();
 

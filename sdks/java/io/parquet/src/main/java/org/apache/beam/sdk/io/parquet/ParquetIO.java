@@ -27,7 +27,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -57,6 +56,7 @@ import org.apache.parquet.io.InputFile;
 import org.apache.parquet.io.OutputFile;
 import org.apache.parquet.io.PositionOutputStream;
 import org.apache.parquet.io.SeekableInputStream;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * IO to read and write Parquet files.
@@ -148,14 +148,11 @@ public class ParquetIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<GenericRecord>> {
 
-    @Nullable
-    abstract ValueProvider<String> getFilepattern();
+    abstract @Nullable ValueProvider<String> getFilepattern();
 
-    @Nullable
-    abstract Schema getSchema();
+    abstract @Nullable Schema getSchema();
 
-    @Nullable
-    abstract GenericData getAvroDataModel();
+    abstract @Nullable GenericData getAvroDataModel();
 
     abstract Builder toBuilder();
 
@@ -211,11 +208,9 @@ public class ParquetIO {
   public abstract static class ReadFiles
       extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<GenericRecord>> {
 
-    @Nullable
-    abstract Schema getSchema();
+    abstract @Nullable Schema getSchema();
 
-    @Nullable
-    abstract GenericData getAvroDataModel();
+    abstract @Nullable GenericData getAvroDataModel();
 
     abstract Builder toBuilder();
 
@@ -321,13 +316,11 @@ public class ParquetIO {
   @AutoValue
   public abstract static class Sink implements FileIO.Sink<GenericRecord> {
 
-    @Nullable
-    abstract String getJsonSchema();
+    abstract @Nullable String getJsonSchema();
 
     abstract CompressionCodecName getCompressionCodec();
 
-    @Nullable
-    abstract SerializableConfiguration getConfiguration();
+    abstract @Nullable SerializableConfiguration getConfiguration();
 
     abstract Builder toBuilder();
 
@@ -358,7 +351,7 @@ public class ParquetIO {
           .build();
     }
 
-    @Nullable private transient ParquetWriter<GenericRecord> writer;
+    private transient @Nullable ParquetWriter<GenericRecord> writer;
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {

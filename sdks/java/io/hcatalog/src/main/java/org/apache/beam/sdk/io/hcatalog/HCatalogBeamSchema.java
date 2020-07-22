@@ -42,7 +42,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Experimental(Kind.SCHEMAS)
 public class HCatalogBeamSchema {
 
-  private @Nullable final IMetaStoreClient metastore;
+  private final @Nullable IMetaStoreClient metastore;
 
   private HCatalogBeamSchema(IMetaStoreClient metastore) {
     this.metastore = metastore;
