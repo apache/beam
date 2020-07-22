@@ -281,7 +281,7 @@ class BlobStorageIO(object):
       code = e.status_code
       raise BlobStorageError(message, code)
     
-    datatime = properties.last_updated
+    datatime = properties.last_modified
     return (
         time.mktime(datatime.timetuple()) - time.timezone +
         datatime.microsecond / 1000000.0)

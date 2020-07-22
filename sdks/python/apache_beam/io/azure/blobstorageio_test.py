@@ -24,6 +24,7 @@ import logging
 import unittest
 import os
 import datetime
+import time
 from builtins import object
 
 from apache_beam.io.azure import blobstorageio
@@ -108,10 +109,10 @@ class TestAZFSPathParser(unittest.TestCase):
 
 
 class TestBlobStorageIO(unittest.TestCase):
-  def _insert_random_file(self, path, size):
+  def _insert_random_file(self, path, size, last_updated=None):
     storage_account, container, blob = blobstorageio.parse_azfs_path(path)
     contents = os.urandom(size)
-    fake_file = FakeFile(container, blob, contents)
+    fake_file = FakeFile(container, blob, contents, last_updated=last_updated)
 
     f = self.azfs.open(path, 'w')
     f.write(contents)
@@ -307,6 +308,19 @@ class TestBlobStorageIO(unittest.TestCase):
     new_file = self.azfs.open(file_name, 'r')
     new_file_contents = new_file.read()
     self.assertEqual(new_file_contents, contents)
+
+    # Clean up
+    self.azfs.delete(file_name)
+
+  def test_last_updated(self):
+    file_name = self.TEST_DATA_PATH + 'test_file_last_updated'
+    file_size = 1024
+    tolerance = 60
+
+    self._insert_random_file(file_name, file_size)
+    self.assertTrue(self.azfs.exists(file_name))
+    self.assertAlmostEqual(
+        self.azfs.last_updated(file_name), time.time(), delta=tolerance)
 
     # Clean up
     self.azfs.delete(file_name)
