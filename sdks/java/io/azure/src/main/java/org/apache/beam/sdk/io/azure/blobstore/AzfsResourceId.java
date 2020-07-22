@@ -43,8 +43,10 @@ class AzfsResourceId implements ResourceId {
   private final String blob;
 
   private AzfsResourceId(String account, String container, @Nullable String blob) {
-    // We are assuming that every resource id is either a container or a blob in a container, not just an account.
-    // This is because we will not enable users to create Azure containers through beam at this time.
+    // We are assuming that every resource id is either a container or a blob in a container, not
+    // just an account.
+    // This is because we will not enable users to create Azure containers through beam at this
+    // time.
     checkArgument(!Strings.isNullOrEmpty(container), "container");
     checkArgument(!container.contains("/"), "container must not contain '/': [%s]", container);
     this.account = account;
