@@ -242,11 +242,7 @@ class OperationCounters(object):
     # type: (any, bool) -> None
     try:
       type_constraint = self.type_hints.input_types[0][0][0][0]
-    except TypeError:
-      return
-    except AttributeError:
-      return
-    except IndexError:
+    except (TypeError, AttributeError, IndexError):
       return
 
     TypeCheckWrapperDoFn.type_check(type_constraint, value, is_input)
