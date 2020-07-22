@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.jet', enableChecker:false)
+applyJavaNature(automaticModuleName: 'org.apache.beam.runners.jet', enableChecker:false, ignoreRawtypeErrors: true)
 
 description = "Apache Beam :: Runners :: Hazelcast Jet"
 
