@@ -57,7 +57,7 @@ public class HL7v2MessageCoderTest {
   }
 
   @Test
-  public void testEncodedTypeDescriptor() throws Exception {
+  public void testEncodedTypeDescriptor() {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TYPE_DESCRIPTOR));
   }
 }

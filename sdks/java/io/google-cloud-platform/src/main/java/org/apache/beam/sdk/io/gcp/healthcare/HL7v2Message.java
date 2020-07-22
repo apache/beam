@@ -23,6 +23,8 @@ import com.google.api.services.healthcare.v1beta1.model.ParsedData;
 import com.google.api.services.healthcare.v1beta1.model.SchematizedData;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
+import javax.annotation.Nullable;
 
 /** The type HL7v2 message to wrap the {@link Message} model. */
 public class HL7v2Message {
@@ -32,9 +34,9 @@ public class HL7v2Message {
   private String createTime;
   private String data;
   private String sendFacility;
-  private ParsedData parsedData;
-  private String schematizedData;
-  private Map<String, String> labels;
+  @Nullable private ParsedData parsedData;
+  @Nullable private String schematizedData;
+  @Nullable private Map<String, String> labels;
 
   @Override
   public String toString() {
@@ -46,7 +48,6 @@ public class HL7v2Message {
     }
   }
 
-  public HL7v2Message() {}
   /**
    * From model {@link Message} to hl7v2 message.
    *
@@ -94,54 +95,6 @@ public class HL7v2Message {
     return out;
   }
 
-  public static class HL7v2MessageBuilder {
-    private final String name;
-    private final String messageType;
-    private final String sendTime;
-    private final String createTime;
-    private final String data;
-    private final String sendFacility;
-
-    private ParsedData parsedData;
-    private String schematizedData;
-    private Map<String, String> labels;
-
-    public HL7v2MessageBuilder(
-        String name,
-        String messageType,
-        String sendTime,
-        String createTime,
-        String data,
-        String sendFacility) {
-      this.name = name;
-      this.messageType = messageType;
-      this.sendTime = sendTime;
-      this.createTime = createTime;
-      this.data = data;
-      this.sendFacility = sendFacility;
-    }
-
-    public HL7v2MessageBuilder setParsedData(ParsedData parsedData) {
-      this.parsedData = parsedData;
-      return this;
-    }
-
-    public HL7v2MessageBuilder setSchematizedData(String schematizedData) {
-      this.schematizedData = schematizedData;
-      return this;
-    }
-
-    public HL7v2MessageBuilder setLabels(Map<String, String> labels) {
-      this.labels = labels;
-      return this;
-    }
-
-    public HL7v2Message build() {
-      // call the private constructor in the outer class
-      return new HL7v2Message(this);
-    }
-  }
-
   public HL7v2Message(HL7v2MessageBuilder mb) {
     this.name = mb.name;
     this.messageType = mb.messageType;
@@ -156,61 +109,40 @@ public class HL7v2Message {
 
   @Override
   public int hashCode() {
-    int hash = 5;
-    hash = 31 * hash + (this.name != null ? this.name.hashCode() : 0);
-    hash = 31 * hash + (this.messageType != null ? this.messageType.hashCode() : 0);
-    hash = 31 * hash + (this.sendTime != null ? this.sendTime.hashCode() : 0);
-    hash = 31 * hash + (this.createTime != null ? this.createTime.hashCode() : 0);
-    hash = 31 * hash + (this.data != null ? this.data.hashCode() : 0);
-    hash = 31 * hash + (this.sendFacility != null ? this.sendFacility.hashCode() : 0);
-    hash = 31 * hash + (this.messageType != null ? this.messageType.hashCode() : 0);
-    hash = 31 * hash + (this.parsedData != null ? this.parsedData.hashCode() : 0);
-    hash = 31 * hash + (this.schematizedData != null ? this.schematizedData.hashCode() : 0);
-    hash = 31 * hash + (this.labels != null ? this.labels.hashCode() : 0);
-    return hash;
+    return Objects.hash(
+        this.name,
+        this.messageType,
+        this.sendTime,
+        this.createTime,
+        this.data,
+        this.sendFacility,
+        this.messageType,
+        this.parsedData,
+        this.schematizedData,
+        this.labels);
   }
 
   // Overriding equals() to compare two HL7v2Message objects
   @Override
   public boolean equals(Object o) {
-
-    // If the object is compared with itself then return true
-    if (o == this) {
-      return true;
-    }
-
-    /* Check if o is an instance of HL7v2Message or not
-    "null instanceof [type]" also returns false */
-    if (!(o instanceof HL7v2Message)) {
+    if (o == null) {
       return false;
     }
 
-    // typecast o to HLv2Message so that we can compare data members
-    HL7v2Message c = (HL7v2Message) o;
+    if (!HL7v2Message.class.isAssignableFrom(o.getClass())) {
+      return false;
+    }
 
-    boolean parsedDataCompare = true;
-    boolean schematizedDataCompare = true;
-    boolean labelsCompare = true;
-    boolean messageCompare = true;
-
-    // Compare the data members and return accordingly
-    if (parsedData != null) {
-      parsedDataCompare = parsedData.equals(c.parsedData);
-    }
-    if (schematizedData != null) {
-      schematizedDataCompare = schematizedData.equals(c.schematizedData);
-    }
-    if (labels != null) {
-      labelsCompare = labels.equals(c.labels);
-    }
-    messageCompare =
-        name.equals(c.name)
-            && messageType.equals(c.messageType)
-            && sendTime.equals(c.sendTime)
-            && createTime.equals(c.createTime)
-            && data.equals(c.data)
-            && sendFacility.equals(c.sendFacility);
-    return parsedDataCompare && schematizedDataCompare && labelsCompare && messageCompare;
+    final HL7v2Message other = (HL7v2Message) o;
+    return Objects.equals(this.name, other.name)
+        && Objects.equals(this.messageType, other.messageType)
+        && Objects.equals(this.sendTime, other.sendTime)
+        && Objects.equals(this.createTime, other.createTime)
+        && Objects.equals(this.data, other.data)
+        && Objects.equals(this.sendFacility, other.sendFacility)
+        && Objects.equals(this.parsedData, other.parsedData)
+        && Objects.equals(this.schematizedData, other.schematizedData)
+        && Objects.equals(this.labels, other.labels);
   }
 
   /**
@@ -272,11 +204,12 @@ public class HL7v2Message {
    *
    * @return the parsed data
    */
+  @Nullable
   public ParsedData getParsedData() {
     return parsedData;
   }
 
-  public void setParsedData(ParsedData parsedData) {
+  public void setParsedData(@Nullable ParsedData parsedData) {
     this.parsedData = parsedData;
   }
   /**
@@ -284,11 +217,12 @@ public class HL7v2Message {
    *
    * @return the schematized data
    */
+  @Nullable
   public String getSchematizedData() {
     return schematizedData;
   }
 
-  public void setSchematizedData(String schematizedData) {
+  public void setSchematizedData(@Nullable String schematizedData) {
     this.schematizedData = schematizedData;
   }
   /**
@@ -296,7 +230,57 @@ public class HL7v2Message {
    *
    * @return the labels
    */
+  @Nullable
   public Map<String, String> getLabels() {
     return labels;
+  }
+
+  /* Builder for HL7v2Message */
+  public static class HL7v2MessageBuilder {
+    private final String name;
+    private final String messageType;
+    private final String sendTime;
+    private final String createTime;
+    private final String data;
+    private final String sendFacility;
+
+    @Nullable private ParsedData parsedData;
+    @Nullable private String schematizedData;
+    @Nullable private Map<String, String> labels;
+
+    public HL7v2MessageBuilder(
+        String name,
+        String messageType,
+        String sendTime,
+        String createTime,
+        String data,
+        String sendFacility) {
+      this.name = name;
+      this.messageType = messageType;
+      this.sendTime = sendTime;
+      this.createTime = createTime;
+      this.data = data;
+      this.sendFacility = sendFacility;
+    }
+
+    public HL7v2MessageBuilder setParsedData(ParsedData parsedData) {
+      this.parsedData = parsedData;
+      return this;
+    }
+
+    public HL7v2MessageBuilder setSchematizedData(String schematizedData) {
+      this.schematizedData = schematizedData;
+      return this;
+    }
+
+    public HL7v2MessageBuilder setLabels(Map<String, String> labels) {
+      this.labels = labels;
+      return this;
+    }
+
+    public HL7v2Message build() {
+      // call the private constructor in the outer class
+      return new HL7v2Message(this);
+    }
   }
 }

@@ -45,9 +45,8 @@ public class ParsedDataCoderTest {
       segments = new ArrayList<>();
     }
 
-    public ParsedDataCoderTest.ParsedDataBuilder addSegment(Segment value) {
+    public void addSegment(Segment value) {
       segments.add(value);
-      return this;
     }
 
     public ParsedData build() {
@@ -57,8 +56,8 @@ public class ParsedDataCoderTest {
 
   private static final Coder<ParsedData> TEST_CODER = ParsedDataCoder.of();
 
-  private static Integer generateRandomNumber(int low, int high) {
-    return Integer.valueOf(new Random().nextInt(high - low) + low);
+  private static Integer generateRandomNumber() {
+    return new Random().nextInt(5);
   }
 
   private static String generateRandomString(int length) {
@@ -82,16 +81,15 @@ public class ParsedDataCoderTest {
 
   private static Segment createSegment() {
     Map<String, String> fieldMap = new HashMap<>();
-    for (int x = 0; x < generateRandomNumber(0, 5).intValue(); x++) {
-      Integer fieldNumber = Integer.valueOf(x);
-      fieldMap.put(fieldNumber.toString(), generateRandomString(25));
+    for (int x = 0; x < generateRandomNumber(); x++) {
+      fieldMap.put(Integer.toString(x), generateRandomString(25));
     }
     return new Segment().setFields(fieldMap).setSegmentId(generateRandomString(3));
   }
 
   static ParsedData createTestValues() {
     ParsedDataBuilder parsedDataBuilder = new ParsedDataBuilder();
-    for (int x = 0; x < generateRandomNumber(0, 5).intValue(); x++) {
+    for (int x = 0; x < generateRandomNumber(); x++) {
       parsedDataBuilder.addSegment(createSegment());
     }
     return parsedDataBuilder.build();
@@ -104,7 +102,7 @@ public class ParsedDataCoderTest {
   }
 
   @Test
-  public void testEncodedTypeDescriptor() throws Exception {
+  public void testEncodedTypeDescriptor() {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(ParsedData.class)));
   }
 }
