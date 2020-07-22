@@ -42,13 +42,9 @@ class AzfsResourceId implements ResourceId {
   private final String container;
   private final String blob;
 
-  // May want to check for blob and container naming rules, see
-  // https://docs.microsoft.com/en-us/rest/api/storageservices/Naming-and-Referencing-Containers--Blobs--and-Metadata
   private AzfsResourceId(String account, String container, @Nullable String blob) {
-    // We are assuming that every resource id is either a container or a blob in a container, not
-    // just an account.
-    // This is because we will not enable users to create Azure containers through beam at this
-    // time.
+    // We are assuming that every resource id is either a container or a blob in a container, not just an account.
+    // This is because we will not enable users to create Azure containers through beam at this time.
     checkArgument(!Strings.isNullOrEmpty(container), "container");
     checkArgument(!container.contains("/"), "container must not contain '/': [%s]", container);
     this.account = account;
@@ -163,7 +159,8 @@ class AzfsResourceId implements ResourceId {
   @Override
   public ResourceId resolve(String other, ResolveOptions resolveOptions) {
     checkState(isDirectory(), "Expected this resource to be a directory, but was [%s]", toString());
-    // TODO: check if resolve options are an illegal name in any way
+    // TODO: check if resolve options are an illegal name in any way, see:
+    // https://docs.microsoft.com/en-us/rest/api/storageservices/Naming-and-Referencing-Containers--Blobs--and-Metadata
 
     if (resolveOptions == ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY) {
       if ("..".equals(other)) {
@@ -207,8 +204,8 @@ class AzfsResourceId implements ResourceId {
         String.format("Unexpected StandardResolveOptions [%s]", resolveOptions));
   }
 
-  // uri format to interact with Azure
-  public String toAzfsUri() {
+  // url format to interact with Azure
+  public String toAzureUrl() {
     StringBuilder sb = new StringBuilder();
     sb.append("http://").append(account).append(".blob.core.windows.net");
     sb.append("/").append(container);
