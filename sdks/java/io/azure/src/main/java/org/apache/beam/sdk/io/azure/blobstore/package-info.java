@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** Defines IO connectors for Microsoft Azure Blobstore. */
+/** Defines IO connectors for Azure Blob Storage. */
 @Experimental(Kind.FILESYSTEM)
 package org.apache.beam.sdk.io.azure.blobstore;
 
