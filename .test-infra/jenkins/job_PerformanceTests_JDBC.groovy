@@ -26,9 +26,9 @@ job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
   common.setAutoJob(delegate, 'H */6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
-          delegate,
-          'Java JdbcIO Performance Test',
-          'Run Java JdbcIO Performance Test')
+      delegate,
+      'Java JdbcIO Performance Test',
+      'Run Java JdbcIO Performance Test')
   InfluxDBCredentialsHelper.useCredentials(delegate)
 
   String namespace = common.getKubernetesNamespace(jobName)
@@ -40,23 +40,23 @@ job(jobName) {
   k8s.loadBalancerIP("postgres-for-dev", postgresHostName)
 
   Map pipelineOptions = [
-          tempRoot             : 'gs://temp-storage-for-perf-tests',
-          project              : 'apache-beam-testing',
-          runner               : 'DataflowRunner',
-          numberOfRecords      : '5000000',
-          bigQueryDataset      : 'beam_performance',
-          bigQueryTable        : 'jdbcioit_results',
-          influxMeasurement    : 'jdbcioit_results',
-          influxDatabase       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-          influxHost           : InfluxDBCredentialsHelper.InfluxDBHostname,
-          postgresUsername     : 'postgres',
-          postgresPassword     : 'uuinkks',
-          postgresDatabaseName : 'postgres',
-          postgresServerName   : "\$${postgresHostName}",
-          postgresSsl          : false,
-          postgresPort         : '5432',
-          autoscalingAlgorithm : 'NONE',
-          numWorkers           : '5'
+    tempRoot             : 'gs://temp-storage-for-perf-tests',
+    project              : 'apache-beam-testing',
+    runner               : 'DataflowRunner',
+    numberOfRecords      : '5000000',
+    bigQueryDataset      : 'beam_performance',
+    bigQueryTable        : 'jdbcioit_results',
+    influxMeasurement    : 'jdbcioit_results',
+    influxDatabase       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influxHost           : InfluxDBCredentialsHelper.InfluxDBHostname,
+    postgresUsername     : 'postgres',
+    postgresPassword     : 'uuinkks',
+    postgresDatabaseName : 'postgres',
+    postgresServerName   : "\$${postgresHostName}",
+    postgresSsl          : false,
+    postgresPort         : '5432',
+    autoscalingAlgorithm : 'NONE',
+    numWorkers           : '5'
   ]
 
   steps {

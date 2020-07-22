@@ -19,16 +19,18 @@
 import PrecommitJobBuilder
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
-        scope: this,
-        nameBase: 'JavaBeamZetaSQL',
-        gradleTask: ':javaPreCommitBeamZetaSQL',
-        gradleSwitches: ['-PdisableSpotlessCheck=true'], // spotless checked in separate pre-commit
-        triggerPathPatterns: [
-                '^sdks/java/extensions/sql/.*$',
-        ]
-)
+    scope: this,
+    nameBase: 'JavaBeamZetaSQL',
+    gradleTask: ':javaPreCommitBeamZetaSQL',
+    gradleSwitches: [
+      '-PdisableSpotlessCheck=true'
+    ], // spotless checked in separate pre-commit
+    triggerPathPatterns: [
+      '^sdks/java/extensions/sql/.*$',
+    ]
+    )
 builder.build {
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
-    }
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
 }

@@ -176,3 +176,5 @@ include "beam-test-infra-metrics"
 project(":beam-test-infra-metrics").dir = file(".test-infra/metrics")
 include "beam-test-tools"
 project(":beam-test-tools").dir = file(".test-infra/tools")
+include "beam-test-jenkins"
+project(":beam-test-jenkins").dir = file(".test-infra/jenkins")

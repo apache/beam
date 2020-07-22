@@ -586,9 +586,9 @@ class BeamModulePlugin implements Plugin<Project> {
     // given a suffix such as "com.google.common".
     project.ext.getJavaRelocatedPath = { String suffix ->
       return ("org.apache.beam.repackaged."
-              + project.name.replace("-", "_")
-              + "."
-              + suffix)
+          + project.name.replace("-", "_")
+          + "."
+          + suffix)
     }
 
     project.ext.repositories = {
@@ -598,10 +598,10 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       maven {
         url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
-                ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
-                : 'https://repository.apache.org/content/repositories/snapshots')
+            ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
+            : 'https://repository.apache.org/content/repositories/snapshots')
         name(project.properties['distMgmtServerId'] ?: isRelease(project)
-                ? 'apache.releases.https' : 'apache.snapshots.https')
+            ? 'apache.releases.https' : 'apache.snapshots.https')
         // The maven settings plugin will load credentials from ~/.m2/settings.xml file that a user
         // has configured with the Apache release and snapshot staging credentials.
         // <settings>
@@ -882,7 +882,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // Spotless can be removed from the 'check' task by passing -PdisableSpotlessCheck=true on the Gradle
       // command-line. This is useful for pre-commit which runs spotless separately.
       def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
-              project.disableSpotlessCheck == 'true'
+          project.disableSpotlessCheck == 'true'
       project.spotless {
         enforceCheck !disableSpotlessCheck
         java {
@@ -1082,7 +1082,7 @@ class BeamModulePlugin implements Plugin<Project> {
           outputs.file "${pomPropertiesFile}"
           doLast {
             new File("${pomPropertiesFile}").text =
-                    """version=${project.version}
+                """version=${project.version}
                        groupId=${project.mavenGroupId}
                        artifactId=${project.archivesBaseName}"""
           }
@@ -1277,7 +1277,7 @@ class BeamModulePlugin implements Plugin<Project> {
                 // TODO: Should we use the runtime scope instead of the compile scope
                 // which forces all our consumers to declare what they consume?
                 generateDependenciesFromConfiguration(
-                        configuration: (configuration.shadowClosure ? 'shadow' : 'compile'), scope: 'compile')
+                    configuration: (configuration.shadowClosure ? 'shadow' : 'compile'), scope: 'compile')
                 generateDependenciesFromConfiguration(configuration: 'provided', scope: 'provided')
 
                 // NB: This must come after asNode() logic, as it seems asNode()
@@ -1285,7 +1285,7 @@ class BeamModulePlugin implements Plugin<Project> {
                 // TODO: Load this from file?
                 def elem = asElement()
                 def hdr = elem.getOwnerDocument().createComment(
-                        '''
+                    '''
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
   this work for additional information regarding copyright ownership.
@@ -1371,7 +1371,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
           def allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
           def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
-                  project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+              project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
           def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
           allOptionsList.addAll([
             '--workerHarnessContainerImage=',
@@ -1493,12 +1493,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: "groovy"
 
       project.apply plugin: "com.diffplug.gradle.spotless"
+      def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
+          project.disableSpotlessCheck == 'true'
       project.spotless {
+        enforceCheck !disableSpotlessCheck
         def grEclipseConfig = project.project(":").file("buildSrc/greclipse.properties")
         groovy {
-          licenseHeader javaLicenseHeader
-          paddedCell() // Recommended to avoid cyclic ambiguity issues
           greclipse().configFile(grEclipseConfig)
+          target project.fileTree(project.projectDir) { include '**/*.groovy' }
         }
         groovyGradle { greclipse().configFile(grEclipseConfig) }
       }
@@ -1595,21 +1597,21 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.ext.applyJavaNature(
-              exportJavadoc: false,
-              enableSpotbugs: false,
-              enableChecker: false,
-              publish: configuration.publish,
-              archivesBaseName: configuration.archivesBaseName,
-              automaticModuleName: configuration.automaticModuleName,
-              shadowJarValidationExcludes: it.shadowJarValidationExcludes,
-              shadowClosure: GrpcVendoring_1_26_0.shadowClosure() << {
-                // We perform all the code relocations but don't include
-                // any of the actual dependencies since they will be supplied
-                // by org.apache.beam:beam-vendor-grpc-v1p26p0:0.1
-                dependencies {
-                  include(dependency { return false })
-                }
-              })
+          exportJavadoc: false,
+          enableSpotbugs: false,
+          enableChecker: false,
+          publish: configuration.publish,
+          archivesBaseName: configuration.archivesBaseName,
+          automaticModuleName: configuration.automaticModuleName,
+          shadowJarValidationExcludes: it.shadowJarValidationExcludes,
+          shadowClosure: GrpcVendoring_1_26_0.shadowClosure() << {
+            // We perform all the code relocations but don't include
+            // any of the actual dependencies since they will be supplied
+            // by org.apache.beam:beam-vendor-grpc-v1p26p0:0.1
+            dependencies {
+              include(dependency { return false })
+            }
+          })
 
       // Don't force modules here because we don't want to take the shared declarations in build_rules.gradle
       // because we would like to have the freedom to choose which versions of dependencies we
@@ -1911,7 +1913,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // set from commandline with -PpythonVersion, or in build script of certain project.
       // If none of them applied, version set here will be used as default value.
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
-              project.pythonVersion : '2.7'
+          project.pythonVersion : '2.7'
 
       project.task('setupVirtualenv')  {
         doLast {
@@ -1933,20 +1935,20 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.ext.pythonSdkDeps = project.files(
-              project.fileTree(
-              dir: "${project.rootDir}",
-              include: ['model/**', 'sdks/python/**'],
-              // Exclude temporary directories and files that are generated
-              // during build and test.
-              exclude: [
-                '**/build/**',
-                '**/dist/**',
-                '**/target/**',
-                '**/*.pyc',
-                'sdks/python/*.egg*/**',
-                'sdks/python/test-suites/**',
-              ])
-              )
+          project.fileTree(
+          dir: "${project.rootDir}",
+          include: ['model/**', 'sdks/python/**'],
+          // Exclude temporary directories and files that are generated
+          // during build and test.
+          exclude: [
+            '**/build/**',
+            '**/dist/**',
+            '**/target/**',
+            '**/*.pyc',
+            'sdks/python/*.egg*/**',
+            'sdks/python/test-suites/**',
+          ])
+          )
       def copiedSrcRoot = "${project.buildDir}/srcs"
 
       // Create new configuration distTarBall which represents Python source
@@ -1971,8 +1973,8 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec {
             executable 'sh'
             args '-c', "if [ -e ${activate} ]; then " +
-                    ". ${activate} && cd ${pythonRootDir} && python setup.py clean; " +
-                    "fi"
+                ". ${activate} && cd ${pythonRootDir} && python setup.py clean; " +
+                "fi"
           }
           project.delete project.buildDir     // Gradle build directory
           project.delete project.ext.envdir   // virtualenv directory

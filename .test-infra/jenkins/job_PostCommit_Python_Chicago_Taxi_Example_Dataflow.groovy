@@ -22,26 +22,26 @@ import CronJobBuilder
 import LoadTestsBuilder
 
 def chicagoTaxiJob = { scope ->
-    scope.description('Runs the Chicago Taxi Example on the Dataflow runner.')
+  scope.description('Runs the Chicago Taxi Example on the Dataflow runner.')
 
-    // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(scope)
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(scope)
 
-    def pipelineOptions = [
-        num_workers          : 5,
-        autoscaling_algorithm: 'NONE',
-    ]
+  def pipelineOptions = [
+    num_workers          : 5,
+    autoscaling_algorithm: 'NONE',
+  ]
 
-    // Gradle goals for this job.
-    scope.steps {
-        gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            commonJobProperties.setGradleSwitches(delegate)
-            tasks(':sdks:python:test-suites:dataflow:py2:chicagoTaxiExample')
-            switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
-            switches("-PpipelineOptions=\"${LoadTestsBuilder.parseOptions(pipelineOptions)}\"")
-        }
+  // Gradle goals for this job.
+  scope.steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      commonJobProperties.setGradleSwitches(delegate)
+      tasks(':sdks:python:test-suites:dataflow:py2:chicagoTaxiExample')
+      switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
+      switches("-PpipelineOptions=\"${LoadTestsBuilder.parseOptions(pipelineOptions)}\"")
     }
+  }
 }
 
 PostcommitJobBuilder.postCommitJob(
@@ -49,14 +49,14 @@ PostcommitJobBuilder.postCommitJob(
     'Run Chicago Taxi on Dataflow',
     'Chicago Taxi Example on Dataflow ("Run Chicago Taxi on Dataflow")',
     this
-) {
-    chicagoTaxiJob(delegate)
-}
+    ) {
+      chicagoTaxiJob(delegate)
+    }
 
 CronJobBuilder.cronJob(
     'beam_PostCommit_Python_Chicago_Taxi_Dataflow',
     'H 14 * * *',
     this
-) {
-    chicagoTaxiJob(delegate)
-}
+    ) {
+      chicagoTaxiJob(delegate)
+    }
