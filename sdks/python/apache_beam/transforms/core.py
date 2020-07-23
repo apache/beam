@@ -2267,7 +2267,7 @@ class GroupBy(PTransform):
 
       beam.Map(lambda v: (expr(v), v)) | beam.GroupByKey()
 
-  but provides several conviniences, e.g.
+  but provides several conveniences, e.g.
 
       * Several arguments may be provided, as positional or keyword arguments,
         resulting in a tuple-like key. For example `GroupBy(a=expr1, b=expr2)`
