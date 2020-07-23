@@ -35,7 +35,7 @@ your JDK installation. Make sure that `java` command is available in
 the environment.
 
 ```sh
-java --version
+java -version
 <Should print information regarding the installed Java version>
 ```
 
