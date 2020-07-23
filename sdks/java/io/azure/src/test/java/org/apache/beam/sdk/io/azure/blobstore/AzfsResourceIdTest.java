@@ -83,12 +83,32 @@ public class AzfsResourceIdTest {
               "..",
               RESOLVE_DIRECTORY,
               "azfs://account/container/path/to/"
+            },
+            // Tests for common Azure paths.
+            {
+              "azfs://account/container/tmp/", "aa", RESOLVE_FILE, "azfs://account/container/tmp/aa"
+            },
+            // Tests absolute path.
+            {
+              "azfs://account/container/tmp/bb/",
+              "azfs://account/container/tmp/aa",
+              RESOLVE_FILE,
+              "azfs://account/container/tmp/aa"
+            },
+            // Tests container with no ending '/'.
+            {"azfs://account/my-container", "tmp", RESOLVE_FILE, "azfs://account/my-container/tmp"},
+            // Tests path with unicode
+            {
+              "azfs://account/container/输出 目录/",
+              "输出 文件01.txt",
+              RESOLVE_FILE,
+              "azfs://account/container/输出 目录/输出 文件01.txt"
             }
           });
     }
 
     @Test
-    public void testResolvePaths() {
+    public void testResolve() {
       ResourceId resourceId = AzfsResourceId.fromUri(baseUri);
       ResourceId resolved = resourceId.resolve(relativePath, resolveOptions);
       assertEquals(expectedResult, resolved.toString());
@@ -96,35 +116,13 @@ public class AzfsResourceIdTest {
   }
 
   @Test
-  public void testResolve() {
-
-    // Tests for common Azure paths.
-    assertEquals(
-        AzfsResourceId.fromUri("azfs://account/container/tmp/aa"),
-        AzfsResourceId.fromUri("azfs://account/container/tmp/").resolve("aa", RESOLVE_FILE));
+  public void testMultipleResolves() {
     assertEquals(
         AzfsResourceId.fromUri("azfs://account/container/tmp/aa/bb/cc/"),
         AzfsResourceId.fromUri("azfs://account/container/tmp/")
             .resolve("aa", RESOLVE_DIRECTORY)
             .resolve("bb", RESOLVE_DIRECTORY)
             .resolve("cc", RESOLVE_DIRECTORY));
-
-    // Tests absolute path.
-    assertEquals(
-        AzfsResourceId.fromUri("azfs://account/container/tmp/aa"),
-        AzfsResourceId.fromUri("azfs://account/container/tmp/bb/")
-            .resolve("azfs://account/container/tmp/aa", RESOLVE_FILE));
-
-    // Tests container with no ending '/'.
-    assertEquals(
-        AzfsResourceId.fromUri("azfs://account/my-container/tmp"),
-        AzfsResourceId.fromUri("azfs://account/my-container").resolve("tmp", RESOLVE_FILE));
-
-    // Tests path with unicode
-    assertEquals(
-        AzfsResourceId.fromUri("azfs://account/container/输出 目录/输出 文件01.txt"),
-        AzfsResourceId.fromUri("azfs://account/container/输出 目录/")
-            .resolve("输出 文件01.txt", RESOLVE_FILE));
   }
 
   @Test
