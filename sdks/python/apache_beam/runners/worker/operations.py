@@ -144,7 +144,7 @@ class ConsumerSet(Receiver):
     self.update_counters_start(windowed_value)
     for consumer in self.consumers:
       cython.cast(Operation, consumer).process(windowed_value)
-    self.update_counters_finish(windowed_value)
+    self.update_counters_finish()
 
   def try_split(self, fraction_of_remainder):
     # type: (...) -> Optional[Any]
