@@ -59,58 +59,57 @@ public class AzfsResourceIdTest {
     @Parameterized.Parameters
     public static Collection paths() {
       return Arrays.asList(
-              new Object[][]{
-                      {"azfs://account/container/", "", RESOLVE_DIRECTORY, "azfs://account/container/"},
-                      {"azfs://account/container", "", RESOLVE_DIRECTORY, "azfs://account/container/"},
-                      {
-                              "azfs://account/container",
-                              "path/to/dir",
-                              RESOLVE_DIRECTORY,
-                              "azfs://account/container/path/to/dir/"
-                      },
-                      {
-                              "azfs://account/container",
-                              "path/to/object",
-                              RESOLVE_FILE,
-                              "azfs://account/container/path/to/object"
-                      },
-                      {
-                              "azfs://account/container/path/to/dir/",
-                              "..",
-                              RESOLVE_DIRECTORY,
-                              "azfs://account/container/path/to/"
-                      },
-                      // Tests for common Azure paths.
-                      {
-                              "azfs://account/container/tmp/", "aa", RESOLVE_FILE, "azfs://account/container/tmp/aa"
-                      },
-                      // Tests absolute path.
-                      {
-                              "azfs://account/container/tmp/bb/",
-                              "azfs://account/container/tmp/aa",
-                              RESOLVE_FILE,
-                              "azfs://account/container/tmp/aa"
-                      },
-                      // Tests container with no ending '/'.
-                      {"azfs://account/my-container", "tmp", RESOLVE_FILE, "azfs://account/my-container/tmp"},
-                      // Tests path with unicode
-                      {
-                              "azfs://account/container/输出 目录/",
-                              "输出 文件01.txt",
-                              RESOLVE_FILE,
-                              "azfs://account/container/输出 目录/输出 文件01.txt"
-                      }
-              });
+          new Object[][] {
+            {"azfs://account/container/", "", RESOLVE_DIRECTORY, "azfs://account/container/"},
+            {"azfs://account/container", "", RESOLVE_DIRECTORY, "azfs://account/container/"},
+            {
+              "azfs://account/container",
+              "path/to/dir",
+              RESOLVE_DIRECTORY,
+              "azfs://account/container/path/to/dir/"
+            },
+            {
+              "azfs://account/container",
+              "path/to/object",
+              RESOLVE_FILE,
+              "azfs://account/container/path/to/object"
+            },
+            {
+              "azfs://account/container/path/to/dir/",
+              "..",
+              RESOLVE_DIRECTORY,
+              "azfs://account/container/path/to/"
+            },
+            // Tests for common Azure paths.
+            {
+              "azfs://account/container/tmp/", "aa", RESOLVE_FILE, "azfs://account/container/tmp/aa"
+            },
+            // Tests absolute path.
+            {
+              "azfs://account/container/tmp/bb/",
+              "azfs://account/container/tmp/aa",
+              RESOLVE_FILE,
+              "azfs://account/container/tmp/aa"
+            },
+            // Tests container with no ending '/'.
+            {"azfs://account/my-container", "tmp", RESOLVE_FILE, "azfs://account/my-container/tmp"},
+            // Tests path with unicode
+            {
+              "azfs://account/container/输出 目录/",
+              "输出 文件01.txt",
+              RESOLVE_FILE,
+              "azfs://account/container/输出 目录/输出 文件01.txt"
+            }
+          });
     }
 
-      @Test
-      public void testResolve() {
-        ResourceId resourceId = AzfsResourceId.fromUri(baseUri);
-        ResourceId resolved = resourceId.resolve(relativePath, resolveOptions);
-        assertEquals(expectedResult, resolved.toString());
-      }
+    @Test
+    public void testResolve() {
+      ResourceId resourceId = AzfsResourceId.fromUri(baseUri);
+      ResourceId resolved = resourceId.resolve(relativePath, resolveOptions);
+      assertEquals(expectedResult, resolved.toString());
     }
-
+  }
 
   @RunWith(JUnit4.class)
   public static class NonParameterizedTests {
@@ -118,11 +117,11 @@ public class AzfsResourceIdTest {
     @Test
     public void testMultipleResolves() {
       assertEquals(
-              AzfsResourceId.fromUri("azfs://account/container/tmp/aa/bb/cc/"),
-              AzfsResourceId.fromUri("azfs://account/container/tmp/")
-                      .resolve("aa", RESOLVE_DIRECTORY)
-                      .resolve("bb", RESOLVE_DIRECTORY)
-                      .resolve("cc", RESOLVE_DIRECTORY));
+          AzfsResourceId.fromUri("azfs://account/container/tmp/aa/bb/cc/"),
+          AzfsResourceId.fromUri("azfs://account/container/tmp/")
+              .resolve("aa", RESOLVE_DIRECTORY)
+              .resolve("bb", RESOLVE_DIRECTORY)
+              .resolve("cc", RESOLVE_DIRECTORY));
     }
 
     @Test
@@ -135,11 +134,11 @@ public class AzfsResourceIdTest {
     @Test
     public void testResolveInvalidNotDirectory() {
       ResourceId tmpDir =
-              AzfsResourceId.fromUri("azfs://account/my_container/").resolve("tmp dir", RESOLVE_FILE);
+          AzfsResourceId.fromUri("azfs://account/my_container/").resolve("tmp dir", RESOLVE_FILE);
 
       thrown.expect(IllegalStateException.class);
       thrown.expectMessage(
-              "Expected this resource to be a directory, but was [azfs://account/my_container/tmp dir]");
+          "Expected this resource to be a directory, but was [azfs://account/my_container/tmp dir]");
       tmpDir.resolve("aa", RESOLVE_FILE);
     }
 
@@ -176,8 +175,8 @@ public class AzfsResourceIdTest {
       assertNotEquals(a, b);
 
       assertEquals(
-              AzfsResourceId.fromUri("azfs://account/container"),
-              AzfsResourceId.fromUri("azfs://account/container/"));
+          AzfsResourceId.fromUri("azfs://account/container"),
+          AzfsResourceId.fromUri("azfs://account/container/"));
     }
 
     @Test
@@ -188,8 +187,8 @@ public class AzfsResourceIdTest {
       assertEquals("container", resourceId.getContainer());
       assertEquals("blob", resourceId.getBlob());
       assertEquals(
-              "virtualDir/blob",
-              AzfsResourceId.fromComponents("account", "container", "virtualDir/blob").getBlob());
+          "virtualDir/blob",
+          AzfsResourceId.fromComponents("account", "container", "virtualDir/blob").getBlob());
       assertEquals(null, AzfsResourceId.fromComponents("account", "container").getBlob());
       assertEquals(null, AzfsResourceId.fromComponents("account", "container", "").getBlob());
       assertEquals(null, AzfsResourceId.fromComponents("account", "container", null).getBlob());
@@ -203,8 +202,8 @@ public class AzfsResourceIdTest {
       assertEquals("container", resourceId.getContainer());
       assertEquals("blob", resourceId.getBlob());
       assertEquals(
-              "virtualDir/blob",
-              AzfsResourceId.fromUri("azfs://account/container/virtualDir/blob").getBlob());
+          "virtualDir/blob",
+          AzfsResourceId.fromUri("azfs://account/container/virtualDir/blob").getBlob());
       assertEquals(null, AzfsResourceId.fromUri("azfs://account/container").getBlob());
     }
 
@@ -219,19 +218,19 @@ public class AzfsResourceIdTest {
     public void testGetCurrentDirectory() {
       // test azfs path
       assertEquals(
-              AzfsResourceId.fromUri("azfs://account/container/virtualDir/"),
-              AzfsResourceId.fromUri("azfs://account/container/virtualDir/").getCurrentDirectory());
+          AzfsResourceId.fromUri("azfs://account/container/virtualDir/"),
+          AzfsResourceId.fromUri("azfs://account/container/virtualDir/").getCurrentDirectory());
       // test path with unicode
       assertEquals(
-              AzfsResourceId.fromUri("azfs://account/container/输出 目录/"),
-              AzfsResourceId.fromUri("azfs://account/container/输出 目录/文件01.txt").getCurrentDirectory());
+          AzfsResourceId.fromUri("azfs://account/container/输出 目录/"),
+          AzfsResourceId.fromUri("azfs://account/container/输出 目录/文件01.txt").getCurrentDirectory());
       // test path without ending '/'
       assertEquals(
-              AzfsResourceId.fromUri("azfs://account/container"),
-              AzfsResourceId.fromUri("azfs://account/container").getCurrentDirectory());
+          AzfsResourceId.fromUri("azfs://account/container"),
+          AzfsResourceId.fromUri("azfs://account/container").getCurrentDirectory());
       assertEquals(
-              AzfsResourceId.fromUri("azfs://account/container/"),
-              AzfsResourceId.fromUri("azfs://account/container/blob").getCurrentDirectory());
+          AzfsResourceId.fromUri("azfs://account/container/"),
+          AzfsResourceId.fromUri("azfs://account/container/blob").getCurrentDirectory());
     }
 
     @Test
@@ -252,7 +251,7 @@ public class AzfsResourceIdTest {
     public void testGetScheme() {
       // Tests azfs paths.
       assertEquals(
-              "azfs", AzfsResourceId.fromUri("azfs://account/container/virtualDir/").getScheme());
+          "azfs", AzfsResourceId.fromUri("azfs://account/container/virtualDir/").getScheme());
       // Tests bucket with no ending '/'.
       assertEquals("azfs", AzfsResourceId.fromUri("azfs://account/container").getScheme());
     }
@@ -263,12 +262,13 @@ public class AzfsResourceIdTest {
       assertEquals("blob", AzfsResourceId.fromUri("azfs://account/container/blob").getFilename());
       assertEquals("blob", AzfsResourceId.fromUri("azfs://account/container/blob/").getFilename());
       assertEquals(
-              "blob", AzfsResourceId.fromUri("azfs://account/container/virtualDir/blob").getFilename());
+          "blob", AzfsResourceId.fromUri("azfs://account/container/virtualDir/blob").getFilename());
       assertEquals(
-              "blob", AzfsResourceId.fromUri("azfs://account/container/virtualDir/blob/").getFilename());
+          "blob",
+          AzfsResourceId.fromUri("azfs://account/container/virtualDir/blob/").getFilename());
       assertEquals(
-              "blob.txt",
-              AzfsResourceId.fromUri("azfs://account/container/virtualDir/blob.txt/").getFilename());
+          "blob.txt",
+          AzfsResourceId.fromUri("azfs://account/container/virtualDir/blob.txt/").getFilename());
     }
 
     @Test
