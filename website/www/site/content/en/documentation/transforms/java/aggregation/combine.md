@@ -57,7 +57,7 @@ PCollection<Integer> sum = pc.apply(
 {{< /highlight >}}
 
 **Example 2**: Keyed combine
-Use a keyed combine to to combine all of the values associated with each key
+Use a keyed combine to combine all of the values associated with each key
 into a single output value for each key. As with the global combine, the
 function passed to a keyed combine must be associative and commutative.
 

@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -126,20 +126,15 @@ public class SplunkIO {
   public abstract static class Write
       extends PTransform<PCollection<SplunkEvent>, PCollection<SplunkWriteError>> {
 
-    @Nullable
-    abstract ValueProvider<String> url();
+    abstract @Nullable ValueProvider<String> url();
 
-    @Nullable
-    abstract ValueProvider<String> token();
+    abstract @Nullable ValueProvider<String> token();
 
-    @Nullable
-    abstract ValueProvider<Integer> batchCount();
+    abstract @Nullable ValueProvider<Integer> batchCount();
 
-    @Nullable
-    abstract ValueProvider<Integer> parallelism();
+    abstract @Nullable ValueProvider<Integer> parallelism();
 
-    @Nullable
-    abstract ValueProvider<Boolean> disableCertificateValidation();
+    abstract @Nullable ValueProvider<Boolean> disableCertificateValidation();
 
     abstract Builder toBuilder();
 

@@ -304,7 +304,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     return new BeamSortRel(getCluster(), traitSet, newInput, newCollation, offset, fetch);
   }
 
-  private static class BeamSqlRowComparator implements Comparator<Row>, Serializable {
+  public static class BeamSqlRowComparator implements Comparator<Row>, Serializable {
     private List<Integer> fieldsIndices;
     private List<Boolean> orientation;
     private List<Boolean> nullsFirst;

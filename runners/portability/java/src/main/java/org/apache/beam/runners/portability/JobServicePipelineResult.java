@@ -22,7 +22,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import javax.annotation.Nullable;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
@@ -35,6 +34,7 @@ import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceBlockingS
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,8 +47,8 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
 
   private final ByteString jobId;
   private final CloseableResource<JobServiceBlockingStub> jobService;
-  @Nullable private State terminalState;
-  @Nullable private final Runnable cleanup;
+  private @Nullable State terminalState;
+  private final @Nullable Runnable cleanup;
   private org.apache.beam.model.jobmanagement.v1.JobApi.MetricResults jobMetrics;
 
   JobServicePipelineResult(

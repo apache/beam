@@ -22,7 +22,7 @@ plugins { id 'org.apache.beam.module'
     id 'org.jetbrains.kotlin.jvm' version '1.3.21'
 }
 
-applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.examples.kotlin')
+applyJavaNature(exportJavadoc: false, enableChecker: false, automaticModuleName: 'org.apache.beam.examples.kotlin')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

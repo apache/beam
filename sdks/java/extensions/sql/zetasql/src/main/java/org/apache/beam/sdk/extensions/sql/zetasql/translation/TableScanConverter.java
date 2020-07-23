@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DATETIME;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_NUMERIC;
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.zetasql.ZetaSQLType.TypeKind;
@@ -46,7 +45,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Translat
 class TableScanConverter extends RelConverter<ResolvedTableScan> {
 
   private static final ImmutableSet<TypeKind> UNSUPPORTED_DATA_TYPES =
-      ImmutableSet.of(TYPE_DATETIME, TYPE_NUMERIC);
+      ImmutableSet.of(TYPE_DATETIME);
 
   TableScanConverter(ConversionContext context) {
     super(context);

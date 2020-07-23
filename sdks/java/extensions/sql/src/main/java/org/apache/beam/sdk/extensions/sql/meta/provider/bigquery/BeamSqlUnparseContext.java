@@ -38,6 +38,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.BitString;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
 
@@ -131,7 +132,7 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (!(obj instanceof ReplaceLiteral)) {
         return false;
       }

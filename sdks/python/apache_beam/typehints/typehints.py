@@ -87,6 +87,7 @@ __all__ = [
     'KV',
     'Dict',
     'Set',
+    'FrozenSet',
     'Iterable',
     'Iterator',
     'Generator',
@@ -96,7 +97,7 @@ __all__ = [
 
 # A set of the built-in Python types we don't support, guiding the users
 # to templated (upper-case) versions instead.
-DISALLOWED_PRIMITIVE_TYPES = (list, set, tuple, dict)
+DISALLOWED_PRIMITIVE_TYPES = (list, set, frozenset, tuple, dict)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -434,11 +435,18 @@ class AnyTypeConstraint(TypeConstraint):
 
 
 class TypeVariable(AnyTypeConstraint):
-  def __init__(self, name):
+  def __init__(self, name, use_name_in_eq=True):
     self.name = name
+    self.use_name_in_eq = use_name_in_eq
 
   def __eq__(self, other):
-    return type(self) == type(other) and self.name == other.name
+    # The "other" may be an Ellipsis object
+    # so we have to check if it has use_name_in_eq first
+    if self.use_name_in_eq and (hasattr(other, 'use_name_in_eq') and
+                                other.use_name_in_eq):
+      return type(self) == type(other) and self.name == other.name
+
+    return type(self) == type(other)
 
   def __hash__(self):
     # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
@@ -916,6 +924,32 @@ class SetHint(CompositeTypeHint):
 SetTypeConstraint = SetHint.SetTypeConstraint
 
 
+class FrozenSetHint(CompositeTypeHint):
+  """A FrozenSet type-hint.
+
+  FrozenSet[X] defines a type-hint for a set of homogeneous types. 'X' may be
+  either a  built-in Python type or a another nested TypeConstraint.
+
+  This is a mirror copy of SetHint - consider refactoring common functionality.
+  """
+  class FrozenSetTypeConstraint(SequenceTypeConstraint):
+    def __init__(self, type_param):
+      super(FrozenSetHint.FrozenSetTypeConstraint,
+            self).__init__(type_param, frozenset)
+
+    def __repr__(self):
+      return 'FrozenSet[%s]' % _unified_repr(self.inner_type)
+
+  def __getitem__(self, type_param):
+    validate_composite_type_param(
+        type_param, error_msg_prefix='Parameter to a FrozenSet hint')
+
+    return self.FrozenSetTypeConstraint(type_param)
+
+
+FrozenSetTypeConstraint = FrozenSetHint.FrozenSetTypeConstraint
+
+
 class IterableHint(CompositeTypeHint):
   """An Iterable type-hint.
 
@@ -1087,6 +1121,7 @@ List = ListHint()
 KV = KVHint()
 Dict = DictHint()
 Set = SetHint()
+FrozenSet = FrozenSetHint()
 Iterable = IterableHint()
 Iterator = IteratorHint()
 Generator = GeneratorHint()
@@ -1122,6 +1157,7 @@ _KNOWN_PRIMITIVE_TYPES.update({
     list: List[Any],
     tuple: Tuple[Any, ...],
     set: Set[Any],
+    frozenset: FrozenSet[Any],
 })
 
 

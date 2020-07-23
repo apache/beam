@@ -27,8 +27,8 @@ import NexmarkDatabaseProperties
 class NexmarkBuilder {
 
   private static Map<String, Object> defaultOptions = [
-          'manageResources': false,
-          'monitorJobs'    : true,
+    'manageResources': false,
+    'monitorJobs'    : true,
   ] << NexmarkDatabaseProperties.nexmarkBigQueryArgs << NexmarkDatabaseProperties.nexmarkInfluxDBArgs
 
   static void standardJob(context, Runner runner, SDK sdk, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
@@ -47,6 +47,14 @@ class NexmarkBuilder {
 
     options.put('streaming', true)
     suite(context, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, sdk, options)
+
+    options.put('queryLanguage', 'zetasql')
+
+    options.put('streaming', false)
+    suite(context, "NEXMARK IN ZETASQL BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
+
+    options.put('streaming', true)
+    suite(context, "NEXMARK IN ZETASQL STREAMING MODE USING ${runner} RUNNER", runner, sdk, options)
   }
 
   static void batchOnlyJob(context, Runner runner, SDK sdk, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
@@ -57,6 +65,9 @@ class NexmarkBuilder {
 
     options.put('queryLanguage', 'sql')
     suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
+
+    options.put('queryLanguage', 'zetasql')
+    suite(context, "NEXMARK IN ZETASQL BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
   }
 
   private

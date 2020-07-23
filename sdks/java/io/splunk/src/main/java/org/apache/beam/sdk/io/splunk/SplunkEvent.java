@@ -21,9 +21,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import com.google.gson.annotations.SerializedName;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link SplunkEvent} describes a single payload sent to Splunk's Http Event Collector (HEC)
@@ -48,24 +48,19 @@ public abstract class SplunkEvent {
     return new AutoValue_SplunkEvent.Builder();
   }
 
-  @Nullable
-  public abstract Long time();
+  public abstract @Nullable Long time();
 
-  @Nullable
-  public abstract String host();
+  public abstract @Nullable String host();
 
-  @Nullable
-  public abstract String source();
+  public abstract @Nullable String source();
 
   @Nullable
   @SerializedName("sourcetype")
   public abstract String sourceType();
 
-  @Nullable
-  public abstract String index();
+  public abstract @Nullable String index();
 
-  @Nullable
-  public abstract String event();
+  public abstract @Nullable String event();
 
   /** A builder class for creating a {@link SplunkEvent}. */
   @AutoValue.Builder

@@ -123,12 +123,13 @@ public class DataSourceConfigurationTest {
   @Test
   public void testDataSourceCreatedFromUrl() {
     String url = "jdbc:snowflake://account.snowflakecomputing.com";
+    String expectedUrl = "jdbc:snowflake://account.snowflakecomputing.com?application=beam";
     configuration = configuration.withUrl(url);
 
     DataSource dataSource = configuration.buildDatasource();
 
     assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
-    assertEquals(url, ((SnowflakeBasicDataSource) dataSource).getUrl());
+    assertEquals(expectedUrl, ((SnowflakeBasicDataSource) dataSource).getUrl());
   }
 
   @Test
@@ -138,7 +139,7 @@ public class DataSourceConfigurationTest {
 
     DataSource dataSource = configuration.buildDatasource();
 
-    String expectedUrl = "jdbc:snowflake://account.snowflakecomputing.com";
+    String expectedUrl = "jdbc:snowflake://account.snowflakecomputing.com?application=beam";
     assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
     assertEquals(expectedUrl, ((SnowflakeBasicDataSource) dataSource).getUrl());
   }
@@ -153,7 +154,7 @@ public class DataSourceConfigurationTest {
 
     DataSource dataSource = configuration.buildDatasource();
     assertEquals(SnowflakeBasicDataSource.class, dataSource.getClass());
-    String expectedUrl = "jdbc:snowflake://account.snowflakecomputing.com:1234";
+    String expectedUrl = "jdbc:snowflake://account.snowflakecomputing.com:1234?application=beam";
     assertEquals(expectedUrl, ((SnowflakeBasicDataSource) dataSource).getUrl());
   }
 }

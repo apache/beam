@@ -245,6 +245,8 @@ class PipelineOptions(HasDisplayData):
       elif isinstance(v, list):
         for i in v:
           flags.append('--%s=%s' % (k, i))
+      elif isinstance(v, dict):
+        flags.append('--%s=%s' % (k, json.dumps(v)))
       else:
         flags.append('--%s=%s' % (k, v))
 

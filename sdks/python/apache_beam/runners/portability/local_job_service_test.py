@@ -60,8 +60,47 @@ class LocalJobServerTest(unittest.TestCase):
     ]
     self.assertEqual([s.state for s in state_results], expected_states)
 
-    self.assertEqual([s.state_response.state for s in message_results],
+    self.assertEqual([
+        s.state_response.state
+        for s in message_results if s.HasField('state_response')
+    ],
                      expected_states)
+
+  def test_error_messages_after_pipeline_failure(self):
+    job_service = local_job_service.LocalJobServicer()
+    job_service.start_grpc_server()
+
+    plan = TestJobServicePlan(job_service)
+
+    job_id, message_stream, state_stream = plan.submit(
+        beam_runner_api_pb2.Pipeline(requirements=['unsupported_requirement']))
+
+    message_results = list(message_stream)
+    state_results = list(state_stream)
+
+    expected_states = [
+        beam_job_api_pb2.JobState.STOPPED,
+        beam_job_api_pb2.JobState.STARTING,
+        beam_job_api_pb2.JobState.RUNNING,
+        beam_job_api_pb2.JobState.FAILED,
+    ]
+    self.assertEqual([s.state for s in state_results], expected_states)
+    self.assertTrue(
+        any(
+            'unsupported_requirement' in m.message_response.message_text
+            for m in message_results),
+        message_results)
+
+    # Assert we still see the error message if we fetch error messages after
+    # the job has completed.
+    messages_again = list(
+        plan.job_service.GetMessageStream(
+            beam_job_api_pb2.JobMessagesRequest(job_id=job_id)))
+    self.assertTrue(
+        any(
+            'unsupported_requirement' in m.message_response.message_text
+            for m in message_results),
+        messages_again)
 
 
 if __name__ == '__main__':

@@ -24,7 +24,6 @@ import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.aws.options.AwsOptions;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -97,13 +97,11 @@ public class SqsIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Message>> {
 
-    @Nullable
-    abstract String queueUrl();
+    abstract @Nullable String queueUrl();
 
     abstract long maxNumRecords();
 
-    @Nullable
-    abstract Duration maxReadTime();
+    abstract @Nullable Duration maxReadTime();
 
     abstract Builder toBuilder();
 

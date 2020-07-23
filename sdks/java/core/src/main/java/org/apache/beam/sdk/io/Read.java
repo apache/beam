@@ -27,7 +27,6 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -57,13 +56,13 @@ import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.StripIdsDoFn;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -154,7 +153,7 @@ public class Read {
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(),
           WindowingStrategy.globalDefault(),
-          IsBounded.BOUNDED,
+          PCollection.IsBounded.BOUNDED,
           source.getOutputCoder());
     }
 
@@ -244,7 +243,7 @@ public class Read {
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(),
           WindowingStrategy.globalDefault(),
-          IsBounded.UNBOUNDED,
+          PCollection.IsBounded.UNBOUNDED,
           source.getOutputCoder());
     }
 
@@ -430,6 +429,11 @@ public class Read {
             "Expected all records to have been claimed but finished processing "
                 + "bounded source while some records may have not been read.");
       }
+
+      @Override
+      public IsBounded isBounded() {
+        return IsBounded.BOUNDED;
+      }
     }
   }
 
@@ -612,8 +616,7 @@ public class Read {
 
       public abstract UnboundedSource<OutputT, CheckpointT> getSource();
 
-      @Nullable
-      public abstract CheckpointT getCheckpoint();
+      public abstract @Nullable CheckpointT getCheckpoint();
 
       public abstract Instant getWatermark();
     }
@@ -862,6 +865,11 @@ public class Read {
             currentReader instanceof EmptyUnboundedSource.EmptyUnboundedReader,
             "Expected all records to have been claimed but finished processing "
                 + "unbounded source while some records may have not been read.");
+      }
+
+      @Override
+      public IsBounded isBounded() {
+        return IsBounded.UNBOUNDED;
       }
 
       @Override

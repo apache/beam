@@ -34,7 +34,6 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.util.Collection;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -77,6 +76,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -442,7 +442,7 @@ public class FileIO {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -474,11 +474,9 @@ public class FileIO {
 
     abstract EmptyMatchTreatment getEmptyMatchTreatment();
 
-    @Nullable
-    abstract Duration getWatchInterval();
+    abstract @Nullable Duration getWatchInterval();
 
-    @Nullable
-    abstract TerminationCondition<String, ?> getWatchTerminationCondition();
+    abstract @Nullable TerminationCondition<String, ?> getWatchTerminationCondition();
 
     abstract Builder toBuilder();
 
@@ -522,8 +520,8 @@ public class FileIO {
   /** Implementation of {@link #match}. */
   @AutoValue
   public abstract static class Match extends PTransform<PBegin, PCollection<MatchResult.Metadata>> {
-    @Nullable
-    abstract ValueProvider<String> getFilepattern();
+
+    abstract @Nullable ValueProvider<String> getFilepattern();
 
     abstract MatchConfiguration getConfiguration();
 
@@ -905,46 +903,33 @@ public class FileIO {
 
     abstract boolean getDynamic();
 
-    @Nullable
-    abstract Contextful<Fn<DestinationT, Sink<?>>> getSinkFn();
+    abstract @Nullable Contextful<Fn<DestinationT, Sink<?>>> getSinkFn();
 
-    @Nullable
-    abstract Contextful<Fn<UserT, ?>> getOutputFn();
+    abstract @Nullable Contextful<Fn<UserT, ?>> getOutputFn();
 
-    @Nullable
-    abstract Contextful<Fn<UserT, DestinationT>> getDestinationFn();
+    abstract @Nullable Contextful<Fn<UserT, DestinationT>> getDestinationFn();
 
-    @Nullable
-    abstract ValueProvider<String> getOutputDirectory();
+    abstract @Nullable ValueProvider<String> getOutputDirectory();
 
-    @Nullable
-    abstract ValueProvider<String> getFilenamePrefix();
+    abstract @Nullable ValueProvider<String> getFilenamePrefix();
 
-    @Nullable
-    abstract ValueProvider<String> getFilenameSuffix();
+    abstract @Nullable ValueProvider<String> getFilenameSuffix();
 
-    @Nullable
-    abstract FileNaming getConstantFileNaming();
+    abstract @Nullable FileNaming getConstantFileNaming();
 
-    @Nullable
-    abstract Contextful<Fn<DestinationT, FileNaming>> getFileNamingFn();
+    abstract @Nullable Contextful<Fn<DestinationT, FileNaming>> getFileNamingFn();
 
-    @Nullable
-    abstract DestinationT getEmptyWindowDestination();
+    abstract @Nullable DestinationT getEmptyWindowDestination();
 
-    @Nullable
-    abstract Coder<DestinationT> getDestinationCoder();
+    abstract @Nullable Coder<DestinationT> getDestinationCoder();
 
-    @Nullable
-    abstract ValueProvider<String> getTempDirectory();
+    abstract @Nullable ValueProvider<String> getTempDirectory();
 
     abstract Compression getCompression();
 
-    @Nullable
-    abstract ValueProvider<Integer> getNumShards();
+    abstract @Nullable ValueProvider<Integer> getNumShards();
 
-    @Nullable
-    abstract PTransform<PCollection<UserT>, PCollectionView<Integer>> getSharding();
+    abstract @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>> getSharding();
 
     abstract boolean getIgnoreWindowing();
 
@@ -1370,7 +1355,7 @@ public class FileIO {
           @Override
           public Writer<DestinationT, OutputT> createWriter() throws Exception {
             return new Writer<DestinationT, OutputT>(this, "") {
-              @Nullable private Sink<OutputT> sink;
+              private @Nullable Sink<OutputT> sink;
 
               @Override
               protected void prepareWrite(WritableByteChannel channel) throws Exception {
@@ -1407,7 +1392,7 @@ public class FileIO {
       private static class DynamicDestinationsAdapter<UserT, DestinationT, OutputT>
           extends DynamicDestinations<UserT, DestinationT, OutputT> {
         private final Write<DestinationT, UserT> spec;
-        @Nullable private transient Fn.Context context;
+        private transient Fn.@Nullable Context context;
 
         private DynamicDestinationsAdapter(Write<DestinationT, UserT> spec) {
           this.spec = spec;

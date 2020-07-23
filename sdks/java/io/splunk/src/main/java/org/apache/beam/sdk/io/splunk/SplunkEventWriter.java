@@ -31,7 +31,6 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -48,6 +47,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,17 +91,13 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
     return new AutoValue_SplunkEventWriter.Builder();
   }
 
-  @Nullable
-  abstract ValueProvider<String> url();
+  abstract @Nullable ValueProvider<String> url();
 
-  @Nullable
-  abstract ValueProvider<String> token();
+  abstract @Nullable ValueProvider<String> token();
 
-  @Nullable
-  abstract ValueProvider<Boolean> disableCertificateValidation();
+  abstract @Nullable ValueProvider<Boolean> disableCertificateValidation();
 
-  @Nullable
-  abstract ValueProvider<Integer> inputBatchCount();
+  abstract @Nullable ValueProvider<Integer> inputBatchCount();
 
   @Setup
   public void setup() {

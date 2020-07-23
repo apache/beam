@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType.Value;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBiMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** This {@link LogicalType} represent an enumeration over a fixed set of values. */
 @Experimental(Kind.SCHEMAS)
@@ -146,7 +147,7 @@ public class EnumerationType implements LogicalType<Value, Integer> {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

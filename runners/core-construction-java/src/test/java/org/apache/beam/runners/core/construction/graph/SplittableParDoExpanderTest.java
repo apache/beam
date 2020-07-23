@@ -121,4 +121,60 @@ public class SplittableParDoExpanderTest {
             .getSpec()
             .getUrn());
   }
+
+  @Test
+  public void testTruncateReplacement() {
+    Pipeline p = Pipeline.create();
+    p.apply(Create.of("1", "2", "3"))
+        .apply("TestSDF", ParDo.of(new PairStringWithIndexToLengthBase()));
+
+    RunnerApi.Pipeline proto = PipelineTranslation.toProto(p);
+    String transformName =
+        Iterables.getOnlyElement(
+            Maps.filterValues(
+                    proto.getComponents().getTransformsMap(),
+                    (RunnerApi.PTransform transform) ->
+                        transform
+                            .getUniqueName()
+                            .contains(PairStringWithIndexToLengthBase.class.getSimpleName()))
+                .keySet());
+
+    RunnerApi.Pipeline updatedProto =
+        ProtoOverrides.updateTransform(
+            PTransformTranslation.PAR_DO_TRANSFORM_URN,
+            proto,
+            SplittableParDoExpander.createTruncateReplacement());
+    RunnerApi.PTransform newComposite =
+        updatedProto.getComponents().getTransformsOrThrow(transformName);
+    assertEquals(FunctionSpec.getDefaultInstance(), newComposite.getSpec());
+    assertEquals(4, newComposite.getSubtransformsCount());
+    assertEquals(
+        PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN,
+        updatedProto
+            .getComponents()
+            .getTransformsOrThrow(newComposite.getSubtransforms(0))
+            .getSpec()
+            .getUrn());
+    assertEquals(
+        PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN,
+        updatedProto
+            .getComponents()
+            .getTransformsOrThrow(newComposite.getSubtransforms(1))
+            .getSpec()
+            .getUrn());
+    assertEquals(
+        PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN,
+        updatedProto
+            .getComponents()
+            .getTransformsOrThrow(newComposite.getSubtransforms(2))
+            .getSpec()
+            .getUrn());
+    assertEquals(
+        PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN,
+        updatedProto
+            .getComponents()
+            .getTransformsOrThrow(newComposite.getSubtransforms(3))
+            .getSpec()
+            .getUrn());
+  }
 }

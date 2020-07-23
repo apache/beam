@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.dataflow')
+applyJavaNature(automaticModuleName: 'org.apache.beam.runners.dataflow', enableChecker:false)
 
 description = "Apache Beam :: Runners :: Google Cloud Dataflow"
 
@@ -39,7 +39,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.container_version' : 'beam-master-20200227'
+    'dataflow.container_version' : 'beam-master-20200629'
   ]
 }
 

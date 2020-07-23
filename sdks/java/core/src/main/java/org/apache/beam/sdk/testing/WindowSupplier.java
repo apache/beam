@@ -19,7 +19,6 @@ package org.apache.beam.sdk.testing;
 
 import java.io.Serializable;
 import java.util.Collection;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link Supplier} that returns a static set of {@link BoundedWindow BoundedWindows}. The
@@ -38,7 +38,7 @@ final class WindowSupplier implements Supplier<Collection<BoundedWindow>>, Seria
   private final Collection<byte[]> encodedWindows;
 
   /** Access via {@link #get()}. */
-  @Nullable private transient Collection<BoundedWindow> windows;
+  private transient @Nullable Collection<BoundedWindow> windows;
 
   public static <W extends BoundedWindow> WindowSupplier of(Coder<W> coder, Iterable<W> windows) {
     ImmutableSet.Builder<byte[]> windowsBuilder = ImmutableSet.builder();

@@ -65,18 +65,19 @@ Users may provide a query to read from rather than reading all of a BigQuery
 table. If specified, the result obtained by executing the specified query will
 be used as the data of the input transform.::
 
-  query_results = pipeline | beam.io.Read(beam.io.BigQuerySource(
-      query='SELECT year, mean_temp FROM samples.weather_stations'))
+  query_results = pipeline | beam.io.gcp.bigquery.ReadFromBigQuery(
+      query='SELECT year, mean_temp FROM samples.weather_stations')
 
 When creating a BigQuery input transform, users should provide either a query
 or a table. Pipeline construction will fail with a validation error if neither
 or both are specified.
 
-When reading from BigQuery using `BigQuerySource`, bytes are returned as
-base64-encoded bytes. When reading via `ReadFromBigQuery`, bytes are returned
-as bytes without base64 encoding. This is due to the fact that ReadFromBigQuery
-uses Avro expors by default. To get base64-encoded bytes, you can use the flag
-`use_json_exports` to export data as JSON, and receive base64-encoded bytes.
+When reading via `ReadFromBigQuery`, bytes are returned decoded as bytes.
+This is due to the fact that ReadFromBigQuery uses Avro exports by default.
+When reading from BigQuery using `apache_beam.io.BigQuerySource`, bytes are
+returned as base64-encoded bytes. To get base64-encoded bytes using
+`ReadFromBigQuery`, you can use the flag `use_json_exports` to export
+data as JSON, and receive base64-encoded bytes.
 
 Writing Data to BigQuery
 ========================
@@ -254,6 +255,7 @@ from apache_beam.io.avroio import _create_avro_source as create_avro_source
 from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.iobase import BoundedSource
 from apache_beam.io.iobase import RangeTracker
@@ -637,6 +639,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.kms_key = kms_key
     self.split_result = None
     self.options = pipeline_options
+    self.bq_io_metadata = None  # Populate in setup, as it may make an RPC
     self.bigquery_job_labels = bigquery_job_labels or {}
     self.use_json_exports = use_json_exports
 
@@ -649,9 +652,13 @@ class _CustomBigQuerySource(BoundedSource):
         'use_legacy_sql': self.use_legacy_sql,
         'bigquery_job_labels': json.dumps(self.bigquery_job_labels),
         'export_file_format': export_format,
+        'launchesBigQueryJobs': DisplayDataItem(
+            True, label="This Dataflow job launches bigquery jobs."),
     }
 
   def estimate_size(self):
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
     bq = bigquery_tools.BigQueryWrapper()
     if self.table_reference is not None:
       table_ref = self.table_reference
@@ -676,7 +683,8 @@ class _CustomBigQuerySource(BoundedSource):
           job_id=uuid.uuid4().hex,
           dry_run=True,
           kms_key=self.kms_key,
-          job_labels=self.bigquery_job_labels)
+          job_labels=self.bq_io_metadata.add_additional_bq_job_labels(
+              self.bigquery_job_labels))
       size = int(job.statistics.totalBytesProcessed)
       return size
     else:
@@ -747,6 +755,8 @@ class _CustomBigQuerySource(BoundedSource):
 
   @check_accessible(['query'])
   def _execute_query(self, bq):
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
     job = bq._start_query_job(
         self._get_project(),
         self.query.get(),
@@ -754,7 +764,8 @@ class _CustomBigQuerySource(BoundedSource):
         self.flatten_results,
         job_id=uuid.uuid4().hex,
         kms_key=self.kms_key,
-        job_labels=self.bigquery_job_labels)
+        job_labels=self.bq_io_metadata.add_additional_bq_job_labels(
+            self.bigquery_job_labels))
     job_ref = job.jobReference
     bq.wait_for_bq_job(job_ref, max_retries=0)
     return bq._get_temp_table(self._get_project())
@@ -766,13 +777,17 @@ class _CustomBigQuerySource(BoundedSource):
       bigquery.TableSchema instance, a list of FileMetadata instances
     """
     job_id = uuid.uuid4().hex
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
+    job_labels = self.bq_io_metadata.add_additional_bq_job_labels(
+        self.bigquery_job_labels)
     if self.use_json_exports:
       job_ref = bq.perform_extract_job([self.gcs_location],
                                        job_id,
                                        self.table_reference,
                                        bigquery_tools.FileFormat.JSON,
                                        project=self._get_project(),
-                                       job_labels=self.bigquery_job_labels,
+                                       job_labels=job_labels,
                                        include_header=False)
     else:
       job_ref = bq.perform_extract_job([self.gcs_location],
@@ -781,7 +796,7 @@ class _CustomBigQuerySource(BoundedSource):
                                        bigquery_tools.FileFormat.AVRO,
                                        project=self._get_project(),
                                        include_header=False,
-                                       job_labels=self.bigquery_job_labels,
+                                       job_labels=job_labels,
                                        use_avro_logical_types=True)
     bq.wait_for_bq_job(job_ref)
     metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
@@ -963,6 +978,9 @@ bigquery_v2_messages.TableSchema` object.
         buffer_size=buffer_size)
 
 
+_KNOWN_TABLES = set()
+
+
 class BigQueryWriteFn(DoFn):
   """A ``DoFn`` that streams writes to BigQuery once the table is created."""
 
@@ -1023,7 +1041,6 @@ class BigQueryWriteFn(DoFn):
     self.write_disposition = write_disposition
     self._rows_buffer = []
     self._reset_rows_buffer()
-    self._observed_tables = set()
 
     self._total_buffered_rows = 0
     self.kms_key = kms_key
@@ -1075,8 +1092,6 @@ class BigQueryWriteFn(DoFn):
     self.bigquery_wrapper = bigquery_tools.BigQueryWrapper(
         client=self.test_client)
 
-    self._observed_tables = set()
-
     self._backoff_calculator = iter(
         retry.FuzzedExponentialIntervals(
             initial_delay_secs=0.2, num_retries=10000, max_delay_secs=1500))
@@ -1086,7 +1101,7 @@ class BigQueryWriteFn(DoFn):
         table_reference.projectId,
         table_reference.datasetId,
         table_reference.tableId)
-    if str_table_reference in self._observed_tables:
+    if str_table_reference in _KNOWN_TABLES:
       return
 
     if self.create_disposition == BigQueryDisposition.CREATE_NEVER:
@@ -1110,7 +1125,7 @@ class BigQueryWriteFn(DoFn):
         self.create_disposition,
         self.write_disposition,
         additional_create_parameters=self.additional_bq_parameters)
-    self._observed_tables.add(str_table_reference)
+    _KNOWN_TABLES.add(str_table_reference)
 
   def process(self, element, *schema_side_inputs):
     destination = element[0]

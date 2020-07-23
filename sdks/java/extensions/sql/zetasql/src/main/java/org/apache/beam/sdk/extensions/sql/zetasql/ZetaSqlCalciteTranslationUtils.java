@@ -22,7 +22,9 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BYTES;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DATE;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DOUBLE;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_INT64;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_NUMERIC;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIME;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
 import static java.util.stream.Collectors.toList;
 
@@ -64,8 +66,12 @@ public final class ZetaSqlCalciteTranslationUtils {
         return TypeFactory.createSimpleType(TYPE_STRING);
       case VARBINARY:
         return TypeFactory.createSimpleType(TYPE_BYTES);
+      case DECIMAL:
+        return TypeFactory.createSimpleType(TYPE_NUMERIC);
       case DATE:
         return TypeFactory.createSimpleType(TYPE_DATE);
+      case TIME:
+        return TypeFactory.createSimpleType(TYPE_TIME);
       case TIMESTAMP:
         return TypeFactory.createSimpleType(TYPE_TIMESTAMP);
       case ARRAY:
@@ -95,8 +101,12 @@ public final class ZetaSqlCalciteTranslationUtils {
         return SqlTypeName.VARCHAR;
       case TYPE_BYTES:
         return SqlTypeName.VARBINARY;
+      case TYPE_NUMERIC:
+        return SqlTypeName.DECIMAL;
       case TYPE_DATE:
         return SqlTypeName.DATE;
+      case TYPE_TIME:
+        return SqlTypeName.TIME;
       case TYPE_TIMESTAMP:
         // TODO: handle timestamp with time zone.
         return SqlTypeName.TIMESTAMP;

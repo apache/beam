@@ -28,10 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
@@ -56,6 +54,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -635,9 +634,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   private TupleTag<OutputT> mainOutputTag = new TupleTag<>();
 
   /** The original DoFn under test, if started. */
-  @Nullable private DoFn<InputT, OutputT> fn;
+  private @Nullable DoFn<InputT, OutputT> fn;
 
-  @Nullable private DoFnInvoker<InputT, OutputT> fnInvoker;
+  private @Nullable DoFnInvoker<InputT, OutputT> fnInvoker;
 
   /** The outputs from the {@link DoFn} under test. Access via {@link #getOutputs()}. */
   @CheckForNull private Map<TupleTag<?>, List<ValueInSingleWindow<?>>> outputs;
@@ -652,52 +651,45 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       param.match(
           new DoFnSignature.Parameter.Cases.WithDefault<Void>() {
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.ProcessContextParameter p) {
+            public @Nullable Void dispatch(DoFnSignature.Parameter.ProcessContextParameter p) {
               // ProcessContext parameter is obviously supported.
               return null;
             }
 
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.WindowParameter p) {
+            public @Nullable Void dispatch(DoFnSignature.Parameter.WindowParameter p) {
               // We also support the BoundedWindow parameter.
               return null;
             }
 
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.ElementParameter p) {
+            public @Nullable Void dispatch(DoFnSignature.Parameter.ElementParameter p) {
               return null;
             }
 
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.TimestampParameter p) {
+            public @Nullable Void dispatch(DoFnSignature.Parameter.TimestampParameter p) {
               return null;
             }
 
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.TimeDomainParameter p) {
+            public @Nullable Void dispatch(DoFnSignature.Parameter.TimeDomainParameter p) {
               return null;
             }
 
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.OutputReceiverParameter p) {
+            public @Nullable Void dispatch(DoFnSignature.Parameter.OutputReceiverParameter p) {
               return null;
             }
 
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.TaggedOutputReceiverParameter p) {
+            public @Nullable Void dispatch(
+                DoFnSignature.Parameter.TaggedOutputReceiverParameter p) {
               return null;
             }
 
             @Override
-            @Nullable
-            public Void dispatch(DoFnSignature.Parameter.PaneInfoParameter p) {
+            public @Nullable Void dispatch(DoFnSignature.Parameter.PaneInfoParameter p) {
               return null;
             }
 

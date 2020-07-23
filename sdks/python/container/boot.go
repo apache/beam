@@ -23,7 +23,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -38,7 +40,7 @@ import (
 )
 
 var (
-	acceptableWhlSpecs = []string{"cp27-cp27mu-manylinux1_x86_64.whl", "cp35-cp35m-manylinux1_x86_64.whl", "cp36-cp36m-manylinux1_x86_64.whl", "cp37-cp37m-manylinux1_x86_64.whl"}
+	acceptableWhlSpecs []string
 
 	// Contract: https://s.apache.org/beam-fn-api-container-contract.
 
@@ -127,6 +129,10 @@ func main() {
 	// Guard from concurrent artifact retrieval and installation,
 	// when called by child processes in a worker pool.
 
+	if err := setupAcceptableWheelSpecs(); err != nil {
+		log.Printf("Failed to setup acceptable wheel specs, leave it as empty: %v", err)
+	}
+
 	materializeArtifactsFunc := func() {
 		dir := filepath.Join(*semiPersistDir, "staged")
 
@@ -168,6 +174,32 @@ func main() {
 	log.Printf("Executing: python %v", strings.Join(args, " "))
 
 	log.Fatalf("Python exited: %v", execx.Execute("python", args...))
+}
+
+// setup wheel specs according to installed python version
+func setupAcceptableWheelSpecs() error {
+	cmd := exec.Command("python", "-V")
+	stdoutStderr, err := cmd.CombinedOutput()
+	if err != nil {
+		return err
+	}
+	re := regexp.MustCompile(`Python (\d)\.(\d).*`)
+	pyVersions := re.FindStringSubmatch(string(stdoutStderr[:]))
+	if len(pyVersions) != 3 {
+		return fmt.Errorf("cannot get parse Python version from %s", stdoutStderr)
+	}
+	pyVersion := fmt.Sprintf("%s%s", pyVersions[1], pyVersions[2])
+	var wheelName string
+	switch pyVersion {
+	case "27":
+		wheelName = "cp27-cp27mu-manylinux1_x86_64.whl"
+	case "35", "36", "37":
+		wheelName = fmt.Sprintf("cp%s-cp%sm-manylinux1_x86_64.whl", pyVersion, pyVersion)
+	default:
+		wheelName = fmt.Sprintf("cp%s-cp%s-manylinux1_x86_64.whl", pyVersion, pyVersion)
+	}
+	acceptableWhlSpecs = append(acceptableWhlSpecs, wheelName)
+	return nil
 }
 
 // installSetupPackages installs Beam SDK and user dependencies.

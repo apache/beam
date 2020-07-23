@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
@@ -54,6 +53,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -184,8 +184,7 @@ public class ParDoEvaluatorTest {
 
   private static class ReadyInGlobalWindowReader implements ReadyCheckingSideInputReader {
     @Override
-    @Nullable
-    public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+    public @Nullable <T> T get(PCollectionView<T> view, BoundedWindow window) {
       if (window.equals(GlobalWindow.INSTANCE)) {
         return (T) (Integer) 5;
       }

@@ -172,6 +172,10 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
       self.compute = self.compute_using_beam
     else:
       self.compute = self.compute_using_session
+    self._seen_wont_implement = False
+
+  def reset(self):
+    self._seen_wont_implement = False
 
   def compute_using_session(self, to_compute):
     session = expressions.Session(self._env._inputs)
@@ -217,6 +221,18 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
     return want, got
 
   def check_output(self, want, got, optionflags):
+    if got.startswith('apache_beam.dataframe.frame_base.WontImplementError'):
+      self._seen_wont_implement = True
+      return True
+    elif got.startswith('NameError') and self._seen_wont_implement:
+      # After raising WontImplementError, ignore NameErrors.
+      # This allows us to gracefully skip tests like
+      #    >>> res = df.unsupported_operation()
+      #    >>> check(res)
+      return True
+    else:
+      # Reset.
+      self._seen_wont_implement = False
     want, got = self.fix(want, got)
     return super(_DeferrredDataframeOutputChecker,
                  self).check_output(want, got, optionflags)
@@ -240,13 +256,31 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
   """A Doctest runner suitable for replacing the `pd` module with one backed
   by beam.
   """
-  def __init__(self, env, use_beam=True, **kwargs):
+  def __init__(self, env, use_beam=True, skip=None, **kwargs):
     self._test_env = env
+
+    def to_callable(cond):
+      if cond == '*':
+        return lambda example: True
+      else:
+        return lambda example: example.source.strip() == cond
+
+    self._skip = {
+        test: [to_callable(cond) for cond in examples]
+        for test,
+        examples in (skip or {}).items()
+    }
     super(BeamDataframeDoctestRunner, self).__init__(
         checker=_DeferrredDataframeOutputChecker(self._test_env, use_beam),
         **kwargs)
 
   def run(self, test, **kwargs):
+    self._checker.reset()
+    if test.name in self._skip:
+      for example in test.examples:
+        if any(should_skip(example) for should_skip in self._skip[test.name]):
+          example.source = 'pass'
+          example.want = ''
     for example in test.examples:
       if example.exc_msg is None:
         # Don't fail doctests that raise this error.
@@ -298,12 +332,13 @@ def _run_patched(func, *args, **kwargs):
 
     env = TestEnvironment()
     use_beam = kwargs.pop('use_beam', True)
+    skip = kwargs.pop('skip', {})
     extraglobs = dict(kwargs.pop('extraglobs', {}))
     extraglobs['pd'] = env.fake_pandas_module()
     # Unfortunately the runner is not injectable.
     original_doc_test_runner = doctest.DocTestRunner
     doctest.DocTestRunner = lambda **kwargs: BeamDataframeDoctestRunner(
-        env, use_beam=use_beam, **kwargs)
+        env, use_beam=use_beam, skip=skip, **kwargs)
     return func(*args, extraglobs=extraglobs, optionflags=optionflags, **kwargs)
   finally:
     doctest.DocTestRunner = original_doc_test_runner
