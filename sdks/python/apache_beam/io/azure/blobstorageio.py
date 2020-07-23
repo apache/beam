@@ -168,6 +168,21 @@ class BlobStorageIO(object):
       code = e.status_code
       raise BlobStorageError(message, code)
 
+  # We intentionally do not decorate this method with a retry, since the
+  # underlying copy and delete operations are already idempotent operations
+  # protected by retry decorators.
+  def rename(self, src, dest):
+    """Renames the given Azure Blob Storage blob from src to dest.
+
+    Args:
+      src: Blob Storage file path pattern in the form
+           azfs://<storage-account>/<container>/[name].
+      dest: Blob Storage file path pattern in the form
+            azfs://<storage-account>/<container>/[name].
+    """
+    self.copy(src, dest)
+    self.delete(src)
+
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
   def exists(self, path):
