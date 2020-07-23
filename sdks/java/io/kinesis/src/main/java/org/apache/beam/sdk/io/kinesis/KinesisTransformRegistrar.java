@@ -40,7 +40,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
 
   @Override
   public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
-    return ImmutableMap.of(WRITE_URN, KinesisTransformRegistrar.WriteBuilder.class);
+    return ImmutableMap.of(WRITE_URN, WriteBuilder.class);
   }
 
   private abstract static class CrossLanguageConfiguration {
