@@ -44,21 +44,17 @@ public class AzfsResourceIdTest {
   @RunWith(Parameterized.class)
   public static class ResolveTest {
 
-    private String baseUri;
-    private String relativePath;
-    private ResolveOptions.StandardResolveOptions resolveOptions;
-    private String expectedResult;
+    @Parameterized.Parameter(0)
+    public String baseUri;
 
-    public ResolveTest(
-        String baseUri,
-        String relativePath,
-        ResolveOptions.StandardResolveOptions resolveOptions,
-        String expectedResult) {
-      this.baseUri = baseUri;
-      this.relativePath = relativePath;
-      this.resolveOptions = resolveOptions;
-      this.expectedResult = expectedResult;
-    }
+    @Parameterized.Parameter(1)
+    public String relativePath;
+
+    @Parameterized.Parameter(2)
+    public ResolveOptions.StandardResolveOptions resolveOptions;
+
+    @Parameterized.Parameter(3)
+    public String expectedResult;
 
     @Parameterized.Parameters
     public static Collection paths() {
