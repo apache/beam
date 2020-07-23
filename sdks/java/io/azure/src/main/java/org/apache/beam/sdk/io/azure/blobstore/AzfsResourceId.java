@@ -108,12 +108,6 @@ class AzfsResourceId implements ResourceId {
     return GLOB_PREFIX.matcher(blob).matches();
   }
 
-  String getBlobNonWildcardPrefix() {
-    Matcher m = GLOB_PREFIX.matcher(blob);
-    checkArgument(m.matches(), String.format("Glob expression: [%s] is not expandable.", blob));
-    return m.group("PREFIX");
-  }
-
   @Override
   public ResourceId getCurrentDirectory() {
     if (isDirectory()) {
@@ -208,16 +202,5 @@ class AzfsResourceId implements ResourceId {
 
     throw new UnsupportedOperationException(
         String.format("Unexpected StandardResolveOptions [%s]", resolveOptions));
-  }
-
-  // url format to interact with Azure
-  public String toAzureUrl() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("http://").append(account).append(".blob.core.windows.net");
-    sb.append("/").append(container);
-    if (blob != null) {
-      sb.append("/").append(blob);
-    }
-    return sb.toString();
   }
 }
