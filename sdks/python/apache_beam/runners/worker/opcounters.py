@@ -208,7 +208,8 @@ class OperationCounters(object):
     self._next_sample = 0
 
     self.producer_type_hints = None
-    if producer and hasattr(producer, 'spec') and hasattr(producer.spec, 'serialized_fn'):
+    if producer and hasattr(producer, 'spec') and hasattr(producer.spec,
+                                                          'serialized_fn'):
       fns = pickler.loads(producer.spec.serialized_fn)
       if fns:
         if hasattr(fns[0], '_runtime_type_hints'):
@@ -248,7 +249,8 @@ class OperationCounters(object):
   def type_check(self, value):
     # type: (any, bool) -> None
 
-    if self.producer_type_hints and hasattr(self.producer_type_hints, 'output_types'):
+    if self.producer_type_hints and hasattr(self.producer_type_hints,
+                                            'output_types'):
       output_constraint = self.producer_type_hints.output_types
       while isinstance(output_constraint, Iterable):
         output_constraint = output_constraint[0]

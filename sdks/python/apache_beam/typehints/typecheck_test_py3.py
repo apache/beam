@@ -147,16 +147,16 @@ class BaseTypeCheckTest(unittest.TestCase):
 
 class RuntimeTypeCheckTest(BaseTypeCheckTest.CommonTests):
   def setUp(self):
-    self.p = TestPipeline(options=PipelineOptions(
-      runtime_type_check=True,
-      performance_runtime_type_check=False))
+    self.p = TestPipeline(
+        options=PipelineOptions(
+            runtime_type_check=True, performance_runtime_type_check=False))
 
 
 class PerformanceRuntimeTypeCheckTest(BaseTypeCheckTest.CommonTests):
   def setUp(self):
-    self.p = TestPipeline(options=PipelineOptions(
-      runtime_type_check=False,
-      performance_runtime_type_check=True))
+    self.p = TestPipeline(
+        options=PipelineOptions(
+            runtime_type_check=False, performance_runtime_type_check=True))
 
 
 if __name__ == '__main__':

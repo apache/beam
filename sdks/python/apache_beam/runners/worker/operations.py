@@ -128,8 +128,12 @@ class ConsumerSet(Receiver):
     self.producer = producer
     self.consumers = consumers
     self.opcounter = opcounters.OperationCounters(
-        counter_factory, step_name, coder, output_index,
-        consumers=consumers, producer=producer)
+        counter_factory,
+        step_name,
+        coder,
+        output_index,
+        consumers=consumers,
+        producer=producer)
     # Used in repr.
     self.step_name = step_name
     self.output_index = output_index
@@ -608,7 +612,8 @@ class DoOperation(Operation):
           self.name_context.step_name,
           view_options['coder'],
           i,
-          suffix='side-input', producer=self.producer)
+          suffix='side-input',
+          producer=self.producer)
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter, element_counter=element_counter)
       yield apache_sideinputs.SideInputMap(
