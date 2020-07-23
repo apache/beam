@@ -102,6 +102,9 @@ class AzfsResourceId implements ResourceId {
   }
 
   boolean isWildcard() {
+    if (blob == null) {
+      return false;
+    }
     return GLOB_PREFIX.matcher(blob).matches();
   }
 
