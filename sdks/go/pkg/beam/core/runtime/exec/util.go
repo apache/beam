@@ -47,7 +47,7 @@ type doFnError struct {
 	pid  string
 }
 func (e *doFnError) Error() string {
-	return fmt.Sprintf("%v caused error %v, uid is %v pid is %v", e.doFn, e.err, e.uid, e.pid)
+	return fmt.Sprintf("DoFn[%v;%v]%v returned error:%v", e.uid,e.pid,e.doFn,e.err)
 }
 
 // New returns a fresh ID.
