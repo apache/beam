@@ -318,13 +318,13 @@ class SideInputTest(unittest.TestCase):
     #   with_output_types(...) when this bug is fixed.
     result = (['a', 'b', 'c']
               | beam.Map(lambda *args: args, 5).with_input_types(
-                  int, str).with_output_types(typehints.Tuple[str, int]))
+                  str, int).with_output_types(typehints.Tuple[str, int]))
     self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
 
     # Type hint order doesn't matter for VAR_POSITIONAL.
     result = (['a', 'b', 'c']
               | beam.Map(lambda *args: args, 5).with_input_types(
-                  int, str).with_output_types(typehints.Tuple[str, int]))
+                  str, int).with_output_types(typehints.Tuple[str, int]))
     self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
 
     if sys.version_info >= (3, ):
