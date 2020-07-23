@@ -1878,6 +1878,7 @@ class BeamModulePlugin implements Plugin<Project> {
         executable 'sh'
         args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
         dependsOn config.startJobServer
+        dependsOn ':sdks:java:container:docker'
         dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         dependsOn ':sdks:java:extensions:sql:expansion-service:shadowJar'
         dependsOn ":sdks:python:installGcpTest"
