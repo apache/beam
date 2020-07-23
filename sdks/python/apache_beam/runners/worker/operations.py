@@ -171,8 +171,8 @@ class ConsumerSet(Receiver):
     # type: (WindowedValue) -> None
     self.opcounter.update_from(windowed_value)
 
-  def update_counters_finish(self, windowed_value=None):
-    # type: (WindowedValue) -> None
+  def update_counters_finish(self):
+    # type: () -> None
     self.opcounter.update_collect()
 
   def __repr__(self):
