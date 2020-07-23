@@ -330,7 +330,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
     new_file = self._insert_random_file(file_name, file_size)
     original_etag = self.azfs.checksum(file_name)
-    #self.azfs.delete(file_name)
+    # self.azfs.delete(file_name)
     print("original", original_etag)
     f = self.azfs.open(file_name, 'w')
     self.assertEqual(f.mode, 'w')

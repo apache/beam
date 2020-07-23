@@ -202,7 +202,7 @@ class BlobStorageFileSystem(FileSystem):
     try:
       return blobstorageio.BlobStorageIO().exists(path)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("exists() operation failed", {path: e})
+      raise BeamIOError("Exists operation failed", {path: e})
 
   def size(self, path):
     """Get size in bytes of a file on the FileSystem.
@@ -218,7 +218,7 @@ class BlobStorageFileSystem(FileSystem):
     try:
       return blobstorageio.BlobStorageIO().size(path)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("size() operation failed", {path: e})
+      raise BeamIOError("Size operation failed", {path: e})
 
   def last_updated(self, path):
     """Get UNIX Epoch time in seconds on the FileSystem.
@@ -234,7 +234,7 @@ class BlobStorageFileSystem(FileSystem):
     try:
       return blobstorageio.BlobStorageIO().last_updated(path)
     except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("last updated operation failed", {path: e})
+      raise BeamIOError("Last updated operation failed", {path: e})
 
   def checksum(self, path):
     """Fetch checksum metadata of a file on the
@@ -248,7 +248,10 @@ class BlobStorageFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if path isn't a file or doesn't exist.
     """
-    raise NotImplementedError
+    try:
+      return blobstorageio.BlobStorageIO().checksum(path)
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("Checksum operation failed", {path, e})
 
   def delete(self, paths):
     """Deletes files or directories at the provided paths.
