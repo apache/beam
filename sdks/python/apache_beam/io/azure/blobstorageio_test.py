@@ -201,6 +201,29 @@ class TestBlobStorageIO(unittest.TestCase):
         'The specified blob does not exist.' in err.exception.message)
     self.assertEqual(err.exception.code, 404)
 
+  def test_rename(self):
+    src_file_name = self.TEST_DATA_PATH + 'mysource'
+    dest_file_name = self.TEST_DATA_PATH + 'mydest'
+    file_size = 1024
+
+    self._insert_random_file(src_file_name, file_size)
+    self.assertTrue(
+        src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+    self.assertFalse(
+        dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+
+    self.azfs.rename(src_file_name, dest_file_name)
+
+    self.assertFalse(
+        src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(
+        dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+
+    # Clean up
+    # TODO : Add delete_files functionality
+    self.azfs.delete(src_file_name)
+    self.azfs.delete(dest_file_name)
+
   def test_exists(self):
     file_name = self.TEST_DATA_PATH + 'test_exists'
     file_size = 1024
