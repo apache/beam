@@ -3003,7 +3003,7 @@ For example, the following application
 purchases.apply(AddFields.<PurchasePojo>create()
     .field("timeOfDaySeconds", FieldType.INT32)
     .field("shippingAddress.deliveryNotes", FieldType.STRING)
-    .field("transactions.isFlagged, FieldType.BOOLEAN, false));
+    .field("transactions.isFlagged", FieldType.BOOLEAN, false));
 {{< /highlight >}}
 
 Results in a `PCollection` with an expanded schema. All of the rows and fields of the input, but also with the specified 
