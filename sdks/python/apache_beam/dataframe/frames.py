@@ -258,7 +258,9 @@ class DeferredDataFrame(frame_base.DeferredFrame):
     else:
       return result
 
-  def reset_index(self, level=None, drop=False, inplace=False, *args, **kwargs):
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def reset_index(self, level=None, **kwargs):
     if level is not None and not isinstance(level, (tuple, list)):
       level = [level]
     if level is None or len(level) == len(self._expr.proxy().index.levels):
@@ -266,17 +268,13 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       requires_partition_by = partitionings.Singleton()
     else:
       requires_partition_by = partitionings.Nothing()
-    result = frame_base.DeferredFrame.wrap(
+    return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'reset_index',
-            lambda df: df.reset_index(level, drop, False, *args, **kwargs),
+            lambda df: df.reset_index(level=level, **kwargs),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
-    if inplace:
-      self._expr = result._expr
-    else:
-      return result
 
   round = frame_base._elementwise_method('round')
   select_dtypes = frame_base._elementwise_method('select_dtypes')
