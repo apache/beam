@@ -18,15 +18,15 @@
 """DICOM io connector
 This module implements serval tools to facilitate the interaction between
 a Google Cloud Healthcare DICOM store and a beam pipeline.
-For more details on DICOM store and api:
+For more details on DICOM store and API:
 https://cloud.google.com/healthcare/docs/how-tos/dicom
 DICOM io connector can be used to search metadata or store DICOM files.
 When used together with Google Pubsub message connector, a PTransform
 implemented in this module can be used to convert pubsub messages to search
-requests. Since Traceability are crucial for healthcare API users,
-every input or error message will be recorded in the output of DICOM io
+requests. Since Traceability is crucial for healthcare API users, every
+input or error message will be recorded in the output of the DICOM io
 connector. As a result, every PTransform in this module will return a
-Pcollection of dict that encodes results as well as detailed eror messages.
+Pcollection of dict that encodes results and detailed error messages.
 
 Search instance's metadata (QIDO request)
 ===================================================
@@ -68,15 +68,15 @@ message into Qido Search dict then use DicomSearch(). Here is a sample usage:
     metadata = qido_dict | DicomSearch()
 
 In the example above, the pipeline is listening to a pubsub topic and waiting
-for messages from DICOM api. When a new DICOM file comes into the storage, the
+for messages from DICOM API. When a new DICOM file comes into the storage, the
 pipeline will receive a pubsub message, convert it to a Qido request dict and
 feed it to DicomSearch() PTransform. As a result, users can get the metadata for
 every new DICOM file. Note that not every pubsub message received is from DICOM
-api, so we to filter the results first.
+API, so we to filter the results first.
 
 Store a DICOM file in a DICOM storage
 ===================================================
-DicomStoreInstance() wraps store request api and users can use it to send a
+DicomStoreInstance() wraps store request API and users can use it to send a
 DICOM file to a DICOM store. It supports two types of input: 1.file data in
 byte[] 2.file name (local or gcs path) in string. Users should set the
 'input_type' when initialzing the PTransform. Here are the examples:
@@ -118,7 +118,7 @@ class DicomSearch(PTransform):
     Cloud DICOM store. It takes a Pcollection of dicts as input and return
     a Pcollection of dict as results:
     INPUT:
-    The input dict represents DICOM web path parameter, which has following
+    The input dict represents DICOM web path parameters, which has the following
     string keys and values:
     {
       'project_id': str,
@@ -133,9 +133,9 @@ class DicomSearch(PTransform):
       region: Region where the DICOM store resides. (Required)
       dataset_id: Id of the dataset where DICOM store belongs to. (Required)
       dicom_store_id: Id of the dicom store. (Required)
-      search_type: Which type of search it is, cloud only be one of the three
-        values: 'instances', 'series' or 'studies'. (Required)
-      params: A dict of Tag:value pairs used to refine QIDO search. (Optional)
+      search_type: Which type of search it is, could only be one of the three
+        values: 'instances', 'series', or 'studies'. (Required)
+      params: A dict of str:str pairs used to refine QIDO search. (Optional)
         Supported tags in three categories:
           1. Studies:
             StudyInstanceUID
@@ -156,7 +156,7 @@ class DicomSearch(PTransform):
       'result': a list of dicts in JSON style.
       'success': boolean value telling whether the operation is successful.
       'input': detail ids and dicomweb path for this retrieval.
-      'status': status code from server, used as error message.
+      'status': status code from the server, used as error message.
     }
   """
   def __init__(self, credential=None):
@@ -226,9 +226,9 @@ class _QidoSource(beam.DoFn):
 
 class PubsubToQido(PTransform):
   """A ``PTransform`` for converting pubsub messages into search input dict.
-    Takes Pcollection of string as input and return a Pcollection of dict as
-    result. Note that some pubsub messages may not be from DICOM api, which
-    will be records as failed conversions.
+    Takes Pcollection of string as input and returns a Pcollection of dict as
+    results. Note that some pubsub messages may not be from DICOM API, which
+    will be recorded as failed conversions.
     INPUT:
     The input are normally strings from Pubsub topic:
       "projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/
@@ -327,24 +327,24 @@ class _ConvertPubsubToQido(beam.DoFn):
 class DicomStoreInstance(PTransform):
   """A ``PTransform`` for storing instances to a DICOM store.
     Takes Pcollection of byte[] as input and return a Pcollection of dict as
-    result. The input are normally dicom file in bytes format.
+    results. The inputs are normally DICOM file in bytes or str filename.
     INPUT:
       This PTransform supports two types of input:
         1. Byte[]: representing dicom file.
-        2. str: file name of local or GCS DICOM file.
+        2. str: filename of local or GCS DICOM file.
     OUTPUT:
     The output dict encodes status as well as error messages:
     {
       'success': boolean value telling whether the store is successful
-      'input': undeliverable data. Exactly same as the input,
-        only set if the trancation is failed.
-      'status': status code from server, used as error message.
+      'input': undeliverable data. Exactly the same as the input,
+        only set if the operation is failed.
+      'status': status code from the server, used as error messages.
     }
   """
   def __init__(self, destination_dict, input_type, credential=None):
     """Initializes ``DicomStoreInstance``.
     Args:
-      destination_dict: # type: python dict, encodes dicom endpoint information:
+      destination_dict: # type: python dict, encodes DICOM endpoint information:
         {
           'project_id': str,
           'region': str,
@@ -357,7 +357,7 @@ class DicomStoreInstance(PTransform):
           dataset_id: Id of the dataset where DICOM store belongs to. (Required)
           dicom_store_id: Id of the dicom store. (Required)
       input_type: # type: string, could only be 'bytes', 'gcs', or 'local'
-      credential: # type: Google credential object, if it isspecified, the
+      credential: # type: Google credential object, if it is specified, the
         Http client will use it instead of the default one.
     """
     self.credential = credential
