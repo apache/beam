@@ -22,6 +22,8 @@ import com.esotericsoftware.kryo.io.InputChunked;
 import com.esotericsoftware.kryo.io.OutputChunked;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /** Reusable kryo instance. */
@@ -51,7 +53,14 @@ class KryoState {
                     new Kryo.DefaultInstantiatorStrategy(new StdInstantiatorStrategy()));
                 kryo.setReferences(coder.getOptions().getReferences());
                 kryo.setRegistrationRequired(coder.getOptions().getRegistrationRequired());
-                kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
+
+                ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+                if (classLoader == null) {
+                  throw new RuntimeException(
+                          "Cannot detect classpath: classload is null (is it the bootstrap classloader?)");
+                }
+
+                kryo.setClassLoader(classLoader);
                 // first id of user provided class registration
                 final int firstRegistrationId = kryo.getNextRegistrationId();
                 // register user provided classes
