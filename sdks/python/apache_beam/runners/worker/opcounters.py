@@ -249,19 +249,19 @@ class OperationCounters(object):
     # type: (any, bool) -> None
 
     if self.producer_type_hints and hasattr(self.producer_type_hints, 'output_types'):
-      type_constraint = self.producer_type_hints.output_types
-      while isinstance(type_constraint, Iterable):
-        type_constraint = type_constraint[0]
-      if type_constraint:
-        TypeCheckWrapperDoFn.type_check(type_constraint, value, False)
+      output_constraint = self.producer_type_hints.output_types
+      while isinstance(output_constraint, Iterable):
+        output_constraint = output_constraint[0]
+      if output_constraint:
+        TypeCheckWrapperDoFn.type_check(output_constraint, value, False)
 
     for consumer_type_hints in self.consumers_type_hints:
       if consumer_type_hints and hasattr(consumer_type_hints, 'input_types'):
-        type_constraint = consumer_type_hints.input_types
-        while isinstance(type_constraint, Iterable):
-          type_constraint = type_constraint[0]
-        if type_constraint:
-          TypeCheckWrapperDoFn.type_check(type_constraint, value, False)
+        input_constraint = consumer_type_hints.input_types
+        while isinstance(input_constraint, Iterable):
+          input_constraint = input_constraint[0]
+        if input_constraint:
+          TypeCheckWrapperDoFn.type_check(input_constraint, value, False)
 
   def do_sample(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
