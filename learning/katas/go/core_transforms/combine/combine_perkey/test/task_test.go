@@ -16,7 +16,7 @@
 package test
 
 import (
-	"combine_perkey/pkg/task"
+	"beam.apache.org/learning/katas/core_transforms/combine/combine_perkey/pkg/task"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"testing"
