@@ -53,7 +53,7 @@ def run(p, input_file, output_file):
   (
       p
       | 'Read' >> ReadFromText(input_file)
-      | 'Split' >> beam.FlatMap(lambda line: re.split('\W+', line))
+      | 'Split' >> beam.FlatMap(lambda line: re.split(r'\W+', line))
       | 'ToRow' >> beam.Map(MyRow).with_output_types(MyRow)
       | 'Sql!!' >> SqlTransform(
           """
