@@ -13,17 +13,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module combinefn
+package test
 
-go 1.14
-
-require (
-	cloud.google.com/go/storage v1.8.0 // indirect
-	github.com/apache/beam v2.22.0+incompatible
-	github.com/golang/protobuf v1.4.2 // indirect
-	github.com/google/go-cmp v0.4.1 // indirect
-	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
-	golang.org/x/sys v0.0.0-20200610111108-226ff32320da // indirect
-	google.golang.org/api v0.25.0 // indirect
-	google.golang.org/genproto v0.0.0-20200611194920-44ba362f84c1 // indirect
+import (
+	"beam.apache.org/learning/katas/core_transforms/combine/combinefn/pkg/task"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"testing"
 )
+
+func TestApplyTransform(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
+	tests := []struct {
+		input beam.PCollection
+		want []interface{}
+	}{
+		{
+			input: beam.Create(s, 10, 20, 50, 70, 90),
+			want: []interface{}{48.0},
+		},
+	}
+	for _, tt := range tests {
+		got := task.ApplyTransform(s, tt.input)
+		passert.Equals(s, got, tt.want...)
+		if err := ptest.Run(p); err != nil {
+			t.Error(err)
+		}
+	}
+}

@@ -13,32 +13,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package main
 
 import (
-	"combinefn/pkg/task"
+	"beam.apache.org/learning/katas/core_transforms/combine/combinefn/pkg/task"
+	"context"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"testing"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
 
-func TestApplyTransform(t *testing.T) {
+func main() {
+	ctx := context.Background()
+
 	p, s := beam.NewPipelineWithRoot()
-	tests := []struct {
-		input beam.PCollection
-		want []interface{}
-	}{
-		{
-			input: beam.Create(s, 10, 20, 50, 70, 90),
-			want: []interface{}{48.0},
-		},
-	}
-	for _, tt := range tests {
-		got := task.ApplyTransform(s, tt.input)
-		passert.Equals(s, got, tt.want...)
-		if err := ptest.Run(p); err != nil {
-			t.Error(err)
-		}
+
+	input := beam.Create(s, 10, 20, 50, 70, 90)
+
+	output := task.ApplyTransform(s, input)
+
+	debug.Print(s, output)
+
+	err := beamx.Run(ctx, p)
+
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
 	}
 }
