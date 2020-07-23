@@ -56,6 +56,9 @@ Output:
 
 ### Example 2: Combining with a function
 
+We want the sum to be bounded up to a maximum value, so we use
+[saturated arithmetic](https://en.wikipedia.org/wiki/Saturation_arithmetic).
+
 We define a function `saturated_sum` which takes an `iterable` of numbers and adds them together, up to a predefined maximum number.
 
 {{< highlight py >}}
