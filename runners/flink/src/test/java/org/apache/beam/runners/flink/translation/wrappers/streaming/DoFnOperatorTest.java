@@ -1587,12 +1587,23 @@ public class DoFnOperatorTest {
 
     OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
+    // Check that we have only the element which was emitted before the snapshot
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(WindowedValue.valueInGlobalWindow("regular element")));
+
+    // Check that we would flush the buffered elements when continuing to run
+    testHarness.processWatermark(Long.MAX_VALUE);
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(
+            WindowedValue.valueInGlobalWindow("regular element"),
+            WindowedValue.valueInGlobalWindow("trigger another bundle"),
+            WindowedValue.valueInGlobalWindow("check that the previous element is not flushed")));
+
     testHarness.close();
 
-    // Restore
+    // Check that we would flush the buffered elements when restoring from a checkpoint
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness2 =
         new OneInputStreamOperatorTestHarness<>(doFnOperatorSupplier.get());
 
