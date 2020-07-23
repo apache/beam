@@ -280,13 +280,11 @@ class OperationCounters(object):
                 inner_coder_impl, self.active_accumulator))
 
   def update_collect(self):
-    # type: () -> None
     """Collects the accumulated size estimates.
 
     Now that the element has been processed, we ask our accumulator
     for the total and store the result in a counter.
     """
-
     self.element_counter.update(1)
     if self.current_size is not None:
       self.mean_byte_counter.update(self.current_size)

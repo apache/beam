@@ -172,9 +172,9 @@ class MainInputTest(unittest.TestCase):
     result = [1, 2, 3] | beam.ParDo(my_do_fn, side_input='abc')
     self.assertEqual(['1', '2', '3'], sorted(result))
 
-    # with self.assertRaisesRegex(typehints.TypeCheckError,
-    #                             r'requires.*str.*got.*int.*side_input'):
-    #   _ = [1, 2, 3] | beam.ParDo(my_do_fn, side_input=1)
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'requires.*str.*got.*int.*side_input'):
+      _ = [1, 2, 3] | beam.ParDo(my_do_fn, side_input=1)
 
   def test_typed_dofn_var_kwargs(self):
     class MyDoFn(beam.DoFn):
