@@ -34,7 +34,7 @@ def setupTask = project.tasks.create(name: "fnApiJobServerSetup", type: Exec) {
   dependsOn ':sdks:python:installGcpTest'
 
   executable 'sh'
-  args '-c', ". ${envdir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort} --pid_file ${pidFile} --background >/tmp/beam-fnapi-job-server.log 2>&1 </dev/null"
+  args '-c', ". ${envdir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort} --pid_file ${pidFile} --background --stdout_file ${tmpDir}/beam-fnapi-job-server.log"
 }
 
 def cleanupTask = project.tasks.create(name: "fnApiJobServerCleanup", type: Exec) {
