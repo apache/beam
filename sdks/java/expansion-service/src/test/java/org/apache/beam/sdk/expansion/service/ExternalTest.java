@@ -45,6 +45,8 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -58,14 +60,14 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ExternalTest implements Serializable {
   @Rule public transient TestPipeline testPipeline = TestPipeline.create();
-  private PipelineResult pipelineResult;
+  private @MonotonicNonNull PipelineResult pipelineResult = null;
 
   private static final String TEST_URN_SIMPLE = "simple";
   private static final String TEST_URN_LE = "le";
   private static final String TEST_URN_MULTI = "multi";
 
-  private static String localExpansionAddr;
-  private static Server localExpansionServer;
+  private static @MonotonicNonNull String localExpansionAddr = null;
+  private static @MonotonicNonNull Server localExpansionServer = null;
 
   @BeforeClass
   public static void setUpClass() throws IOException {
@@ -82,11 +84,13 @@ public class ExternalTest implements Serializable {
   }
 
   @AfterClass
+  @RequiresNonNull("localExpansionServer")
   public static void tearDownClass() {
     localExpansionServer.shutdownNow();
   }
 
   @After
+  @RequiresNonNull("pipelineResult")
   public void tearDown() {
     pipelineResult.waitUntilFinish();
     assertThat(pipelineResult.getState(), equalTo(PipelineResult.State.DONE));
@@ -94,6 +98,7 @@ public class ExternalTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+  @RequiresNonNull("localExpansionAddr")
   public void expandSingleTest() {
     PCollection<String> col =
         testPipeline
@@ -105,6 +110,7 @@ public class ExternalTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+  @RequiresNonNull("localExpansionAddr")
   public void expandMultipleTest() {
     PCollection<String> pcol =
         testPipeline
@@ -121,6 +127,7 @@ public class ExternalTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+  @RequiresNonNull("localExpansionAddr")
   public void expandMultiOutputTest() {
     PCollectionTuple pTuple =
         testPipeline
