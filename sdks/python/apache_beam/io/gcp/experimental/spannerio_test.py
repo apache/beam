@@ -222,7 +222,7 @@ class SpannerReadTest(unittest.TestCase):
         # Test the exception raised when user passes the read operations in the
         # constructor and also in the pipeline.
         _ = (
-          pipeline | 'reads error' >> ReadFromSpanner(
+            pipeline | 'reads error' >> ReadFromSpanner(
                 project_id=TEST_PROJECT_ID,
                 instance_id=TEST_INSTANCE_ID,
                 database_id=_generate_database_name(),
@@ -305,7 +305,6 @@ class SpannerReadTest(unittest.TestCase):
               TEST_INSTANCE_ID,
               _generate_database_name(),
               transaction=transaction))
-
 
       assert_that(read_query, equal_to(FAKE_ROWS), label='checkQuery')
       assert_that(read_table, equal_to(FAKE_ROWS), label='checkTable')
