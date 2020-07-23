@@ -190,7 +190,12 @@ public class AzfsResourceIdTest {
     assertEquals(
         "virtualDir/blob",
         AzfsResourceId.fromComponents("account", "container", "virtualDir/blob").getBlob());
-    assertEquals(null, AzfsResourceId.fromComponents("account", "container").getBlob());
+    assertEquals(null,
+            AzfsResourceId.fromComponents("account", "container").getBlob());
+    assertEquals(null,
+            AzfsResourceId.fromComponents("account", "container", "").getBlob());
+    assertEquals(null,
+            AzfsResourceId.fromComponents("account", "container", null).getBlob());
   }
 
   @Test
