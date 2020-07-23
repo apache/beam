@@ -40,7 +40,7 @@ We use the function
 which takes an `iterable` of numbers and adds them together.
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_function >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_simple >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
