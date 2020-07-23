@@ -73,9 +73,6 @@ class AzfsResourceId implements ResourceId {
     String account = m.group("ACCOUNT");
     String container = m.group("CONTAINER");
     String blob = m.group("BLOB");
-    if (blob != null && blob.isEmpty()) {
-      blob = null;
-    }
     return fromComponents(account, container, blob);
   }
 
