@@ -68,6 +68,10 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     public void setServiceEndpoint(String serviceEndpoint) {
       this.serviceEndpoint = serviceEndpoint;
     }
+
+    Regions getRegion() {
+      return Regions.valueOf(region);
+    }
   }
 
   @Experimental(Kind.PORTABILITY)
@@ -104,7 +108,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
               .withAWSClientsProvider(
                   configuration.awsAccessKey,
                   configuration.awsSecretKey,
-                  Regions.valueOf(configuration.region),
+                  configuration.getRegion(),
                   configuration.serviceEndpoint)
               .withPartitionKey(configuration.partitionKey);
 
