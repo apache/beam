@@ -21,6 +21,7 @@ import com.amazonaws.regions.Regions;
 import com.google.auto.service.AutoService;
 import java.util.Map;
 import java.util.Properties;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
@@ -47,7 +48,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     String awsAccessKey;
     String awsSecretKey;
     String region;
-    String serviceEndpoint;
+    @Nullable String serviceEndpoint;
 
     public void setStreamName(String streamName) {
       this.streamName = streamName;
@@ -65,7 +66,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
       this.region = region;
     }
 
-    public void setServiceEndpoint(String serviceEndpoint) {
+    public void setServiceEndpoint(@Nullable String serviceEndpoint) {
       this.serviceEndpoint = serviceEndpoint;
     }
 
