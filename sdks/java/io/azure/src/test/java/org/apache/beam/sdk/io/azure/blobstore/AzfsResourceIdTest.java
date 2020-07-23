@@ -26,7 +26,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
-import java.util.List;
+import java.util.Collection;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.junit.Rule;
@@ -34,20 +34,22 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 
 @RunWith(JUnit4.class)
 public class AzfsResourceIdTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  static final class TestCase {
+  @RunWith(Parameterized.class)
+  public static class ResolveTest {
 
-    final String baseUri;
-    final String relativePath;
-    final ResolveOptions.StandardResolveOptions resolveOptions;
-    final String expectedResult;
+    private String baseUri;
+    private String relativePath;
+    private ResolveOptions.StandardResolveOptions resolveOptions;
+    private String expectedResult;
 
-    TestCase(
+    public ResolveTest(
         String baseUri,
         String relativePath,
         ResolveOptions.StandardResolveOptions resolveOptions,
@@ -57,39 +59,49 @@ public class AzfsResourceIdTest {
       this.resolveOptions = resolveOptions;
       this.expectedResult = expectedResult;
     }
-  }
 
-  // Each test case is an expected URL, then the components used to build it.
-  // Empty components result in a double slash.
-  private static final List<TestCase> PATH_TEST_CASES =
-      Arrays.asList(
-          new TestCase(
-              "azfs://account/container/", "", RESOLVE_DIRECTORY, "azfs://account/container/"),
-          new TestCase(
-              "azfs://account/container", "", RESOLVE_DIRECTORY, "azfs://account/container/"),
-          new TestCase(
+    @Parameterized.Parameters
+    public static Collection paths() {
+      return Arrays.asList(
+          new Object[][] {
+            {"azfs://account/container/", "", RESOLVE_DIRECTORY, "azfs://account/container/"},
+            {"azfs://account/container", "", RESOLVE_DIRECTORY, "azfs://account/container/"},
+            {
               "azfs://account/container",
               "path/to/dir",
               RESOLVE_DIRECTORY,
-              "azfs://account/container/path/to/dir/"),
-          new TestCase(
+              "azfs://account/container/path/to/dir/"
+            },
+            {
               "azfs://account/container",
               "path/to/object",
               RESOLVE_FILE,
-              "azfs://account/container/path/to/object"),
-          new TestCase(
+              "azfs://account/container/path/to/object"
+            },
+            {
               "azfs://account/container/path/to/dir/",
               "..",
               RESOLVE_DIRECTORY,
-              "azfs://account/container/path/to/"));
+              "azfs://account/container/path/to/"
+            }
+          });
+    }
+
+    @Test
+    public void testResolvePaths() {
+      ResourceId resourceId = AzfsResourceId.fromUri(baseUri);
+      ResourceId resolved = resourceId.resolve(relativePath, resolveOptions);
+      assertEquals(expectedResult, resolved.toString());
+    }
+  }
 
   @Test
   public void testResolve() {
-    for (TestCase testCase : PATH_TEST_CASES) {
+    /*for (TestCase testCase : PATH_TEST_CASES) {
       ResourceId resourceId = AzfsResourceId.fromUri(testCase.baseUri);
       ResourceId resolved = resourceId.resolve(testCase.relativePath, testCase.resolveOptions);
       assertEquals(testCase.expectedResult, resolved.toString());
-    }
+    }*/
 
     // Tests for common Azure paths.
     assertEquals(
