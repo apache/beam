@@ -161,19 +161,15 @@ public class AzfsResourceIdTest {
 
     b = AzfsResourceId.fromComponents(a.getAccount(), a.getContainer(), "a/b/c/");
     assertNotEquals(a, b);
-    assertNotEquals(b, a);
 
     b = AzfsResourceId.fromComponents(a.getAccount(), a.getContainer(), "x/y/z");
     assertNotEquals(a, b);
-    assertNotEquals(b, a);
 
     b = AzfsResourceId.fromComponents(a.getAccount(), "other-container", a.getBlob());
     assertNotEquals(a, b);
-    assertNotEquals(b, a);
 
     b = AzfsResourceId.fromComponents("other-account", a.getContainer(), a.getBlob());
     assertNotEquals(a, b);
-    assertNotEquals(b, a);
 
     assertEquals(
         AzfsResourceId.fromUri("azfs://account/container"),
