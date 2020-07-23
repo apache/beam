@@ -64,8 +64,9 @@ type RTracker interface {
 	//
 	// This method modifies the underlying restriction in the RTracker to reflect the primary. It
 	// then returns a copy of the newly modified restriction as a primary, and returns a new
-	// restriction for the residual. If the split would produce an empty residual (i.e. the only
-	// split point is the end of the restriction), then the returned residual is nil.
+	// restriction for the residual. If the split would produce an empty residual (either because
+	// the only split point is the end of the restriction, or the split failed for some recoverable
+	// reason), then this function returns nil as the residual.
 	//
 	// If an error is returned, some catastrophic failure occurred and the entire bundle will fail.
 	TrySplit(fraction float64) (primary, residual interface{}, err error)

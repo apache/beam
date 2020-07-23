@@ -264,7 +264,11 @@ func (rt *VetRTracker) GetProgress() (float64, float64) { return 0, 0 }
 func (rt *VetRTracker) IsDone() bool                    { return true }
 func (rt *VetRTracker) GetRestriction() interface{}     { return nil }
 func (rt *VetRTracker) TrySplit(_ float64) (interface{}, interface{}, error) {
-	return nil, nil, nil
+	rest1 := rt.Rest.copy()
+	rest1.ID += ".1"
+	rest2 := rt.Rest.copy()
+	rest2.ID += ".2"
+	return &rest1, &rest2, nil
 }
 
 // VetSdf runs an SDF In order to test that these methods get called properly,

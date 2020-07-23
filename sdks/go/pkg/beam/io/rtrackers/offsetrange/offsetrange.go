@@ -20,16 +20,39 @@
 package offsetrange
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"math"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*Tracker)(nil)))
-	beam.RegisterType(reflect.TypeOf((*Restriction)(nil)))
+	runtime.RegisterType(reflect.TypeOf((*Tracker)(nil)))
+	runtime.RegisterType(reflect.TypeOf((*Restriction)(nil)).Elem())
+	runtime.RegisterFunction(restEnc)
+	runtime.RegisterFunction(restDec)
+	coder.RegisterCoder(reflect.TypeOf((*Restriction)(nil)).Elem(), restEnc, restDec)
+}
+
+func restEnc(in Restriction) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if err := binary.Write(buf, binary.BigEndian, in); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func restDec(in []byte) (Restriction, error) {
+	buf := bytes.NewBuffer(in)
+	rest := Restriction{}
+	if err := binary.Read(buf, binary.BigEndian, &rest); err != nil {
+		return rest, err
+	}
+	return rest, nil
 }
 
 // Restriction is an offset range restriction, which represents a range of
@@ -44,10 +67,10 @@ type Restriction struct {
 //
 // Num should be greater than 0. Otherwise there is no way to split the
 // restriction and this function will return the original restriction.
-func (r *Restriction) EvenSplits(num int64) (splits []Restriction) {
+func (r Restriction) EvenSplits(num int64) (splits []Restriction) {
 	if num <= 1 {
 		// Don't split, just return original restriction.
-		return append(splits, *r)
+		return append(splits, r)
 	}
 
 	offset := r.Start
@@ -67,7 +90,7 @@ func (r *Restriction) EvenSplits(num int64) (splits []Restriction) {
 }
 
 // Size returns the restriction's size as the difference between Start and End.
-func (r *Restriction) Size() float64 {
+func (r Restriction) Size() float64 {
 	return float64(r.End - r.Start)
 }
 
