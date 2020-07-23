@@ -2356,7 +2356,7 @@ public class TimestampNanos implements LogicalType<Instant, Row> {
     return Row.withSchema(schema).addValues(instant.getEpochSecond(), instant.getNano()).build();
   }
   
-  // Convert the underlying Row type to and Instant. Called by Beam when necessary.
+  // Convert the underlying Row type to an Instant. Called by Beam when necessary.
   @Override public Instant toInputType(Row base) {
     return Instant.of(row.getInt64("seconds"), row.getInt32("nanos"));
   }
