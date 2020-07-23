@@ -280,16 +280,16 @@ class TestBlobStorageIO(unittest.TestCase):
     file_name = self.TEST_DATA_PATH + 'test_file_read'
     file_size = 1024
 
-    new_file = self._insert_random_file(file_name, file_size)
-    contents = new_file.contents
+    test_file = self._insert_random_file(file_name, file_size)
+    contents = test_file.contents
 
-    new_file = self.azfs.open(file_name)
-    self.assertEqual(new_file.mode, 'r')
-    new_file.seek(0, os.SEEK_END)
-    self.assertEqual(new_file.tell(), file_size)
-    self.assertEqual(new_file.read(), b'')
-    new_file.seek(0)
-    self.assertEqual(new_file.read(), contents)
+    test_file = self.azfs.open(file_name)
+    self.assertEqual(test_file.mode, 'r')
+    test_file.seek(0, os.SEEK_END)
+    self.assertEqual(test_file.tell(), file_size)
+    self.assertEqual(test_file.read(), b'')
+    test_file.seek(0)
+    self.assertEqual(test_file.read(), contents)
 
     # Clean up
     self.azfs.delete(file_name)
@@ -304,9 +304,9 @@ class TestBlobStorageIO(unittest.TestCase):
     f.write(contents[0:1000])
     f.write(contents[1000:1024])
     f.close()
-    new_file = self.azfs.open(file_name, 'r')
-    new_file_contents = new_file.read()
-    self.assertEqual(new_file_contents, contents)
+    test_file = self.azfs.open(file_name, 'r')
+    test_file_contents = test_file.read()
+    self.assertEqual(test_file_contents, contents)
 
     # Clean up
     self.azfs.delete(file_name)
@@ -328,17 +328,16 @@ class TestBlobStorageIO(unittest.TestCase):
     file_name = self.TEST_DATA_PATH + 'test_checksum'
     file_size = 1024
 
-    new_file = self._insert_random_file(file_name, file_size)
-    original_etag = self.azfs.checksum(file_name)
-    # self.azfs.delete(file_name)
-    print("original", original_etag)
+    test_file = self._insert_random_file(file_name, file_size)
+    original_etag = self.azfs.checksum(file_name)    
+
     f = self.azfs.open(file_name, 'w')
     self.assertEqual(f.mode, 'w')
-    #with self.azfs.open(file_name, 'w') as f:
-    #  f.write(new_file.contents)
+    f.write(test_file.contents)
+    f.close()
     rewritten_etag = self.azfs.checksum(file_name)
-    print("rewritten", rewritten_etag)
-    self.assertEqual(original_etag, rewritten_etag)
+
+    self.assertNotEqual(original_etag, rewritten_etag)
 
     # Clean up
     self.azfs.delete(file_name)

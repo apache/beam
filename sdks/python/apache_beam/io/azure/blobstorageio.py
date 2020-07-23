@@ -171,7 +171,7 @@ class BlobStorageIO(object):
       raise BlobStorageError(message, code)
 
   @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+      retry_filter=retry.retry_on_beam_io_error_filter)
   def list_prefix(self, path):
     """Lists files matching the prefix.
 
@@ -207,7 +207,7 @@ class BlobStorageIO(object):
     return file_sizes
 
   @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+      retry_filter=retry.retry_on_beam_io_error_filter)
   def delete(self, path):
     """Deletes a single blob at the given Azure Blob Storage path.
     
@@ -249,7 +249,7 @@ class BlobStorageIO(object):
     return properties.size
 
   @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+      retry_filter=retry.retry_on_beam_io_error_filter)
   def exists(self, path):
     """Returns whether the given Azure Blob Storage blob exists.
     
@@ -338,7 +338,7 @@ class BlobStorageDownloader(Downloader):
     self._size = properties.size
 
   @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+      retry_filter=retry.retry_on_beam_io_error_filter)
   def _get_object_properties(self):
     return self._blob_to_download.get_blob_properties()
 
