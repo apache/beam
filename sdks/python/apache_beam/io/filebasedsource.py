@@ -32,6 +32,8 @@ from __future__ import absolute_import
 
 from typing import Callable
 
+import logging
+
 from past.builtins import long
 from past.builtins import unicode
 
@@ -151,6 +153,7 @@ class FileBasedSource(iobase.BoundedSource):
       # we clone it here.
       file_based_source_ref = pickler.loads(pickler.dumps(self))
 
+      logging.error('************ size of match result for glob %r is %r', pattern, len(files_metadata))
       for file_metadata in files_metadata:
         file_name = file_metadata.path
         file_size = file_metadata.size_in_bytes
@@ -170,6 +173,7 @@ class FileBasedSource(iobase.BoundedSource):
             min_bundle_size=self._min_bundle_size,
             splittable=splittable)
         single_file_sources.append(single_file_source)
+      logging.error('********* number of sub-sources in ConcatSource is %r', len(single_file_sources))
       self._concat_source = concat_source.ConcatSource(single_file_sources)
     return self._concat_source
 
