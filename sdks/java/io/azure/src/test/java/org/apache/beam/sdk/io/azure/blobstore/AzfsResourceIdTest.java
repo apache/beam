@@ -302,5 +302,12 @@ public class AzfsResourceIdTest {
     AzfsResourceId.fromComponents("account", "invalid/", "");
   }
 
+  @Test
+  public void testIsWildcard() {
+    assertTrue(AzfsResourceId.fromUri("azfs://account/container/dir/*.txt").isWildcard());
+    assertTrue(AzfsResourceId.fromUri("azfs://account/container/a?c/glob").isWildcard());
+    assertTrue(AzfsResourceId.fromUri("azfs://account/container/a[bcd]e/glob").isWildcard());
+  }
+
   // TODO: Consider adding a ResourceIdTester.runResourceIdBattery() test
 }
