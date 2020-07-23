@@ -106,26 +106,30 @@ class ConsumerSet(Receiver):
              step_name,  # type: str
              output_index,
              consumers,  # type: List[Operation]
-             coder
-            ):
+             coder,
+             producer    # type: Operation
+             ):
     # type: (...) -> ConsumerSet
     if len(consumers) == 1:
       return SingletonConsumerSet(
-          counter_factory, step_name, output_index, consumers, coder)
+          counter_factory, step_name, output_index, consumers, coder, producer)
     else:
       return ConsumerSet(
-          counter_factory, step_name, output_index, consumers, coder)
+          counter_factory, step_name, output_index, consumers, coder, producer)
 
   def __init__(self,
                counter_factory,
                step_name,  # type: str
                output_index,
                consumers,  # type: List[Operation]
-               coder
-              ):
+               coder,
+               producer
+               ):
+    self.producer = producer
     self.consumers = consumers
     self.opcounter = opcounters.OperationCounters(
-        counter_factory, step_name, coder, output_index, consumers=consumers)
+        counter_factory, step_name, coder, output_index,
+        consumers=consumers, producer=producer)
     # Used in repr.
     self.step_name = step_name
     self.output_index = output_index
@@ -165,7 +169,7 @@ class ConsumerSet(Receiver):
 
   def update_counters_finish(self, windowed_value=None):
     # type: (WindowedValue) -> None
-    self.opcounter.update_collect(windowed_value)
+    self.opcounter.update_collect()
 
   def __repr__(self):
     return '%s[%s.out%s, coder=%s, len(consumers)=%s]' % (
@@ -182,11 +186,12 @@ class SingletonConsumerSet(ConsumerSet):
                step_name,
                output_index,
                consumers,  # type: List[Operation]
-               coder
+               coder,
+               producer
               ):
     assert len(consumers) == 1
     super(SingletonConsumerSet, self).__init__(
-        counter_factory, step_name, output_index, consumers, coder)
+        counter_factory, step_name, output_index, consumers, coder, producer)
     self.consumer = consumers[0]
 
   def receive(self, windowed_value):
@@ -238,6 +243,7 @@ class Operation(object):
     self.execution_context = None  # type: Optional[ExecutionContext]
     self.consumers = collections.defaultdict(
         list)  # type: DefaultDict[int, List[Operation]]
+    self.producer = None
 
     # These are overwritten in the legacy harness.
     self.metrics_container = MetricsContainer(self.name_context.metrics_name())
@@ -276,7 +282,8 @@ class Operation(object):
                 self.name_context.logging_name(),
                 i,
                 self.consumers[i],
-                coder) for i,
+                coder,
+                self) for i,
             coder in enumerate(self.spec.output_coders)
         ]
     self.setup_done = True
@@ -485,7 +492,8 @@ class ImpulseReadOperation(Operation):
             self.name_context.step_name,
             0,
             next(iter(consumers.values())),
-            output_coder)
+            output_coder,
+            self)
     ]
 
   def process(self, unused_impulse):
@@ -600,7 +608,7 @@ class DoOperation(Operation):
           self.name_context.step_name,
           view_options['coder'],
           i,
-          suffix='side-input')
+          suffix='side-input', producer=self.producer)
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter, element_counter=element_counter)
       yield apache_sideinputs.SideInputMap(

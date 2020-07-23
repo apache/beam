@@ -192,7 +192,8 @@ class OperationCounters(object):
       coder,
       index,
       suffix='out',
-      consumers=None):
+      consumers=None,
+      producer=None):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(
         '%s-%s%s-ElementCount' % (step_name, suffix, index), Counter.SUM)
@@ -205,16 +206,20 @@ class OperationCounters(object):
     self._sample_counter = 0
     self._next_sample = 0
 
-    if consumers and len(consumers):
-      consumer = consumers[0]
+    self.producer_type_hints = None
+    if producer and hasattr(producer, 'spec') and hasattr(producer.spec, 'serialized_fn'):
+      fns = pickler.loads(producer.spec.serialized_fn)
+      if fns:
+        if hasattr(fns[0], '_type_hints'):
+          self.producer_type_hints = fns[0]._type_hints
+
+    self.consumers_type_hints = []
+    for consumer in consumers:
       if hasattr(consumer, 'spec') and hasattr(consumer.spec, 'serialized_fn'):
         fns = pickler.loads(consumer.spec.serialized_fn)
-        if fns and len(fns):
-          fn = fns[0]
-          if fn and hasattr(fn, '_type_hints'):
-            self.type_hints = fn._type_hints
-          else:
-            self.type_hints = None
+        if fns:
+          if hasattr(fns[0], '_type_hints'):
+            self.consumers_type_hints.append(fns[0]._type_hints)
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
@@ -238,25 +243,24 @@ class OperationCounters(object):
 
     return _observable_callback_inner
 
-  def type_check(self, value, is_input):
+  def type_check(self, value):
     # type: (any, bool) -> None
     try:
-      if is_input:
-        type_constraint = self.type_hints.input_types[0][0][0][0]
-      else:
-        type_constraint = self.type_hints.output_types[0][0][0][0]
+        type_constraint = self.producer_type_hints.output_types[0][0][0][0]
+        TypeCheckWrapperDoFn.type_check(type_constraint, value, False)
     except (TypeError, AttributeError, IndexError):
-      return
+      pass
 
-    TypeCheckWrapperDoFn.type_check(type_constraint, value, is_input)
+    for consumer_type_hints in self.consumers_type_hints:
+      try:
+        type_constraint = consumer_type_hints.input_types[0][0][0][0]
+        TypeCheckWrapperDoFn.type_check(type_constraint, value, True)
+      except (TypeError, AttributeError, IndexError):
+        pass
 
   def do_sample(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
-    is_input = True
-    if self.element_counter.name.startswith(('First', 'Second')):
-      is_input = False
-
-    self.type_check(windowed_value.value, is_input)
+    self.type_check(windowed_value.value)
 
     size, observables = (
         self.coder_impl.get_estimated_size_and_observables(windowed_value))
@@ -270,16 +274,13 @@ class OperationCounters(object):
             self._observable_callback(
                 inner_coder_impl, self.active_accumulator))
 
-  def update_collect(self, windowed_value=None):
-    # type: (WindowedValue) -> None
+  def update_collect(self):
+    # type: () -> None
     """Collects the accumulated size estimates.
 
     Now that the element has been processed, we ask our accumulator
     for the total and store the result in a counter.
     """
-
-    if windowed_value:
-      self.type_check(windowed_value.value, False)
 
     self.element_counter.update(1)
     if self.current_size is not None:
