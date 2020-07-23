@@ -156,7 +156,6 @@ public class AzfsResourceIdTest {
   public void testEquals() {
     AzfsResourceId a = AzfsResourceId.fromComponents("account", "container", "a/b/c");
     AzfsResourceId b = AzfsResourceId.fromComponents("account", "container", "a/b/c");
-    assertEquals(a, a);
     assertEquals(a, b);
 
     b = AzfsResourceId.fromComponents(a.getAccount(), a.getContainer(), "a/b/c/");
