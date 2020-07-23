@@ -15,7 +15,8 @@
 # limitations under the License.
 #
 
-"""Tests for Azure Blob Storage client."""
+"""Tests for Azure Blob Storage client.
+"""
 # pytype: skip-file
 
 from __future__ import absolute_import
@@ -133,48 +134,40 @@ class TestBlobStorageIO(unittest.TestCase):
     # Clean up
     self.azfs.delete(file_name)
 
-  def test_list_prefix(self):
-    blobs = [
-        ('sloth/pictures/sleeping', 2),
-        ('sloth/videos/smiling', 3),
-        ('sloth/institute/costarica', 5),
-    ]
+  def test_full_file_read(self):
+    file_name = self.TEST_DATA_PATH + 'test_file_read'
+    file_size = 1024
 
-    for (blob_name, size) in blobs:
-      file_name = self.TEST_DATA_PATH + blob_name
-      self._insert_random_file(file_name, size)
+    test_file = self._insert_random_file(file_name, file_size)
+    contents = test_file.contents
 
-    test_cases = [
-        (
-            self.TEST_DATA_PATH + 's',
-            [
-                ('sloth/pictures/sleeping', 2),
-                ('sloth/videos/smiling', 3),
-                ('sloth/institute/costarica', 5),
-            ]),
-        (
-            self.TEST_DATA_PATH + 'sloth/',
-            [
-                ('sloth/pictures/sleeping', 2),
-                ('sloth/videos/smiling', 3),
-                ('sloth/institute/costarica', 5),
-            ]),
-        (
-            self.TEST_DATA_PATH + 'sloth/videos/smiling', [
-                ('sloth/videos/smiling', 3),
-            ]),
-    ]
-
-    for file_pattern, expected_object_names in test_cases:
-      expected_file_names = [(self.TEST_DATA_PATH + object_name, size)
-                             for (object_name, size) in expected_object_names]
-      self.assertEqual(
-          set(self.azfs.list_prefix(file_pattern).items()),
-          set(expected_file_names))
+    test_file = self.azfs.open(file_name)
+    self.assertEqual(test_file.mode, 'r')
+    test_file.seek(0, os.SEEK_END)
+    self.assertEqual(test_file.tell(), file_size)
+    self.assertEqual(test_file.read(), b'')
+    test_file.seek(0)
+    self.assertEqual(test_file.read(), contents)
 
     # Clean up
-    for (blob_name, size) in blobs:
-      self.azfs.delete(self.TEST_DATA_PATH + blob_name)
+    self.azfs.delete(file_name)
+
+  def test_file_write(self):
+    file_name = self.TEST_DATA_PATH + 'test_file_write'
+    # file_size = 5 * 1024 * 1024 + 2000
+    file_size = 1024
+    contents = os.urandom(file_size)
+    f = self.azfs.open(file_name, 'w')
+    self.assertEqual(f.mode, 'w')
+    f.write(contents[0:1000])
+    f.write(contents[1000:1024])
+    f.close()
+    test_file = self.azfs.open(file_name, 'r')
+    test_file_contents = test_file.read()
+    self.assertEqual(test_file_contents, contents)
+
+    # Clean up
+    self.azfs.delete(file_name)
 
   def test_copy(self):
     src_file_name = self.TEST_DATA_PATH + 'mysource'
@@ -207,6 +200,62 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertTrue(
         'The specified blob does not exist.' in err.exception.message)
     self.assertEqual(err.exception.code, 404)
+
+  def test_exists(self):
+    file_name = self.TEST_DATA_PATH + 'test_exists'
+    file_size = 1024
+
+    self.assertFalse(self.azfs.exists(file_name))
+    self._insert_random_file(file_name, file_size)
+    self.assertTrue(self.azfs.exists(file_name))
+
+    # Clean up
+    self.azfs.delete(file_name)
+    self.assertFalse(self.azfs.exists(file_name))
+
+  def test_size(self):
+    file_name = self.TEST_DATA_PATH + 'test_size'
+    file_size = 1024
+
+    self._insert_random_file(file_name, file_size)
+    self.assertTrue(self.azfs.exists(file_name))
+    self.assertEqual(self.azfs.size(file_name), file_size)
+    self.assertNotEqual(self.azfs.size(file_name), 19)
+
+    # Clean up
+    self.azfs.delete(file_name)
+    self.assertFalse(self.azfs.exists(file_name))
+
+  def test_last_updated(self):
+    file_name = self.TEST_DATA_PATH + 'test_last_updated'
+    file_size = 1024
+    tolerance = 60
+
+    self._insert_random_file(file_name, file_size)
+    self.assertTrue(self.azfs.exists(file_name))
+    self.assertAlmostEqual(
+        self.azfs.last_updated(file_name), time.time(), delta=tolerance)
+
+    # Clean up
+    self.azfs.delete(file_name)
+
+  def test_checksum(self):
+    file_name = self.TEST_DATA_PATH + 'test_checksum'
+    file_size = 1024
+
+    test_file = self._insert_random_file(file_name, file_size)
+    original_etag = self.azfs.checksum(file_name)    
+
+    f = self.azfs.open(file_name, 'w')
+    self.assertEqual(f.mode, 'w')
+    f.write(test_file.contents)
+    f.close()
+    rewritten_etag = self.azfs.checksum(file_name)
+
+    self.assertNotEqual(original_etag, rewritten_etag)
+
+    # Clean up
+    self.azfs.delete(file_name)
 
   def test_delete(self):
     file_name = self.TEST_DATA_PATH + 'test_delete'
@@ -251,96 +300,49 @@ class TestBlobStorageIO(unittest.TestCase):
   #   for i in range(num_files):
   #     self.assertFalse(self.azfs.exists(file_name_pattern % i))
 
-  def test_size(self):
-    file_name = self.TEST_DATA_PATH + 'test_size'
-    file_size = 1024
-    
-    self._insert_random_file(file_name, file_size)
-    self.assertTrue(self.azfs.exists(file_name))
-    self.assertEqual(self.azfs.size(file_name), file_size)
-    self.assertNotEqual(self.azfs.size(file_name), 19)
+  def test_list_prefix(self):
+    blobs = [
+        ('sloth/pictures/sleeping', 2),
+        ('sloth/videos/smiling', 3),
+        ('sloth/institute/costarica', 5),
+    ]
+
+    for (blob_name, size) in blobs:
+      file_name = self.TEST_DATA_PATH + blob_name
+      self._insert_random_file(file_name, size)
+
+    test_cases = [
+        (
+            self.TEST_DATA_PATH + 's',
+            [
+                ('sloth/pictures/sleeping', 2),
+                ('sloth/videos/smiling', 3),
+                ('sloth/institute/costarica', 5),
+            ]),
+        (
+            self.TEST_DATA_PATH + 'sloth/',
+            [
+                ('sloth/pictures/sleeping', 2),
+                ('sloth/videos/smiling', 3),
+                ('sloth/institute/costarica', 5),
+            ]),
+        (
+            self.TEST_DATA_PATH + 'sloth/videos/smiling', [
+                ('sloth/videos/smiling', 3),
+            ]),
+    ]
+
+    for file_pattern, expected_object_names in test_cases:
+      expected_file_names = [(self.TEST_DATA_PATH + object_name, size)
+                             for (object_name, size) in expected_object_names]
+      self.assertEqual(
+          set(self.azfs.list_prefix(file_pattern).items()),
+          set(expected_file_names))
 
     # Clean up
-    self.azfs.delete(file_name)
-    self.assertFalse(self.azfs.exists(file_name))    
+    for (blob_name, size) in blobs:
+      self.azfs.delete(self.TEST_DATA_PATH + blob_name)
 
-  def test_exists(self):
-    file_name = self.TEST_DATA_PATH + 'test_exists'
-    file_size = 1024
-
-    self.assertFalse(self.azfs.exists(file_name))
-    self._insert_random_file(file_name, file_size)
-    self.assertTrue(self.azfs.exists(file_name))
-
-    # Clean up
-    self.azfs.delete(file_name)
-    self.assertFalse(self.azfs.exists(file_name))
-
-  def test_full_file_read(self):
-    file_name = self.TEST_DATA_PATH + 'test_file_read'
-    file_size = 1024
-
-    test_file = self._insert_random_file(file_name, file_size)
-    contents = test_file.contents
-
-    test_file = self.azfs.open(file_name)
-    self.assertEqual(test_file.mode, 'r')
-    test_file.seek(0, os.SEEK_END)
-    self.assertEqual(test_file.tell(), file_size)
-    self.assertEqual(test_file.read(), b'')
-    test_file.seek(0)
-    self.assertEqual(test_file.read(), contents)
-
-    # Clean up
-    self.azfs.delete(file_name)
-
-  def test_file_write(self):
-    file_name = self.TEST_DATA_PATH + 'test_file_write'
-    # file_size = 5 * 1024 * 1024 + 2000
-    file_size = 1024
-    contents = os.urandom(file_size)
-    f = self.azfs.open(file_name, 'w')
-    self.assertEqual(f.mode, 'w')
-    f.write(contents[0:1000])
-    f.write(contents[1000:1024])
-    f.close()
-    test_file = self.azfs.open(file_name, 'r')
-    test_file_contents = test_file.read()
-    self.assertEqual(test_file_contents, contents)
-
-    # Clean up
-    self.azfs.delete(file_name)
-
-  def test_last_updated(self):
-    file_name = self.TEST_DATA_PATH + 'test_last_updated'
-    file_size = 1024
-    tolerance = 60
-
-    self._insert_random_file(file_name, file_size)
-    self.assertTrue(self.azfs.exists(file_name))
-    self.assertAlmostEqual(
-        self.azfs.last_updated(file_name), time.time(), delta=tolerance)
-
-    # Clean up
-    self.azfs.delete(file_name)
-
-  def test_checksum(self):
-    file_name = self.TEST_DATA_PATH + 'test_checksum'
-    file_size = 1024
-
-    test_file = self._insert_random_file(file_name, file_size)
-    original_etag = self.azfs.checksum(file_name)    
-
-    f = self.azfs.open(file_name, 'w')
-    self.assertEqual(f.mode, 'w')
-    f.write(test_file.contents)
-    f.close()
-    rewritten_etag = self.azfs.checksum(file_name)
-
-    self.assertNotEqual(original_etag, rewritten_etag)
-
-    # Clean up
-    self.azfs.delete(file_name)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

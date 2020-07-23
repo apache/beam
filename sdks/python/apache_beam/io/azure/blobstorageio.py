@@ -70,7 +70,6 @@ def parse_azfs_path(azfs_path, blob_optional=False):
                      'azfs://<storage-account>/<container>/<path>.')
   return match.group(1), match.group(2), match.group(3)
 
-
 def get_azfs_url(storage_account, container, blob=''):
   """Returns the url in the form of
    https://account.blob.core.windows.net/container/blob-name
@@ -80,9 +79,7 @@ def get_azfs_url(storage_account, container, blob=''):
 
 
 class Blob():
-  """
-  A Blob in Azure Blob Storage
-  """
+  """A Blob in Azure Blob Storage."""
   def __init__(self, etag, name, last_updated, size, mime_type):
     self.etag = etag
     self.name = name
@@ -97,6 +94,7 @@ class BlobStorageIOError(IOError, retry.PermanentException):
 
 
 class BlobStorageError(Exception):
+  """Blob Storage client error."""
   def __init__(self, message=None, code=None):
     self.message = message
     self.code = code
@@ -172,60 +170,25 @@ class BlobStorageIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
-  def list_prefix(self, path):
-    """Lists files matching the prefix.
-
-    Args:
-      path: Azure Blob Storage file path pattern in the form
-            azfs://<storage-account>/<container>/[name].
-
-    Returns:
-      Dictionary of file name -> size.
-    """
-    storage_account, container, blob = parse_azfs_path(path, blob_optional=True)
-    file_sizes = {}
-    counter = 0
-    start_time = time.time()
-
-    logging.info("Starting the size estimation of the input")
-    container_client = self.client.get_container_client(container)
-
-    while True:
-      response = container_client.list_blobs(name_starts_with=blob)
-      for item in response:
-        file_name = "azfs://%s/%s/%s" % (storage_account, container, item.name)
-        file_sizes[file_name] = item.size
-        counter += 1
-        if counter % 10000 == 0:
-          logging.info("Finished computing size of: %s files", len(file_sizes))
-      break
-
-    logging.info(
-        "Finished listing %s files in %s seconds.",
-        counter,
-        time.time() - start_time)
-    return file_sizes
-
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_beam_io_error_filter)
-  def delete(self, path):
-    """Deletes a single blob at the given Azure Blob Storage path.
+  def exists(self, path):
+    """Returns whether the given Azure Blob Storage blob exists.
     
     Args:
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
     """
     storage_account, container, blob = parse_azfs_path(path)
-    blob_to_delete = self.client.get_blob_client(container, blob)
+    blob_to_check = self.client.get_blob_client(container, blob)
     try:
-      blob_to_delete.delete_blob()
+      blob_to_check.get_blob_properties()
+      return True
     except ResourceNotFoundError as e:
       if e.status_code == 404:
-        # Return success when the file doesn't exist anymore for idempotency.
-        return
+        # HTTP 404 indicates that the file did not exist
+        return False
       else:
-        logging.error('HTTP error while deleting file %s', path)
-        raise e
+        # We re-raise all other exceptions
+        raise
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
@@ -247,28 +210,6 @@ class BlobStorageIO(object):
       raise BlobStorageError(message, code)
     
     return properties.size
-
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_beam_io_error_filter)
-  def exists(self, path):
-    """Returns whether the given Azure Blob Storage blob exists.
-    
-    Args:
-      path: Azure Blob Storage file path pattern in the form
-            azfs://<storage-account>/<container>/[name].
-    """
-    storage_account, container, blob = parse_azfs_path(path)
-    blob_to_check = self.client.get_blob_client(container, blob)
-    try:
-      blob_to_check.get_blob_properties()
-      return True
-    except ResourceNotFoundError as e:
-      if e.status_code == 404:
-        # HTTP 404 indicates that the file did not exist
-        return False
-      else:
-        # We re-raise all other exceptions
-        raise
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
@@ -313,6 +254,63 @@ class BlobStorageIO(object):
       raise BlobStorageError(message, code)
     
     return properties.etag
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_beam_io_error_filter)
+  def delete(self, path):
+    """Deletes a single blob at the given Azure Blob Storage path.
+    
+    Args:
+      path: Azure Blob Storage file path pattern in the form
+            azfs://<storage-account>/<container>/[name].
+    """
+    storage_account, container, blob = parse_azfs_path(path)
+    blob_to_delete = self.client.get_blob_client(container, blob)
+    try:
+      blob_to_delete.delete_blob()
+    except ResourceNotFoundError as e:
+      if e.status_code == 404:
+        # Return success when the file doesn't exist anymore for idempotency.
+        return
+      else:
+        logging.error('HTTP error while deleting file %s', path)
+        raise e
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_beam_io_error_filter)
+  def list_prefix(self, path):
+    """Lists files matching the prefix.
+
+    Args:
+      path: Azure Blob Storage file path pattern in the form
+            azfs://<storage-account>/<container>/[name].
+
+    Returns:
+      Dictionary of file name -> size.
+    """
+    storage_account, container, blob = parse_azfs_path(path, blob_optional=True)
+    file_sizes = {}
+    counter = 0
+    start_time = time.time()
+
+    logging.info("Starting the size estimation of the input")
+    container_client = self.client.get_container_client(container)
+
+    while True:
+      response = container_client.list_blobs(name_starts_with=blob)
+      for item in response:
+        file_name = "azfs://%s/%s/%s" % (storage_account, container, item.name)
+        file_sizes[file_name] = item.size
+        counter += 1
+        if counter % 10000 == 0:
+          logging.info("Finished computing size of: %s files", len(file_sizes))
+      break
+
+    logging.info(
+        "Finished listing %s files in %s seconds.",
+        counter,
+        time.time() - start_time)
+    return file_sizes
 
 
 class BlobStorageDownloader(Downloader):
