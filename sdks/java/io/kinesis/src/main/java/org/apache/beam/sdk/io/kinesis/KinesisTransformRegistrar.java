@@ -47,7 +47,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     String streamName;
     String awsAccessKey;
     String awsSecretKey;
-    String region;
+    Regions region;
     @Nullable String serviceEndpoint;
 
     public void setStreamName(String streamName) {
@@ -63,15 +63,11 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     }
 
     public void setRegion(String region) {
-      this.region = region;
+      this.region = Regions.valueOf(region);
     }
 
     public void setServiceEndpoint(@Nullable String serviceEndpoint) {
       this.serviceEndpoint = serviceEndpoint;
-    }
-
-    Regions getRegion() {
-      return Regions.valueOf(region);
     }
   }
 
@@ -80,24 +76,19 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
       implements ExternalTransformBuilder<WriteBuilder.Configuration, PCollection<byte[]>, PDone> {
 
     public static class Configuration extends CrossLanguageConfiguration {
-      private Iterable<KV<String, String>> producerProperties;
+      private Properties producerProperties;
       private String partitionKey;
 
       public void setProducerProperties(Iterable<KV<String, String>> producerProperties) {
-        this.producerProperties = producerProperties;
+        if (producerProperties != null) {
+          Properties properties = new Properties();
+          producerProperties.forEach(kv -> properties.setProperty(kv.getKey(), kv.getValue()));
+          this.producerProperties = properties;
+        }
       }
 
       public void setPartitionKey(String partitionKey) {
         this.partitionKey = partitionKey;
-      }
-
-      private Properties getProducerProperties() {
-        if (producerProperties == null) {
-          return null;
-        }
-        Properties properties = new Properties();
-        producerProperties.forEach(kv -> properties.setProperty(kv.getKey(), kv.getValue()));
-        return properties;
       }
     }
 
@@ -109,13 +100,12 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
               .withAWSClientsProvider(
                   configuration.awsAccessKey,
                   configuration.awsSecretKey,
-                  configuration.getRegion(),
+                  configuration.region,
                   configuration.serviceEndpoint)
               .withPartitionKey(configuration.partitionKey);
 
       if (configuration.producerProperties != null) {
-        writeTransform =
-            writeTransform.withProducerProperties(configuration.getProducerProperties());
+        writeTransform = writeTransform.withProducerProperties(configuration.producerProperties);
       }
 
       return writeTransform;
