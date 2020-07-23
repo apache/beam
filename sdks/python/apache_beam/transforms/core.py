@@ -2302,7 +2302,7 @@ class GroupBy(PTransform):
         # pylint: disable=dict-items-not-iterating
         kwargs_items = sorted(kwargs.items())
       else:
-        kwargs_items = kwargs.items()
+        kwargs_items = kwargs.items()  # pylint: disable=dict-items-not-iterating
       for name, expr in kwargs_items:
         key_fields.append((name, _expr_to_callable(expr, name)))
     self._key_fields = key_fields

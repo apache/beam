@@ -90,6 +90,7 @@ class RowCoder(FastCoder):
       try:
         schema = named_fields_to_schema(type_hint._fields)
       except ValueError:
+        # TODO(BEAM-10570): Consider a pythonsdk logical type.
         return typecoders.registry.get_coder(object)
     else:
       schema = named_tuple_to_schema(type_hint)
