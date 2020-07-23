@@ -62,7 +62,7 @@ cdef class OperationCounters(object):
 
   cpdef update_from(self, windowed_value)
   cdef inline do_sample(self, windowed_value)
-  cpdef update_collect(self, windowed_value)
+  cpdef update_collect(self)
   cpdef type_check(self, value, is_input)
 
   cdef libc.stdint.int64_t _compute_next_sample(self, libc.stdint.int64_t i)
