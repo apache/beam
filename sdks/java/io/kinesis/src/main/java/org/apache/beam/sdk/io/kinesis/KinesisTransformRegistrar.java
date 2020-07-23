@@ -34,42 +34,70 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /** Exposes {@link KinesisIO.Write} as an external transform for cross-language usage. */
 @Experimental(Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
-public class KinesisWriteTransformRegistrar implements ExternalTransformRegistrar {
-
-  public static final String URN = "beam:external:java:kinesis:write:v1";
+public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
+  public static final String WRITE_URN = "beam:external:java:kinesis:write:v1";
 
   @Override
   public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
-    return ImmutableMap.of(URN, KinesisWriteTransformRegistrar.Builder.class);
+    return ImmutableMap.of(WRITE_URN, KinesisTransformRegistrar.WriteBuilder.class);
   }
 
-  public static class WriteConfiguration extends CrossLanguageConfiguration {
-    private Iterable<KV<String, String>> producerProperties;
-    private String partitionKey;
+  private abstract static class CrossLanguageConfiguration {
+    String streamName;
+    String awsAccessKey;
+    String awsSecretKey;
+    String region;
+    String serviceEndpoint;
 
-    public void setProducerProperties(Iterable<KV<String, String>> producerProperties) {
-      this.producerProperties = producerProperties;
+    public void setStreamName(String streamName) {
+      this.streamName = streamName;
     }
 
-    public void setPartitionKey(String partitionKey) {
-      this.partitionKey = partitionKey;
+    public void setAwsAccessKey(String awsAccessKey) {
+      this.awsAccessKey = awsAccessKey;
     }
 
-    private Properties getProducerProperties() {
-      if (producerProperties == null) {
-        return null;
-      }
-      Properties properties = new Properties();
-      producerProperties.forEach(kv -> properties.setProperty(kv.getKey(), kv.getValue()));
-      return properties;
+    public void setAwsSecretKey(String awsSecretKey) {
+      this.awsSecretKey = awsSecretKey;
+    }
+
+    public void setRegion(String region) {
+      this.region = region;
+    }
+
+    public void setServiceEndpoint(String serviceEndpoint) {
+      this.serviceEndpoint = serviceEndpoint;
     }
   }
 
   @Experimental(Kind.PORTABILITY)
-  public static class Builder
-      implements ExternalTransformBuilder<WriteConfiguration, PCollection<byte[]>, PDone> {
+  public static class WriteBuilder
+      implements ExternalTransformBuilder<WriteBuilder.Configuration, PCollection<byte[]>, PDone> {
+
+    public static class Configuration extends CrossLanguageConfiguration {
+      private Iterable<KV<String, String>> producerProperties;
+      private String partitionKey;
+
+      public void setProducerProperties(Iterable<KV<String, String>> producerProperties) {
+        this.producerProperties = producerProperties;
+      }
+
+      public void setPartitionKey(String partitionKey) {
+        this.partitionKey = partitionKey;
+      }
+
+      private Properties getProducerProperties() {
+        if (producerProperties == null) {
+          return null;
+        }
+        Properties properties = new Properties();
+        producerProperties.forEach(kv -> properties.setProperty(kv.getKey(), kv.getValue()));
+        return properties;
+      }
+    }
+
     @Override
-    public PTransform<PCollection<byte[]>, PDone> buildExternal(WriteConfiguration configuration) {
+    public PTransform<PCollection<byte[]>, PDone> buildExternal(Configuration configuration) {
       KinesisIO.Write writeTransform =
           KinesisIO.write()
               .withStreamName(configuration.streamName)
