@@ -18,18 +18,17 @@ import apache_beam as beam
 
 from log_elements import LogElements
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
 
-class FilterOutEvenNumber(beam.DoFn):
+  class FilterOutEvenNumber(beam.DoFn):
 
-    def process(self, element):
-        if element % 2 == 1:
-            yield element
+      def process(self, element):
+          if element % 2 == 1:
+              yield element
 
 
-(p | beam.Create(range(1, 11))
-   | beam.ParDo(FilterOutEvenNumber())
-   | LogElements())
+  (p | beam.Create(range(1, 11))
+     | beam.ParDo(FilterOutEvenNumber())
+     | LogElements())
 
-p.run()
