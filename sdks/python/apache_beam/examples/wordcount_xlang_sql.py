@@ -15,9 +15,10 @@
 # limitations under the License.
 #
 
-"""A cross-language word-counting workflow.
+"""A word-counting workflow that uses the SQL transform.
 
-Java and docker must be available to run this pipeline.
+Java and docker must be available to run this pipeline, and
+--experiments=use_runner_v2 must be passed for running on Dataflow.
 """
 
 from __future__ import absolute_import
