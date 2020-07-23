@@ -175,13 +175,12 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
     ]
 
     with self.assertRaises(Exception):
-      p = beam.Pipeline(argv=self.args)
-      _ = (
-          p | beam.Create(mutations_update) | WriteToSpanner(
-              project_id=self.project,
-              instance_id=self.instance,
-              database_id=self.TEST_DATABASE))
-      p.run()
+      with beam.Pipeline(argv=self.args) as p:
+        _ = (
+            p | beam.Create(mutations_update) | WriteToSpanner(
+                project_id=self.project,
+                instance_id=self.instance,
+                database_id=self.TEST_DATABASE))
 
   @classmethod
   def tearDownClass(cls):

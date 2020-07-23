@@ -91,34 +91,33 @@ class SpannerReadTest(unittest.TestCase):
     ]
 
     ro = [ReadOperation.query("Select * from users")]
-    pipeline = TestPipeline()
+    with TestPipeline() as pipeline:
 
-    read = (
-        pipeline
-        | 'read' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            sql="SELECT * FROM users"))
+      read = (
+          pipeline
+          | 'read' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              sql="SELECT * FROM users"))
 
-    readall = (
-        pipeline
-        | 'read all' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            read_operations=ro))
+      readall = (
+          pipeline
+          | 'read all' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              read_operations=ro))
 
-    readpipeline = (
-        pipeline
-        | 'create reads' >> beam.Create(ro)
-        | 'reads' >> ReadFromSpanner(
-            TEST_PROJECT_ID, TEST_INSTANCE_ID, _generate_database_name()))
+      readpipeline = (
+          pipeline
+          | 'create reads' >> beam.Create(ro)
+          | 'reads' >> ReadFromSpanner(
+              TEST_PROJECT_ID, TEST_INSTANCE_ID, _generate_database_name()))
 
-    pipeline.run()
-    assert_that(read, equal_to(FAKE_ROWS), label='checkRead')
-    assert_that(readall, equal_to(FAKE_ROWS), label='checkReadAll')
-    assert_that(readpipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
+      assert_that(read, equal_to(FAKE_ROWS), label='checkRead')
+      assert_that(readall, equal_to(FAKE_ROWS), label='checkReadAll')
+      assert_that(readpipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
 
   def test_read_with_table_batch(
       self, mock_batch_snapshot_class, mock_client_class):
@@ -139,46 +138,44 @@ class SpannerReadTest(unittest.TestCase):
     ]
 
     ro = [ReadOperation.table("users", ["Key", "Value"])]
-    pipeline = TestPipeline()
+    with TestPipeline() as pipeline:
 
-    read = (
-        pipeline
-        | 'read' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            table="users",
-            columns=["Key", "Value"]))
+      read = (
+          pipeline
+          | 'read' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              table="users",
+              columns=["Key", "Value"]))
 
-    readall = (
-        pipeline
-        | 'read all' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            read_operations=ro))
+      readall = (
+          pipeline
+          | 'read all' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              read_operations=ro))
 
-    readpipeline = (
-        pipeline
-        | 'create reads' >> beam.Create(ro)
-        | 'reads' >> ReadFromSpanner(
-            TEST_PROJECT_ID, TEST_INSTANCE_ID, _generate_database_name()))
+      readpipeline = (
+          pipeline
+          | 'create reads' >> beam.Create(ro)
+          | 'reads' >> ReadFromSpanner(
+              TEST_PROJECT_ID, TEST_INSTANCE_ID, _generate_database_name()))
 
-    pipeline.run()
-    assert_that(read, equal_to(FAKE_ROWS), label='checkRead')
-    assert_that(readall, equal_to(FAKE_ROWS), label='checkReadAll')
-    assert_that(readpipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
+      assert_that(read, equal_to(FAKE_ROWS), label='checkRead')
+      assert_that(readall, equal_to(FAKE_ROWS), label='checkReadAll')
+      assert_that(readpipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
 
-    with self.assertRaises(ValueError):
-      # Test the exception raised when user passes the read operations in the
-      # constructor and also in the pipeline.
-      _ = (
-          pipeline | 'reads error' >> ReadFromSpanner(
-              project_id=TEST_PROJECT_ID,
-              instance_id=TEST_INSTANCE_ID,
-              database_id=_generate_database_name(),
-              table="users"))
-      pipeline.run()
+      with self.assertRaises(ValueError):
+        # Test the exception raised when user passes the read operations in the
+        # constructor and also in the pipeline.
+        _ = (
+            pipeline | 'reads error' >> ReadFromSpanner(
+                project_id=TEST_PROJECT_ID,
+                instance_id=TEST_INSTANCE_ID,
+                database_id=_generate_database_name(),
+                table="users"))
 
   def test_read_with_index(self, mock_batch_snapshot_class, mock_client_class):
     mock_snapshot = mock.MagicMock()
@@ -197,41 +194,39 @@ class SpannerReadTest(unittest.TestCase):
         FAKE_ROWS[0:2], FAKE_ROWS[2:4], FAKE_ROWS[4:]
     ]
     ro = [ReadOperation.table("users", ["Key", "Value"], index="Key")]
-    pipeline = TestPipeline()
-    read = (
-        pipeline
-        | 'read' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            table="users",
-            columns=["Key", "Value"]))
-    readall = (
-        pipeline
-        | 'read all' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            read_operations=ro))
-    readpipeline = (
-        pipeline
-        | 'create reads' >> beam.Create(ro)
-        | 'reads' >> ReadFromSpanner(
-            TEST_PROJECT_ID, TEST_INSTANCE_ID, _generate_database_name()))
-    pipeline.run()
-    assert_that(read, equal_to(FAKE_ROWS), label='checkRead')
-    assert_that(readall, equal_to(FAKE_ROWS), label='checkReadAll')
-    assert_that(readpipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
-    with self.assertRaises(ValueError):
-      # Test the exception raised when user passes the read operations in the
-      # constructor and also in the pipeline.
-      _ = (
+    with TestPipeline() as pipeline:
+      read = (
+          pipeline
+          | 'read' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              table="users",
+              columns=["Key", "Value"]))
+      readall = (
+          pipeline
+          | 'read all' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              read_operations=ro))
+      readpipeline = (
+          pipeline
+          | 'create reads' >> beam.Create(ro)
+          | 'reads' >> ReadFromSpanner(
+              TEST_PROJECT_ID, TEST_INSTANCE_ID, _generate_database_name()))
+      assert_that(read, equal_to(FAKE_ROWS), label='checkRead')
+      assert_that(readall, equal_to(FAKE_ROWS), label='checkReadAll')
+      assert_that(readpipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
+      with self.assertRaises(ValueError):
+        # Test the exception raised when user passes the read operations in the
+        # constructor and also in the pipeline.
+        _ = (
           pipeline | 'reads error' >> ReadFromSpanner(
-              project_id=TEST_PROJECT_ID,
-              instance_id=TEST_INSTANCE_ID,
-              database_id=_generate_database_name(),
-              table="users"))
-      pipeline.run()
+                project_id=TEST_PROJECT_ID,
+                instance_id=TEST_INSTANCE_ID,
+                database_id=_generate_database_name(),
+                table="users"))
 
   def test_read_with_transaction(
       self, mock_batch_snapshot_class, mock_client_class):
@@ -258,95 +253,92 @@ class SpannerReadTest(unittest.TestCase):
     mock_transaction_ctx.execute_sql.return_value = FAKE_ROWS
 
     ro = [ReadOperation.query("Select * from users")]
-    p = TestPipeline()
+    with TestPipeline() as p:
 
-    transaction = (
-        p | create_transaction(
-            project_id=TEST_PROJECT_ID,
-            instance_id=TEST_INSTANCE_ID,
-            database_id=_generate_database_name(),
-            exact_staleness=datetime.timedelta(seconds=10)))
+      transaction = (
+          p | create_transaction(
+              project_id=TEST_PROJECT_ID,
+              instance_id=TEST_INSTANCE_ID,
+              database_id=_generate_database_name(),
+              exact_staleness=datetime.timedelta(seconds=10)))
 
-    read_query = (
-        p | 'with query' >> ReadFromSpanner(
-            project_id=TEST_PROJECT_ID,
-            instance_id=TEST_INSTANCE_ID,
-            database_id=_generate_database_name(),
-            transaction=transaction,
-            sql="Select * from users"))
-
-    read_table = (
-        p | 'with table' >> ReadFromSpanner(
-            project_id=TEST_PROJECT_ID,
-            instance_id=TEST_INSTANCE_ID,
-            database_id=_generate_database_name(),
-            transaction=transaction,
-            table="users",
-            columns=["Key", "Value"]))
-
-    read_indexed_table = (
-        p | 'with index' >> ReadFromSpanner(
-            project_id=TEST_PROJECT_ID,
-            instance_id=TEST_INSTANCE_ID,
-            database_id=_generate_database_name(),
-            transaction=transaction,
-            table="users",
-            index="Key",
-            columns=["Key", "Value"]))
-
-    read = (
-        p | 'read all' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            transaction=transaction,
-            read_operations=ro))
-
-    read_pipeline = (
-        p
-        | 'create read operations' >> beam.Create(ro)
-        | 'reads' >> ReadFromSpanner(
-            TEST_PROJECT_ID,
-            TEST_INSTANCE_ID,
-            _generate_database_name(),
-            transaction=transaction))
-
-    p.run()
-
-    assert_that(read_query, equal_to(FAKE_ROWS), label='checkQuery')
-    assert_that(read_table, equal_to(FAKE_ROWS), label='checkTable')
-    assert_that(
-        read_indexed_table, equal_to(FAKE_ROWS), label='checkTableIndex')
-    assert_that(read, equal_to(FAKE_ROWS), label='checkReadAll')
-    assert_that(read_pipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
-
-    with self.assertRaises(ValueError):
-      # Test the exception raised when user passes the read operations in the
-      # constructor and also in the pipeline.
-      _ = (
-          p
-          | 'create read operations2' >> beam.Create(ro)
-          | 'reads with error' >> ReadFromSpanner(
-              TEST_PROJECT_ID,
-              TEST_INSTANCE_ID,
-              _generate_database_name(),
-              transaction=transaction,
-              read_operations=ro))
-      p.run()
-
-  def test_invalid_transaction(
-      self, mock_batch_snapshot_class, mock_client_class):
-    with self.assertRaises(ValueError):
-      p = TestPipeline()
-      transaction = (p | beam.Create([{"invalid": "transaction"}]))
-      _ = (
+      read_query = (
           p | 'with query' >> ReadFromSpanner(
               project_id=TEST_PROJECT_ID,
               instance_id=TEST_INSTANCE_ID,
               database_id=_generate_database_name(),
               transaction=transaction,
               sql="Select * from users"))
-      p.run()
+
+      read_table = (
+          p | 'with table' >> ReadFromSpanner(
+              project_id=TEST_PROJECT_ID,
+              instance_id=TEST_INSTANCE_ID,
+              database_id=_generate_database_name(),
+              transaction=transaction,
+              table="users",
+              columns=["Key", "Value"]))
+
+      read_indexed_table = (
+          p | 'with index' >> ReadFromSpanner(
+              project_id=TEST_PROJECT_ID,
+              instance_id=TEST_INSTANCE_ID,
+              database_id=_generate_database_name(),
+              transaction=transaction,
+              table="users",
+              index="Key",
+              columns=["Key", "Value"]))
+
+      read = (
+          p | 'read all' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              transaction=transaction,
+              read_operations=ro))
+
+      read_pipeline = (
+          p
+          | 'create read operations' >> beam.Create(ro)
+          | 'reads' >> ReadFromSpanner(
+              TEST_PROJECT_ID,
+              TEST_INSTANCE_ID,
+              _generate_database_name(),
+              transaction=transaction))
+
+
+      assert_that(read_query, equal_to(FAKE_ROWS), label='checkQuery')
+      assert_that(read_table, equal_to(FAKE_ROWS), label='checkTable')
+      assert_that(
+          read_indexed_table, equal_to(FAKE_ROWS), label='checkTableIndex')
+      assert_that(read, equal_to(FAKE_ROWS), label='checkReadAll')
+      assert_that(read_pipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
+
+      with self.assertRaises(ValueError):
+        # Test the exception raised when user passes the read operations in the
+        # constructor and also in the pipeline.
+        _ = (
+            p
+            | 'create read operations2' >> beam.Create(ro)
+            | 'reads with error' >> ReadFromSpanner(
+                TEST_PROJECT_ID,
+                TEST_INSTANCE_ID,
+                _generate_database_name(),
+                transaction=transaction,
+                read_operations=ro))
+
+  def test_invalid_transaction(
+      self, mock_batch_snapshot_class, mock_client_class):
+    with self.assertRaises(ValueError):
+      with TestPipeline() as p:
+        transaction = (p | beam.Create([{"invalid": "transaction"}]))
+        _ = (
+            p | 'with query' >> ReadFromSpanner(
+                project_id=TEST_PROJECT_ID,
+                instance_id=TEST_INSTANCE_ID,
+                database_id=_generate_database_name(),
+                transaction=transaction,
+                sql="Select * from users"))
 
   def test_display_data(self, *args):
     dd_sql = ReadFromSpanner(
