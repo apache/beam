@@ -51,7 +51,11 @@ class AzfsResourceId implements ResourceId {
     checkArgument(!container.contains("/"), "container must not contain '/': [%s]", container);
     this.account = account;
     this.container = container;
-    this.blob = blob;
+    if (blob.isEmpty()) {
+      this.blob = null;
+    } else {
+      this.blob = blob;
+    }
   }
 
   static AzfsResourceId fromComponents(String account, String container, String blob) {
