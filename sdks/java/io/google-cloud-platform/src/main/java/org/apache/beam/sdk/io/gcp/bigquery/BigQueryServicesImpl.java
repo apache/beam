@@ -798,6 +798,11 @@ class BigQueryServicesImpl implements BigQueryServices {
                           if (errorInfo == null) {
                             throw e;
                           }
+                          /**
+                           * TODO:Check for quotaExceededError The check will be replaced by
+                           * ApiErrorExtractor.INSTANCE.quotaExceeded(e) after the next release of
+                           * GoogleCloudDataproc/hadoop-connectors
+                           */
                           if (!ApiErrorExtractor.INSTANCE.rateLimited(e)
                               && !errorInfo.getReason().equals(QUOTA_EXCEEDED)) {
                             throw e;
