@@ -30,7 +30,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nullable;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
@@ -56,6 +55,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Cross-language external transform.
@@ -147,10 +147,10 @@ public class External {
     private final Endpoints.ApiServiceDescriptor endpoint;
     private final Integer namespaceIndex;
 
-    @Nullable private transient RunnerApi.Components expandedComponents;
-    @Nullable private transient RunnerApi.PTransform expandedTransform;
-    @Nullable private transient Map<PCollection, String> externalPCollectionIdMap;
-    @Nullable private transient Map<Coder, String> externalCoderIdMap;
+    private transient RunnerApi.@Nullable Components expandedComponents;
+    private transient RunnerApi.@Nullable PTransform expandedTransform;
+    private transient @Nullable Map<PCollection, String> externalPCollectionIdMap;
+    private transient @Nullable Map<Coder, String> externalCoderIdMap;
 
     ExpandableTransform(
         String urn,

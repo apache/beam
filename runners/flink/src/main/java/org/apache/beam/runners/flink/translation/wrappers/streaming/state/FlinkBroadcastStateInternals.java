@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
@@ -51,6 +50,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link StateInternals} that uses a Flink {@link OperatorStateBackend} to manage the broadcast
@@ -75,8 +75,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
   }
 
   @Override
-  @Nullable
-  public K getKey() {
+  public @Nullable K getKey() {
     return null;
   }
 
@@ -305,7 +304,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -395,7 +394,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -509,7 +508,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -641,7 +640,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -776,7 +775,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

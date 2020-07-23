@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -38,11 +37,13 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
+import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerFamilyParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -51,6 +52,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Describes the signature of a {@link DoFn}, in particular, which features it uses, which extra
@@ -74,24 +76,19 @@ public abstract class DoFnSignature {
   public abstract Map<String, StateDeclaration> stateDeclarations();
 
   /** Details about this {@link DoFn}'s {@link DoFn.StartBundle} method. */
-  @Nullable
-  public abstract BundleMethod startBundle();
+  public abstract @Nullable BundleMethod startBundle();
 
   /** Details about this {@link DoFn}'s {@link DoFn.FinishBundle} method. */
-  @Nullable
-  public abstract BundleMethod finishBundle();
+  public abstract @Nullable BundleMethod finishBundle();
 
   /** Details about this {@link DoFn}'s {@link DoFn.Setup} method. */
-  @Nullable
-  public abstract LifecycleMethod setup();
+  public abstract @Nullable LifecycleMethod setup();
 
   /** Details about this {@link DoFn}'s {@link DoFn.Teardown} method. */
-  @Nullable
-  public abstract LifecycleMethod teardown();
+  public abstract @Nullable LifecycleMethod teardown();
 
   /** Details about this {@link DoFn}'s {@link DoFn.OnWindowExpiration} method. */
-  @Nullable
-  public abstract OnWindowExpirationMethod onWindowExpiration();
+  public abstract @Nullable OnWindowExpirationMethod onWindowExpiration();
 
   /** Timer declarations present on the {@link DoFn} class. Immutable. */
   public abstract Map<String, TimerDeclaration> timerDeclarations();
@@ -100,48 +97,41 @@ public abstract class DoFnSignature {
   public abstract Map<String, TimerFamilyDeclaration> timerFamilyDeclarations();
 
   /** Field access declaration. */
-  @Nullable
-  public abstract Map<String, FieldAccessDeclaration> fieldAccessDeclarations();
+  public abstract @Nullable Map<String, FieldAccessDeclaration> fieldAccessDeclarations();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetInitialRestriction} method. */
-  @Nullable
-  public abstract GetInitialRestrictionMethod getInitialRestriction();
+  public abstract @Nullable GetInitialRestrictionMethod getInitialRestriction();
 
   /** Details about this {@link DoFn}'s {@link DoFn.SplitRestriction} method. */
-  @Nullable
-  public abstract SplitRestrictionMethod splitRestriction();
+  public abstract @Nullable SplitRestrictionMethod splitRestriction();
+
+  /** Details about this {@link DoFn}'s {@link TruncateRestriction} method. */
+  public abstract @Nullable TruncateRestrictionMethod truncateRestriction();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetRestrictionCoder} method. */
-  @Nullable
-  public abstract GetRestrictionCoderMethod getRestrictionCoder();
+  public abstract @Nullable GetRestrictionCoderMethod getRestrictionCoder();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetWatermarkEstimatorStateCoder} method. */
-  @Nullable
-  public abstract GetWatermarkEstimatorStateCoderMethod getWatermarkEstimatorStateCoder();
+  public abstract @Nullable GetWatermarkEstimatorStateCoderMethod getWatermarkEstimatorStateCoder();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetInitialWatermarkEstimatorState} method. */
-  @Nullable
-  public abstract GetInitialWatermarkEstimatorStateMethod getInitialWatermarkEstimatorState();
+  public abstract @Nullable GetInitialWatermarkEstimatorStateMethod
+      getInitialWatermarkEstimatorState();
 
   /** Details about this {@link DoFn}'s {@link DoFn.NewWatermarkEstimator} method. */
-  @Nullable
-  public abstract NewWatermarkEstimatorMethod newWatermarkEstimator();
+  public abstract @Nullable NewWatermarkEstimatorMethod newWatermarkEstimator();
 
   /** Details about this {@link DoFn}'s {@link DoFn.NewTracker} method. */
-  @Nullable
-  public abstract NewTrackerMethod newTracker();
+  public abstract @Nullable NewTrackerMethod newTracker();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetSize} method. */
-  @Nullable
-  public abstract GetSizeMethod getSize();
+  public abstract @Nullable GetSizeMethod getSize();
 
   /** Details about this {@link DoFn}'s {@link DoFn.OnTimer} methods. */
-  @Nullable
-  public abstract Map<String, OnTimerMethod> onTimerMethods();
+  public abstract @Nullable Map<String, OnTimerMethod> onTimerMethods();
 
   /** Details about this {@link DoFn}'s {@link DoFn.OnTimerFamily} methods. */
-  @Nullable
-  public abstract Map<String, OnTimerFamilyMethod> onTimerFamilyMethods();
+  public abstract @Nullable Map<String, OnTimerFamilyMethod> onTimerFamilyMethods();
 
   /** @deprecated use {@link #usesState()}, it's cleaner */
   @Deprecated
@@ -184,6 +174,8 @@ public abstract class DoFnSignature {
     abstract Builder setGetInitialRestriction(GetInitialRestrictionMethod getInitialRestriction);
 
     abstract Builder setSplitRestriction(SplitRestrictionMethod splitRestriction);
+
+    abstract Builder setTruncateRestriction(TruncateRestrictionMethod truncateRestriction);
 
     abstract Builder setGetRestrictionCoder(GetRestrictionCoderMethod getRestrictionCoder);
 
@@ -233,6 +225,24 @@ public abstract class DoFnSignature {
      * <p>Validation that these are allowed is external to this class.
      */
     List<Parameter> extraParameters();
+
+    /**
+     * Whether this method observes - directly or indirectly - the window that an element resides
+     * in.
+     *
+     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because they are
+     * each scoped to a single window.
+     */
+    default boolean observesWindow() {
+      return extraParameters().stream()
+          .anyMatch(
+              Predicates.or(
+                      Predicates.instanceOf(WindowParameter.class),
+                      Predicates.instanceOf(TimerParameter.class),
+                      Predicates.instanceOf(TimerFamilyParameter.class),
+                      Predicates.instanceOf(StateParameter.class))
+                  ::apply);
+    }
 
     /** The type of window expected by this method, if any. */
     @Nullable
@@ -705,8 +715,7 @@ public abstract class DoFnSignature {
 
       public abstract TypeDescriptor<?> elementT();
 
-      @Nullable
-      public abstract String fieldAccessString();
+      public abstract @Nullable String fieldAccessString();
 
       public abstract int index();
 
@@ -958,12 +967,10 @@ public abstract class DoFnSignature {
     public abstract boolean requiresTimeSortedInput();
 
     /** Concrete type of the {@link RestrictionTracker} parameter, if present. */
-    @Nullable
-    public abstract TypeDescriptor<?> trackerT();
+    public abstract @Nullable TypeDescriptor<?> trackerT();
 
     /** Concrete type of the {@link WatermarkEstimator} parameter, if present. */
-    @Nullable
-    public abstract TypeDescriptor<?> watermarkEstimatorT();
+    public abstract @Nullable TypeDescriptor<?> watermarkEstimatorT();
 
     /** The window type used by this method, if any. */
     @Nullable
@@ -993,33 +1000,14 @@ public abstract class DoFnSignature {
           hasReturnValue);
     }
 
-    /**
-     * Whether this {@link DoFn} observes - directly or indirectly - the window that an element
-     * resides in.
-     *
-     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because they are
-     * each scoped to a single window.
-     */
-    public boolean observesWindow() {
-      return extraParameters().stream()
-          .anyMatch(
-              Predicates.or(
-                      Predicates.instanceOf(WindowParameter.class),
-                      Predicates.instanceOf(TimerParameter.class),
-                      Predicates.instanceOf(StateParameter.class))
-                  ::apply);
-    }
-
-    @Nullable
-    public List<SchemaElementParameter> getSchemaElementParameters() {
+    public @Nullable List<SchemaElementParameter> getSchemaElementParameters() {
       return extraParameters().stream()
           .filter(Predicates.instanceOf(SchemaElementParameter.class)::apply)
           .map(SchemaElementParameter.class::cast)
           .collect(Collectors.toList());
     }
 
-    @Nullable
-    public List<SideInputParameter> getSideInputParameters() {
+    public @Nullable List<SideInputParameter> getSideInputParameters() {
       return extraParameters().stream()
           .filter(Predicates.instanceOf(SideInputParameter.class)::apply)
           .map(SideInputParameter.class::cast)
@@ -1027,8 +1015,7 @@ public abstract class DoFnSignature {
     }
 
     /** The {@link OutputReceiverParameter} for a main output, or null if there is none. */
-    @Nullable
-    public OutputReceiverParameter getMainOutputReceiver() {
+    public @Nullable OutputReceiverParameter getMainOutputReceiver() {
       Optional<Parameter> parameter =
           extraParameters().stream()
               .filter(Predicates.instanceOf(OutputReceiverParameter.class)::apply)
@@ -1216,8 +1203,7 @@ public abstract class DoFnSignature {
 
     /** The type of window expected by this method, if any. */
     @Override
-    @Nullable
-    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    public abstract @Nullable TypeDescriptor<? extends BoundedWindow> windowT();
 
     static BundleMethod create(Method targetMethod, List<Parameter> extraParameters) {
       /* start bundle/finish bundle currently do not get invoked on a per window basis and can't accept a BoundedWindow parameter */
@@ -1323,6 +1309,31 @@ public abstract class DoFnSignature {
         TypeDescriptor<? extends BoundedWindow> windowT,
         List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_SplitRestrictionMethod(
+          targetMethod, windowT, extraParameters);
+    }
+  }
+
+  /** Describes a {@link TruncateRestriction} method. */
+  @AutoValue
+  public abstract static class TruncateRestrictionMethod implements MethodWithExtraParameters {
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static TruncateRestrictionMethod create(
+        Method targetMethod,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_TruncateRestrictionMethod(
           targetMethod, windowT, extraParameters);
     }
   }

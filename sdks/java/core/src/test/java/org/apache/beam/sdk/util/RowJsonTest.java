@@ -33,6 +33,9 @@ import java.util.Collection;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
+import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
+import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.NullBehavior;
+import org.apache.beam.sdk.util.RowJson.RowJsonSerializer;
 import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -239,143 +242,65 @@ public class RowJsonTest {
 
     @Test
     public void testDeserialize() throws IOException {
-      Row parsedRow = newObjectMapperFor(schema).readValue(serializedString, Row.class);
+      Row parsedRow =
+          newObjectMapperWith(
+                  RowJsonSerializer.forSchema(schema), RowJsonDeserializer.forSchema(schema))
+              .readValue(serializedString, Row.class);
 
       assertThat(row, equalTo(parsedRow));
     }
 
     @Test
     public void testSerialize() throws IOException {
-      String str = newObjectMapperFor(schema).writeValueAsString(row);
+      String str =
+          newObjectMapperWith(
+                  RowJsonSerializer.forSchema(schema), RowJsonDeserializer.forSchema(schema))
+              .writeValueAsString(row);
 
       assertThat(str, jsonStringLike(serializedString));
     }
 
     @Test
-    public void testRoundTrip() throws IOException {
-      ObjectMapper objectMapper = newObjectMapperFor(schema);
+    public void testRoundTrip_KeepNulls_AcceptMissingOrNull() throws IOException {
+      ObjectMapper objectMapper =
+          newObjectMapperWith(
+              RowJsonSerializer.forSchema(schema).withDropNullsOnWrite(false),
+              RowJsonDeserializer.forSchema(schema)
+                  .withNullBehavior(NullBehavior.ACCEPT_MISSING_OR_NULL));
       Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
 
       assertThat(row, equalTo(parsedRow));
     }
-  }
-
-  @RunWith(Parameterized.class)
-  public static class ValueTestsWithMissingFields {
-    @Parameter(0)
-    public String name;
-
-    @Parameter(1)
-    public Schema schema;
-
-    @Parameter(2)
-    public String serializedString;
-
-    @Parameter(3)
-    public Row row;
-
-    @Parameters(name = "{0}")
-    public static Collection<Object[]> data() {
-      return ImmutableList.of(
-          makeFlatRowWithNullsTestCase(),
-          makeArrayNullTestCase(),
-          makeNestedRowwithNullTestCase(),
-          makeRowisNullTestCase());
-    }
-
-    private static Object[] makeFlatRowWithNullsTestCase() {
-      Schema schema =
-          Schema.builder()
-              .addByteField("f_byte")
-              .addNullableField("f_string", FieldType.STRING)
-              .build();
-
-      String rowString = "{\n" + "\"f_byte\" : 12\n" + "}";
-
-      Row expectedRow = Row.withSchema(schema).addValues((byte) 12, null).build();
-
-      return new Object[] {"Nulls", schema, rowString, expectedRow};
-    }
-
-    private static Object[] makeArrayNullTestCase() {
-
-      Schema schema =
-          Schema.builder()
-              .addInt32Field("f_int32")
-              .addNullableField("f_intArray", FieldType.array(FieldType.INT32))
-              .build();
-
-      String rowString = "{\n" + "\"f_int32\" : 32\n" + "}";
-
-      Row expectedRow = Row.withSchema(schema).addValues(32, null).build();
-
-      return new Object[] {"Array field", schema, rowString, expectedRow};
-    }
-
-    private static Object[] makeNestedRowwithNullTestCase() {
-      Schema nestedRowSchema =
-          Schema.builder()
-              .addInt32Field("f_nestedInt32")
-              .addNullableField("f_nestedString", FieldType.STRING)
-              .build();
-
-      Schema schema =
-          Schema.builder().addInt32Field("f_int32").addRowField("f_row", nestedRowSchema).build();
-
-      String rowString =
-          "{\n"
-              + "\"f_int32\" : 32,\n"
-              + "\"f_row\" : {\n"
-              + "             \"f_nestedInt32\" : 54\n"
-              + "            }\n"
-              + "}";
-
-      Row expectedRow =
-          Row.withSchema(schema)
-              .addValues(32, Row.withSchema(nestedRowSchema).addValues(54, null).build())
-              .build();
-
-      return new Object[] {"Nested row", schema, rowString, expectedRow};
-    }
-
-    private static Object[] makeRowisNullTestCase() {
-      Schema nestedRowSchema =
-          Schema.builder()
-              .addInt32Field("f_nestedInt32")
-              .addNullableField("f_nestedString", FieldType.STRING)
-              .build();
-
-      Schema schema =
-          Schema.builder()
-              .addInt32Field("f_int32")
-              .addNullableField("f_row", FieldType.row(nestedRowSchema))
-              .build();
-
-      String rowString = "{\n" + "\"f_int32\" : 32\n" + "}";
-
-      Row expectedRow = Row.withSchema(schema).addValues(32, null).build();
-
-      return new Object[] {"Nested row which is removed", schema, rowString, expectedRow};
-    }
 
     @Test
-    public void testDeserialize() throws IOException {
-      Row parsedRow =
-          newObjectMapperWithImplicitNullsFor(schema).readValue(serializedString, Row.class);
+    public void testRoundTrip_DropNulls_AcceptMissingOrNull() throws IOException {
+      ObjectMapper objectMapper =
+          newObjectMapperWith(
+              RowJsonSerializer.forSchema(schema).withDropNullsOnWrite(true),
+              RowJsonDeserializer.forSchema(schema)
+                  .withNullBehavior(NullBehavior.ACCEPT_MISSING_OR_NULL));
+      Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
 
       assertThat(row, equalTo(parsedRow));
     }
 
     @Test
-    public void testSerialize() throws IOException {
-      String str = newObjectMapperWithImplicitNullsFor(schema).writeValueAsString(row);
+    public void testRoundTrip_DropNulls_RequireMissing() throws IOException {
+      ObjectMapper objectMapper =
+          newObjectMapperWith(
+              RowJsonSerializer.forSchema(schema).withDropNullsOnWrite(true),
+              RowJsonDeserializer.forSchema(schema).withNullBehavior(NullBehavior.REQUIRE_MISSING));
+      Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
 
-      assertThat(str, jsonStringLike(serializedString));
+      assertThat(row, equalTo(parsedRow));
     }
 
     @Test
-    public void testRoundTrip() throws IOException {
-      ObjectMapper objectMapper = newObjectMapperWithImplicitNullsFor(schema);
+    public void testRoundTrip_KeepNulls_RequireNull() throws IOException {
+      ObjectMapper objectMapper =
+          newObjectMapperWith(
+              RowJsonSerializer.forSchema(schema).withDropNullsOnWrite(false),
+              RowJsonDeserializer.forSchema(schema).withNullBehavior(NullBehavior.REQUIRE_NULL));
       Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
 
       assertThat(row, equalTo(parsedRow));
@@ -417,7 +342,9 @@ public class RowJsonTest {
       thrown.expect(UnsupportedRowJsonException.class);
       thrown.expectMessage("Expected JSON array");
 
-      newObjectMapperFor(schema).readValue(rowString, Row.class);
+      newObjectMapperWith(
+              RowJsonSerializer.forSchema(schema), RowJsonDeserializer.forSchema(schema))
+          .readValue(rowString, Row.class);
     }
 
     @Test
@@ -437,7 +364,9 @@ public class RowJsonTest {
       thrown.expect(UnsupportedRowJsonException.class);
       thrown.expectMessage("Expected JSON object");
 
-      newObjectMapperFor(schema).readValue(rowString, Row.class);
+      newObjectMapperWith(
+              RowJsonSerializer.forSchema(schema), RowJsonDeserializer.forSchema(schema))
+          .readValue(rowString, Row.class);
     }
 
     @Test
@@ -449,7 +378,86 @@ public class RowJsonTest {
       thrown.expect(UnsupportedRowJsonException.class);
       thrown.expectMessage("'f_string' is not present");
 
-      newObjectMapperFor(schema).readValue(rowString, Row.class);
+      newObjectMapperWith(RowJsonDeserializer.forSchema(schema)).readValue(rowString, Row.class);
+    }
+
+    @Test
+    public void testRequireNullThrowsForMissingNullableField() throws Exception {
+      Schema schema =
+          Schema.builder()
+              .addByteField("f_byte")
+              .addNullableField("f_string", FieldType.STRING)
+              .build();
+
+      String rowString = "{\n" + "\"f_byte\" : 12\n" + "}";
+
+      thrown.expect(UnsupportedRowJsonException.class);
+      thrown.expectMessage("'f_string'");
+
+      newObjectMapperWith(
+              RowJsonDeserializer.forSchema(schema).withNullBehavior(NullBehavior.REQUIRE_NULL))
+          .readValue(rowString, Row.class);
+    }
+
+    @Test
+    public void testRequireNullAcceptsNullValue() throws Exception {
+      Schema schema =
+          Schema.builder()
+              .addByteField("f_byte")
+              .addNullableField("f_string", FieldType.STRING)
+              .build();
+
+      String rowString = "{\"f_byte\": 12, \"f_string\": null}";
+
+      assertThat(
+          newObjectMapperWith(
+                  RowJsonDeserializer.forSchema(schema).withNullBehavior(NullBehavior.REQUIRE_NULL))
+              .readValue(rowString, Row.class),
+          equalTo(
+              Row.withSchema(schema)
+                  .withFieldValue("f_byte", (byte) 12)
+                  .withFieldValue("f_string", null)
+                  .build()));
+    }
+
+    @Test
+    public void testRequireMissingThrowsForNullValue() throws Exception {
+      Schema schema =
+          Schema.builder()
+              .addByteField("f_byte")
+              .addNullableField("f_string", FieldType.STRING)
+              .build();
+
+      String rowString = "{\"f_byte\": 12, \"f_string\": null}";
+
+      thrown.expect(UnsupportedRowJsonException.class);
+      thrown.expectMessage("'f_string'");
+
+      newObjectMapperWith(
+              RowJsonDeserializer.forSchema(schema).withNullBehavior(NullBehavior.REQUIRE_MISSING))
+          .readValue(rowString, Row.class);
+    }
+
+    @Test
+    public void testRequireMissingAcceptsMissingField() throws Exception {
+      Schema schema =
+          Schema.builder()
+              .addByteField("f_byte")
+              .addNullableField("f_string", FieldType.STRING)
+              .build();
+
+      String rowString = "{\"f_byte\": 12}";
+
+      assertThat(
+          newObjectMapperWith(
+                  RowJsonDeserializer.forSchema(schema)
+                      .withNullBehavior(NullBehavior.REQUIRE_MISSING))
+              .readValue(rowString, Row.class),
+          equalTo(
+              Row.withSchema(schema)
+                  .withFieldValue("f_byte", (byte) 12)
+                  .withFieldValue("f_string", null)
+                  .build()));
     }
 
     @Test
@@ -563,7 +571,9 @@ public class RowJsonTest {
       String fieldName = "f_" + fieldType.getTypeName().name().toLowerCase();
       Schema schema = schemaWithField(fieldName, fieldType);
       Row expectedRow = Row.withSchema(schema).addValues(expectedRowFieldValue).build();
-      ObjectMapper jsonParser = newObjectMapperFor(schema);
+      ObjectMapper jsonParser =
+          newObjectMapperWith(
+              RowJsonSerializer.forSchema(schema), RowJsonDeserializer.forSchema(schema));
 
       Row parsedRow = jsonParser.readValue(jsonObjectWith(fieldName, jsonFieldValue), Row.class);
 
@@ -651,7 +661,9 @@ public class RowJsonTest {
       String fieldName = "f_" + fieldType.getTypeName().name().toLowerCase();
 
       Schema schema = schemaWithField(fieldName, fieldType);
-      ObjectMapper jsonParser = newObjectMapperFor(schema);
+      ObjectMapper jsonParser =
+          newObjectMapperWith(
+              RowJsonSerializer.forSchema(schema), RowJsonDeserializer.forSchema(schema));
 
       thrown.expectMessage(fieldName);
       thrown.expectCause(unsupportedWithMessage(jsonFieldValue, "out of range"));
@@ -678,24 +690,19 @@ public class RowJsonTest {
         hasProperty("message", stringContainsInOrder(Arrays.asList(message))));
   }
 
-  private static ObjectMapper newObjectMapperFor(Schema schema) {
+  private static ObjectMapper newObjectMapperWith(
+      RowJsonSerializer ser, RowJsonDeserializer deser) {
     SimpleModule simpleModule = new SimpleModule("rowSerializationTesModule");
-    simpleModule.addSerializer(Row.class, RowJson.RowJsonSerializer.forSchema(schema));
-    simpleModule.addDeserializer(Row.class, RowJson.RowJsonDeserializer.forSchema(schema));
+    simpleModule.addSerializer(Row.class, ser);
+    simpleModule.addDeserializer(Row.class, deser);
     ObjectMapper objectMapper = new ObjectMapper();
     objectMapper.registerModule(simpleModule);
     return objectMapper;
   }
 
-  private static ObjectMapper newObjectMapperWithImplicitNullsFor(Schema schema) {
+  private static ObjectMapper newObjectMapperWith(RowJsonDeserializer deser) {
     SimpleModule simpleModule = new SimpleModule("rowSerializationTesModule");
-    simpleModule.addSerializer(
-        Row.class, RowJson.RowJsonSerializer.forSchema(schema).withDropNullsOnWrite(true));
-    simpleModule.addDeserializer(
-        Row.class,
-        RowJson.RowJsonDeserializer.forSchema(schema)
-            .withMissingFieldBehavior(
-                RowJson.RowJsonDeserializer.MissingFieldBehavior.ALLOW_MISSING));
+    simpleModule.addDeserializer(Row.class, deser);
     ObjectMapper objectMapper = new ObjectMapper();
     objectMapper.registerModule(simpleModule);
     return objectMapper;

@@ -19,7 +19,7 @@ import groovy.json.JsonOutput
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.aws2')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.aws2')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services 2"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."

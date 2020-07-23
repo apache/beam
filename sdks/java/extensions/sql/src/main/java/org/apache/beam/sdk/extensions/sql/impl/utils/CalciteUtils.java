@@ -44,15 +44,6 @@ public class CalciteUtils {
   // SQL has schema types that do not directly correspond to Beam Schema types. We define
   // LogicalTypes to represent each of these types.
 
-  /** A LogicalType corresponding to TIME. */
-  public static class TimeType extends PassThroughLogicalType<Instant> {
-    public static final String IDENTIFIER = "SqlTimeType";
-
-    public TimeType() {
-      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
-    }
-  }
-
   /** A LogicalType corresponding to TIME_WITH_LOCAL_TIME_ZONE. */
   public static class TimeWithLocalTzType extends PassThroughLogicalType<Instant> {
     public static final String IDENTIFIER = "SqlTimeWithLocalTzType";
@@ -89,7 +80,7 @@ public class CalciteUtils {
     if (fieldType.getTypeName().isLogicalType()) {
       String logicalId = fieldType.getLogicalType().getIdentifier();
       return logicalId.equals(SqlTypes.DATE.getIdentifier())
-          || logicalId.equals(TimeType.IDENTIFIER)
+          || logicalId.equals(SqlTypes.TIME.getIdentifier())
           || logicalId.equals(TimeWithLocalTzType.IDENTIFIER)
           || logicalId.equals(TimestampWithLocalTzType.IDENTIFIER);
     }
@@ -123,9 +114,9 @@ public class CalciteUtils {
   public static final FieldType DATE = FieldType.logicalType(SqlTypes.DATE);
   public static final FieldType NULLABLE_DATE =
       FieldType.logicalType(SqlTypes.DATE).withNullable(true);
-  public static final FieldType TIME = FieldType.logicalType(new TimeType());
+  public static final FieldType TIME = FieldType.logicalType(SqlTypes.TIME);
   public static final FieldType NULLABLE_TIME =
-      FieldType.logicalType(new TimeType()).withNullable(true);
+      FieldType.logicalType(SqlTypes.TIME).withNullable(true);
   public static final FieldType TIME_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimeWithLocalTzType());
   public static final FieldType TIMESTAMP = FieldType.DATETIME;

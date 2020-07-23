@@ -61,17 +61,20 @@ task preCommit {
 }
 
 task checkLastCommitId {
-  assert grgit : 'Cannot use outside of git repository'
+  doLast {
+    assert grgit : 'Cannot use outside of git repository'
 
-  def git = grgit.open()
-  def lastCommit = git.log(paths: ['.test-infra/metrics'], maxCommits: 1)[0]
-  project.ext.lastCommitId = lastCommit.abbreviatedId
+    def git = grgit.open()
+    def lastCommit = git.log(paths: ['.test-infra/metrics'], maxCommits: 1)[0]
+    project.ext.lastCommitId = lastCommit.abbreviatedId
+  }
 }
 
 // Checks if Grafana deployment needs to be updated and deploys changes, if necessary.
 // Grafana's images tags keep track of the last commit ID in `.test-infra/metrics` path.
 // The deployment needs to be updated if new commit appears.
 task deploy {
+  dependsOn checkLastCommitId
   doLast {
     def stdout = new ByteArrayOutputStream()
     exec {

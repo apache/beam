@@ -21,18 +21,18 @@ import PostcommitJobBuilder
 
 // Tests creation and execution of portable pipeline Jars on the Spark runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_PortableJar_Spark',
-  'Run PortableJar_Spark PostCommit', 'Spark Portable Jar Tests', this) {
-  description('Tests creation and execution of portable pipeline Jars on the Spark runner.')
+    'Run PortableJar_Spark PostCommit', 'Spark Portable Jar Tests', this) {
+      description('Tests creation and execution of portable pipeline Jars on the Spark runner.')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  // Gradle goals for this job.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runners:spark:job-server:testPipelineJar')
-      commonJobProperties.setGradleSwitches(delegate)
+      // Gradle goals for this job.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:spark:job-server:testPipelineJar')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}

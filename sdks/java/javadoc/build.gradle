@@ -24,7 +24,7 @@
  * used as part of the beam-site source tree.
  */
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(publish: false)
+applyJavaNature(enableChecker:false,publish: false)
 description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
 
 for (p in rootProject.subprojects) {

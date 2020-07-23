@@ -383,6 +383,16 @@ message StandardPTransforms {
     //
     // Input: KV(KV(element, restriction), size); output: DoFn's output.
     PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS = 2 [(beam_urn) = "beam:transform:sdf_process_sized_element_and_restrictions:v1"];
+
+    // Truncates the restriction of each element/restriction pair and returns
+    // the finite restriction which will be processed when a pipeline is
+    // drained. See
+    // https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#.
+    // for additional details about drain.
+    //
+    // Input: KV(KV(element, restriction), size);
+    // Output: KV(KV(element, restriction), size).
+    TRUNCATE_SIZED_RESTRICTION = 3 [(beam_urn) = "beam:transform:sdf_truncate_sized_restrictions:v1"];
   }
 }
 

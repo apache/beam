@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -47,7 +46,7 @@ class SchemaUtils {
           .put("INT32", FieldType.INT32)
           .put("INT64", FieldType.INT64)
           .put("STRING", FieldType.STRING)
-          .put("TIME", FieldType.logicalType(new CalciteUtils.TimeType()))
+          .put("TIME", FieldType.logicalType(SqlTypes.TIME))
           .put("TIMESTAMP", FieldType.DATETIME)
           .put("MAP<STRING,STRING>", FieldType.map(FieldType.STRING, FieldType.STRING))
           .build();

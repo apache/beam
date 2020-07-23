@@ -25,5 +25,5 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     triggerPathPatterns: [
       '^sdks/python/apache_beam/.*$',
     ]
-)
+    )
 builder.build()

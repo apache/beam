@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.Collection;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -41,6 +40,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Uncoll
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link BeamRelNode} to implement UNNEST, supporting specifically only {@link Correlate} with

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.snowflake.services;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -25,7 +27,8 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
-import org.apache.beam.sdk.io.snowflake.enums.CloudProvider;
+import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
+import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.slf4j.Logger;
@@ -35,6 +38,7 @@ import org.slf4j.LoggerFactory;
 public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(SnowflakeServiceImpl.class);
   private static final String SNOWFLAKE_GCS_PREFIX = "gcs://";
+  private static final String GCS_PREFIX = "gs://";
 
   @Override
   public void write(SnowflakeServiceConfig config) throws Exception {
@@ -50,7 +54,7 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
     SerializableFunction<Void, DataSource> dataSourceProviderFn = config.getDataSourceProviderFn();
     String table = config.getTable();
     String query = config.getQuery();
-    String storageIntegrationName = config.getstorageIntegrationName();
+    String storageIntegrationName = config.getStorageIntegrationName();
     String stagingBucketDir = config.getStagingBucketDir();
 
     String source;
@@ -80,8 +84,10 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
     List<String> filesList = config.getFilesList();
     String table = config.getTable();
     String query = config.getQuery();
+    SnowflakeTableSchema tableSchema = config.getTableSchema();
+    CreateDisposition createDisposition = config.getCreateDisposition();
     WriteDisposition writeDisposition = config.getWriteDisposition();
-    String storageIntegrationName = config.getstorageIntegrationName();
+    String storageIntegrationName = config.getStorageIntegrationName();
     String stagingBucketDir = config.getStagingBucketDir();
 
     String source;
@@ -97,6 +103,7 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
     files = files.replaceAll(stagingBucketDir, "");
     DataSource dataSource = dataSourceProviderFn.apply(null);
 
+    prepareTableAccordingCreateDisposition(dataSource, table, tableSchema, createDisposition);
     prepareTableAccordingWriteDisposition(dataSource, table, writeDisposition);
 
     if (!storageIntegrationName.isEmpty()) {
@@ -154,6 +161,21 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
     return true;
   }
 
+  private void prepareTableAccordingCreateDisposition(
+      DataSource dataSource,
+      String table,
+      SnowflakeTableSchema tableSchema,
+      CreateDisposition createDisposition)
+      throws SQLException {
+    switch (createDisposition) {
+      case CREATE_NEVER:
+        break;
+      case CREATE_IF_NEEDED:
+        createTableIfNotExists(dataSource, table, tableSchema);
+        break;
+    }
+  }
+
   private void prepareTableAccordingWriteDisposition(
       DataSource dataSource, String table, WriteDisposition writeDisposition) throws SQLException {
     switch (writeDisposition) {
@@ -167,6 +189,54 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
       default:
         break;
     }
+  }
+
+  private void createTableIfNotExists(
+      DataSource dataSource, String table, SnowflakeTableSchema tableSchema) throws SQLException {
+    String query =
+        String.format(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '%s');",
+            table.toUpperCase());
+
+    runConnectionWithStatement(
+        dataSource,
+        query,
+        resultSet -> {
+          assert resultSet != null;
+          if (!checkResultIfTableExists((ResultSet) resultSet)) {
+            try {
+              createTable(dataSource, table, tableSchema);
+            } catch (SQLException e) {
+              throw new RuntimeException("Unable to create table.", e);
+            }
+          }
+        });
+  }
+
+  private static boolean checkResultIfTableExists(ResultSet resultSet) {
+    try {
+      if (resultSet.next()) {
+        return checkIfResultIsTrue(resultSet);
+      } else {
+        throw new RuntimeException("Unable run pipeline with CREATE IF NEEDED - no response.");
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException("Unable run pipeline with CREATE IF NEEDED disposition.", e);
+    }
+  }
+
+  private void createTable(DataSource dataSource, String table, SnowflakeTableSchema tableSchema)
+      throws SQLException {
+    checkArgument(
+        tableSchema != null,
+        "The CREATE_IF_NEEDED disposition requires schema if table doesn't exists");
+    String query = String.format("CREATE TABLE %s (%s);", table, tableSchema.sql());
+    runConnectionWithStatement(dataSource, query, null);
+  }
+
+  private static boolean checkIfResultIsTrue(ResultSet resultSet) throws SQLException {
+    int columnId = 1;
+    return resultSet.getBoolean(columnId);
   }
 
   private static void runConnectionWithStatement(
@@ -200,8 +270,8 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
 
   // Snowflake is expecting "gcs://" prefix for GCS and Beam "gs://"
   private String getProperBucketDir(String bucketDir) {
-    if (bucketDir.contains(CloudProvider.GCS.getPrefix())) {
-      return bucketDir.replace(CloudProvider.GCS.getPrefix(), SNOWFLAKE_GCS_PREFIX);
+    if (bucketDir.contains(GCS_PREFIX)) {
+      return bucketDir.replace(GCS_PREFIX, SNOWFLAKE_GCS_PREFIX);
     }
     return bucketDir;
   }

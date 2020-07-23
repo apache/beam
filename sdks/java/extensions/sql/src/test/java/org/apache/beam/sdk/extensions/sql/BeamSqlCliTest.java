@@ -29,6 +29,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -271,7 +272,7 @@ public class BeamSqlCliTest {
     // test DATE field
     assertEquals("2018-11-01", row.getLogicalTypeValue("f_date", LocalDate.class).toString());
     // test TIME field
-    assertEquals("15:23:59.000", row.getDateTime("f_time").toString("HH:mm:ss.SSS"));
+    assertEquals("15:23:59", row.getLogicalTypeValue("f_time", LocalTime.class).toString());
     // test TIMESTAMP field
     assertEquals(parseTimestampWithUTCTimeZone("2018-07-01 21:26:07.123"), row.getDateTime("f_ts"));
   }

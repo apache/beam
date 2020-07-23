@@ -43,6 +43,7 @@ import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Writes each bundle of {@link TableRow} elements out to separate file using {@link
@@ -87,7 +88,7 @@ class WriteBundlesToFiles<DestinationT, ElementT>
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other instanceof Result) {
         Result<DestinationT> o = (Result<DestinationT>) other;
         return Objects.equals(this.filename, o.filename)

@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PCollectionViews.TypeDescriptorSupplier;
 import org.apache.beam.sdk.values.PCollectionViews.ValueOrMetadata;
 import org.apache.beam.sdk.values.PCollectionViews.ValueOrMetadataCoder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Transforms for creating {@link PCollectionView PCollectionViews} from {@link PCollection
@@ -382,7 +382,7 @@ public class View {
    */
   @Internal
   public static class AsSingleton<T> extends PTransform<PCollection<T>, PCollectionView<T>> {
-    @Nullable private final T defaultValue;
+    private final @Nullable T defaultValue;
     private final boolean hasDefault;
 
     private AsSingleton() {
@@ -429,8 +429,8 @@ public class View {
 
   private static class SingletonCombineFn<T> extends Combine.BinaryCombineFn<T> {
     private final boolean hasDefault;
-    @Nullable private final Coder<T> valueCoder;
-    @Nullable private final byte[] defaultValue;
+    private final @Nullable Coder<T> valueCoder;
+    private final byte @Nullable [] defaultValue;
 
     private SingletonCombineFn(boolean hasDefault, Coder<T> coder, T defaultValue) {
       this.hasDefault = hasDefault;

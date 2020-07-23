@@ -66,7 +66,7 @@ To start matching at any point instead of the beginning of the string, use
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Regex.matches`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -95,7 +95,7 @@ To start matching at any point instead of the beginning of the string, use
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Regex.all_matches`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -125,7 +125,7 @@ To start matching at any point instead of the beginning of the string, use
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Regex.matches_kv`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -155,7 +155,7 @@ If you need to match from the start only, consider using
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Regex.find`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -185,7 +185,7 @@ If you need to match all groups from the start only, consider using
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Regex.find_all`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -216,7 +216,7 @@ If you need to match as key-value pairs from the start only, consider using
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Regex.find_kv`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -239,7 +239,7 @@ on the `replacement`.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Regex.replace_all`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -262,7 +262,7 @@ on the `replacement`.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Regex.replace_first`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -283,7 +283,7 @@ The argument `outputEmpty` is set to `False` by default, but can be set to `True
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Regex.split`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}

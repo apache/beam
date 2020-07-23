@@ -20,7 +20,6 @@ package org.apache.beam.runners.jet.metrics;
 import com.hazelcast.map.IMap;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Jet specific {@link MetricResults}. */
 public class JetMetricResults extends MetricResults {

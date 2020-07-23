@@ -118,7 +118,10 @@ rat {
 
     // Mockito extensions
     "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
-    "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker"
+    "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
+
+    // JupyterLab extensions
+    "sdks/python/apache_beam/runners/interactive/extensions/apache-beam-jupyterlab-sidepanel/yarn.lock"
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -266,11 +269,17 @@ task python36PostCommit() {
 }
 
 task python37PostCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py37:crossLanguagePythonJavaKafkaIOFlink"
   dependsOn ":sdks:python:test-suites:dataflow:py37:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py37:postCommitIT"
-  dependsOn ":sdks:python:test-suites:direct:py37:hdfsIntegrationTest"
   dependsOn ":sdks:python:test-suites:portable:py37:postCommitPy37"
+}
+
+task python38PostCommit() {
+  dependsOn ":sdks:python:test-suites:portable:py38:crossLanguagePythonJavaKafkaIOFlink"
+  dependsOn ":sdks:python:test-suites:dataflow:py38:postCommitIT"
+  dependsOn ":sdks:python:test-suites:direct:py38:postCommitIT"
+  dependsOn ":sdks:python:test-suites:direct:py38:hdfsIntegrationTest"
+  dependsOn ":sdks:python:test-suites:portable:py38:postCommitPy38"
 }
 
 task portablePythonPreCommit() {
@@ -285,6 +294,7 @@ task pythonSparkPostCommit() {
   dependsOn ":sdks:python:test-suites:portable:py35:sparkValidatesRunner"
   dependsOn ":sdks:python:test-suites:portable:py36:sparkValidatesRunner"
   dependsOn ":sdks:python:test-suites:portable:py37:sparkValidatesRunner"
+  dependsOn ":sdks:python:test-suites:portable:py38:sparkValidatesRunner"
 }
 
 task websitePreCommit() {
@@ -336,7 +346,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 
   configurations { linkageCheckerJava }
   dependencies {
-    linkageCheckerJava "com.google.cloud.tools:dependencies:1.4.0"
+    linkageCheckerJava "com.google.cloud.tools:dependencies:1.4.2"
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the

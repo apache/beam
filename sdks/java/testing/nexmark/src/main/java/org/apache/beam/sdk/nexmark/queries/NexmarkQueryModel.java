@@ -22,11 +22,11 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.core.IsEqual;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -94,8 +94,7 @@ public abstract class NexmarkQueryModel<T extends KnownSize> implements Serializ
 
     return new SerializableFunction<Iterable<TimestampedValue<T>>, Void>() {
       @Override
-      @Nullable
-      public Void apply(Iterable<TimestampedValue<T>> actual) {
+      public @Nullable Void apply(Iterable<TimestampedValue<T>> actual) {
         Collection<String> actualStrings = toCollection(relevantResults(actual).iterator());
         Assert.assertThat("wrong pipeline output", actualStrings, IsEqual.equalTo(expectedStrings));
         return null;

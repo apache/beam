@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.values;
 
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Concrete subclass of {@link Row} that explicitly stores all fields of the row. */
 @Experimental(Kind.SCHEMAS)
