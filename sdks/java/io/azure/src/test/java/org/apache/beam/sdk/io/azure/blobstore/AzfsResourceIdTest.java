@@ -97,11 +97,6 @@ public class AzfsResourceIdTest {
 
   @Test
   public void testResolve() {
-    /*for (TestCase testCase : PATH_TEST_CASES) {
-      ResourceId resourceId = AzfsResourceId.fromUri(testCase.baseUri);
-      ResourceId resolved = resourceId.resolve(testCase.relativePath, testCase.resolveOptions);
-      assertEquals(testCase.expectedResult, resolved.toString());
-    }*/
 
     // Tests for common Azure paths.
     assertEquals(
