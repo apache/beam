@@ -31,15 +31,14 @@ import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
-@RunWith(JUnit4.class)
+@RunWith(Enclosed.class)
 public class AzfsResourceIdTest {
-
-  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @RunWith(Parameterized.class)
   public static class ResolveTest {
@@ -113,6 +112,8 @@ public class AzfsResourceIdTest {
 
   @RunWith(JUnit4.class)
   public static class NonParameterizedTests {
+
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testMultipleResolves() {
