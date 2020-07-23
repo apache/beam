@@ -149,12 +149,9 @@ class AzfsResourceId implements ResourceId {
     if (!(obj instanceof AzfsResourceId)) {
       return false;
     }
-    String otherBlob = ((AzfsResourceId) obj).blob;
-    boolean equalBlob = blob != null && otherBlob != null && blob.equals(otherBlob);
-    boolean noBlobs = blob == null && otherBlob == null;
     return account.equals(((AzfsResourceId) obj).account)
         && container.equals(((AzfsResourceId) obj).container)
-        && (equalBlob || noBlobs);
+        && Objects.equals(blob, ((AzfsResourceId) obj).blob);
   }
 
   @Override
