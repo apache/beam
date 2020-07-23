@@ -27,7 +27,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -61,6 +60,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A transform that performs equijoins across multiple schema {@link PCollection}s.
@@ -274,7 +274,7 @@ public class CoGroup {
   }
 
   static class JoinArguments implements Serializable {
-    @Nullable private final By allInputsJoinArgs;
+    private final @Nullable By allInputsJoinArgs;
     private final Map<String, By> joinArgsMap;
 
     JoinArguments(@Nullable By allInputsJoinArgs) {
@@ -292,8 +292,7 @@ public class CoGroup {
           new ImmutableMap.Builder<String, By>().putAll(joinArgsMap).put(tag, clause).build());
     }
 
-    @Nullable
-    private FieldAccessDescriptor getFieldAccessDescriptor(String tag) {
+    private @Nullable FieldAccessDescriptor getFieldAccessDescriptor(String tag) {
       return (allInputsJoinArgs != null)
           ? allInputsJoinArgs.getFieldAccessDescriptor()
           : joinArgsMap.get(tag).getFieldAccessDescriptor();

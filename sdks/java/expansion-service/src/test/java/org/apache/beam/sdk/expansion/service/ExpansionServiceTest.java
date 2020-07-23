@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.expansion.service;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertArrayEquals;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
@@ -51,6 +51,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
@@ -97,12 +98,15 @@ public class ExpansionServiceTest {
     ExpansionApi.ExpansionResponse response = expansionService.expand(request);
     RunnerApi.PTransform expandedTransform = response.getTransform();
     assertEquals(TEST_NAMESPACE + TEST_NAME, expandedTransform.getUniqueName());
+
     // Verify it has the right input.
-    assertEquals(inputPcollId, Iterables.getOnlyElement(expandedTransform.getInputsMap().values()));
+    assertThat(expandedTransform.getInputsMap().values(), contains(inputPcollId));
+
     // Verify it has the right output.
-    assertEquals("output", Iterables.getOnlyElement(expandedTransform.getOutputsMap().keySet()));
+    assertThat(expandedTransform.getOutputsMap().keySet(), contains("output"));
+
     // Loose check that it's composite, and its children are represented.
-    assertNotEquals(expandedTransform.getSubtransformsCount(), 0);
+    assertThat(expandedTransform.getSubtransformsCount(), greaterThan(0));
     for (String subtransform : expandedTransform.getSubtransformsList()) {
       assertTrue(response.getComponents().containsTransforms(subtransform));
     }
@@ -149,7 +153,7 @@ public class ExpansionServiceTest {
     assertEquals(TEST_NAMESPACE + TEST_NAME, expandedTransform.getUniqueName());
     assertThat(expandedTransform.getInputsCount(), Matchers.is(0));
     assertThat(expandedTransform.getOutputsCount(), Matchers.is(1));
-    assertThat(expandedTransform.getSubtransformsCount(), Matchers.greaterThan(0));
+    assertThat(expandedTransform.getSubtransformsCount(), greaterThan(0));
   }
 
   @Test
@@ -228,32 +232,31 @@ public class ExpansionServiceTest {
     ExpansionService.ExternalTransformRegistrarLoader.populateConfiguration(config, externalConfig);
 
     assertThat(config.configKey1, Matchers.is(1L));
-    assertArrayEquals(Iterables.toArray(config.configKey2, byte[].class), byteList.toArray());
-    assertArrayEquals(Iterables.toArray(config.configKey3, KV.class), byteKvList.toArray());
-    assertArrayEquals(
-        Iterables.toArray(config.configKey4, KV.class), byteKvListWithListKey.toArray());
+    assertThat(config.configKey2, contains(byteList.toArray()));
+    assertThat(config.configKey3, contains(byteKvList.toArray()));
+    assertThat(config.configKey4, contains(byteKvListWithListKey.toArray()));
   }
 
   private static class TestConfig {
 
-    private Long configKey1;
-    private Iterable<byte[]> configKey2;
-    private Iterable<KV<byte[], Long>> configKey3;
-    private Iterable<KV<Iterable<Long>, byte[]>> configKey4;
+    private @Nullable Long configKey1 = null;
+    private @Nullable Iterable<byte[]> configKey2 = null;
+    private @Nullable Iterable<KV<byte[], Long>> configKey3 = null;
+    private @Nullable Iterable<KV<Iterable<Long>, byte[]>> configKey4 = null;
 
-    public void setConfigKey1(Long configKey1) {
+    public void setConfigKey1(@Nullable Long configKey1) {
       this.configKey1 = configKey1;
     }
 
-    public void setConfigKey2(Iterable<byte[]> configKey2) {
+    public void setConfigKey2(@Nullable Iterable<byte[]> configKey2) {
       this.configKey2 = configKey2;
     }
 
-    public void setConfigKey3(Iterable<KV<byte[], Long>> configKey3) {
+    public void setConfigKey3(@Nullable Iterable<KV<byte[], Long>> configKey3) {
       this.configKey3 = configKey3;
     }
 
-    public void setConfigKey4(Iterable<KV<Iterable<Long>, byte[]>> configKey4) {
+    public void setConfigKey4(@Nullable Iterable<KV<Iterable<Long>, byte[]>> configKey4) {
       this.configKey4 = configKey4;
     }
   }

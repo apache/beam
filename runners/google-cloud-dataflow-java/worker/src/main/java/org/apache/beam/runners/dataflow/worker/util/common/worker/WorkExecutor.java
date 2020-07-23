@@ -18,9 +18,9 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Abstract executor for WorkItem tasks. */
 public interface WorkExecutor extends AutoCloseable {
@@ -42,8 +42,7 @@ public interface WorkExecutor extends AutoCloseable {
   }
 
   /** See {@link NativeReader.NativeReaderIterator#requestCheckpoint}. */
-  @Nullable
-  default NativeReader.DynamicSplitResult requestCheckpoint() throws Exception {
+  default NativeReader.@Nullable DynamicSplitResult requestCheckpoint() throws Exception {
     // By default, checkpointing does nothing.
     return null;
   }
@@ -52,8 +51,7 @@ public interface WorkExecutor extends AutoCloseable {
    * See {@link NativeReader.NativeReaderIterator#requestDynamicSplit}. Makes sense only for tasks
    * that read input.
    */
-  @Nullable
-  default NativeReader.DynamicSplitResult requestDynamicSplit(
+  default NativeReader.@Nullable DynamicSplitResult requestDynamicSplit(
       NativeReader.DynamicSplitRequest splitRequest) throws Exception {
     // By default, dynamic splitting is unsupported.
     return null;

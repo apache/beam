@@ -69,6 +69,7 @@ PAR_DO_URNS = frozenset([
     common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
     common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
     common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
+    common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn,
 ])
 
 IMPULSE_BUFFER = b'impulse'
@@ -343,13 +344,15 @@ class TransformContext(object):
   def __init__(self,
                components,  # type: beam_runner_api_pb2.Components
                known_runner_urns,  # type: FrozenSet[str]
-               use_state_iterables=False
+               use_state_iterables=False,
+               is_drain=False
               ):
     self.components = components
     self.known_runner_urns = known_runner_urns
     self.runner_only_urns = known_runner_urns - frozenset(
         [common_urns.primitives.FLATTEN.urn])
     self.use_state_iterables = use_state_iterables
+    self.is_drain = is_drain
     # ok to pass None for context because BytesCoder has no components
     coder_proto = coders.BytesCoder().to_runner_api(
         None)  # type: ignore[arg-type]
@@ -547,7 +550,8 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
 def create_and_optimize_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
                                phases,
                                known_runner_urns,  # type: FrozenSet[str]
-                               use_state_iterables=False
+                               use_state_iterables=False,
+    is_drain=False
                               ):
   # type: (...) -> Tuple[TransformContext, List[Stage]]
 
@@ -568,7 +572,8 @@ def create_and_optimize_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipe
   pipeline_context = TransformContext(
       pipeline_proto.components,
       known_runner_urns,
-      use_state_iterables=use_state_iterables)
+      use_state_iterables=use_state_iterables,
+      is_drain=is_drain)
 
   # Initial set of stages are singleton leaf transforms.
   stages = list(
@@ -973,6 +978,7 @@ def expand_sdf(stages, context):
             inputs=dict(transform.inputs, **{main_input_tag: paired_pcoll_id}),
             outputs={'out': split_pcoll_id})
 
+        reshuffle_stage = None
         if common_urns.composites.RESHUFFLE.urn in context.known_runner_urns:
           reshuffle_pcoll_id = copy_like(
               context.components.pcollections,
@@ -987,25 +993,57 @@ def expand_sdf(stages, context):
               payload=b'',
               inputs=dict(transform.inputs, **{main_input_tag: split_pcoll_id}),
               outputs={'out': reshuffle_pcoll_id})
-          yield make_stage(stage, reshuffle_transform_id)
+          reshuffle_stage = make_stage(stage, reshuffle_transform_id)
         else:
           reshuffle_pcoll_id = split_pcoll_id
           reshuffle_transform_id = None
 
-        process_transform_id = copy_like(
-            context.components.transforms,
-            transform,
-            unique_name=transform.unique_name + '/Process',
-            urn=common_urns.sdf_components.
-            PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
-            inputs=dict(
-                transform.inputs, **{main_input_tag: reshuffle_pcoll_id}))
+        if context.is_drain:
+          truncate_pcoll_id = copy_like(
+              context.components.pcollections,
+              main_input_id,
+              '_truncate_restriction',
+              coder_id=sized_coder_id)
+          # Lengthprefix the truncate output.
+          context.length_prefix_pcoll_coders(truncate_pcoll_id)
+          truncate_transform_id = copy_like(
+              context.components.transforms,
+              transform,
+              unique_name=transform.unique_name + '/TruncateAndSizeRestriction',
+              urn=common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn,
+              inputs=dict(
+                  transform.inputs, **{main_input_tag: reshuffle_pcoll_id}),
+              outputs={'out': truncate_pcoll_id})
+          process_transform_id = copy_like(
+              context.components.transforms,
+              transform,
+              unique_name=transform.unique_name + '/Process',
+              urn=common_urns.sdf_components.
+              PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
+              inputs=dict(
+                  transform.inputs, **{main_input_tag: truncate_pcoll_id}))
+        else:
+          process_transform_id = copy_like(
+              context.components.transforms,
+              transform,
+              unique_name=transform.unique_name + '/Process',
+              urn=common_urns.sdf_components.
+              PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
+              inputs=dict(
+                  transform.inputs, **{main_input_tag: reshuffle_pcoll_id}))
 
         yield make_stage(stage, pair_transform_id)
         split_stage = make_stage(stage, split_transform_id)
         yield split_stage
-        yield make_stage(
-            stage, process_transform_id, extra_must_follow=[split_stage])
+        if reshuffle_stage:
+          yield reshuffle_stage
+        if context.is_drain:
+          yield make_stage(
+              stage, truncate_transform_id, extra_must_follow=[split_stage])
+          yield make_stage(stage, process_transform_id)
+        else:
+          yield make_stage(
+              stage, process_transform_id, extra_must_follow=[split_stage])
 
       else:
         yield stage
@@ -1141,7 +1179,8 @@ def sink_flattens(stages, pipeline_context):
                     inputs={local_in: pcoll_in},
                     spec=beam_runner_api_pb2.FunctionSpec(
                         urn=bundle_processor.DATA_OUTPUT_URN,
-                        payload=buffer_id))
+                        payload=buffer_id),
+                    environment_id=transform.environment_id)
             ],
             downstream_side_inputs=frozenset(),
             must_follow=stage.must_follow)
@@ -1155,7 +1194,8 @@ def sink_flattens(stages, pipeline_context):
                   unique_name=transform.unique_name + '/Read',
                   outputs=transform.outputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=bundle_processor.DATA_INPUT_URN, payload=buffer_id))
+                      urn=bundle_processor.DATA_INPUT_URN, payload=buffer_id),
+                  environment_id=transform.environment_id)
           ],
           downstream_side_inputs=stage.downstream_side_inputs,
           must_follow=union(frozenset(flatten_writes), stage.must_follow))

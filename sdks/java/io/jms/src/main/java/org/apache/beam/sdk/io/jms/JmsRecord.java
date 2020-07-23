@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io.jms;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import javax.jms.Destination;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * JmsRecord contains message payload of the record as well as metadata (JMS headers and
@@ -29,10 +29,10 @@ import javax.jms.Destination;
  */
 public class JmsRecord implements Serializable {
 
-  @Nullable private final String jmsMessageID;
+  private final @Nullable String jmsMessageID;
   private final long jmsTimestamp;
   private final String jmsCorrelationID;
-  @Nullable private final Destination jmsReplyTo;
+  private final @Nullable Destination jmsReplyTo;
   private final Destination jmsDestination;
   private final int jmsDeliveryMode;
   private final boolean jmsRedelivered;
@@ -135,7 +135,7 @@ public class JmsRecord implements Serializable {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (obj instanceof JmsRecord) {
       JmsRecord other = (JmsRecord) obj;
       return jmsDestination.equals(other.jmsDestination)

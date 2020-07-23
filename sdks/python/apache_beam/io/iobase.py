@@ -70,6 +70,7 @@ __all__ = [
     'BoundedSource',
     'RangeTracker',
     'Read',
+    'RestrictionProgress',
     'RestrictionTracker',
     'WatermarkEstimator',
     'Sink',
@@ -1243,6 +1244,23 @@ class RestrictionTracker(object):
     """
     raise NotImplementedError
 
+  def is_bounded(self):
+    """Returns whether the amount of work represented by the current restriction
+    is bounded.
+
+    The boundedness of the restriction is used to determine the default behavior
+    of how to truncate restrictions when a pipeline is being
+    `drained <https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#>`_.  # pylint: disable=line-too-long
+    If the restriction is bounded, then the entire restriction will be processed
+    otherwise the restriction will be processed till a checkpoint is possible.
+
+    The API is required to be implemented.
+
+    Returns: ``True`` if the restriction represents a finite amount of work.
+    Otherwise, returns ``False``.
+    """
+    raise NotImplementedError
+
 
 class WatermarkEstimator(object):
   """A WatermarkEstimator which is used for estimating output_watermark based on
@@ -1301,18 +1319,22 @@ class RestrictionProgress(object):
   @property
   def completed_work(self):
     # type: () -> float
-    if self._completed:
+    if self._completed is not None:
       return self._completed
-    elif self._remaining and self._fraction:
+    elif self._remaining is not None and self._fraction is not None:
       return self._remaining * self._fraction / (1 - self._fraction)
+    else:
+      return self._fraction
 
   @property
   def remaining_work(self):
     # type: () -> float
-    if self._remaining:
+    if self._remaining is not None:
       return self._remaining
-    elif self._completed:
+    elif self._completed is not None and self._fraction:
       return self._completed * (1 - self._fraction) / self._fraction
+    else:
+      return 1 - self._fraction
 
   @property
   def total_work(self):
@@ -1436,6 +1458,9 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
 
     def check_done(self):
       return self.restriction.range_tracker().fraction_consumed() >= 1.0
+
+    def is_bounded(self):
+      return True
 
   class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
     """A `RestrictionProvider` that is used by SDF for `BoundedSource`."""

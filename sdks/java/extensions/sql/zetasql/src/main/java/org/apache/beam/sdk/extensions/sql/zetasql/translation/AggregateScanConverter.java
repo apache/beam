@@ -34,7 +34,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollations;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.AggregateCall;
@@ -45,6 +44,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlAggFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.ImmutableBitSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts aggregate calls. */
 class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
@@ -131,7 +131,8 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
               .convertRexNodeFromResolvedExpr(
                   computedColumn.getExpr(),
                   node.getInputScan().getColumnList(),
-                  input.getRowType().getFieldList()));
+                  input.getRowType().getFieldList(),
+                  ImmutableMap.of()));
       fieldNames.add(getTrait().resolveAlias(computedColumn.getColumn()));
     }
 
@@ -156,7 +157,8 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
                 .convertRexNodeFromResolvedExpr(
                     resolvedExpr,
                     node.getInputScan().getColumnList(),
-                    input.getRowType().getFieldList()));
+                    input.getRowType().getFieldList(),
+                    ImmutableMap.of()));
         fieldNames.add(getTrait().resolveAlias(resolvedComputedColumn.getColumn()));
       } else if (aggregateFunctionCall.getArgumentList() != null
           && aggregateFunctionCall.getArgumentList().size() > 1) {
@@ -197,7 +199,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
 
     SqlAggFunction sqlAggFunction =
         (SqlAggFunction)
-            SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
+            SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
                 aggregateFunctionCall.getFunction().getName());
     if (sqlAggFunction == null) {
       throw new UnsupportedOperationException(

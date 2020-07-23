@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
@@ -41,6 +40,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A specialized {@link ParDoFn} for GroupAlsoByWindow related {@link GroupAlsoByWindowFn}'s. */
 public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> implements ParDoFn {
@@ -60,8 +60,8 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
   private final boolean acceptsKeyedWorkItems;
 
   // Various DoFn helpers, null between bundles
-  @Nullable private DoFnRunner<InputT, KV<K, Iterable<V>>> fnRunner;
-  @Nullable private Receiver receiver;
+  private @Nullable DoFnRunner<InputT, KV<K, Iterable<V>>> fnRunner;
+  private @Nullable Receiver receiver;
 
   /**
    * Creates a {@link GroupAlsoByWindowsParDoFn} using basic information about the {@link

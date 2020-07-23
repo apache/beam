@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.IsBounded;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.junit.Rule;
 import org.junit.Test;
@@ -251,5 +252,24 @@ public class GrowableOffsetRangeTrackerTest {
     res = tracker.trySplit(0.5);
     assertEquals(new OffsetRange(123456789012345681L, 123456789012345682L), res.getPrimary());
     assertEquals(new OffsetRange(123456789012345682L, Long.MAX_VALUE), res.getResidual());
+  }
+
+  @Test
+  public void testIsBounded() throws Exception {
+    SimpleEstimator simpleEstimator = new SimpleEstimator();
+    GrowableOffsetRangeTracker tracker = new GrowableOffsetRangeTracker(0L, simpleEstimator);
+    assertEquals(IsBounded.UNBOUNDED, tracker.isBounded());
+    assertTrue(tracker.tryClaim(0L));
+    assertEquals(IsBounded.UNBOUNDED, tracker.isBounded());
+
+    // After split, the restriction should be bounded.
+    simpleEstimator.setEstimateRangeEnd(16L);
+    tracker.trySplit(0.5);
+    assertEquals(IsBounded.BOUNDED, tracker.isBounded());
+
+    // The restriction should be bounded after all the work has been claimed.
+    tracker = new GrowableOffsetRangeTracker(0L, simpleEstimator);
+    tracker.tryClaim(Long.MAX_VALUE);
+    assertEquals(IsBounded.BOUNDED, tracker.isBounded());
   }
 }

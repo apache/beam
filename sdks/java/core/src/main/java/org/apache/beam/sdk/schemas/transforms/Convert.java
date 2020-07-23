@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A set of utilities for converting between different objects supporting schemas. */
 @Experimental(Kind.SCHEMAS)
@@ -104,8 +104,7 @@ public class Convert {
       this.outputTypeDescriptor = outputTypeDescriptor;
     }
 
-    @Nullable
-    private static Schema getBoxedNestedSchema(Schema schema) {
+    private static @Nullable Schema getBoxedNestedSchema(Schema schema) {
       if (schema.getFieldCount() != 1) {
         return null;
       }

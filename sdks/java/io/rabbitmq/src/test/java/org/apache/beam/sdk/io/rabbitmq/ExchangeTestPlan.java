@@ -21,7 +21,7 @@ import com.rabbitmq.client.AMQP;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * RabbitMqIO documents "using a queue" vs "using an exchange", but AMQP always interacts with an
@@ -38,7 +38,7 @@ class ExchangeTestPlan {
   private final RabbitMqIO.Read read;
   private final int numRecords;
   private final int numRecordsToPublish;
-  @Nullable private final AMQP.BasicProperties publishProperties;
+  private final AMQP.@Nullable BasicProperties publishProperties;
 
   public ExchangeTestPlan(RabbitMqIO.Read read, int maxRecordsRead) {
     this(read, maxRecordsRead, maxRecordsRead);
@@ -62,7 +62,7 @@ class ExchangeTestPlan {
       RabbitMqIO.Read read,
       int maxRecordsRead,
       int numRecordsToPublish,
-      @Nullable AMQP.BasicProperties publishProperties) {
+      AMQP.@Nullable BasicProperties publishProperties) {
     this.read = read;
     this.numRecords = maxRecordsRead;
     this.numRecordsToPublish = numRecordsToPublish;

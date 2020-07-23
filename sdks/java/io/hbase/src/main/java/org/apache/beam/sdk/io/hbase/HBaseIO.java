@@ -31,7 +31,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -66,6 +65,7 @@ import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.protobuf.generated.ClientProtos;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -271,7 +271,7 @@ public class HBaseIO {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -361,7 +361,7 @@ public class HBaseIO {
 
   static class HBaseSource extends BoundedSource<Result> {
     private final Read read;
-    @Nullable private Long estimatedSizeBytes;
+    private @Nullable Long estimatedSizeBytes;
 
     HBaseSource(Read read, @Nullable Long estimatedSizeBytes) {
       this.read = read;
@@ -552,8 +552,7 @@ public class HBaseIO {
     }
 
     @Override
-    @Nullable
-    public final synchronized HBaseSource splitAtFraction(double fraction) {
+    public final synchronized @Nullable HBaseSource splitAtFraction(double fraction) {
       ByteKey splitKey;
       try {
         splitKey = rangeTracker.getRange().interpolateKey(fraction);
@@ -650,7 +649,7 @@ public class HBaseIO {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

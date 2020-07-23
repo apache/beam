@@ -75,6 +75,7 @@ public class CalciteQueryPlanner implements QueryPlanner {
   private final Planner planner;
   private final JdbcConnection connection;
 
+  /** Called by {@link BeamSqlEnv}.instantiatePlanner() reflectively. */
   public CalciteQueryPlanner(JdbcConnection connection, RuleSet[] ruleSets) {
     this.connection = connection;
     this.planner = Frameworks.getPlanner(defaultConfig(connection, ruleSets));

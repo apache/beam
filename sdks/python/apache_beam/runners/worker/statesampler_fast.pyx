@@ -50,10 +50,10 @@ cdef extern from "Python.h":
   # we use this on via our own lock.
   cdef void* PyList_GET_ITEM(list, Py_ssize_t index) nogil
 
-cdef extern from "unistd.h" nogil:
+cdef extern from "crossplatform_unistd.h" nogil:
   void usleep(int)
 
-cdef extern from "<time.h>" nogil:
+cdef extern from "crossplatform_time.h" nogil:
   struct timespec:
     long tv_sec  # seconds
     long tv_nsec  # nanoseconds

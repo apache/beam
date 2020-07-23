@@ -38,7 +38,7 @@ in the form of seconds.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after getting the timestamps:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -80,7 +80,7 @@ These numbers have to be converted to a *"seconds"* equivalent, which can be esp
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after getting the timestamps:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -104,7 +104,7 @@ By using processing time, there is no way of knowing if data is arriving late be
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after getting the timestamps:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}

@@ -72,10 +72,6 @@ function runLinkageCheck () {
   COMMIT=$1
   BRANCH=$2
   MODE=$3 # "baseline" or "validate"
-  # An empty invocation so that the subsequent checkJavaLinkage does not
-  # contain garbage
-  echo "`date`:" "Installing artifacts of ${BRANCH}(${COMMIT}) to Maven local repository."
-  ./gradlew -Ppublishing -PjavaLinkageArtifactIds=beam-sdks-java-core -PjavaLinkageWriteBaseline=/dev/null :checkJavaLinkage > /dev/null 2>&1
   for ARTIFACT in $ARTIFACTS; do
     echo "`date`:" "Running linkage check (${MODE}) for ${ARTIFACT} in ${BRANCH}"
 

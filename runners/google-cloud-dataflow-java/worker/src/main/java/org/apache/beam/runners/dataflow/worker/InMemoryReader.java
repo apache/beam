@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -35,6 +34,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,7 +76,7 @@ public class InMemoryReader<T> extends NativeReader<T> {
   /** A ReaderIterator that yields an in-memory list of elements. */
   class InMemoryReaderIterator extends NativeReaderIterator<T> {
     @VisibleForTesting OffsetRangeTracker tracker;
-    @Nullable private Integer lastReturnedIndex;
+    private @Nullable Integer lastReturnedIndex;
     private Optional<T> current;
 
     public InMemoryReaderIterator() {

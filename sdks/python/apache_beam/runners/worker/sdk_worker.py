@@ -65,6 +65,7 @@ from apache_beam.runners.worker.data_plane import PeriodicThread
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
+from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.utils import thread_pool_executor
 
 if TYPE_CHECKING:
@@ -75,10 +76,16 @@ _LOGGER = logging.getLogger(__name__)
 
 # This SDK harness will (by default), log a "lull" in processing if it sees no
 # transitions in over 5 minutes.
-# 5 minutes * 60 seconds * 1020 millis * 1000 micros * 1000 nanoseconds
+# 5 minutes * 60 seconds * 1000 millis * 1000 micros * 1000 nanoseconds
 DEFAULT_LOG_LULL_TIMEOUT_NS = 5 * 60 * 1000 * 1000 * 1000
 
 DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S = 60
+
+# Full thread dump is performed at most every 20 minutes.
+LOG_LULL_FULL_THREAD_DUMP_INTERVAL_S = 20 * 60
+
+# Full thread dump is performed if the lull is more than 20 minutes.
+LOG_LULL_FULL_THREAD_DUMP_LULL_S = 20 * 60
 
 
 class ShortIdCache(object):
@@ -145,14 +152,16 @@ class SdkHarness(object):
     self._worker_index = 0
     self._worker_id = worker_id
     self._state_cache = StateCache(state_cache_size)
+    options = [('grpc.max_receive_message_length', -1),
+               ('grpc.max_send_message_length', -1)]
     if credentials is None:
       _LOGGER.info('Creating insecure control channel for %s.', control_address)
       self._control_channel = GRPCChannelFactory.insecure_channel(
-          control_address)
+          control_address, options=options)
     else:
       _LOGGER.info('Creating secure control channel for %s.', control_address)
       self._control_channel = GRPCChannelFactory.secure_channel(
-          control_address, credentials)
+          control_address, credentials, options=options)
     grpc.channel_ready_future(self._control_channel).result(timeout=60)
     _LOGGER.info('Control channel established.')
 
@@ -463,6 +472,7 @@ class SdkWorker(object):
     self.profiler_factory = profiler_factory
     self.log_lull_timeout_ns = (
         log_lull_timeout_ns or DEFAULT_LOG_LULL_TIMEOUT_NS)
+    self._last_full_thread_dump_secs = 0
 
   def do_instruction(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse
@@ -543,15 +553,18 @@ class SdkWorker(object):
           error='Instruction not running: %s' % instruction_id)
 
   def _log_lull_in_bundle_processor(self, processor):
-    state_sampler = processor.state_sampler
-    sampler_info = state_sampler.get_info()
+    sampler_info = processor.state_sampler.get_info()
+    self._log_lull_sampler_info(sampler_info)
+
+  def _log_lull_sampler_info(self, sampler_info):
     if (sampler_info and sampler_info.time_since_transition and
         sampler_info.time_since_transition > self.log_lull_timeout_ns):
       step_name = sampler_info.state_name.step_name
       state_name = sampler_info.state_name.name
+      lull_seconds = sampler_info.time_since_transition / 1e9
       state_lull_log = (
           'Operation ongoing for over %.2f seconds in state %s' %
-          (sampler_info.time_since_transition / 1e9, state_name))
+          (lull_seconds, state_name))
       step_name_log = (' in step %s ' % step_name) if step_name else ''
 
       exec_thread = getattr(sampler_info, 'tracked_thread', None)
@@ -567,6 +580,22 @@ class SdkWorker(object):
           state_lull_log,
           step_name_log,
           stack_trace)
+
+      if self._should_log_full_thread_dump(lull_seconds):
+        self._log_full_thread_dump()
+
+  def _should_log_full_thread_dump(self, lull_seconds):
+    if lull_seconds < LOG_LULL_FULL_THREAD_DUMP_LULL_S:
+      return False
+    now = time.time()
+    if (self._last_full_thread_dump_secs + LOG_LULL_FULL_THREAD_DUMP_INTERVAL_S
+        < now):
+      self._last_full_thread_dump_secs = now
+      return True
+    return False
+
+  def _log_full_thread_dump(self):
+    thread_dump()
 
   def process_bundle_progress(self,
                               request,  # type: beam_fn_api_pb2.ProcessBundleProgressRequest

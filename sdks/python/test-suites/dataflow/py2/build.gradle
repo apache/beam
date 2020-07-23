@@ -50,7 +50,7 @@ task chicagoTaxiExample {
     exec {
       workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./run_chicago.sh ${gcsRoot} DataflowRunner ${pipelineOptions}"
+      args '-c', ". ${envdir}/bin/activate && ./run_chicago.sh ${gcsRoot} TestDataflowRunner ${pipelineOptions}"
     }
   }
 }

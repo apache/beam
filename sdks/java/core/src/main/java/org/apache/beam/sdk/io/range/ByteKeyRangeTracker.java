@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io.range;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.toStringHelper;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -155,7 +155,7 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
 
   ///////////////////////////////////////////////////////////////////////////////
   private ByteKeyRange range;
-  @Nullable private ByteKey position;
+  private @Nullable ByteKey position;
   private long splitPointsSeen;
   private boolean done;
 

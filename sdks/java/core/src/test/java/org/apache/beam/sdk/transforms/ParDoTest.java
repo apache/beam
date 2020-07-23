@@ -141,7 +141,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
+import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.MutableDateTime;
@@ -2412,7 +2414,7 @@ public class ParDoTest implements Serializable {
       }
 
       @Override
-      public boolean equals(Object other) {
+      public boolean equals(@Nullable Object other) {
         return other instanceof TestSimpleStatefulDoFn;
       }
 
@@ -3710,7 +3712,9 @@ public class ParDoTest implements Serializable {
       TestStream<KV<String, Integer>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
               .addElements(KV.of("hello", 37))
-              .advanceProcessingTime(Duration.standardSeconds(2))
+              .advanceProcessingTime(
+                  Duration.millis(DateTimeUtils.currentTimeMillis())
+                      .plus(Duration.standardSeconds(60)))
               .advanceWatermarkToInfinity();
 
       PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
@@ -3769,7 +3773,10 @@ public class ParDoTest implements Serializable {
                 @TimerId(timerId) Timer timer,
                 @Timestamp Instant timestamp,
                 OutputReceiver<KV<Integer, Instant>> r) {
-              timer.align(Duration.standardSeconds(1)).offset(Duration.millis(1)).setRelative();
+              timer
+                  .align(Duration.standardMinutes(1))
+                  .offset(Duration.standardSeconds(1))
+                  .setRelative();
               r.output(KV.of(3, timestamp));
             }
 
@@ -3782,16 +3789,19 @@ public class ParDoTest implements Serializable {
 
       TestStream<KV<String, Integer>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .advanceWatermarkTo(new Instant(5))
+              .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(5)))
               .addElements(KV.of("hello", 37))
-              .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(1).plus(1)))
+              .advanceWatermarkTo(new Instant(0).plus(Duration.standardMinutes(1)))
               .advanceWatermarkToInfinity();
 
       PCollection<KV<Integer, Instant>> output = pipeline.apply(stream).apply(ParDo.of(fn));
       PAssert.that(output)
           .containsInAnyOrder(
-              KV.of(3, new Instant(5)),
-              KV.of(42, new Instant(Duration.standardSeconds(1).minus(1).getMillis())));
+              KV.of(3, new Instant(0).plus(Duration.standardSeconds(5))),
+              KV.of(
+                  42,
+                  new Instant(
+                      Duration.standardMinutes(1).minus(Duration.standardSeconds(1)).getMillis())));
       pipeline.run();
     }
 
@@ -3824,15 +3834,15 @@ public class ParDoTest implements Serializable {
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
               // See GlobalWindow,
               // END_OF_GLOBAL_WINDOW is TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))
-              .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1)))
+              .advanceWatermarkTo(GlobalWindow.INSTANCE.maxTimestamp())
               .addElements(KV.of("hello", 37))
               .advanceWatermarkToInfinity();
 
       PCollection<KV<Integer, Instant>> output = pipeline.apply(stream).apply(ParDo.of(fn));
       PAssert.that(output)
           .containsInAnyOrder(
-              KV.of(3, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))),
-              KV.of(42, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))));
+              KV.of(3, GlobalWindow.INSTANCE.maxTimestamp()),
+              KV.of(42, GlobalWindow.INSTANCE.maxTimestamp()));
       pipeline.run();
     }
 
@@ -3871,7 +3881,9 @@ public class ParDoTest implements Serializable {
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
               .addElements(KV.of("key", "input1"))
               .addElements(KV.of("key", "input2"))
-              .advanceProcessingTime(Duration.standardSeconds(2))
+              .advanceProcessingTime(
+                  Duration.millis(DateTimeUtils.currentTimeMillis())
+                      .plus(Duration.standardSeconds(60)))
               .advanceWatermarkToInfinity();
 
       PCollection<String> output = pipeline.apply(stream).apply(ParDo.of(fn));
@@ -3939,8 +3951,11 @@ public class ParDoTest implements Serializable {
               .advanceWatermarkTo(new Instant(0));
 
       for (int i = 0; i < numTestElements; i++) {
-        builder = builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
-        builder = builder.advanceWatermarkTo(now.plus(i / 10 * 10));
+        builder =
+            builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i * 1000)));
+        if ((i + 1) % 10 == 0) {
+          builder = builder.advanceWatermarkTo(now.plus((i + 1) * 1000));
+        }
       }
 
       testEventTimeTimerOrderingWithInputPTransform(
@@ -3961,7 +3976,7 @@ public class ParDoTest implements Serializable {
 
       List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
       for (int i = 0; i < numTestElements; i++) {
-        elements.add(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
+        elements.add(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i * 1000)));
       }
 
       testEventTimeTimerOrderingWithInputPTransform(
@@ -3978,7 +3993,7 @@ public class ParDoTest implements Serializable {
       final String timerIdGc = "gc";
       final String bag = "bag";
       final String minTimestamp = "minTs";
-      final Instant gcTimerStamp = now.plus(numTestElements + 1);
+      final Instant gcTimerStamp = now.plus((numTestElements + 1) * 1000);
 
       DoFn<KV<String, String>, String> fn =
           new DoFn<KV<String, String>, String>() {
@@ -4032,7 +4047,7 @@ public class ParDoTest implements Serializable {
               flush.sort(Comparator.comparing(TimestampedValue::getTimestamp));
               context.output(
                   Joiner.on(":").join(flush.stream().map(TimestampedValue::getValue).iterator()));
-              Instant newMinStamp = flushTime.plus(1);
+              Instant newMinStamp = flushTime.plus(1000);
               if (flush.size() < numTestElements) {
                 timer.set(newMinStamp);
               }
@@ -4112,7 +4127,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTestStream.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void duplicateTimerSetting() {
       TestStream<KV<String, String>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
@@ -4626,7 +4641,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
