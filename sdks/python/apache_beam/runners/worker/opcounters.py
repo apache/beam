@@ -29,6 +29,7 @@ import math
 import random
 from builtins import hex
 from builtins import object
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 from typing import Optional
 
@@ -246,18 +247,21 @@ class OperationCounters(object):
 
   def type_check(self, value):
     # type: (any, bool) -> None
-    try:
-        type_constraint = self.producer_type_hints.output_types[0][0][0][0]
+
+    if self.producer_type_hints and hasattr(self.producer_type_hints, 'output_types'):
+      type_constraint = self.producer_type_hints.output_types
+      while isinstance(type_constraint, Iterable):
+        type_constraint = type_constraint[0]
+      if type_constraint:
         TypeCheckWrapperDoFn.type_check(type_constraint, value, False)
-    except (TypeError, AttributeError, IndexError):
-      pass
 
     for consumer_type_hints in self.consumers_type_hints:
-      try:
-        type_constraint = consumer_type_hints.input_types[0][0][0][0]
-        TypeCheckWrapperDoFn.type_check(type_constraint, value, True)
-      except (TypeError, AttributeError, IndexError):
-        pass
+      if consumer_type_hints and hasattr(consumer_type_hints, 'input_types'):
+        type_constraint = consumer_type_hints.input_types
+        while isinstance(type_constraint, Iterable):
+          type_constraint = type_constraint[0]
+        if type_constraint:
+          TypeCheckWrapperDoFn.type_check(type_constraint, value, False)
 
   def do_sample(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
