@@ -286,11 +286,6 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     if isinstance(transform, core.ParDo):
       if self._in_combine:
         if isinstance(transform.fn, core.CombineValuesDoFn):
-          transform.fn.combinefn. \
-            with_input_types(self._type_hints.input_types). \
-            with_output_types(self._type_hints.output_types)
+          transform.fn.combinefn._runtime_type_hints = self._type_hints
       else:
-        type_hints = transform.get_type_hints()
-        transform.fn.\
-            with_input_types(type_hints.input_types).\
-            with_output_types(type_hints.output_types)
+        transform.fn._runtime_type_hints = transform.get_type_hints()

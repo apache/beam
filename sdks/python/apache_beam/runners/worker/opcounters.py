@@ -210,16 +210,17 @@ class OperationCounters(object):
     if producer and hasattr(producer, 'spec') and hasattr(producer.spec, 'serialized_fn'):
       fns = pickler.loads(producer.spec.serialized_fn)
       if fns:
-        if hasattr(fns[0], '_type_hints'):
-          self.producer_type_hints = fns[0]._type_hints
+        if hasattr(fns[0], '_runtime_type_hints'):
+          self.producer_type_hints = fns[0]._runtime_type_hints
 
     self.consumers_type_hints = []
     for consumer in consumers:
       if hasattr(consumer, 'spec') and hasattr(consumer.spec, 'serialized_fn'):
         fns = pickler.loads(consumer.spec.serialized_fn)
         if fns:
-          if hasattr(fns[0], '_type_hints'):
-            self.consumers_type_hints.append(fns[0]._type_hints)
+          if hasattr(fns[0], '_runtime_type_hints'):
+            self.consumers_type_hints.append(fns[0]._runtime_type_hints)
+    pass
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
