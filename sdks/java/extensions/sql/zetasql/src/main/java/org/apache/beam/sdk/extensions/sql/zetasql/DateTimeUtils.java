@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import static com.google.zetasql.CivilTimeEncoder.decodePacked64TimeNanos;
-import static com.google.zetasql.CivilTimeEncoder.encodePacked64TimeNanos;
-
+import com.google.zetasql.CivilTimeEncoder;
 import com.google.zetasql.Value;
 import io.grpc.Status;
+import java.time.LocalTime;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.DateString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.TimeString;
@@ -31,9 +29,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.joda.time.LocalTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -163,11 +161,10 @@ public class DateTimeUtils {
     }
   }
 
-  @SuppressWarnings(
-      "Value with nanoseconds will be truncated to milliseconds in decodePacked64TimeNanos.")
   public static TimeString convertTimeValueToTimeString(Value value) {
-    LocalTime localTime = decodePacked64TimeNanos(value.getTimeValue());
-    return TimeString.fromMillisOfDay(localTime.getMillisOfDay());
+    LocalTime localTime = CivilTimeEncoder.decodePacked64TimeNanosAsJavaTime(value.getTimeValue());
+    return new TimeString(localTime.getHour(), localTime.getMinute(), localTime.getSecond())
+        .withNanos(localTime.getNano());
   }
 
   // dates are represented as an int32 value, indicating the offset
@@ -183,9 +180,8 @@ public class DateTimeUtils {
   }
 
   public static Value parseTimeToValue(String timeString) {
-    DateTime dateTime = parseTime(timeString);
-    return Value.createTimeValue(
-        encodePacked64TimeNanos(LocalTime.fromMillisOfDay(dateTime.getMillisOfDay())));
+    LocalTime localTime = LocalTime.parse(timeString);
+    return Value.createTimeValue(CivilTimeEncoder.encodePacked64TimeNanos(localTime));
   }
 
   public static Value parseTimestampWithTZToValue(String timestampString) {

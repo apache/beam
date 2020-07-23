@@ -65,8 +65,10 @@ import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -75,7 +77,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
@@ -92,6 +93,7 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,16 +147,19 @@ class BigQueryServicesImpl implements BigQueryServices {
   static class JobServiceImpl implements BigQueryServices.JobService {
     private final ApiErrorExtractor errorExtractor;
     private final Bigquery client;
+    private final BigQueryIOMetadata bqIOMetadata;
 
     @VisibleForTesting
     JobServiceImpl(Bigquery client) {
       this.errorExtractor = new ApiErrorExtractor();
       this.client = client;
+      this.bqIOMetadata = BigQueryIOMetadata.create();
     }
 
     private JobServiceImpl(BigQueryOptions options) {
       this.errorExtractor = new ApiErrorExtractor();
       this.client = newBigQueryClient(options).build();
+      this.bqIOMetadata = BigQueryIOMetadata.create();
     }
 
     /**
@@ -167,11 +172,14 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException {
+      Map<String, String> labelMap = new HashMap<>();
       Job job =
           new Job()
               .setJobReference(jobRef)
-              .setConfiguration(new JobConfiguration().setLoad(loadConfig));
-
+              .setConfiguration(
+                  new JobConfiguration()
+                      .setLoad(loadConfig)
+                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(labelMap)));
       startJob(job, errorExtractor, client);
     }
 
@@ -185,11 +193,14 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
         throws InterruptedException, IOException {
+      Map<String, String> labelMap = new HashMap<>();
       Job job =
           new Job()
               .setJobReference(jobRef)
-              .setConfiguration(new JobConfiguration().setExtract(extractConfig));
-
+              .setConfiguration(
+                  new JobConfiguration()
+                      .setExtract(extractConfig)
+                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(labelMap)));
       startJob(job, errorExtractor, client);
     }
 
@@ -203,11 +214,14 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void startQueryJob(JobReference jobRef, JobConfigurationQuery queryConfig)
         throws IOException, InterruptedException {
+      Map<String, String> labelMap = new HashMap<>();
       Job job =
           new Job()
               .setJobReference(jobRef)
-              .setConfiguration(new JobConfiguration().setQuery(queryConfig));
-
+              .setConfiguration(
+                  new JobConfiguration()
+                      .setQuery(queryConfig)
+                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(labelMap)));
       startJob(job, errorExtractor, client);
     }
 
@@ -221,11 +235,14 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
         throws IOException, InterruptedException {
+      Map<String, String> labelMap = new HashMap<>();
       Job job =
           new Job()
               .setJobReference(jobRef)
-              .setConfiguration(new JobConfiguration().setCopy(copyConfig));
-
+              .setConfiguration(
+                  new JobConfiguration()
+                      .setCopy(copyConfig)
+                      .setLabels(this.bqIOMetadata.addAdditionalJobLabels(labelMap)));
       startJob(job, errorExtractor, client);
     }
 
@@ -442,14 +459,13 @@ class BigQueryServicesImpl implements BigQueryServices {
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
-    @Nullable
-    public Table getTable(TableReference tableRef) throws IOException, InterruptedException {
+    public @Nullable Table getTable(TableReference tableRef)
+        throws IOException, InterruptedException {
       return getTable(tableRef, null);
     }
 
     @Override
-    @Nullable
-    public Table getTable(TableReference tableRef, List<String> selectedFields)
+    public @Nullable Table getTable(TableReference tableRef, List<String> selectedFields)
         throws IOException, InterruptedException {
       return getTable(tableRef, selectedFields, createDefaultBackoff(), Sleeper.DEFAULT);
     }

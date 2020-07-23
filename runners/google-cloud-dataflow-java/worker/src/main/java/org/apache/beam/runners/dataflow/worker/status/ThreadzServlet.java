@@ -30,6 +30,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Respond to /threadz with the stack traces of all running threads. */
 class ThreadzServlet extends BaseStatusServlet implements Capturable {
@@ -59,7 +60,7 @@ class ThreadzServlet extends BaseStatusServlet implements Capturable {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other == this) {
         return true;
       } else if (!(other instanceof Stack)) {

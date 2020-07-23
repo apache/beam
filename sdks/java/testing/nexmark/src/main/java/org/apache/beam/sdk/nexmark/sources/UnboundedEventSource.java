@@ -23,7 +23,6 @@ import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -95,7 +95,7 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
      * Current backlog, as estimated number of event bytes we are behind, or null if unknown.
      * Reported to callers.
      */
-    @Nullable private Long backlogBytes;
+    private @Nullable Long backlogBytes;
 
     /** Wallclock time (ms since epoch) we last reported the backlog, or -1 if never reported. */
     private long lastReportedBacklogWallclock;
@@ -107,13 +107,13 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
     private long timestampAtLastReportedBacklogMs;
 
     /** Next event to make 'current' when wallclock time has advanced sufficiently. */
-    @Nullable private TimestampedValue<Event> pendingEvent;
+    private @Nullable TimestampedValue<Event> pendingEvent;
 
     /** Wallclock time when {@link #pendingEvent} is due, or -1 if no pending event. */
     private long pendingEventWallclockTime;
 
     /** Current event to return from getCurrent. */
-    @Nullable private TimestampedValue<Event> currentEvent;
+    private @Nullable TimestampedValue<Event> currentEvent;
 
     /** Events which have been held back so as to force them to be late. */
     private final Queue<Generator.NextEvent> heldBackEvents = new PriorityQueue<>();

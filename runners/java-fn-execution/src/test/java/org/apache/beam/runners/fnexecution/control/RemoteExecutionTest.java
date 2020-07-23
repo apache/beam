@@ -719,7 +719,6 @@ public class RemoteExecutionTest implements Serializable {
           @Override
           public void onCompleted(ProcessBundleResponse response) {
             List<Matcher<MonitoringInfo>> matchers = new ArrayList<>();
-
             // User Counters.
             SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
             builder
@@ -1345,6 +1344,11 @@ public class RemoteExecutionTest implements Serializable {
     @Override
     public void checkDone() throws IllegalStateException {
       checkState(!needsSplitting(), "Expected for this restriction to have been split.");
+    }
+
+    @Override
+    public IsBounded isBounded() {
+      return IsBounded.BOUNDED;
     }
   }
 

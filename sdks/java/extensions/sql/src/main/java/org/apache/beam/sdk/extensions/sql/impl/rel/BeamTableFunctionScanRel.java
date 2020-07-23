@@ -27,6 +27,7 @@ import java.util.Set;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.TVFSlidingWindowFn;
+import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -197,13 +198,22 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
           BeamTableFunctionScanRel.class.getSimpleName(),
           input);
       String operatorName = ((RexCall) getCall()).getOperator().getName();
-      checkArgument(
-          tvfToPTransformMap.keySet().contains(operatorName),
-          "Only support %s table-valued functions. Current operator: %s",
-          tvfToPTransformMap.keySet(),
-          operatorName);
 
-      return tvfToPTransformMap.get(operatorName).toPTransform(((RexCall) getCall()), input.get(0));
+      // builtin TVF uses existing PTransform implementations.
+      if (tvfToPTransformMap.keySet().contains(operatorName)) {
+        return tvfToPTransformMap
+            .get(operatorName)
+            .toPTransform(((RexCall) getCall()), input.get(0));
+      }
+
+      // ZetaSQL pure SQL TVF should pass through input to output.
+      if (((RexCall) getCall()).getOperator()
+          instanceof ZetaSqlUserDefinedSQLNativeTableValuedFunction) {
+        return input.get(0);
+      }
+
+      throw new IllegalArgumentException(
+          String.format("Does not support table_valued function: %s", operatorName));
     }
 
     private Schema getKeySchema(Schema inputSchema, List<Integer> keys) {

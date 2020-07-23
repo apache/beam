@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link Coder} that wraps a {@code Coder<String>} and encodes/decodes values via string
@@ -69,7 +70,7 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (o == null || this.getClass() != o.getClass()) {
       return false;
     }

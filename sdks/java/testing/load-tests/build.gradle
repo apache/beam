@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(
+applyJavaNature(enableChecker:false,
     publish: false,
     archivesBaseName: 'beam-sdks-java-load-tests',
     exportJavadoc: false

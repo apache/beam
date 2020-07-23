@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.planner;
 
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeSystemImpl;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 
 /** customized data type in Beam. */
 public class BeamRelDataTypeSystem extends RelDataTypeSystemImpl {
@@ -40,5 +41,15 @@ public class BeamRelDataTypeSystem extends RelDataTypeSystemImpl {
   @Override
   public boolean shouldConvertRaggedUnionTypesToVarying() {
     return true;
+  }
+
+  @Override
+  public int getMaxPrecision(SqlTypeName typeName) {
+    switch (typeName) {
+      case TIME:
+        return 6; // support microsecond time precision
+      default:
+        return super.getMaxPrecision(typeName);
+    }
   }
 }

@@ -51,7 +51,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
@@ -63,6 +62,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Jackson serializer and deserializer for {@link Row Rows}.
@@ -159,9 +159,37 @@ public class RowJson {
 
     private static final boolean SEQUENTIAL = false;
 
-    public enum MissingFieldBehavior {
-      ALLOW_MISSING,
-      REQUIRE_NULL
+    /**
+     * An enumeration type for specifying how {@link RowJsonDeserializer} should expect null values
+     * to be represented.
+     *
+     * <p>For example, when parsing JSON for the Schema {@code (str: REQUIRED STRING, int: NULLABLE
+     * INT64)}:
+     *
+     * <ul>
+     *   <li>If configured with {@code REQUIRE_NULL}, {@code {"str": "foo", "int": null}} would be
+     *       accepted.
+     *   <li>If configured with {@code REQUIRE_MISSING}, {@code {"str": "bar"}} would be accepted,
+     *       and would yield a {@link Row} with {@code null} for the {@code int} field.
+     *   <li>If configured with {@code ALLOW_MISSING_OR_NULL}, either JSON string would be accepted.
+     * </ul>
+     */
+    public enum NullBehavior {
+      /**
+       * Specifies that a null value may be represented as either a missing field or a null value in
+       * the input JSON.
+       */
+      ACCEPT_MISSING_OR_NULL,
+      /**
+       * Specifies that a null value must be represented with a null value in JSON. If the field is
+       * missing an {@link UnsupportedRowJsonException} will be thrown.
+       */
+      REQUIRE_NULL,
+      /**
+       * Specifies that a null value must be represented with a missing field in JSON. If the field
+       * has a null value an {@link UnsupportedRowJsonException} will be thrown.
+       */
+      REQUIRE_MISSING,
     }
 
     private static final ImmutableMap<TypeName, ValueExtractor<?>> JSON_VALUE_GETTERS =
@@ -178,7 +206,7 @@ public class RowJson {
             .build();
 
     private final Schema schema;
-    private MissingFieldBehavior missingFieldBehavior = MissingFieldBehavior.REQUIRE_NULL;
+    private NullBehavior nullBehavior = NullBehavior.ACCEPT_MISSING_OR_NULL;
 
     /** Creates a deserializer for a {@link Row} {@link Schema}. */
     public static RowJsonDeserializer forSchema(Schema schema) {
@@ -192,12 +220,12 @@ public class RowJson {
     }
 
     /**
-     * Sets the behaviour of the deserializer with missing fields. If set to the default
-     * REQUIRE_NULL, it nulls must be explicitly defined as fieldName: null. If set to
-     * ALLOW_MISSING, missing fields will be interpreted as null.
+     * Sets the behaviour of the deserializer when retrieving null values in the input JSON. See
+     * {@link NullBehavior} for a description of the options. Default value is {@code
+     * ACCEPT_MISSING_OR_NULL}.
      */
-    public RowJsonDeserializer withMissingFieldBehavior(MissingFieldBehavior behavior) {
-      this.missingFieldBehavior = behavior;
+    public RowJsonDeserializer withNullBehavior(NullBehavior behavior) {
+      this.nullBehavior = behavior;
       return this;
     }
 
@@ -212,16 +240,37 @@ public class RowJson {
     }
 
     private Object extractJsonNodeValue(FieldValue fieldValue) {
-      if (!fieldValue.isJsonValuePresent()) {
-        if (this.missingFieldBehavior == MissingFieldBehavior.ALLOW_MISSING) {
-          return null;
+      if (fieldValue.type().getNullable()) {
+        if (!fieldValue.isJsonValuePresent()) {
+          switch (this.nullBehavior) {
+            case ACCEPT_MISSING_OR_NULL:
+            case REQUIRE_MISSING:
+              return null;
+            case REQUIRE_NULL:
+              throw new UnsupportedRowJsonException(
+                  "Field '" + fieldValue.name() + "' is not present in the JSON object.");
+          }
         }
-        throw new UnsupportedRowJsonException(
-            "Field '" + fieldValue.name() + "' is not present in the JSON object");
-      }
 
-      if (fieldValue.isJsonNull()) {
-        return null;
+        if (fieldValue.isJsonNull()) {
+          switch (this.nullBehavior) {
+            case ACCEPT_MISSING_OR_NULL:
+            case REQUIRE_NULL:
+              return null;
+            case REQUIRE_MISSING:
+              throw new UnsupportedRowJsonException(
+                  "Field '" + fieldValue.name() + "' has a null value in the JSON object.");
+          }
+        }
+      } else {
+        // field is not nullable
+        if (!fieldValue.isJsonValuePresent()) {
+          throw new UnsupportedRowJsonException(
+              "Non-nullable field '" + fieldValue.name() + "' is not present in the JSON object.");
+        } else if (fieldValue.isJsonNull()) {
+          throw new UnsupportedRowJsonException(
+              "Non-nullable field '" + fieldValue.name() + "' has value null in the JSON object.");
+        }
       }
 
       if (fieldValue.isRowType()) {

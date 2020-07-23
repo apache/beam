@@ -21,37 +21,37 @@ import Kubernetes
 String jobName = "beam_python_mongoio_load_test"
 
 job(jobName) {
-    common.setTopLevelMainJobProperties(delegate)
-    common.setAutoJob(delegate, 'H */6 * * *')
-    common.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Python MongoDBIO Load Test',
-            'Run Python MongoDBIO Load Test')
+  common.setTopLevelMainJobProperties(delegate)
+  common.setAutoJob(delegate, 'H */6 * * *')
+  common.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Python MongoDBIO Load Test',
+      'Run Python MongoDBIO Load Test')
 
-    String namespace = common.getKubernetesNamespace(jobName)
-    String kubeconfigPath = common.getKubeconfigLocationForNamespace(namespace)
-    Kubernetes k8s = Kubernetes.create(delegate, kubeconfigPath, namespace)
+  String namespace = common.getKubernetesNamespace(jobName)
+  String kubeconfigPath = common.getKubeconfigLocationForNamespace(namespace)
+  Kubernetes k8s = Kubernetes.create(delegate, kubeconfigPath, namespace)
 
-    k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/mongodb/load-balancer/mongo.yml"))
-    String mongoHostName = "LOAD_BALANCER_IP"
-    k8s.loadBalancerIP("mongo-load-balancer-service", mongoHostName)
+  k8s.apply(common.makePathAbsolute("src/.test-infra/kubernetes/mongodb/load-balancer/mongo.yml"))
+  String mongoHostName = "LOAD_BALANCER_IP"
+  k8s.loadBalancerIP("mongo-load-balancer-service", mongoHostName)
 
-    Map pipelineOptions = [
-            temp_location: 'gs://temp-storage-for-perf-tests/loadtests',
-            project      : 'apache-beam-testing',
-            mongo_uri    : "mongodb://\$${mongoHostName}:27017",
-            num_documents: '1000000',
-            batch_size   : '10000',
-            runner       : 'DataflowRunner',
-            num_workers  : '5'
-    ]
+  Map pipelineOptions = [
+    temp_location: 'gs://temp-storage-for-perf-tests/loadtests',
+    project      : 'apache-beam-testing',
+    mongo_uri    : "mongodb://\$${mongoHostName}:27017",
+    num_documents: '1000000',
+    batch_size   : '10000',
+    runner       : 'DataflowRunner',
+    num_workers  : '5'
+  ]
 
-    steps {
-        gradle {
-            rootBuildScriptDir(common.checkoutDir)
-            common.setGradleSwitches(delegate)
-            switches("-Popts=\'${common.mapToArgString(pipelineOptions)}\'")
-            tasks(":sdks:python:test-suites:dataflow:py35:mongodbioIT")
-        }
+  steps {
+    gradle {
+      rootBuildScriptDir(common.checkoutDir)
+      common.setGradleSwitches(delegate)
+      switches("-Popts=\'${common.mapToArgString(pipelineOptions)}\'")
+      tasks(":sdks:python:test-suites:dataflow:py35:mongodbioIT")
     }
+  }
 }

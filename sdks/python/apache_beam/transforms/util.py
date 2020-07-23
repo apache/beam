@@ -631,8 +631,8 @@ class _IdentityWindowFn(NonMergingWindowFn):
 class ReshufflePerKey(PTransform):
   """PTransform that returns a PCollection equivalent to its input,
   but operationally provides some of the side effects of a GroupByKey,
-  in particular preventing fusion of the surrounding transforms,
-  checkpointing, and deduplication by id.
+  in particular checkpointing, and preventing fusion of the surrounding
+  transforms.
 
   ReshufflePerKey is experimental. No backwards compatibility guarantees.
   """
@@ -657,7 +657,6 @@ class ReshufflePerKey(PTransform):
             window.GlobalWindows.windowed_value((key, value), timestamp)
             for (value, timestamp) in values
         ]
-
     else:
 
       def reify_timestamps(
@@ -693,8 +692,8 @@ class ReshufflePerKey(PTransform):
 class Reshuffle(PTransform):
   """PTransform that returns a PCollection equivalent to its input,
   but operationally provides some of the side effects of a GroupByKey,
-  in particular preventing fusion of the surrounding transforms,
-  checkpointing, and deduplication by id.
+  in particular checkpointing, and preventing fusion of the surrounding
+  transforms.
 
   Reshuffle adds a temporary random key to each element, performs a
   ReshufflePerKey, and finally removes the temporary key.
@@ -741,6 +740,7 @@ def WithKeys(pcoll, k):
 
 @experimental()
 @typehints.with_input_types(Tuple[K, V])
+@typehints.with_output_types(Tuple[K, Iterable[V]])
 class GroupIntoBatches(PTransform):
   """PTransform that batches the input into desired batch size. Elements are
   buffered until they are equal to batch size provided in the argument at which
@@ -786,7 +786,9 @@ def _pardo_group_into_batches(batch_size, input_coder):
       count = count_state.read()
       if count >= batch_size:
         batch = [element for element in element_state.read()]
-        yield batch
+        key, _ = batch[0]
+        batch_values = [v for (k, v) in batch]
+        yield (key, batch_values)
         element_state.clear()
         count_state.clear()
 
@@ -797,7 +799,9 @@ def _pardo_group_into_batches(batch_size, input_coder):
         count_state=DoFn.StateParam(COUNT_STATE)):
       batch = [element for element in element_state.read()]
       if batch:
-        yield batch
+        key, _ = batch[0]
+        batch_values = [v for (k, v) in batch]
+        yield (key, batch_values)
         element_state.clear()
         count_state.clear()
 

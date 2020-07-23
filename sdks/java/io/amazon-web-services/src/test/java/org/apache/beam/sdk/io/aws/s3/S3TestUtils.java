@@ -23,10 +23,10 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
 import com.amazonaws.util.Base64;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.mockito.Mockito;
 
 /** Utils to test S3 filesystem. */
@@ -85,8 +85,7 @@ class S3TestUtils {
     return s3FileSystem;
   }
 
-  @Nullable
-  static String getSSECustomerKeyMd5(S3Options options) {
+  static @Nullable String getSSECustomerKeyMd5(S3Options options) {
     SSECustomerKey sseCostumerKey = options.getSSECustomerKey();
     if (sseCostumerKey != null) {
       return Base64.encodeAsString(DigestUtils.md5(Base64.decode(sseCostumerKey.getKey())));

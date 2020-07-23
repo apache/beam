@@ -19,6 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk',
+  enableChecker: false,
   shadowClosure: {
     dependencies {
       include(dependency("org.apache.commons:.*"))

@@ -96,4 +96,31 @@ public class BigQueryTornadoesIT {
 
     runE2EBigQueryTornadoesTest(options);
   }
+
+  @Test
+  public void testE2EBigQueryTornadoesWithExportUsingQuery() throws Exception {
+    BigQueryTornadoesITOptions options =
+        TestPipeline.testingPipelineOptions().as(BigQueryTornadoesITOptions.class);
+    options.setReadMethod(Method.EXPORT);
+    options.setOutput(
+        String.format(
+            "%s.%s", "BigQueryTornadoesIT", "monthly_tornadoes_" + System.currentTimeMillis()));
+    options.setInputQuery("SELECT * FROM `clouddataflow-readonly.samples.weather_stations`");
+
+    runE2EBigQueryTornadoesTest(options);
+  }
+
+  @Test
+  public void testE2eBigQueryTornadoesWithStorageApiUsingQuery() throws Exception {
+    BigQueryTornadoesITOptions options =
+        TestPipeline.testingPipelineOptions().as(BigQueryTornadoesITOptions.class);
+    options.setReadMethod(Method.DIRECT_READ);
+    options.setOutput(
+        String.format(
+            "%s.%s",
+            "BigQueryTornadoesIT", "monthly_tornadoes_storage_" + System.currentTimeMillis()));
+    options.setInputQuery("SELECT * FROM `clouddataflow-readonly.samples.weather_stations`");
+
+    runE2EBigQueryTornadoesTest(options);
+  }
 }

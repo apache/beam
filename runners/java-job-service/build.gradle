@@ -16,7 +16,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.jobservice')
+applyJavaNature(automaticModuleName: 'org.apache.beam.runners.jobservice', enableChecker: false)
 
 description = "Apache Beam :: Runners :: Java Job Service"
 

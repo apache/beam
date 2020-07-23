@@ -20,7 +20,6 @@ package org.apache.beam.runners.core.triggers;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.MergingStateAccessor;
 import org.apache.beam.runners.core.StateAccessor;
 import org.apache.beam.runners.core.StateMerging;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.transforms.Combine.Holder;
 import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
@@ -60,8 +60,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
   private static final PeriodFormatter PERIOD_FORMATTER = PeriodFormat.wordBased(Locale.ENGLISH);
 
   /** To complete an implementation, return the desired time from the TriggerContext. */
-  @Nullable
-  public abstract Instant getCurrentTime(TriggerStateMachine.TriggerContext context);
+  public abstract @Nullable Instant getCurrentTime(TriggerStateMachine.TriggerContext context);
 
   /**
    * To complete an implementation, return a new instance like this one, but incorporating the
@@ -255,7 +254,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
     }
 
     @Override
-    public boolean equals(Object object) {
+    public boolean equals(@Nullable Object object) {
       if (object == this) {
         return true;
       }
@@ -299,7 +298,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
     }
 
     @Override
-    public boolean equals(Object object) {
+    public boolean equals(@Nullable Object object) {
       if (object == this) {
         return true;
       }

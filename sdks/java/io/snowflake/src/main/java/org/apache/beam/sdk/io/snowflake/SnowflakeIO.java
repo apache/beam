@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -53,6 +52,8 @@ import org.apache.beam.sdk.io.snowflake.credentials.KeyPairSnowflakeCredentials;
 import org.apache.beam.sdk.io.snowflake.credentials.OAuthTokenSnowflakeCredentials;
 import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentials;
 import org.apache.beam.sdk.io.snowflake.credentials.UsernamePasswordSnowflakeCredentials;
+import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
+import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeServiceConfig;
@@ -77,6 +78,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -155,10 +157,10 @@ import org.slf4j.LoggerFactory;
  * items.apply(
  *     SnowflakeIO.<KV<Integer, String>>write()
  *         .withDataSourceConfiguration(dataSourceConfiguration)
- *         .withTable(table)
  *         .withStagingBucketName(...)
  *         .withStorageIntegrationName(...)
- *         .withUserDataMapper(maper);
+ *         .withUserDataMapper(maper)
+ *         .to(table);
  * }</pre>
  *
  * <p><b>Important</b> When writing data to Snowflake, firstly data will be saved as CSV files on
@@ -221,7 +223,8 @@ public class SnowflakeIO {
    */
   public static <T> Write<T> write() {
     return new AutoValue_SnowflakeIO_Write.Builder<T>()
-        .setFileNameTemplate("output*")
+        .setFileNameTemplate("output")
+        .setCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
         .setWriteDisposition(WriteDisposition.APPEND)
         .build();
   }
@@ -229,29 +232,22 @@ public class SnowflakeIO {
   /** Implementation of {@link #read()}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable
-    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract String getQuery();
+    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract String getTable();
+    abstract @Nullable String getQuery();
 
-    @Nullable
-    abstract String getStorageIntegrationName();
+    abstract @Nullable String getTable();
 
-    @Nullable
-    abstract String getStagingBucketName();
+    abstract @Nullable String getStorageIntegrationName();
 
-    @Nullable
-    abstract CsvMapper<T> getCsvMapper();
+    abstract @Nullable String getStagingBucketName();
 
-    @Nullable
-    abstract Coder<T> getCoder();
+    abstract @Nullable CsvMapper<T> getCsvMapper();
 
-    @Nullable
-    abstract SnowflakeService getSnowflakeService();
+    abstract @Nullable Coder<T> getCoder();
+
+    abstract @Nullable SnowflakeService getSnowflakeService();
 
     abstract Builder<T> toBuilder();
 
@@ -516,32 +512,28 @@ public class SnowflakeIO {
   /** Implementation of {@link #write()}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    @Nullable
-    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract String getTable();
+    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract String getStorageIntegrationName();
+    abstract @Nullable String getTable();
 
-    @Nullable
-    abstract String getStagingBucketName();
+    abstract @Nullable String getStorageIntegrationName();
 
-    @Nullable
-    abstract String getQuery();
+    abstract @Nullable String getStagingBucketName();
 
-    @Nullable
-    abstract String getFileNameTemplate();
+    abstract @Nullable String getQuery();
 
-    @Nullable
-    abstract WriteDisposition getWriteDisposition();
+    abstract @Nullable String getFileNameTemplate();
 
-    @Nullable
-    abstract UserDataMapper getUserDataMapper();
+    abstract @Nullable WriteDisposition getWriteDisposition();
 
-    @Nullable
-    abstract SnowflakeService getSnowflakeService();
+    abstract @Nullable CreateDisposition getCreateDisposition();
+
+    abstract @Nullable SnowflakeTableSchema getTableSchema();
+
+    abstract @Nullable UserDataMapper getUserDataMapper();
+
+    abstract @Nullable SnowflakeService getSnowflakeService();
 
     abstract Builder<T> toBuilder();
 
@@ -563,6 +555,10 @@ public class SnowflakeIO {
       abstract Builder<T> setUserDataMapper(UserDataMapper userDataMapper);
 
       abstract Builder<T> setWriteDisposition(WriteDisposition writeDisposition);
+
+      abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
+
+      abstract Builder<T> setTableSchema(SnowflakeTableSchema tableSchema);
 
       abstract Builder<T> setSnowflakeService(SnowflakeService snowflakeService);
 
@@ -593,7 +589,7 @@ public class SnowflakeIO {
      *
      * @param table - String with the name of the table.
      */
-    public Write<T> withTable(String table) {
+    public Write<T> to(String table) {
       return toBuilder().setTable(table).build();
     }
 
@@ -654,6 +650,24 @@ public class SnowflakeIO {
     }
 
     /**
+     * A disposition to be used during table preparation.
+     *
+     * @param createDisposition - an instance of {@link CreateDisposition}.
+     */
+    public Write<T> withCreateDisposition(CreateDisposition createDisposition) {
+      return toBuilder().setCreateDisposition(createDisposition).build();
+    }
+
+    /**
+     * Table schema to be used during creating table.
+     *
+     * @param tableSchema - an instance of {@link SnowflakeTableSchema}.
+     */
+    public Write<T> withTableSchema(SnowflakeTableSchema tableSchema) {
+      return toBuilder().setTableSchema(tableSchema).build();
+    }
+
+    /**
      * A snowflake service which is supposed to be used. Note: Currently we have {@link
      * SnowflakeServiceImpl} with corresponding {@link FakeSnowflakeServiceImpl} used for testing.
      *
@@ -684,7 +698,7 @@ public class SnowflakeIO {
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
-      checkArgument(getTable() != null, "withTable() is required");
+      checkArgument(getTable() != null, "to() is required");
     }
 
     private PCollection<String> write(PCollection<T> input, String stagingBucketDir) {
@@ -747,7 +761,9 @@ public class SnowflakeIO {
               getQuery(),
               stagingBucketDir,
               getStorageIntegrationName(),
+              getCreateDisposition(),
               getWriteDisposition(),
+              getTableSchema(),
               snowflakeService));
     }
   }
@@ -816,9 +832,11 @@ public class SnowflakeIO {
     private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
     private final String table;
     private final String query;
+    private final SnowflakeTableSchema tableSchema;
     private final String stagingBucketDir;
     private final String storageIntegrationName;
     private final WriteDisposition writeDisposition;
+    private final CreateDisposition createDisposition;
     private final SnowflakeService snowflakeService;
 
     CopyToTableFn(
@@ -827,7 +845,9 @@ public class SnowflakeIO {
         String query,
         String stagingBucketDir,
         String storageIntegrationName,
+        CreateDisposition createDisposition,
         WriteDisposition writeDisposition,
+        SnowflakeTableSchema tableSchema,
         SnowflakeService snowflakeService) {
       this.dataSourceProviderFn = dataSourceProviderFn;
       this.table = table;
@@ -835,6 +855,8 @@ public class SnowflakeIO {
       this.stagingBucketDir = stagingBucketDir;
       this.storageIntegrationName = storageIntegrationName;
       this.writeDisposition = writeDisposition;
+      this.createDisposition = createDisposition;
+      this.tableSchema = tableSchema;
       this.snowflakeService = snowflakeService;
     }
 
@@ -846,6 +868,8 @@ public class SnowflakeIO {
               (List<String>) context.element(),
               table,
               query,
+              tableSchema,
+              createDisposition,
               writeDisposition,
               storageIntegrationName,
               stagingBucketDir);
@@ -859,50 +883,36 @@ public class SnowflakeIO {
    */
   @AutoValue
   public abstract static class DataSourceConfiguration implements Serializable {
-    @Nullable
-    public abstract String getUrl();
 
-    @Nullable
-    public abstract String getUsername();
+    public abstract @Nullable String getUrl();
 
-    @Nullable
-    public abstract String getPassword();
+    public abstract @Nullable String getUsername();
 
-    @Nullable
-    public abstract PrivateKey getPrivateKey();
+    public abstract @Nullable String getPassword();
 
-    @Nullable
-    public abstract String getOauthToken();
+    public abstract @Nullable PrivateKey getPrivateKey();
 
-    @Nullable
-    public abstract String getDatabase();
+    public abstract @Nullable String getOauthToken();
 
-    @Nullable
-    public abstract String getWarehouse();
+    public abstract @Nullable String getDatabase();
 
-    @Nullable
-    public abstract String getSchema();
+    public abstract @Nullable String getWarehouse();
 
-    @Nullable
-    public abstract String getServerName();
+    public abstract @Nullable String getSchema();
 
-    @Nullable
-    public abstract Integer getPortNumber();
+    public abstract @Nullable String getServerName();
 
-    @Nullable
-    public abstract String getRole();
+    public abstract @Nullable Integer getPortNumber();
 
-    @Nullable
-    public abstract Integer getLoginTimeout();
+    public abstract @Nullable String getRole();
 
-    @Nullable
-    public abstract Boolean getSsl();
+    public abstract @Nullable Integer getLoginTimeout();
 
-    @Nullable
-    public abstract Boolean getValidate();
+    public abstract @Nullable Boolean getSsl();
 
-    @Nullable
-    public abstract DataSource getDataSource();
+    public abstract @Nullable Boolean getValidate();
+
+    public abstract @Nullable DataSource getDataSource();
 
     abstract Builder builder();
 
@@ -1091,10 +1101,8 @@ public class SnowflakeIO {
     public DataSource buildDatasource() {
       if (getDataSource() == null) {
         SnowflakeBasicDataSource basicDataSource = new SnowflakeBasicDataSource();
+        basicDataSource.setUrl(buildUrl());
 
-        if (getUrl() != null) {
-          basicDataSource.setUrl(getUrl());
-        }
         if (getUsername() != null) {
           basicDataSource.setUser(getUsername());
         }
@@ -1113,12 +1121,6 @@ public class SnowflakeIO {
         if (getSchema() != null) {
           basicDataSource.setSchema(getSchema());
         }
-        if (getServerName() != null) {
-          basicDataSource.setServerName(getServerName());
-        }
-        if (getPortNumber() != null) {
-          basicDataSource.setPortNumber(getPortNumber());
-        }
         if (getRole() != null) {
           basicDataSource.setRole(getRole());
         }
@@ -1135,6 +1137,22 @@ public class SnowflakeIO {
         return basicDataSource;
       }
       return getDataSource();
+    }
+
+    private String buildUrl() {
+      StringBuilder url = new StringBuilder();
+
+      if (getUrl() != null) {
+        url.append(getUrl());
+      } else {
+        url.append("jdbc:snowflake://");
+        url.append(getServerName());
+      }
+      if (getPortNumber() != null) {
+        url.append(":").append(getPortNumber());
+      }
+      url.append("?application=beam");
+      return url.toString();
     }
   }
 

@@ -39,6 +39,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuild
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalCause;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Weigher;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Process-wide cache of per-key state.
@@ -234,7 +235,7 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     @Override
-    public boolean equals(Object that) {
+    public boolean equals(@Nullable Object that) {
       if (that instanceof ComputationKey) {
         ComputationKey other = (ComputationKey) that;
         return computation.equals(other.computation) && key.equals(other.key);
@@ -265,7 +266,7 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other instanceof StateId) {
         StateId otherId = (StateId) other;
         return computationKey.equals(otherId.computationKey)
@@ -361,7 +362,7 @@ public class WindmillStateCache implements StatusDataProvider {
       }
 
       @Override
-      public boolean equals(Object other) {
+      public boolean equals(@Nullable Object other) {
         if (!(other instanceof NamespacedTag)) {
           return false;
         }

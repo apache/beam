@@ -42,7 +42,7 @@ This pipeline splits the input element using whitespaces, creating a list of zer
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `FlatMap`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -62,13 +62,12 @@ We define a function `split_words` which splits an input `str` element using the
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `FlatMap`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py" plants >}}
 {{< /highlight >}}
-
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
@@ -85,7 +84,7 @@ We use a lambda function that returns the same input element it received.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `FlatMap`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -107,7 +106,7 @@ Each yielded result in the generator is an element in the resulting `PCollection
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `FlatMap`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -128,7 +127,7 @@ you can use `FlatMapTuple` to unpack them into different function arguments.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `FlatMapTuple`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -151,7 +150,7 @@ In this example, `split_words` takes `text` and `delimiter` as arguments.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `FlatMap`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -175,7 +174,7 @@ We then use that value as the delimiter for the `str.split` method.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `FlatMap`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -197,7 +196,7 @@ so it is possible to iterate over large `PCollection`s that won't fit into memor
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `FlatMap`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -223,7 +222,7 @@ If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `FlatMap`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}

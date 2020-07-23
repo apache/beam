@@ -88,5 +88,8 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder.add(DisplayData.item("table", tableDef.getJsonTable()));
+    builder.add(
+        DisplayData.item("launchesBigQueryJobs", true)
+            .withLabel("This transform launches BigQuery jobs to read/write elements."));
   }
 }

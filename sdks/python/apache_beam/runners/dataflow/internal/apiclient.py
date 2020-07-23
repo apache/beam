@@ -1080,6 +1080,8 @@ def get_container_image_from_options(pipeline_options):
     version_suffix = '36'
   elif sys.version_info[0:2] == (3, 7):
     version_suffix = '37'
+  elif sys.version_info[0:2] == (3, 8):
+    version_suffix = '38'
   else:
     raise Exception(
         'Dataflow only supports Python versions 2 and 3.5+, got: %s' %
@@ -1144,7 +1146,7 @@ def get_response_encoding():
 
 
 def _verify_interpreter_version_is_supported(pipeline_options):
-  if sys.version_info[0:2] in [(2, 7), (3, 5), (3, 6), (3, 7)]:
+  if sys.version_info[0:2] in [(2, 7), (3, 5), (3, 6), (3, 7), (3, 8)]:
     return
 
   debug_options = pipeline_options.view_as(DebugOptions)
@@ -1154,7 +1156,7 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 
   raise Exception(
       'Dataflow runner currently supports Python versions '
-      '2.7, 3.5, 3.6, and 3.7. To ignore this requirement and start a job '
+      '2.7, 3.5, 3.6, 3.7 and 3.8. To ignore this requirement and start a job '
       'using a different version of Python 3 interpreter, pass '
       '--experiment ignore_py3_minor_version pipeline option.')
 

@@ -86,10 +86,14 @@ dependencies {
   runtime project(":sdks:java:extensions:google-cloud-platform-core")
   runtime library.java.slf4j_simple
 //  TODO: Enable AWS and HDFS file system.
-  // For resolving external transform requests
-  runtime project(":sdks:java:io:kafka")
-  runtime library.java.kafka_clients
-  runtime project(":sdks:java:io:google-cloud-platform")
+  // External transform expansion
+  // Kafka
+  runtimeOnly project(":sdks:java:io:kafka")
+  runtimeOnly library.java.kafka_clients
+  // PubSub
+  runtimeOnly project(":sdks:java:io:google-cloud-platform")
+  // SqlTransform
+  runtimeOnly project(":sdks:java:extensions:sql:expansion-service")
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run
@@ -201,7 +205,7 @@ createCrossLanguageValidatesRunnerTask(
   startJobServer: setupTask,
   cleanupJobServer: cleanupTask,
   jobEndpoint: "localhost:${jobPort}",
-  testClasspathConfiguration: configurations.validatesPortableRunner,
+  classpath: configurations.validatesPortableRunner,
   numParallelTests: 1,
   pipelineOpts: [
     "--parallelism=2",

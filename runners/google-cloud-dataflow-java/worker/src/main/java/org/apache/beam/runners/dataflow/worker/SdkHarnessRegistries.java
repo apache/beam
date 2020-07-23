@@ -17,12 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.dataflow.worker.fn.data.BeamFnDataGrpcService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -30,6 +31,7 @@ import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,8 +91,8 @@ public class SdkHarnessRegistries {
     }
 
     @Override
-    public void registerWorkerClient(FnApiControlClient controlClient) {
-      Preconditions.checkNotNull(controlClient, "Control client can not be null.");
+    public void registerWorkerClient(@Nullable FnApiControlClient controlClient) {
+      controlClient = checkArgumentNotNull(controlClient);
       WorkCountingSdkWorkerHarness sdkWorkerHarness =
           new WorkCountingSdkWorkerHarness(controlClient);
       workerMap.put(controlClient, sdkWorkerHarness);
@@ -163,14 +165,12 @@ public class SdkHarnessRegistries {
     }
 
     @Override
-    @Nullable
-    public ApiServiceDescriptor beamFnStateApiServiceDescriptor() {
+    public @Nullable ApiServiceDescriptor beamFnStateApiServiceDescriptor() {
       return stateApiServiceDescriptor;
     }
 
     @Override
-    @Nullable
-    public ApiServiceDescriptor beamFnDataApiServiceDescriptor() {
+    public @Nullable ApiServiceDescriptor beamFnDataApiServiceDescriptor() {
       return beamFnDataGrpcService.getApiServiceDescriptor();
     }
 
@@ -187,27 +187,23 @@ public class SdkHarnessRegistries {
       }
 
       @Override
-      @Nullable
-      public FnApiControlClient getControlClientHandler() {
+      public @Nullable FnApiControlClient getControlClientHandler() {
         return controlClientHandler;
       }
 
       @Override
-      @Nullable
-      public String getWorkerId() {
+      public @Nullable String getWorkerId() {
         return controlClientHandler.getWorkerId();
       }
 
       @Override
-      @Nullable
-      public GrpcFnServer<GrpcDataService> getGrpcDataFnServer() {
+      public @Nullable GrpcFnServer<GrpcDataService> getGrpcDataFnServer() {
         return GrpcFnServer.create(
             beamFnDataGrpcService.getDataService(getWorkerId()), beamFnDataApiServiceDescriptor());
       }
 
       @Override
-      @Nullable
-      public GrpcFnServer<GrpcStateService> getGrpcStateFnServer() {
+      public @Nullable GrpcFnServer<GrpcStateService> getGrpcStateFnServer() {
         return GrpcFnServer.create(beamFnStateService, beamFnDataApiServiceDescriptor());
       }
     }

@@ -67,7 +67,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -111,6 +110,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -715,7 +715,7 @@ public class WorkerCustomSourcesTest {
   }
 
   private static class TestBoundedReader extends BoundedReader<Void> {
-    @Nullable private final Object fractionConsumed;
+    private final @Nullable Object fractionConsumed;
     private final Object splitPointsConsumed;
     private final Object splitPointsRemaining;
 
@@ -754,8 +754,7 @@ public class WorkerCustomSourcesTest {
     }
 
     @Override
-    @Nullable
-    public Double getFractionConsumed() {
+    public @Nullable Double getFractionConsumed() {
       if (fractionConsumed instanceof Number || fractionConsumed == null) {
         return ((Number) fractionConsumed).doubleValue();
       } else {

@@ -34,6 +34,8 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -41,7 +43,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsCreateOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
@@ -51,11 +52,13 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.MoreFutures;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteSource;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.Seconds;
@@ -296,6 +299,7 @@ public class PackageUtil implements Closeable {
     final AtomicInteger numUploaded = new AtomicInteger(0);
     final AtomicInteger numCached = new AtomicInteger(0);
     List<CompletionStage<DataflowPackage>> destinationPackages = new ArrayList<>();
+    final Set<String> distinctDestinations = Sets.newConcurrentHashSet();
 
     for (StagedFile classpathElement : classpathElements) {
       String dest = classpathElement.getDestination();
@@ -311,8 +315,17 @@ public class PackageUtil implements Closeable {
       CompletionStage<StagingResult> stagingResult =
           computePackageAttributes(source, hash, dest, stagingPath)
               .thenComposeAsync(
-                  packageAttributes ->
-                      stagePackage(packageAttributes, retrySleeper, createOptions));
+                  packageAttributes -> {
+                    String destLocation = packageAttributes.getDestination().getLocation();
+                    if (distinctDestinations.add(destLocation)) {
+                      return stagePackage(packageAttributes, retrySleeper, createOptions);
+                    } else {
+                      LOG.debug("Upload of {} skipped because it was already queued", destLocation);
+
+                      return CompletableFuture.completedFuture(
+                          StagingResult.cached(packageAttributes));
+                    }
+                  });
 
       CompletionStage<DataflowPackage> stagedPackage =
           stagingResult.thenApply(
@@ -454,13 +467,11 @@ public class PackageUtil implements Closeable {
     }
 
     /** @return the file to be uploaded, if any */
-    @Nullable
-    public abstract File getSource();
+    public abstract @Nullable File getSource();
 
     /** @return the bytes to be uploaded, if any */
     @SuppressWarnings("mutable")
-    @Nullable
-    public abstract byte[] getBytes();
+    public abstract byte @Nullable [] getBytes();
 
     /** @return the dataflowPackage */
     public abstract DataflowPackage getDestination();
