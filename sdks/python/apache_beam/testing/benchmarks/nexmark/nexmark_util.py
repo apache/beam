@@ -124,49 +124,53 @@ class ParseJsonEvnetFn(beam.DoFn):
 
     {"id":1000,"itemName":"wkx mgee","description":"eszpqxtdxrvwmmywkmogoahf",\
         "initialBid":28873,"reserve":29448,"dateTime":1528098831036,\
-        "expires":1528098840451,"seller":1000,"category":13,"extra":"zcurskupiz"}
+        "expires":1528098840451,"seller":1000,"category":13,"extra":"zcuupiz"}
 
     {"auction":1000,"bidder":1001,"price":32530001,"dateTime":1528098831066,\
         "extra":"fdiysaV^]NLVsbolvyqwgticfdrwdyiyofWPYTOuwogvszlxjrcNOORM"}
   """
   def process(self, elem):
     json_dict = json.loads(elem)
-    if type(json_dict[FieldName.dateTime]) is dict:
-      json_dict[FieldName.dateTime] = json_dict[FieldName.dateTime]['millis']
-    if FieldName.name in json_dict:
-      yield nexmark_model.Person(json_dict[FieldName.id],
-                                 json_dict[FieldName.name],
-                                 json_dict[FieldName.emailAddress],
-                                 json_dict[FieldName.creditCard],
-                                 json_dict[FieldName.city],
-                                 json_dict[FieldName.state],
-                                 json_dict[FieldName.dateTime],
-                                 json_dict[FieldName.extra])
-    elif FieldName.itemName in json_dict:
-      yield nexmark_model.Auction(json_dict[FieldName.id],
-                                  json_dict[FieldName.itemName],
-                                  json_dict[FieldName.description],
-                                  json_dict[FieldName.initialBid],
-                                  json_dict[FieldName.reserve],
-                                  json_dict[FieldName.dateTime],
-                                  json_dict[FieldName.expires],
-                                  json_dict[FieldName.seller],
-                                  json_dict[FieldName.category],
-                                  json_dict[FieldName.extra])
-    elif FieldName.auction in json_dict:
-      yield nexmark_model.Bid(json_dict[FieldName.auction],
-                              json_dict[FieldName.bidder],
-                              json_dict[FieldName.price],
-                              json_dict[FieldName.dateTime],
-                              json_dict[FieldName.extra])
+    if type(json_dict[FieldName.DATE_TIME]) is dict:
+      json_dict[FieldName.DATE_TIME] = json_dict[FieldName.DATE_TIME]['millis']
+    if FieldName.NAME in json_dict:
+      yield nexmark_model.Person(
+          json_dict[FieldName.ID],
+          json_dict[FieldName.NAME],
+          json_dict[FieldName.EMAIL_ADDRESS],
+          json_dict[FieldName.CREDIT_CARD],
+          json_dict[FieldName.CITY],
+          json_dict[FieldName.STATE],
+          json_dict[FieldName.DATE_TIME],
+          json_dict[FieldName.EXTRA])
+    elif FieldName.ITEM_NAME in json_dict:
+      yield nexmark_model.Auction(
+          json_dict[FieldName.ID],
+          json_dict[FieldName.ITEM_NAME],
+          json_dict[FieldName.DESCRIPTION],
+          json_dict[FieldName.INITIAL_BID],
+          json_dict[FieldName.RESERVE],
+          json_dict[FieldName.DATE_TIME],
+          json_dict[FieldName.EXPIRES],
+          json_dict[FieldName.SELLER],
+          json_dict[FieldName.CATEGORY],
+          json_dict[FieldName.EXTRA])
+    elif FieldName.AUCTION in json_dict:
+      yield nexmark_model.Bid(
+          json_dict[FieldName.AUCTION],
+          json_dict[FieldName.BIDDER],
+          json_dict[FieldName.PRICE],
+          json_dict[FieldName.DATE_TIME],
+          json_dict[FieldName.EXTRA])
     else:
       raise ValueError('Invalid event: %s.' % str(json_dict))
 
 
 class CountAndLog(beam.PTransform):
   def expand(self, pcoll):
-    return (pcoll | "Count" >> beam.combiners.Count.Globally()
-            | "Log" >> beam.Map(log_count_info))
+    return (
+        pcoll | "Count" >> beam.combiners.Count.Globally()
+        | "Log" >> beam.Map(log_count_info))
 
 
 def log_count_info(count):

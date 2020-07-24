@@ -37,12 +37,7 @@ def load(events, metadata=None):
   return (
       events
       | nexmark_query_util.JustBids()
-      | beam.Filter(lambda bid: bid.auction % metadata.get('auction_skip') == 0)
-      | 'project' >> beam.Map(
-          lambda bid: auction_price.AuctionPrice(
-            bid.auction, bid.price)))
-      # | 'FilterInAuctionsWithSelectedId' >> beam.Filter(
-      #     lambda event: (
-      #         isinstance(event, nexmark_model.Auction) and event.id == metadata.
-      #         get('auction_id')))
-      # | 'DisplayQuery2' >> beam.Map(display))  # pylint: disable=expression-not-assigned
+      | 'filter_by_skip' >>
+      beam.Filter(lambda bid: bid.auction % metadata.get('auction_skip') == 0)
+      | 'project' >>
+      beam.Map(lambda bid: auction_price.AuctionPrice(bid.auction, bid.price)))

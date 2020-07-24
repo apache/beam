@@ -31,8 +31,10 @@ from __future__ import absolute_import
 
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import ParseJsonEvnetFn
+from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 
 
 def load(events, query_args=None):
-  return (events | 'serialization' >> beam.Map(repr)
-                 | 'deserialization' >> beam.ParDo(ParseJsonEvnetFn()))
+  return (
+      events | 'serialization' >> nexmark_query_util.ToString()
+      | 'deserialization' >> beam.ParDo(ParseJsonEvnetFn()))

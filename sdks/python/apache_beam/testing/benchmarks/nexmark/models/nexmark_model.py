@@ -44,7 +44,7 @@ class Person(object):
     self.extra = extra
 
   def __repr__(self):
-    return json.dumps(self.__dict__)
+    return json.dumps(self.__dict__, separators=(',', ':'))
 
 
 class Auction(object):
@@ -74,7 +74,7 @@ class Auction(object):
     self.extra = extra
 
   def __repr__(self):
-    return json.dumps(self.__dict__)
+    return json.dumps(self.__dict__, separators=(',', ':'))
 
 
 class Bid(object):
@@ -88,4 +88,4 @@ class Bid(object):
     self.extra = extra
 
   def __repr__(self):
-    return json.dumps(self.__dict__)
+    return json.dumps(self.__dict__, separators=(',', ':'))

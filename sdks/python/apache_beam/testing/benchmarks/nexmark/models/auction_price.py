@@ -20,10 +20,9 @@ import json
 
 
 class AuctionPrice(object):
-
   def __init__(self, auction, price):
     self.auction = auction
     self.price = price
 
   def __repr__(self):
-    return json.dumps(self.__dict__)
+    return json.dumps(self.__dict__, separators=(',', ':'))

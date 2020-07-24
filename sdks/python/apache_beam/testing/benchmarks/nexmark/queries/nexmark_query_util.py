@@ -17,7 +17,6 @@
 
 """Utilities for working with NEXmark data stream."""
 
-import logging
 
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
@@ -25,6 +24,11 @@ from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 
 def is_bid(event):
   return isinstance(event, nexmark_model.Bid)
+
+
+class ToString(beam.PTransform):
+  def expand(self, pcoll):
+    return pcoll | beam.Map(repr)
 
 
 class JustBids(beam.PTransform):
