@@ -78,15 +78,15 @@ Store a DICOM file in a DICOM storage
 ===================================================
 DicomStoreInstance() wraps store request API and users can use it to send a
 DICOM file to a DICOM store. It supports two types of input: 1.file data in
-byte[] 2.file name (local or gcs path) in string. Users should set the
-'input_type' when initialzing the PTransform. Here are the examples:
+byte[] 2.fileio object. Users should set the 'input_type' when initialzing
+this PTransform. Here are the examples:
 
   with Pipeline() as p:
     input_dict = {'project_id': 'abc123', 'type': 'instances',...}
-    path1 = "gcs://bucketname/something/a.dcm"
-    path2 = "gcs://bucketname/something/b.dcm"
-    gcs_path = p | 'create path' >> beam.Create([path1, path2])
-    results = gcs_path | DicomStoreInstance(input_dict, 'gcs')
+    path = "gcs://bucketname/something/a.dcm"
+    match = p | fileio.MatchFiles(path)
+    fileio_obj = match | fileio.ReadAll()
+    results = fileio_obj | DicomStoreInstance(input_dict, 'fileio')
 
   with Pipeline() as p:
     input_dict = {'project_id': 'abc123', 'type': 'instances',...}
@@ -95,8 +95,9 @@ byte[] 2.file name (local or gcs path) in string. Users should set the
     byte_file = p | 'create byte file' >> beam.Create([dcm_file])
     results = byte_file | DicomStoreInstance(input_dict, 'bytes')
 
-The first example uses a PCollection of gcs path as input. DicomStoreInstance()
-will read the DICOM file on the GCS and send it to a DICOM storage.
+The first example uses a PCollection of fileio objects as input.
+DicomStoreInstance will read DICOM files from the objects and send them
+to a DICOM storage.
 The second example uses a PCollection of byte[] as input. DicomStoreInstance
 will directly send those DICOM files to a DICOM storage.
 Users can also get the operation results in the output PCollection if they want
@@ -109,7 +110,6 @@ from __future__ import absolute_import
 import apache_beam as beam
 from apache_beam.io.dicomclient import DicomApiHttpClient
 from apache_beam.io.filesystem import BeamIOError
-from apache_beam.io.gcp.gcsio import GcsIO
 from apache_beam.transforms import PTransform
 
 
@@ -245,7 +245,7 @@ class PubsubToQido(PTransform):
   def __init__(self, credential=None):
     """Initializes ``PubsubToQido``.
     Args:
-      credential: # type: Google credential object, if it isspecified, the
+      credential: # type: Google credential object, if it is specified, the
         Http client will use it instead of the default one.
     """
     self.credential = credential
@@ -331,7 +331,7 @@ class DicomStoreInstance(PTransform):
     INPUT:
       This PTransform supports two types of input:
         1. Byte[]: representing dicom file.
-        2. str: filename of local or GCS DICOM file.
+        2. Fileio object: stream file object.
     OUTPUT:
     The output dict encodes status as well as error messages:
     {
@@ -356,15 +356,15 @@ class DicomStoreInstance(PTransform):
           region: Region where the DICOM store resides. (Required)
           dataset_id: Id of the dataset where DICOM store belongs to. (Required)
           dicom_store_id: Id of the dicom store. (Required)
-      input_type: # type: string, could only be 'bytes', 'gcs', or 'local'
+      input_type: # type: string, could only be 'bytes' or 'fileio'
       credential: # type: Google credential object, if it is specified, the
         Http client will use it instead of the default one.
     """
     self.credential = credential
     self.destination_dict = destination_dict
     # input_type pre-check
-    if input_type not in ['bytes', 'gcs', 'local']:
-      raise BeamIOError("input_type could only be 'bytes', 'gcs', or 'local'")
+    if input_type not in ['bytes', 'fileio']:
+      raise BeamIOError("input_type could only be 'bytes' or 'fileio'")
     self.input_type = input_type
 
   def expand(self, pcoll):
@@ -394,11 +394,8 @@ class _StoreInstance(beam.DoFn):
     # an error dict which records input and error messages.
     dicom_file = None
     try:
-      if self.input_type == 'gcs':
-        f = GcsIO().open(element, 'r')
-        dicom_file = f.read()
-      elif self.input_type == 'local':
-        f = open(element, "rb")
+      if self.input_type == 'fileio':
+        f = element.open()
         dicom_file = f.read()
       else:
         dicom_file = element
