@@ -101,7 +101,7 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
   }
 
   @Override
-  public @Nullable Table getTableByFullName(TableName fullTableName) {
+  public Table getTableByFullName(TableName fullTableName) {
 
     ImmutableList<String> allNameParts =
         ImmutableList.<String>builder()
@@ -116,10 +116,14 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
 
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
-    return DELEGATE_PROVIDERS.get(table.getType()).buildBeamSqlTable(table);
+    TableProvider tableProvider = DELEGATE_PROVIDERS.get(table.getType());
+    if (tableProvider == null) {
+      throw new RuntimeException("TableProvider is null");
+    }
+    return tableProvider.buildBeamSqlTable(table);
   }
 
-  private @Nullable Table loadTable(String tableName) {
+  private Table loadTable(String tableName) {
     if (!tableCache.containsKey(tableName)) {
       tableCache.put(tableName, loadTableFromDC(tableName));
     }
