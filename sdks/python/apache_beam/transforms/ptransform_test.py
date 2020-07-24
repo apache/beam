@@ -796,6 +796,110 @@ class PTransformTest(unittest.TestCase):
     self.assertEqual(sorted(res2), [1, 2, 4, 8])
 
 
+class TestGroupBy(unittest.TestCase):
+  def test_lambdas(self):
+    def normalize(key, values):
+      return tuple(key) if isinstance(key, tuple) else key, sorted(values)
+
+    with TestPipeline() as p:
+      pcoll = p | beam.Create(range(6))
+      assert_that(
+          pcoll | beam.GroupBy() | beam.MapTuple(normalize),
+          equal_to([((), [0, 1, 2, 3, 4, 5])]),
+          'GroupAll')
+      assert_that(
+          pcoll | beam.GroupBy(lambda x: x % 2)
+          | 'n2' >> beam.MapTuple(normalize),
+          equal_to([(0, [0, 2, 4]), (1, [1, 3, 5])]),
+          'GroupOne')
+      assert_that(
+          pcoll | 'G2' >> beam.GroupBy(lambda x: x % 2).force_tuple_keys()
+          | 'n3' >> beam.MapTuple(normalize),
+          equal_to([((0, ), [0, 2, 4]), ((1, ), [1, 3, 5])]),
+          'GroupOneTuple')
+      assert_that(
+          pcoll | beam.GroupBy(a=lambda x: x % 2, b=lambda x: x < 4)
+          | 'n4' >> beam.MapTuple(normalize),
+          equal_to([((0, True), [0, 2]), ((1, True), [1, 3]), ((0, False), [4]),
+                    ((1, False), [5])]),
+          'GroupTwo')
+
+  def test_fields(self):
+    def normalize(key, values):
+      if isinstance(key, tuple):
+        key = beam.Row(
+            **{name: value
+               for name, value in zip(type(key)._fields, key)})
+      return key, sorted(v.value for v in values)
+
+    with TestPipeline() as p:
+      pcoll = p | beam.Create(range(-2, 3)) | beam.Map(int) | beam.Map(
+          lambda x: beam.Row(
+              value=x, square=x * x, sign=x // abs(x) if x else 0))
+      assert_that(
+          pcoll | beam.GroupBy('square') | beam.MapTuple(normalize),
+          equal_to([
+              (0, [0]),
+              (1, [-1, 1]),
+              (4, [-2, 2]),
+          ]),
+          'GroupSquare')
+      assert_that(
+          pcoll | 'G2' >> beam.GroupBy('square').force_tuple_keys()
+          | 'n2' >> beam.MapTuple(normalize),
+          equal_to([
+              (beam.Row(square=0), [0]),
+              (beam.Row(square=1), [-1, 1]),
+              (beam.Row(square=4), [-2, 2]),
+          ]),
+          'GroupSquareTupleKey')
+      assert_that(
+          pcoll | beam.GroupBy('square', 'sign')
+          | 'n3' >> beam.MapTuple(normalize),
+          equal_to([
+              (beam.Row(square=0, sign=0), [0]),
+              (beam.Row(square=1, sign=1), [1]),
+              (beam.Row(square=4, sign=1), [2]),
+              (beam.Row(square=1, sign=-1), [-1]),
+              (beam.Row(square=4, sign=-1), [-2]),
+          ]),
+          'GroupSquareSign')
+      assert_that(
+          pcoll | beam.GroupBy('square', big=lambda x: x.value > 1)
+          | 'n4' >> beam.MapTuple(normalize),
+          equal_to([
+              (beam.Row(square=0, big=False), [0]),
+              (beam.Row(square=1, big=False), [-1, 1]),
+              (beam.Row(square=4, big=False), [-2]),
+              (beam.Row(square=4, big=True), [2]),
+          ]),
+          'GroupSquareNonzero')
+
+  def test_aggregate(self):
+    def named_tuple_to_row(t):
+      return beam.Row(
+          **{name: value
+             for name, value in zip(type(t)._fields, t)})
+
+    with TestPipeline() as p:
+      pcoll = p | beam.Create(range(-2, 3)) | beam.Map(
+          lambda x: beam.Row(
+              value=x, square=x * x, sign=x // abs(x) if x else 0))
+
+      assert_that(
+          pcoll
+          | beam.GroupBy('square', big=lambda x: x.value > 1)
+            .aggregate_field('value', sum, 'sum')
+            .aggregate_field(lambda x: x.sign == 1, all, 'positive')
+          | beam.Map(named_tuple_to_row),
+          equal_to([
+              beam.Row(square=0, big=False, sum=0, positive=False),   # [0],
+              beam.Row(square=1, big=False, sum=0, positive=False),   # [-1, 1]
+              beam.Row(square=4, big=False, sum=-2, positive=False),  # [-2]
+              beam.Row(square=4, big=True, sum=2, positive=True),     # [2]
+          ]))
+
+
 @beam.ptransform_fn
 def SamplePTransform(pcoll):
   """Sample transform using the @ptransform_fn decorator."""
