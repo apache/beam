@@ -27,5 +27,5 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^sdks/go/.*$',
       '^release/.*$',
     ]
-)
+    )
 builder.build()

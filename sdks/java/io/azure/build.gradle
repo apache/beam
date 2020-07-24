@@ -1,5 +1,3 @@
-import groovy.json.JsonOutput
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,7 +17,9 @@ import groovy.json.JsonOutput
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.azure')
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.azure', enableChecker: false)
 
 dependencies {
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  testCompile library.java.junit
 }

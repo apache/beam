@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.datastore;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** DatastoreV1 Datastore related pipeline options. */
 public interface V1TestOptions extends TestPipelineOptions {

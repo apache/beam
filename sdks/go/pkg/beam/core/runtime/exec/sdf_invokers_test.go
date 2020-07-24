@@ -262,7 +262,8 @@ func (rt *VetRTracker) TryClaim(interface{}) bool       { return false }
 func (rt *VetRTracker) GetError() error                 { return nil }
 func (rt *VetRTracker) GetProgress() (float64, float64) { return 0, 0 }
 func (rt *VetRTracker) IsDone() bool                    { return true }
-func (rt *VetRTracker) TrySplit(fraction float64) (interface{}, interface{}, error) {
+func (rt *VetRTracker) GetRestriction() interface{}     { return nil }
+func (rt *VetRTracker) TrySplit(_ float64) (interface{}, interface{}, error) {
 	return nil, nil, nil
 }
 

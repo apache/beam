@@ -43,7 +43,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsCreateOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
@@ -59,6 +58,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteSource;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.Seconds;
@@ -467,13 +467,11 @@ public class PackageUtil implements Closeable {
     }
 
     /** @return the file to be uploaded, if any */
-    @Nullable
-    public abstract File getSource();
+    public abstract @Nullable File getSource();
 
     /** @return the bytes to be uploaded, if any */
     @SuppressWarnings("mutable")
-    @Nullable
-    public abstract byte[] getBytes();
+    public abstract byte @Nullable [] getBytes();
 
     /** @return the dataflowPackage */
     public abstract DataflowPackage getDestination();

@@ -76,7 +76,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
@@ -92,6 +91,7 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -454,14 +454,13 @@ class BigQueryServicesImpl implements BigQueryServices {
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
-    @Nullable
-    public Table getTable(TableReference tableRef) throws IOException, InterruptedException {
+    public @Nullable Table getTable(TableReference tableRef)
+        throws IOException, InterruptedException {
       return getTable(tableRef, null);
     }
 
     @Override
-    @Nullable
-    public Table getTable(TableReference tableRef, List<String> selectedFields)
+    public @Nullable Table getTable(TableReference tableRef, List<String> selectedFields)
         throws IOException, InterruptedException {
       return getTable(tableRef, selectedFields, createDefaultBackoff(), Sleeper.DEFAULT);
     }

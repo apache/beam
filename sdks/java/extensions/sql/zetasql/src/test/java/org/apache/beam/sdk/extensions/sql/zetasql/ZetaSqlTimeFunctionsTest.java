@@ -247,7 +247,6 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("[BEAM-9182] NULL parameters do not work in BeamZetaSqlCalcRel")
   public void testDateAddWithParameter() {
     String sql =
         "SELECT "

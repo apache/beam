@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.options;
 
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Apache Beam provides a number of experimental features that can be enabled with this flag. If

@@ -293,7 +293,8 @@ public class BeamWindowRel extends Window implements BeamRelNode {
           Object accumulator = fieldAgg.combineFn.createAccumulator();
           final int aggFieldIndex = fieldAgg.inputFields.get(0);
           for (Row aggRow : aggRange) {
-            fieldAgg.combineFn.addInput(accumulator, aggRow.getBaseValue(aggFieldIndex));
+            accumulator =
+                fieldAgg.combineFn.addInput(accumulator, aggRow.getBaseValue(aggFieldIndex));
           }
           Object result = fieldAgg.combineFn.extractOutput(accumulator);
           Row processingRow = sortedRowsAsList.get(idx);

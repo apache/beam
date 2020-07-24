@@ -198,6 +198,8 @@ Output:
 
 You can use the following combiner transforms:
 
+* [CombinePerKey](/documentation/transforms/python/aggregation/combineperkey)
+* [CombineValues](/documentation/transforms/python/aggregation/combinevalues)
 * [Mean](/documentation/transforms/python/aggregation/mean)
 * [Count](/documentation/transforms/python/aggregation/count)
 * [Top](/documentation/transforms/python/aggregation/top)

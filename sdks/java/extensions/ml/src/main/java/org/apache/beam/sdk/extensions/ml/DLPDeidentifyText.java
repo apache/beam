@@ -31,7 +31,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link PTransform} connecting to Cloud DLP (https://cloud.google.com/dlp/docs/libraries) and
@@ -67,30 +67,24 @@ public abstract class DLPDeidentifyText
   public static final Integer DLP_PAYLOAD_LIMIT_BYTES = 524000;
 
   /** @return Template name for data inspection. */
-  @Nullable
-  public abstract String getInspectTemplateName();
+  public abstract @Nullable String getInspectTemplateName();
 
   /** @return Template name for data deidentification. */
-  @Nullable
-  public abstract String getDeidentifyTemplateName();
+  public abstract @Nullable String getDeidentifyTemplateName();
 
   /**
    * @return Configuration object for data inspection. If present, supersedes the template settings.
    */
-  @Nullable
-  public abstract InspectConfig getInspectConfig();
+  public abstract @Nullable InspectConfig getInspectConfig();
 
   /** @return Configuration object for deidentification. If present, supersedes the template. */
-  @Nullable
-  public abstract DeidentifyConfig getDeidentifyConfig();
+  public abstract @Nullable DeidentifyConfig getDeidentifyConfig();
 
   /** @return List of column names if the input KV value is a delimited row. */
-  @Nullable
-  public abstract PCollectionView<List<String>> getHeaderColumns();
+  public abstract @Nullable PCollectionView<List<String>> getHeaderColumns();
 
   /** @return Delimiter to be used when splitting values from input strings into columns. */
-  @Nullable
-  public abstract String getColumnDelimiter();
+  public abstract @Nullable String getColumnDelimiter();
 
   /** @return Size of input elements batch to be sent to Cloud DLP service in one request. */
   public abstract Integer getBatchSizeBytes();

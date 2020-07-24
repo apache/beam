@@ -32,6 +32,7 @@ from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_fragment as pf
 from apache_beam.runners.interactive import background_caching_job
+from apache_beam.runners.interactive.utils import obfuscate
 from apache_beam.testing import test_stream
 from apache_beam.transforms.window import WindowedValue
 
@@ -66,7 +67,9 @@ class Cacheable:
 # TODO: turn this into a dataclass object when we finally get off of Python2.
 class CacheKey:
   def __init__(self, var, version, producer_version, pipeline_id):
-    self.var = var
+    # Makes sure that the variable name is obfuscated and only first 10
+    # characters taken so that the CacheKey has a constant length.
+    self.var = obfuscate(var)[:10]
     self.version = version
     self.producer_version = producer_version
     self.pipeline_id = pipeline_id

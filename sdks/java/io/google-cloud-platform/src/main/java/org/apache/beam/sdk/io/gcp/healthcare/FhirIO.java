@@ -35,7 +35,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -80,6 +79,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.jackson.JsonProcessingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -198,7 +198,7 @@ public class FhirIO {
       String fhirStore,
       String tempDir,
       String deadLetterDir,
-      @Nullable FhirIO.Import.ContentStructure contentStructure) {
+      FhirIO.Import.@Nullable ContentStructure contentStructure) {
     return new Import(fhirStore, tempDir, deadLetterDir, contentStructure);
   }
 
@@ -216,7 +216,7 @@ public class FhirIO {
       ValueProvider<String> fhirStore,
       ValueProvider<String> tempDir,
       ValueProvider<String> deadLetterDir,
-      @Nullable FhirIO.Import.ContentStructure contentStructure) {
+      FhirIO.Import.@Nullable ContentStructure contentStructure) {
     return new Import(fhirStore, tempDir, deadLetterDir, contentStructure);
   }
 
@@ -603,7 +603,7 @@ public class FhirIO {
         String fhirStore,
         String gcsTempPath,
         String gcsDeadLetterPath,
-        @Nullable FhirIO.Import.ContentStructure contentStructure) {
+        FhirIO.Import.@Nullable ContentStructure contentStructure) {
       return new AutoValue_FhirIO_Write.Builder()
           .setFhirStore(StaticValueProvider.of(fhirStore))
           .setWriteMethod(Write.WriteMethod.IMPORT)
@@ -616,7 +616,7 @@ public class FhirIO {
     public static Write fhirStoresImport(
         String fhirStore,
         String gcsDeadLetterPath,
-        @Nullable FhirIO.Import.ContentStructure contentStructure) {
+        FhirIO.Import.@Nullable ContentStructure contentStructure) {
       return new AutoValue_FhirIO_Write.Builder()
           .setFhirStore(StaticValueProvider.of(fhirStore))
           .setWriteMethod(Write.WriteMethod.IMPORT)
@@ -629,7 +629,7 @@ public class FhirIO {
         ValueProvider<String> fhirStore,
         ValueProvider<String> gcsTempPath,
         ValueProvider<String> gcsDeadLetterPath,
-        @Nullable FhirIO.Import.ContentStructure contentStructure) {
+        FhirIO.Import.@Nullable ContentStructure contentStructure) {
       return new AutoValue_FhirIO_Write.Builder()
           .setFhirStore(fhirStore)
           .setWriteMethod(Write.WriteMethod.IMPORT)

@@ -51,6 +51,9 @@ class OffsetRange(object):
   def __hash__(self):
     return hash((type(self), self.start, self.stop))
 
+  def __repr__(self):
+    return 'OffsetRange(start=%s, stop=%s)' % (self.start, self.stop)
+
   def split(self, desired_num_offsets_per_split, min_num_offsets_per_split=1):
     current_split_start = self.start
     max_split_size = max(
@@ -158,3 +161,6 @@ class OffsetRestrictionTracker(RestrictionTracker):
           self._checkpointed = True
         self._range, residual_range = self._range.split_at(split_point)
         return self._range, residual_range
+
+  def is_bounded(self):
+    return True

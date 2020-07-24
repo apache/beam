@@ -27,7 +27,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import javax.annotation.Nullable;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
@@ -51,6 +50,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Transforms for reading and writing XML files using JAXB mappers. */
 public class XmlIO {
@@ -154,20 +154,16 @@ public class XmlIO {
 
   @AutoValue
   abstract static class MappingConfiguration<T> implements HasDisplayData, Serializable {
-    @Nullable
-    abstract String getRootElement();
 
-    @Nullable
-    abstract String getRecordElement();
+    abstract @Nullable String getRootElement();
 
-    @Nullable
-    abstract Class<T> getRecordClass();
+    abstract @Nullable String getRecordElement();
 
-    @Nullable
-    abstract String getCharset();
+    abstract @Nullable Class<T> getRecordClass();
 
-    @Nullable
-    abstract ValidationEventHandler getValidationEventHandler();
+    abstract @Nullable String getCharset();
+
+    abstract @Nullable ValidationEventHandler getValidationEventHandler();
 
     abstract Builder<T> toBuilder();
 
@@ -232,8 +228,7 @@ public class XmlIO {
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     abstract MappingConfiguration<T> getConfiguration();
 
-    @Nullable
-    abstract ValueProvider<String> getFileOrPatternSpec();
+    abstract @Nullable ValueProvider<String> getFileOrPatternSpec();
 
     abstract Compression getCompression();
 
@@ -462,17 +457,14 @@ public class XmlIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    @Nullable
-    abstract String getFilenamePrefix();
 
-    @Nullable
-    abstract Class<T> getRecordClass();
+    abstract @Nullable String getFilenamePrefix();
 
-    @Nullable
-    abstract String getRootElement();
+    abstract @Nullable Class<T> getRecordClass();
 
-    @Nullable
-    abstract String getCharset();
+    abstract @Nullable String getRootElement();
+
+    abstract @Nullable String getCharset();
 
     abstract Builder<T> toBuilder();
 
@@ -623,8 +615,7 @@ public class XmlIO {
   public abstract static class Sink<T> implements FileIO.Sink<T> {
     abstract Class<T> getRecordClass();
 
-    @Nullable
-    abstract String getRootElement();
+    abstract @Nullable String getRootElement();
 
     abstract String getCharset();
 

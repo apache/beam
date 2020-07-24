@@ -26,7 +26,6 @@ import java.io.Serializable;
 import java.net.URI;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.http.HttpStatus;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -199,17 +199,14 @@ public final class SnsIO {
   @AutoValue
   public abstract static class Write<T>
       extends PTransform<PCollection<T>, PCollection<PublishResponse>> {
-    @Nullable
-    abstract String getTopicArn();
 
-    @Nullable
-    abstract SerializableFunction<T, PublishRequest> getPublishRequestFn();
+    abstract @Nullable String getTopicArn();
 
-    @Nullable
-    abstract SnsClientProvider getSnsClientProvider();
+    abstract @Nullable SerializableFunction<T, PublishRequest> getPublishRequestFn();
 
-    @Nullable
-    abstract RetryConfiguration getRetryConfiguration();
+    abstract @Nullable SnsClientProvider getSnsClientProvider();
+
+    abstract @Nullable RetryConfiguration getRetryConfiguration();
 
     abstract Builder<T> builder();
 
@@ -415,16 +412,13 @@ public final class SnsIO {
   public abstract static class WriteAsync<T>
       extends PTransform<PCollection<T>, PCollection<SnsResponse<T>>> {
 
-    @Nullable
-    abstract SnsAsyncClientProvider getSnsClientProvider();
+    abstract @Nullable SnsAsyncClientProvider getSnsClientProvider();
 
     /** SerializableFunction to create PublishRequest. */
-    @Nullable
-    abstract SerializableFunction<T, PublishRequest> getPublishRequestFn();
+    abstract @Nullable SerializableFunction<T, PublishRequest> getPublishRequestFn();
 
     /** Coder for element T. */
-    @Nullable
-    abstract Coder<T> getCoder();
+    abstract @Nullable Coder<T> getCoder();
 
     abstract Builder<T> builder();
 

@@ -274,9 +274,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore(
-      "Does not support inf/-inf/nan in double/float literals because double/float literals are"
-          + " converted to BigDecimal in Calcite codegen.")
   public void testEQ2() {
     String sql = "SELECT @p0 = @p1 AS ColA";
 
@@ -720,7 +717,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
   @Test
   public void testLike1() {
-    String sql = "SELECT @p0 LIKE  @p1 AS ColA";
+    String sql = "SELECT @p0 LIKE @p1 AS ColA";
     ImmutableMap<String, Value> params =
         ImmutableMap.of(
             "p0", Value.createStringValue("ab%"), "p1", Value.createStringValue("ab\\%"));
@@ -2171,6 +2168,130 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues("KeyValue234", 14L).build(),
             Row.withSchema(schema).addValues("KeyValue235", 15L).build());
 
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // DOUBLE INF and NAN tests
+  /////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void testDoubleINF() {
+    String sql = "SELECT CAST('+inf' AS FLOAT64), CAST('-inf' AS FLOAT64)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder()
+                        .addDoubleField("f_double1")
+                        .addDoubleField("f_double2")
+                        .build())
+                .addValues(Double.POSITIVE_INFINITY)
+                .addValues(Double.NEGATIVE_INFINITY)
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testDoubleINFEQ() {
+    String sql =
+        "SELECT CAST('+inf' AS FLOAT64) = CAST('+inf' AS FLOAT64), CAST('+inf' AS FLOAT64) = CAST('-inf' AS FLOAT64)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder()
+                        .addBooleanField("f_boolean1")
+                        .addBooleanField("f_boolean2")
+                        .build())
+                .addValues(true)
+                .addValues(false)
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testDoubleNAN() {
+    String sql = "SELECT CAST('NaN' AS FLOAT64)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addDoubleField("f_double").build())
+                .addValues(Double.NaN)
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testDoubleNaNEQ() {
+    String sql = "SELECT CAST('NaN' AS FLOAT64) = CAST('NaN' AS FLOAT64)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addBooleanField("f_boolean").build())
+                .addValues(false)
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testDoubleIsINF() {
+    String sql =
+        "SELECT IS_INF(CAST('+inf' AS FLOAT64)), IS_INF(CAST('-inf' AS FLOAT64)), IS_INF(3.0)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder()
+                        .addBooleanField("f_boolean1")
+                        .addBooleanField("f_boolean2")
+                        .addBooleanField("f_boolean3")
+                        .build())
+                .addValues(true)
+                .addValues(true)
+                .addValues(false)
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testDoubleIsNAN() {
+    String sql = "SELECT IS_NAN(CAST('NaN' AS FLOAT64)), IS_NAN(3.0)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder()
+                        .addBooleanField("f_boolean1")
+                        .addBooleanField("f_boolean2")
+                        .build())
+                .addValues(true)
+                .addValues(false)
+                .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 

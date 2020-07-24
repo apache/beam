@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 
-FROM debian:stretch
+FROM debian:buster
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 RUN apt-get update && \

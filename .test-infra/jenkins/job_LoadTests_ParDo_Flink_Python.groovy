@@ -55,162 +55,164 @@ String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
  *   );
  */
 
-def batchScenarios = { datasetName -> [
-        [
-                title          : 'ParDo Python Load test: 20M 100 byte records 10 times',
-                test           : 'apache_beam.testing.load_tests.pardo_test',
-                runner         : CommonTestProperties.Runner.PORTABLE,
-                pipelineOptions: [
-                        job_name             : 'load-tests-python-flink-batch-pardo-1-' + now,
-                        project              : 'apache-beam-testing',
-                        publish_to_big_query : true,
-                        metrics_dataset      : datasetName,
-                        metrics_table        : 'python_flink_batch_pardo_1',
-                        influx_measurement   : 'python_batch_pardo_1',
-                        input_options        : '\'{' +
-                                '"num_records": 20000000,' +
-                                '"key_size": 10,' +
-                                '"value_size": 90}\'',
-                        iterations           : 10,
-                        number_of_counter_operations: 0,
-                        number_of_counters   : 0,
-                        parallelism          : 5,
-                        job_endpoint         : 'localhost:8099',
-                        environment_type     : 'DOCKER',
-                ]
-        ],
-// TODO(BEAM-10270): Takes too long time to execute (currently more than 3 hours). Re-enable
-// the test after its overhead is reduced.
-//         [
-//                 title          : 'ParDo Python Load test: 20M 100 byte records 200 times',
-//                 test           : 'apache_beam.testing.load_tests.pardo_test',
-//                 runner         : CommonTestProperties.Runner.PORTABLE,
-//                 pipelineOptions: [
-//                         job_name             : 'load-tests-python-flink-batch-pardo-2-' + now,
-//                         project              : 'apache-beam-testing',
-//                         publish_to_big_query : true,
-//                         metrics_dataset      : datasetName,
-//                         metrics_table        : 'python_flink_batch_pardo_2',
-//                         influx_measurement   : 'python_batch_pardo_2',
-//                         input_options        : '\'{' +
-//                                 '"num_records": 20000000,' +
-//                                 '"key_size": 10,' +
-//                                 '"value_size": 90}\'',
-//                         iterations           : 200,
-//                         number_of_counter_operations: 0,
-//                         number_of_counters   : 0,
-//                         parallelism          : 5,
-//                         job_endpoint         : 'localhost:8099',
-//                         environment_type     : 'DOCKER',
-//                 ]
-//         ],
-        [
-                title          : 'ParDo Python Load test: 20M 100 byte records 10 counters',
-                test           : 'apache_beam.testing.load_tests.pardo_test',
-                runner         : CommonTestProperties.Runner.PORTABLE,
-                pipelineOptions: [
-                        job_name             : 'load-tests-python-flink-batch-pardo-3-' + now,
-                        project              : 'apache-beam-testing',
-                        publish_to_big_query : true,
-                        metrics_dataset      : datasetName,
-                        metrics_table        : 'python_flink_batch_pardo_3',
-                        influx_measurement   : 'python_batch_pardo_3',
-                        input_options        : '\'{' +
-                                '"num_records": 20000000,' +
-                                '"key_size": 10,' +
-                                '"value_size": 90}\'',
-                        iterations           : 1,
-                        number_of_counter_operations: 10,
-                        number_of_counters   : 1,
-                        parallelism          : 5,
-                        job_endpoint         : 'localhost:8099',
-                        environment_type     : 'DOCKER',
-                ]
-        ],
-        [
-                title          : 'ParDo Python Load test: 20M 100 byte records 100 counters',
-                test           : 'apache_beam.testing.load_tests.pardo_test',
-                runner         : CommonTestProperties.Runner.PORTABLE,
-                pipelineOptions: [
-                        job_name             : 'load-tests-python-flink-batch-pardo-4-' + now,
-                        project              : 'apache-beam-testing',
-                        publish_to_big_query : true,
-                        metrics_dataset      : datasetName,
-                        metrics_table        : 'python_flink_batch_pardo_4',
-                        influx_measurement   : 'python_batch_pardo_4',
-                        input_options        : '\'{' +
-                                '"num_records": 20000000,' +
-                                '"key_size": 10,' +
-                                '"value_size": 90}\'',
-                        iterations           : 1,
-                        number_of_counter_operations: 100,
-                        number_of_counters   : 1,
-                        parallelism          : 5,
-                        job_endpoint         : 'localhost:8099',
-                        environment_type     : 'DOCKER',
-                ]
-        ],
-    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
-}
-
-def streamingScenarios = { datasetName -> [
+def batchScenarios = { datasetName ->
+  [
     [
-        title          : 'ParDo Python Stateful Streaming Load test: 2M 100 byte records',
-        test           : 'apache_beam.testing.load_tests.pardo_test',
-        runner         : CommonTestProperties.Runner.PORTABLE,
-        pipelineOptions: [
-            job_name             : 'load-tests-python-flink-streaming-pardo-5-' + now,
-            project              : 'apache-beam-testing',
-            publish_to_big_query : true,
-            metrics_dataset      : datasetName,
-            metrics_table        : 'python_flink_streaming_pardo_5',
-            influx_measurement   : 'python_streaming_pardo_5',
-            input_options        : '\'{' +
-                '"num_records": 2000000,' +
-                '"key_size": 10,' +
-                '"value_size": 90}\'',
-            iterations           : 5,
-            number_of_counter_operations: 10,
-            number_of_counters   : 3,
-            parallelism          : 5,
-            // Turn on streaming mode (flags are indicated with null values)
-            streaming            : null,
-            stateful             : null,
-            job_endpoint         : 'localhost:8099',
-            environment_type     : 'DOCKER',
-        ]
+      title          : 'ParDo Python Load test: 20M 100 byte records 10 times',
+      test           : 'apache_beam.testing.load_tests.pardo_test',
+      runner         : CommonTestProperties.Runner.PORTABLE,
+      pipelineOptions: [
+        job_name             : 'load-tests-python-flink-batch-pardo-1-' + now,
+        project              : 'apache-beam-testing',
+        publish_to_big_query : true,
+        metrics_dataset      : datasetName,
+        metrics_table        : 'python_flink_batch_pardo_1',
+        influx_measurement   : 'python_batch_pardo_1',
+        input_options        : '\'{' +
+        '"num_records": 20000000,' +
+        '"key_size": 10,' +
+        '"value_size": 90}\'',
+        iterations           : 10,
+        number_of_counter_operations: 0,
+        number_of_counters   : 0,
+        parallelism          : 5,
+        job_endpoint         : 'localhost:8099',
+        environment_type     : 'DOCKER',
+      ]
+    ],
+    // TODO(BEAM-10270): Takes too long time to execute (currently more than 3 hours). Re-enable
+    // the test after its overhead is reduced.
+    //         [
+    //                 title          : 'ParDo Python Load test: 20M 100 byte records 200 times',
+    //                 test           : 'apache_beam.testing.load_tests.pardo_test',
+    //                 runner         : CommonTestProperties.Runner.PORTABLE,
+    //                 pipelineOptions: [
+    //                         job_name             : 'load-tests-python-flink-batch-pardo-2-' + now,
+    //                         project              : 'apache-beam-testing',
+    //                         publish_to_big_query : true,
+    //                         metrics_dataset      : datasetName,
+    //                         metrics_table        : 'python_flink_batch_pardo_2',
+    //                         influx_measurement   : 'python_batch_pardo_2',
+    //                         input_options        : '\'{' +
+    //                                 '"num_records": 20000000,' +
+    //                                 '"key_size": 10,' +
+    //                                 '"value_size": 90}\'',
+    //                         iterations           : 200,
+    //                         number_of_counter_operations: 0,
+    //                         number_of_counters   : 0,
+    //                         parallelism          : 5,
+    //                         job_endpoint         : 'localhost:8099',
+    //                         environment_type     : 'DOCKER',
+    //                 ]
+    //         ],
+    [
+      title          : 'ParDo Python Load test: 20M 100 byte records 10 counters',
+      test           : 'apache_beam.testing.load_tests.pardo_test',
+      runner         : CommonTestProperties.Runner.PORTABLE,
+      pipelineOptions: [
+        job_name             : 'load-tests-python-flink-batch-pardo-3-' + now,
+        project              : 'apache-beam-testing',
+        publish_to_big_query : true,
+        metrics_dataset      : datasetName,
+        metrics_table        : 'python_flink_batch_pardo_3',
+        influx_measurement   : 'python_batch_pardo_3',
+        input_options        : '\'{' +
+        '"num_records": 20000000,' +
+        '"key_size": 10,' +
+        '"value_size": 90}\'',
+        iterations           : 1,
+        number_of_counter_operations: 10,
+        number_of_counters   : 1,
+        parallelism          : 5,
+        job_endpoint         : 'localhost:8099',
+        environment_type     : 'DOCKER',
+      ]
     ],
     [
-        title          : 'ParDo Python Stateful Streaming with Checkpointing test: 2M 100 byte records',
-        test           : 'apache_beam.testing.load_tests.pardo_test',
-        runner         : CommonTestProperties.Runner.PORTABLE,
-        pipelineOptions: [
-            job_name             : 'load-tests-python-flink-streaming-pardo-6-' + now,
-            project              : 'apache-beam-testing',
-            publish_to_big_query : true,
-            metrics_dataset      : datasetName,
-            metrics_table        : 'python_flink_streaming_pardo_6',
-            influx_measurement   : 'python_streaming_pardo_6',
-            input_options        : '\'{' +
-                '"num_records": 2000000,' +
-                '"key_size": 10,' +
-                '"value_size": 90}\'',
-            iterations           : 5,
-            number_of_counter_operations: 10,
-            number_of_counters   : 3,
-            parallelism          : 5,
-            // Turn on streaming mode (flags are indicated with null values)
-            streaming            : null,
-            stateful             : null,
-            // Enable checkpointing every 10 seconds
-            checkpointing_interval : 10000,
-            // Report checkpointing stats to this namespace
-            report_checkpoint_duration : 'python_flink_streaming_pardo_6',
-            // Ensure that we can checkpoint the pipeline for at least 5 minutes to gather checkpointing stats
-            shutdown_sources_after_idle_ms: 300000,
-            job_endpoint         : 'localhost:8099',
-            environment_type     : 'DOCKER',
-        ]
+      title          : 'ParDo Python Load test: 20M 100 byte records 100 counters',
+      test           : 'apache_beam.testing.load_tests.pardo_test',
+      runner         : CommonTestProperties.Runner.PORTABLE,
+      pipelineOptions: [
+        job_name             : 'load-tests-python-flink-batch-pardo-4-' + now,
+        project              : 'apache-beam-testing',
+        publish_to_big_query : true,
+        metrics_dataset      : datasetName,
+        metrics_table        : 'python_flink_batch_pardo_4',
+        influx_measurement   : 'python_batch_pardo_4',
+        input_options        : '\'{' +
+        '"num_records": 20000000,' +
+        '"key_size": 10,' +
+        '"value_size": 90}\'',
+        iterations           : 1,
+        number_of_counter_operations: 100,
+        number_of_counters   : 1,
+        parallelism          : 5,
+        job_endpoint         : 'localhost:8099',
+        environment_type     : 'DOCKER',
+      ]
+    ],
+  ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+}
+
+def streamingScenarios = { datasetName ->
+  [
+    [
+      title          : 'ParDo Python Stateful Streaming Load test: 2M 100 byte records',
+      test           : 'apache_beam.testing.load_tests.pardo_test',
+      runner         : CommonTestProperties.Runner.PORTABLE,
+      pipelineOptions: [
+        job_name             : 'load-tests-python-flink-streaming-pardo-5-' + now,
+        project              : 'apache-beam-testing',
+        publish_to_big_query : true,
+        metrics_dataset      : datasetName,
+        metrics_table        : 'python_flink_streaming_pardo_5',
+        influx_measurement   : 'python_streaming_pardo_5',
+        input_options        : '\'{' +
+        '"num_records": 2000000,' +
+        '"key_size": 10,' +
+        '"value_size": 90}\'',
+        iterations           : 5,
+        number_of_counter_operations: 10,
+        number_of_counters   : 3,
+        parallelism          : 5,
+        // Turn on streaming mode (flags are indicated with null values)
+        streaming            : null,
+        stateful             : null,
+        job_endpoint         : 'localhost:8099',
+        environment_type     : 'DOCKER',
+      ]
+    ],
+    [
+      title          : 'ParDo Python Stateful Streaming with Checkpointing test: 2M 100 byte records',
+      test           : 'apache_beam.testing.load_tests.pardo_test',
+      runner         : CommonTestProperties.Runner.PORTABLE,
+      pipelineOptions: [
+        job_name             : 'load-tests-python-flink-streaming-pardo-6-' + now,
+        project              : 'apache-beam-testing',
+        publish_to_big_query : true,
+        metrics_dataset      : datasetName,
+        metrics_table        : 'python_flink_streaming_pardo_6',
+        influx_measurement   : 'python_streaming_pardo_6',
+        input_options        : '\'{' +
+        '"num_records": 2000000,' +
+        '"key_size": 10,' +
+        '"value_size": 90}\'',
+        iterations           : 5,
+        number_of_counter_operations: 10,
+        number_of_counters   : 3,
+        parallelism          : 5,
+        // Turn on streaming mode (flags are indicated with null values)
+        streaming            : null,
+        stateful             : null,
+        // Enable checkpointing every 10 seconds
+        checkpointing_interval : 10000,
+        // Report checkpointing stats to this namespace
+        report_checkpoint_duration : 'python_flink_streaming_pardo_6',
+        // Ensure that we can checkpoint the pipeline for at least 5 minutes to gather checkpointing stats
+        shutdown_sources_after_idle_ms: 300000,
+        job_endpoint         : 'localhost:8099',
+        environment_type     : 'DOCKER',
+      ]
     ],
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
@@ -250,37 +252,37 @@ def loadStreamingTests = { scope, triggeringContext ->
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-  'beam_LoadTests_Python_ParDo_Flink_Batch',
-  'Run Python Load Tests ParDo Flink Batch',
-  'Load Tests Python ParDo Flink Batch suite',
-  this
-) {
-  additionalPipelineArgs = [:]
-  loadBatchTests(delegate, CommonTestProperties.TriggeringContext.PR)
-}
+    'beam_LoadTests_Python_ParDo_Flink_Batch',
+    'Run Python Load Tests ParDo Flink Batch',
+    'Load Tests Python ParDo Flink Batch suite',
+    this
+    ) {
+      additionalPipelineArgs = [:]
+      loadBatchTests(delegate, CommonTestProperties.TriggeringContext.PR)
+    }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Python_ParDo_Flink_Streaming',
     'Run Python Load Tests ParDo Flink Streaming',
     'Load Tests Python ParDo Flink Streaming suite',
     this
-) {
-  additionalPipelineArgs = [:]
-  loadStreamingTests(delegate, CommonTestProperties.TriggeringContext.PR)
-}
+    ) {
+      additionalPipelineArgs = [:]
+      loadStreamingTests(delegate, CommonTestProperties.TriggeringContext.PR)
+    }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Batch', 'H 13 * * *', this) {
   additionalPipelineArgs = [
-      influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-      influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+    influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
   ]
   loadBatchTests(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Streaming', 'H 13 * * *', this) {
   additionalPipelineArgs = [
-      influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-      influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+    influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
   ]
   loadStreamingTests(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }

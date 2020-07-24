@@ -22,9 +22,9 @@ import PostcommitJobBuilder
  */
 class NoPhraseTriggeringPostCommitBuilder extends PostcommitJobBuilder{
   static void postCommitJob(nameBase,
-                            githubUiHint,
-                            scope,
-                            jobDefinition = {}) {
+      githubUiHint,
+      scope,
+      jobDefinition = {}) {
     PostcommitJobBuilder jb = new PostcommitJobBuilder(scope, jobDefinition)
     jb.defineAutoPostCommitJob(nameBase)
   }
