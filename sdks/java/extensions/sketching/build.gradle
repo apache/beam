@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.extensions.sketching')
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sketching')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Sketching"
 
