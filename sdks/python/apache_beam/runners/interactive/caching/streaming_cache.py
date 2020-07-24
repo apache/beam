@@ -205,15 +205,18 @@ class StreamingCacheSource:
       # Check if we are at EOF or if we have an incomplete line.
       if not line or (line and line[-1] != b'\n'[0]):
         if not line:
-          print(id(self), 'no line', self._path, pos,)
+          print(id(self), 'no line', self._path, pos)
         else:
-          print(id(self), 'incomplete line', self._path, pos,)
+          print(id(self), 'incomplete line', self._path, pos)
 
-        if not tail:
+        # Read at least the first line to get the header.
+        if not tail and pos != 0:
+          print('breaking because not tailing')
           break
 
         # Complete reading only when the cache is complete.
         if self._is_cache_complete(self._pipeline_id):
+          print('breaking because cache is complete')
           break
 
         # Otherwise wait for new data in the file to be written.
@@ -234,6 +237,7 @@ class StreamingCacheSource:
           break
 
       if any(l.is_triggered() for l in self._limiters):
+        print('breaking because limiters triggered')
         break
 
   def _try_parse_as(self, proto_cls, to_decode):
