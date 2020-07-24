@@ -280,6 +280,7 @@ class PCollectionVisualization(object):
     # Ensures that dive, overview and table render the same data because the
     # materialized PCollection data might being updated continuously.
     data = self._to_dataframe()
+    print('got dataframe')
     # Give the numbered column names when visualizing.
     data.columns = [
         self._pcoll_var + '.' +

@@ -170,6 +170,10 @@ class Recording:
     """Returns all uncomputed ElementStreams."""
     return {p: s for p, s in self._streams.items() if not s.is_computed()}
 
+  def cancel(self):
+    """Cancels the recording."""
+    self._result.cancel()
+
   def wait_until_finish(self):
     """Waits until the pipeline is done and returns the final state.
 

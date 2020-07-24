@@ -49,6 +49,7 @@ from apache_beam.runners.interactive.options import interactive_options
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.runners.interactive.utils import progress_indicated
 from apache_beam.runners.interactive.utils import to_element_list
+import pandas as pd
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -360,41 +361,48 @@ def show(*pcolls, **configs):
   recording_manager = RecordingManager(user_pipeline, limiters=None)
   recording = recording_manager.record(pcolls, n=n, duration=duration)
 
-  # If in notebook, static plotting computed pcolls as computation is done.
-  if ie.current_env().is_in_notebook:
-    for stream in recording.computed().values():
-      print('visualizing stream')
-      visualize(
-          stream,
-          include_window_info=include_window_info,
-          display_facets=visualize_data)
-  elif ie.current_env().is_in_ipython:
-    for stream in recording.computed().values():
-      visualize(stream, include_window_info=include_window_info)
+  try:
+    # If in notebook, static plotting computed pcolls as computation is done.
+    if ie.current_env().is_in_notebook:
+      for stream in recording.computed().values():
+        print('visualizing stream')
+        visualize(
+            stream,
+            include_window_info=include_window_info,
+            display_facets=visualize_data)
+    elif ie.current_env().is_in_ipython:
+      for stream in recording.computed().values():
+        visualize(stream, include_window_info=include_window_info)
 
-  if recording.is_computed():
-    print('recording already computed')
-    return
+    if recording.is_computed():
+      print('recording already computed')
+      return
 
-  # If in notebook, dynamic plotting as computation goes.
-  if ie.current_env().is_in_notebook:
-    print('dynamic plot of stream')
-    for stream in recording.uncomputed().values():
-      visualize(
-          stream,
-          dynamic_plotting_interval=1,
-          include_window_info=include_window_info,
-          display_facets=visualize_data)
+    # If in notebook, dynamic plotting as computation goes.
+    if ie.current_env().is_in_notebook:
+      print('dynamic plot of stream')
+      for stream in recording.uncomputed().values():
+        visualize(
+            stream,
+            dynamic_plotting_interval=1,
+            include_window_info=include_window_info,
+            display_facets=visualize_data)
 
-  # Invoke wait_until_finish to ensure the blocking nature of this API without
-  # relying on the run to be blocking.
-  print('waiting for recording to finish')
-  recording.wait_until_finish()
+    # Invoke wait_until_finish to ensure the blocking nature of this API without
+    # relying on the run to be blocking.
+    print('waiting for recording to finish')
 
-  # If just in ipython shell, plotting once when the computation is completed.
-  if ie.current_env().is_in_ipython and not ie.current_env().is_in_notebook:
-    for stream in recording.computed().values():
-      visualize(pcoll, include_window_info=include_window_info)
+    recording.wait_until_finish()
+
+    # If just in ipython shell, plotting once when the computation is completed.
+    if ie.current_env().is_in_ipython and not ie.current_env().is_in_notebook:
+      for stream in recording.computed().values():
+        visualize(pcoll, include_window_info=include_window_info)
+
+  except KeyboardInterrupt as e:
+    print('CANCELLING RECORDING')
+    if recording:
+      recording.cancel()
 
 
 def collect(pcoll, n=5, duration=10000, include_window_info=False):
@@ -442,7 +450,12 @@ def head(pcoll, n=5, duration=10000, include_window_info=False):
   #   recording.wait_until_finish()
 
   print('read()')
-  elements = list(recording.stream(pcoll).read())
+  try:
+    elements = list(recording.stream(pcoll).read())
+  except KeyboardInterrupt as e:
+    recording.cancel()
+    return pd.DataFrame()
+
   # recording.wait_until_finish()
   return elements_to_df(elements, include_window_info=include_window_info)
 
