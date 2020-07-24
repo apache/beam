@@ -26,27 +26,25 @@ generate events:
   - The bid on an item for auction (Bid).
 
 """
+import json
 
 
 class Person(object):
   "Author of an auction or a bid."
 
   def __init__(
-      self, id, name, email, credit_card, city, state, timestamp, extra=None):
+      self, id, name, email, credit_card, city, state, date_time, extra=None):
     self.id = id
     self.name = name
-    self.email = email  # key
-    self.credit_card = credit_card
+    self.emailAddress = email  # key
+    self.creditCard = credit_card
     self.city = city
     self.state = state
-    self.timestamp = timestamp
+    self.dateTime = date_time
     self.extra = extra
 
   def __repr__(self):
-    return 'Person({id}, {email})'.format(
-        **{
-            'id': self.id, 'email': self.email
-        })
+    return json.dumps(self.__dict__)
 
 
 class Auction(object):
@@ -59,41 +57,35 @@ class Auction(object):
       description,
       initial_bid,
       reserve_price,
-      timestamp,
+      date_time,
       expires,
       seller,
       category,
       extra=None):
     self.id = id
-    self.item_name = item_name  # key
+    self.itemName = item_name  # key
     self.description = description
-    self.initial_bid = initial_bid
-    self.reserve_price = reserve_price
-    self.timestamp = timestamp
+    self.initialBid = initial_bid
+    self.reserve = reserve_price
+    self.dateTime = date_time
     self.expires = expires
     self.seller = seller
     self.category = category
     self.extra = extra
 
   def __repr__(self):
-    return 'Auction({id}, {item_name})'.format(
-        **{
-            'id': self.id, 'item_name': self.item_name
-        })
+    return json.dumps(self.__dict__)
 
 
 class Bid(object):
   "A bid for an item for auction."
 
-  def __init__(self, auction, bidder, price, timestamp, extra=None):
+  def __init__(self, auction, bidder, price, date_time, extra=None):
     self.auction = auction  # key
     self.bidder = bidder
     self.price = price
-    self.timestamp = timestamp
+    self.dateTime = date_time
     self.extra = extra
 
   def __repr__(self):
-    return 'Bid({auction}, {bidder}, {price})'.format(
-        **{
-            'auction': self.auction, 'bidder': self.bidder, 'price': self.price
-        })
+    return json.dumps(self.__dict__)

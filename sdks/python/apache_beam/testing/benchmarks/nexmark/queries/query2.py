@@ -29,17 +29,20 @@ It illustrates a simple filter.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
-from apache_beam.testing.benchmarks.nexmark.nexmark_util import ParseEventFn
-from apache_beam.testing.benchmarks.nexmark.nexmark_util import display
+from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
+from apache_beam.testing.benchmarks.nexmark.models import auction_price
 
 
-def load(raw_events, metadata=None):
+def load(events, metadata=None):
   return (
-      raw_events
-      | 'ParseEventFn' >> beam.ParDo(ParseEventFn())
-      | 'FilterInAuctionsWithSelectedId' >> beam.Filter(
-          lambda event: (
-              isinstance(event, nexmark_model.Auction) and event.id == metadata.
-              get('auction_id')))
-      | 'DisplayQuery2' >> beam.Map(display))  # pylint: disable=expression-not-assigned
+      events
+      | nexmark_query_util.JustBids()
+      | beam.Filter(lambda bid: bid.auction % metadata.get('auction_skip') == 0)
+      | 'project' >> beam.Map(
+          lambda bid: auction_price.AuctionPrice(
+            bid.auction, bid.price)))
+      # | 'FilterInAuctionsWithSelectedId' >> beam.Filter(
+      #     lambda event: (
+      #         isinstance(event, nexmark_model.Auction) and event.id == metadata.
+      #         get('auction_id')))
+      # | 'DisplayQuery2' >> beam.Map(display))  # pylint: disable=expression-not-assigned

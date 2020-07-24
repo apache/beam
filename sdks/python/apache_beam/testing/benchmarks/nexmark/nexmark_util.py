@@ -39,9 +39,11 @@ from __future__ import print_function
 
 import logging
 import threading
+import json
 
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
+from apache_beam.testing.benchmarks.nexmark.models.field_name import FieldName
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -101,6 +103,75 @@ class ParseEventFn(beam.DoFn):
     event = model(*row)
     logging.debug('Parsed event: %s', event)
     yield event
+
+
+class ParseJsonEvnetFn(beam.DoFn):
+  """Parses the raw event info into a Python objects.
+
+  Each event line has the following format:
+
+    person: {id,name,email,credit_card,city, \
+                          state,timestamp,extra}
+    auction: {id,item_name, description,initial_bid, \
+                          reserve_price,timestamp,expires,seller,category,extra}
+    bid: {auction,bidder,price,timestamp,extra}
+
+  For example:
+
+    {"id":1000,"name":"Peter Jones","emailAddress":"nhd@xcat.com",\
+        "creditCard":"7241 7320 9143 4888","city":"Portland","state":"WY",\
+        "dateTime":1528098831026,\"extra":"WN_HS_bnpVQ\\[["}
+
+    {"id":1000,"itemName":"wkx mgee","description":"eszpqxtdxrvwmmywkmogoahf",\
+        "initialBid":28873,"reserve":29448,"dateTime":1528098831036,\
+        "expires":1528098840451,"seller":1000,"category":13,"extra":"zcurskupiz"}
+
+    {"auction":1000,"bidder":1001,"price":32530001,"dateTime":1528098831066,\
+        "extra":"fdiysaV^]NLVsbolvyqwgticfdrwdyiyofWPYTOuwogvszlxjrcNOORM"}
+  """
+  def process(self, elem):
+    json_dict = json.loads(elem)
+    if type(json_dict[FieldName.dateTime]) is dict:
+      json_dict[FieldName.dateTime] = json_dict[FieldName.dateTime]['millis']
+    if FieldName.name in json_dict:
+      yield nexmark_model.Person(json_dict[FieldName.id],
+                                 json_dict[FieldName.name],
+                                 json_dict[FieldName.emailAddress],
+                                 json_dict[FieldName.creditCard],
+                                 json_dict[FieldName.city],
+                                 json_dict[FieldName.state],
+                                 json_dict[FieldName.dateTime],
+                                 json_dict[FieldName.extra])
+    elif FieldName.itemName in json_dict:
+      yield nexmark_model.Auction(json_dict[FieldName.id],
+                                  json_dict[FieldName.itemName],
+                                  json_dict[FieldName.description],
+                                  json_dict[FieldName.initialBid],
+                                  json_dict[FieldName.reserve],
+                                  json_dict[FieldName.dateTime],
+                                  json_dict[FieldName.expires],
+                                  json_dict[FieldName.seller],
+                                  json_dict[FieldName.category],
+                                  json_dict[FieldName.extra])
+    elif FieldName.auction in json_dict:
+      yield nexmark_model.Bid(json_dict[FieldName.auction],
+                              json_dict[FieldName.bidder],
+                              json_dict[FieldName.price],
+                              json_dict[FieldName.dateTime],
+                              json_dict[FieldName.extra])
+    else:
+      raise ValueError('Invalid event: %s.' % str(json_dict))
+
+
+class CountAndLog(beam.PTransform):
+  def expand(self, pcoll):
+    return (pcoll | "Count" >> beam.combiners.Count.Globally()
+            | "Log" >> beam.Map(log_count_info))
+
+
+def log_count_info(count):
+  logging.info('Query resulted in %d results', count)
+  return count
 
 
 def display(elm):
