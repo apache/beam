@@ -53,9 +53,14 @@ def run(p, input_file, output_file):
   #pylint: disable=expression-not-assigned
   (
       p
+      # Read the lines from a text file.
       | 'Read' >> ReadFromText(input_file)
+      # Split the line into individual words.
       | 'Split' >> beam.FlatMap(lambda line: re.split(r'\W+', line))
+      # Map each word to an instance of MyRow.
       | 'ToRow' >> beam.Map(MyRow).with_output_types(MyRow)
+      # SqlTransform yields a PCollection containing elements with attributes
+      # based on the output of the query.
       | 'Sql!!' >> SqlTransform(
           """
                    SELECT
