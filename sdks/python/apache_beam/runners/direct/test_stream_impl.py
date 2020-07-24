@@ -286,7 +286,7 @@ class _TestStream(PTransform):
     channel.put(_EndOfStream())
 
   @staticmethod
-  def events_from_rpc(endpoint, output_tags, coder):
+  def events_from_rpc(endpoint, output_tags, coder, evaluation_context):
     """Yields the events received from the given endpoint.
 
     This method starts a new thread that reads from the TestStreamService and
@@ -299,13 +299,15 @@ class _TestStream(PTransform):
     """
     # Shared variable with the producer queue. This shuts down the producer if
     # the consumer exits early.
-    is_alive = True
+    shutdown_requested = False
+    def is_alive():
+      return not (shutdown_requested or evaluation_context.shutdown_requested)
 
     # The shared queue that allows the producer and consumer to communicate.
     channel = Queue()  # type: Queue[Union[test_stream.Event, _EndOfStream]]
     event_stream = Thread(
         target=_TestStream._stream_events_from_rpc,
-        args=(endpoint, output_tags, coder, channel, lambda: is_alive))
+        args=(endpoint, output_tags, coder, channel, is_alive))
     event_stream.setDaemon(True)
     event_stream.start()
 
@@ -326,7 +328,7 @@ class _TestStream(PTransform):
             'TestStream timed out waiting for new events from service.'
             ' Stopping pipeline. This TestStream had the following output tags:'
             '[', output_tags, ']')
-        is_alive = False
+        shutdown_requested = True
         raise e
 
   @staticmethod

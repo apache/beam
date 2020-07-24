@@ -397,7 +397,7 @@ def show(*pcolls, **configs):
       visualize(pcoll, include_window_info=include_window_info)
 
 
-def collect(pcoll, n=5, include_window_info=False):
+def collect(pcoll, n=5, duration=10000, include_window_info=False):
   """Materializes all of the elements from a PCollection into a Dataframe.
 
   For example::
@@ -409,11 +409,11 @@ def collect(pcoll, n=5, include_window_info=False):
     # Run the pipeline and bring the PCollection into memory as a Dataframe.
     in_memory_square = collect(square)
   """
-  return head(pcoll, n=n, include_window_info=include_window_info)
+  return head(pcoll, n=n, duration=duration, include_window_info=include_window_info)
 
 
 @progress_indicated
-def head(pcoll, n=5, include_window_info=False):
+def head(pcoll, n=5, duration=10000, include_window_info=False):
   """Materializes the first n elements from a PCollection into a Dataframe.
 
   This reads each element from file and reads only the amount that it needs
@@ -434,7 +434,7 @@ def head(pcoll, n=5, include_window_info=False):
   recording_manager = RecordingManager(user_pipeline, limiters=None)
 
   print('record()')
-  recording = recording_manager.record([pcoll], n=n, duration=10)
+  recording = recording_manager.record([pcoll], n=n, duration=duration)
 
   # if not recording.is_computed():
   #   # Invoke wait_until_finish to ensure the blocking nature of this API without

@@ -585,6 +585,7 @@ class DirectPipelineResult(PipelineResult):
     For testing use only. Does not properly wait for pipeline workers to shut
     down.
     """
+    print('cancel received')
     self._state = PipelineState.CANCELLING
     self._executor.shutdown()
     self._state = PipelineState.CANCELLED

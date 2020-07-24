@@ -68,6 +68,7 @@ class TestStreamServiceController(TestStreamServiceServicer):
     try:
       reader = self._reader.read_multiple([('full', tag) for tag in tags])
       while True:
+        print('serving element')
         e = next(reader)
         yield e
     except StopIteration:
