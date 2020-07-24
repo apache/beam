@@ -67,13 +67,17 @@ class CacheManager(object):
     """Returns the latest version number of the PCollection cache."""
     raise NotImplementedError
 
-  def read(self, *labels):
-    # type (*str) -> Tuple[str, Generator[Any]]
+  def read(self, *labels, **args):
+    # type (*str, Dict[str, Any]) -> Tuple[str, Generator[Any]]
 
     """Return the PCollection as a list as well as the version number.
 
     Args:
       *labels: List of labels for PCollection instance.
+      **args: Dict of additional arguments. Currently only supports 'limiters'
+        as a list of ElementLimiters, and 'tail' as a boolean. Limiters limits
+        the amount of elements read and duration with respect to processing
+        time.
 
     Returns:
       A tuple containing an iterator for the items in the PCollection and the
@@ -90,6 +94,17 @@ class CacheManager(object):
     # type (Any, *str) -> None
 
     """Writes the value to the given cache.
+
+    Args:
+      value: An encodable (with corresponding PCoder) value
+      *labels: List of labels for PCollection instance
+    """
+    raise NotImplementedError
+
+  def clear(self, *labels):
+    # type (*str) -> Boolean
+
+    """Clears the cache entry of the given labels and returns True on success.
 
     Args:
       value: An encodable (with corresponding PCoder) value
@@ -196,17 +211,30 @@ class FileBasedCacheManager(CacheManager):
         self._default_pcoder if self._default_pcoder is not None else
         self._saved_pcoders[self._path(*labels)])
 
-  def read(self, *labels):
+  def read(self, *labels, **args):
     # Return an iterator to an empty list if it doesn't exist.
     if not self.exists(*labels):
       return iter([]), -1
+
+    limiters = args.pop('limiters', [])
 
     # Otherwise, return a generator to the cached PCollection.
     source = self.source(*labels)._source
     range_tracker = source.get_range_tracker(None, None)
     reader = source.read(range_tracker)
     version = self._latest_version(*labels)
-    return reader, version
+
+    def limit_reader(r):
+      for e in r:
+        yield e
+
+        for l in limiters:
+          l.update(e)
+
+        if any(l.is_triggered() for l in limiters):
+          break
+
+    return limit_reader(reader), version
 
   def write(self, values, *labels):
     sink = self.sink(labels)._sink
@@ -217,6 +245,12 @@ class FileBasedCacheManager(CacheManager):
     for v in values:
       writer.write(v)
     writer.close()
+
+  def clear(self, *labels):
+    if self.exists(*labels):
+      filesystems.FileSystems.delete(self._match(*labels))
+      return True
+    return False
 
   def source(self, *labels):
     return self._reader_class(

@@ -229,6 +229,7 @@ class WindowedValueHolder:
   def __repr__(self):
     return repr(self.windowed_value)
 
+
 class TestStream(PTransform):
   """Test stream that generates events on an unbounded PCollection of elements.
 

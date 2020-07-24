@@ -20,6 +20,10 @@ from __future__ import absolute_import
 import unittest
 
 import apache_beam as beam
+from apache_beam import coders
+from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
+from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
+from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.direct.clock import TestClock
 from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
 from apache_beam.runners.interactive.recording_manager import ElementStream
@@ -29,12 +33,32 @@ from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as pi
+from apache_beam.runners.interactive.testing.test_cache_manager import FileRecordsBuilder
 from apache_beam.runners.interactive.testing.test_cache_manager import InMemoryCache
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
 
 PipelineState = beam.runners.runner.PipelineState
+
+
+class MockPipelineResult(beam.runners.runner.PipelineResult):
+  """Mock class for controlling a PipelineResult."""
+  def __init__(self):
+    self._state = PipelineState.RUNNING
+
+  def wait_until_finish(self):
+    pass
+
+  def set_state(self, state):
+    self._state = state
+
+  @property
+  def state(self):
+    return self._state
+
+  def cancel(self):
+    self._state = PipelineState.CANCELLED
 
 
 class ElementStreamTest(unittest.TestCase):
@@ -54,12 +78,40 @@ class ElementStreamTest(unittest.TestCase):
     cache.write(['expected'], 'full', cache_key)
     cache.save_pcoder(None, 'full', cache_key)
 
-    stream = ElementStream(pcoll, cache_key, n=100)
+    stream = ElementStream(pcoll, cache_key, n=100, duration=0)
 
     self.assertFalse(stream.is_done())
     self.assertEqual(list(stream.read())[0], 'expected')
     self.assertTrue(stream.is_done())
     self.assertFalse(list(stream.read()))
+
+  def test_done_if_terminated(self):
+    """Test that terminating the job sets the stream as done."""
+
+    cache = InMemoryCache()
+    p = beam.Pipeline()
+    pcoll = p | beam.Create([])
+
+    # Create a MockPipelineResult to control the state of a fake run of the
+    # pipeline.
+    mock_result = MockPipelineResult()
+    ie.current_env().track_user_pipelines()
+    ie.current_env().set_pipeline_result(p, mock_result)
+    ie.current_env().set_cache_manager(cache, p)
+
+    cache_key = str(pi.CacheKey('pcoll', '', '', ''))
+    cache.write(['expected'], 'full', cache_key)
+    cache.save_pcoder(None, 'full', cache_key)
+
+    stream = ElementStream(pcoll, cache_key, n=100, duration=10)
+
+    self.assertFalse(stream.is_done())
+    self.assertEqual(list(stream.read(tail=False))[0], 'expected')
+    self.assertFalse(stream.is_done())
+
+    mock_result.set_state(PipelineState.DONE)
+    self.assertEqual(list(stream.read(tail=False))[0], 'expected')
+    self.assertTrue(stream.is_done())
 
   def test_read_n(self):
     """Test that the stream only reads 'n' elements."""
@@ -68,24 +120,84 @@ class ElementStreamTest(unittest.TestCase):
     p = beam.Pipeline()
     pcoll = p | beam.Create([])
 
+    mock_result = MockPipelineResult()
+    ie.current_env().track_user_pipelines()
+    ie.current_env().set_pipeline_result(p, mock_result)
     ie.current_env().set_cache_manager(cache, p)
 
     cache_key = str(pi.CacheKey('pcoll', '', '', ''))
     cache.write(range(5), 'full', cache_key)
     cache.save_pcoder(None, 'full', cache_key)
 
-    stream = ElementStream(pcoll, cache_key, n=1)
+    stream = ElementStream(pcoll, cache_key, n=1, duration=0)
     self.assertEqual(list(stream.read()), [0])
 
-    stream = ElementStream(pcoll, cache_key, n=2)
+    stream = ElementStream(pcoll, cache_key, n=2, duration=1)
     self.assertEqual(list(stream.read()), [0, 1])
 
-    stream = ElementStream(pcoll, cache_key, n=5)
+    stream = ElementStream(pcoll, cache_key, n=5, duration=1)
     self.assertEqual(list(stream.read()), list(range(5)))
 
     # Test that if the user asks for more than in the cache it still returns.
-    stream = ElementStream(pcoll, cache_key, n=10)
+    stream = ElementStream(pcoll, cache_key, n=10, duration=1)
     self.assertEqual(list(stream.read()), list(range(5)))
+
+  def test_read_duration(self):
+    """Test that the stream only reads a 'duration' of elements."""
+
+    cache = InMemoryCache()
+    p = beam.Pipeline()
+    pcoll = p | beam.Create([])
+
+    mock_result = MockPipelineResult()
+    ie.current_env().track_user_pipelines()
+    ie.current_env().set_pipeline_result(p, mock_result)
+    ie.current_env().set_cache_manager(cache, p)
+
+    cache_key = str(pi.CacheKey('pcoll', '', '', ''))
+
+    def make_record(advance_duration):
+      ret = TestStreamFileRecord()
+      ret.recorded_event.processing_time_event.advance_duration = advance_duration * 1000000
+      return ret
+
+    values = (FileRecordsBuilder(tag=cache_key)
+              .add_element(element=0, event_time_secs=0)
+              .advance_processing_time(1)
+              .add_element(element=1, event_time_secs=1)
+              .advance_processing_time(1)
+              .add_element(element=2, event_time_secs=3)
+              .advance_processing_time(1)
+              .add_element(element=3, event_time_secs=4)
+              .advance_processing_time(1)
+              .add_element(element=4, event_time_secs=5)
+              .build()) # yapf: disable
+
+    cache.write(values, 'full', cache_key)
+    cache.save_pcoder(None, 'full', cache_key)
+
+    def get_elements(events):
+      coder = coders.FastPrimitivesCoder()
+      elements = []
+      for e in events:
+        if not isinstance(e, TestStreamFileRecord):
+          continue
+
+        if e.recorded_event.element_event:
+          elements += ([
+              coder.decode(el.encoded_element)
+              for el in e.recorded_event.element_event.elements
+          ])
+      return elements
+
+    stream = ElementStream(pcoll, cache_key, n=100, duration=1)
+    self.assertSequenceEqual(get_elements(stream.read()), [0])
+
+    stream = ElementStream(pcoll, cache_key, n=100, duration=2)
+    self.assertSequenceEqual(get_elements(stream.read()), [0, 1])
+
+    stream = ElementStream(pcoll, cache_key, n=100, duration=10)
+    self.assertSequenceEqual(get_elements(stream.read()), [0, 1, 2, 3, 4])
 
 
 class RecordingTest(unittest.TestCase):
@@ -98,23 +210,6 @@ class RecordingTest(unittest.TestCase):
     Because the background caching job is now long-lived, repeated runs of a
     PipelineFragment may yield different results for the same PCollection.
     """
-    class MockPipelineResult(beam.runners.runner.PipelineResult):
-      """Mock class for controlling a PipelineResult."""
-      def __init__(self):
-        self._state = PipelineState.RUNNING
-
-      def wait_until_finish(self):
-        pass
-
-      def set_state(self, state):
-        self._state = state
-
-      @property
-      def state(self):
-        return self._state
-
-      def cancel(self):
-        self._state = PipelineState.CANCELLED
 
     p = beam.Pipeline(InteractiveRunner())
     elems = p | beam.Create([0, 1, 2])
@@ -159,8 +254,9 @@ class RecordingTest(unittest.TestCase):
     bcj_mock_result.set_state(PipelineState.DONE)
     ie.current_env().set_background_caching_job(p, background_caching_job)
     recording = Recording(
-        p, [elems], mock_result, pi.PipelineInstrument(p), n=10, duration=0.1)
+        p, [elems], mock_result, pi.PipelineInstrument(p), n=10, duration=0)
     stream = recording.stream(elems)
+    recording.wait_until_finish()
 
     # There are no more elements and the recording finished, meaning that the
     # intermediate PCollections are in a complete state. They can now be marked

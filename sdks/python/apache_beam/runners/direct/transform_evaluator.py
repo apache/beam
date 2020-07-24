@@ -517,6 +517,7 @@ class _TestStreamEvaluator(_TransformEvaluator):
         input_committed_bundle,
         side_inputs)
     self.test_stream = applied_ptransform.transform
+    # print('Reading from', self.test_stream.output_tags)
     self.is_done = False
 
   def start_bundle(self):

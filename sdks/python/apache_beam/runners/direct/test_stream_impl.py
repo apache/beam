@@ -268,6 +268,7 @@ class _TestStream(PTransform):
     puts them onto the shared queue. At the end of the stream, an _EndOfStream
     is placed on the channel to signify a successful end.
     """
+    print('requesting stream from', endpoint, 'for', output_tags)
     stub_channel = grpc.insecure_channel(endpoint)
     stub = beam_runner_api_pb2_grpc.TestStreamServiceStub(stub_channel)
 
@@ -276,9 +277,11 @@ class _TestStream(PTransform):
         output_ids=[str(tag) for tag in output_tags])
 
     event_stream = stub.Events(event_request)
+    print('starting stream')
     for e in event_stream:
       channel.put(_TestStream.test_stream_payload_to_events(e, coder))
       if not is_alive():
+        print('stopping stream')
         return
     channel.put(_EndOfStream())
 
@@ -321,7 +324,8 @@ class _TestStream(PTransform):
       except EmptyException as e:
         _LOGGER.warning(
             'TestStream timed out waiting for new events from service.'
-            ' Stopping pipeline.')
+            ' Stopping pipeline. This TestStream had the following output tags:'
+            '[', output_tags, ']')
         is_alive = False
         raise e
 

@@ -87,7 +87,7 @@ class BackgroundCachingJob(object):
     return any([l.is_triggered() for l in self._limiters])
 
   def is_done(self):
-    is_terminated = self._pipeline_result.state is PipelineState.DONE
+    is_terminated = PipelineState.is_terminal(self._pipeline_result.state)
     is_triggered = self._should_end_condition_checker()
     is_cancelling = (
         self._pipeline_result.state in (
@@ -129,6 +129,7 @@ def attempt_to_run_background_caching_job(
     runner_pipeline = beam.pipeline.Pipeline.from_runner_api(
         user_pipeline.to_runner_api(use_fake_coders=True), runner, options)
 
+    print('===============Starting new BackgroundCachingJob')
     background_caching_job_result = beam.pipeline.Pipeline.from_runner_api(
         instr.build_pipeline_instrument(
             runner_pipeline).background_caching_pipeline_proto(),
@@ -183,11 +184,18 @@ def is_cache_complete(pipeline_id):
   user_pipeline = ie.current_env().pipeline_id_to_pipeline(pipeline_id)
   job = ie.current_env().get_background_caching_job(user_pipeline)
 
-  is_done = job and job.is_done()# and ie.current_env().is_terminated(user_pipeline)
+  # print('user_pipeline terminated?', ie.current_env().is_terminated(user_pipeline))
+  # print('job.is_done()?', job and job.is_done())
+  is_done = job and job.is_done(
+  )  # and ie.current_env().is_terminated(user_pipeline)
   cache_changed = is_source_to_cache_changed(
       user_pipeline, update_cached_source_signature=False)
 
-  return is_done and not cache_changed
+  # print(job._pipeline_result.state)
+  # print('cache_changed?', cache_changed)
+  # print('is_cache_complete?', is_done and not cache_changed)
+
+  return is_done or cache_changed
 
 
 def has_source_to_cache(user_pipeline):
@@ -267,6 +275,7 @@ def is_source_to_cache_changed(
       user_pipeline)
   current_signature = extract_source_to_cache_signature(user_pipeline)
   is_changed = not current_signature.issubset(recorded_signature)
+
   # The computation of extract_unbounded_source_signature is expensive, track on
   # change by default.
   if is_changed and update_cached_source_signature:

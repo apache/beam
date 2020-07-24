@@ -71,9 +71,10 @@ class PCollectionVisualizationTest(unittest.TestCase):
     self._pcoll = self._p | 'Create' >> beam.Create(range(5))
 
     ib.watch(self)
+    ie.current_env().track_user_pipelines()
 
     recording_manager = RecordingManager(self._p)
-    recording = recording_manager.record_all([self._pcoll])
+    recording = recording_manager.record([self._pcoll], 5, 5)
     self._stream = recording.stream(self._pcoll)
 
   def test_pcoll_visualization_generate_unique_display_id(self):

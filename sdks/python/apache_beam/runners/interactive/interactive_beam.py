@@ -348,6 +348,9 @@ def show(*pcolls, **configs):
   # deprecated from Beam.
   include_window_info = configs.pop('include_window_info', False)
   visualize_data = configs.pop('visualize_data', False)
+  n = configs.pop('n', 10)
+  duration = configs.pop('duration', 60)
+
   # This assertion is to protect the backward compatibility for function
   # signature change after Python 2 deprecation.
   assert not configs, (
@@ -355,11 +358,12 @@ def show(*pcolls, **configs):
       'visualize_data.')
 
   recording_manager = RecordingManager(user_pipeline, limiters=None)
-  recording = recording_manager.record(pcolls, n=1000000, duration=100000)
+  recording = recording_manager.record(pcolls, n=n, duration=duration)
 
   # If in notebook, static plotting computed pcolls as computation is done.
   if ie.current_env().is_in_notebook:
     for stream in recording.computed().values():
+      print('visualizing stream')
       visualize(
           stream,
           include_window_info=include_window_info,
@@ -369,10 +373,12 @@ def show(*pcolls, **configs):
       visualize(stream, include_window_info=include_window_info)
 
   if recording.is_computed():
+    print('recording already computed')
     return
 
   # If in notebook, dynamic plotting as computation goes.
   if ie.current_env().is_in_notebook:
+    print('dynamic plot of stream')
     for stream in recording.uncomputed().values():
       visualize(
           stream,
@@ -382,6 +388,7 @@ def show(*pcolls, **configs):
 
   # Invoke wait_until_finish to ensure the blocking nature of this API without
   # relying on the run to be blocking.
+  print('waiting for recording to finish')
   recording.wait_until_finish()
 
   # If just in ipython shell, plotting once when the computation is completed.
@@ -427,16 +434,17 @@ def head(pcoll, n=5, include_window_info=False):
   recording_manager = RecordingManager(user_pipeline, limiters=None)
 
   print('record()')
-  recording = recording_manager.record([pcoll], n=n, duration=1)
+  recording = recording_manager.record([pcoll], n=n, duration=10)
 
-  print('read()')
-  elements = recording.stream(pcoll).read()
   # if not recording.is_computed():
   #   # Invoke wait_until_finish to ensure the blocking nature of this API without
   #   # relying on the run to be blocking.
   #   recording.wait_until_finish()
 
-  return elements_to_df(list(elements), include_window_info=include_window_info)
+  print('read()')
+  elements = list(recording.stream(pcoll).read())
+  # recording.wait_until_finish()
+  return elements_to_df(elements, include_window_info=include_window_info)
 
 
 @progress_indicated

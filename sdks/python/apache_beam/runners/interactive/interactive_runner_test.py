@@ -107,6 +107,10 @@ class InteractiveRunnerTest(unittest.TestCase):
     # Watch the local scope for Interactive Beam so that counts will be cached.
     ib.watch(locals())
 
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
     result = p.run()
     result.wait_until_finish()
 
@@ -127,7 +131,7 @@ class InteractiveRunnerTest(unittest.TestCase):
     # Truncate the precision to millis because the window coder uses millis
     # as units then gets upcast to micros.
     end_of_window = (GlobalWindow().max_timestamp().micros // 1000) * 1000
-    df_counts = ib.collect(counts, include_window_info=True)
+    df_counts = ib.collect(counts, include_window_info=True, n=10)
     df_expected = pd.DataFrame({
         0: [e[0] for e in actual],
         1: [e[1] for e in actual],
@@ -179,6 +183,12 @@ class InteractiveRunnerTest(unittest.TestCase):
             .advance_watermark_to(20)
             .advance_processing_time(1)
             .add_elements(['that', 'is', 'the', 'question'])
+            .advance_watermark_to(30)
+            .advance_processing_time(1)
+            .advance_watermark_to(40)
+            .advance_processing_time(1)
+            .advance_watermark_to(50)
+            .advance_processing_time(1)
         | beam.WindowInto(beam.window.FixedWindows(10))) # yapf: disable
 
     counts = (
@@ -211,12 +221,13 @@ class InteractiveRunnerTest(unittest.TestCase):
             print(results)
           except ValueError:
             return False
+          print('should cancel BCJ?', len(results) >= 10)
           return len(results) >= 10
         return False
 
     # This sets the limiters to stop reading when the test receives 10 elements.
-    ie.current_env().options.capture_control.set_limiters_for_test(
-        [FakeLimiter(p, data)])
+    # ie.current_env().options.capture_control.set_limiters_for_test(
+    #     [FakeLimiter(p, data)])
 
     # This tests that the data was correctly cached.
     pane_info = PaneInfo(True, True, PaneInfoTiming.UNKNOWN, 0, 0)
@@ -250,7 +261,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         ('the', 1, 29999999, [IntervalWindow(20, 30)], pane_info),
     ], columns=[0, 1, 'event_time', 'windows', 'pane_info']) # yapf: disable
 
-    counts_df = ib.collect(counts, n=10, include_window_info=True)
+    counts_df = ib.collect(counts, n=8, include_window_info=True)
 
     # The group by key has no guarantee of order. So we post-process the DF by
     # sorting so we can test equality.

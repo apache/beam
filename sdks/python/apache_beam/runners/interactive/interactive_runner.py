@@ -152,7 +152,8 @@ class InteractiveRunner(runners.PipelineRunner):
               user_pipeline)):
         streaming_cache_manager = ie.current_env().get_cache_manager(
             user_pipeline)
-        if streaming_cache_manager:
+        if (streaming_cache_manager and
+            not ie.current_env().get_test_stream_service_controller(user_pipeline)):
 
           def exception_handler(e):
             _LOGGER.error(str(e))
@@ -161,6 +162,8 @@ class InteractiveRunner(runners.PipelineRunner):
           test_stream_service = TestStreamServiceController(
               streaming_cache_manager, exception_handler=exception_handler)
           test_stream_service.start()
+
+          print('making new test stream service on', test_stream_service.endpoint)
           ie.current_env().set_test_stream_service_controller(
               user_pipeline, test_stream_service)
 

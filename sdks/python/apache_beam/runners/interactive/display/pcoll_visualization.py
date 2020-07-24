@@ -172,6 +172,7 @@ def visualize(
   backwards-compatibility guarantees.
   """
   if not _pcoll_visualization_ready:
+    print('PCollection visualization is not ready')
     return None
   pv = PCollectionVisualization(
       stream,
@@ -203,8 +204,10 @@ def visualize(
             include_window_info=include_window_info,
             display_facets=display_facets)
         updated_pv.display(updating_pv=pv)
-        if stream.is_computed():
+        print('stream.is_done()?', stream.is_done())
+        if stream.is_computed() or stream.is_done():
           try:
+            print('STOPPING DISPLAY')
             tl.stop()
           except RuntimeError:
             # The job can only be stopped once. Ignore excessive stops.
@@ -213,6 +216,7 @@ def visualize(
       tl.start()
       return tl
 
+    print('Start dynamic plot')
     return dynamic_plotting(stream, pv, tl, include_window_info, display_facets)
   return None
 
@@ -383,7 +387,8 @@ class PCollectionVisualization(object):
           self._is_datatable_empty = False
 
   def _to_dataframe(self):
-    results = list(self._stream.read())
+    print('getting dataframe')
+    results = list(self._stream.read(tail=False))
     return elements_to_df(results, self._include_window_info)
 
 
