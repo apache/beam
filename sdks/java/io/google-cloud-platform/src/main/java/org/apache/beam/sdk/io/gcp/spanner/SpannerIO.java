@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static com.google.cloud.spanner.Mutation.Op.DELETE;
 import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -28,7 +29,6 @@ import com.google.cloud.spanner.AbortedException;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
-import com.google.cloud.spanner.Mutation.Op;
 import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.OptionalInt;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -60,6 +61,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -76,6 +78,8 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -84,7 +88,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -879,7 +882,7 @@ public class SpannerIO {
     /**
      * Specifies the deadline for the Commit API call. Default is 15 secs. DEADLINE_EXCEEDED errors
      * will prompt a backoff/retry until the value of {@link #withMaxCumulativeBackoff(Duration)} is
-     * reached. DEADLINE_EXCEEDED errors are are reported with logging and counters.
+     * reached. DEADLINE_EXCEEDED errors are reported with logging and counters.
      */
     public Write withCommitDeadline(Duration commitDeadline) {
       SpannerConfig config = getSpannerConfig();
@@ -996,6 +999,61 @@ public class SpannerIO {
                       ? Integer.toString(getGroupingFactor().getAsInt())
                       : "DEFAULT"))
               .withLabel("Number of batches to sort over"));
+    }
+  }
+
+  public static class WriteRows extends PTransform<PCollection<Row>, PDone> {
+    Write write;
+
+    private WriteRows(Write write) {
+      this.write = write;
+    }
+
+    public static WriteRows of(Write write) {
+      return new WriteRows(write);
+    }
+
+    @Override
+    public PDone expand(PCollection<Row> input) {
+
+      input
+          .apply(
+              MapElements.via(
+                  new SimpleFunction<Row, Mutation>() {
+                    @Override
+                    public Mutation apply(Row mutationRow) {
+                      switch (Mutation.Op.valueOf(mutationRow.getString("operation"))) {
+                        case INSERT:
+                          return MutationUtils.createMutationFromBeamRow(
+                              Mutation.newInsertBuilder(mutationRow.getString("table")),
+                              mutationRow.getRow("row"));
+                        case DELETE:
+                          return Mutation.delete(
+                              mutationRow.getString("table"),
+                              MutationUtils.createKeySetFromBeamRows(
+                                  mutationRow.getIterable("key_set")));
+                        case UPDATE:
+                          return MutationUtils.createMutationFromBeamRow(
+                              Mutation.newUpdateBuilder(mutationRow.getString("table")),
+                              mutationRow.getRow("row"));
+                        case REPLACE:
+                          return MutationUtils.createMutationFromBeamRow(
+                              Mutation.newReplaceBuilder(mutationRow.getString("table")),
+                              mutationRow.getRow("row"));
+                        case INSERT_OR_UPDATE:
+                          return MutationUtils.createMutationFromBeamRow(
+                              Mutation.newInsertOrUpdateBuilder(mutationRow.getString("table")),
+                              mutationRow.getRow("row"));
+                        default:
+                          throw new RuntimeException(
+                              String.format(
+                                  "Unknown mutation operation type: %s",
+                                  mutationRow.getString("operation")));
+                      }
+                    }
+                  }))
+          .apply(SpannerIO.write());
+      return PDone.in(input.getPipeline());
     }
   }
 
@@ -1386,7 +1444,7 @@ public class SpannerIO {
     @DoFn.ProcessElement
     public void processElement(ProcessContext c) {
       MutationGroup mg = c.element();
-      if (mg.primary().getOperation() == Op.DELETE && !isPointDelete(mg.primary())) {
+      if (mg.primary().getOperation() == DELETE && !isPointDelete(mg.primary())) {
         // Ranged deletes are not batchable.
         c.output(unbatchableMutationsTag, Arrays.asList(mg));
         unBatchableMutationGroupsCounter.inc();

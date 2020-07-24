@@ -102,6 +102,7 @@ include ":sdks:java:io:expansion-service"
 include ":sdks:java:io:file-based-io-tests"
 include ':sdks:java:io:bigquery-io-perf-tests'
 include ":sdks:java:io:google-cloud-platform"
+include ":sdks:java:io:google-cloud-platform:expansion-service"
 include ":sdks:java:io:hadoop-common"
 include ":sdks:java:io:hadoop-file-system"
 include ":sdks:java:io:hadoop-format"
