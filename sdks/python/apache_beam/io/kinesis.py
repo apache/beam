@@ -115,6 +115,7 @@ WriteToKinesisSchema = NamedTuple(
         ('region', unicode),
         ('partition_key', unicode),
         ('service_endpoint', Optional[unicode]),
+        ('verify_certificate', Optional[bool]),
         ('producer_properties', Optional[List[Tuple[unicode, unicode]]]),
     ],
 )
@@ -136,6 +137,7 @@ class WriteToKinesis(ExternalTransform):
       region,
       partition_key,
       service_endpoint=None,
+      verify_certificate=None,
       producer_properties=None,
       expansion_service=None,
   ):
@@ -147,6 +149,8 @@ class WriteToKinesis(ExternalTransform):
     :param aws_secret_key: Kinesis access key secret.
     :param region: AWS region. Example: 'us-east-1'.
     :param service_endpoint: Kinesis service endpoint
+    :param verify_certificate: Enable or disable certificate verification.
+        Never set to False on production. True by default.
     :param partition_key: Specify default partition key.
     :param producer_properties: Specify the configuration properties for Kinesis
         Producer Library (KPL) as List[KV[string, string]].
@@ -163,8 +167,8 @@ class WriteToKinesis(ExternalTransform):
                 region=region,
                 partition_key=partition_key,
                 service_endpoint=service_endpoint,
-                producer_properties=list(producer_properties.items())
-                if producer_properties else None,
+                verify_certificate=verify_certificate,
+                producer_properties=producer_properties,
             )),
         expansion_service or default_io_expansion_service(),
     )
@@ -178,6 +182,7 @@ ReadFromKinesisSchema = NamedTuple(
         ('aws_secret_key', unicode),
         ('region', unicode),
         ('service_endpoint', Optional[unicode]),
+        ('verify_certificate', Optional[bool]),
         ('max_num_records', Optional[int]),
         ('max_read_time', Optional[int]),
         ('initial_position_in_stream', Optional[unicode]),
@@ -218,6 +223,7 @@ class ReadDataFromKinesis(ExternalTransform):
       aws_secret_key,
       region,
       service_endpoint=None,
+      verify_certificate=None,
       max_num_records=None,
       max_read_time=None,
       initial_position_in_stream=None,
@@ -238,6 +244,8 @@ class ReadDataFromKinesis(ExternalTransform):
     :param aws_secret_key: Kinesis access key secret.
     :param region: AWS region. Example: 'us-east-1'.
     :param service_endpoint: Kinesis service endpoint
+    :param verify_certificate: Enable or disable certificate verification.
+        Never set to False on production. True by default.
     :param max_num_records: Specifies to read at most a given number of records.
         Must be greater than 0.
     :param max_read_time: Specifies to read records during x seconds.
@@ -292,6 +300,7 @@ class ReadDataFromKinesis(ExternalTransform):
                 aws_secret_key=aws_secret_key,
                 region=region,
                 service_endpoint=service_endpoint,
+                verify_certificate=verify_certificate,
                 max_num_records=max_num_records,
                 max_read_time=max_read_time,
                 initial_position_in_stream=initial_position_in_stream,

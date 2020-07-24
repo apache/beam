@@ -454,7 +454,7 @@ public final class KinesisIO {
      * <p>The {@code verifyCertificate} disables or enables certificate verification. Never set it
      * to false in production.
      */
-    public Read withAWSClientsProvider(
+    public Read<T> withAWSClientsProvider(
         String awsAccessKey,
         String awsSecretKey,
         Regions region,

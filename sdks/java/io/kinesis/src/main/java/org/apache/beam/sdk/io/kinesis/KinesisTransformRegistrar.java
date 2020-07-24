@@ -47,7 +47,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
   public static final String READ_DATA_URN = "beam:external:java:kinesis:read_data:v1";
 
   @Override
-  public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+  public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
     return ImmutableMap.of(WRITE_URN, WriteBuilder.class, READ_DATA_URN, ReadDataBuilder.class);
   }
 
@@ -57,6 +57,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     String awsSecretKey;
     Regions region;
     @Nullable String serviceEndpoint;
+    boolean verifyCertificate;
 
     public void setStreamName(String streamName) {
       this.streamName = streamName;
@@ -76,6 +77,10 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
 
     public void setServiceEndpoint(@Nullable String serviceEndpoint) {
       this.serviceEndpoint = serviceEndpoint;
+    }
+
+    public void setVerifyCertificate(@Nullable Boolean verifyCertificate) {
+      this.verifyCertificate = verifyCertificate == null ? true : verifyCertificate;
     }
   }
 
@@ -108,7 +113,8 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
                   configuration.awsAccessKey,
                   configuration.awsSecretKey,
                   configuration.region,
-                  configuration.serviceEndpoint)
+                  configuration.serviceEndpoint,
+                  configuration.verifyCertificate)
               .withPartitionKey(configuration.partitionKey);
 
       if (configuration.producerProperties != null) {
@@ -208,7 +214,8 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
                   configuration.awsAccessKey,
                   configuration.awsSecretKey,
                   configuration.region,
-                  configuration.serviceEndpoint);
+                  configuration.serviceEndpoint,
+                  configuration.verifyCertificate);
 
       if (configuration.maxNumRecords != null) {
         readTransform = readTransform.withMaxNumRecords(configuration.maxNumRecords);
