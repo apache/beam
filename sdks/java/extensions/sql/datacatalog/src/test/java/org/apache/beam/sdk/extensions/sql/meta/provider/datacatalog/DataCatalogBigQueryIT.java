@@ -66,12 +66,15 @@ public class DataCatalogBigQueryIT {
           });
     }
 
+    @SuppressWarnings("initialization.fields.uninitialized")
     @Parameterized.Parameter(0)
     public String dialectName;
 
+    @SuppressWarnings("initialization.fields.uninitialized")
     @Parameterized.Parameter(1)
     public Class<? extends QueryPlanner> queryPlanner;
 
+    @SuppressWarnings("nullness")
     @Test
     public void testRead() throws Exception {
       TableReference bqTable = bigQuery.tableReference();
