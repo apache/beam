@@ -698,7 +698,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
   def test_write_bigquery_translation(self):
     runner = DataflowRunner()
 
-    self.default_properties.append('--experiments=use_dataflow_bq_sink')
+    self.default_properties.append('--experiments=use_legacy_bq_sink')
     with beam.Pipeline(runner=runner,
                        options=PipelineOptions(self.default_properties)) as p:
       # pylint: disable=expression-not-assigned
@@ -750,7 +750,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     """Tests that WriteToBigQuery cannot have any consumers if replaced."""
     runner = DataflowRunner()
 
-    self.default_properties.append('--experiments=use_dataflow_bq_sink')
+    self.default_properties.append('--experiments=use_legacy_bq_sink')
     with self.assertRaises(Exception):
       with beam.Pipeline(runner=runner,
                          options=PipelineOptions(self.default_properties)) as p:

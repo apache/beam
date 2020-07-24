@@ -55,9 +55,9 @@
 
 * New overloads for BigtableIO.Read.withKeyRange() and BigtableIO.Read.withRowFilter()
   methods that take ValueProvider as a parameter (Java) ([BEAM-10283](https://issues.apache.org/jira/browse/BEAM-10283)).
-* The WriteToBigQuery transform (Python) in Dataflow Batch no longer relies on BigQuerySource by default. It relies on 
+* The WriteToBigQuery transform (Python) in Dataflow Batch no longer relies on BigQuerySink by default. It relies on 
   a new, fully-featured transform based on file loads into BigQuery. To revert the behavior to the old implementation,
-  you may use `--experiments=use_dataflow_bq_sink`.
+  you may use `--experiments=use_legacy_bq_sink`.
 
 ## New Features / Improvements
 

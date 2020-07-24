@@ -259,7 +259,7 @@ class WriteToBigQueryPTransformOverride(PTransformOverride):
       return False
 
     experiments = self.options.view_as(DebugOptions).experiments or []
-    if 'use_dataflow_bq_sink' not in experiments:
+    if 'use_legacy_bq_sink' not in experiments:
       return False
 
     if transform.schema == io.gcp.bigquery.SCHEMA_AUTODETECT:
