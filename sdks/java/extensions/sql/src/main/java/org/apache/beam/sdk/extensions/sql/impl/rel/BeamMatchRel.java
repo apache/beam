@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static org.apache.beam.sdk.extensions.sql.impl.cep.CEPUtil.getFieldRefFromMeasures;
 import static org.apache.beam.sdk.extensions.sql.impl.cep.CEPUtil.makeOrderKeysFromCollation;
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 
@@ -28,6 +29,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.extensions.sql.impl.cep.CEPFieldRef;
+import org.apache.beam.sdk.extensions.sql.impl.cep.CEPMeasure;
+import org.apache.beam.sdk.extensions.sql.impl.cep.CEPOperation;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPPattern;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPUtil;
 import org.apache.beam.sdk.extensions.sql.impl.cep.OrderKey;
@@ -50,8 +54,12 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Match;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexPatternFieldRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexVariable;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,6 +107,17 @@ public class BeamMatchRel extends Match implements BeamRelNode {
         partitionKeys,
         orderKeys,
         interval);
+
+    for(Map.Entry<String, RexNode> entry : measures.entrySet()) {
+      String outKey = entry.getKey();
+      LOG.info(outKey);
+      if(outKey.equals("aid")) {
+        RexCall call = (RexCall) entry.getValue();
+        RexCall call1 = (RexCall) call.getOperands().get(0); //LAST
+        RexPatternFieldRef call2 = (RexPatternFieldRef) call1.getOperands().get(0);
+        LOG.info(call2.getAlpha() + call2.getName() + ": " + call2.getClass().toString());
+      }
+    }
   }
 
   @Override
@@ -121,23 +140,29 @@ public class BeamMatchRel extends Match implements BeamRelNode {
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
 
-    return new MatchTransform(partitionKeys, orderKeys, pattern, patternDefinitions);
+    return new MatchTransform(partitionKeys, orderKeys, measures, allRows, pattern, patternDefinitions);
   }
 
   private static class MatchTransform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
     private final List<RexNode> parKeys;
     private final RelCollation orderKeys;
+    private final Map<String, RexNode> measures;
+    private final boolean allRows;
     private final RexNode pattern;
     private final Map<String, RexNode> patternDefs;
 
     public MatchTransform(
         List<RexNode> parKeys,
         RelCollation orderKeys,
+        Map<String, RexNode> measures,
+        boolean allRows,
         RexNode pattern,
         Map<String, RexNode> patternDefs) {
       this.parKeys = parKeys;
       this.orderKeys = orderKeys;
+      this.measures = measures;
+      this.allRows = allRows;
       this.pattern = pattern;
       this.patternDefs = patternDefs;
     }
@@ -155,8 +180,8 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
       Schema.Builder schemaBuilder = new Schema.Builder();
       for (RexNode i : parKeys) {
-        RexVariable varNode = (RexVariable) i;
-        int index = Integer.parseInt(varNode.getName().substring(1)); // get rid of `$`
+        RexInputRef varNode = (RexInputRef) i;
+        int index = varNode.getIndex();
         schemaBuilder.addField(upstreamSchema.getField(index));
       }
       Schema partitionKeySchema = schemaBuilder.build();
@@ -184,12 +209,32 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       ArrayList<CEPPattern> cepPattern =
           CEPUtil.getCEPPatternFromPattern(upstreamSchema, pattern, patternDefs);
       String regexPattern = CEPUtil.getRegexFromPattern(pattern);
+      List<CEPMeasure> cepMeasures = new ArrayList<>();
+      for(Map.Entry<String, RexNode> i : measures.entrySet()) {
+        String outTableName = i.getKey();
+        CEPOperation measureOperation = CEPOperation.of(i.getValue());
+        cepMeasures.add(new CEPMeasure(upstreamSchema, outTableName, measureOperation));
+      }
+
+      List<CEPFieldRef> cepParKeys =
+          CEPUtil.getCEPFieldRefFromParKeys(parKeys);
       PCollection<KV<Row, Iterable<Row>>> matchedUpstream =
-          orderedUpstream.apply(ParDo.of(new MatchPattern(cepPattern, regexPattern)));
+          orderedUpstream.apply(
+              ParDo.of(
+                  new MatchPattern(
+                      upstreamSchema,
+                      cepParKeys,
+                      cepPattern,
+                      regexPattern,
+                      cepMeasures,
+                      allRows)));
 
       // apply the ParDo for the measures clause
       // for now, output all rows of each pattern matched (for testing purpose)
+      // for now, support FINAL only
       // TODO: add ONE ROW PER MATCH and MEASURES implementation.
+      // TODO: handle the no aggregate in pattern with potentially multiple matches
+      // TODO: add support for FINAL/RUNNING
       PCollection<Row> outStream =
           matchedUpstream.apply(ParDo.of(new Measure())).setRowSchema(upstreamSchema);
 
@@ -210,12 +255,52 @@ public class BeamMatchRel extends Match implements BeamRelNode {
     // support only one row per match for now.
     private static class MatchPattern extends DoFn<KV<Row, Iterable<Row>>, KV<Row, Iterable<Row>>> {
 
+      private final Schema upstreamSchema;
+      private final Schema outSchema;
+      private final List<CEPFieldRef> parKeys;
       private final ArrayList<CEPPattern> pattern;
       private final String regexPattern;
+      private final List<CEPMeasure> measures;
+      private final boolean allRows;
 
-      MatchPattern(ArrayList<CEPPattern> pattern, String regexPattern) {
+      MatchPattern(Schema upstreamSchema,
+                   List<CEPFieldRef> parKeys,
+                   ArrayList<CEPPattern> pattern,
+                   String regexPattern,
+                   List<CEPMeasure> measures,
+                   boolean allRows) {
+        this.upstreamSchema = upstreamSchema;
+        this.parKeys = parKeys;
         this.pattern = pattern;
         this.regexPattern = regexPattern;
+        this.measures = measures;
+        this.allRows = allRows;
+        this.outSchema = decideSchema();
+      }
+
+      private Schema decideSchema() {
+        // if the measures clause does not present
+        // then output the schema from the pattern and the partition columns
+        if(measures.isEmpty() && !allRows) {
+          throw new UnsupportedOperationException("The Measures clause cannot be empty for ONE ROW PER MATCH");
+        }
+
+        Schema.Builder outTableSchemaBuilder = new Schema.Builder();
+
+        // take the partition keys first
+        for(CEPFieldRef i : parKeys) {
+          outTableSchemaBuilder.addField(upstreamSchema.getField(i.getIndex()));
+        }
+
+        // add the fields in the Measures clause
+        for(CEPMeasure i : measures) {
+          Schema.Field fieldToAdd = Schema.Field.of(i.getName(), i.getType());
+          outTableSchemaBuilder.addField(fieldToAdd);
+        }
+
+        //TODO: optionally add any columns left for ALL ROWS PER MATCH
+
+        return outTableSchemaBuilder.build();
       }
 
       @ProcessElement
@@ -238,10 +323,18 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
         Pattern p = Pattern.compile(regexPattern);
         Matcher m = p.matcher(patternString.toString());
-        // if the pattern is (A B+ C),
-        // it should return a List three rows matching A B C respectively
-        if (m.matches()) {
-          out.output(KV.of(keyRows.getKey(), rows.subList(m.start(), m.end())));
+
+        while (m.find()) {
+          // out put each matched sequence as specified by the Measure clause
+          // TODO: for now (regex implementation), assume deterministic pattern match
+          // (i.e. each row match to exactly one pattern or none)
+
+          if(allRows) {
+            out.output(KV.of(keyRows.getKey(), rows.subList(m.start(), m.end())));
+          } else {
+            List<Row> matchedRows = rows.subList(m.start(), m.end());
+
+          }
         }
       }
     }

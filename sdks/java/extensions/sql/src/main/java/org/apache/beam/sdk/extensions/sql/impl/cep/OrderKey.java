@@ -21,9 +21,7 @@ import java.io.Serializable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation;
 
 /**
- * The {@code OrderKey} class stores the information to sort a column. {@param fIndex} is the field
- * (column) index. {@param dir} is the direction (true for ascending). {@param nullFirst} states
- * whether to put null values first.
+ * The {@code OrderKey} class stores the information to sort a column.
  *
  * <h3>Constraints</h3>
  *

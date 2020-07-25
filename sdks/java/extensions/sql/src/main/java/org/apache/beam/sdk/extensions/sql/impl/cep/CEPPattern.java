@@ -26,10 +26,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 
 /**
- * Core pattern class that stores the definition of a single pattern. {@param mySchema} stores the
- * row schema. {@param patternVar} stores the pattern variable. {@param patternCondition} stores the
- * evaluation function for the pattern. {@param quant} is the quantifier attached to the pattern
- * variable.
+ * Core pattern class that stores the definition of a single pattern.
  */
 public class CEPPattern implements Serializable {
 

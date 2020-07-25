@@ -18,6 +18,10 @@
 package org.apache.beam.sdk.extensions.sql.impl.cep;
 
 import java.io.Serializable;
+import java.util.Map;
+
+import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 
 /**
@@ -26,6 +30,21 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator
  */
 public class CEPOperator implements Serializable {
   private final CEPKind cepKind;
+  private static final Map<SqlKind, CEPKind> CEPKindTable = ImmutableMap
+      .<SqlKind, CEPKind>builder()
+      .put(SqlKind.SUM, CEPKind.SUM)
+      .put(SqlKind.COUNT, CEPKind.COUNT)
+      .put(SqlKind.AVG, CEPKind.AVG)
+      .put(SqlKind.FIRST, CEPKind.FIRST)
+      .put(SqlKind.LAST, CEPKind.LAST)
+      .put(SqlKind.PREV, CEPKind.PREV)
+      .put(SqlKind.NEXT, CEPKind.NEXT)
+      .put(SqlKind.EQUALS, CEPKind.EQUALS)
+      .put(SqlKind.GREATER_THAN, CEPKind.GREATER_THAN)
+      .put(SqlKind.GREATER_THAN_OR_EQUAL, CEPKind.GREATER_THAN_OR_EQUAL)
+      .put(SqlKind.LESS_THAN, CEPKind.LESS_THAN)
+      .put(SqlKind.LESS_THAN_OR_EQUAL, CEPKind.LESS_THAN_OR_EQUAL)
+      .build();
 
   private CEPOperator(CEPKind cepKind) {
     this.cepKind = cepKind;
@@ -36,25 +55,7 @@ public class CEPOperator implements Serializable {
   }
 
   public static CEPOperator of(SqlOperator op) {
-    switch (op.getKind()) {
-      case LAST:
-        return new CEPOperator(CEPKind.LAST);
-      case PREV:
-        return new CEPOperator(CEPKind.PREV);
-      case NEXT:
-        return new CEPOperator(CEPKind.NEXT);
-      case EQUALS:
-        return new CEPOperator(CEPKind.EQUALS);
-      case GREATER_THAN:
-        return new CEPOperator(CEPKind.GREATER_THAN);
-      case GREATER_THAN_OR_EQUAL:
-        return new CEPOperator(CEPKind.GREATER_THAN_OR_EQUAL);
-      case LESS_THAN:
-        return new CEPOperator(CEPKind.LESS_THAN);
-      case LESS_THAN_OR_EQUAL:
-        return new CEPOperator(CEPKind.LESS_THAN_OR_EQUAL);
-      default:
-        return new CEPOperator(CEPKind.NONE);
-    }
+    SqlKind opKind = op.getKind();
+    return new CEPOperator(CEPKindTable.getOrDefault(opKind, CEPKind.NONE));
   }
 }
