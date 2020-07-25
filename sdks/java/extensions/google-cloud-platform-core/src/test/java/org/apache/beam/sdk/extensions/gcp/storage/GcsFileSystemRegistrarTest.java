@@ -40,7 +40,7 @@ public class GcsFileSystemRegistrarTest {
     for (FileSystemRegistrar registrar :
         Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
       if (registrar instanceof GcsFileSystemRegistrar) {
-        Iterable<FileSystem> fileSystems = registrar.fromOptions(PipelineOptionsFactory.create());
+        Iterable<FileSystem<?>> fileSystems = registrar.fromOptions(PipelineOptionsFactory.create());
         assertThat(fileSystems, contains(instanceOf(GcsFileSystem.class)));
         return;
       }
