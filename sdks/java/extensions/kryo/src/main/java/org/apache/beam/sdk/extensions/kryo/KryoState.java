@@ -22,8 +22,6 @@ import com.esotericsoftware.kryo.io.InputChunked;
 import com.esotericsoftware.kryo.io.OutputChunked;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /** Reusable kryo instance. */
@@ -38,11 +36,11 @@ class KryoState {
   /** Caching thread local storage for reusable {@link KryoState}s. */
   private static class Storage {
 
-      /**
-       * It's a known bug in checkerframework.
-       * https://stackoverflow.com/questions/63049612/checker-framework-incompatible-types-in-type-argument/63078419#63078419
-       */
-      @SuppressWarnings("nullness")
+    /**
+     * It's a known bug in checkerframework.
+     * https://stackoverflow.com/questions/63049612/checker-framework-incompatible-types-in-type-argument/63078419#63078419
+     */
+    @SuppressWarnings("nullness")
     private final ThreadLocal<Map<String, KryoState>> kryoStateMap =
         ThreadLocal.withInitial(HashMap::new);
 
@@ -62,7 +60,7 @@ class KryoState {
                 ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
                 if (classLoader == null) {
                   throw new RuntimeException(
-                          "Cannot detect classpath: classload is null (is it the bootstrap classloader?)");
+                      "Cannot detect classpath: classload is null (is it the bootstrap classloader?)");
                 }
 
                 kryo.setClassLoader(classLoader);
