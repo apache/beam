@@ -801,7 +801,7 @@ public class SpannerIO {
 
     abstract FailureMode getFailureMode();
 
-    abstract @Nullable PCollection getSchemaReadySignal();
+    abstract @Nullable PCollection<?> getSchemaReadySignal();
 
     abstract OptionalInt getGroupingFactor();
 
@@ -820,7 +820,7 @@ public class SpannerIO {
 
       abstract Builder setFailureMode(FailureMode failureMode);
 
-      abstract Builder setSchemaReadySignal(PCollection schemaReadySignal);
+      abstract Builder setSchemaReadySignal(PCollection<?> schemaReadySignal);
 
       abstract Builder setGroupingFactor(int groupingFactor);
 
@@ -947,7 +947,7 @@ public class SpannerIO {
      *
      * @see Wait.OnSignal
      */
-    public Write withSchemaReadySignal(PCollection signal) {
+    public Write withSchemaReadySignal(PCollection<?> signal) {
       return toBuilder().setSchemaReadySignal(signal).build();
     }
 

@@ -38,7 +38,8 @@ public class LocalFileSystemRegistrarTest {
     for (FileSystemRegistrar registrar :
         Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
       if (registrar instanceof LocalFileSystemRegistrar) {
-        Iterable<FileSystem<?>> fileSystems = registrar.fromOptions(PipelineOptionsFactory.create());
+        Iterable<FileSystem<?>> fileSystems =
+            registrar.fromOptions(PipelineOptionsFactory.create());
         assertThat(fileSystems, contains(instanceOf(LocalFileSystem.class)));
         return;
       }
