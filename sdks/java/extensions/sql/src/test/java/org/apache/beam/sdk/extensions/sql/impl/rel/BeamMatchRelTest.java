@@ -53,6 +53,7 @@ public class BeamMatchRelTest {
             + "MATCH_RECOGNIZE ("
             + "PARTITION BY id "
             + "ORDER BY proctime "
+            + "ALL ROWS PER MATCH "
             + "PATTERN (A B C) "
             + "DEFINE "
             + "A AS name = 'a', "
@@ -93,6 +94,7 @@ public class BeamMatchRelTest {
             + "MATCH_RECOGNIZE ("
             + "PARTITION BY id "
             + "ORDER BY proctime "
+            + "ALL ROWS PER MATCH "
             + "PATTERN (A+ B C) "
             + "DEFINE "
             + "A AS name = 'a', "
@@ -113,4 +115,130 @@ public class BeamMatchRelTest {
 
     pipeline.run().waitUntilFinish();
   }
+
+  @Test
+  public void matchMeasuresTest() {
+    Schema schemaType =
+        Schema.builder()
+            .addInt32Field("id")
+            .addStringField("name")
+            .addInt32Field("proctime")
+            .build();
+
+    registerTable(
+        "TestTable",
+        TestBoundedTable.of(schemaType).addRows(
+            1, "a", 1,
+            1, "a", 2,
+            1, "b", 3,
+            1, "c", 4,
+            1, "b", 8,
+            1, "a", 7,
+            1, "c", 9,
+            2, "a", 6,
+            2, "b", 10,
+            2, "c", 11,
+            5, "a", 0));
+
+    String sql =
+        "SELECT * "
+            + "FROM TestTable "
+            + "MATCH_RECOGNIZE ("
+            + "PARTITION BY id "
+            + "ORDER BY proctime "
+            + "MEASURES "
+            + "LAST (A.id) AS aid, "
+            + "B.id AS bid, "
+            + "C.id AS cid "
+            + "PATTERN (A+ B C) "
+            + "DEFINE "
+            + "A AS name = 'a', "
+            + "B AS name = 'b', "
+            + "C AS name = 'c' "
+            + ") AS T";
+
+    PCollection<Row> result = compilePipeline(sql, pipeline);
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                Schema.FieldType.INT32, "T.aid",
+                Schema.FieldType.INT32, "T.bid",
+                Schema.FieldType.INT32, "T.cid")
+                .addRows(2, 3, 4,
+                    7, 8, 9,
+                    6, 10, 11
+                    )
+                .getRows());
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /*
+  @Test
+  public void matchNFATest() {
+    Schema schemaType =
+        Schema.builder()
+            .addStringField("Symbol")
+            .addDateTimeField("TradeDay")
+            .addInt32Field("Price")
+            .build();
+
+    registerTable(
+        "Ticker", TestBoundedTable.of(schemaType).addRows(
+            "a", "2020-07-01", 32, // 1st A
+            "a", "2020-06-01", 34,
+            "a", "2020-07-02", 31, // B
+            "a", "2020-08-30", 30, // B
+            "a", "2020-08-31", 35, // C
+            "a", "2020-10-01", 28,
+            "a", "2020-10-15", 30, // 2nd A
+            "a", "2020-11-01", 22, // B
+            "a", "2020-11-08", 29, // C
+            "a", "2020-12-10", 30, // C
+            "b", "2020-12-01", 22,
+            "c", "2020-05-16", 27, // A
+            "c", "2020-09-14", 26, // B
+            "c", "2020-10-13", 30)); // C
+
+    // match `V` shapes in prices
+    String sql =
+        "SELECT M.Symbol,"
+            + " M.Matchno,"
+            + " M.Startp,"
+            + " M.Bottomp,"
+            + " M.Endp,"
+            + " M.Avgp"
+            + "FROM Ticker "
+            + "MATCH_RECOGNIZE ("
+              + "PARTITION BY Symbol "
+              + "ORDER BY Tradeday "
+              + "MEASURES "
+              + "MATCH_NUMBER() AS Matchno, "
+              + "A.price AS Startp, "
+              + "LAST (B.Price) AS Bottomp, "
+              + "LAST (C.Price) AS ENDp, "
+              + "AVG (U.Price) AS Avgp "
+              + "AFTER MATCH SKIP PAST LAST ROW "
+              + "PATTERN (A B+ C+) "
+              + "SUBSET U = (A, B, C) "
+              + "DEFINE "
+              + "B AS B.Price < PREV (B.Price), "
+              + "C AS C.Price > PREV (C.Price) "
+            + ") AS T";
+
+    PCollection<Row> result = compilePipeline(sql, pipeline);
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                Schema.FieldType.INT32, "id",
+                Schema.FieldType.STRING, "name",
+                Schema.FieldType.INT32, "proctime")
+                .addRows(1, "a", 1, 1, "b", 2, 1, "c", 3)
+                .getRows());
+
+    pipeline.run().waitUntilFinish();
+  }
+  */
 }

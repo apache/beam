@@ -23,6 +23,10 @@ import java.io.Serializable;
  * {@code CEPKind} corresponds to Calcite's {@code SqlKind}. It records some special SQL operations.
  */
 public enum CEPKind implements Serializable {
+  COUNT,
+  AVG,
+  SUM,
+  FIRST,
   LAST,
   PREV,
   NEXT,

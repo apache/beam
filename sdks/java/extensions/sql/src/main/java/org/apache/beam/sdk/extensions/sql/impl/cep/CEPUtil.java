@@ -21,10 +21,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
+import com.google.common.collect.ImmutableMap;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollation;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
@@ -151,5 +154,88 @@ public class CEPUtil {
     }
 
     return revOrderKeysList;
+  }
+
+  /** Transform the Measures clause Map into CEPOperations.
+   * For now, we only support FINAL. The transformation leaves out any
+   * FINAL/RUNNING keywords */
+  public static Map<String, CEPOperation> getCEPOperationFromMeasures(Map<String, RexNode> measures) {
+    ImmutableMap.Builder<String, CEPOperation> cepMeasures = new ImmutableMap.Builder<>();
+    for(Map.Entry<String, RexNode> i : measures.entrySet()) {
+      cepMeasures.put(i.getKey(), CEPOperation.of(i.getValue()));
+    }
+    return cepMeasures.build();
+  }
+
+  /** Transform the partition columns into serializable CEPFieldRef. */
+  public static List<CEPFieldRef> getCEPFieldRefFromParKeys(List<RexNode> parKeys) {
+    ArrayList<CEPFieldRef> fieldList = new ArrayList<>();
+    for(RexNode i : parKeys) {
+      RexInputRef parKey = (RexInputRef) i;
+      fieldList.add(new CEPFieldRef(parKey.getName(), parKey.getIndex()));
+    }
+    return fieldList;
+  }
+
+  /** a function that finds a pattern reference recursively */
+  public static CEPFieldRef getFieldRef(CEPOperation opr) {
+    if(opr.getClass() == CEPFieldRef.class) {
+      CEPFieldRef field = (CEPFieldRef) opr;
+      return field;
+    } else if(opr.getClass() == CEPCall.class) {
+      CEPCall call = (CEPCall) opr;
+      CEPFieldRef field;
+
+      for(CEPOperation i : call.getOperands()) {
+        field = getFieldRef(i);
+        if(field != null) {
+          return field;
+        }
+      }
+      return null;
+    } else {
+      return null;
+    }
+  }
+
+  public static Schema.FieldType getFieldType(Schema streamSchema, CEPOperation measureOperation) {
+
+    if(measureOperation.getClass() == CEPFieldRef.class) {
+      CEPFieldRef field =  (CEPFieldRef) measureOperation;
+      return streamSchema.getField(field.getIndex()).getType();
+    } else if(measureOperation.getClass() == CEPCall.class) {
+
+      CEPCall call = (CEPCall) measureOperation;
+      CEPKind oprKind = call.getOperator().getCepKind();
+
+      if(oprKind == CEPKind.SUM ||
+          oprKind == CEPKind.COUNT) {
+        return Schema.FieldType.INT32;
+      } else if(oprKind == CEPKind.AVG) {
+        return Schema.FieldType.DOUBLE;
+      }
+      CEPFieldRef refOpt;
+      for(CEPOperation i : call.getOperands()) {
+        refOpt = getFieldRef(i);
+        if(refOpt != null) {
+          return streamSchema.getField(refOpt.getIndex()).getType();
+        }
+      }
+      throw new UnsupportedOperationException("the function in Measures is not recognized.");
+    } else {
+      throw new UnsupportedOperationException("the function in Measures is not recognized.");
+    }
+  }
+
+  /** Get CEPFieldRef from the Map of Measures */
+  public static Map<String, CEPFieldRef> getFieldRefFromMeasures(Schema streamSchema, Map<String, CEPOperation> measures) {
+    ImmutableMap.Builder<String, CEPFieldRef> fieldRefMeasures = new ImmutableMap.Builder<>();
+    for(Map.Entry<String, CEPOperation> i : measures.entrySet()) {
+      CEPFieldRef refOpt = getFieldRef(i.getValue());
+      if(refOpt != null) {
+        fieldRefMeasures.put(i.getKey(), refOpt);
+      }
+    }
+    return fieldRefMeasures.build();
   }
 }
