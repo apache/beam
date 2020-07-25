@@ -161,7 +161,7 @@ class BlobStorageFileSystem(FileSystem):
     
     Returns: file handle with a close function for the user to use
     """
-    raise NotImplementedError
+    return self._path_open(path, 'wb', mime_type, compression_type)
 
   def open(
       self,
