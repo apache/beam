@@ -192,6 +192,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
         'rb',
         mime_type='application/octet-stream')
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
