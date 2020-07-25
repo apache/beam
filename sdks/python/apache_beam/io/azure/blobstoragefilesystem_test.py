@@ -176,8 +176,21 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     blobstorageio_mock.open.assert_called_once_with(
         'azfs://storageaccount/container/file1',
         'wb',
-        mime_type='application/octet-stream')   
+        mime_type='application/octet-stream')
 
+  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
+  def test_open(self, unused_mock_blobstorageio):
+    # Prepare mocks.
+    blobstorageio_mock = mock.MagicMock()
+    blobstoragefilesystem.blobstorageio.BlobStorageIO = lambda: blobstorageio_mock
+    # Issue file copy
+    _ = self.fs.open(
+        'azfs://storageaccount/container/file1', 'application/octet-stream')
+
+    blobstorageio_mock.open.assert_called_once_with(
+        'azfs://storageaccount/container/file1',
+        'rb',
+        mime_type='application/octet-stream')
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
