@@ -130,6 +130,21 @@ class BlobStorageFileSystem(FileSystem):
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
+  def _path_open(
+      self,
+      path,
+      mode,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
+    """Helper functions to open a file in the provided mode.
+    """
+    compression_type = FileSystem._get_compression_type(path, compression_type)
+    mime_type = CompressionTypes.mime_type(compression_type, mime_type)
+    raw_file = blobstorageio.BlobStorageIO().open(path, mode, mime_type=mime_type)
+    if compression_type == CompressionTypes.UNCOMPRESSED:
+      return raw_file
+    return CompressedFile(raw_file, compression_type=compression_type)
+
   def create(
       self,
       path,
