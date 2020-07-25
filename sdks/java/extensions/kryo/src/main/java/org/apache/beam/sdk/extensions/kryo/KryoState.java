@@ -38,6 +38,11 @@ class KryoState {
   /** Caching thread local storage for reusable {@link KryoState}s. */
   private static class Storage {
 
+      /**
+       * It's a known bug in checkerframework.
+       * https://stackoverflow.com/questions/63049612/checker-framework-incompatible-types-in-type-argument/63078419#63078419
+       */
+      @SuppressWarnings("nullness")
     private final ThreadLocal<Map<String, KryoState>> kryoStateMap =
         ThreadLocal.withInitial(HashMap::new);
 
