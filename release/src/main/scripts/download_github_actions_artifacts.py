@@ -266,14 +266,11 @@ def fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token):
     name = safe_get(artifact, "name")
     size_in_bytes = safe_get(artifact, "size_in_bytes")
 
-    fd, temp_file_path = tempfile.mkstemp(prefix=name, suffix=".zip")
-    try:
-      os.close(fd)
+    with tempfile.TemporaryDirectory() as tmp:
+      temp_file_path = os.path.join(tmp, name + ".zip")
       download_single_artifact(
           url, name, size_in_bytes, temp_file_path, github_token)
       extract_single_artifact(temp_file_path, artifacts_dir)
-    finally:
-      os.remove(temp_file_path)
 
 
 def download_single_artifact(
