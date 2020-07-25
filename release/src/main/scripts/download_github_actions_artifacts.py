@@ -64,7 +64,8 @@ def parse_arguments():
   repo_url = args.repo_url
   release_branch = args.release_branch
   release_commit = args.release_commit
-  artifacts_dir = args.artifacts_dir
+  artifacts_dir = args.artifacts_dir if os.path.isabs(args.artifacts_dir) \
+    else os.path.abspath(args.artifacts_dir)
 
   return github_token, user_github_id, repo_url, release_branch, release_commit, artifacts_dir
 
