@@ -63,6 +63,8 @@ read USER_GITHUB_ID
 
 USER_REMOTE_URL=git@github.com:${USER_GITHUB_ID}/beam-site
 
+echo "=================Pre-requirements===================="
+echo "Please make sure you have configured and started your gpg by running ./preparation_before_release.sh."
 echo "================Listing all GPG keys================="
 gpg --list-keys --keyid-format LONG --fingerprint --fingerprint
 echo "Please copy the public key which is associated with your Apache account:"
@@ -157,8 +159,6 @@ fi
 
 
 echo "[Current Step]: Stage python binaries and wheels"
-echo "===============================Pre-requirements========================"
-echo "Please make sure you have configured and started your gpg by running ./preparation_before_release.sh."
 echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
