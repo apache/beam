@@ -17,7 +17,11 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableChecker:false,exportJavadoc: false, automaticModuleName: 'org.apache.beam.sdk.extensions.euphoria')
+applyJavaNature(
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
+  exportJavadoc: false,
+  automaticModuleName: 'org.apache.beam.sdk.extensions.euphoria')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
 
