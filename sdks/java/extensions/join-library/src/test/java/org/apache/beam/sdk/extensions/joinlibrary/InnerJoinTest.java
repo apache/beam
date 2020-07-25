@@ -32,11 +32,10 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** This test Inner Join functionality. */
-@SuppressWarnings("initialization.fields.uninitialized")
 public class InnerJoinTest {
-  private List<KV<String, Long>> leftListOfKv;
-  private List<KV<String, String>> rightListOfKv;
-  private List<KV<String, KV<Long, String>>> expectedResult;
+  private List<KV<String, Long>> leftListOfKv = new ArrayList<>();
+  private List<KV<String, String>> rightListOfKv = new ArrayList<>();
+  private List<KV<String, KV<Long, String>>> expectedResult = new ArrayList<>();
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
