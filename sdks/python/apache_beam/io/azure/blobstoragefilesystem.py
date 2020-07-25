@@ -179,7 +179,7 @@ class BlobStorageFileSystem(FileSystem):
     
     Returns: file handle with a close function for the user to use
     """
-    raise NotImplementedError
+    return self._path_open(path, 'rb', mime_type, compression_type)
 
   def copy(self, source_file_names, destination_file_names):
     """Recursively copy the file tree from the source to the destination

@@ -166,7 +166,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
 
   @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
   def test_create(self, unused_mock_blobstorageio):
-      # Prepare mocks.
+    # Prepare mocks.
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = lambda: blobstorageio_mock
     # Issue file copy
@@ -177,6 +177,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
         'azfs://storageaccount/container/file1',
         'wb',
         mime_type='application/octet-stream')   
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
