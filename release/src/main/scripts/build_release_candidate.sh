@@ -19,7 +19,7 @@
 # This script will create a Release Candidate, includes:
 # 1. Build and stage java artifacts
 # 2. Stage source release on dist.apache.org
-# 3. Stage python binaries and wheels on dist.apache.org
+# 3. Stage python source distribution and wheels on dist.apache.org
 # 4. Stage SDK docker images
 # 5. Create a PR to update beam-site
 
@@ -158,7 +158,7 @@ if [[ $confirmation = "y" ]]; then
 fi
 
 
-echo "[Current Step]: Stage python binaries and wheels"
+echo "[Current Step]: Stage python source distribution and wheels on dist.apache.org"
 echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then

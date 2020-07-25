@@ -562,7 +562,7 @@ For this step, we recommend you using automation script to create a RC, but you 
   1. Run gradle release to create rc tag and push source release into github repo.
   1. Run gradle publish to push java artifacts into Maven staging repo.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
-  1. Stage, sign and hash python binaries and wheels into dist.apache.ord dev repo python dir
+  1. Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir
   1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
   1. Create a PR to update beam-site, changes includes:
      * Copy python doc into beam-site
