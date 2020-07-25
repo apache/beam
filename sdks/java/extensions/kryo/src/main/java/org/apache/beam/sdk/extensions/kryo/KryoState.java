@@ -22,6 +22,8 @@ import com.esotericsoftware.kryo.io.InputChunked;
 import com.esotericsoftware.kryo.io.OutputChunked;
 import java.util.HashMap;
 import java.util.Map;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /** Reusable kryo instance. */
@@ -34,6 +36,9 @@ class KryoState {
   }
 
   /** Caching thread local storage for reusable {@link KryoState}s. */
+  @SuppressFBWarnings(
+          value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE",
+          justification = "Spotbugs incorrectly thinks continuation is marked @Nullable")
   private static class Storage {
 
     /**
