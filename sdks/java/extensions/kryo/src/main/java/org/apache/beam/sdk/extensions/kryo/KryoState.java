@@ -20,10 +20,9 @@ package org.apache.beam.sdk.extensions.kryo;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.InputChunked;
 import com.esotericsoftware.kryo.io.OutputChunked;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
 import java.util.Map;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /** Reusable kryo instance. */
@@ -37,10 +36,9 @@ class KryoState {
 
   /** Caching thread local storage for reusable {@link KryoState}s. */
   @SuppressFBWarnings(
-          value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE",
-          justification = "Spotbugs incorrectly thinks kryoStateMap is marked @Nullable")
+      value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE",
+      justification = "Spotbugs incorrectly thinks kryoStateMap is marked @Nullable")
   private static class Storage {
-
     /**
      * It's a known bug in checkerframework.
      * https://stackoverflow.com/questions/63049612/checker-framework-incompatible-types-in-type-argument/63078419#63078419
