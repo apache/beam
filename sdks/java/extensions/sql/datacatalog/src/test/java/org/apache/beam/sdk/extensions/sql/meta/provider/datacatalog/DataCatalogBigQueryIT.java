@@ -74,7 +74,6 @@ public class DataCatalogBigQueryIT {
     @Parameterized.Parameter(1)
     public Class<? extends QueryPlanner> queryPlanner;
 
-    @SuppressWarnings("nullness")
     @Test
     public void testRead() throws Exception {
       TableReference bqTable = bigQuery.tableReference();
@@ -98,7 +97,7 @@ public class DataCatalogBigQueryIT {
       readPipeline
           .getOptions()
           .as(BeamSqlPipelineOptions.class)
-          .setPlannerName(queryPlanner.getCanonicalName());
+          .setPlannerName(queryPlanner.getName());
 
       try (DataCatalogTableProvider tableProvider =
           DataCatalogTableProvider.create(
