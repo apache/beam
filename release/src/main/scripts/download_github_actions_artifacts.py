@@ -236,18 +236,22 @@ def wait_for_workflow_run_to_finish(
         )
 
 
-def reset_directory(artifacts_dir):
-  """Clears directory asking for confirmation before."""
-  question = (
-      f"Creating Artifacts directory. Any existing content in {artifacts_dir} will be erased. Proceed?\n"
-      f"Your answer")
-  if get_yes_or_no_answer(question):
-    print(f"Clearing directory: {artifacts_dir}")
-    shutil.rmtree(artifacts_dir, ignore_errors=True)
-    os.makedirs(artifacts_dir)
-  else:
-    print("You said NO for clearing artifacts directory. Quitting ...")
-    sys.exit(1)
+def prepare_directory(artifacts_dir):
+  """Creates given directory and asks for confirmation if directory exists before clearing it."""
+  print(f"Preparing Artifacts directory: {artifacts_dir}")
+  if os.path.isdir(artifacts_dir):
+    question = (
+        f"Found that directory already exists.\n"
+        f"Any existing content in it will be erased. Proceed?\n"
+        f"Your answer")
+    if get_yes_or_no_answer(question):
+      print(f"Clearing directory: {artifacts_dir}")
+      shutil.rmtree(artifacts_dir, ignore_errors=True)
+    else:
+      print("You said NO for clearing artifacts directory. Quitting ...")
+      sys.exit(1)
+
+  os.makedirs(artifacts_dir)
 
 
 def fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token):
@@ -314,7 +318,7 @@ if __name__ == "__main__":
     run_id = get_last_run_id(
         workflow_id, repo_url, release_branch, release_commit, github_token)
     validate_run(run_id, repo_url, github_token)
-    reset_directory(artifacts_dir)
+    prepare_directory(artifacts_dir)
     fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token)
     print("Script finished successfully!")
     print(f"Artifacts available in directory: {artifacts_dir}")
