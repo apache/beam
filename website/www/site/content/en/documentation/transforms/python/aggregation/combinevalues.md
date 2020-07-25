@@ -1,5 +1,5 @@
 ---
-title: "CombinePerKey"
+title: "CombineValues"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,22 +15,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# CombinePerKey
+# CombineValues
 
 {{< localstorage language language-py >}}
 
-{{< button-pydoc path="apache_beam.transforms.core" class="CombinePerKey" >}}
+{{< button-pydoc path="apache_beam.transforms.core" class="CombineValues" >}}
 
-Combines all elements for each key in a collection.
+Combines an iterable of values in a keyed collection of elements.
 
 See more information in the [Beam Programming Guide](/documentation/programming-guide/#combine).
 
 ## Examples
 
 In the following examples, we create a pipeline with a `PCollection` of produce.
-Then, we apply `CombinePerKey` in multiple ways to combine all the elements in the `PCollection`.
+Then, we apply `CombineValues` in multiple ways to combine the keyed values in the `PCollection`.
 
-`CombinePerKey` accepts a function that takes a list of values as an input, and combines them for each key.
+`CombineValues` accepts a function that takes an `iterable` of elements as an input, and combines them to return a single element.
+`CombineValues` expects a keyed `PCollection` of elements, where the value is an iterable of elements to be combined.
 
 ### Example 1: Combining with a predefined function
 
@@ -39,7 +40,7 @@ We use the function
 which takes an `iterable` of numbers and adds them together.
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_simple >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_simple >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -47,18 +48,21 @@ Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" total >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_test.py" total >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 
 ### Example 2: Combining with a function
+
+We want the sum to be bounded up to a maximum value, so we use
+[saturated arithmetic](https://en.wikipedia.org/wiki/Saturation_arithmetic).
 
 We define a function `saturated_sum` which takes an `iterable` of numbers and adds them together, up to a predefined maximum number.
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_function >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_function >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -66,18 +70,18 @@ Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" saturated_total >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_test.py" saturated_total >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 
 ### Example 3: Combining with a lambda function
 
 We can also use lambda functions to simplify **Example 2**.
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_lambda >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_lambda >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -85,21 +89,21 @@ Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" saturated_total >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_test.py" saturated_total >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 
 ### Example 4: Combining with multiple arguments
 
-You can pass functions with multiple arguments to `CombinePerKey`.
+You can pass functions with multiple arguments to `CombineValues`.
 They are passed as additional positional arguments or keyword arguments to the function.
 
 In this example, the lambda function takes `values` and `max_value` as arguments.
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_multiple_arguments >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_multiple_arguments >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -107,11 +111,11 @@ Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" saturated_total >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_test.py" saturated_total >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 
 ### Example 5: Combining with side inputs as singletons
 
@@ -122,7 +126,7 @@ In this example, we pass a `PCollection` the value `8` as a singleton.
 We then use that value as the `max_value` for our saturated sum.
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_side_inputs_singleton >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_side_inputs_singleton >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -130,11 +134,11 @@ Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" saturated_total >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_test.py" saturated_total >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 
 ### Example 6: Combining with side inputs as iterators
 
@@ -143,7 +147,7 @@ This accesses elements lazily as they are needed,
 so it is possible to iterate over large `PCollection`s that won't fit into memory.
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_side_inputs_iter >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_side_inputs_iter >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -151,11 +155,11 @@ Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" bounded_total >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_test.py" bounded_total >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 
 > **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
 > but this requires that all the elements fit into memory.
@@ -168,7 +172,7 @@ Note that all the elements of the `PCollection` must fit into memory for this.
 If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_side_inputs_dict >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_side_inputs_dict >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -176,11 +180,11 @@ Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" bounded_total >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_test.py" bounded_total >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 
 ### Example 8: Combining with a `CombineFn`
 
@@ -201,7 +205,7 @@ The more general way to combine elements, and the most flexible, is with a class
   It allows to do additional calculations before extracting a result.
 
 {{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_combinefn >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_combinefn >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
@@ -209,21 +213,21 @@ Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" average >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues_test.py" percentages_per_season >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 
 ## Related transforms
 
 You can use the following combiner transforms:
 
 * [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally)
-* [CombineValues](/documentation/transforms/python/aggregation/combinevalues)
+* [CombinePerKey](/documentation/transforms/python/aggregation/combineperkey)
 * [Mean](/documentation/transforms/python/aggregation/mean)
 * [Count](/documentation/transforms/python/aggregation/count)
 * [Top](/documentation/transforms/python/aggregation/top)
 * [Sample](/documentation/transforms/python/aggregation/sample)
 
-{{< button-pydoc path="apache_beam.transforms.core" class="CombinePerKey" >}}
+{{< button-pydoc path="apache_beam.transforms.core" class="CombineValues" >}}
