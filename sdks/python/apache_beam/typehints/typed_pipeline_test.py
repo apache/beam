@@ -231,6 +231,39 @@ class MainInputTest(unittest.TestCase):
     with self.assertRaises(typehints.TypeCheckError):
       _ = ['a'] | MyMap()
 
+  def test_typed_ptransform_fn_multi_input_types_pos(self):
+    @beam.ptransform_fn
+    @beam.typehints.with_input_types(str, int)
+    def multi_input(pcoll_tuple, additional_arg):
+      _, _ = pcoll_tuple
+      assert additional_arg == 'additional_arg'
+
+    with TestPipeline() as p:
+      pcoll1 = p | 'c1' >> beam.Create(['a'])
+      pcoll2 = p | 'c2' >> beam.Create([1])
+      _ = (pcoll1, pcoll2) | multi_input('additional_arg')
+      with self.assertRaises(typehints.TypeCheckError):
+        _ = (pcoll2, pcoll1) | 'fails' >> multi_input('additional_arg')
+
+  def test_typed_ptransform_fn_multi_input_types_kw(self):
+    @beam.ptransform_fn
+    @beam.typehints.with_input_types(strings=str, integers=int)
+    def multi_input(pcoll_dict, additional_arg):
+      _ = pcoll_dict['strings']
+      _ = pcoll_dict['integers']
+      assert additional_arg == 'additional_arg'
+
+    with TestPipeline() as p:
+      pcoll1 = p | 'c1' >> beam.Create(['a'])
+      pcoll2 = p | 'c2' >> beam.Create([1])
+      _ = {
+          'strings': pcoll1, 'integers': pcoll2
+      } | multi_input('additional_arg')
+      with self.assertRaises(typehints.TypeCheckError):
+        _ = {
+            'strings': pcoll2, 'integers': pcoll1
+        } | 'fails' >> multi_input('additional_arg')
+
 
 class NativeTypesTest(unittest.TestCase):
   def test_good_main_input(self):
