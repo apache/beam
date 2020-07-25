@@ -38,7 +38,7 @@ class KryoState {
   /** Caching thread local storage for reusable {@link KryoState}s. */
   @SuppressFBWarnings(
           value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE",
-          justification = "Spotbugs incorrectly thinks continuation is marked @Nullable")
+          justification = "Spotbugs incorrectly thinks kryoStateMap is marked @Nullable")
   private static class Storage {
 
     /**
