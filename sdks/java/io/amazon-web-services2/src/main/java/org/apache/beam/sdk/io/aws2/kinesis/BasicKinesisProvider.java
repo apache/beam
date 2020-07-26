@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.net.URI;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -35,7 +35,7 @@ class BasicKinesisProvider implements AWSClientsProvider {
   private final String accessKey;
   private final String secretKey;
   private final String region;
-  @Nullable private final String serviceEndpoint;
+  private final @Nullable String serviceEndpoint;
 
   BasicKinesisProvider(
       String accessKey, String secretKey, Region region, @Nullable String serviceEndpoint) {

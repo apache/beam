@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.ToStringBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber;
@@ -109,7 +110,7 @@ public class KinesisRecord {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     return EqualsBuilder.reflectionEquals(this, obj);
   }
 

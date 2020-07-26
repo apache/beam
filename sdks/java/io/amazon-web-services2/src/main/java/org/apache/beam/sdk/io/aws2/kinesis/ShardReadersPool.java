@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -228,8 +229,16 @@ class ShardReadersPool {
   }
 
   Instant getWatermark() {
+    return getMinTimestamp(ShardRecordsIterator::getShardWatermark);
+  }
+
+  Instant getLatestRecordTimestamp() {
+    return getMinTimestamp(ShardRecordsIterator::getLatestRecordTimestamp);
+  }
+
+  private Instant getMinTimestamp(Function<ShardRecordsIterator, Instant> timestampExtractor) {
     return shardIteratorsMap.get().values().stream()
-        .map(ShardRecordsIterator::getShardWatermark)
+        .map(timestampExtractor)
         .min(Comparator.naturalOrder())
         .orElse(BoundedWindow.TIMESTAMP_MAX_VALUE);
   }

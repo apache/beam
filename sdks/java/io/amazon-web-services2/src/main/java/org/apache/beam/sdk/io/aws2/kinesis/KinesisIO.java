@@ -21,13 +21,13 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -240,24 +240,19 @@ public final class KinesisIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<KinesisRecord>> {
 
-    @Nullable
-    abstract String getStreamName();
+    abstract @Nullable String getStreamName();
 
-    @Nullable
-    abstract StartingPoint getInitialPosition();
+    abstract @Nullable StartingPoint getInitialPosition();
 
-    @Nullable
-    abstract AWSClientsProvider getAWSClientsProvider();
+    abstract @Nullable AWSClientsProvider getAWSClientsProvider();
 
     abstract long getMaxNumRecords();
 
-    @Nullable
-    abstract Duration getMaxReadTime();
+    abstract @Nullable Duration getMaxReadTime();
 
     abstract Duration getUpToDateThreshold();
 
-    @Nullable
-    abstract Integer getRequestRecordsLimit();
+    abstract @Nullable Integer getRequestRecordsLimit();
 
     abstract WatermarkPolicyFactory getWatermarkPolicyFactory();
 

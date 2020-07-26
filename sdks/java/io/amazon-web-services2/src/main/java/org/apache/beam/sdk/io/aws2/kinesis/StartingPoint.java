@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.Serializable;
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 import software.amazon.kinesis.common.InitialPositionInStream;
@@ -58,7 +59,7 @@ class StartingPoint implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
