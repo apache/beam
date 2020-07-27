@@ -19,7 +19,7 @@
 # This script will create a Release Candidate, includes:
 # 1. Build and stage java artifacts
 # 2. Stage source release on dist.apache.org
-# 3. Stage python binaries
+# 3. Stage python source distribution and wheels on dist.apache.org
 # 4. Stage SDK docker images
 # 5. Create a PR to update beam-site
 
@@ -36,7 +36,8 @@ LOCAL_WEBSITE_REPO=beam_website_repo
 
 USER_REMOTE_URL=
 USER_GITHUB_ID=
-GIT_REPO_URL=git@github.com:apache/beam.git
+GIT_REPO_BASE_URL=apache/beam
+GIT_REPO_URL=git@github.com:${GIT_REPO_BASE_URL}.git
 ROOT_SVN_URL=https://dist.apache.org/repos/dist/dev/beam
 GIT_BEAM_ARCHIVE=https://github.com/apache/beam/archive
 GIT_BEAM_WEBSITE=https://github.com/apache/beam-site.git
@@ -62,6 +63,8 @@ read USER_GITHUB_ID
 
 USER_REMOTE_URL=git@github.com:${USER_GITHUB_ID}/beam-site
 
+echo "=================Pre-requirements===================="
+echo "Please make sure you have configured and started your gpg by running ./preparation_before_release.sh."
 echo "================Listing all GPG keys================="
 gpg --list-keys --keyid-format LONG --fingerprint --fingerprint
 echo "Please copy the public key which is associated with your Apache account:"
@@ -154,41 +157,58 @@ if [[ $confirmation = "y" ]]; then
   rm -rf ~/${LOCAL_JAVA_STAGING_DIR}
 fi
 
-echo "[Current Step]: Stage python binaries"
+
+echo "[Current Step]: Stage python source distribution and wheels on dist.apache.org"
 echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "============Staging Python Binaries on dist.apache.org========="
   cd ~
-  if [[ -d ${LOCAL_PYTHON_STAGING_DIR} ]]; then
-    rm -rf ${LOCAL_PYTHON_STAGING_DIR}
+  if [[ -d "${LOCAL_PYTHON_STAGING_DIR}" ]]; then
+    rm -rf "${LOCAL_PYTHON_STAGING_DIR}"
   fi
-  mkdir -p ${LOCAL_PYTHON_STAGING_DIR}
-  cd ${LOCAL_PYTHON_STAGING_DIR}
+  mkdir -p "${LOCAL_PYTHON_STAGING_DIR}"
+  cd "${LOCAL_PYTHON_STAGING_DIR}"
 
   echo '-------------------Cloning Beam Release Branch-----------------'
-  git clone ${GIT_REPO_URL}
-  cd ${BEAM_ROOT_DIR}
-  git checkout ${RELEASE_BRANCH}
+  git clone "${GIT_REPO_URL}"
+  cd "${BEAM_ROOT_DIR}"
+  git checkout "${RELEASE_BRANCH}"
+  RELEASE_COMMIT=$(git rev-parse --verify HEAD)
 
-  echo '-------------------Generating Python Artifacts-----------------'
-  cd sdks/python
-  virtualenv ${LOCAL_PYTHON_VIRTUALENV}
-  source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
-  pip install -r build-requirements.txt
-  python setup.py sdist --format=zip
-  cd dist
+  echo '-------------------Creating Python Virtualenv-----------------'
+  python3 -m venv "${LOCAL_PYTHON_VIRTUALENV}"
+  source "${LOCAL_PYTHON_VIRTUALENV}/bin/activate"
+  pip install requests python-dateutil
 
+  echo '--------------Fetching GitHub Actions Artifacts--------------'
+  SVN_ARTIFACTS_DIR="beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}"
   svn co https://dist.apache.org/repos/dist/dev/beam
-  mkdir -p beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
-  cp apache-beam-${RELEASE}.zip beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}/apache-beam-${RELEASE}.zip
-  cd beam/${RELEASE}/${PYTHON_ARTIFACTS_DIR}
+  mkdir -p "${SVN_ARTIFACTS_DIR}"
+  python release/src/main/scripts/download_github_actions_artifacts.py \
+    --github-user "${USER_GITHUB_ID}" \
+    --repo-url "${GIT_REPO_BASE_URL}" \
+    --release-branch "${RELEASE_BRANCH}" \
+    --release-commit "${RELEASE_COMMIT}" \
+    --artifacts_dir "${SVN_ARTIFACTS_DIR}"
+
+  cd "${SVN_ARTIFACTS_DIR}"
+
+  echo "------Checking Hash Value for apache-beam-${RELEASE}.zip-----"
+  sha512sum -c "apache-beam-${RELEASE}.zip.sha512"
 
   echo "------Signing Source Release apache-beam-${RELEASE}.zip------"
-  gpg --local-user ${SIGNING_KEY} --armor --detach-sig apache-beam-${RELEASE}.zip
+  gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "apache-beam-${RELEASE}.zip"
 
-  echo "------Creating Hash Value for apache-beam-${RELEASE}.zip------"
-  sha512sum apache-beam-${RELEASE}.zip > apache-beam-${RELEASE}.zip.sha512
+  for artifact in *.whl; do
+    echo "----------Checking Hash Value for ${artifact} wheel-----------"
+    sha512sum -c "${artifact}.sha512"
+  done
+
+  for artifact in *.whl; do
+    echo "------------------Signing ${artifact} wheel-------------------"
+    gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "${artifact}"
+  done
 
   cd ..
   svn add --force ${PYTHON_ARTIFACTS_DIR}
@@ -197,11 +217,11 @@ if [[ $confirmation = "y" ]]; then
   read confirmation
   if [[ $confirmation != "y" ]]; then
     echo "Exit without staging python artifacts on dist.apache.org."
-    rm -rf ~/${PYTHON_ARTIFACTS_DIR}
+    rm -rf "${HOME:?}/${LOCAL_PYTHON_STAGING_DIR}"
     exit
   fi
   svn commit --no-auth-cache
-  rm -rf ~/${PYTHON_ARTIFACTS_DIR}
+  rm -rf "${HOME:?}/${LOCAL_PYTHON_STAGING_DIR}"
 fi
 
 echo "[Current Step]: Stage docker images"
