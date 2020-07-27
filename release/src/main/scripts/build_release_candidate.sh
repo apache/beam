@@ -288,14 +288,14 @@ if [[ $confirmation = "y" ]]; then
   mkdir -p ${LOCAL_WEBSITE_REPO}
 
   echo "------------------Building Python Doc------------------------"
-  virtualenv ${LOCAL_PYTHON_VIRTUALENV}
-  source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
+  python3 -m venv "${LOCAL_PYTHON_VIRTUALENV}"
+  source "${LOCAL_PYTHON_VIRTUALENV}/bin/activate"
   cd ${LOCAL_PYTHON_DOC}
   pip install tox
   git clone ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   git checkout ${RELEASE_BRANCH}
-  cd sdks/python && pip install -r build-requirements.txt && tox -e py37-docs
+  cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
 
