@@ -31,9 +31,9 @@ Pcollection of dict that encodes results and detailed error messages.
 Search instance's metadata (QIDO request)
 ===================================================
 DicomSearch() wraps the QIDO request client and supports 3 levels of search.
-Users should specify the level by setting the ‘search_type’ entry in the input
+Users should specify the level by setting the 'search_type' entry in the input
 dict. They can also refine the search by adding tags to filter the results using
-the ‘params’ entry. Here is a sample usage:
+the 'params' entry. Here is a sample usage:
 
   with Pipeline() as p:
     input_dict = p | beam.Create([
