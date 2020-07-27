@@ -24,6 +24,8 @@ from __future__ import absolute_import
 
 import threading
 
+from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
+from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
 from apache_beam.runners.interactive import interactive_environment as ie
 
 
@@ -33,6 +35,20 @@ class Limiter:
     # type: () -> bool
 
     """Returns True if the limiter has triggered, and caching should stop."""
+    raise NotImplementedError
+
+
+class ElementLimiter(Limiter):
+  """A `Limiter` that limits reading from cache based on some property of an
+  element.
+  """
+  def update(self, e):
+    # type: (Any) -> None
+
+    """Update the internal state based on some property of an element.
+
+    This is executed on every element that is read from cache.
+    """
     raise NotImplementedError
 
 
@@ -71,3 +87,62 @@ class DurationLimiter(Limiter):
 
   def is_triggered(self):
     return self._triggered
+
+
+class CountLimiter(ElementLimiter):
+  """Limits by counting the number of elements seen."""
+  def __init__(self, max_count):
+    self._max_count = max_count
+    self._count = 0
+
+  def update(self, e):
+    # A TestStreamFileRecord can contain many elements at once. If e is a file
+    # record, then count the number of elements in the bundle.
+    if isinstance(e, TestStreamFileRecord):
+      if not e.recorded_event.element_event:
+        return
+      self._count += len(e.recorded_event.element_event.elements)
+
+    # Otherwise, count everything else but the header of the file since it is
+    # not an element.
+    elif not isinstance(e, TestStreamFileHeader):
+      self._count += 1
+
+  def is_triggered(self):
+    return self._count >= self._max_count
+
+
+class ProcessingTimeLimiter(ElementLimiter):
+  """Limits by how long the ProcessingTime passed in the element stream.
+
+  This measures the duration from either a constructor argument or from the
+  first element in the stream. Each subsequent element has a delta
+  "advance_duration" that moves the internal clock forward. This triggers when
+  the duration from the internal clock and the start exceeds the given duration.
+  """
+  def __init__(self, max_duration_secs, start_secs=None):
+    """Initialize the ProcessingTimeLimiter.
+
+    If start_secs is None, then the start of the stream will be taken from the
+    first element. Otherwise the duration will be measured from the first
+    element.
+    """
+    self._max_duration_us = max_duration_secs * 1e6
+    self._start_us = start_secs * 1e6 if start_secs else None
+    self._cur_time_us = 0
+
+  def update(self, e):
+    # Only look at TestStreamFileRecords which hold the processing time.
+    if not isinstance(e, TestStreamFileRecord):
+      return
+
+    if not e.recorded_event.processing_time_event:
+      return
+
+    if self._start_us is None:
+      self._start_us = e.recorded_event.processing_time_event.advance_duration
+    self._cur_time_us += e.recorded_event.processing_time_event.advance_duration
+
+  def is_triggered(self):
+    start = self._start_us if self._start_us else 0
+    return self._cur_time_us - start >= self._max_duration_us
