@@ -112,7 +112,6 @@ public class BigQueryServicesImplTest {
             return response;
           }
         };
-
     // A mock transport that lets us mock the API responses.
     MockHttpTransport transport =
         new MockHttpTransport.Builder().setLowLevelHttpRequest(request).build();
