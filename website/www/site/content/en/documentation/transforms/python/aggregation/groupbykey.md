@@ -30,7 +30,7 @@ See more information in the [Beam Programming Guide](/documentation/programming-
 
 In the following example, we create a pipeline with a `PCollection` of produce keyed by season.
 
-We use `GroupByKey` group all the produce for each season.
+We use `GroupByKey` to group all the produce for each season.
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupbykey.py" groupbykey >}}
