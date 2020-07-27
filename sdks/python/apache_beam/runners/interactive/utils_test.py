@@ -25,8 +25,12 @@ import unittest
 import numpy as np
 import pandas as pd
 
+from apache_beam import coders
+from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import utils
+from apache_beam.testing.test_stream import WindowedValueHolder
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 # TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
@@ -92,6 +96,40 @@ class ParseToDataframeTest(unittest.TestCase):
         columns=['a', 'b', 'c', 'd', 'event_time', 'windows', 'pane_info'])
     # check_like so that ordering of indices doesn't matter.
     pd.testing.assert_frame_equal(actual_df, expected_df, check_like=True)
+
+
+class ToElementListTest(unittest.TestCase):
+  def test_test_stream_payload_events(self):
+    """Tests that the to_element_list can limit the count in a single bundle."""
+
+    coder = coders.FastPrimitivesCoder()
+
+    def reader():
+      element_payload = [
+          TestStreamPayload.TimestampedElement(
+              encoded_element=coder.encode(
+                  WindowedValueHolder(WindowedValue(e, 0, []))),
+              timestamp=Timestamp.of(0).micros) for e in range(10)
+      ]
+
+      event = TestStreamPayload.Event(
+          element_event=TestStreamPayload.Event.AddElements(
+              elements=element_payload))
+      yield event
+
+    # The reader creates 10 elements in a single TestStreamPayload but we limit
+    # the number of elements read to 5 here. This tests that the to_element_list
+    # can limit the number of elements in a single bundle.
+    elements = utils.to_element_list(
+        reader(), coder, include_window_info=False, n=5)
+    self.assertSequenceEqual(list(elements), list(range(5)))
+
+  def test_element_limit_count(self):
+    """Tests that the to_element_list can limit the count."""
+
+    elements = utils.to_element_list(
+        iter(range(10)), None, include_window_info=False, n=5)
+    self.assertSequenceEqual(list(elements), list(range(5)))
 
 
 @unittest.skipIf(
