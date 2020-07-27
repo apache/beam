@@ -49,6 +49,7 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/python/aggregation/cogroupbykey">CoGroupByKey</a></td><td>Takes several keyed collections of elements and produces a collection where each element consists of a key and all values associated with that key.</td></tr>  
   <tr><td><a href="/documentation/transforms/python/aggregation/combineglobally">CombineGlobally</a></td><td>Transforms to combine elements.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/combineperkey">CombinePerKey</a></td><td>Transforms to combine elements for each key.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/combinevalues">CombineValues</a></td><td>Transforms to combine keyed iterables.</td></tr>
   <tr><td>CombineWithContext</td><td>Not available.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/count">Count</a></td><td>Counts the number of elements within each aggregation.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/distinct">Distinct</a></td><td>Produces a collection containing distinct elements from the input collection.</td></tr>  

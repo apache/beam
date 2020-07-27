@@ -362,3 +362,25 @@ examples:
   "\u0003\u0001\u0007": {str: null, i32: null, f64: null}
   "\u0003\u0001\u0004\u0003foo\u00a9\u0046": {str: "foo", i32: 9001, f64: null}
   "\u0003\u0000\u0003foo\u00a9\u0046\u003f\u00b9\u0099\u0099\u0099\u0099\u0099\u009a": {str: "foo", i32: 9001, f64: "0.1"}
+
+---
+
+# Binary data generated with the python SDK:
+#
+# import typing
+# import apache_beam as beam
+# class Test(typing.NamedTuple):
+#   f_bool: bool
+#   f_byte: typing.Optional[bytes]
+# schema = beam.typehints.schemas.named_tuple_to_schema(Test)
+# coder = beam.coders.row_coder.RowCoder(schema)
+# print("payload = %s" % schema.SerializeToString())
+# print("example = %s" % coder.encode(Test(f_bool=True, f_nullable=None)))
+coder:
+  urn: "beam:coder:row:v1"
+  # f_bool: boolean, f_bytes: nullable bytes
+  payload: "\n\x0c\n\x06f_bool\x1a\x02\x10\x08\n\x0f\n\x07f_bytes\x1a\x04\x08\x01\x10\t\x12$eea1b747-7571-43d3-aafa-9255afdceafb"
+nested: false
+examples:
+  "\x02\x01\x02\x01": {f_bool: True, f_bytes: null}
+  "\x02\x00\x00\x04ab\x00c": {f_bool: False, f_bytes: "ab\0c"}

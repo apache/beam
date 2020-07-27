@@ -181,12 +181,20 @@ pip install apache_beam
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
-As of now you will need a copy of Apache Beam's source code. You can
-download it on the [Downloads page](/get-started/downloads/). In the future there will be pre-built Docker images
-available.
+Starting from Beam 2.20.0, pre-built Spark Job Service Docker images are available at 
+[Docker Hub](https://hub.docker.com/r/apache/beam_spark_job_server).
 {{< /paragraph >}}
 
-{{< paragraph class="language-py" >}}1. Start the JobService endpoint: `./gradlew :runners:spark:job-server:runShadow`{{< /paragraph >}}
+{{< paragraph class="language-py" >}}
+For older Beam versions, you will need a copy of Apache Beam's source code. You can
+download it on the [Downloads page](/get-started/downloads/).
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+1. Start the JobService endpoint:
+    * with Docker (preferred): `docker run --net=host apache/beam_spark_job_server:latest`
+    * or from Beam source code: `./gradlew :runners:spark:job-server:runShadow`
+{{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 The JobService is the central instance where you submit your Beam pipeline.
@@ -217,7 +225,11 @@ For more details on the different deployment modes see: [Standalone](https://spa
 
 {{< paragraph class="language-py" >}}1. Start a Spark cluster which exposes the master on port 7077 by default.{{< /paragraph >}}
 
-{{< paragraph class="language-py" >}}2. Start JobService that will connect with the Spark master: `./gradlew :runners:spark:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077`.{{< /paragraph >}}
+{{< paragraph class="language-py" >}}
+2. Start JobService that will connect with the Spark master:
+    * with Docker (preferred): `docker run --net=host apache/beam_spark_job_server:latest --spark-master-url=spark://localhost:7077`
+    * or from Beam source code: `./gradlew :runners:spark:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077`
+{{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}3. Submit the pipeline as above.
 Note however that `environment_type=LOOPBACK` is only intended for local testing.

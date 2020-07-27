@@ -15,3 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.aws2.kinesis;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+
+@RunWith(JUnit4.class)
+public class TimeUtilTest {
+
+  @Test
+  public void shouldConvertToJodaInstant() {
+    assertThat(TimeUtil.toJoda(null)).isNull();
+    assertThat(TimeUtil.toJoda(java.time.Instant.ofEpochMilli(0L)))
+        .isEqualTo(org.joda.time.Instant.ofEpochMilli(0L));
+  }
+
+  @Test
+  public void shouldConvertToJavaInstant() {
+    assertThat(TimeUtil.toJava(null)).isNull();
+    assertThat(TimeUtil.toJava(org.joda.time.Instant.ofEpochMilli(0L)))
+        .isEqualTo(java.time.Instant.ofEpochMilli(0L));
+  }
+}

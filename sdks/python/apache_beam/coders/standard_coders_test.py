@@ -81,7 +81,10 @@ def value_parser_from_schema(schema):
     # TODO: This should be exhaustive
     type_info = type_.WhichOneof("type_info")
     if type_info == "atomic_type":
-      return schemas.ATOMIC_TYPE_TO_PRIMITIVE[type_.atomic_type]
+      if type_.atomic_type == schema_pb2.BYTES:
+        return lambda x: x.encode("utf-8")
+      else:
+        return schemas.ATOMIC_TYPE_TO_PRIMITIVE[type_.atomic_type]
     elif type_info == "array_type":
       element_parser = attribute_parser_from_type(type_.array_type.element_type)
       return lambda x: list(map(element_parser, x))
