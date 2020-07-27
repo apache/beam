@@ -108,8 +108,7 @@ to handle the failed store requests.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.io.dicomclient import DicomApiHttpClient
-from apache_beam.io.filesystem import BeamIOError
+from apache_beam.io.gcp.dicomclient import DicomApiHttpClient
 from apache_beam.transforms import PTransform
 
 
@@ -204,8 +203,9 @@ class _QidoSource(beam.DoFn):
           search_type, params, self.credential
         )
       else:
-        error_message = 'Search type can only be "studies",\
-        "instances" or "series"'
+        error_message = (
+            'Search type can only be "studies", '
+            '"instances" or "series"')
 
       if not error_message:
         out = {}
@@ -364,7 +364,7 @@ class DicomStoreInstance(PTransform):
     self.destination_dict = destination_dict
     # input_type pre-check
     if input_type not in ['bytes', 'fileio']:
-      raise BeamIOError("input_type could only be 'bytes' or 'fileio'")
+      raise ValueError("input_type could only be 'bytes' or 'fileio'")
     self.input_type = input_type
 
   def expand(self, pcoll):
@@ -380,7 +380,7 @@ class _StoreInstance(beam.DoFn):
     required_keys = ['project_id', 'region', 'dataset_id', 'dicom_store_id']
     for key in required_keys:
       if key not in destination_dict:
-        raise BeamIOError('Must have %s in the dict.' % (key))
+        raise ValueError('Must have %s in the dict.' % (key))
     self.destination_dict = destination_dict
     self.input_type = input_type
 

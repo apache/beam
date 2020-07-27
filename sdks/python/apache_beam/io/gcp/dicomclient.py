@@ -79,7 +79,17 @@ class DicomApiHttpClient:
       response.raise_for_status()
       status = response.status_code
       if status != 200:
-        return [], status
+        params['offset'] = offset - 1
+        params['limit'] = 1
+        response = session.get(dicomweb_path, headers=headers, params=params)
+        response.raise_for_status()
+        check_status = response.status_code
+        if check_status == 200:
+          # if the number of results equals to page size
+          return output, check_status
+        else:
+          # something wrong with the request or server
+          return [], status
       results = response.json()
       output += results
       if len(results) < page_size:
