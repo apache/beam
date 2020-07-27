@@ -97,7 +97,7 @@ public class FlinkSavepointTest implements Serializable {
   @ClassRule public static transient TemporaryFolder tempFolder = new TemporaryFolder();
 
   /** Each test has a timeout of 60 seconds (for safety). */
-  @Rule public Timeout timeout = new Timeout(60, TimeUnit.SECONDS);
+  @Rule public Timeout timeout = new Timeout(2, TimeUnit.MINUTES);
 
   @BeforeClass
   public static void beforeClass() throws Exception {
