@@ -43,6 +43,13 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.itertuples': ['*'],
             'pandas.core.frame.DataFrame.iterrows': ['*'],
             'pandas.core.frame.DataFrame.iteritems': ['*'],
+            'pandas.core.frame.DataFrame.nlargest': [
+                "df.nlargest(3, 'population', keep='last')"
+            ],
+            'pandas.core.frame.DataFrame.nsmallest': [
+                "df.nsmallest(3, 'population', keep='last')"
+            ],
+            'pandas.core.frame.DataFrame.nunique': ['*'],
             'pandas.core.frame.DataFrame.to_records': ['*'],
             'pandas.core.frame.DataFrame.to_dict': ['*'],
             'pandas.core.frame.DataFrame.to_numpy': ['*'],
@@ -76,21 +83,23 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.info': ['*'],
             'pandas.core.frame.DataFrame.isin': ['*'],
             'pandas.core.frame.DataFrame.iterrows': ["print(df['int'].dtype)"],
-            'pandas.core.frame.DataFrame.join': ['*'],
             'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.memory_usage': ['*'],
-            'pandas.core.frame.DataFrame.merge': ['*'],
+            'pandas.core.frame.DataFrame.merge': [
+                # Order-sensitive index, checked in frames_test.py.
+                "df1.merge(df2, left_on='lkey', right_on='rkey')",
+                "df1.merge(df2, left_on='lkey', right_on='rkey',\n"
+                "          suffixes=('_left', '_right'))",
+            ],
             # Not equal to df.agg('mode', axis='columns', numeric_only=True)
             'pandas.core.frame.DataFrame.mode': [
                 "df.mode(axis='columns', numeric_only=True)"
             ],
-            'pandas.core.frame.DataFrame.nlargest': ['*'],
-            'pandas.core.frame.DataFrame.nsmallest': ['*'],
-            'pandas.core.frame.DataFrame.nunique': ['*'],
             'pandas.core.frame.DataFrame.pivot': ['*'],
             'pandas.core.frame.DataFrame.pivot_table': ['*'],
             'pandas.core.frame.DataFrame.query': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
+            # Sets df.index
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
             'pandas.core.frame.DataFrame.rename': ['*'],
             # Raises right exception, but testing framework has matching issues.
@@ -121,6 +130,12 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.cumsum': ['*'],
             'pandas.core.series.Series.cumprod': ['*'],
             'pandas.core.series.Series.diff': ['*'],
+            'pandas.core.series.Series.nlargest': [
+                "s.nlargest(3, keep='last')"
+            ],
+            'pandas.core.series.Series.nsmallest': [
+                "s.nsmallest(3, keep='last')"
+            ],
             'pandas.core.series.Series.unstack': ['*'],
         },
         skip={
@@ -147,9 +162,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.items': ['*'],
             'pandas.core.series.Series.iteritems': ['*'],
             'pandas.core.series.Series.memory_usage': ['*'],
-            'pandas.core.series.Series.nlargest': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
-            'pandas.core.series.Series.nsmallest': ['*'],
             'pandas.core.series.Series.quantile': ['*'],
             'pandas.core.series.Series.reindex': ['*'],
             'pandas.core.series.Series.rename': ['*'],
