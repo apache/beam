@@ -180,7 +180,6 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       Map<String, Value> params = Collections.emptyMap();
 
       Value v = exp.execute(columns, params);
-      System.out.println(exp);
       if (!v.isNull()) {
         Row outputRow =
             ZetaSqlBeamTranslationUtils.zetaSqlStructValueToBeamRow(

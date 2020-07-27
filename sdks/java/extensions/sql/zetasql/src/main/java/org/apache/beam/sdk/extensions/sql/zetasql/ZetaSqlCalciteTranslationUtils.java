@@ -17,7 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import static com.google.zetasql.ZetaSQLType.TypeKind.*;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BOOL;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BYTES;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DATE;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DATETIME;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DOUBLE;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_INT64;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_NUMERIC;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIME;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
 import static java.util.stream.Collectors.toList;
 
 import com.google.zetasql.ArrayType;

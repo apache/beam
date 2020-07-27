@@ -193,7 +193,9 @@ public final class ZetaSqlBeamTranslationUtils {
       LocalDateTime datetime;
       if (object instanceof Row) { // base type
         datetime =
-            LocalDateTime.of(((Row) object).getValue("Date"), ((Row) object).getValue("Time"));
+            LocalDateTime.of(
+                LocalDate.ofEpochDay(((Row) object).getValue("Date")),
+                LocalTime.ofNanoOfDay(((Row) object).getValue("Time")));
       } else { // input type
         datetime = (LocalDateTime) object;
       }

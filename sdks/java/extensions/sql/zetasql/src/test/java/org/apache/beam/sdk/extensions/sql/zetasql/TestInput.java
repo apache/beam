@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTime
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
@@ -260,11 +261,23 @@ class TestInput {
 
   private static final Schema TABLE_WTH_NUMERIC_SCHEMA =
       Schema.builder().addDecimalField("numeric_field").addStringField("str_field").build();
+
   public static final TestBoundedTable TABLE_WITH_NUMERIC =
       TestBoundedTable.of(TABLE_WTH_NUMERIC_SCHEMA)
           .addRows(ZetaSqlTypesUtils.bigDecimalAsNumeric("123.4567"), "str1")
           .addRows(ZetaSqlTypesUtils.bigDecimalAsNumeric("765.4321"), "str2")
           .addRows(ZetaSqlTypesUtils.bigDecimalAsNumeric("-555.5555"), "str3");
+
+  private static final Schema TABLE_WTH_DATETIME_SCHEMA =
+      Schema.builder()
+          .addLogicalTypeField("datetime_field", SqlTypes.DATETIME)
+          .addStringField("str_field")
+          .build();
+
+  public static final TestBoundedTable TABLE_WITH_DATETIME =
+      TestBoundedTable.of(TABLE_WTH_DATETIME_SCHEMA)
+          .addRows(LocalDateTime.of(2008, 12, 25, 15, 30, 0), "s")
+          .addRows(LocalDateTime.of(2012, 10, 6, 11, 45, 0), "s");
 
   private static byte[] stringToBytes(String s) {
     return s.getBytes(StandardCharsets.UTF_8);
