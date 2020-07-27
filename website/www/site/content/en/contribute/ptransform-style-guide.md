@@ -128,7 +128,7 @@ For a user, a transform that logged an error but succeeded is silent data loss.
 
 ### Performance
 
-Many runners optimize chains of `ParDo`s in ways that improve performance if the `ParDo`s emit a small to moderate number of elements per input element, or have relatively cheap per-element processing (e.g. Dataflow's "fusion", Apex "compute locality"), but limit parallelization if these assumptions are violated. In that case you may need a "fusion break" (`Reshuffle.of()`) to improve the parallelizability of processing the output `PCollection` of the `ParDo`.
+Many runners optimize chains of `ParDo`s in ways that improve performance if the `ParDo`s emit a small to moderate number of elements per input element, or have relatively cheap per-element processing (e.g. Dataflow's "fusion"), but limit parallelization if these assumptions are violated. In that case you may need a "fusion break" (`Reshuffle.of()`) to improve the parallelizability of processing the output `PCollection` of the `ParDo`.
 
 * If the transform includes a `ParDo` that outputs a potentially large number of elements per input element, apply a fusion break after this `ParDo` to make sure downstream transforms can process its output in parallel.
 * If the transform includes a `ParDo` that takes a very long time to process an element, insert a fusion break before this `ParDo` to make sure all or most elements can be processed in parallel regardless of how its input `PCollection` was produced.

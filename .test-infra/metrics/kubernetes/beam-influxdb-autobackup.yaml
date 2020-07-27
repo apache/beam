@@ -16,7 +16,8 @@
 # limitations under the License.
 ################################################################################
 
-# A Cron Job that makes a full InfluxDB backup every week.
+# A Cron Job that makes a full InfluxDB backup every day and sends it to
+# GCS bucket.
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
@@ -24,27 +25,42 @@ metadata:
     app: beammetrics
   name: influxdb-autobackup
 spec:
-  schedule: "@weekly"
+  schedule: "@daily"
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
       template:
         spec:
-          containers:
-            - image: influxdb:1.8.0
-              name: influxdb-autobackup
+          # Using "initContainers" ensures that "create_backups" completes
+          # before "copy-to-gcs-bucket" begins.
+          initContainers:
+            - name: create-backup
+              image: influxdb:1.8.0
               args:
                 - influxd
                 - backup
                 - -portable
                 - -host
                 - influxdb-rpc:8088
-                - /backups
+                - /backup
               volumeMounts:
-                - mountPath: /backups
-                  name: influxdb-backups
+                - mountPath: /backup
+                  name: shared-data
+            - name: copy-to-gsc-bucket
+              image: gcr.io/apache-beam-testing/gsutil
+              command: ['sh', '-c', 'tar czf influxdb-backup.tar.gz /backup
+                        && gsutil cp influxdb-backup.tar.gz
+                        gs://apache-beam-testing-metrics/']
+              volumeMounts:
+                - mountPath: /backup
+                  name: shared-data
+                  readOnly: true
+          containers:
+            - name: job-done
+              image: busybox
+              command: ['sh', '-c' ,
+                        'echo "create-backup and copy-to-gsc-bucket completed"']
           restartPolicy: Never
           volumes:
-            - name: influxdb-backups
-              persistentVolumeClaim:
-                claimName: influxdb-backups
+            - name: shared-data
+              emptyDir: {}

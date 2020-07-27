@@ -47,7 +47,7 @@ EOF
 
 echo -e "Below is the request JSON about to be sent to the Github API:\n\n ${REQUEST_JSON}\n\n"
 
-read -r -p "Would you like to proceed and submit the request to the Github API? [Y/n] " input
+read -r -p "Would you like to proceed and submit the request to the Github API? [y/N] " input
 
 case $input in
   [yY][eE][sS]|[yY])

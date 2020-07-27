@@ -49,6 +49,8 @@ except ImportError:
   HttpError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
+DEFAULT_GCP_PROJECT = 'apache-beam-testing'
+
 
 class FakeGcsClient(object):
   # Fake storage client.  Usage in gcsio.py is client.objects.Get(...) and
@@ -280,6 +282,13 @@ class TestGCSPathParser(unittest.TestCase):
       self.assertRaises(ValueError, gcsio.parse_gcs_path, path, True)
 
 
+class SampleOptions(object):
+  def __init__(self, project, region, kms_key=None):
+    self.project = DEFAULT_GCP_PROJECT
+    self.region = region
+    self.dataflow_kms_key = kms_key
+
+
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 @mock.patch.multiple(
     'time', time=mock.MagicMock(side_effect=range(100)), sleep=mock.MagicMock())
@@ -300,6 +309,18 @@ class TestGCSIO(unittest.TestCase):
   def setUp(self):
     self.client = FakeGcsClient()
     self.gcs = gcsio.GcsIO(self.client)
+
+  def test_default_bucket_name(self):
+    self.assertEqual(
+        gcsio.default_gcs_bucket_name(DEFAULT_GCP_PROJECT, "us-central1"),
+        'dataflow-staging-us-central1-77b801c0838aee13391c0d1885860494')
+
+  def test_default_bucket_name_failure(self):
+    self.assertEqual(
+        gcsio.get_or_create_default_gcs_bucket(
+            SampleOptions(
+                DEFAULT_GCP_PROJECT, "us-central1", kms_key="kmskey!")),
+        None)
 
   def test_num_retries(self):
     # BEAM-7424: update num_retries accordingly if storage_client is

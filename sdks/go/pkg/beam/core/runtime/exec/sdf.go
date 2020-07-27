@@ -18,9 +18,10 @@ package exec
 import (
 	"context"
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"path"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
@@ -217,6 +218,11 @@ type ProcessSizedElementsAndRestrictions struct {
 	PDo *ParDo
 
 	inv *ctInvoker
+
+	// Rt allows this unit to send out restriction trackers being processed.
+	// Receivers of the tracker do not own it, and must send it back through the
+	// same channel once finished with it.
+	Rt chan sdf.RTracker
 }
 
 // ID calls the ParDo's ID method.
@@ -231,6 +237,7 @@ func (n *ProcessSizedElementsAndRestrictions) Up(ctx context.Context) error {
 	if n.inv, err = newCreateTrackerInvoker(fn); err != nil {
 		return errors.WithContextf(err, "%v", n)
 	}
+	n.Rt = make(chan sdf.RTracker, 1)
 	return n.PDo.Up(ctx)
 }
 
@@ -269,6 +276,7 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context
 
 	rest := elm.Elm.(*FullValue).Elm2
 	rt := n.inv.Invoke(rest)
+	n.Rt <- rt
 	mainIn := &MainInput{
 		Values:   values,
 		RTracker: rt,
@@ -295,7 +303,9 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context
 		}
 	}
 
-	return n.PDo.processMainInput(mainIn)
+	err := n.PDo.processMainInput(mainIn)
+	<-n.Rt
+	return err
 }
 
 // FinishBundle resets the invokers and then calls the ParDo's FinishBundle method.
@@ -304,8 +314,9 @@ func (n *ProcessSizedElementsAndRestrictions) FinishBundle(ctx context.Context) 
 	return n.PDo.FinishBundle(ctx)
 }
 
-// Down calls the ParDo's Down method.
+// Down closes open channels and calls the ParDo's Down method.
 func (n *ProcessSizedElementsAndRestrictions) Down(ctx context.Context) error {
+	close(n.Rt)
 	return n.PDo.Down(ctx)
 }
 
@@ -332,18 +343,18 @@ func (n *SdfFallback) ID() UnitID {
 
 // Up performs some one-time setup and then calls the ParDo's Up method.
 func (n *SdfFallback) Up(ctx context.Context) error {
-	sdf := (*graph.SplittableDoFn)(n.PDo.Fn)
+	dfn := (*graph.SplittableDoFn)(n.PDo.Fn)
 	addContext := func(err error) error {
 		return errors.WithContextf(err, "%v", n)
 	}
 	var err error
-	if n.initRestInv, err = newCreateInitialRestrictionInvoker(sdf.CreateInitialRestrictionFn()); err != nil {
+	if n.initRestInv, err = newCreateInitialRestrictionInvoker(dfn.CreateInitialRestrictionFn()); err != nil {
 		return addContext(err)
 	}
-	if n.splitInv, err = newSplitRestrictionInvoker(sdf.SplitRestrictionFn()); err != nil {
+	if n.splitInv, err = newSplitRestrictionInvoker(dfn.SplitRestrictionFn()); err != nil {
 		return addContext(err)
 	}
-	if n.trackerInv, err = newCreateTrackerInvoker(sdf.CreateTrackerFn()); err != nil {
+	if n.trackerInv, err = newCreateTrackerInvoker(dfn.CreateTrackerFn()); err != nil {
 		return addContext(err)
 	}
 	return n.PDo.Up(ctx)

@@ -105,6 +105,7 @@ public class ProcessBundleHandler {
 
   // TODO: What should the initial set of URNs be?
   private static final String DATA_INPUT_URN = "beam:runner:source:v1";
+  private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
   public static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
@@ -341,16 +342,19 @@ public class ProcessBundleHandler {
       throws Exception {
     BundleProcessor bundleProcessor =
         bundleProcessorCache.find(request.getProcessBundleProgress().getInstructionId());
-    if (bundleProcessor == null) {
-      throw new IllegalStateException(
-          String.format(
-              "Unable to find active bundle for instruction id %s.",
-              request.getProcessBundleProgress().getInstructionId()));
-    }
     BeamFnApi.ProcessBundleProgressResponse.Builder response =
         BeamFnApi.ProcessBundleProgressResponse.newBuilder();
 
-    // TODO(BEAM-6597): This should really only be reporting monitoring infos where the data changed
+    if (bundleProcessor == null) {
+      // We might be unable to find an active bundle if ProcessBundleProgressRequest is received by
+      // the SDK before the ProcessBundleRequest. In this case, we send an empty response instead of
+      // failing so that the runner does not fail/timeout.
+      return BeamFnApi.InstructionResponse.newBuilder()
+          .setProcessBundleProgress(BeamFnApi.ProcessBundleProgressResponse.getDefaultInstance());
+    }
+
+    // TODO(BEAM-6597): This should really only be reporting monitoring infos where the data
+    // changed
     // and we should be using the short id system.
 
     // Get start bundle Execution Time Metrics.
@@ -378,14 +382,17 @@ public class ProcessBundleHandler {
   public BeamFnApi.InstructionResponse.Builder trySplit(BeamFnApi.InstructionRequest request) {
     BundleProcessor bundleProcessor =
         bundleProcessorCache.find(request.getProcessBundleSplit().getInstructionId());
-    if (bundleProcessor == null) {
-      throw new IllegalStateException(
-          String.format(
-              "Unable to find active bundle for instruction id %s.",
-              request.getProcessBundleSplit().getInstructionId()));
-    }
     BeamFnApi.ProcessBundleSplitResponse.Builder response =
         BeamFnApi.ProcessBundleSplitResponse.newBuilder();
+
+    if (bundleProcessor == null) {
+      // We might be unable to find an active bundle if ProcessBundleSplitRequest is received by
+      // the SDK before the ProcessBundleRequest. In this case, we send an empty response instead of
+      // failing so that the runner does not fail/timeout.
+      return BeamFnApi.InstructionResponse.newBuilder()
+          .setProcessBundleSplit(BeamFnApi.ProcessBundleSplitResponse.getDefaultInstance());
+    }
+
     for (BeamFnDataReadRunner channelRoot : bundleProcessor.getChannelRoots()) {
       channelRoot.trySplit(request.getProcessBundleSplit(), response);
     }
@@ -479,9 +486,11 @@ public class ProcessBundleHandler {
     for (Map.Entry<String, RunnerApi.PTransform> entry :
         bundleDescriptor.getTransformsMap().entrySet()) {
 
-      // Skip anything which isn't a root
+      // Skip anything which isn't a root.
+      // Also force data output transforms to be unconditionally instantiated (see BEAM-10450).
       // TODO: Remove source as a root and have it be triggered by the Runner.
       if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
+          && !DATA_OUTPUT_URN.equals(entry.getValue().getSpec().getUrn())
           && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
           && !PTransformTranslation.READ_TRANSFORM_URN.equals(
               entry.getValue().getSpec().getUrn())) {

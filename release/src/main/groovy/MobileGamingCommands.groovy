@@ -27,7 +27,6 @@ class MobileGamingCommands {
   public static final RUNNERS = [DirectRunner: "direct-runner",
     DataflowRunner: "dataflow-runner",
     SparkRunner: "spark-runner",
-    ApexRunner: "apex-runner",
     FlinkRunner: "flink-runner"]
 
   public static final EXECUTION_TIMEOUT_IN_MINUTES = 20

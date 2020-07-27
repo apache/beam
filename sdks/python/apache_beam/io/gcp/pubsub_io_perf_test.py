@@ -30,7 +30,7 @@ python -m apache_beam.io.gcp.pubsub_io_perf_test \
     --temp_location=gs://<BUCKET_NAME>/tmp
     --staging_location=gs://<BUCKET_NAME>/staging
     --wait_until_finish_duration=<TIME_IN_MS>
-    --pubsub_namespace=<PUBSUB_NAMESPACE>
+    --pubsub_namespace_prefix=<PUBSUB_NAMESPACE_PREFIX>
     --publish_to_big_query=<OPTIONAL><true/false>
     --metrics_dataset=<OPTIONAL>
     --metrics_table=<OPTIONAL>
@@ -80,15 +80,17 @@ MATCHER_PULL_TIMEOUT = 60 * 5
 
 class PubsubIOPerfTest(LoadTest):
   def _setup_env(self):
-    if not self.pipeline.get_option('pubsub_namespace'):
-      logging.error('--pubsub_namespace argument is required.')
+    if not self.pipeline.get_option('pubsub_namespace_prefix'):
+      logging.error('--pubsub_namespace_prefix argument is required.')
       sys.exit(1)
     if not self.pipeline.get_option('wait_until_finish_duration'):
       logging.error('--wait_until_finish_duration argument is required.')
       sys.exit(1)
 
     self.num_of_messages = int(self.input_options.get('num_records'))
-    self.pubsub_namespace = self.pipeline.get_option('pubsub_namespace')
+    pubsub_namespace_prefix = self.pipeline.get_option(
+        'pubsub_namespace_prefix')
+    self.pubsub_namespace = pubsub_namespace_prefix + unique_id
 
   def _setup_pubsub(self):
     self.pub_client = pubsub.PublisherClient()
@@ -215,6 +217,9 @@ class PubsubReadPerfTest(PubsubIOPerfTest):
 
 
 if __name__ == '__main__':
+  import uuid
+  unique_id = str(uuid.uuid4())
+
   logging.basicConfig(level=logging.INFO)
   PubsubWritePerfTest().run()
   PubsubReadPerfTest().run()

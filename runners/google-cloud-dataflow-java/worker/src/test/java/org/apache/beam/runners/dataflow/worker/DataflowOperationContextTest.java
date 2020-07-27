@@ -21,20 +21,23 @@ import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.ABORT_S
 import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.FINISH_STATE_NAME;
 import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.PROCESS_STATE_NAME;
 import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.START_STATE_NAME;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.testing.http.FixedClock;
+import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
-import javax.annotation.Nullable;
+import java.util.List;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.BatchModeExecutionContext.BatchModeExecutionStateRegistry;
@@ -47,6 +50,8 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileSc
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.After;
@@ -65,7 +70,9 @@ import org.mockito.MockitoAnnotations;
 @RunWith(Enclosed.class)
 public class DataflowOperationContextTest {
 
-  /** Tests for the management of {@link ExecutionState} in {@link DataflowOperationContext}. */
+  /**
+   * Tests for the management of {@link DataflowExecutionState} in {@link DataflowOperationContext}.
+   */
   @RunWith(JUnit4.class)
   public static class ContextStatesTest {
 
@@ -201,6 +208,7 @@ public class DataflowOperationContextTest {
     @Test
     public void testLullReportsRightTrace() throws Exception {
       Thread mockThread = mock(Thread.class);
+      FixedClock clock = new FixedClock(Clock.SYSTEM.currentTimeMillis());
 
       DataflowExecutionState executionState =
           new DataflowExecutionState(
@@ -209,7 +217,8 @@ public class DataflowOperationContextTest {
               null /* requestingStepName */,
               null /* inputIndex */,
               null /* metricsContainer */,
-              ScopedProfiler.INSTANCE.emptyScope()) {
+              ScopedProfiler.INSTANCE.emptyScope(),
+              clock) {
             @Nullable
             @Override
             public CounterUpdate extractUpdate(boolean isFinalUpdate) {
@@ -223,32 +232,101 @@ public class DataflowOperationContextTest {
             }
           };
 
-      when(mockThread.getStackTrace())
-          .thenReturn(
-              new StackTraceElement[] {
-                new StackTraceElement(
-                    "userpackage.SomeUserDoFn", "helperMethod", "SomeUserDoFn.java", 250),
-                new StackTraceElement(
-                    "userpackage.SomeUserDoFn", "process", "SomeUserDoFn.java", 450),
-                new StackTraceElement(
-                    SimpleDoFnRunner.class.getName(),
-                    "processElement",
-                    "SimpleDoFnRunner.java",
-                    500),
-              });
-      executionState.reportLull(mockThread, 6000);
+      StackTraceElement[] doFnStackTrace =
+          new StackTraceElement[] {
+            new StackTraceElement(
+                "userpackage.SomeUserDoFn", "helperMethod", "SomeUserDoFn.java", 250),
+            new StackTraceElement("userpackage.SomeUserDoFn", "process", "SomeUserDoFn.java", 450),
+            new StackTraceElement(
+                SimpleDoFnRunner.class.getName(), "processElement", "SimpleDoFnRunner.java", 500),
+          };
+      when(mockThread.getStackTrace()).thenReturn(doFnStackTrace);
 
+      // Adding test for the full thread dump, but since we can't mock
+      // Thread.getAllStackTraces(), we are starting a background thread
+      // to verify the full thread dump.
+      Thread backgroundThread =
+          new Thread("backgroundThread") {
+            @Override
+            public void run() {
+              try {
+                Thread.sleep(Long.MAX_VALUE);
+              } catch (InterruptedException e) {
+                // exiting the thread
+              }
+            }
+          };
+
+      backgroundThread.start();
+      try {
+        // Full thread dump should be performed, because we never performed
+        // a full thread dump before, and the lull duration is more than 20
+        // minutes.
+        executionState.reportLull(mockThread, 30 * 60 * 1000);
+        verifyLullLog(true);
+
+        // Full thread dump should not be performed because the last dump
+        // was only 5 minutes ago.
+        clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
+        executionState.reportLull(mockThread, 30 * 60 * 1000);
+        verifyLullLog(false);
+
+        // Full thread dump should not be performed because the lull duration
+        // is only 6 minutes.
+        clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
+        executionState.reportLull(mockThread, 6 * 60 * 1000);
+        verifyLullLog(false);
+
+        // Full thread dump should be performed, because it has been 21 minutes
+        // since the last dump, and the lull duration is more than 20 minutes.
+        clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
+        executionState.reportLull(mockThread, 30 * 60 * 1000);
+        verifyLullLog(true);
+      } finally {
+        // Cleaning up the background thread.
+        backgroundThread.interrupt();
+        backgroundThread.join();
+      }
+    }
+
+    private void verifyLullLog(boolean hasFullThreadDump) throws IOException {
       File[] files = logFolder.listFiles();
       assertThat(files, Matchers.arrayWithSize(1));
-      String contents = Joiner.on("\n").join(Files.readAllLines(files[0].toPath()));
+      File logFile = files[0];
+      List<String> lines = Files.readAllLines(logFile.toPath());
+
+      String warnLines =
+          Joiner.on("\n").join(Iterables.filter(lines, line -> line.contains("\"WARN\"")));
       assertThat(
-          contents,
+          warnLines,
           Matchers.allOf(
               Matchers.containsString(
                   "Operation ongoing in step " + NameContextsForTests.USER_NAME),
               Matchers.containsString(" without outputting or completing in state somestate"),
               Matchers.containsString("userpackage.SomeUserDoFn.helperMethod"),
               Matchers.not(Matchers.containsString(SimpleDoFnRunner.class.getName()))));
+
+      String infoLines =
+          Joiner.on("\n").join(Iterables.filter(lines, line -> line.contains("\"INFO\"")));
+      if (hasFullThreadDump) {
+        assertThat(
+            infoLines,
+            Matchers.allOf(
+                Matchers.containsString("Thread[backgroundThread,"),
+                Matchers.containsString(
+                    "org.apache.beam.runners.dataflow.worker.DataflowOperationContext"),
+                Matchers.not(Matchers.containsString(SimpleDoFnRunner.class.getName()))));
+      } else {
+        assertThat(
+            infoLines,
+            Matchers.not(
+                Matchers.anyOf(
+                    Matchers.containsString("Thread[backgroundThread,"),
+                    Matchers.containsString(
+                        "org.apache.beam.runners.dataflow.worker.DataflowOperationContext"))));
+      }
+      // Truncate the file when done to prepare for the next test.
+      new FileOutputStream(logFile, false).getChannel().truncate(0).close();
     }
 
     @Test

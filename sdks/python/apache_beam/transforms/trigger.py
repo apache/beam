@@ -87,13 +87,13 @@ class _StateTag(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
     self.tag = tag
 
 
-class _ValueStateTag(_StateTag):
+class _ReadModifyWriteStateTag(_StateTag):
   """StateTag pointing to an element."""
   def __repr__(self):
     return 'ValueStateTag(%s)' % (self.tag)
 
   def with_prefix(self, prefix):
-    return _ValueStateTag(prefix + self.tag)
+    return _ReadModifyWriteStateTag(prefix + self.tag)
 
 
 class _SetStateTag(_StateTag):
@@ -963,7 +963,7 @@ class MergeableStateAdapter(SimpleState):
   # TODO(robertwb): A similar indirection could be used for sliding windows
   # or other window_fns when a single element typically belongs to many windows.
 
-  WINDOW_IDS = _ValueStateTag('window_ids')
+  WINDOW_IDS = _ReadModifyWriteStateTag('window_ids')
 
   def __init__(self, raw_state):
     self.raw_state = raw_state
@@ -978,7 +978,7 @@ class MergeableStateAdapter(SimpleState):
       self.raw_state.clear_timer(window_id, name, time_domain)
 
   def add_state(self, window, tag, value):
-    if isinstance(tag, _ValueStateTag):
+    if isinstance(tag, _ReadModifyWriteStateTag):
       raise ValueError(
           'Merging requested for non-mergeable state tag: %r.' % tag)
     elif isinstance(tag, _CombiningValueStateTag):
@@ -992,7 +992,7 @@ class MergeableStateAdapter(SimpleState):
         self.raw_state.get_state(window_id, tag)
         for window_id in self._get_ids(window)
     ]
-    if isinstance(tag, _ValueStateTag):
+    if isinstance(tag, _ReadModifyWriteStateTag):
       raise ValueError(
           'Merging requested for non-mergeable state tag: %r.' % tag)
     elif isinstance(tag, _CombiningValueStateTag):
@@ -1419,8 +1419,8 @@ class InMemoryUnmergedState(UnmergedState):
 
   Used for batch and testing.
   """
-  def __init__(self, defensive_copy=True):
-    # TODO(robertwb): Skip defensive_copy in production if it's too expensive.
+  def __init__(self, defensive_copy=False):
+    # TODO(robertwb): Clean defensive_copy. It is too expensive in production.
     self.timers = collections.defaultdict(dict)
     self.state = collections.defaultdict(lambda: collections.defaultdict(list))
     self.global_state = {}
@@ -1436,7 +1436,7 @@ class InMemoryUnmergedState(UnmergedState):
     return cloned_object
 
   def set_global_state(self, tag, value):
-    assert isinstance(tag, _ValueStateTag)
+    assert isinstance(tag, _ReadModifyWriteStateTag)
     if self.defensive_copy:
       value = copy.deepcopy(value)
     self.global_state[tag.tag] = value
@@ -1458,7 +1458,7 @@ class InMemoryUnmergedState(UnmergedState):
   def add_state(self, window, tag, value):
     if self.defensive_copy:
       value = copy.deepcopy(value)
-    if isinstance(tag, _ValueStateTag):
+    if isinstance(tag, _ReadModifyWriteStateTag):
       self.state[window][tag.tag] = value
     elif isinstance(tag, _CombiningValueStateTag):
       # TODO(robertwb): Store merged accumulators.
@@ -1474,7 +1474,7 @@ class InMemoryUnmergedState(UnmergedState):
 
   def get_state(self, window, tag):
     values = self.state[window][tag.tag]
-    if isinstance(tag, _ValueStateTag):
+    if isinstance(tag, _ReadModifyWriteStateTag):
       return values
     elif isinstance(tag, _CombiningValueStateTag):
       return tag.combine_fn.apply(values)

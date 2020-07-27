@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -35,6 +34,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
@@ -62,6 +62,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.IsBounded;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -103,6 +105,7 @@ import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.Type;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Dynamically generates a {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
@@ -306,6 +309,20 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
+  /** Default implementation of {@link TruncateRestriction}, for delegation by bytebuddy. */
+  public static class DefaultTruncateRestriction {
+
+    /** Output the current restriction if it is bounded. Otherwise, return null. */
+    @SuppressWarnings("unused")
+    public static TruncateResult<?> invokeTruncateRestriction(
+        DoFnInvoker.ArgumentProvider argumentProvider) {
+      if (argumentProvider.restrictionTracker().isBounded() == IsBounded.BOUNDED) {
+        return TruncateResult.of(argumentProvider.restriction());
+      }
+      return null;
+    }
+  }
+
   /** Default implementation of {@link DoFn.GetRestrictionCoder}, for delegation by bytebuddy. */
   public static class DefaultRestrictionCoder {
     private final TypeDescriptor<?> restrictionType;
@@ -314,7 +331,6 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       this.restrictionType = restrictionType;
     }
 
-    /** Doesn't split the restriction. */
     @SuppressWarnings({"unused", "unchecked"})
     public <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder(CoderRegistry registry)
         throws CannotProvideCoderException {
@@ -461,6 +477,9 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                     clazzDescription, signature.getInitialRestriction()))
             .method(ElementMatchers.named("invokeSplitRestriction"))
             .intercept(splitRestrictionDelegation(clazzDescription, signature.splitRestriction()))
+            .method(ElementMatchers.named("invokeTruncateRestriction"))
+            .intercept(
+                truncateRestrictionDelegation(clazzDescription, signature.truncateRestriction()))
             .method(ElementMatchers.named("invokeGetRestrictionCoder"))
             .intercept(getRestrictionCoderDelegation(clazzDescription, signature))
             .method(ElementMatchers.named("invokeNewTracker"))
@@ -532,9 +551,18 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
+  private static Implementation truncateRestrictionDelegation(
+      TypeDescription doFnType, DoFnSignature.TruncateRestrictionMethod signature) {
+    if (signature == null) {
+      return MethodDelegation.to(DefaultTruncateRestriction.class);
+    } else {
+      return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);
+    }
+  }
+
   private static Implementation getInitialWatermarkEstimatorStateDelegation(
       TypeDescription doFnType,
-      @Nullable DoFnSignature.GetInitialWatermarkEstimatorStateMethod signature) {
+      DoFnSignature.@Nullable GetInitialWatermarkEstimatorStateMethod signature) {
     if (signature == null) {
       return MethodDelegation.to(DefaultGetInitialWatermarkEstimatorState.class);
     } else {
@@ -543,7 +571,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   private static Implementation newWatermarkEstimatorDelegation(
-      TypeDescription doFnType, @Nullable DoFnSignature.NewWatermarkEstimatorMethod signature) {
+      TypeDescription doFnType, DoFnSignature.@Nullable NewWatermarkEstimatorMethod signature) {
     if (signature == null) {
       return MethodDelegation.to(DefaultNewWatermarkEstimator.class);
     } else {
@@ -552,7 +580,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   private static Implementation newTrackerDelegation(
-      TypeDescription doFnType, @Nullable DoFnSignature.NewTrackerMethod signature) {
+      TypeDescription doFnType, DoFnSignature.@Nullable NewTrackerMethod signature) {
     if (signature == null) {
       // We must have already verified that in this case the restriction type
       // is a subtype of HasDefaultTracker.
@@ -563,7 +591,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   private static Implementation getSizeDelegation(
-      TypeDescription doFnType, @Nullable DoFnSignature.GetSizeMethod signature) {
+      TypeDescription doFnType, DoFnSignature.@Nullable GetSizeMethod signature) {
     if (signature == null) {
       return MethodDelegation.to(DefaultGetSize.class);
     } else {
@@ -621,7 +649,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     private final boolean targetHasReturn;
 
     /** Starts {@code null}, initialized by {@link #prepare(InstrumentedType)}. */
-    @Nullable protected FieldDescription delegateField;
+    protected @Nullable FieldDescription delegateField;
 
     private final TypeDescription doFnType;
 
@@ -1104,7 +1132,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
   private static class UserCodeMethodInvocation implements StackManipulation {
 
-    @Nullable private final Integer returnVarIndex;
+    private final @Nullable Integer returnVarIndex;
     private final MethodDescription targetMethod;
     private final MethodDescription instrumentedMethod;
     private final TypeDescription returnType;

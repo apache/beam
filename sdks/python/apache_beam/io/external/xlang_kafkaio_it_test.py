@@ -24,15 +24,15 @@ import logging
 import os
 import socket
 import subprocess
+import sys
 import time
 import typing
 import unittest
 
 import apache_beam as beam
-from apache_beam.io.external.kafka import ReadFromKafka
-from apache_beam.io.external.kafka import WriteToKafka
+from apache_beam.io.kafka import ReadFromKafka
+from apache_beam.io.kafka import WriteToKafka
 from apache_beam.metrics import Metrics
-from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
@@ -86,6 +86,12 @@ class CrossLanguageKafkaIO(object):
     os.environ.get('LOCAL_KAFKA_JAR'),
     "LOCAL_KAFKA_JAR environment var is not provided.")
 class CrossLanguageKafkaIOTest(unittest.TestCase):
+  def get_platform_localhost(self):
+    if sys.platform == 'darwin':
+      return 'host.docker.internal'
+    else:
+      return 'localhost'
+
   def get_open_port(self):
     s = None
     try:
@@ -113,25 +119,15 @@ class CrossLanguageKafkaIOTest(unittest.TestCase):
       if kafka_server:
         kafka_server.kill()
 
-  def get_options(self):
-    options = PipelineOptions([
-        '--runner',
-        'FlinkRunner',
-        '--parallelism',
-        '2',
-        '--experiment',
-        'beam_fn_api'
-    ])
-    return options
-
   def test_kafkaio_write(self):
     local_kafka_jar = os.environ.get('LOCAL_KAFKA_JAR')
     with self.local_kafka_service(local_kafka_jar) as kafka_port:
-      options = self.get_options()
-      p = TestPipeline(options=options)
+      p = TestPipeline()
       p.not_use_test_runner_api = True
-      CrossLanguageKafkaIO('localhost:%s' % kafka_port,
-                           'xlang_kafkaio_test').build_write_pipeline(p)
+      xlang_kafkaio = CrossLanguageKafkaIO(
+          '%s:%s' % (self.get_platform_localhost(), kafka_port),
+          'xlang_kafkaio_test')
+      xlang_kafkaio.build_write_pipeline(p)
       job = p.run()
       job.wait_until_finish()
 

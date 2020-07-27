@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import net.snowflake.client.jdbc.SnowflakeSQLException;
 
-/** Fake implementation of SnowFlake warehouse used in test code. */
+/** Fake implementation of Snowflake warehouse used in test code. */
 public class FakeSnowflakeDatabase implements Serializable {
   private static Map<String, List<String>> tables = new HashMap<>();
 

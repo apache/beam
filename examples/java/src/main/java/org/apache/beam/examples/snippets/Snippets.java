@@ -54,6 +54,8 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.Join;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -78,6 +80,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -911,6 +914,73 @@ public class Snippets {
                       })
                   .withSideInputs(sideInput));
       // [END PeriodicallyUpdatingSideInputs]
+      return result;
+    }
+  }
+
+  public static class SchemaJoinPattern {
+    public static PCollection<String> main(
+        Pipeline p,
+        final List<Row> emailUsers,
+        final List<Row> phoneUsers,
+        Schema emailSchema,
+        Schema phoneSchema) {
+      // [START SchemaJoinPatternJoin]
+      // Create/Read Schema PCollections
+      PCollection<Row> emailList =
+          p.apply("CreateEmails", Create.of(emailUsers).withRowSchema(emailSchema));
+
+      PCollection<Row> phoneList =
+          p.apply("CreatePhones", Create.of(phoneUsers).withRowSchema(phoneSchema));
+
+      // Perform Join
+      PCollection<Row> resultRow =
+          emailList.apply("Apply Join", Join.<Row, Row>innerJoin(phoneList).using("name"));
+
+      // Preview Result
+      resultRow.apply(
+          "Preview Result",
+          MapElements.into(TypeDescriptors.strings())
+              .via(
+                  x -> {
+                    System.out.println(x);
+                    return "";
+                  }));
+
+      /* Sample Output From the pipeline:
+       Row:[Row:[person1, person1@example.com], Row:[person1, 111-222-3333]]
+       Row:[Row:[person2, person2@example.com], Row:[person2, 222-333-4444]]
+       Row:[Row:[person4, person4@example.com], Row:[person4, 555-333-4444]]
+       Row:[Row:[person3, person3@example.com], Row:[person3, 444-333-4444]]
+      */
+      // [END SchemaJoinPatternJoin]
+
+      // [START SchemaJoinPatternFormat]
+      PCollection<String> result =
+          resultRow.apply(
+              "Format Output",
+              MapElements.into(TypeDescriptors.strings())
+                  .via(
+                      x -> {
+                        String userInfo =
+                            "Name: "
+                                + x.getRow(0).getValue("name")
+                                + " Email: "
+                                + x.getRow(0).getValue("email")
+                                + " Phone: "
+                                + x.getRow(1).getValue("phone");
+                        System.out.println(userInfo);
+                        return userInfo;
+                      }));
+
+      /* Sample output From the pipeline
+      Name: person4 Email: person4@example.com Phone: 555-333-4444
+      Name: person2 Email: person2@example.com Phone: 222-333-4444
+      Name: person3 Email: person3@example.com Phone: 444-333-4444
+      Name: person1 Email: person1@example.com Phone: 111-222-3333
+       */
+      // [END SchemaJoinPatternFormat]
+
       return result;
     }
   }

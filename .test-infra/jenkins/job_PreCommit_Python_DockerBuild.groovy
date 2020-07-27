@@ -29,5 +29,5 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^sdks/python/.*$',
       '^release/.*$',
     ]
-)
+    )
 builder.build()

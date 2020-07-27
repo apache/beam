@@ -196,16 +196,6 @@ class Environment(object):
     if job_type.startswith('FNAPI_'):
       self.debug_options.experiments = self.debug_options.experiments or []
 
-      # TODO(BEAM-9707) : Remove hardcoding runner_harness_container for
-      #  Unified worker.
-      if _use_unified_worker(
-          options) and not self.debug_options.lookup_experiment(
-              'runner_harness_container_image'
-          ) and 'dev' in beam_version.__version__:
-        self.debug_options.add_experiment(
-            'runner_harness_container_image='
-            'gcr.io/cloud-dataflow/v1beta3/unified-harness:20200409-rc00')
-
       if self.debug_options.lookup_experiment(
           'runner_harness_container_image') or _use_unified_worker(options):
         # Default image is not used if user provides a runner harness image.
@@ -1090,6 +1080,8 @@ def get_container_image_from_options(pipeline_options):
     version_suffix = '36'
   elif sys.version_info[0:2] == (3, 7):
     version_suffix = '37'
+  elif sys.version_info[0:2] == (3, 8):
+    version_suffix = '38'
   else:
     raise Exception(
         'Dataflow only supports Python versions 2 and 3.5+, got: %s' %
@@ -1154,7 +1146,7 @@ def get_response_encoding():
 
 
 def _verify_interpreter_version_is_supported(pipeline_options):
-  if sys.version_info[0:2] in [(2, 7), (3, 5), (3, 6), (3, 7)]:
+  if sys.version_info[0:2] in [(2, 7), (3, 5), (3, 6), (3, 7), (3, 8)]:
     return
 
   debug_options = pipeline_options.view_as(DebugOptions)
@@ -1164,7 +1156,7 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 
   raise Exception(
       'Dataflow runner currently supports Python versions '
-      '2.7, 3.5, 3.6, and 3.7. To ignore this requirement and start a job '
+      '2.7, 3.5, 3.6, 3.7 and 3.8. To ignore this requirement and start a job '
       'using a different version of Python 3 interpreter, pass '
       '--experiment ignore_py3_minor_version pipeline option.')
 

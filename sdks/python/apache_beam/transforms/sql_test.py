@@ -143,7 +143,7 @@ class SqlTransformTest(unittest.TestCase):
       out = (
           p
           | beam.Create([1, 2, 10])
-          | beam.Map(lambda x: beam.Row(a=x, b=str(x)))
+          | beam.Map(lambda x: beam.Row(a=x, b=unicode(x)))
           | SqlTransform("SELECT a*a as s, LENGTH(b) AS c FROM PCOLLECTION"))
       assert_that(out, equal_to([(1, 1), (4, 1), (100, 2)]))
 
@@ -156,6 +156,21 @@ class SqlTransformTest(unittest.TestCase):
             CAST(3.14  AS FLOAT64) AS `flt`""",
           dialect="zetasql")
       assert_that(out, equal_to([(1, "foo", 3.14)]))
+
+  def test_windowing_before_sql(self):
+    with TestPipeline() as p:
+      out = (
+          p | beam.Create([
+              SimpleRow(5, "foo", 1.),
+              SimpleRow(15, "bar", 2.),
+              SimpleRow(25, "baz", 3.)
+          ])
+          | beam.Map(lambda v: beam.window.TimestampedValue(v, v.id)).
+          with_output_types(SimpleRow)
+          | beam.WindowInto(
+              beam.window.FixedWindows(10)).with_output_types(SimpleRow)
+          | SqlTransform("SELECT COUNT(*) as `count` FROM PCOLLECTION"))
+      assert_that(out, equal_to([(1, ), (1, ), (1, )]))
 
 
 if __name__ == "__main__":

@@ -26,6 +26,7 @@ from __future__ import print_function
 import abc
 import collections
 import contextlib
+import functools
 import logging
 import queue
 import sys
@@ -64,6 +65,7 @@ from apache_beam.runners.worker.data_plane import PeriodicThread
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
+from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.utils import thread_pool_executor
 
 if TYPE_CHECKING:
@@ -74,10 +76,16 @@ _LOGGER = logging.getLogger(__name__)
 
 # This SDK harness will (by default), log a "lull" in processing if it sees no
 # transitions in over 5 minutes.
-# 5 minutes * 60 seconds * 1020 millis * 1000 micros * 1000 nanoseconds
+# 5 minutes * 60 seconds * 1000 millis * 1000 micros * 1000 nanoseconds
 DEFAULT_LOG_LULL_TIMEOUT_NS = 5 * 60 * 1000 * 1000 * 1000
 
 DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S = 60
+
+# Full thread dump is performed at most every 20 minutes.
+LOG_LULL_FULL_THREAD_DUMP_INTERVAL_S = 20 * 60
+
+# Full thread dump is performed if the lull is more than 20 minutes.
+LOG_LULL_FULL_THREAD_DUMP_LULL_S = 20 * 60
 
 
 class ShortIdCache(object):
@@ -144,14 +152,16 @@ class SdkHarness(object):
     self._worker_index = 0
     self._worker_id = worker_id
     self._state_cache = StateCache(state_cache_size)
+    options = [('grpc.max_receive_message_length', -1),
+               ('grpc.max_send_message_length', -1)]
     if credentials is None:
       _LOGGER.info('Creating insecure control channel for %s.', control_address)
       self._control_channel = GRPCChannelFactory.insecure_channel(
-          control_address)
+          control_address, options=options)
     else:
       _LOGGER.info('Creating secure control channel for %s.', control_address)
       self._control_channel = GRPCChannelFactory.secure_channel(
-          control_address, credentials)
+          control_address, credentials, options=options)
     grpc.channel_ready_future(self._control_channel).result(timeout=60)
     _LOGGER.info('Control channel established.')
 
@@ -462,6 +472,7 @@ class SdkWorker(object):
     self.profiler_factory = profiler_factory
     self.log_lull_timeout_ns = (
         log_lull_timeout_ns or DEFAULT_LOG_LULL_TIMEOUT_NS)
+    self._last_full_thread_dump_secs = 0
 
   def do_instruction(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse
@@ -542,15 +553,18 @@ class SdkWorker(object):
           error='Instruction not running: %s' % instruction_id)
 
   def _log_lull_in_bundle_processor(self, processor):
-    state_sampler = processor.state_sampler
-    sampler_info = state_sampler.get_info()
+    sampler_info = processor.state_sampler.get_info()
+    self._log_lull_sampler_info(sampler_info)
+
+  def _log_lull_sampler_info(self, sampler_info):
     if (sampler_info and sampler_info.time_since_transition and
         sampler_info.time_since_transition > self.log_lull_timeout_ns):
       step_name = sampler_info.state_name.step_name
       state_name = sampler_info.state_name.name
+      lull_seconds = sampler_info.time_since_transition / 1e9
       state_lull_log = (
           'Operation ongoing for over %.2f seconds in state %s' %
-          (sampler_info.time_since_transition / 1e9, state_name))
+          (lull_seconds, state_name))
       step_name_log = (' in step %s ' % step_name) if step_name else ''
 
       exec_thread = getattr(sampler_info, 'tracked_thread', None)
@@ -566,6 +580,22 @@ class SdkWorker(object):
           state_lull_log,
           step_name_log,
           stack_trace)
+
+      if self._should_log_full_thread_dump(lull_seconds):
+        self._log_full_thread_dump()
+
+  def _should_log_full_thread_dump(self, lull_seconds):
+    if lull_seconds < LOG_LULL_FULL_THREAD_DUMP_LULL_S:
+      return False
+    now = time.time()
+    if (self._last_full_thread_dump_secs + LOG_LULL_FULL_THREAD_DUMP_INTERVAL_S
+        < now):
+      self._last_full_thread_dump_secs = now
+      return True
+    return False
+
+  def _log_full_thread_dump(self):
+    thread_dump()
 
   def process_bundle_progress(self,
                               request,  # type: beam_fn_api_pb2.ProcessBundleProgressRequest
@@ -869,7 +899,11 @@ class GrpcStateHandler(StateHandler):
 
 
 class CachingStateHandler(object):
-  """ A State handler which retrieves and caches state. """
+  """ A State handler which retrieves and caches state.
+   If caching is activated, caches across bundles using a supplied cache token.
+   If activated but no cache token is supplied, caching is done at the bundle
+   level.
+  """
 
   def __init__(self,
                global_state_cache,  # type: StateCache
@@ -913,10 +947,9 @@ class CachingStateHandler(object):
   def blocking_get(self,
                    state_key,  # type: beam_fn_api_pb2.StateKey
                    coder,  # type: coder_impl.CoderImpl
-                   is_cached=False
                   ):
-    # type: (...) -> Iterator[Any]
-    cache_token = self._get_cache_token(state_key, is_cached)
+    # type: (...) -> Iterable[Any]
+    cache_token = self._get_cache_token(state_key)
     if not cache_token:
       # Cache disabled / no cache token. Can't do a lookup/store in the cache.
       # Fall back to lazily materializing the state, one element at a time.
@@ -931,34 +964,55 @@ class CachingStateHandler(object):
       # https://jira.apache.org/jira/browse/BEAM-8297
       materialized = cached_value = (
           self._partially_cached_iterable(state_key, coder))
-      self._state_cache.put(cache_state_key, cache_token, materialized)
-    return iter(cached_value)
+      if isinstance(materialized, (list, self.ContinuationIterable)):
+        self._state_cache.put(cache_state_key, cache_token, materialized)
+      else:
+        _LOGGER.error(
+            "Uncacheable type %s for key %s. Not caching.",
+            materialized,
+            state_key)
+    return cached_value
 
   def extend(self,
              state_key,  # type: beam_fn_api_pb2.StateKey
              coder,  # type: coder_impl.CoderImpl
              elements,  # type: Iterable[Any]
-             is_cached=False
             ):
     # type: (...) -> _Future
-    cache_token = self._get_cache_token(state_key, is_cached)
+    cache_token = self._get_cache_token(state_key)
     if cache_token:
       # Update the cache
       cache_key = self._convert_to_cache_key(state_key)
-      if self._state_cache.get(cache_key, cache_token) is None:
-        # We have never cached this key before, first initialize cache
-        self.blocking_get(state_key, coder, is_cached=True)
-      # Now update the values in the cache
-      self._state_cache.extend(cache_key, cache_token, elements)
+      cached_value = self._state_cache.get(cache_key, cache_token)
+      # Keep in mind that the state for this key can be evicted
+      # while executing this function. Either read or write to the cache
+      # but never do both here!
+      if cached_value is None:
+        # We have never cached this key before, first retrieve state
+        cached_value = self.blocking_get(state_key, coder)
+      # Just extend the already cached value
+      if isinstance(cached_value, list):
+        # Materialize provided iterable to ensure reproducible iterations,
+        # here and when writing to the state handler below.
+        elements = list(elements)
+        # The state is fully cached and can be extended
+        cached_value.extend(elements)
+      elif isinstance(cached_value, self.ContinuationIterable):
+        # The state is too large to be fully cached (continuation token used),
+        # only the first part is cached, the rest if enumerated via the runner.
+        pass
+      else:
+        # When a corrupt value made it into the cache, we have to fail.
+        raise Exception("Unexpected cached value: %s" % cached_value)
     # Write to state handler
     out = coder_impl.create_OutputStream()
     for element in elements:
       coder.encode_to_stream(element, out, True)
     return self._underlying.append_raw(state_key, out.get())
 
-  def clear(self, state_key, is_cached=False):
-    # type: (beam_fn_api_pb2.StateKey, bool) -> _Future
-    cache_token = self._get_cache_token(state_key, is_cached)
+  def clear(self, state_key):
+    # type: (beam_fn_api_pb2.StateKey) -> _Future
+    cache_token = self._get_cache_token(state_key)
     if cache_token:
       cache_key = self._convert_to_cache_key(state_key)
       self._state_cache.clear(cache_key, cache_token)
@@ -988,11 +1042,11 @@ class CachingStateHandler(object):
       if not continuation_token:
         break
 
-  def _get_cache_token(self, state_key, request_is_cached):
+  def _get_cache_token(self, state_key):
     if not self._state_cache.is_cache_enabled():
       return None
     elif state_key.HasField('bag_user_state'):
-      if request_is_cached and self._context.user_state_cache_token:
+      if self._context.user_state_cache_token:
         return self._context.user_state_cache_token
       else:
         return self._context.bundle_cache_token
@@ -1018,35 +1072,28 @@ class CachingStateHandler(object):
     while input_stream.size() > 0:
       head.append(coder.decode_from_stream(input_stream, True))
 
-    if continuation_token is None:
+    if not continuation_token:
       return head
     else:
+      return self.ContinuationIterable(
+          head,
+          functools.partial(
+              self._lazy_iterator, state_key, coder, continuation_token))
 
-      def iter_func():
-        for item in head:
-          yield item
-        if continuation_token:
-          for item in self._lazy_iterator(state_key, coder, continuation_token):
-            yield item
+  class ContinuationIterable(object):
+    def __init__(self, head, continue_iterator_fn):
+      self.head = head
+      self.continue_iterator_fn = continue_iterator_fn
 
-      return _IterableFromIterator(iter_func)
+    def __iter__(self):
+      for item in self.head:
+        yield item
+      for item in self.continue_iterator_fn():
+        yield item
 
   @staticmethod
   def _convert_to_cache_key(state_key):
     return state_key.SerializeToString()
-
-
-class _IterableFromIterator(object):
-  """Wraps an iterator as an iterable."""
-  def __init__(self, iter_func):
-    self._iter_func = iter_func
-
-  def __iter__(self):
-    return self._iter_func()
-
-
-coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
-    _IterableFromIterator)
 
 
 class _Future(object):

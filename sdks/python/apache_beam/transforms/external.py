@@ -26,6 +26,7 @@ from __future__ import print_function
 
 import contextlib
 import copy
+import functools
 import threading
 from typing import Dict
 
@@ -286,7 +287,8 @@ class ExternalTransform(ptransform.PTransform):
     pipeline = (
         next(iter(self._inputs.values())).pipeline
         if self._inputs else pvalueish.pipeline)
-    context = pipeline_context.PipelineContext()
+    context = pipeline_context.PipelineContext(
+        component_id_map=pipeline.component_id_map)
     transform_proto = beam_runner_api_pb2.PTransform(
         unique_name=pipeline._current_transform().full_label,
         spec=beam_runner_api_pb2.FunctionSpec(
@@ -340,15 +342,26 @@ class ExternalTransform(ptransform.PTransform):
   @contextlib.contextmanager
   def _service(self):
     if isinstance(self._expansion_service, str):
-      # Some environments may not support unsecure channels. Hence using a
-      # secure channel with local credentials here.
-      # TODO: update this to support secure non-local channels.
-      channel_creds = grpc.local_channel_credentials()
       channel_options = [("grpc.max_receive_message_length", -1),
                          ("grpc.max_send_message_length", -1)]
-      with grpc.secure_channel(self._expansion_service,
-                               channel_creds,
-                               options=channel_options) as channel:
+      if hasattr(grpc, 'local_channel_credentials'):
+        # Some environments may not support insecure channels. Hence use a
+        # secure channel with local credentials here.
+        # TODO: update this to support secure non-local channels.
+        channel_factory_fn = functools.partial(
+            grpc.secure_channel,
+            self._expansion_service,
+            grpc.local_channel_credentials(),
+            options=channel_options)
+      else:
+        # local_channel_credentials is an experimental API which is unsupported
+        # by older versions of grpc which may be pulled in due to other project
+        # dependencies.
+        channel_factory_fn = functools.partial(
+            grpc.insecure_channel,
+            self._expansion_service,
+            options=channel_options)
+      with channel_factory_fn() as channel:
         yield ExpansionAndArtifactRetrievalStub(channel)
     elif hasattr(self._expansion_service, 'Expand'):
       yield self._expansion_service

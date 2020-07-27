@@ -22,7 +22,6 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
-import datetime
 import os
 import sys
 import tempfile
@@ -107,7 +106,11 @@ class CacheManager(object):
   def sink(self, labels, is_capture=False):
     # type (*str, bool) -> ptransform.PTransform
 
-    """Returns a PTransform that writes the PCollection cache."""
+    """Returns a PTransform that writes the PCollection cache.
+
+    TODO(BEAM-10514): Make sure labels will not be converted into an
+    arbitrarily long file path: e.g., windows has a 260 path limit.
+    """
     raise NotImplementedError
 
   def save_pcoder(self, pcoder, *labels):
@@ -150,12 +153,10 @@ class FileBasedCacheManager(CacheManager):
 
   def __init__(self, cache_dir=None, cache_format='text'):
     if cache_dir:
-      self._cache_dir = filesystems.FileSystems.join(
-          cache_dir,
-          datetime.datetime.now().strftime("cache-%y-%m-%d-%H_%M_%S"))
+      self._cache_dir = cache_dir
     else:
       self._cache_dir = tempfile.mkdtemp(
-          prefix='interactive-temp-', dir=os.environ.get('TEST_TMPDIR', None))
+          prefix='it-', dir=os.environ.get('TEST_TMPDIR', None))
     self._versions = collections.defaultdict(lambda: self._CacheVersion())
 
     if cache_format not in self._available_formats:

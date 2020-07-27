@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.ListQualifier;
@@ -51,6 +50,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Used inside of a {@link org.apache.beam.sdk.transforms.DoFn} to describe which fields in a schema
@@ -98,14 +98,11 @@ public abstract class FieldAccessDescriptor implements Serializable {
       }
     }
 
-    @Nullable
-    public abstract String getFieldName();
+    public abstract @Nullable String getFieldName();
 
-    @Nullable
-    public abstract Integer getFieldId();
+    public abstract @Nullable Integer getFieldId();
 
-    @Nullable
-    public abstract String getFieldRename();
+    public abstract @Nullable String getFieldRename();
 
     public abstract List<Qualifier> getQualifiers();
 

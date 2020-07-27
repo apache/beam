@@ -28,7 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LocalZookeeper {
-  private static final Logger log = LoggerFactory.getLogger(LocalZookeeper.class);
+  private static final Logger LOG = LoggerFactory.getLogger(LocalZookeeper.class);
   private final ServerConfig serverConfig;
   private final Executor executor;
 
@@ -49,7 +49,7 @@ public class LocalZookeeper {
           try {
             new ZooKeeperServerMain().runFromConfig(serverConfig);
           } catch (Exception e) {
-            log.error("local zookeeper failure.", e);
+            LOG.error("local zookeeper failure.", e);
           }
         });
   }

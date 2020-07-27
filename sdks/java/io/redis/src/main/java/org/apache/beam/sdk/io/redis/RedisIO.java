@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.ScanParams;
@@ -80,13 +80,13 @@ import redis.clients.jedis.ScanResult;
  *
  * }</pre>
  *
- * <p>{@link #readAll()} can be used to request Redis server using input PCollection elements as key
- * pattern (as String).
+ * <p>{@link #readKeyPatterns()} can be used to request Redis server using input PCollection
+ * elements as key pattern (as String).
  *
  * <pre>{@code
  * pipeline.apply(...)
  *    // here we have a PCollection<String> with the key patterns
- *    .apply(RedisIO.readAll().withEndpoint("::1", 6379))
+ *    .apply(RedisIO.readKeyPatterns().withEndpoint("::1", 6379))
  *   // here we have a PCollection<KV<String,String>>
  *
  * }</pre>
@@ -122,9 +122,25 @@ public class RedisIO {
   /**
    * Like {@link #read()} but executes multiple instances of the Redis query substituting each
    * element of a {@link PCollection} as key pattern.
+   *
+   * @deprecated This method is not consistent with the readAll pattern of other transforms and will
+   *     be remove soon. Please update you code to use {@link #readKeyPatterns()} instead.
    */
+  @Deprecated
   public static ReadAll readAll() {
     return new AutoValue_RedisIO_ReadAll.Builder()
+        .setConnectionConfiguration(RedisConnectionConfiguration.create())
+        .setBatchSize(1000)
+        .setOutputParallelization(true)
+        .build();
+  }
+
+  /**
+   * Like {@link #read()} but executes multiple instances of the Redis query substituting each
+   * element of a {@link PCollection} as key pattern.
+   */
+  public static ReadKeyPatterns readKeyPatterns() {
+    return new AutoValue_RedisIO_ReadKeyPatterns.Builder()
         .setConnectionConfiguration(RedisConnectionConfiguration.create())
         .setBatchSize(1000)
         .setOutputParallelization(true)
@@ -145,11 +161,9 @@ public class RedisIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<KV<String, String>>> {
 
-    @Nullable
-    abstract RedisConnectionConfiguration connectionConfiguration();
+    abstract @Nullable RedisConnectionConfiguration connectionConfiguration();
 
-    @Nullable
-    abstract String keyPattern();
+    abstract @Nullable String keyPattern();
 
     abstract int batchSize();
 
@@ -159,11 +173,11 @@ public class RedisIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      @Nullable
-      abstract Builder setConnectionConfiguration(RedisConnectionConfiguration connection);
 
-      @Nullable
-      abstract Builder setKeyPattern(String keyPattern);
+      abstract @Nullable Builder setConnectionConfiguration(
+          RedisConnectionConfiguration connection);
+
+      abstract @Nullable Builder setKeyPattern(String keyPattern);
 
       abstract Builder setBatchSize(int batchSize);
 
@@ -229,20 +243,25 @@ public class RedisIO {
           .apply(Create.of(keyPattern()))
           .apply(ParDo.of(new ReadKeysWithPattern(connectionConfiguration())))
           .apply(
-              RedisIO.readAll()
+              RedisIO.readKeyPatterns()
                   .withConnectionConfiguration(connectionConfiguration())
                   .withBatchSize(batchSize())
                   .withOutputParallelization(outputParallelization()));
     }
   }
 
-  /** Implementation of {@link #readAll()}. */
+  /**
+   * Implementation of {@link #readAll()}.
+   *
+   * @deprecated This class will be removed soon. Please update you code to depend on {@link
+   *     ReadKeyPatterns} instead.
+   */
+  @Deprecated
   @AutoValue
   public abstract static class ReadAll
       extends PTransform<PCollection<String>, PCollection<KV<String, String>>> {
 
-    @Nullable
-    abstract RedisConnectionConfiguration connectionConfiguration();
+    abstract @Nullable RedisConnectionConfiguration connectionConfiguration();
 
     abstract int batchSize();
 
@@ -252,8 +271,9 @@ public class RedisIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      @Nullable
-      abstract Builder setConnectionConfiguration(RedisConnectionConfiguration connection);
+
+      abstract @Nullable Builder setConnectionConfiguration(
+          RedisConnectionConfiguration connection);
 
       abstract Builder setBatchSize(int batchSize);
 
@@ -298,6 +318,85 @@ public class RedisIO {
      * default is to parallelize and should only be changed if this is known to be unnecessary.
      */
     public ReadAll withOutputParallelization(boolean outputParallelization) {
+      return toBuilder().setOutputParallelization(outputParallelization).build();
+    }
+
+    @Override
+    public PCollection<KV<String, String>> expand(PCollection<String> input) {
+      checkArgument(connectionConfiguration() != null, "withConnectionConfiguration() is required");
+      PCollection<KV<String, String>> output =
+          input
+              .apply(ParDo.of(new ReadFn(connectionConfiguration(), batchSize())))
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+      if (outputParallelization()) {
+        output = output.apply(new Reparallelize());
+      }
+      return output;
+    }
+  }
+
+  /** Implementation of {@link #readKeyPatterns()}. */
+  @AutoValue
+  public abstract static class ReadKeyPatterns
+      extends PTransform<PCollection<String>, PCollection<KV<String, String>>> {
+
+    abstract @Nullable RedisConnectionConfiguration connectionConfiguration();
+
+    abstract int batchSize();
+
+    abstract boolean outputParallelization();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+
+      abstract @Nullable Builder setConnectionConfiguration(
+          RedisConnectionConfiguration connection);
+
+      abstract Builder setBatchSize(int batchSize);
+
+      abstract Builder setOutputParallelization(boolean outputParallelization);
+
+      abstract ReadKeyPatterns build();
+    }
+
+    public ReadKeyPatterns withEndpoint(String host, int port) {
+      checkArgument(host != null, "host can not be null");
+      checkArgument(port > 0, "port can not be negative or 0");
+      return toBuilder()
+          .setConnectionConfiguration(connectionConfiguration().withHost(host).withPort(port))
+          .build();
+    }
+
+    public ReadKeyPatterns withAuth(String auth) {
+      checkArgument(auth != null, "auth can not be null");
+      return toBuilder()
+          .setConnectionConfiguration(connectionConfiguration().withAuth(auth))
+          .build();
+    }
+
+    public ReadKeyPatterns withTimeout(int timeout) {
+      checkArgument(timeout >= 0, "timeout can not be negative");
+      return toBuilder()
+          .setConnectionConfiguration(connectionConfiguration().withTimeout(timeout))
+          .build();
+    }
+
+    public ReadKeyPatterns withConnectionConfiguration(RedisConnectionConfiguration connection) {
+      checkArgument(connection != null, "connection can not be null");
+      return toBuilder().setConnectionConfiguration(connection).build();
+    }
+
+    public ReadKeyPatterns withBatchSize(int batchSize) {
+      return toBuilder().setBatchSize(batchSize).build();
+    }
+
+    /**
+     * Whether to reshuffle the resulting PCollection so results are distributed to all workers. The
+     * default is to parallelize and should only be changed if this is known to be unnecessary.
+     */
+    public ReadKeyPatterns withOutputParallelization(boolean outputParallelization) {
       return toBuilder().setOutputParallelization(outputParallelization).build();
     }
 
@@ -364,7 +463,7 @@ public class RedisIO {
 
   /** A {@link DoFn} requesting Redis server to get key/value pairs. */
   private static class ReadFn extends BaseReadFn<KV<String, String>> {
-    @Nullable transient Multimap<BoundedWindow, String> bundles = null;
+    transient @Nullable Multimap<BoundedWindow, String> bundles = null;
     @Nullable AtomicInteger batchCount = null;
     private final int batchSize;
 
@@ -493,14 +592,11 @@ public class RedisIO {
       DECRBY,
     }
 
-    @Nullable
-    abstract RedisConnectionConfiguration connectionConfiguration();
+    abstract @Nullable RedisConnectionConfiguration connectionConfiguration();
 
-    @Nullable
-    abstract Method method();
+    abstract @Nullable Method method();
 
-    @Nullable
-    abstract Long expireTime();
+    abstract @Nullable Long expireTime();
 
     abstract Builder toBuilder();
 
