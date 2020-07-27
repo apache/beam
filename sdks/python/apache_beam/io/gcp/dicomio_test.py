@@ -25,10 +25,10 @@ from __future__ import absolute_import
 import json
 import os
 import unittest
-from unittest.mock import patch
 
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
+from mock import patch
 
 import apache_beam as beam
 from apache_beam.io import fileio
@@ -160,7 +160,7 @@ class TestPubsubToQido(unittest.TestCase):
 
 
 class TestDicomSearch(unittest.TestCase):
-  @patch("dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
   def test_successful_search(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -182,7 +182,7 @@ class TestDicomSearch(unittest.TestCase):
       results = (p | beam.Create([input_dict]) | DicomSearch())
       assert_that(results, equal_to([expected_dict]))
 
-  @patch("dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
   def test_param_dict_passing(self, FakeClient):
     input_dict = {}
     input_dict = {}
@@ -207,7 +207,7 @@ class TestDicomSearch(unittest.TestCase):
       results = (p | beam.Create([input_dict]) | DicomSearch())
       assert_that(results, equal_to([expected_dict]))
 
-  @patch("dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
   def test_wrong_input_type(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -229,7 +229,7 @@ class TestDicomSearch(unittest.TestCase):
       results = (p | beam.Create([input_dict]) | DicomSearch())
       assert_that(results, equal_to([expected_invalid_dict]))
 
-  @patch("dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
   def test_missing_parameters(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -247,7 +247,7 @@ class TestDicomSearch(unittest.TestCase):
       results = (p | beam.Create([input_dict]) | DicomSearch())
       assert_that(results, equal_to([expected_invalid_dict]))
 
-  @patch("dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
   def test_client_search_notfound(self, FakeClient):
     input_dict = {}
     # search instances in a not exist store
@@ -271,7 +271,7 @@ class TestDicomSearch(unittest.TestCase):
 
 
 class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
-  @patch("dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
   def test_store_byte_file(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -294,7 +294,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
       assert_that(results, equal_to([True]))
     self.assertTrue(dict_input in fc.dicom_metadata)
 
-  @patch("dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
   def test_store_fileio_file(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -321,7 +321,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
       assert_that(results, equal_to([True]))
     self.assertTrue(dict_input in fc.dicom_metadata)
 
-  @patch("dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
   def test_destination_notfound(self, FakeClient):
     input_dict = {}
     # search instances in a not exist store
@@ -344,7 +344,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
           | DicomStoreInstance(input_dict, 'bytes'))
       assert_that(results, equal_to([expected_invalid_dict]))
 
-  @patch("dicomio.DicomApiHttpClient")
+  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
   def test_missing_parameters(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
