@@ -218,7 +218,8 @@ class OperationCounters(object):
 
     if consumers:
       for consumer in consumers:
-        if hasattr(consumer, 'spec') and hasattr(consumer.spec, 'serialized_fn'):
+        if hasattr(consumer, 'spec') and hasattr(consumer.spec,
+                                                 'serialized_fn'):
           fns = pickler.loads(consumer.spec.serialized_fn)
           if fns:
             if hasattr(fns[0], '_runtime_type_hints'):
