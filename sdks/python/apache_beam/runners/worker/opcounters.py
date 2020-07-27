@@ -29,7 +29,6 @@ import math
 import random
 from builtins import hex
 from builtins import object
-from collections.abc import Iterable
 from typing import TYPE_CHECKING
 from typing import Optional
 
@@ -216,13 +215,14 @@ class OperationCounters(object):
           self.producer_type_hints = fns[0]._runtime_type_hints
 
     self.consumers_type_hints = []
-    for consumer in consumers:
-      if hasattr(consumer, 'spec') and hasattr(consumer.spec, 'serialized_fn'):
-        fns = pickler.loads(consumer.spec.serialized_fn)
-        if fns:
-          if hasattr(fns[0], '_runtime_type_hints'):
-            self.consumers_type_hints.append(fns[0]._runtime_type_hints)
-    pass
+
+    if consumers:
+      for consumer in consumers:
+        if hasattr(consumer, 'spec') and hasattr(consumer.spec, 'serialized_fn'):
+          fns = pickler.loads(consumer.spec.serialized_fn)
+          if fns:
+            if hasattr(fns[0], '_runtime_type_hints'):
+              self.consumers_type_hints.append(fns[0]._runtime_type_hints)
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
@@ -252,16 +252,23 @@ class OperationCounters(object):
     if self.producer_type_hints and hasattr(self.producer_type_hints,
                                             'output_types'):
       output_constraint = self.producer_type_hints.output_types
-      while isinstance(output_constraint, Iterable):
-        output_constraint = output_constraint[0]
+
+      while True:
+        try:
+          output_constraint = next(iter(output_constraint))
+        except TypeError:
+          break
       if output_constraint:
         TypeCheckWrapperDoFn.type_check(output_constraint, value, False)
 
     for consumer_type_hints in self.consumers_type_hints:
       if consumer_type_hints and hasattr(consumer_type_hints, 'input_types'):
         input_constraint = consumer_type_hints.input_types
-        while isinstance(input_constraint, Iterable):
-          input_constraint = input_constraint[0]
+        while True:
+          try:
+            input_constraint = next(iter(input_constraint))
+          except TypeError:
+            break
         if input_constraint:
           TypeCheckWrapperDoFn.type_check(input_constraint, value, False)
 
