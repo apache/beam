@@ -340,7 +340,8 @@ if [[ $confirmation = "y" ]]; then
     fi
   fi
   if hash hub 2> /dev/null; then
-    hub pull-request -m "Publish ${RELEASE} release" -h ${USER_GITHUB_ID}:updates_release_${RELEASE} -b apache:release-docs
+    hub pull-request -m "Publish ${RELEASE} release" -h ${USER_GITHUB_ID}:updates_release_${RELEASE} -b apache:release-docs \
+     || echo "Pull request creation did not succeed. If you created the website PR earlier it may have been updated via force-push."
   else
     echo "Without hub, you need to create PR manually."
   fi
