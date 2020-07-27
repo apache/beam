@@ -30,6 +30,7 @@ import unittest
 from apache_beam import coders
 from apache_beam.io import filesystems
 from apache_beam.runners.interactive import cache_manager as cache
+from apache_beam.runners.interactive.options.capture_limiters import CountLimiter
 
 
 class FileBasedCacheManagerTest(object):
@@ -90,6 +91,18 @@ class FileBasedCacheManagerTest(object):
     self.assertFalse(self.cache_manager.exists(prefix, cache_label))
     self.mock_write_cache(cache_version_one, prefix, cache_label)
     self.assertTrue(self.cache_manager.exists(prefix, cache_label))
+
+  def test_clear(self):
+    """Test that CacheManager can correctly tell if the cache exists or not."""
+    prefix = 'full'
+    cache_label = 'some-cache-label'
+    cache_version_one = ['cache', 'version', 'one']
+
+    self.assertFalse(self.cache_manager.exists(prefix, cache_label))
+    self.mock_write_cache(cache_version_one, prefix, cache_label)
+    self.assertTrue(self.cache_manager.exists(prefix, cache_label))
+    self.assertTrue(self.cache_manager.clear(prefix, cache_label))
+    self.assertFalse(self.cache_manager.exists(prefix, cache_label))
 
   def test_read_basic(self):
     """Test the condition where the cache is read once after written once."""
@@ -177,6 +190,21 @@ class FileBasedCacheManagerTest(object):
     # Check that version continues from the previous value instead of starting
     # from 0 again.
     self.assertEqual(version, 1)
+    self.assertTrue(
+        self.cache_manager.is_latest_version(version, prefix, cache_label))
+
+  def test_read_with_count_limiter(self):
+    """Test the condition where the cache is read once after written once."""
+    prefix = 'full'
+    cache_label = 'some-cache-label'
+    cache_version_one = ['cache', 'version', 'one']
+
+    self.mock_write_cache(cache_version_one, prefix, cache_label)
+    reader, version = self.cache_manager.read(
+        prefix, cache_label, limiters=[CountLimiter(2)])
+    pcoll_list = list(reader)
+    self.assertListEqual(pcoll_list, ['cache', 'version'])
+    self.assertEqual(version, 0)
     self.assertTrue(
         self.cache_manager.is_latest_version(version, prefix, cache_label))
 
