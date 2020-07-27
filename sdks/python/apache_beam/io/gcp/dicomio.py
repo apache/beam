@@ -52,7 +52,7 @@ those data and output them to wherever they want.
 
 Convert DICOM Pubsub message to Qido search request
 ===================================================
-Healthcare API users might use Beam’s Pubsub streaming pipeline to monitor the
+Healthcare API users might use Beam's Pubsub streaming pipeline to monitor the
 store operations (new DICOM file) in a DICOM storage. Pubsub message encodes
 DICOM a web store path as well as instance ids. If users are interested in
 getting new instance's metadata, they can use PubsubToQido() to convert the
@@ -113,7 +113,7 @@ from apache_beam.transforms import PTransform
 
 
 class DicomSearch(PTransform):
-  """A ``PTransform`` used for retrieving DICOM instance metadata from Google
+  """A PTransform used for retrieving DICOM instance metadata from Google
     Cloud DICOM store. It takes a Pcollection of dicts as input and return
     a Pcollection of dict as results:
     INPUT:
@@ -159,7 +159,7 @@ class DicomSearch(PTransform):
     }
   """
   def __init__(self, credential=None):
-    """Initializes ``DicomSearch``.
+    """Initializes DicomSearch.
     Args:
       credential: # type: Google credential object, if it is specified, the
         Http client will use it to create sessions instead of the default.
@@ -225,7 +225,7 @@ class _QidoSource(beam.DoFn):
 
 
 class PubsubToQido(PTransform):
-  """A ``PTransform`` for converting pubsub messages into search input dict.
+  """A PTransform for converting pubsub messages into search input dict.
     Takes Pcollection of string as input and returns a Pcollection of dict as
     results. Note that some pubsub messages may not be from DICOM API, which
     will be recorded as failed conversions.
@@ -243,7 +243,7 @@ class PubsubToQido(PTransform):
     }
   """
   def __init__(self, credential=None):
-    """Initializes ``PubsubToQido``.
+    """Initializes PubsubToQido.
     Args:
       credential: # type: Google credential object, if it is specified, the
         Http client will use it instead of the default one.
@@ -325,7 +325,7 @@ class _ConvertPubsubToQido(beam.DoFn):
 
 
 class DicomStoreInstance(PTransform):
-  """A ``PTransform`` for storing instances to a DICOM store.
+  """A PTransform for storing instances to a DICOM store.
     Takes Pcollection of byte[] as input and return a Pcollection of dict as
     results. The inputs are normally DICOM file in bytes or str filename.
     INPUT:
@@ -342,7 +342,7 @@ class DicomStoreInstance(PTransform):
     }
   """
   def __init__(self, destination_dict, input_type, credential=None):
-    """Initializes ``DicomStoreInstance``.
+    """Initializes DicomStoreInstance.
     Args:
       destination_dict: # type: python dict, encodes DICOM endpoint information:
         {

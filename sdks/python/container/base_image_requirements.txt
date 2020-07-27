@@ -45,6 +45,7 @@ typing==3.7.4.1;python_full_version<"3.5.3"
 typing-extensions==3.7.4.1
 
 # GCP extra features
+google-auth==1.18.0
 google-api-core==1.20.0
 google-apitools==0.5.28
 google-cloud-pubsub==1.0.2

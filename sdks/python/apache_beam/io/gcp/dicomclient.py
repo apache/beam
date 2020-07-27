@@ -79,6 +79,8 @@ class DicomApiHttpClient:
       response.raise_for_status()
       status = response.status_code
       if status != 200:
+        if offset == 0:
+          return [], status
         params['offset'] = offset - 1
         params['limit'] = 1
         response = session.get(dicomweb_path, headers=headers, params=params)
