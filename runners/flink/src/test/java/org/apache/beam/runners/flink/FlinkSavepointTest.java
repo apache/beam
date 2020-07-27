@@ -20,11 +20,9 @@ package org.apache.beam.runners.flink;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
-import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -226,18 +224,7 @@ public class FlinkSavepointTest implements Serializable {
   }
 
   private String getFlinkMaster() throws Exception {
-    final URI uri;
-    Method getRestAddress = flinkCluster.getClass().getMethod("getRestAddress");
-    if (getRestAddress.getReturnType().equals(URI.class)) {
-      // Flink 1.5 way
-      uri = (URI) getRestAddress.invoke(flinkCluster);
-    } else if (getRestAddress.getReturnType().equals(CompletableFuture.class)) {
-      @SuppressWarnings("unchecked")
-      CompletableFuture<URI> future = (CompletableFuture<URI>) getRestAddress.invoke(flinkCluster);
-      uri = future.get();
-    } else {
-      throw new RuntimeException("Could not determine Rest address for this Flink version.");
-    }
+    URI uri = flinkCluster.getRestAddress().get();
     return uri.getHost() + ":" + uri.getPort();
   }
 
