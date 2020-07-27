@@ -24,7 +24,7 @@ providers:
     folder: ''
     folderUid: ''
     type: file
-    disableDeletion: true
+    disableDeletion: false
     editable: true
     updateIntervalSeconds: 3600
     options:
@@ -34,7 +34,7 @@ providers:
     folder: 'Performance tests metrics'
     folderUid: ''
     type: file
-    disableDeletion: true
+    disableDeletion: false
     editable: true
     updateIntervalSeconds: 3600
     options:
@@ -44,7 +44,7 @@ providers:
     folder: 'Home'
     folderUid: ''
     type: file
-    disableDeletion: true
+    disableDeletion: false
     editable: true
     updateIntervalSeconds: 3600
     options:

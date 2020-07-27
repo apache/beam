@@ -50,7 +50,11 @@ class TestBigQueryToAvroSchema(unittest.TestCase):
       bigquery.TableFieldSchema(
         name="quality", type="FLOAT"),  # default to NULLABLE
       bigquery.TableFieldSchema(
+        name="grade", type="FLOAT64"),  # default to NULLABLE
+      bigquery.TableFieldSchema(
         name="quantity", type="INTEGER"),  # default to NULLABLE
+      bigquery.TableFieldSchema(
+        name="dependents", type="INT64"),  # default to NULLABLE
       bigquery.TableFieldSchema(
         name="birthday", type="TIMESTAMP", mode="NULLABLE"),
       bigquery.TableFieldSchema(
@@ -69,6 +73,8 @@ class TestBigQueryToAvroSchema(unittest.TestCase):
         name="anniversaryTime", type="TIME", mode="NULLABLE"),
       bigquery.TableFieldSchema(
         name="scion", type="RECORD", mode="NULLABLE", fields=subfields),
+      bigquery.TableFieldSchema(
+        name="family", type="STRUCT", mode="NULLABLE", fields=subfields),
       bigquery.TableFieldSchema(
         name="associates", type="RECORD", mode="REPEATED", fields=subfields),
       bigquery.TableFieldSchema(
@@ -94,7 +100,11 @@ class TestBigQueryToAvroSchema(unittest.TestCase):
     self.assertEqual(
         field_map["quality"].type, Parse(json.dumps(["null", "double"])))
     self.assertEqual(
+        field_map["grade"].type, Parse(json.dumps(["null", "double"])))
+    self.assertEqual(
         field_map["quantity"].type, Parse(json.dumps(["null", "long"])))
+    self.assertEqual(
+        field_map["dependents"].type, Parse(json.dumps(["null", "long"])))
     self.assertEqual(
         field_map["birthday"].type,
         Parse(
@@ -137,24 +147,26 @@ class TestBigQueryToAvroSchema(unittest.TestCase):
     self.assertEqual(
         field_map["geoPositions"].type, Parse(json.dumps(["null", "string"])))
 
-    self.assertEqual(
-        field_map["scion"].type,
-        Parse(
-            json.dumps([
-                "null",
-                {
-                    "type": "record",
-                    "name": "scion",
-                    "fields": [
-                        {
-                            "type": ["null", "string"],
-                            "name": "species",
-                        },
-                    ],
-                    "doc": "Translated Avro Schema for scion",
-                    "namespace": "apache_beam.io.gcp.bigquery.root.scion",
-                },
-            ])))
+    for field in ("scion", "family"):
+      self.assertEqual(
+          field_map[field].type,
+          Parse(
+              json.dumps([
+                  "null",
+                  {
+                      "type": "record",
+                      "name": field,
+                      "fields": [
+                          {
+                              "type": ["null", "string"],
+                              "name": "species",
+                          },
+                      ],
+                      "doc": "Translated Avro Schema for {}".format(field),
+                      "namespace": "apache_beam.io.gcp.bigquery.root.{}".format(
+                          field),
+                  }
+              ])))
 
     self.assertEqual(
         field_map["associates"].type,

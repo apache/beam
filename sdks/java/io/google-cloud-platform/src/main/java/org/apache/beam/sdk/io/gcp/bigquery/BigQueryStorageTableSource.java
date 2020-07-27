@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,6 +91,8 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
     builder.addIfNotNull(
         DisplayData.item("table", BigQueryHelpers.displayTable(tableReferenceProvider))
             .withLabel("Table"));
+    // Note: This transform does not set launchesBigQueryJobs because it doesn't launch
+    // BigQuery jobs, but instead uses the storage api to directly read the table.
   }
 
   @Override

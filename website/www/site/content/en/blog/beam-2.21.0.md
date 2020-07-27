@@ -44,10 +44,10 @@ for example usage.
     `process()`) with `@apache_beam.typehints.no_annotations` will disable it
     for that function.
 
-    More details will be in 
+    More details can be found in 
     [Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety/)
-    and an upcoming
-    [blog post](https://beam.apache.org/blog/python/typing/2020/03/06/python-typing.html).
+    and the Python SDK Typing Changes
+    [blog post](https://beam.apache.org/blog/python-typing/).
 
 * Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra 
 context to fields and schemas. This replaces the current Beam metadata that is present 

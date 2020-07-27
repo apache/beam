@@ -88,6 +88,7 @@
   <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*ExpressionConverter\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*ZetaSQLPlannerImpl\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*SqlAnalyzer\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*pubsublite.*BufferingPullSubscriberTest\.java" />
 
   <!-- gRPC/protobuf exceptions -->
   <!-- Non-vendored gRPC/protobuf imports are allowed for files that depend on libraries that expose gRPC/protobuf in its public API -->
@@ -98,9 +99,10 @@
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*google.*cloud.*spanner.*FakePartitionFactory\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*datastore.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*DateTimeUtils\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlUtils\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSQLDialectSpecTest\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlUtilsTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlBeamTranslationUtils\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlDialectSpecTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlTimeFunctionsTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlBeamTranslationUtilsTest\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*TableResolutionTest\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSQLPushDownTest\.java" />
 

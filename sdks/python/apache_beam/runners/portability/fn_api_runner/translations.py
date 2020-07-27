@@ -67,10 +67,9 @@ COMBINE_URNS = frozenset([
 PAR_DO_URNS = frozenset([
     common_urns.primitives.PAR_DO.urn,
     common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
-    common_urns.sdf_components.SPLIT_RESTRICTION.urn,
     common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
     common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
-    common_urns.sdf_components.PROCESS_ELEMENTS.urn,
+    common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn,
 ])
 
 IMPULSE_BUFFER = b'impulse'
@@ -159,8 +158,7 @@ class Stage(object):
 
     return (
         not consumer.forced_root and not self in consumer.must_follow and
-        not self.is_runner_urn(context) and
-        not consumer.is_runner_urn(context) and
+        self.is_all_sdk_urns(context) and consumer.is_all_sdk_urns(context) and
         no_overlap(self.downstream_side_inputs, consumer.side_inputs()))
 
   def fuse(self, other):
@@ -180,6 +178,17 @@ class Stage(object):
     return any(
         transform.spec.urn in context.known_runner_urns
         for transform in self.transforms)
+
+  def is_all_sdk_urns(self, context):
+    def is_sdk_transform(transform):
+      # Execute multi-input flattens in the runner.
+      if transform.spec.urn == common_urns.primitives.FLATTEN.urn and len(
+          transform.inputs) > 1:
+        return False
+      else:
+        return transform.spec.urn not in context.runner_only_urns
+
+    return all(is_sdk_transform(transform) for transform in self.transforms)
 
   def side_inputs(self):
     # type: () -> Iterator[str]
@@ -335,11 +344,15 @@ class TransformContext(object):
   def __init__(self,
                components,  # type: beam_runner_api_pb2.Components
                known_runner_urns,  # type: FrozenSet[str]
-               use_state_iterables=False
+               use_state_iterables=False,
+               is_drain=False
               ):
     self.components = components
     self.known_runner_urns = known_runner_urns
+    self.runner_only_urns = known_runner_urns - frozenset(
+        [common_urns.primitives.FLATTEN.urn])
     self.use_state_iterables = use_state_iterables
+    self.is_drain = is_drain
     # ok to pass None for context because BytesCoder has no components
     coder_proto = coders.BytesCoder().to_runner_api(
         None)  # type: ignore[arg-type]
@@ -369,11 +382,8 @@ class TransformContext(object):
             self.components.windowing_strategies[
                 pcoll.windowing_strategy_id].window_coder_id
         ])
-    channel_coder = self.add_or_get_coder_id(
-        proto, pcoll.coder_id + '_windowed')
-    if pcoll.coder_id in self.safe_coders:
-      channel_coder = self.length_prefixed_coder(channel_coder)
-    self.data_channel_coders[pcoll_id] = channel_coder
+    self.data_channel_coders[pcoll_id] = self.maybe_length_prefixed_coder(
+        self.add_or_get_coder_id(proto, pcoll.coder_id + '_windowed'))
 
   @memoize_on_instance
   def with_state_iterables(self, coder_id):
@@ -404,23 +414,24 @@ class TransformContext(object):
         return new_coder_id
 
   @memoize_on_instance
-  def length_prefixed_coder(self, coder_id):
+  def maybe_length_prefixed_coder(self, coder_id):
     # type: (str) -> str
     if coder_id in self.safe_coders:
       return coder_id
-    length_prefixed_id, safe_id = self.length_prefixed_and_safe_coder(coder_id)
-    self.safe_coders[length_prefixed_id] = safe_id
-    return length_prefixed_id
+    (maybe_length_prefixed_id,
+     safe_id) = self.maybe_length_prefixed_and_safe_coder(coder_id)
+    self.safe_coders[maybe_length_prefixed_id] = safe_id
+    return maybe_length_prefixed_id
 
   @memoize_on_instance
-  def length_prefixed_and_safe_coder(self, coder_id):
+  def maybe_length_prefixed_and_safe_coder(self, coder_id):
     # type: (str) -> Tuple[str, str]
     coder = self.components.coders[coder_id]
     if coder.spec.urn == common_urns.coders.LENGTH_PREFIX.urn:
       return coder_id, self.bytes_coder_id
     elif coder.spec.urn in self._KNOWN_CODER_URNS:
       new_component_ids = [
-          self.length_prefixed_coder(c) for c in coder.component_coder_ids
+          self.maybe_length_prefixed_coder(c) for c in coder.component_coder_ids
       ]
       if new_component_ids == coder.component_coder_ids:
         new_coder_id = coder_id
@@ -452,7 +463,7 @@ class TransformContext(object):
   def length_prefix_pcoll_coders(self, pcoll_id):
     # type: (str) -> None
     self.components.pcollections[pcoll_id].coder_id = (
-        self.length_prefixed_coder(
+        self.maybe_length_prefixed_coder(
             self.components.pcollections[pcoll_id].coder_id))
 
 
@@ -539,7 +550,8 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
 def create_and_optimize_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
                                phases,
                                known_runner_urns,  # type: FrozenSet[str]
-                               use_state_iterables=False
+                               use_state_iterables=False,
+    is_drain=False
                               ):
   # type: (...) -> Tuple[TransformContext, List[Stage]]
 
@@ -560,7 +572,8 @@ def create_and_optimize_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipe
   pipeline_context = TransformContext(
       pipeline_proto.components,
       known_runner_urns,
-      use_state_iterables=use_state_iterables)
+      use_state_iterables=use_state_iterables,
+      is_drain=is_drain)
 
   # Initial set of stages are singleton leaf transforms.
   stages = list(
@@ -965,6 +978,7 @@ def expand_sdf(stages, context):
             inputs=dict(transform.inputs, **{main_input_tag: paired_pcoll_id}),
             outputs={'out': split_pcoll_id})
 
+        reshuffle_stage = None
         if common_urns.composites.RESHUFFLE.urn in context.known_runner_urns:
           reshuffle_pcoll_id = copy_like(
               context.components.pcollections,
@@ -979,25 +993,57 @@ def expand_sdf(stages, context):
               payload=b'',
               inputs=dict(transform.inputs, **{main_input_tag: split_pcoll_id}),
               outputs={'out': reshuffle_pcoll_id})
-          yield make_stage(stage, reshuffle_transform_id)
+          reshuffle_stage = make_stage(stage, reshuffle_transform_id)
         else:
           reshuffle_pcoll_id = split_pcoll_id
           reshuffle_transform_id = None
 
-        process_transform_id = copy_like(
-            context.components.transforms,
-            transform,
-            unique_name=transform.unique_name + '/Process',
-            urn=common_urns.sdf_components.
-            PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
-            inputs=dict(
-                transform.inputs, **{main_input_tag: reshuffle_pcoll_id}))
+        if context.is_drain:
+          truncate_pcoll_id = copy_like(
+              context.components.pcollections,
+              main_input_id,
+              '_truncate_restriction',
+              coder_id=sized_coder_id)
+          # Lengthprefix the truncate output.
+          context.length_prefix_pcoll_coders(truncate_pcoll_id)
+          truncate_transform_id = copy_like(
+              context.components.transforms,
+              transform,
+              unique_name=transform.unique_name + '/TruncateAndSizeRestriction',
+              urn=common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn,
+              inputs=dict(
+                  transform.inputs, **{main_input_tag: reshuffle_pcoll_id}),
+              outputs={'out': truncate_pcoll_id})
+          process_transform_id = copy_like(
+              context.components.transforms,
+              transform,
+              unique_name=transform.unique_name + '/Process',
+              urn=common_urns.sdf_components.
+              PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
+              inputs=dict(
+                  transform.inputs, **{main_input_tag: truncate_pcoll_id}))
+        else:
+          process_transform_id = copy_like(
+              context.components.transforms,
+              transform,
+              unique_name=transform.unique_name + '/Process',
+              urn=common_urns.sdf_components.
+              PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
+              inputs=dict(
+                  transform.inputs, **{main_input_tag: reshuffle_pcoll_id}))
 
         yield make_stage(stage, pair_transform_id)
         split_stage = make_stage(stage, split_transform_id)
         yield split_stage
-        yield make_stage(
-            stage, process_transform_id, extra_must_follow=[split_stage])
+        if reshuffle_stage:
+          yield reshuffle_stage
+        if context.is_drain:
+          yield make_stage(
+              stage, truncate_transform_id, extra_must_follow=[split_stage])
+          yield make_stage(stage, process_transform_id)
+        else:
+          yield make_stage(
+              stage, process_transform_id, extra_must_follow=[split_stage])
 
       else:
         yield stage
@@ -1061,8 +1107,9 @@ def expand_gbk(stages, pipeline_context):
       yield stage
 
 
-def fix_flatten_coders(stages, pipeline_context):
-  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
+def fix_flatten_coders(
+    stages, pipeline_context, identity_urn=bundle_processor.IDENTITY_DOFN_URN):
+  # type: (Iterable[Stage], TransformContext, str) -> Iterator[Stage]
 
   """Ensures that the inputs of Flatten have the same coders as the output.
   """
@@ -1090,8 +1137,7 @@ def fix_flatten_coders(stages, pipeline_context):
                       unique_name=transcode_name,
                       inputs={local_in: pcoll_in},
                       outputs={'out': transcoded_pcollection},
-                      spec=beam_runner_api_pb2.FunctionSpec(
-                          urn=bundle_processor.IDENTITY_DOFN_URN),
+                      spec=beam_runner_api_pb2.FunctionSpec(urn=identity_urn),
                       environment_id=transform.environment_id)
               ],
               downstream_side_inputs=frozenset(),
@@ -1114,10 +1160,13 @@ def sink_flattens(stages, pipeline_context):
   same logical sink) followed by a read.
   """
   # TODO(robertwb): Actually attempt to sink rather than always materialize.
-  # TODO(robertwb): Possibly fuse this into one of the stages.
-  for stage in fix_flatten_coders(stages, pipeline_context):
+  # TODO(robertwb): Possibly fuse multi-input flattens into one of the stages.
+  for stage in fix_flatten_coders(stages,
+                                  pipeline_context,
+                                  common_urns.primitives.FLATTEN.urn):
     transform = only_element(stage.transforms)
-    if transform.spec.urn == common_urns.primitives.FLATTEN.urn:
+    if (transform.spec.urn == common_urns.primitives.FLATTEN.urn and
+        len(transform.inputs) > 1):
       # This is used later to correlate the read and writes.
       buffer_id = create_buffer_id(transform.unique_name)
       flatten_writes = []  # type: List[Stage]
@@ -1130,7 +1179,8 @@ def sink_flattens(stages, pipeline_context):
                     inputs={local_in: pcoll_in},
                     spec=beam_runner_api_pb2.FunctionSpec(
                         urn=bundle_processor.DATA_OUTPUT_URN,
-                        payload=buffer_id))
+                        payload=buffer_id),
+                    environment_id=transform.environment_id)
             ],
             downstream_side_inputs=frozenset(),
             must_follow=stage.must_follow)
@@ -1144,7 +1194,8 @@ def sink_flattens(stages, pipeline_context):
                   unique_name=transform.unique_name + '/Read',
                   outputs=transform.outputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=bundle_processor.DATA_INPUT_URN, payload=buffer_id))
+                      urn=bundle_processor.DATA_INPUT_URN, payload=buffer_id),
+                  environment_id=transform.environment_id)
           ],
           downstream_side_inputs=stage.downstream_side_inputs,
           must_follow=union(frozenset(flatten_writes), stage.must_follow))

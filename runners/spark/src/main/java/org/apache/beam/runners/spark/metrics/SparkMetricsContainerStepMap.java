@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.metrics;
 
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Sole purpose of this class is to override {@link #toString()} of {@link MetricsContainerStepMap}
@@ -31,7 +32,7 @@ class SparkMetricsContainerStepMap extends MetricsContainerStepMap {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     return super.equals(o);
   }
 

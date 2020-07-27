@@ -23,10 +23,6 @@ For experimental usage only; no backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
-import logging
-
-_LOGGER = logging.getLogger(__name__)
-
 
 def is_in_ipython():
   """Determines if current code is executed within an ipython session."""
@@ -77,12 +73,6 @@ def alter_label_if_ipython(transform, pvalueish):
     from IPython import get_ipython
     prompt = get_ipython().execution_count
     pipeline = _extract_pipeline_of_pvalueish(pvalueish)
-    if not pipeline:
-      _LOGGER.warning(
-          'Failed to alter the label of a transform with the '
-          'ipython prompt metadata. Cannot figure out the pipeline '
-          'that the given pvalueish %s belongs to. Thus noop.',
-          pvalueish)
     if (pipeline
         # We only alter for transforms to be applied to user-defined pipelines
         # at pipeline construction time.

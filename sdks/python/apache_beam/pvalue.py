@@ -67,6 +67,7 @@ __all__ = [
     'AsList',
     'AsDict',
     'EmptySideInput',
+    'Row',
 ]
 
 T = TypeVar('T')
@@ -639,3 +640,46 @@ class EmptySideInput(object):
   want to create new instances of this class themselves.
   """
   pass
+
+
+class Row(object):
+  """A dynamic schema'd row object.
+
+  This objects attributes are initialized from the keywords passed into its
+  constructor, e.g. Row(x=3, y=4) will create a Row with two attributes x and y.
+
+  More importantly, when a Row object is returned from a `Map`, `FlatMap`, or
+  `DoFn` type inference is able to deduce the schema of the resulting
+  PCollection, e.g.
+
+      pc | beam.Map(lambda x: Row(x=x, y=0.5 * x))
+
+  when applied to a PCollection of ints will produce a PCollection with schema
+  `(x=int, y=float)`.
+  """
+  def __init__(self, **kwargs):
+    self.__dict__.update(kwargs)
+
+  def __iter__(self):
+    for _, value in sorted(self.__dict__.items()):
+      yield value
+
+  def __repr__(self):
+    return 'Row(%s)' % ', '.join(
+        '%s=%r' % kv for kv in sorted(self.__dict__.items()))
+
+  def __hash__(self):
+    return hash(type(sorted(self.__dict__.items())))
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not self == other
+
+  def __reduce__(self):
+    return _make_Row, tuple(sorted(self.__dict__.items()))
+
+
+def _make_Row(*items):
+  return Row(**dict(items))

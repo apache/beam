@@ -34,7 +34,6 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nullable;
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanException;
 import javax.management.MBeanServer;
@@ -52,6 +51,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.AtomicDouble;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -190,7 +190,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
   /**
    * If non null, if a heap dump is detected during initialization upload it to the given GCS path.
    */
-  @Nullable private final String uploadToGCSPath;
+  private final @Nullable String uploadToGCSPath;
 
   private final File localDumpFolder;
 
@@ -436,8 +436,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
    *
    * @return The name of the file the heap was dumped to, otherwise {@literal null}.
    */
-  @Nullable
-  public File tryToDumpHeap() {
+  public @Nullable File tryToDumpHeap() {
     if (!canDumpHeap) {
       return null;
     }

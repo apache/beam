@@ -21,4 +21,8 @@ package org.apache.beam.sdk.extensions.sql.impl.utils;
 public class TVFStreamingUtils {
   public static final String WINDOW_START = "window_start";
   public static final String WINDOW_END = "window_end";
+
+  public static final String FIXED_WINDOW_TVF = "TUMBLE";
+  public static final String SLIDING_WINDOW_TVF = "HOP";
+  public static final String SESSION_WINDOW_TVF = "SESSION";
 }

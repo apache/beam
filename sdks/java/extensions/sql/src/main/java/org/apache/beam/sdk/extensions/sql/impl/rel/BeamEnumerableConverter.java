@@ -21,6 +21,9 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Prec
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -29,14 +32,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
@@ -74,6 +75,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.ConverterImpl;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.ReadableInstant;
 import org.slf4j.Logger;
@@ -121,11 +123,17 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   }
 
   public static List<Row> toRowList(BeamRelNode node) {
+    return toRowList(node, Collections.emptyMap());
+  }
+
+  public static List<Row> toRowList(BeamRelNode node, Map<String, String> otherOptions) {
     final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
-      final PipelineOptions options = createPipelineOptions(node.getPipelineOptions());
-      return toRowList(options, node);
+      final Map<String, String> optionsMap = new HashMap<>();
+      optionsMap.putAll(node.getPipelineOptions());
+      optionsMap.putAll(otherOptions);
+      return toRowList(createPipelineOptions(optionsMap), node);
     } finally {
       Thread.currentThread().setContextClassLoader(originalClassLoader);
     }
@@ -179,6 +187,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       // Check pipeline state in every second
       state = result.waitUntilFinish(Duration.standardSeconds(1));
       if (state != null && state.isTerminal()) {
+        if (PipelineResult.State.FAILED.equals(state)) {
+          throw new RuntimeException("Pipeline failed for unknown reason");
+        }
         break;
       }
 
@@ -201,7 +212,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     PCollection<Row> resultCollection = BeamSqlRelUtils.toPCollection(pipeline, node);
     resultCollection.apply(ParDo.of(new Collector()));
     PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    if (PipelineResult.State.FAILED.equals(result.waitUntilFinish())) {
+      throw new RuntimeException("Pipeline failed for unknown reason");
+    }
   }
 
   private static Queue<Row> collectRows(PipelineOptions options, BeamRelNode node) {
@@ -253,7 +266,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     // This will only work on the direct runner.
     private static final Map<Long, Queue<Row>> globalValues = new ConcurrentHashMap<>();
 
-    @Nullable private volatile Queue<Row> values;
+    private @Nullable volatile Queue<Row> values;
 
     @StartBundle
     public void startBundle(StartBundleContext context) {
@@ -303,8 +316,12 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     switch (type.getTypeName()) {
       case LOGICAL_TYPE:
         String logicalId = type.getLogicalType().getIdentifier();
-        if (TimeType.IDENTIFIER.equals(logicalId)) {
-          return (int) ((ReadableInstant) beamValue).getMillis();
+        if (SqlTypes.TIME.getIdentifier().equals(logicalId)) {
+          if (beamValue instanceof Long) { // base type
+            return (Long) beamValue;
+          } else { // input type
+            return ((LocalTime) beamValue).toNanoOfDay();
+          }
         } else if (SqlTypes.DATE.getIdentifier().equals(logicalId)) {
           if (beamValue instanceof Long) { // base type
             return ((Long) beamValue).intValue();
@@ -362,7 +379,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     long count = 0;
     if (!containsUnboundedPCollection(pipeline)) {
-      result.waitUntilFinish();
+      if (PipelineResult.State.FAILED.equals(result.waitUntilFinish())) {
+        throw new RuntimeException("Pipeline failed for unknown reason");
+      }
       MetricQueryResults metrics =
           result
               .metrics()

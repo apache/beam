@@ -144,30 +144,26 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 			if err != nil {
 				return nil, err
 			}
-			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+			return coder.CoderFrom(c), nil
 		case reflectx.Uint, reflectx.Uint8, reflectx.Uint16, reflectx.Uint32, reflectx.Uint64:
 			c, err := coderx.NewVarUintZ(t.Type())
 			if err != nil {
 				return nil, err
 			}
-			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+			return coder.CoderFrom(c), nil
 
 		case reflectx.Float32:
 			c, err := coderx.NewFloat(t.Type())
 			if err != nil {
 				return nil, err
 			}
-			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+			return coder.CoderFrom(c), nil
 
 		case reflectx.Float64:
 			return &coder.Coder{Kind: coder.Double, T: t}, nil
 
 		case reflectx.String:
-			c, err := coderx.NewString()
-			if err != nil {
-				return nil, err
-			}
-			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+			return &coder.Coder{Kind: coder.String, T: t}, nil
 
 		case reflectx.ByteSlice:
 			return &coder.Coder{Kind: coder.Bytes, T: t}, nil
@@ -178,7 +174,7 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 		default:
 			et := t.Type()
 			if c := coder.LookupCustomCoder(et); c != nil {
-				return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+				return coder.CoderFrom(c), nil
 			}
 			// Interface types that implement JSON marshalling can be handled by the default coder.
 			// otherwise, inference needs to fail here.

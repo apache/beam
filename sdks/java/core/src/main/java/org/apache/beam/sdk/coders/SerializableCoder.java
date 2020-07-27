@@ -28,10 +28,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.WeakHashMap;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -166,7 +166,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   private final Class<T> type;
 
   /** Access via {@link #getEncodedTypeDescriptor()}. */
-  @Nullable private transient TypeDescriptor<T> typeDescriptor;
+  private transient @Nullable TypeDescriptor<T> typeDescriptor;
 
   protected SerializableCoder(Class<T> type, TypeDescriptor<T> typeDescriptor) {
     this.type = type;
@@ -206,7 +206,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     return !(other == null || getClass() != other.getClass())
         && type == ((SerializableCoder<?>) other).type;
   }

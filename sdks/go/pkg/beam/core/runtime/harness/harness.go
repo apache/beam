@@ -175,7 +175,7 @@ func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
 			c.mu.Unlock() // Unlock to make the lookup.
 			newDesc, err := c.lookupDesc(bdID)
 			if err != nil {
-				return nil, errors.Wrapf(err, "execution plan for %v not found", bdID)
+				return nil, errors.WithContextf(err, "execution plan for %v not found", bdID)
 			}
 			c.mu.Lock()
 			c.descriptors[bdID] = newDesc
@@ -184,7 +184,7 @@ func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
 		newPlan, err := exec.UnmarshalPlan(desc)
 		if err != nil {
 			c.mu.Unlock()
-			return nil, errors.Wrapf(err, "invalid bundle desc %v: %v", bdID, desc)
+			return nil, errors.WithContextf(err, "invalid bundle desc: %v", bdID)
 		}
 		plan = newPlan
 	}

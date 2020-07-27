@@ -24,7 +24,6 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * This transform reads from Cloud Spanner using the {@link com.google.cloud.spanner.BatchClient}.
@@ -51,8 +51,7 @@ abstract class BatchSpannerRead
 
   abstract SpannerConfig getSpannerConfig();
 
-  @Nullable
-  abstract PCollectionView<Transaction> getTxView();
+  abstract @Nullable PCollectionView<Transaction> getTxView();
 
   abstract TimestampBound getTimestampBound();
 
@@ -93,7 +92,7 @@ abstract class BatchSpannerRead
 
     @Setup
     public void setup() throws Exception {
-      spannerAccessor = SpannerAccessor.create(config);
+      spannerAccessor = SpannerAccessor.getOrCreate(config);
     }
 
     @Teardown
@@ -146,7 +145,7 @@ abstract class BatchSpannerRead
 
     @Setup
     public void setup() throws Exception {
-      spannerAccessor = SpannerAccessor.create(config);
+      spannerAccessor = SpannerAccessor.getOrCreate(config);
     }
 
     @Teardown

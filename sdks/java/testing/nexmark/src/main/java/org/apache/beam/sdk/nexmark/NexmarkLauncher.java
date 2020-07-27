@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.AvroIO;
@@ -105,6 +104,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.LoggerFactory;
@@ -116,6 +116,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   /** Command line parameter value for query language. */
   private static final String SQL = "sql";
+
+  /** Command line parameter value for zetasql language. */
+  private static final String ZETA_SQL = "zetasql";
 
   /** Minimum number of samples needed for 'stead-state' rate calculation. */
   private static final int MIN_SAMPLES = 9;
@@ -143,26 +146,26 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   private NexmarkConfiguration configuration;
 
   /** If in --pubsubMode=COMBINED, the event monitor for the publisher pipeline. Otherwise null. */
-  @Nullable private Monitor<Event> publisherMonitor;
+  private @Nullable Monitor<Event> publisherMonitor;
 
   /**
    * If in --pubsubMode=COMBINED, the pipeline result for the publisher pipeline. Otherwise null.
    */
-  @Nullable private PipelineResult publisherResult;
+  private @Nullable PipelineResult publisherResult;
 
   /** Result for the main pipeline. */
-  @Nullable private PipelineResult mainResult;
+  private @Nullable PipelineResult mainResult;
 
   /** Query name we are running. */
-  @Nullable private String queryName;
+  private @Nullable String queryName;
 
   /** Full path of the PubSub topic (when PubSub is enabled). */
-  @Nullable private String pubsubTopic;
+  private @Nullable String pubsubTopic;
 
   /** Full path of the PubSub subscription (when PubSub is enabled). */
-  @Nullable private String pubsubSubscription;
+  private @Nullable String pubsubSubscription;
 
-  @Nullable private PubsubHelper pubsubHelper;
+  private @Nullable PubsubHelper pubsubHelper;
   private final Map<NexmarkQueryName, NexmarkQuery> queries;
   private final Map<NexmarkQueryName, NexmarkQueryModel> models;
 
@@ -389,8 +392,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * Monitor the performance and progress of a running job. Return final performance if it was
    * measured.
    */
-  @Nullable
-  private NexmarkPerf monitor(NexmarkQuery query) {
+  private @Nullable NexmarkPerf monitor(NexmarkQuery query) {
     if (!options.getMonitorJobs()) {
       return null;
     }
@@ -472,11 +474,14 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
           cancelJob = true;
         } else if (configuration.debug
             && configuration.numEvents > 0
-            && currPerf.numEvents == configuration.numEvents
+            && currPerf.numEvents >= configuration.numEvents
             && currPerf.numResults >= 0
             && quietFor.isLongerThan(DONE_DELAY)) {
           NexmarkUtils.console("streaming query appears to have finished waiting for completion.");
           waitingForShutdown = true;
+          if (options.getCancelStreamingJobAfterFinish()) {
+            cancelJob = true;
+          }
         } else if (quietFor.isLongerThan(STUCK_TERMINATE_DELAY)) {
           NexmarkUtils.console(
               "ERROR: streaming query appears to have been stuck for %d minutes, cancelling job.",
@@ -1084,8 +1089,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   /** Run {@code configuration} and return its performance if possible. */
-  @Nullable
-  public NexmarkPerf run() throws IOException {
+  public @Nullable NexmarkPerf run() throws IOException {
     if (options.getManageResources() && !options.getMonitorJobs()) {
       throw new RuntimeException("If using --manageResources then must also use --monitorJobs.");
     }
@@ -1200,6 +1204,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     return SQL.equalsIgnoreCase(options.getQueryLanguage());
   }
 
+  private boolean isZetaSql() {
+    return ZETA_SQL.equalsIgnoreCase(options.getQueryLanguage());
+  }
+
   private NexmarkQueryModel getNexmarkQueryModel() {
     return models.get(configuration.query);
   }
@@ -1209,7 +1217,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private Map<NexmarkQueryName, NexmarkQueryModel> createQueryModels() {
-    return isSql() ? createSqlQueryModels() : createJavaQueryModels();
+    return (isSql() || isZetaSql()) ? createSqlQueryModels() : createJavaQueryModels();
   }
 
   private Map<NexmarkQueryName, NexmarkQueryModel> createSqlQueryModels() {
@@ -1234,8 +1242,15 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private Map<NexmarkQueryName, NexmarkQuery> createQueries() {
-    Map<NexmarkQueryName, NexmarkQuery> defaultQueries =
-        isSql() ? createSqlQueries() : createJavaQueries();
+    Map<NexmarkQueryName, NexmarkQuery> defaultQueries;
+    if (isSql()) {
+      defaultQueries = createSqlQueries();
+    } else if (isZetaSql()) {
+      defaultQueries = createZetaSqlQueries();
+    } else {
+      defaultQueries = createJavaQueries();
+    }
+
     Set<NexmarkQueryName> skippableQueries = getSkippableQueries();
     return ImmutableMap.copyOf(
         Maps.filterKeys(defaultQueries, query -> !skippableQueries.contains(query)));
@@ -1254,14 +1269,16 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   private Map<NexmarkQueryName, NexmarkQuery> createSqlQueries() {
     return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
-        .put(NexmarkQueryName.PASSTHROUGH, new NexmarkQuery(configuration, new SqlQuery0()))
+        .put(
+            NexmarkQueryName.PASSTHROUGH,
+            new NexmarkQuery(configuration, SqlQuery0.calciteSqlQuery0()))
         .put(NexmarkQueryName.CURRENCY_CONVERSION, new NexmarkQuery(configuration, new SqlQuery1()))
         .put(
             NexmarkQueryName.SELECTION,
-            new NexmarkQuery(configuration, new SqlQuery2(configuration.auctionSkip)))
+            new NexmarkQuery(configuration, SqlQuery2.calciteSqlQuery2(configuration.auctionSkip)))
         .put(
             NexmarkQueryName.LOCAL_ITEM_SUGGESTION,
-            new NexmarkQuery(configuration, new SqlQuery3(configuration)))
+            new NexmarkQuery(configuration, SqlQuery3.calciteSqlQuery3(configuration)))
 
         // SqlQuery5 is disabled for now, uses non-equi-joins,
         // never worked right, was giving incorrect results.
@@ -1280,7 +1297,27 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             new NexmarkQuery(configuration, new SqlQuery7(configuration)))
         .put(
             NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN,
-            new NexmarkQuery(configuration, new SqlBoundedSideInputJoin(configuration)))
+            new NexmarkQuery(
+                configuration,
+                SqlBoundedSideInputJoin.calciteSqlBoundedSideInputJoin(configuration)))
+        .build();
+  }
+
+  private Map<NexmarkQueryName, NexmarkQuery> createZetaSqlQueries() {
+    return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
+        .put(
+            NexmarkQueryName.PASSTHROUGH,
+            new NexmarkQuery(configuration, SqlQuery0.zetaSqlQuery0()))
+        .put(
+            NexmarkQueryName.SELECTION,
+            new NexmarkQuery(configuration, SqlQuery2.zetaSqlQuery2(configuration.auctionSkip)))
+        .put(
+            NexmarkQueryName.LOCAL_ITEM_SUGGESTION,
+            new NexmarkQuery(configuration, SqlQuery3.zetaSqlQuery3(configuration)))
+        .put(
+            NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN,
+            new NexmarkQuery(
+                configuration, SqlBoundedSideInputJoin.zetaSqlBoundedSideInputJoin(configuration)))
         .build();
   }
 

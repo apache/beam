@@ -47,7 +47,6 @@ import grpc
 from apache_beam.io import filesystems
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
-from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -366,8 +365,10 @@ class EmbeddedWorkerHandler(WorkerHandler):
     pass
 
   def data_api_service_descriptor(self):
-    # type: () -> None
-    return None
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
+    # A fake endpoint is needed for properly constructing timer info map in
+    # bundle_processor for fnapi_runner.
+    return endpoints_pb2.ApiServiceDescriptor(url='fake')
 
   def state_api_service_descriptor(self):
     # type: () -> None
@@ -419,16 +420,6 @@ class BasicProvisionService(beam_provision_api_pb2_grpc.ProvisionServiceServicer
     return beam_provision_api_pb2.GetProvisionInfoResponse(info=info)
 
 
-class EmptyArtifactRetrievalService(
-    beam_artifact_api_pb2_grpc.LegacyArtifactRetrievalServiceServicer):
-  def GetManifest(self, request, context=None):
-    return beam_artifact_api_pb2.GetManifestResponse(
-        manifest=beam_artifact_api_pb2.Manifest())
-
-  def GetArtifact(self, request, context=None):
-    raise ValueError('No artifacts staged.')
-
-
 class GrpcServer(object):
 
   _DEFAULT_SHUTDOWN_TIMEOUT_SECS = 5
@@ -472,15 +463,6 @@ class GrpcServer(object):
             BasicProvisionService(
                 self.provision_info.provision_info, worker_manager),
             self.control_server)
-
-      if self.provision_info.artifact_staging_dir:
-        service = artifact_service.BeamFilesystemArtifactService(
-            self.provision_info.artifact_staging_dir
-        )  # type: beam_artifact_api_pb2_grpc.LegacyArtifactRetrievalServiceServicer
-      else:
-        service = EmptyArtifactRetrievalService()
-      beam_artifact_api_pb2_grpc.add_LegacyArtifactRetrievalServiceServicer_to_server(
-          service, self.control_server)
 
       beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
           artifact_service.ArtifactRetrievalService(
@@ -842,6 +824,8 @@ class WorkerHandlerManager(object):
       self._grpc_server = GrpcServer(
           self.state_servicer, self._job_provision_info, self)
       grpc_server = self._grpc_server
+    else:
+      grpc_server = self._grpc_server
 
     worker_handler_list = self._cached_handlers[environment_id]
     if len(worker_handler_list) < num_workers:
@@ -852,9 +836,11 @@ class WorkerHandlerManager(object):
             self._job_provision_info.for_environment(environment),
             grpc_server)
         _LOGGER.info(
-            "Created Worker handler %s for environment %s",
+            "Created Worker handler %s for environment %s (%s, %r)",
             worker_handler,
-            environment)
+            environment_id,
+            environment.urn,
+            environment.payload)
         self._cached_handlers[environment_id].append(worker_handler)
         self._workers_by_id[worker_handler.worker_id] = worker_handler
         worker_handler.start_worker()

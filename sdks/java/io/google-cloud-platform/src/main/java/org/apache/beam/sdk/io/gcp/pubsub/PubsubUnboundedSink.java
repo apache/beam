@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -62,6 +61,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -197,7 +197,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     private final int publishBatchBytes;
 
     /** Client on which to talk to Pubsub. Null until created by {@link #startBundle}. */
-    @Nullable private transient PubsubClient pubsubClient;
+    private transient @Nullable PubsubClient pubsubClient;
 
     private final Counter batchCounter = Metrics.counter(WriterFn.class, "batches");
     private final Counter elementCounter = SinkMetrics.elementsWritten();
@@ -294,13 +294,13 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
    * Pubsub metadata field holding timestamp of each element, or {@literal null} if should use
    * Pubsub message publish timestamp instead.
    */
-  @Nullable private final String timestampAttribute;
+  private final @Nullable String timestampAttribute;
 
   /**
    * Pubsub metadata field holding id for each element, or {@literal null} if need to generate a
    * unique id ourselves.
    */
-  @Nullable private final String idAttribute;
+  private final @Nullable String idAttribute;
 
   /**
    * Number of 'shards' to use so that latency in Pubsub publish can be hidden. Generally this
@@ -395,14 +395,12 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   }
 
   /** Get the timestamp attribute. */
-  @Nullable
-  public String getTimestampAttribute() {
+  public @Nullable String getTimestampAttribute() {
     return timestampAttribute;
   }
 
   /** Get the id attribute. */
-  @Nullable
-  public String getIdAttribute() {
+  public @Nullable String getIdAttribute() {
     return idAttribute;
   }
 

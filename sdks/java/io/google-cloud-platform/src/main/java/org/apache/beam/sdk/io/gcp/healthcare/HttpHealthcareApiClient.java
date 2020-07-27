@@ -52,7 +52,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -67,6 +66,7 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -407,10 +407,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     StringEntity requestEntity = new StringEntity(bundle, ContentType.APPLICATION_JSON);
     URI uri;
     try {
-      uri =
-          new URIBuilder(client.getRootUrl() + "v1beta1/" + fhirStore + "/fhir")
-              .setParameter("access_token", credentials.getAccessToken().getTokenValue())
-              .build();
+      uri = new URIBuilder(client.getRootUrl() + "v1beta1/" + fhirStore + "/fhir").build();
     } catch (URISyntaxException e) {
       LOG.error("URL error when making executeBundle request to FHIR API. " + e.getMessage());
       throw new IllegalArgumentException(e);
@@ -420,6 +417,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         RequestBuilder.post()
             .setUri(uri)
             .setEntity(requestEntity)
+            .addHeader("Authorization", "Bearer " + credentials.getAccessToken().getTokenValue())
             .addHeader("User-Agent", USER_AGENT)
             .addHeader("Content-Type", FHIRSTORE_HEADER_CONTENT_TYPE)
             .addHeader("Accept-Charset", FHIRSTORE_HEADER_ACCEPT_CHARSET)
@@ -429,9 +427,11 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     HttpResponse response = httpClient.execute(request);
     HttpEntity responseEntity = response.getEntity();
     String content = EntityUtils.toString(responseEntity);
+
     // Check 2XX code.
-    if (!(response.getStatusLine().getStatusCode() / 100 == 2)) {
-      throw HealthcareHttpException.of(response);
+    int statusCode = response.getStatusLine().getStatusCode();
+    if (!(statusCode / 100 == 2)) {
+      throw HealthcareHttpException.of(statusCode, content);
     }
     HttpBody responseModel = new HttpBody();
     responseModel.setData(content);
@@ -443,11 +443,11 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
    * HealthcareIOError}.
    */
   public static class HealthcareHttpException extends Exception {
-    private final Integer statusCode;
+    private final int statusCode;
 
-    HealthcareHttpException(HttpResponse response, String message) {
+    private HealthcareHttpException(int statusCode, String message) {
       super(message);
-      this.statusCode = response.getStatusLine().getStatusCode();
+      this.statusCode = statusCode;
       if (statusCode / 100 == 2) {
         throw new IllegalArgumentException(
             String.format(
@@ -457,17 +457,18 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     }
 
     /**
-     * Create Exception of {@link HttpResponse}.
+     * Creates an exception from a non-OK response.
      *
-     * @param response the HTTP response
+     * @param statusCode the HTTP status code.
+     * @param message the error message.
      * @return the healthcare http exception
      * @throws IOException the io exception
      */
-    static HealthcareHttpException of(HttpResponse response) throws IOException {
-      return new HealthcareHttpException(response, EntityUtils.toString(response.getEntity()));
+    static HealthcareHttpException of(int statusCode, String message) {
+      return new HealthcareHttpException(statusCode, message);
     }
 
-    Integer getStatusCode() {
+    int getStatusCode() {
       return statusCode;
     }
   }
@@ -548,12 +549,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         String hl7v2Store,
         @Nullable Instant start,
         @Nullable Instant end) {
-      this.client = client;
-      this.hl7v2Store = hl7v2Store;
-      this.filter = null;
-      this.orderBy = null;
-      this.start = start;
-      this.end = end;
+      this(client, hl7v2Store, start, end, null, null);
     }
 
     /**
@@ -660,9 +656,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
             List<Message> msgs = response.getHl7V2Messages();
             if (msgs == null) {
               return false;
-            } else {
-              return !msgs.isEmpty();
             }
+            return !msgs.isEmpty();
           } catch (IOException e) {
             throw new NoSuchElementException(
                 String.format(

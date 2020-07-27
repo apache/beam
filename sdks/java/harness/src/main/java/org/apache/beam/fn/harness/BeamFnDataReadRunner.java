@@ -292,8 +292,8 @@ public class BeamFnDataReadRunner<OutputT> {
           if (splitResult != null) {
             stopIndex = index + 1;
             response
-                .addPrimaryRoots(splitResult.getPrimaryRoot())
-                .addResidualRoots(splitResult.getResidualRoot())
+                .addAllPrimaryRoots(splitResult.getPrimaryRoots())
+                .addAllResidualRoots(splitResult.getResidualRoots())
                 .addChannelSplitsBuilder()
                 .setLastPrimaryElement(index - 1)
                 .setFirstResidualElement(stopIndex);

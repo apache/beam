@@ -46,6 +46,10 @@ class DeferredFrame(object):
   def _elementwise(self, func, name=None, other_args=(), inplace=False):
     return _elementwise_function(func, name, inplace=inplace)(self, *other_args)
 
+  @property
+  def dtypes(self):
+    return self._expr.proxy().dtypes
+
 
 def name_and_func(method):
   if isinstance(method, str):

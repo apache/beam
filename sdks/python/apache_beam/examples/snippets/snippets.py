@@ -217,15 +217,16 @@ def model_pcollection(argv):
 def pipeline_options_remote(argv):
   """Creating a Pipeline using a PipelineOptions object for remote execution."""
 
-  from apache_beam import Pipeline
+  # [START pipeline_options_create]
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  # [START pipeline_options_create]
   options = PipelineOptions(flags=argv)
 
   # [END pipeline_options_create]
 
   # [START pipeline_options_define_custom]
+  from apache_beam.options.pipeline_options import PipelineOptions
+
   class MyOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
@@ -234,35 +235,33 @@ def pipeline_options_remote(argv):
 
   # [END pipeline_options_define_custom]
 
-  from apache_beam.options.pipeline_options import GoogleCloudOptions
-  from apache_beam.options.pipeline_options import StandardOptions
-
   # [START pipeline_options_dataflow_service]
-  # Create and set your PipelineOptions.
-  options = PipelineOptions(flags=argv)
+  import apache_beam as beam
+  from apache_beam.options.pipeline_options import PipelineOptions
 
+  # Create and set your PipelineOptions.
   # For Cloud execution, specify DataflowRunner and set the Cloud Platform
-  # project, job name, staging file location, temp file location, and region.
-  options.view_as(StandardOptions).runner = 'DataflowRunner'
-  google_cloud_options = options.view_as(GoogleCloudOptions)
-  google_cloud_options.project = 'my-project-id'
-  google_cloud_options.job_name = 'myjob'
-  google_cloud_options.staging_location = 'gs://my-bucket/binaries'
-  google_cloud_options.temp_location = 'gs://my-bucket/temp'
-  google_cloud_options.region = 'us-central1'
+  # project, job name, temporary files location, and region.
+  # For more information about regions, check:
+  # https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
+  options = PipelineOptions(
+      flags=argv,
+      runner='DataflowRunner',
+      project='my-project-id',
+      job_name='unique-job-name',
+      temp_location='gs://my-bucket/temp',
+      region='us-central1')
 
   # Create the Pipeline with the specified options.
-  p = Pipeline(options=options)
+  # with beam.Pipeline(options=options) as pipeline:
+  #   pass  # build your pipeline here.
   # [END pipeline_options_dataflow_service]
 
   my_options = options.view_as(MyOptions)
-  my_input = my_options.input
-  my_output = my_options.output
 
   with TestPipeline() as p:  # Use TestPipeline for testing.
-
-    lines = p | beam.io.ReadFromText(my_input)
-    lines | beam.io.WriteToText(my_output)
+    lines = p | beam.io.ReadFromText(my_options.input)
+    lines | beam.io.WriteToText(my_options.output)
 
 
 def pipeline_options_local(argv):
@@ -271,9 +270,9 @@ def pipeline_options_local(argv):
   from apache_beam import Pipeline
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  options = PipelineOptions(flags=argv)
-
   # [START pipeline_options_define_custom_with_help_and_default]
+  from apache_beam.options.pipeline_options import PipelineOptions
+
   class MyOptions(PipelineOptions):
     @classmethod
     def _add_argparse_args(cls, parser):
@@ -288,20 +287,18 @@ def pipeline_options_local(argv):
 
   # [END pipeline_options_define_custom_with_help_and_default]
 
-  my_options = options.view_as(MyOptions)
-
-  my_input = my_options.input
-  my_output = my_options.output
-
   # [START pipeline_options_local]
   # Create and set your Pipeline Options.
-  options = PipelineOptions()
-  with Pipeline(options=options) as p:
+  options = PipelineOptions(flags=argv)
+  my_options = options.view_as(MyOptions)
+
+  with Pipeline(options=options) as pipeline:
+    pass  # build your pipeline here.
     # [END pipeline_options_local]
 
     with TestPipeline() as p:  # Use TestPipeline for testing.
-      lines = p | beam.io.ReadFromText(my_input)
-      lines | beam.io.WriteToText(my_output)
+      lines = p | beam.io.ReadFromText(my_options.input)
+      lines | beam.io.WriteToText(my_options.output)
 
 
 def pipeline_options_command_line(argv):
@@ -311,15 +308,17 @@ def pipeline_options_command_line(argv):
   # Use Python argparse module to parse custom arguments
   import argparse
 
+  import apache_beam as beam
+
   parser = argparse.ArgumentParser()
   parser.add_argument('--input')
   parser.add_argument('--output')
-  known_args, pipeline_args = parser.parse_known_args(argv)
+  args, beam_args = parser.parse_known_args(argv)
 
   # Create the Pipeline with remaining arguments.
-  with beam.Pipeline(argv=pipeline_args) as p:
-    lines = p | 'ReadFromText' >> beam.io.ReadFromText(known_args.input)
-    lines | 'WriteToText' >> beam.io.WriteToText(known_args.output)
+  with beam.Pipeline(argv=beam_args) as pipeline:
+    lines = pipeline | 'Read files' >> beam.io.ReadFromText(args.input)
+    lines | 'Write files' >> beam.io.WriteToText(args.output)
     # [END pipeline_options_command_line]
 
 

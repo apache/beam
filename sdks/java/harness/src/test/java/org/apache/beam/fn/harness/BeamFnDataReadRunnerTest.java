@@ -42,7 +42,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.fn.harness.HandlesSplits.SplitResult;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
@@ -664,15 +663,17 @@ public class BeamFnDataReadRunnerTest {
     @Override
     public SplitResult trySplit(double fractionOfRemainder) {
       return SplitResult.of(
-          BundleApplication.newBuilder()
-              .setInputId(String.format("primary%.1f", fractionOfRemainder))
-              .build(),
-          DelayedBundleApplication.newBuilder()
-              .setApplication(
-                  BundleApplication.newBuilder()
-                      .setInputId(String.format("residual%.1f", 1 - fractionOfRemainder))
-                      .build())
-              .build());
+          Collections.singletonList(
+              BundleApplication.newBuilder()
+                  .setInputId(String.format("primary%.1f", fractionOfRemainder))
+                  .build()),
+          Collections.singletonList(
+              DelayedBundleApplication.newBuilder()
+                  .setApplication(
+                      BundleApplication.newBuilder()
+                          .setInputId(String.format("residual%.1f", 1 - fractionOfRemainder))
+                          .build())
+                  .build()));
     }
   }
 

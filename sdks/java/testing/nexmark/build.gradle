@@ -18,6 +18,8 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+    enableChecker:false,
+    ignoreRawtypeErrors: true,
     automaticModuleName: 'org.apache.beam.sdk.nexmark',
     exportJavadoc: false,
     archivesBaseName: 'beam-sdks-java-nexmark'
@@ -59,6 +61,7 @@ dependencies {
   compile project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:extensions:sql")
+  compile project(":sdks:java:extensions:sql:zetasql")
   compile project(":sdks:java:io:kafka")
   compile project(":sdks:java:testing:test-utils")
   compile library.java.google_api_services_bigquery

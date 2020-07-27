@@ -20,20 +20,34 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.extensions.sql.impl.TVFSlidingWindowFn;
+import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithTimestamps;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Sessions;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -49,6 +63,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 
 /**
@@ -84,7 +99,96 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
     return new Transform();
   }
 
+  /** Provides a function that produces a PCollection based on TVF and upstream PCollection. */
+  private interface TVFToPTransform {
+    PCollection<Row> toPTransform(RexCall call, PCollection<Row> upstream);
+  }
+
   private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+    private TVFToPTransform tumbleToPTransform =
+        (call, upstream) -> {
+          RexInputRef wmCol = (RexInputRef) call.getOperands().get(1);
+          Schema outputSchema = CalciteUtils.toSchema(getRowType());
+          FixedWindows windowFn = FixedWindows.of(durationParameter(call.getOperands().get(2)));
+          PCollection<Row> streamWithWindowMetadata =
+              upstream
+                  .apply(ParDo.of(new FixedWindowDoFn(windowFn, wmCol.getIndex(), outputSchema)))
+                  .setRowSchema(outputSchema);
+
+          PCollection<Row> windowedStream =
+              assignTimestampsAndWindow(
+                  streamWithWindowMetadata, wmCol.getIndex(), (WindowFn) windowFn);
+
+          return windowedStream;
+        };
+
+    private TVFToPTransform hopToPTransform =
+        (call, upstream) -> {
+          RexInputRef wmCol = (RexInputRef) call.getOperands().get(1);
+          Schema outputSchema = CalciteUtils.toSchema(getRowType());
+
+          Duration period = durationParameter(call.getOperands().get(2));
+          Duration size = durationParameter(call.getOperands().get(3));
+          SlidingWindows windowFn = SlidingWindows.of(size).every(period);
+          PCollection<Row> streamWithWindowMetadata =
+              upstream
+                  .apply(ParDo.of(new SlidingWindowDoFn(windowFn, wmCol.getIndex(), outputSchema)))
+                  .setRowSchema(outputSchema);
+
+          // Sliding window needs this special WindowFn to assign windows based on window_start,
+          // window_end metadata.
+          WindowFn specialWindowFn = TVFSlidingWindowFn.of(size, period);
+
+          PCollection<Row> windowedStream =
+              assignTimestampsAndWindow(
+                  streamWithWindowMetadata, wmCol.getIndex(), specialWindowFn);
+
+          return windowedStream;
+        };
+
+    private TVFToPTransform sessionToPTransform =
+        (call, upstream) -> {
+          RexInputRef wmCol = (RexInputRef) call.getOperands().get(1);
+          Duration gap = durationParameter(call.getOperands().get(2));
+          List<Integer> keyIndex = new ArrayList<>();
+          for (RexNode node : call.getOperands().subList(3, call.getOperands().size())) {
+            keyIndex.add(((RexInputRef) node).getIndex());
+          }
+
+          Sessions sessions = Sessions.withGapDuration(gap);
+
+          PCollection<Row> windowedStream =
+              assignTimestampsAndWindow(upstream, wmCol.getIndex(), (WindowFn) sessions);
+          Schema inputSchema = upstream.getSchema();
+          Schema keySchema = getKeySchema(inputSchema, keyIndex);
+          Schema outputSchema = CalciteUtils.toSchema(getRowType());
+          // To extract session's window metadata, we apply a GroupByKey because session is merging
+          // window. After GBK, SessionWindowDoFn will help extract window_start, window_end
+          // metadata.
+          PCollection<Row> streamWithWindowMetadata =
+              windowedStream
+                  .apply("assign_session_key", ParDo.of(new SessionKeyDoFn(keySchema, keyIndex)))
+                  .setCoder(KvCoder.of(RowCoder.of(keySchema), upstream.getCoder()))
+                  .apply(GroupByKey.create())
+                  .apply(ParDo.of(new SessionWindowDoFn(outputSchema)))
+                  .setRowSchema(outputSchema);
+
+          // Because the GBK above has consumed session window, we can re-window into global window.
+          // Future aggregations or join can apply based on window metadata.
+          PCollection<Row> reWindowedStream =
+              streamWithWindowMetadata.apply(
+                  "reWindowIntoGlobalWindow", Window.into(new GlobalWindows()));
+          return reWindowedStream;
+        };
+
+    private final ImmutableMap<String, TVFToPTransform> tvfToPTransformMap =
+        ImmutableMap.of(
+            TVFStreamingUtils.FIXED_WINDOW_TVF,
+            tumbleToPTransform,
+            TVFStreamingUtils.SLIDING_WINDOW_TVF,
+            hopToPTransform,
+            TVFStreamingUtils.SESSION_WINDOW_TVF,
+            sessionToPTransform);
 
     @Override
     public PCollection<Row> expand(PCollectionList<Row> input) {
@@ -94,25 +198,30 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
           BeamTableFunctionScanRel.class.getSimpleName(),
           input);
       String operatorName = ((RexCall) getCall()).getOperator().getName();
-      checkArgument(
-          operatorName.equals("TUMBLE"),
-          "Only support TUMBLE table-valued function. Current operator: %s",
-          operatorName);
-      RexCall call = ((RexCall) getCall());
-      RexInputRef wmCol = (RexInputRef) call.getOperands().get(1);
-      PCollection<Row> upstream = input.get(0);
-      Schema outputSchema = CalciteUtils.toSchema(getRowType());
-      FixedWindows windowFn = FixedWindows.of(durationParameter(call.getOperands().get(2)));
-      PCollection<Row> streamWithWindowMetadata =
-          upstream
-              .apply(ParDo.of(new FixedWindowDoFn(windowFn, wmCol.getIndex(), outputSchema)))
-              .setRowSchema(outputSchema);
 
-      PCollection<Row> windowedStream =
-          assignTimestampsAndWindow(
-              streamWithWindowMetadata, wmCol.getIndex(), (WindowFn) windowFn);
+      // builtin TVF uses existing PTransform implementations.
+      if (tvfToPTransformMap.keySet().contains(operatorName)) {
+        return tvfToPTransformMap
+            .get(operatorName)
+            .toPTransform(((RexCall) getCall()), input.get(0));
+      }
 
-      return windowedStream;
+      // ZetaSQL pure SQL TVF should pass through input to output.
+      if (((RexCall) getCall()).getOperator()
+          instanceof ZetaSqlUserDefinedSQLNativeTableValuedFunction) {
+        return input.get(0);
+      }
+
+      throw new IllegalArgumentException(
+          String.format("Does not support table_valued function: %s", operatorName));
+    }
+
+    private Schema getKeySchema(Schema inputSchema, List<Integer> keys) {
+      List<Field> fields = new ArrayList<>();
+      for (Integer i : keys) {
+        fields.add(inputSchema.getField(i));
+      }
+      return Schema.builder().addFields(fields).build();
     }
 
     /** Extract timestamps from the windowFieldIndex, then window into windowFns. */
@@ -143,6 +252,27 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
     }
   }
 
+  private static class SessionKeyDoFn extends DoFn<Row, KV<Row, Row>> {
+    private final Schema keySchema;
+    private final List<Integer> keyIndex;
+
+    public SessionKeyDoFn(Schema keySchema, List<Integer> keyIndex) {
+      this.keySchema = keySchema;
+      this.keyIndex = keyIndex;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      Row row = c.element();
+      Row.Builder builder = Row.withSchema(keySchema);
+      for (Integer i : keyIndex) {
+        builder.addValue(row.getValue(i));
+      }
+      Row keyRow = builder.build();
+      c.output(KV.of(keyRow, row));
+    }
+  }
+
   private static class FixedWindowDoFn extends DoFn<Row, Row> {
     private final int windowFieldIndex;
     private final FixedWindows windowFn;
@@ -163,6 +293,54 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
       builder.addValue(window.start());
       builder.addValue(window.end());
       c.output(builder.build());
+    }
+  }
+
+  private static class SlidingWindowDoFn extends DoFn<Row, Row> {
+    private final int windowFieldIndex;
+    private final SlidingWindows windowFn;
+    private final Schema outputSchema;
+
+    public SlidingWindowDoFn(SlidingWindows windowFn, int windowFieldIndex, Schema schema) {
+      this.windowFn = windowFn;
+      this.windowFieldIndex = windowFieldIndex;
+      this.outputSchema = schema;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      Row row = c.element();
+      Collection<IntervalWindow> windows =
+          windowFn.assignWindows(row.getDateTime(windowFieldIndex).toInstant());
+      for (IntervalWindow window : windows) {
+        Row.Builder builder = Row.withSchema(outputSchema);
+        builder.addValues(row.getValues());
+        builder.addValue(window.start());
+        builder.addValue(window.end());
+        c.output(builder.build());
+      }
+    }
+  }
+
+  private static class SessionWindowDoFn extends DoFn<KV<Row, Iterable<Row>>, Row> {
+    private final Schema outputSchema;
+
+    public SessionWindowDoFn(Schema schema) {
+      this.outputSchema = schema;
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element KV<Row, Iterable<Row>> element, BoundedWindow window, OutputReceiver<Row> out) {
+      IntervalWindow intervalWindow = (IntervalWindow) window;
+      for (Row cur : element.getValue()) {
+        Row.Builder builder =
+            Row.withSchema(outputSchema)
+                .addValues(cur.getValues())
+                .addValue(intervalWindow.start())
+                .addValue(intervalWindow.end());
+        out.output(builder.build());
+      }
     }
   }
 

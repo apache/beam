@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false, publish: false)
+applyJavaNature(enableChecker:false,exportJavadoc: false, publish: false)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -36,4 +36,5 @@ dependencies {
     testCompile library.java.junit
     testCompile library.java.hamcrest_core
     testCompile library.java.jaxb_api
+    testCompile library.java.jaxb_impl
 }

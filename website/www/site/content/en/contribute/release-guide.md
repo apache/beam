@@ -334,7 +334,7 @@ There are 2 ways to cut a release branch: either running automation script(recom
 
 ### Start a snapshot build
 
-Start a build of [the nightly snapshot](https://builds.apache.org/view/A-D/view/Beam/job/beam_Release_NightlySnapshot/) against master branch.
+Start a build of [the nightly snapshot](https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/) against master branch.
 Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version
 from the `master` branch. Once the release branch is cut, these SNAPSHOT versions are no longer found,
 so builds will be broken until a new snapshot is available.
@@ -834,7 +834,7 @@ Since there are a bunch of tests, we recommend you running validations using aut
       ```
 
 * Tasks included
-  1. Run Java quickstart with Direct Runner, Apex local runner, Flink local runner, Spark local runner and Dataflow runner.
+  1. Run Java quickstart with Direct Runner, Flink local runner, Spark local runner and Dataflow runner.
   1. Run Java Mobile Games(UserScore, HourlyTeamScore, Leaderboard) with Dataflow runner.
   1. Create a PR to trigger python validation job, including
      * Python quickstart in batch and streaming mode with direct runner and Dataflow runner.
@@ -861,12 +861,6 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   Direct Runner:
   ```
   ./gradlew :runners:direct-java:runQuickstartJavaDirect \
-  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
-  -Pver=${RELEASE_VERSION}
-  ```
-  Apex Local Runner
-  ```
-  ./gradlew :runners:apex:runQuickstartJavaApex \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
@@ -1107,14 +1101,6 @@ please follow [the guide](https://help.github.com/articles/creating-a-personal-a
 All wheels should be published, in addition to the zip of the release source.
 (Signatures and hashes do _not_ need to be uploaded.)
 
-### Deploy source release to dist.apache.org
-
-Copy the source release from the `dev` repository to the `release` repository at `dist.apache.org` using Subversion.
-
-Move last release artifacts from `dist.apache.org` to `archive.apache.org` using Subversion. Make sure to change these links on the website ([example](https://github.com/apache/beam/pull/11727)).
-
-__NOTE__: Only PMC members have permissions to do it, ping [dev@](mailto:dev@beam.apache.org) for assitance;
-
 ### Deploy SDK docker images to DockerHub
 * Script: [publish_docker_images.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh)
 * Usage
@@ -1126,36 +1112,48 @@ Verify that:
 * Images with *latest* tag are pointing to current release by confirming 
   1. Digest of the image with *latest* tag is the same as the one with {RELEASE} tag.
 
+### Merge Website pull requests
+
+Merge all of the website pull requests
+- [listing the release](/get-started/downloads/)
+- publishing the [Python API reference manual](https://beam.apache.org/releases/pydoc/) and the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and
+- adding the release blog post.
+
 ### Git tag
 
 Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:
 
-    VERSION_TAG="v${RELEASE}"
-    git tag -s "$VERSION_TAG" "$RC_TAG"
-    git push upstream "$VERSION_TAG"
+```
+VERSION_TAG="v${RELEASE}"
+git tag -s "$VERSION_TAG" "$RC_TAG"
+git push https://github.com/apache/beam "$VERSION_TAG"
+```
 
-After the tag is uploaded, publish the release in the Github UI.
-1. Navigate to `https://github.com/apache/beam/releases/tag/$VERSION_TAG`.
-1. Click the "Edit tag" button.
-1. Give the release a title, such as `Beam 2.21.0`.
-1. For the release description, copy the current version's changes from `CHANGES.md`. (You may want to touch up the formatting a bit.)
-1. Click the "Publish release" button.
+After the tag is uploaded, publish the release notes to Github, as follows:
 
-### Merge website pull request
+```
+cd beam/release/src/main/scripts && ./publish_github_release_notes.sh
+```
 
-Merge the website pull request to [list the release](/get-started/downloads/), publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/), the [Java API reference manual](https://beam.apache.org/releases/javadoc/) and Blogpost created earlier.
+Note this script reads the release notes from the blog post, so you should make sure to run this from master _after_ merging the blog post PR.
 
-### Mark the version as released in JIRA
+
+### PMC-Only Finalization
+There are a few release finalization tasks that only PMC members have permissions to do. Ping [dev@](mailto:dev@beam.apache.org) for assistance if you need it.
+
+#### Deploy source release to dist.apache.org
+
+Copy the source release from the `dev` repository to the `release` repository at `dist.apache.org` using Subversion.
+
+Make sure the last release's artifacts have been copied from `dist.apache.org` to `archive.apache.org`. This should happen automatically: [dev@ thread](https://lists.apache.org/thread.html/39c26c57c5125a7ca06c3c9315b4917b86cd0e4567b7174f4bc4d63b%40%3Cdev.beam.apache.org%3E) with context. The release manager should also make sure to change these links on the website ([example](https://github.com/apache/beam/pull/11727)).
+
+#### Mark the version as released in JIRA
 
 In JIRA, inside [version management](https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions), hover over the current release and a settings menu will appear. Click `Release`, and select today’s date.
 
-__NOTE__: Only PMC members have permissions to do it, ping [dev@](mailto:dev@beam.apache.org) for assitance;
-
-### Recordkeeping with ASF
+#### Recordkeeping with ASF
 
 Use reporter.apache.org to seed the information about the release into future project reports.
-
-__NOTE__: Only PMC members have permissions to do it, ping [dev@](mailto:dev@beam.apache.org) for assitance;
 
 ### Checklist to proceed to the next step
 

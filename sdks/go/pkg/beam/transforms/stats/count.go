@@ -18,18 +18,36 @@ package stats
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
-// Count counts the number of elements in a collection. It expects a
-// PCollection<T> as input and returns a PCollection<KV<T,int>>. T's encoding
-// must be a well-defined injection.
+// Count counts the number of appearances of each element in a collection. It
+// expects a PCollection<T> as input and returns a PCollection<KV<T,int>>. T's
+// encoding must be deterministic so it is valid as a key.
 func Count(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("stats.Count")
 
-	pre := beam.ParDo(s, mapFn, col)
+	pre := beam.ParDo(s, keyedCountFn, col)
 	return SumPerKey(s, pre)
 }
 
-func mapFn(elm beam.T) (beam.T, int) {
+func keyedCountFn(elm beam.T) (beam.T, int) {
 	return elm, 1
+}
+
+// CountElms counts the number of elements in a collection. It expects a
+// PCollection<T> as input and returns a PCollection<int> of one element
+// containing the count.
+func CountElms(s beam.Scope, col beam.PCollection) beam.PCollection {
+	s = s.Scope("stats.CountElms")
+
+	if typex.IsKV(col.Type()) {
+		col = beam.DropKey(s, col)
+	}
+	pre := beam.ParDo(s, countFn, col)
+	return Sum(s, pre)
+}
+
+func countFn(_ beam.T) int {
+	return 1
 }

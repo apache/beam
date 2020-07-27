@@ -255,7 +255,7 @@ categories:
             name: org.apache.beam.sdk.io.hcatalog.HCatalogIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hcatalog/HCatalogIO.html
       - transform: KuduIO
-        description: A bounded source and sink for (Kudu)[https://kudu.apache.org/].
+        description: A bounded source and sink for [Kudu](https://kudu.apache.org/).
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.kudu
@@ -375,3 +375,9 @@ categories:
           - language: py
             name: apache_beam.io.external.generate_sequence.GenerateSequence
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.external.generate_sequence.html
+      - transform: SplunkIO
+        description: A PTransform that provides an unbounded, streaming sink for Splunk's Http Event Collector (HEC).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.splunk.SplunkIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/splunk/SplunkIO.html

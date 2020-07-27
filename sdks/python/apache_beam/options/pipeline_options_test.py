@@ -21,6 +21,7 @@
 
 from __future__ import absolute_import
 
+import json
 import logging
 import unittest
 
@@ -178,6 +179,22 @@ class PipelineOptionsTest(unittest.TestCase):
               DisplayDataItemMatcher('mock_multi_option', ['op1', 'op2'])
           ]
       },
+      {
+          'flags': ['--mock_json_option={"11a": 0, "37a": 1}'],
+          'expected': {
+              'mock_flag': False,
+              'mock_option': None,
+              'mock_multi_option': None,
+              'mock_json_option': {
+                  '11a': 0, '37a': 1
+              },
+          },
+          'display_data': [
+              DisplayDataItemMatcher('mock_json_option', {
+                  '11a': 0, '37a': 1
+              })
+          ]
+      },
   ]
 
   # Used for testing newly added flags.
@@ -189,6 +206,7 @@ class PipelineOptionsTest(unittest.TestCase):
       parser.add_argument(
           '--mock_multi_option', action='append', help='mock multi option')
       parser.add_argument('--option with space', help='mock option with space')
+      parser.add_argument('--mock_json_option', type=json.loads, default={})
 
   # Use with MockOptions in test cases where multiple option classes are needed.
   class FakeOptions(PipelineOptions):
@@ -284,6 +302,12 @@ class PipelineOptionsTest(unittest.TestCase):
       self.assertEqual(
           options.view_as(PipelineOptionsTest.MockOptions).mock_option,
           case['expected']['mock_option'])
+      self.assertEqual(
+          options.view_as(PipelineOptionsTest.MockOptions).mock_multi_option,
+          case['expected']['mock_multi_option'])
+      self.assertEqual(
+          options.view_as(PipelineOptionsTest.MockOptions).mock_json_option,
+          case['expected'].get('mock_json_option', {}))
 
   def test_option_with_space(self):
     options = PipelineOptions(flags=['--option with space= value with space'])

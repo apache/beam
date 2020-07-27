@@ -42,9 +42,11 @@ import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
+from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.window import GlobalWindows
 
 _LOGGER = logging.getLogger(__name__)
@@ -88,10 +90,12 @@ def file_prefix_generator(
     if with_validation and (not gcs_base or not gcs_base.startswith('gs://')):
       raise ValueError(
           'Invalid GCS location: %r.\n'
-          'Writing to BigQuery with FILE_LOADS method requires a '
-          'GCS location to be provided to write files to be loaded'
-          ' loaded into BigQuery. Please provide a GCS bucket, or '
-          'pass method="STREAMING_INSERTS" to WriteToBigQuery.' % gcs_base)
+          'Writing to BigQuery with FILE_LOADS method requires a'
+          ' GCS location to be provided to write files to be loaded'
+          ' into BigQuery. Please provide a GCS bucket through'
+          ' custom_gcs_temp_location in the constructor of WriteToBigQuery'
+          ' or the fallback option --temp_location, or pass'
+          ' method="STREAMING_INSERTS" to WriteToBigQuery.' % gcs_base)
 
     prefix_uuid = _bq_uuid()
     return fs.FileSystems.join(gcs_base, 'bq_load', prefix_uuid)
@@ -325,10 +329,19 @@ class TriggerCopyJobs(beam.DoFn):
     self.write_disposition = write_disposition
     self.test_client = test_client
     self._observed_tables = set()
+    self.bq_io_metadata = None
+
+  def display_data(self):
+    return {
+        'launchesBigQueryJobs': DisplayDataItem(
+            True, label="This Dataflow job launches bigquery jobs.")
+    }
 
   def start_bundle(self):
     self._observed_tables = set()
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
 
   def process(self, element, job_name_prefix=None):
     destination = element[0]
@@ -378,13 +391,16 @@ class TriggerCopyJobs(beam.DoFn):
       wait_for_job = False
       write_disposition = 'WRITE_APPEND'
 
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
     job_reference = self.bq_wrapper._insert_copy_job(
         copy_to_reference.projectId,
         copy_job_name,
         copy_from_reference,
         copy_to_reference,
         create_disposition=self.create_disposition,
-        write_disposition=write_disposition)
+        write_disposition=write_disposition,
+        job_labels=self.bq_io_metadata.add_additional_bq_job_labels())
 
     if wait_for_job:
       self.bq_wrapper.wait_for_bq_job(job_reference, sleep_duration_sec=10)
@@ -414,6 +430,7 @@ class TriggerLoadJobs(beam.DoFn):
     self.temporary_tables = temporary_tables
     self.additional_bq_parameters = additional_bq_parameters or {}
     self.source_format = source_format
+    self.bq_io_metadata = None
     if self.temporary_tables:
       # If we are loading into temporary tables, we rely on the default create
       # and write dispositions, which mean that a new table will be created.
@@ -426,14 +443,17 @@ class TriggerLoadJobs(beam.DoFn):
   def display_data(self):
     result = {
         'create_disposition': str(self.create_disposition),
-        'write_disposition': str(self.write_disposition)
+        'write_disposition': str(self.write_disposition),
     }
     result['schema'] = str(self.schema)
-
+    result['launchesBigQueryJobs'] = DisplayDataItem(
+        True, label="This Dataflow job launches bigquery jobs.")
     return result
 
   def start_bundle(self):
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
 
   def process(self, element, load_job_name_prefix, *schema_side_inputs):
     # Each load job is assumed to have files respecting these constraints:
@@ -491,6 +511,8 @@ class TriggerLoadJobs(beam.DoFn):
         table_reference,
         schema,
         additional_parameters)
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
     job_reference = self.bq_wrapper.perform_load_job(
         table_reference,
         files,
@@ -499,7 +521,8 @@ class TriggerLoadJobs(beam.DoFn):
         write_disposition=self.write_disposition,
         create_disposition=create_disposition,
         additional_load_parameters=additional_parameters,
-        source_format=self.source_format)
+        source_format=self.source_format,
+        job_labels=self.bq_io_metadata.add_additional_bq_job_labels())
     yield (destination, job_reference)
 
 

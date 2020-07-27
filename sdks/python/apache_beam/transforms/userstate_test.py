@@ -23,7 +23,6 @@ from __future__ import absolute_import
 import unittest
 
 # patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import mock
 
 import apache_beam as beam
@@ -46,6 +45,7 @@ from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
+from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import SetStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import get_dofn_specs
@@ -119,17 +119,24 @@ class InterfaceTest(unittest.TestCase):
     BagStateSpec('statename', VarIntCoder())
     with self.assertRaises(TypeError):
       BagStateSpec(123, VarIntCoder())
+
     CombiningValueStateSpec('statename', VarIntCoder(), TopCombineFn(10))
     with self.assertRaises(TypeError):
       CombiningValueStateSpec(123, VarIntCoder(), TopCombineFn(10))
     with self.assertRaises(TypeError):
       CombiningValueStateSpec('statename', VarIntCoder(), object())
-    SetStateSpec('setstatename', VarIntCoder())
 
+    SetStateSpec('setstatename', VarIntCoder())
     with self.assertRaises(TypeError):
       SetStateSpec(123, VarIntCoder())
     with self.assertRaises(TypeError):
       SetStateSpec('setstatename', object())
+
+    ReadModifyWriteStateSpec('valuestatename', VarIntCoder())
+    with self.assertRaises(TypeError):
+      ReadModifyWriteStateSpec(123, VarIntCoder())
+    with self.assertRaises(TypeError):
+      ReadModifyWriteStateSpec('valuestatename', object())
 
     # TODO: add more spec tests
     with self.assertRaises(ValueError):
@@ -451,6 +458,55 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
           | beam.ParDo(self.record_dofn()))
 
     self.assertEqual(['extra'], StatefulDoFnOnDirectRunnerTest.all_records)
+
+  def test_simple_read_modify_write_stateful_dofn(self):
+    class SimpleTestReadModifyWriteStatefulDoFn(DoFn):
+      VALUE_STATE = ReadModifyWriteStateSpec('value', StrUtf8Coder())
+
+      def process(self, element, last_element=DoFn.StateParam(VALUE_STATE)):
+        last_element.write('%s:%s' % element)
+        yield last_element.read()
+
+    with TestPipeline() as p:
+      test_stream = (
+          TestStream().advance_watermark_to(0).add_elements([
+              ('a', 1)
+          ]).advance_watermark_to(10).add_elements([
+              ('a', 3)
+          ]).advance_watermark_to(20).add_elements([('a', 5)]))
+      (
+          p | test_stream
+          | beam.ParDo(SimpleTestReadModifyWriteStatefulDoFn())
+          | beam.ParDo(self.record_dofn()))
+    self.assertEqual(['a:1', 'a:3', 'a:5'],
+                     StatefulDoFnOnDirectRunnerTest.all_records)
+
+  def test_clearing_read_modify_write_state(self):
+    class SimpleClearingReadModifyWriteStatefulDoFn(DoFn):
+      VALUE_STATE = ReadModifyWriteStateSpec('value', StrUtf8Coder())
+
+      def process(self, element, last_element=DoFn.StateParam(VALUE_STATE)):
+        value = last_element.read()
+        if value is not None:
+          yield value
+        last_element.clear()
+        last_element.write("%s:%s" % (last_element.read(), element[1]))
+        if element[1] == 5:
+          yield last_element.read()
+
+    with TestPipeline() as p:
+      test_stream = (
+          TestStream().advance_watermark_to(0).add_elements([
+              ('a', 1)
+          ]).advance_watermark_to(10).add_elements([
+              ('a', 3)
+          ]).advance_watermark_to(20).add_elements([('a', 5)]))
+      (
+          p | test_stream
+          | beam.ParDo(SimpleClearingReadModifyWriteStatefulDoFn())
+          | beam.ParDo(self.record_dofn()))
+    self.assertEqual(['None:1', 'None:3', 'None:5'],
+                     StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_simple_set_stateful_dofn(self):
     class SimpleTestSetStatefulDoFn(DoFn):

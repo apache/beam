@@ -46,7 +46,7 @@ There are two main signs of slowness:
 ### Pre-commit Dashboard
 
 The Beam Community Metrics site contains a [Pre-Commit
-Tests](http://104.154.241.245/d/_TNndF2iz/pre-commit-tests) dashboard showing
+Tests](http://metrics.beam.apache.org/d/_TNndF2iz/pre-commit-tests) dashboard showing
 job timing trends. You can modify the time window (defaults to 7 days) or filter
 down to a specific test suite by clicking on it.
 

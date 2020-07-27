@@ -137,8 +137,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
       request,  # type: beam_job_api_pb2.GetJobStateRequest
       context=None):
     # type: (...) -> beam_job_api_pb2.JobStateEvent
-    return beam_job_api_pb2.JobStateEvent(
-        state=self._jobs[request.job_id].get_state())
+    return make_state_event(*self._jobs[request.job_id].get_state())
 
   def GetPipeline(self,
                   request,  # type: beam_job_api_pb2.GetJobPipelineRequest
@@ -157,7 +156,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     # type: (...) -> beam_job_api_pb2.CancelJobResponse
     self._jobs[request.job_id].cancel()
     return beam_job_api_pb2.CancelJobResponse(
-        state=self._jobs[request.job_id].get_state())
+        state=self._jobs[request.job_id].get_state()[0])
 
   def GetStateStream(self, request, context=None, timeout=None):
     # type: (...) -> Iterator[beam_job_api_pb2.JobStateEvent]

@@ -33,7 +33,11 @@ public abstract class InsertRetryPolicy implements Serializable {
    */
   public static class Context {
     // A list of all errors corresponding to an attempted insert of a single record.
-    TableDataInsertAllResponse.InsertErrors errors;
+    final TableDataInsertAllResponse.InsertErrors errors;
+
+    public TableDataInsertAllResponse.InsertErrors getInsertErrors() {
+      return errors;
+    }
 
     public Context(TableDataInsertAllResponse.InsertErrors errors) {
       this.errors = errors;
@@ -72,8 +76,8 @@ public abstract class InsertRetryPolicy implements Serializable {
     return new InsertRetryPolicy() {
       @Override
       public boolean shouldRetry(Context context) {
-        if (context.errors.getErrors() != null) {
-          for (ErrorProto error : context.errors.getErrors()) {
+        if (context.getInsertErrors().getErrors() != null) {
+          for (ErrorProto error : context.getInsertErrors().getErrors()) {
             if (error.getReason() != null && PERSISTENT_ERRORS.contains(error.getReason())) {
               return false;
             }

@@ -34,24 +34,33 @@ import (
 func init() {
 	runtime.RegisterFunction(failIfBadEntries)
 	runtime.RegisterType(reflect.TypeOf((*diffFn)(nil)).Elem())
+	runtime.RegisterType(reflect.TypeOf((*elmCountCombineFn)(nil)).Elem())
+	runtime.RegisterType(reflect.TypeOf((*errFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*failFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*failGBKFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*failKVFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*hashFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*sumFn)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*diffFn)(nil)).Elem(), wrapMakerDiffFn)
+	reflectx.RegisterStructWrapper(reflect.TypeOf((*elmCountCombineFn)(nil)).Elem(), wrapMakerElmCountCombineFn)
+	reflectx.RegisterStructWrapper(reflect.TypeOf((*errFn)(nil)).Elem(), wrapMakerErrFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*failFn)(nil)).Elem(), wrapMakerFailFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*failGBKFn)(nil)).Elem(), wrapMakerFailGBKFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*failKVFn)(nil)).Elem(), wrapMakerFailKVFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*hashFn)(nil)).Elem(), wrapMakerHashFn)
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*sumFn)(nil)).Elem(), wrapMakerSumFn)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(int, int) int)(nil)).Elem(), funcMakerIntIntГInt)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int, func(*int) bool) error)(nil)).Elem(), funcMakerIntIterIntГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int, func(*string) bool) error)(nil)).Elem(), funcMakerIntIterStringГError)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(int, typex.T) int)(nil)).Elem(), funcMakerIntTypex۰TГInt)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(int) error)(nil)).Elem(), funcMakerIntГError)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(int) int)(nil)).Elem(), funcMakerIntГInt)
 	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte, func(*typex.T) bool, func(*typex.T) bool, func(t typex.T), func(t typex.T), func(t typex.T)) error)(nil)).Elem(), funcMakerSliceOfByteIterTypex۰TIterTypex۰TEmitTypex۰TEmitTypex۰TEmitTypex۰TГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte, func(*typex.T) bool, func(*typex.T) bool, func(*typex.T) bool) error)(nil)).Elem(), funcMakerSliceOfByteIterTypex۰TIterTypex۰TIterTypex۰TГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X, func(*typex.Y) bool) error)(nil)).Elem(), funcMakerTypex۰XIterTypex۰YГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X, typex.Y) error)(nil)).Elem(), funcMakerTypex۰XTypex۰YГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X) error)(nil)).Elem(), funcMakerTypex۰XГError)
+	reflectx.RegisterFunc(reflect.TypeOf((*func() int)(nil)).Elem(), funcMakerГInt)
 	exec.RegisterEmitter(reflect.TypeOf((*func(typex.T))(nil)).Elem(), emitMakerTypex۰T)
 	exec.RegisterInput(reflect.TypeOf((*func(*int) bool)(nil)).Elem(), iterMakerInt)
 	exec.RegisterInput(reflect.TypeOf((*func(*string) bool)(nil)).Elem(), iterMakerString)
@@ -65,6 +74,23 @@ func wrapMakerDiffFn(fn interface{}) map[string]reflectx.Func {
 		"ProcessElement": reflectx.MakeFunc(func(a0 []byte, a1 func(*typex.T) bool, a2 func(*typex.T) bool, a3 func(t typex.T), a4 func(t typex.T), a5 func(t typex.T)) error {
 			return dfn.ProcessElement(a0, a1, a2, a3, a4, a5)
 		}),
+	}
+}
+
+func wrapMakerElmCountCombineFn(fn interface{}) map[string]reflectx.Func {
+	dfn := fn.(*elmCountCombineFn)
+	return map[string]reflectx.Func{
+		"AddInput":          reflectx.MakeFunc(func(a0 int, a1 typex.T) int { return dfn.AddInput(a0, a1) }),
+		"CreateAccumulator": reflectx.MakeFunc(func() int { return dfn.CreateAccumulator() }),
+		"ExtractOutput":     reflectx.MakeFunc(func(a0 int) int { return dfn.ExtractOutput(a0) }),
+		"MergeAccumulators": reflectx.MakeFunc(func(a0 int, a1 int) int { return dfn.MergeAccumulators(a0, a1) }),
+	}
+}
+
+func wrapMakerErrFn(fn interface{}) map[string]reflectx.Func {
+	dfn := fn.(*errFn)
+	return map[string]reflectx.Func{
+		"ProcessElement": reflectx.MakeFunc(func(a0 int) error { return dfn.ProcessElement(a0) }),
 	}
 }
 
@@ -101,6 +127,32 @@ func wrapMakerSumFn(fn interface{}) map[string]reflectx.Func {
 	return map[string]reflectx.Func{
 		"ProcessElement": reflectx.MakeFunc(func(a0 int, a1 func(*int) bool) error { return dfn.ProcessElement(a0, a1) }),
 	}
+}
+
+type callerIntIntГInt struct {
+	fn func(int, int) int
+}
+
+func funcMakerIntIntГInt(fn interface{}) reflectx.Func {
+	f := fn.(func(int, int) int)
+	return &callerIntIntГInt{fn: f}
+}
+
+func (c *callerIntIntГInt) Name() string {
+	return reflectx.FunctionName(c.fn)
+}
+
+func (c *callerIntIntГInt) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *callerIntIntГInt) Call(args []interface{}) []interface{} {
+	out0 := c.fn(args[0].(int), args[1].(int))
+	return []interface{}{out0}
+}
+
+func (c *callerIntIntГInt) Call2x1(arg0, arg1 interface{}) interface{} {
+	return c.fn(arg0.(int), arg1.(int))
 }
 
 type callerIntIterIntГError struct {
@@ -153,6 +205,84 @@ func (c *callerIntIterStringГError) Call(args []interface{}) []interface{} {
 
 func (c *callerIntIterStringГError) Call2x1(arg0, arg1 interface{}) interface{} {
 	return c.fn(arg0.(int), arg1.(func(*string) bool))
+}
+
+type callerIntTypex۰TГInt struct {
+	fn func(int, typex.T) int
+}
+
+func funcMakerIntTypex۰TГInt(fn interface{}) reflectx.Func {
+	f := fn.(func(int, typex.T) int)
+	return &callerIntTypex۰TГInt{fn: f}
+}
+
+func (c *callerIntTypex۰TГInt) Name() string {
+	return reflectx.FunctionName(c.fn)
+}
+
+func (c *callerIntTypex۰TГInt) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *callerIntTypex۰TГInt) Call(args []interface{}) []interface{} {
+	out0 := c.fn(args[0].(int), args[1].(typex.T))
+	return []interface{}{out0}
+}
+
+func (c *callerIntTypex۰TГInt) Call2x1(arg0, arg1 interface{}) interface{} {
+	return c.fn(arg0.(int), arg1.(typex.T))
+}
+
+type callerIntГError struct {
+	fn func(int) error
+}
+
+func funcMakerIntГError(fn interface{}) reflectx.Func {
+	f := fn.(func(int) error)
+	return &callerIntГError{fn: f}
+}
+
+func (c *callerIntГError) Name() string {
+	return reflectx.FunctionName(c.fn)
+}
+
+func (c *callerIntГError) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *callerIntГError) Call(args []interface{}) []interface{} {
+	out0 := c.fn(args[0].(int))
+	return []interface{}{out0}
+}
+
+func (c *callerIntГError) Call1x1(arg0 interface{}) interface{} {
+	return c.fn(arg0.(int))
+}
+
+type callerIntГInt struct {
+	fn func(int) int
+}
+
+func funcMakerIntГInt(fn interface{}) reflectx.Func {
+	f := fn.(func(int) int)
+	return &callerIntГInt{fn: f}
+}
+
+func (c *callerIntГInt) Name() string {
+	return reflectx.FunctionName(c.fn)
+}
+
+func (c *callerIntГInt) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *callerIntГInt) Call(args []interface{}) []interface{} {
+	out0 := c.fn(args[0].(int))
+	return []interface{}{out0}
+}
+
+func (c *callerIntГInt) Call1x1(arg0 interface{}) interface{} {
+	return c.fn(arg0.(int))
 }
 
 type callerSliceOfByteIterTypex۰TIterTypex۰TEmitTypex۰TEmitTypex۰TEmitTypex۰TГError struct {
@@ -283,6 +413,32 @@ func (c *callerTypex۰XГError) Call(args []interface{}) []interface{} {
 
 func (c *callerTypex۰XГError) Call1x1(arg0 interface{}) interface{} {
 	return c.fn(arg0.(typex.X))
+}
+
+type callerГInt struct {
+	fn func() int
+}
+
+func funcMakerГInt(fn interface{}) reflectx.Func {
+	f := fn.(func() int)
+	return &callerГInt{fn: f}
+}
+
+func (c *callerГInt) Name() string {
+	return reflectx.FunctionName(c.fn)
+}
+
+func (c *callerГInt) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *callerГInt) Call(args []interface{}) []interface{} {
+	out0 := c.fn()
+	return []interface{}{out0}
+}
+
+func (c *callerГInt) Call0x1() interface{} {
+	return c.fn()
 }
 
 type emitNative struct {

@@ -18,7 +18,6 @@
 package org.apache.beam.runners.direct;
 
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**

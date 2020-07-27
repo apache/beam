@@ -26,7 +26,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -72,6 +71,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -243,7 +243,9 @@ class BatchLoads<DestinationT, ElementT>
     }
     checkArgument(
         !Strings.isNullOrEmpty(tempLocation),
-        "BigQueryIO.Write needs a GCS temp location to store temp files.");
+        "BigQueryIO.Write needs a GCS temp location to store temp files."
+            + "This can be set by withCustomGcsTempLocation() in the Builder"
+            + "or through the fallback pipeline option --tempLocation.");
     if (bigQueryServices == null) {
       try {
         GcsPath.fromUri(tempLocation);

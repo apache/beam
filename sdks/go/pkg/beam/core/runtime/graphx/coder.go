@@ -20,11 +20,11 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -35,6 +35,7 @@ const (
 	urnBoolCoder                = "beam:coder:bool:v1"
 	urnVarIntCoder              = "beam:coder:varint:v1"
 	urnDoubleCoder              = "beam:coder:double:v1"
+	urnStringCoder              = "beam:coder:string_utf8:v1"
 	urnLengthPrefixCoder        = "beam:coder:length_prefix:v1"
 	urnKVCoder                  = "beam:coder:kv:v1"
 	urnIterableCoder            = "beam:coder:iterable:v1"
@@ -56,6 +57,7 @@ func knownStandardCoders() []string {
 		urnBoolCoder,
 		urnVarIntCoder,
 		urnDoubleCoder,
+		urnStringCoder,
 		urnLengthPrefixCoder,
 		urnKVCoder,
 		urnIterableCoder,
@@ -67,14 +69,14 @@ func knownStandardCoders() []string {
 }
 
 // MarshalCoders marshals a list of coders into model coders.
-func MarshalCoders(coders []*coder.Coder) ([]string, map[string]*pb.Coder) {
+func MarshalCoders(coders []*coder.Coder) ([]string, map[string]*pipepb.Coder) {
 	b := NewCoderMarshaller()
 	ids := b.AddMulti(coders)
 	return ids, b.Build()
 }
 
 // UnmarshalCoders unmarshals coders.
-func UnmarshalCoders(ids []string, m map[string]*pb.Coder) ([]*coder.Coder, error) {
+func UnmarshalCoders(ids []string, m map[string]*pipepb.Coder) ([]*coder.Coder, error) {
 	b := NewCoderUnmarshaller(m)
 
 	var coders []*coder.Coder
@@ -91,14 +93,14 @@ func UnmarshalCoders(ids []string, m map[string]*pb.Coder) ([]*coder.Coder, erro
 // CoderUnmarshaller is an incremental unmarshaller of model coders. Identical
 // coders are shared.
 type CoderUnmarshaller struct {
-	models map[string]*pb.Coder
+	models map[string]*pipepb.Coder
 
 	coders       map[string]*coder.Coder
 	windowCoders map[string]*coder.WindowCoder
 }
 
 // NewCoderUnmarshaller returns a new CoderUnmarshaller.
-func NewCoderUnmarshaller(m map[string]*pb.Coder) *CoderUnmarshaller {
+func NewCoderUnmarshaller(m map[string]*pipepb.Coder) *CoderUnmarshaller {
 	return &CoderUnmarshaller{
 		models:       m,
 		coders:       make(map[string]*coder.Coder),
@@ -167,7 +169,7 @@ func urnToWindowCoder(urn string) *coder.WindowCoder {
 	}
 }
 
-func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
+func (b *CoderUnmarshaller) makeCoder(c *pipepb.Coder) (*coder.Coder, error) {
 	urn := c.GetSpec().GetUrn()
 	components := c.GetComponentCoderIds()
 
@@ -183,6 +185,9 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 
 	case urnDoubleCoder:
 		return coder.NewDouble(), nil
+
+	case urnStringCoder:
+		return coder.NewString(), nil
 
 	case urnKVCoder:
 		if len(components) != 2 {
@@ -239,19 +244,25 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 			return nil, errors.Errorf("could not unmarshal length prefix coder from %v, want a single sub component but have %d", c, len(components))
 		}
 
-		elm, err := b.peek(components[0])
+		sub, err := b.peek(components[0])
 		if err != nil {
 			return nil, err
 		}
+
+		// No payload means this coder was length prefixed by the runner
+		// but is likely self describing - AKA a beam coder.
+		if len(sub.GetSpec().GetPayload()) == 0 {
+			return b.makeCoder(sub)
+		}
 		// TODO(lostluck) 2018/10/17: Make this strict again, once dataflow can use
 		// the portable pipeline model directly (BEAM-2885)
-		if elm.GetSpec().GetUrn() != "" && elm.GetSpec().GetUrn() != urnCustomCoder {
+		if sub.GetSpec().GetUrn() != "" && sub.GetSpec().GetUrn() != urnCustomCoder {
 			// TODO(herohde) 11/17/2017: revisit this restriction
-			return nil, errors.Errorf("could not unmarshal length prefix coder from %v, want a custom coder as a sub component but got %v", c, elm)
+			return nil, errors.Errorf("could not unmarshal length prefix coder from %v, want a custom coder as a sub component but got %v", c, sub)
 		}
 
-		var ref v1.CustomCoder
-		if err := protox.DecodeBase64(string(elm.GetSpec().GetPayload()), &ref); err != nil {
+		var ref v1pb.CustomCoder
+		if err := protox.DecodeBase64(string(sub.GetSpec().GetPayload()), &ref); err != nil {
 			return nil, err
 		}
 		custom, err := decodeCustomCoder(&ref)
@@ -302,7 +313,7 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 	}
 }
 
-func (b *CoderUnmarshaller) peek(id string) (*pb.Coder, error) {
+func (b *CoderUnmarshaller) peek(id string) (*pipepb.Coder, error) {
 	c, ok := b.models[id]
 	if !ok {
 		return nil, errors.Errorf("coder with id %v not found", id)
@@ -331,14 +342,14 @@ func (b *CoderUnmarshaller) isCoGBKList(id string) ([]string, bool) {
 // CoderMarshaller incrementally builds a compact model representation of a set
 // of coders. Identical coders are shared.
 type CoderMarshaller struct {
-	coders   map[string]*pb.Coder
+	coders   map[string]*pipepb.Coder
 	coder2id map[string]string // index of serialized coders to id to deduplicate
 }
 
 // NewCoderMarshaller returns a new CoderMarshaller.
 func NewCoderMarshaller() *CoderMarshaller {
 	return &CoderMarshaller{
-		coders:   make(map[string]*pb.Coder),
+		coders:   make(map[string]*pipepb.Coder),
 		coder2id: make(map[string]string),
 	}
 }
@@ -358,8 +369,8 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 		if err != nil {
 			panic(errors.Wrapf(err, "Failed to marshal custom coder %v", c))
 		}
-		inner := b.internCoder(&pb.Coder{
-			Spec: &pb.FunctionSpec{
+		inner := b.internCoder(&pipepb.Coder{
+			Spec: &pipepb.FunctionSpec{
 				Urn:     urnCustomCoder,
 				Payload: []byte(data),
 			},
@@ -403,6 +414,9 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 	case coder.Double:
 		return b.internBuiltInCoder(urnDoubleCoder)
 
+	case coder.String:
+		return b.internBuiltInCoder(urnStringCoder)
+
 	default:
 		panic(fmt.Sprintf("Failed to marshal custom coder %v, unexpected coder kind: %v", c, c.Kind))
 	}
@@ -431,20 +445,20 @@ func (b *CoderMarshaller) AddWindowCoder(w *coder.WindowCoder) string {
 
 // Build returns the set of model coders. Note that the map may be larger
 // than the number of coders added, because component coders are included.
-func (b *CoderMarshaller) Build() map[string]*pb.Coder {
+func (b *CoderMarshaller) Build() map[string]*pipepb.Coder {
 	return b.coders
 }
 
 func (b *CoderMarshaller) internBuiltInCoder(urn string, components ...string) string {
-	return b.internCoder(&pb.Coder{
-		Spec: &pb.FunctionSpec{
+	return b.internCoder(&pipepb.Coder{
+		Spec: &pipepb.FunctionSpec{
 			Urn: urn,
 		},
 		ComponentCoderIds: components,
 	})
 }
 
-func (b *CoderMarshaller) internCoder(coder *pb.Coder) string {
+func (b *CoderMarshaller) internCoder(coder *pipepb.Coder) string {
 	key := proto.MarshalTextString(coder)
 	if id, exists := b.coder2id[key]; exists {
 		return id

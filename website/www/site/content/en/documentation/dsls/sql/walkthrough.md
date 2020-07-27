@@ -97,7 +97,7 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
               // Output the Row representing the current POJO
               c.output(appRow);
             }
-          }));
+          })).setRowSchema(appSchema);
     {{< /highlight >}}
 
   - **As an output of another `SqlTransform`**. Details in the next section.

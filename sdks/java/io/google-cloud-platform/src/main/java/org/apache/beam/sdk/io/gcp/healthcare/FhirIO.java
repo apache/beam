@@ -35,7 +35,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -45,7 +44,9 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -78,6 +79,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.jackson.JsonProcessingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,7 +92,7 @@ import org.slf4j.LoggerFactory;
  * <h3>Reading</h3>
  *
  * <p>FHIR resources can be read with {@link FhirIO.Read}, which supports use cases where you have a
- * ${@link PCollection} of message IDS. This is appropriate for reading the Fhir notifications from
+ * ${@link PCollection} of message IDs. This is appropriate for reading the Fhir notifications from
  * a Pub/Sub subscription with {@link PubsubIO#readStrings()} or in cases where you have a manually
  * prepared list of messages that you need to process (e.g. in a text file read with {@link
  * org.apache.beam.sdk.io.TextIO}*) .
@@ -196,7 +198,7 @@ public class FhirIO {
       String fhirStore,
       String tempDir,
       String deadLetterDir,
-      @Nullable FhirIO.Import.ContentStructure contentStructure) {
+      FhirIO.Import.@Nullable ContentStructure contentStructure) {
     return new Import(fhirStore, tempDir, deadLetterDir, contentStructure);
   }
 
@@ -214,7 +216,7 @@ public class FhirIO {
       ValueProvider<String> fhirStore,
       ValueProvider<String> tempDir,
       ValueProvider<String> deadLetterDir,
-      @Nullable FhirIO.Import.ContentStructure contentStructure) {
+      FhirIO.Import.@Nullable ContentStructure contentStructure) {
     return new Import(fhirStore, tempDir, deadLetterDir, contentStructure);
   }
 
@@ -601,7 +603,7 @@ public class FhirIO {
         String fhirStore,
         String gcsTempPath,
         String gcsDeadLetterPath,
-        @Nullable FhirIO.Import.ContentStructure contentStructure) {
+        FhirIO.Import.@Nullable ContentStructure contentStructure) {
       return new AutoValue_FhirIO_Write.Builder()
           .setFhirStore(StaticValueProvider.of(fhirStore))
           .setWriteMethod(Write.WriteMethod.IMPORT)
@@ -614,7 +616,7 @@ public class FhirIO {
     public static Write fhirStoresImport(
         String fhirStore,
         String gcsDeadLetterPath,
-        @Nullable FhirIO.Import.ContentStructure contentStructure) {
+        FhirIO.Import.@Nullable ContentStructure contentStructure) {
       return new AutoValue_FhirIO_Write.Builder()
           .setFhirStore(StaticValueProvider.of(fhirStore))
           .setWriteMethod(Write.WriteMethod.IMPORT)
@@ -627,7 +629,7 @@ public class FhirIO {
         ValueProvider<String> fhirStore,
         ValueProvider<String> gcsTempPath,
         ValueProvider<String> gcsDeadLetterPath,
-        @Nullable FhirIO.Import.ContentStructure contentStructure) {
+        FhirIO.Import.@Nullable ContentStructure contentStructure) {
       return new AutoValue_FhirIO_Write.Builder()
           .setFhirStore(fhirStore)
           .setWriteMethod(Write.WriteMethod.IMPORT)
@@ -741,13 +743,7 @@ public class FhirIO {
         ValueProvider<String> fhirStore,
         ValueProvider<String> deadLetterGcsPath,
         @Nullable ContentStructure contentStructure) {
-      this.fhirStore = fhirStore;
-      this.deadLetterGcsPath = deadLetterGcsPath;
-      if (contentStructure == null) {
-        this.contentStructure = ContentStructure.CONTENT_STRUCTURE_UNSPECIFIED;
-      } else {
-        this.contentStructure = contentStructure;
-      }
+      this(fhirStore, null, deadLetterGcsPath, contentStructure);
     }
     /**
      * Instantiates a new Import.
@@ -854,12 +850,6 @@ public class FhirIO {
                   new DoFn<Metadata, Void>() {
                     @ProcessElement
                     public void delete(@Element Metadata path, ProcessContext context) {
-                      String tempPath =
-                          getImportGcsTempPath()
-                              .orElse(
-                                  StaticValueProvider.of(
-                                      context.getPipelineOptions().getTempLocation()))
-                              .get();
                       // Wait til window closes for failedBodies and failedFiles to ensure we are
                       // done processing
                       // anything under tempGcsPath because it has been successfully imported to
@@ -1043,7 +1033,19 @@ public class FhirIO {
               FileSystems.matchNewResource(deadLetterGcsPath.get(), true)
                   .resolve(file.getFilename(), StandardResolveOptions.RESOLVE_FILE));
         }
-        FileSystems.copy(ImmutableList.copyOf(batch), tempDestinations);
+        // Ignore missing files since this might be a retry, which means files
+        // should have been copied over.
+        FileSystems.copy(
+            ImmutableList.copyOf(batch),
+            tempDestinations,
+            StandardMoveOptions.IGNORE_MISSING_FILES);
+        // Check whether any temporary files are not present.
+        boolean hasMissingFile =
+            FileSystems.matchResources(tempDestinations).stream()
+                .anyMatch((MatchResult r) -> r.status() != Status.OK);
+        if (hasMissingFile) {
+          throw new IllegalStateException("Not all temporary files are present for importing.");
+        }
         ResourceId importUri = tempDir.resolve("*", StandardResolveOptions.RESOLVE_FILE);
         try {
           // Blocking fhirStores.import request.

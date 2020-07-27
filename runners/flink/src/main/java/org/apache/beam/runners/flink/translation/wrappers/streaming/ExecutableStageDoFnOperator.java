@@ -33,8 +33,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -42,7 +40,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
@@ -75,7 +72,6 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -93,7 +89,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
@@ -106,6 +101,7 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -270,11 +266,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           StateRequestHandlers.forBagUserStateHandlerFactory(
               stageBundleFactory.getProcessBundleDescriptor(),
               new BagUserStateFactory(
-                  () -> UUID.randomUUID().toString(),
-                  keyedStateInternals,
-                  getKeyedStateBackend(),
-                  stateBackendLock,
-                  keyCoder));
+                  keyedStateInternals, getKeyedStateBackend(), stateBackendLock, keyCoder));
     } else {
       userStateRequestHandler = StateRequestHandler.unsupported();
     }
@@ -296,14 +288,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     /** Lock to hold whenever accessing the state backend. */
     private final Lock stateBackendLock;
     /** For debugging: The key coder used by the Runner. */
-    @Nullable private final Coder runnerKeyCoder;
+    private final @Nullable Coder runnerKeyCoder;
     /** For debugging: Same as keyedStateBackend but upcasted, to access key group meta info. */
-    @Nullable private final AbstractKeyedStateBackend<ByteBuffer> keyStateBackendWithKeyGroupInfo;
-    /** Holds the valid cache token for user state for this operator. */
-    private final ByteString cacheToken;
+    private final @Nullable AbstractKeyedStateBackend<ByteBuffer> keyStateBackendWithKeyGroupInfo;
 
     BagUserStateFactory(
-        IdGenerator cacheTokenGenerator,
         StateInternals stateInternals,
         KeyedStateBackend<ByteBuffer> keyedStateBackend,
         Lock stateBackendLock,
@@ -320,7 +309,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         this.keyStateBackendWithKeyGroupInfo = null;
       }
       this.runnerKeyCoder = runnerKeyCoder;
-      this.cacheToken = ByteString.copyFrom(cacheTokenGenerator.getId().getBytes(Charsets.UTF_8));
     }
 
     @Override
@@ -392,12 +380,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
                 stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
             bagState.clear();
           }
-        }
-
-        @Override
-        public Optional<ByteString> getCacheToken() {
-          // Cache tokens remains valid for the life time of the operator
-          return Optional.of(cacheToken);
         }
 
         private void prepareStateBackend(ByteString key) {

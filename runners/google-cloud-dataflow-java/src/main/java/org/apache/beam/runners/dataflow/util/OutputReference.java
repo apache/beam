@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Key;
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A representation used by {@link com.google.api.services.dataflow.model.Step}s to reference the
@@ -43,7 +44,7 @@ public final class OutputReference extends GenericJson {
   }
 
   @Override
-  public boolean equals(Object otherObject) {
+  public boolean equals(@Nullable Object otherObject) {
     if (!(otherObject instanceof OutputReference)) {
       return false;
     }

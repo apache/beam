@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.amqp')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.amqp')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: AMQP"
 ext.summary = "IO to read and write using AMQP 1.0 protocol (http://www.amqp.org)."

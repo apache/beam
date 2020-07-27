@@ -193,11 +193,6 @@ Available suites are:
 * STRESS: Like smoke but for 1m events.
 * FULL_THROTTLE: Like SMOKE but 100m events.
 
-
-### Apex runner specific configuration
-
-    --manageResources=false --monitorJobs=false
-
 ### Google Cloud Dataflow runner specific configuration
 
     --manageResources=false --monitorJobs=true \
@@ -250,7 +245,7 @@ Set topic name which will be used for benchmark events:
 
 ## Current status
 
-These tables contain statuses of the queries runs in the different runners. Google Cloud Dataflow and Apache Gearpump statuses are yet to come.
+These tables contain statuses of the queries runs in the different runners. Google Cloud Dataflow status is yet to come.
 
 
 ### Batch / Synthetic / Local
@@ -261,11 +256,9 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <th>Direct</th>
       <th>Spark</th>
       <th>Flink</th>
-      <th>Apex</th>
     </tr>
     <tr>
       <td>0</td>
-      <td>ok</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
@@ -275,11 +268,9 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
-      <td>ok</td>
     </tr>
     <tr>
       <td>2</td>
-      <td>ok</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
@@ -289,11 +280,9 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM-1114">BEAM-1114</a></td>
     </tr>
     <tr>
       <td>4</td>
-      <td>ok</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
@@ -303,11 +292,9 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
-      <td>ok</td>
     </tr>
     <tr>
       <td>6</td>
-      <td>ok</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
@@ -317,11 +304,9 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
-      <td>ok</td>
     </tr>
     <tr>
       <td>8</td>
-      <td>ok</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
@@ -331,11 +316,9 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
-      <td>ok</td>
     </tr>
     <tr>
       <td>10</td>
-      <td>ok</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
@@ -345,18 +328,15 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
-      <td>ok</td>
     </tr>
     <tr>
       <td>12</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
-      <td>ok</td>
     </tr>
     <tr>
       <td>BOUNDED_SIDE_INPUT_JOIN</td>
-      <td>ok</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
@@ -371,11 +351,9 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <th>Direct</th>
       <th>Spark <a href="https://issues.apache.org/jira/browse/BEAM-2847">BEAM-2847</a></th>
       <th>Flink</th>
-      <th>Apex</th>
     </tr>
     <tr>
       <td>0</td>
-      <td>ok</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
@@ -385,11 +363,9 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
-      <td>ok</td>
     </tr>
     <tr>
       <td>2</td>
-      <td>ok</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
@@ -399,11 +375,9 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <td>ok</td>
       <td><a href="https://issues.apache.org/jira/browse/BEAM-2176">BEAM-2176</a>, <a href="https://issues.apache.org/jira/browse/BEAM-3961">BEAM-3961</a></td>
       <td>ok</td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM-1114">BEAM-1114</a></td>
     </tr>
     <tr>
       <td>4</td>
-      <td>ok</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
@@ -413,11 +387,9 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
-      <td>ok</td>
     </tr>
     <tr>
       <td>6</td>
-      <td>ok</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
@@ -427,11 +399,9 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <td>ok</td>
       <td><a href="https://issues.apache.org/jira/browse/BEAM-2112">BEAM-2112</a></td>
       <td>ok</td>
-      <td>ok</td>
     </tr>
     <tr>
       <td>8</td>
-      <td>ok</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
@@ -441,11 +411,9 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
-      <td>ok</td>
     </tr>
     <tr>
       <td>10</td>
-      <td>ok</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
@@ -455,11 +423,9 @@ These tables contain statuses of the queries runs in the different runners. Goog
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
-      <td>ok</td>
     </tr>
     <tr>
       <td>12</td>
-      <td>ok</td>
       <td>ok</td>
       <td>ok</td>
       <td>ok</td>
@@ -468,7 +434,6 @@ These tables contain statuses of the queries runs in the different runners. Goog
           <td>BOUNDED_SIDE_INPUT_JOIN</td>
           <td>ok</td>
           <td><a href="https://issues.apache.org/jira/browse/BEAM-2112">BEAM-2112</a></td>
-          <td>ok</td>
           <td>ok</td>
         </tr>
 </table>
@@ -577,32 +542,6 @@ Streaming Mode:
             --manageResources=false
             --monitorJobs=true
             --flinkMaster=[local]"
-
-### Running SMOKE suite on the ApexRunner (local)
-
-Batch Mode:
-
-    ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:apex" \
-        -Pnexmark.args="
-            --runner=ApexRunner
-            --suite=SMOKE
-            --streamTimeout=60
-            --streaming=false
-            --manageResources=false
-            --monitorJobs=true"
-
-Streaming Mode:
-
-    ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:apex" \
-        -Pnexmark.args="
-            --runner=ApexRunner
-            --suite=SMOKE
-            --streamTimeout=60
-            --streaming=true
-            --manageResources=false
-            --monitorJobs=true"
 
 ### Running SMOKE suite on Google Cloud Dataflow
 

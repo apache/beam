@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -34,11 +33,14 @@ import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.transforms.Materializations.IterableView;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Generic side input handler that uses {@link StateInternals} to store all data. Both the actual
@@ -57,6 +59,10 @@ import org.apache.beam.sdk.values.PCollectionView;
  * reach the GC horizon.
  */
 public class SideInputHandler implements ReadyCheckingSideInputReader {
+  private static final Set<String> SUPPORTED_MATERIALIZATIONS =
+      ImmutableSet.of(
+          Materializations.ITERABLE_MATERIALIZATION_URN,
+          Materializations.MULTIMAP_MATERIALIZATION_URN);
 
   /** The list of side inputs that we're handling. */
   protected final Collection<PCollectionView<?>> sideInputs;
@@ -93,11 +99,10 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
 
     for (PCollectionView<?> sideInput : sideInputs) {
       checkArgument(
-          Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
-              sideInput.getViewFn().getMaterialization().getUrn()),
+          SUPPORTED_MATERIALIZATIONS.contains(sideInput.getViewFn().getMaterialization().getUrn()),
           "This handler is only capable of dealing with %s materializations "
               + "but was asked to handle %s for PCollectionView with tag %s.",
-          Materializations.MULTIMAP_MATERIALIZATION_URN,
+          SUPPORTED_MATERIALIZATIONS,
           sideInput.getViewFn().getMaterialization().getUrn(),
           sideInput.getTagInternal().getId());
 
@@ -147,15 +152,26 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   @Nullable
   @Override
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
-
     Iterable<?> elements = getIterable(view, window);
-    // TODO: Add support for choosing which representation is contained based upon the
-    // side input materialization. We currently can assume that we always have a multimap
-    // materialization as that is the only supported type within the Java SDK.
-    ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
-    Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
-    return (T)
-        viewFn.apply(InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) elements));
+    switch (view.getViewFn().getMaterialization().getUrn()) {
+      case Materializations.ITERABLE_MATERIALIZATION_URN:
+        {
+          ViewFn<IterableView, T> viewFn = (ViewFn<IterableView, T>) view.getViewFn();
+          return viewFn.apply(() -> elements);
+        }
+      case Materializations.MULTIMAP_MATERIALIZATION_URN:
+        {
+          ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
+          Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
+          return viewFn.apply(
+              InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) elements));
+        }
+      default:
+        throw new IllegalStateException(
+            String.format(
+                "Unknown side input materialization format requested '%s'",
+                view.getViewFn().getMaterialization().getUrn()));
+    }
   }
 
   /**

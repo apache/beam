@@ -24,11 +24,17 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.annotation.Nullable;
-import org.apache.beam.runners.core.*;
+import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
@@ -54,6 +60,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -73,7 +80,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    * <p>This key should not be mistaken for the sharding key of the computation, which is always
    * present.
    */
-  @Nullable private Object key = null;
+  private @Nullable Object key = null;
 
   private final String computationId;
   private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
@@ -267,8 +274,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    * <p>If the side input was ready and null, returns {@literal Optional.absent()}. If the side
    * input was ready and non-null returns {@literal Optional.present(...)}.
    */
-  @Nullable
-  private <T> Optional<T> fetchSideInput(
+  private @Nullable <T> Optional<T> fetchSideInput(
       PCollectionView<T> view,
       BoundedWindow sideInputWindow,
       String stateFamily,
@@ -307,8 +313,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     return work.getTimers().getTimersList();
   }
 
-  @Nullable
-  public ByteString getSerializedKey() {
+  public @Nullable ByteString getSerializedKey() {
     return work == null ? null : work.getKey();
   }
 
