@@ -750,7 +750,7 @@ public class BigQueryServicesImplTest {
           false,
           false,
           false);
-
+      fail();
     } catch (RuntimeException e) {
       assertTrue(e instanceof RuntimeException);
     }
