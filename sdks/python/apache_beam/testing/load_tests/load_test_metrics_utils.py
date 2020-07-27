@@ -46,6 +46,8 @@ from requests.auth import HTTPBasicAuth
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.utils.timestamp import Timestamp
 
 try:
   from google.cloud import bigquery
@@ -559,3 +561,36 @@ class CountMessages(beam.DoFn):
   def process(self, element):
     self.counter.inc(1)
     yield element
+
+
+class MeasureLatency(beam.DoFn):
+  """A distribution metric which captures the latency based on the timestamps
+  of the processed elements."""
+  LABEL = 'latency'
+
+  def __init__(self, namespace):
+    """Initializes :class:`MeasureLatency`.
+
+      namespace(str): namespace of  metric
+    """
+    self.namespace = namespace
+    self.latency_ms = Metrics.distribution(self.namespace, self.LABEL)
+    self.time_fn = time.time
+
+  def process(self, element, timestamp=beam.DoFn.TimestampParam):
+    self.latency_ms.update(
+        int(self.time_fn() * 1000) - (timestamp.micros // 1000))
+    yield element
+
+
+class AssignTimestamps(beam.DoFn):
+  """DoFn to assigned timestamps to elements."""
+  def __init__(self):
+    # Avoid having to use save_main_session
+    self.time_fn = time.time
+    self.timestamp_val_fn = TimestampedValue
+    self.timestamp_fn = Timestamp
+
+  def process(self, element):
+    yield self.timestamp_val_fn(
+        element, self.timestamp_fn(micros=int(self.time_fn() * 1000000)))

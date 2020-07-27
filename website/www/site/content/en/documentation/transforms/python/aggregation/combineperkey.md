@@ -220,6 +220,7 @@ Output:
 You can use the following combiner transforms:
 
 * [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally)
+* [CombineValues](/documentation/transforms/python/aggregation/combinevalues)
 * [Mean](/documentation/transforms/python/aggregation/mean)
 * [Count](/documentation/transforms/python/aggregation/count)
 * [Top](/documentation/transforms/python/aggregation/top)
