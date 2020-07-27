@@ -514,6 +514,7 @@ public class BigQueryServicesImplTest {
         rows,
         null,
         BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        TEST_BACKOFF,
         new MockSleeper(),
         InsertRetryPolicy.alwaysRetry(),
         null,
@@ -549,6 +550,7 @@ public class BigQueryServicesImplTest {
         rows,
         null,
         BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        TEST_BACKOFF,
         new MockSleeper(),
         InsertRetryPolicy.alwaysRetry(),
         null,
@@ -560,6 +562,51 @@ public class BigQueryServicesImplTest {
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
     expectedLogs.verifyInfo("BigQuery insertAll error, retrying:");
+  }
+
+  /** Tests that {@link DatasetServiceImpl#insertAll} can stop quotaExceeded retry attempts. */
+  @Test
+  public void testInsertStoppedRetry() throws Exception {
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
+    rows.add(wrapValue(new TableRow()));
+
+    // Respond 403 four times, then valid payload.
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode())
+        .thenReturn(403)
+        .thenReturn(403)
+        .thenReturn(403)
+        .thenReturn(403)
+        .thenReturn(200);
+    when(response.getContent())
+        .thenReturn(toStream(errorWithReasonAndStatus("quotaExceeded", 403)))
+        .thenReturn(toStream(errorWithReasonAndStatus("quotaExceeded", 403)))
+        .thenReturn(toStream(errorWithReasonAndStatus("quotaExceeded", 403)))
+        .thenReturn(toStream(errorWithReasonAndStatus("quotaExceeded", 403)))
+        .thenReturn(toStream(new TableDataInsertAllResponse()));
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("quotaExceeded");
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+    dataService.insertAll(
+        ref,
+        rows,
+        null,
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        TEST_BACKOFF,
+        new MockSleeper(),
+        InsertRetryPolicy.alwaysRetry(),
+        null,
+        null,
+        false,
+        false,
+        false);
+    verify(response, times(5)).getStatusCode();
+    verify(response, times(5)).getContent();
+    verify(response, times(5)).getContentType();
   }
 
   // A BackOff that makes a total of 4 attempts
@@ -600,6 +647,7 @@ public class BigQueryServicesImplTest {
         rows,
         insertIds,
         BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        TEST_BACKOFF,
         new MockSleeper(),
         InsertRetryPolicy.alwaysRetry(),
         null,
@@ -646,6 +694,7 @@ public class BigQueryServicesImplTest {
           rows,
           null,
           BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+          TEST_BACKOFF,
           new MockSleeper(),
           InsertRetryPolicy.alwaysRetry(),
           null,
@@ -766,6 +815,7 @@ public class BigQueryServicesImplTest {
         rows,
         null,
         BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        TEST_BACKOFF,
         new MockSleeper(),
         InsertRetryPolicy.retryTransientErrors(),
         failedInserts,
@@ -807,6 +857,7 @@ public class BigQueryServicesImplTest {
         rows,
         null,
         BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        TEST_BACKOFF,
         new MockSleeper(),
         InsertRetryPolicy.neverRetry(),
         Lists.newArrayList(),
@@ -827,6 +878,7 @@ public class BigQueryServicesImplTest {
         rows,
         null,
         BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        TEST_BACKOFF,
         new MockSleeper(),
         InsertRetryPolicy.neverRetry(),
         Lists.newArrayList(),
@@ -1029,6 +1081,7 @@ public class BigQueryServicesImplTest {
         rows,
         null,
         BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        TEST_BACKOFF,
         new MockSleeper(),
         InsertRetryPolicy.neverRetry(),
         failedInserts,
@@ -1084,6 +1137,7 @@ public class BigQueryServicesImplTest {
         rows,
         null,
         BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        TEST_BACKOFF,
         new MockSleeper(),
         InsertRetryPolicy.neverRetry(),
         failedInserts,

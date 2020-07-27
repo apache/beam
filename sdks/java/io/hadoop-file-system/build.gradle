@@ -17,7 +17,10 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.hdfs')
+applyJavaNature(
+  enableChecker:false,
+  ignoreRawtypeErrors:true,
+  automaticModuleName: 'org.apache.beam.sdk.io.hdfs')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop File System"
 ext.summary = "Library to read and write Hadoop/HDFS file formats from Beam."
