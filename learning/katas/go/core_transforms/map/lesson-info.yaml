@@ -18,6 +18,6 @@
 #
 
 content:
-- pardo
-- pardo_onetomany
-- pardo_struct
+  - pardo
+  - pardo_onetomany
+  - pardo_struct
