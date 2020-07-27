@@ -17,8 +17,9 @@
 
 """A word-counting workflow that uses the SQL transform.
 
-Java 8 and docker must be available to run this pipeline, and the
---experiments=use_runner_v2 flag must be passed for running on Dataflow.
+Java 8 must be available to run this pipeline, and the
+--experiments=use_runner_v2 flag must be passed when running on Dataflow.
+Docker must also be available to run this pipeline locally.
 """
 
 from __future__ import absolute_import
