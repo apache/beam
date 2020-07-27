@@ -19,67 +19,72 @@
 import CommonJobProperties as commonJobProperties
 
 def testConfiguration = [
-                jobName           : 'beam_PerformanceTests_Analysis',
-                jobDescription    : 'Runs python script that is verifying results in bq',
-                prCommitStatusName: 'Performance Tests Analysis',
-                prTriggerPhase    : 'Run Performance Tests Analysis',
-                bqTables: [
-                        "beam_performance.textioit_pkb_results",
-                        "beam_performance.compressed_textioit_pkb_results",
-                        "beam_performance.many_files_textioit_pkb_results",
-                        "beam_performance.avroioit_pkb_results",
-                        "beam_performance.tfrecordioit_pkb_results",
-                        "beam_performance.xmlioit_pkb_results",
-                        "beam_performance.textioit_hdfs_pkb_results",
-                        "beam_performance.compressed_textioit_hdfs_pkb_results",
-                        "beam_performance.many_files_textioit_hdfs_pkb_results",
-                        "beam_performance.avroioit_hdfs_pkb_results",
-                        "beam_performance.xmlioit_hdfs_pkb_results",
-                        "beam_performance.hadoopformatioit_pkb_results",
-                        "beam_performance.mongodbioit_pkb_results",
-                        "beam_performance.jdbcioit_pkb_results"
-                ]
-        ]
+  jobName           : 'beam_PerformanceTests_Analysis',
+  jobDescription    : 'Runs python script that is verifying results in bq',
+  prCommitStatusName: 'Performance Tests Analysis',
+  prTriggerPhase    : 'Run Performance Tests Analysis',
+  bqTables: [
+    "beam_performance.textioit_pkb_results",
+    "beam_performance.compressed_textioit_pkb_results",
+    "beam_performance.many_files_textioit_pkb_results",
+    "beam_performance.avroioit_pkb_results",
+    "beam_performance.tfrecordioit_pkb_results",
+    "beam_performance.xmlioit_pkb_results",
+    "beam_performance.textioit_hdfs_pkb_results",
+    "beam_performance.compressed_textioit_hdfs_pkb_results",
+    "beam_performance.many_files_textioit_hdfs_pkb_results",
+    "beam_performance.avroioit_hdfs_pkb_results",
+    "beam_performance.xmlioit_hdfs_pkb_results",
+    "beam_performance.hadoopformatioit_pkb_results",
+    "beam_performance.mongodbioit_pkb_results",
+    "beam_performance.jdbcioit_pkb_results"
+  ]
+]
 
 // This job runs the performance tests analysis job and produces daily report.
 job(testConfiguration.jobName) {
-    description(testConfiguration.jobDescription)
+  description(testConfiguration.jobDescription)
 
-    // Set default Beam job properties.
-    commonJobProperties.setTopLevelMainJobProperties(delegate)
+  // Set default Beam job properties.
+  commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-    // Allows triggering this build against pull requests.
-    commonJobProperties.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            testConfiguration.prCommitStatusName,
-            testConfiguration.prTriggerPhase)
+  // Allows triggering this build against pull requests.
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      testConfiguration.prCommitStatusName,
+      testConfiguration.prTriggerPhase)
 
-    // Run job in postcommit every 24 hours, don't trigger every push, and
-    // don't email individual committers.
-    commonJobProperties.setAutoJob(
-            delegate,
-            '30 */24 * * *')
+  // Run job in postcommit every 24 hours, don't trigger every push, and
+  // don't email individual committers.
+  commonJobProperties.setAutoJob(
+      delegate,
+      '30 */24 * * *')
 
-
-    steps {
-        // Clean up environment after other python using tools.
-        shell('rm -rf PerfKitBenchmarker')
-        shell('rm -rf .env')
-
-        // create new VirtualEnv, inherit already existing packages. Explicitly
-        // pin to python2.7 here otherwise python3 is used by default.
-        shell('virtualenv .env --python=python2.7 --system-site-packages')
-
-        // update setuptools and pip
-        shell('.env/bin/pip install --upgrade setuptools pip')
-
-        // Install job requirements for analysis script.
-        shell('.env/bin/pip install requests google.cloud.bigquery mock google.cloud.bigtable google.cloud')
-
-        // Launch verification tests before executing script.
-        shell('.env/bin/python ' + commonJobProperties.checkoutDir + '/.test-infra/jenkins/verify_performance_test_results_test.py')
-
-        // Launch performance tests analysis.
-        shell('.env/bin/python ' + commonJobProperties.checkoutDir + '/.test-infra/jenkins/verify_performance_test_results.py --bqtable \"'+ testConfiguration.bqTables + '\" ' + '--metric=\"run_time\" ' + '--mode=report --send_notification')
+    wrappers{
+        credentialsBinding {
+            string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
+        }
     }
+
+  steps {
+    // Clean up environment after other python using tools.
+    shell('rm -rf PerfKitBenchmarker')
+    shell('rm -rf .env')
+
+    // create new VirtualEnv, inherit already existing packages. Explicitly
+    // pin to python2.7 here otherwise python3 is used by default.
+    shell('virtualenv .env --python=python2.7 --system-site-packages')
+
+    // update setuptools and pip
+    shell('.env/bin/pip install --upgrade setuptools pip')
+
+    // Install job requirements for analysis script.
+    shell('.env/bin/pip install requests google.cloud.bigquery mock google.cloud.bigtable google.cloud')
+
+    // Launch verification tests before executing script.
+    shell('.env/bin/python ' + commonJobProperties.checkoutDir + '/.test-infra/jenkins/verify_performance_test_results_test.py')
+
+    // Launch performance tests analysis.
+    shell('.env/bin/python ' + commonJobProperties.checkoutDir + '/.test-infra/jenkins/verify_performance_test_results.py --bqtable \"'+ testConfiguration.bqTables + '\" ' + '--metric=\"run_time\" ' + '--mode=report --send_notification')
+  }
 }

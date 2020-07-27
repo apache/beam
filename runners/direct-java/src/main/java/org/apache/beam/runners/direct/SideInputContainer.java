@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
@@ -50,6 +49,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCac
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An in-process container for {@link PCollectionView PCollectionViews}, which provides methods for
@@ -244,8 +244,7 @@ class SideInputContainer {
     }
 
     @Override
-    @Nullable
-    public <T> T get(final PCollectionView<T> view, final BoundedWindow window) {
+    public @Nullable <T> T get(final PCollectionView<T> view, final BoundedWindow window) {
       checkArgument(
           readerViews.contains(view), "call to get(PCollectionView) with unknown view: %s", view);
       checkArgument(

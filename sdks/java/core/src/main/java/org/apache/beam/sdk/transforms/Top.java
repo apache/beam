@@ -28,7 +28,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.PriorityQueue;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code PTransform}s for finding the largest (or smallest) set of elements in a {@code
@@ -436,14 +436,14 @@ public class Top {
      *
      * <p>Only one of asList and asQueue may be non-null.
      */
-    @Nullable private PriorityQueue<T> asQueue;
+    private @Nullable PriorityQueue<T> asQueue;
 
     /**
      * A list in with largest first, the form of extractOutput().
      *
      * <p>Only one of asList and asQueue may be non-null.
      */
-    @Nullable private List<T> asList;
+    private @Nullable List<T> asList;
 
     /** The user-provided Comparator. */
     private final ComparatorT compareFn;
@@ -567,7 +567,7 @@ public class Top {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other == this) {
         return true;
       }

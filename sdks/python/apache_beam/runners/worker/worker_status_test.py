@@ -27,7 +27,6 @@ import mock
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
-from apache_beam.testing.util import timeout
 from apache_beam.utils import thread_pool_executor
 
 
@@ -63,7 +62,6 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
   def tearDown(self):
     self.server.stop(5)
 
-  @timeout(5)
   def test_send_status_response(self):
     self.test_status_service.finished.acquire()
     while len(self.test_status_service.response_received) < self.num_request:
@@ -73,7 +71,6 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
       self.assertIsNotNone(response.status_info)
     self.fn_status_handler.close()
 
-  @timeout(5)
   @mock.patch(
       'apache_beam.runners.worker.worker_status'
       '.FnApiWorkerStatusHandler.generate_status_response')

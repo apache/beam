@@ -17,7 +17,10 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.parquet')
+applyJavaNature(
+  enableChecker: false,
+  ignoreRawtypeErrors:true,
+  automaticModuleName: 'org.apache.beam.sdk.io.parquet')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Parquet"
 ext.summary = "IO to read and write on Parquet storage format."

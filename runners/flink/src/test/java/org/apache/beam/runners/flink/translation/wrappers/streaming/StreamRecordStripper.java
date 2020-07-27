@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 class StreamRecordStripper {
 

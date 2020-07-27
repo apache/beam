@@ -36,7 +36,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -74,6 +73,7 @@ import org.apache.commons.dbcp2.PoolableConnectionFactory;
 import org.apache.commons.dbcp2.PoolingDataSource;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -150,7 +150,26 @@ import org.slf4j.LoggerFactory;
  * <p>By default, the provided function requests a DataSource per execution thread. In some
  * circumstances this can quickly overwhelm the database by requesting too many connections. In that
  * case you should look into sharing a single instance of a {@link PoolingDataSource} across all the
- * execution threads.
+ * execution threads. For example:
+ *
+ * <pre>{@code
+ * private static class MyDataSourceProviderFn implements SerializableFunction<Void, DataSource> {
+ *   private static transient DataSource dataSource;
+ *
+ *   @Override
+ *   public synchronized DataSource apply(Void input) {
+ *     if (dataSource == null) {
+ *       dataSource = ... build data source ...
+ *     }
+ *     return dataSource;
+ *   }
+ * }
+ *
+ * pipeline.apply(JdbcIO.<KV<Integer, String>>read()
+ *   .withDataSourceProviderFn(new MyDataSourceProviderFn())
+ *   // ...
+ * );
+ * }</pre>
  *
  * <h3>Writing to JDBC datasource</h3>
  *
@@ -278,26 +297,20 @@ public class JdbcIO {
    */
   @AutoValue
   public abstract static class DataSourceConfiguration implements Serializable {
-    @Nullable
-    abstract ValueProvider<String> getDriverClassName();
 
-    @Nullable
-    abstract ValueProvider<String> getUrl();
+    abstract @Nullable ValueProvider<String> getDriverClassName();
 
-    @Nullable
-    abstract ValueProvider<String> getUsername();
+    abstract @Nullable ValueProvider<String> getUrl();
 
-    @Nullable
-    abstract ValueProvider<String> getPassword();
+    abstract @Nullable ValueProvider<String> getUsername();
 
-    @Nullable
-    abstract ValueProvider<String> getConnectionProperties();
+    abstract @Nullable ValueProvider<String> getPassword();
 
-    @Nullable
-    abstract ValueProvider<Collection<String>> getConnectionInitSqls();
+    abstract @Nullable ValueProvider<String> getConnectionProperties();
 
-    @Nullable
-    abstract DataSource getDataSource();
+    abstract @Nullable ValueProvider<Collection<String>> getConnectionInitSqls();
+
+    abstract @Nullable DataSource getDataSource();
 
     abstract Builder builder();
 
@@ -453,14 +466,12 @@ public class JdbcIO {
   @AutoValue
   @Experimental(Kind.SCHEMAS)
   public abstract static class ReadRows extends PTransform<PBegin, PCollection<Row>> {
-    @Nullable
-    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract ValueProvider<String> getQuery();
+    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract StatementPreparator getStatementPreparator();
+    abstract @Nullable ValueProvider<String> getQuery();
+
+    abstract @Nullable StatementPreparator getStatementPreparator();
 
     abstract int getFetchSize();
 
@@ -573,20 +584,16 @@ public class JdbcIO {
   /** Implementation of {@link #read}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable
-    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract ValueProvider<String> getQuery();
+    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract StatementPreparator getStatementPreparator();
+    abstract @Nullable ValueProvider<String> getQuery();
 
-    @Nullable
-    abstract RowMapper<T> getRowMapper();
+    abstract @Nullable StatementPreparator getStatementPreparator();
 
-    @Nullable
-    abstract Coder<T> getCoder();
+    abstract @Nullable RowMapper<T> getRowMapper();
+
+    abstract @Nullable Coder<T> getCoder();
 
     abstract int getFetchSize();
 
@@ -709,20 +716,16 @@ public class JdbcIO {
   @AutoValue
   public abstract static class ReadAll<ParameterT, OutputT>
       extends PTransform<PCollection<ParameterT>, PCollection<OutputT>> {
-    @Nullable
-    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract ValueProvider<String> getQuery();
+    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract PreparedStatementSetter<ParameterT> getParameterSetter();
+    abstract @Nullable ValueProvider<String> getQuery();
 
-    @Nullable
-    abstract RowMapper<OutputT> getRowMapper();
+    abstract @Nullable PreparedStatementSetter<ParameterT> getParameterSetter();
 
-    @Nullable
-    abstract Coder<OutputT> getCoder();
+    abstract @Nullable RowMapper<OutputT> getRowMapper();
+
+    abstract @Nullable Coder<OutputT> getCoder();
 
     abstract int getFetchSize();
 
@@ -934,11 +937,9 @@ public class JdbcIO {
 
     abstract int getMaxAttempts();
 
-    @Nullable
-    abstract Duration getMaxDuration();
+    abstract @Nullable Duration getMaxDuration();
 
-    @Nullable
-    abstract Duration getInitialDuration();
+    abstract @Nullable Duration getInitialDuration();
 
     abstract RetryConfiguration.Builder builder();
 
@@ -1215,25 +1216,20 @@ public class JdbcIO {
   /** A {@link PTransform} to write to a JDBC datasource. */
   @AutoValue
   public abstract static class WriteVoid<T> extends PTransform<PCollection<T>, PCollection<Void>> {
-    @Nullable
-    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract ValueProvider<String> getStatement();
+    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+
+    abstract @Nullable ValueProvider<String> getStatement();
 
     abstract long getBatchSize();
 
-    @Nullable
-    abstract PreparedStatementSetter<T> getPreparedStatementSetter();
+    abstract @Nullable PreparedStatementSetter<T> getPreparedStatementSetter();
 
-    @Nullable
-    abstract RetryStrategy getRetryStrategy();
+    abstract @Nullable RetryStrategy getRetryStrategy();
 
-    @Nullable
-    abstract RetryConfiguration getRetryConfiguration();
+    abstract @Nullable RetryConfiguration getRetryConfiguration();
 
-    @Nullable
-    abstract String getTable();
+    abstract @Nullable String getTable();
 
     abstract Builder<T> toBuilder();
 

@@ -21,8 +21,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.common.Reiterator;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link Reiterator} that supports one-element lookahead during iteration.

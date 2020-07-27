@@ -26,6 +26,7 @@ import com.google.zetasql.Type;
 import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -66,6 +67,8 @@ public final class ZetaSqlBeamTranslationUtils {
         return TypeFactory.createSimpleType(TypeKind.TYPE_STRING);
       case BYTES:
         return TypeFactory.createSimpleType(TypeKind.TYPE_BYTES);
+      case DECIMAL:
+        return TypeFactory.createSimpleType(TypeKind.TYPE_NUMERIC);
       case DATETIME:
         // TODO[BEAM-10238]: Mapping TIMESTAMP to a Beam LogicalType instead?
         return TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP);
@@ -124,6 +127,8 @@ public final class ZetaSqlBeamTranslationUtils {
         return Value.createStringValue((String) object);
       case BYTES:
         return Value.createBytesValue(ByteString.copyFrom((byte[]) object));
+      case DECIMAL:
+        return Value.createNumericValue((BigDecimal) object);
       case DATETIME:
         return jodaInstantToZetaSqlTimestampValue((Instant) object);
       case ARRAY:
@@ -197,6 +202,8 @@ public final class ZetaSqlBeamTranslationUtils {
         return FieldType.STRING.withNullable(true);
       case TYPE_BYTES:
         return FieldType.BYTES.withNullable(true);
+      case TYPE_NUMERIC:
+        return FieldType.DECIMAL.withNullable(true);
       case TYPE_DATE:
         return FieldType.logicalType(SqlTypes.DATE).withNullable(true);
       case TYPE_TIME:
@@ -256,6 +263,8 @@ public final class ZetaSqlBeamTranslationUtils {
         return value.getStringValue();
       case BYTES:
         return value.getBytesValue().toByteArray();
+      case DECIMAL:
+        return value.getNumericValue();
       case DATETIME:
         return zetaSqlTimestampValueToJodaInstant(value);
       case ARRAY:

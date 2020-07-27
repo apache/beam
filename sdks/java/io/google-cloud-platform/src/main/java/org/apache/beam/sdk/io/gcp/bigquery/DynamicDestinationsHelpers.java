@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +55,7 @@ class DynamicDestinationsHelpers {
   /** Always returns a constant table destination. */
   static class ConstantTableDestinations<T> extends DynamicDestinations<T, TableDestination> {
     private final ValueProvider<String> tableSpec;
-    @Nullable private final String tableDescription;
+    private final @Nullable String tableDescription;
 
     ConstantTableDestinations(ValueProvider<String> tableSpec, @Nullable String tableDescription) {
       this.tableSpec = tableSpec;
@@ -202,7 +202,7 @@ class DynamicDestinationsHelpers {
   /** Returns the same schema for every table. */
   static class ConstantSchemaDestinations<T, DestinationT>
       extends DelegatingDynamicDestinations<T, DestinationT> {
-    @Nullable private final ValueProvider<String> jsonSchema;
+    private final @Nullable ValueProvider<String> jsonSchema;
 
     ConstantSchemaDestinations(
         DynamicDestinations<T, DestinationT> inner, ValueProvider<String> jsonSchema) {
@@ -230,8 +230,8 @@ class DynamicDestinationsHelpers {
   static class ConstantTimePartitioningDestinations<T>
       extends DelegatingDynamicDestinations<T, TableDestination> {
 
-    @Nullable private final ValueProvider<String> jsonTimePartitioning;
-    @Nullable private final ValueProvider<String> jsonClustering;
+    private final @Nullable ValueProvider<String> jsonTimePartitioning;
+    private final @Nullable ValueProvider<String> jsonClustering;
 
     ConstantTimePartitioningDestinations(
         DynamicDestinations<T, TableDestination> inner,

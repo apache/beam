@@ -218,8 +218,12 @@ public class LocalFileSystemTest {
 
     List<String> expected = ImmutableList.of(expectedFile1.getAbsolutePath());
 
-    System.setProperty("user.dir", temporaryFolder.getRoot().toString());
-    List<MatchResult> matchResults = localFileSystem.match(ImmutableList.of("A/*"));
+    // This no longer works:
+    //     System.setProperty("user.dir", temporaryFolder.getRoot().toString());
+    // There is no way to set the working directory without forking. Instead we
+    // call in to the helper method that gives just about as good test coverage.
+    List<MatchResult> matchResults =
+        localFileSystem.match(temporaryFolder.getRoot().toString(), ImmutableList.of("A/*"));
     assertThat(
         toFilenames(matchResults),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
@@ -311,8 +315,11 @@ public class LocalFileSystemTest {
     }
     String directory = expectedFile.substring(0, slashIndex);
     String relative = expectedFile.substring(slashIndex + 1);
-    System.setProperty("user.dir", directory);
-    List<MatchResult> results = localFileSystem.match(ImmutableList.of(relative));
+    // This no longer works:
+    //     System.setProperty("user.dir", directory);
+    // There is no way to set the working directory without forking. Instead we
+    // call in to the helper method that gives just about as good test coverage.
+    List<MatchResult> results = localFileSystem.match(directory, ImmutableList.of(relative));
     assertThat(
         toFilenames(results), containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }

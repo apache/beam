@@ -27,4 +27,4 @@
 package org.apache.beam.sdk.transforms.display;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import org.checkerframework.checker.nullness.qual.NonNull;
