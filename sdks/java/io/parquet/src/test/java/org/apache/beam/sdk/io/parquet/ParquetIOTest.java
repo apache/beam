@@ -35,6 +35,9 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.parquet.avro.AvroSchemaConverter;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.MessageTypeParser;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -57,7 +60,8 @@ public class ParquetIOTest implements Serializable {
           + "\"type\":\"record\", "
           + "\"name\":\"testrecord\","
           + "\"fields\":["
-          + "    {\"name\":\"name\",\"type\":\"string\"}"
+          + "    {\"name\":\"name\",\"type\":\"string\"},"
+              + "    {\"name\":\"id\",\"type\":\"string\"}"
           + "  ]"
           + "}";
 
@@ -68,6 +72,8 @@ public class ParquetIOTest implements Serializable {
         "Einstein", "Darwin", "Copernicus", "Pasteur", "Curie",
         "Faraday", "Newton", "Bohr", "Galilei", "Maxwell"
       };
+
+
 
   @Test
   public void testWriteAndRead() {
@@ -136,7 +142,7 @@ public class ParquetIOTest implements Serializable {
     GenericRecordBuilder builder = new GenericRecordBuilder(SCHEMA);
     for (int i = 0; i < count; i++) {
       int index = i % SCIENTISTS.length;
-      GenericRecord record = builder.set("name", SCIENTISTS[index]).build();
+      GenericRecord record = builder.set("name", SCIENTISTS[index]).set("id",Integer.toString(i)).build();
       data.add(record);
     }
     return data;

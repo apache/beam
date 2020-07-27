@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.parquet;
 
+import static java.lang.String.format;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.parquet.Preconditions.checkNotNull;
 import static org.apache.parquet.hadoop.ParquetFileWriter.Mode.OVERWRITE;
@@ -74,14 +75,7 @@ import org.apache.parquet.hadoop.api.ReadSupport;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.hadoop.metadata.FileMetaData;
-import org.apache.parquet.io.ColumnIOFactory;
-import org.apache.parquet.io.DelegatingSeekableInputStream;
-import org.apache.parquet.io.InputFile;
-import org.apache.parquet.io.MessageColumnIO;
-import org.apache.parquet.io.OutputFile;
-import org.apache.parquet.io.PositionOutputStream;
-import org.apache.parquet.io.RecordReader;
-import org.apache.parquet.io.SeekableInputStream;
+import org.apache.parquet.io.*;
 import org.apache.parquet.io.api.RecordMaterializer;
 import org.apache.parquet.schema.MessageType;
 import org.slf4j.Logger;
@@ -370,18 +364,45 @@ public class ParquetIO {
           reader.skipNextRowGroup();
         }
         while (tracker.tryClaim(currentBlock)) {
+
+          LOG.info("reading block" + currentBlock);
           PageReadStore pages = reader.readNextRowGroup();
           currentBlock += 1;
           RecordReader<GenericRecord> recordReader =
-              columnIO.getRecordReader(
-                  pages, recordConverter, filterRecords ? filter : FilterCompat.NOOP);
+                  columnIO.getRecordReader(
+                          pages, recordConverter, filterRecords ? filter : FilterCompat.NOOP);
           long currentRow = 0;
           long totalRows = pages.getRowCount();
           while (currentRow < totalRows) {
-            outputReceiver.output(recordReader.read());
-            currentRow += 1;
+            try {
+              GenericRecord record;
+              currentRow += 1;
+              try {
+                record = recordReader.read();
+              } catch (RecordMaterializer.RecordMaterializationException e) {
+                LOG.debug("skipping a corrupt record");
+                continue;
+              }
+              if (recordReader.shouldSkipCurrentRecord()) {
+                // this record is being filtered via the filter2 package
+                LOG.debug("skipping record");
+                continue;
+              }
+              if (record == null) {
+                // only happens with FilteredRecordReader at end of block
+                LOG.debug("filtered record reader reached end of block");
+                break;
+              }
+              outputReceiver.output(record);
+            } catch (RuntimeException e) {
+              throw new ParquetDecodingException(format("Can not read value at %d in block %d in file %s", currentRow, currentBlock, file.toString()), e);
+            }
           }
+          LOG.info("finish read " + currentRow + " rows");
         }
+
+
+
       }
 
       private Configuration setConf() throws Exception {
