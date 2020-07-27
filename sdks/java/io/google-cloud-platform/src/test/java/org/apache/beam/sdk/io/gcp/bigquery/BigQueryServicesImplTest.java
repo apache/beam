@@ -668,11 +668,11 @@ public class BigQueryServicesImplTest {
   }
 
   /**
-   * Tests that {@link DatasetServiceImpl#insertAll} retries other non-rate-limited,
+   * Tests that {@link DatasetServiceImpl#insertAll} will not retry other non-rate-limited,
    * non-quota-exceeded attempts.
    */
   @Test
-  public void testInsertOtherRetry() throws Exception {
+  public void testFaielInsertOtherRetry() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
     List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
@@ -686,10 +686,9 @@ public class BigQueryServicesImplTest {
     when(response.getContent())
         .thenReturn(toStream(errorWithReasonAndStatus("actually forbidden", 403)))
         .thenReturn(toStream(new TableDataInsertAllResponse()));
-
-    DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     try {
+      DatasetServiceImpl dataService =
+          new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
       dataService.insertAll(
           ref,
           rows,
@@ -702,10 +701,10 @@ public class BigQueryServicesImplTest {
           false,
           false,
           false);
-    } catch (Exception e) {
-
+      fail();
+    } catch (RuntimeException e) {
+      assertTrue(e instanceof RuntimeException);
     }
-
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
     verify(response, times(1)).getContentType();
