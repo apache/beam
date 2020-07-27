@@ -295,6 +295,7 @@ if [[ $confirmation = "y" ]]; then
   git clone ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   git checkout ${RELEASE_BRANCH}
+  RELEASE_COMMIT=$(git rev-parse --verify ${RELEASE_BRANCH})
   cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
@@ -321,7 +322,7 @@ if [[ $confirmation = "y" ]]; then
   cp -r ${GENERATED_PYDOC} pydoc/${RELEASE}
 
   git add -A
-  git commit -m "Update beam-site for release ${RELEASE}\n\nContent generated based on commit ${RELEASE_COMMIT}"
+  git commit -m "Update beam-site for release ${RELEASE}." -m "Content generated from commit ${RELEASE_COMMIT}."
   git push -f ${USER_REMOTE_URL}
 
   # Check if hub is installed. See https://stackoverflow.com/a/677212
