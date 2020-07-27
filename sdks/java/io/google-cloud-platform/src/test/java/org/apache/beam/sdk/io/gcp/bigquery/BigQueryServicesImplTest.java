@@ -720,7 +720,7 @@ public class BigQueryServicesImplTest {
    * non-quota-exceeded attempts.
    */
   @Test
-  public void testFaielInsertOtherRetry() throws Exception {
+  public void testFailInsertOtherRetry() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
     List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
@@ -742,6 +742,7 @@ public class BigQueryServicesImplTest {
           rows,
           null,
           BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+          TEST_BACKOFF,
           new MockSleeper(),
           InsertRetryPolicy.alwaysRetry(),
           null,
@@ -749,7 +750,7 @@ public class BigQueryServicesImplTest {
           false,
           false,
           false);
-      fail();
+
     } catch (RuntimeException e) {
       assertTrue(e instanceof RuntimeException);
     }
