@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-"""Unit tests for PubSub sources and sinks."""
+"""Unit tests for Dicom IO connectors."""
 
 # pytype: skip-file
 
