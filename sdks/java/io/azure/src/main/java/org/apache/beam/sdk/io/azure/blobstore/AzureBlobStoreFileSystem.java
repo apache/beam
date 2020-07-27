@@ -16,3 +16,68 @@
  * limitations under the License.
  */
 package org.apache.beam.sdk.io.azure.blobstore;
+
+import java.io.IOException;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
+import java.util.Collection;
+import java.util.List;
+import org.apache.beam.sdk.io.FileSystem;
+import org.apache.beam.sdk.io.fs.CreateOptions;
+import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+
+class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
+
+  @Override
+  protected String getScheme() {
+    return "azfs";
+  }
+
+  @Override
+  protected List<MatchResult> match(List<String> specs) throws IOException {
+    // TODO
+    return null;
+  }
+
+  @Override
+  protected WritableByteChannel create(AzfsResourceId resourceId, CreateOptions createOptions)
+      throws IOException {
+    // TODO
+    return null;
+  }
+
+  @Override
+  protected ReadableByteChannel open(AzfsResourceId resourceId) throws IOException {
+    // TODO
+    return null;
+  }
+
+  @Override
+  protected void copy(List<AzfsResourceId> srcPaths, List<AzfsResourceId> destPaths)
+      throws IOException {
+    // TODO
+  }
+
+  @VisibleForTesting
+  void copy(AzfsResourceId sourcePath, AzfsResourceId destinationPath) throws IOException {
+    // TODO
+  }
+
+  @Override
+  protected void rename(List<AzfsResourceId> srcResourceIds, List<AzfsResourceId> destResourceIds)
+      throws IOException {
+    // TODO
+  }
+
+  @Override
+  protected void delete(Collection<AzfsResourceId> resourceIds) throws IOException {
+    // TODO
+  }
+
+  @Override
+  protected AzfsResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
+    // TODO
+    return null;
+  }
+}

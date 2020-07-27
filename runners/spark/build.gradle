@@ -19,7 +19,10 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.spark', enableChecker:false)
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.runners.spark',
+  enableChecker: false,
+  ignoreRawtypeErrors: true)
 
 description = "Apache Beam :: Runners :: Spark"
 

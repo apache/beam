@@ -75,6 +75,8 @@ import logging
 
 import apache_beam as beam
 from apache_beam.testing.load_tests.load_test import LoadTest
+from apache_beam.testing.load_tests.load_test_metrics_utils import AssignTimestamps
+from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureLatency
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
@@ -98,7 +100,8 @@ class GroupByKeyTest(LoadTest):
         self.pipeline
         | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
         | 'Measure time: Start' >> beam.ParDo(
-            MeasureTime(self.metrics_namespace)))
+            MeasureTime(self.metrics_namespace))
+        | 'Assign timestamps' >> beam.ParDo(AssignTimestamps()))
 
     for branch in range(self.fanout):
       (  # pylint: disable=expression-not-assigned
@@ -106,6 +109,8 @@ class GroupByKeyTest(LoadTest):
           | 'GroupByKey %i' % branch >> beam.GroupByKey()
           | 'Ungroup %i' % branch >> beam.ParDo(
               self._UngroupAndReiterate(), self.iterations)
+          | 'Measure latency' >> beam.ParDo(
+              MeasureLatency(self.metrics_namespace))
           | 'Measure time: End %i' % branch >> beam.ParDo(
               MeasureTime(self.metrics_namespace)))
 
