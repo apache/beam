@@ -138,10 +138,7 @@ public class FlinkSavepointTest implements Serializable {
         flinkCluster.cancelJob(jobStatusMessage.getJobId()).get();
       }
     }
-    while (!flinkCluster.listJobs().get().stream()
-        .allMatch(job -> job.getJobState().isTerminalState())) {
-      Thread.sleep(50);
-    }
+    ensureNoJobRunning();
   }
 
   @Test
@@ -175,6 +172,7 @@ public class FlinkSavepointTest implements Serializable {
     }
     oneShotLatch.await();
     String savepointDir = takeSavepointAndCancelJob(jobID);
+    ensureNoJobRunning();
 
     oneShotLatch = new CountDownLatch(1);
     // Increase parallelism
@@ -241,6 +239,13 @@ public class FlinkSavepointTest implements Serializable {
       throw new RuntimeException("Could not determine Rest address for this Flink version.");
     }
     return uri.getHost() + ":" + uri.getPort();
+  }
+
+  private void ensureNoJobRunning() throws Exception {
+    while (!flinkCluster.listJobs().get().stream()
+        .allMatch(job -> job.getJobState().isTerminalState())) {
+      Thread.sleep(50);
+    }
   }
 
   private JobID waitForJobToBeReady() throws InterruptedException, ExecutionException {
