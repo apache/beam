@@ -16,9 +16,88 @@
 package beam
 
 import (
+	"fmt"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
+
+// ExternalTransform ...
+type ExternalTransform struct {
+	id                int
+	urn               string
+	payload           []byte
+	in                []PCollection
+	out               []FullType
+	bounded           bool
+	expansionAddr     string
+	components        *pipepb.Components
+	expandedTransform *pipepb.PTransform
+}
+
+// func (s ExternalTransform) withExpansionAddress(addr string) ExternalTransform {
+// 	return
+// }
+
+// func CrossLanguage(e ExternalTransform) []PCollection {
+func CrossLanguage(s Scope, e ExternalTransform) {
+
+	// id, bounded, components and expandedTransform should be absent
+
+	if e.expansionAddr == "" { // What's the best way to check if the value was ever set
+		// return Legacy External API
+	}
+
+	// Add ExternalTranform to the Graph
+	/*
+		// Inserting a further subscope for better observability
+		s := s.Scope(expansionAddr)
+	*/
+	if !s.IsValid() {
+		// return nil, errors.New("invalid scope")
+		fmt.Println("invalid scope")
+	}
+	for i, col := range e.in {
+		if !col.IsValid() {
+			// return nil, errors.Errorf("invalid pcollection to external: index %v", i)
+			fmt.Printf("\ninvalid pcollection to external: index %v", i)
+
+		}
+	}
+
+	var ins []*graph.Node
+	for _, col := range e.in {
+		ins = append(ins, col.n)
+	}
+	edge := graph.NewCrossLanguage(s.real, s.scope, ins)
+	m, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{})
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(m)
+	// Build ExpansionRequest
+	// Correct way to serialize the input keys
+	/*
+		externalTransform := &pipepb.PTransform{}
+		expansionReq := &jobpb.ExpansionRequest{
+			Components: {},
+			Transform:  {},
+			Namespace:  "",
+		}
+	*/
+	// Query Expansion Service
+	//	 Manage GRPC Client
+
+	// Handling ExpansionResponse
+	if e.out == nil {
+		// Infer output types from ExpansionResponse and update e.out
+	}
+
+	// for len(out) create output nodes
+}
 
 // External defines a Beam external transform. The interpretation of this primitive is runner
 // specific. The runner is responsible for parsing the payload based on the

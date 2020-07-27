@@ -133,6 +133,7 @@ func (o *Outbound) String() string {
 }
 
 // Payload represents an external payload.
+// Should be removed once External Transforms API is stable
 type Payload struct {
 	URN  string
 	Data []byte
@@ -279,6 +280,27 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 	}
 	edge.Output = []*Outbound{{To: g.NewNode(t, w, bounded), Type: t}}
 	return edge, nil
+}
+
+// NewCrossLanguage inserts a Corss-langugae External transform.
+func NewCrossLanguage(g *Graph, s *Scope, in []*Node) *MultiEdge {
+	edge := g.NewEdge(s)
+	edge.Op = External
+	/*
+		// Payload can be decoupled completely from MultiEdge after current API is implemented
+		edge.Payload = payload
+	*/
+	for _, n := range in {
+		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: n, Type: n.Type()})
+	}
+	/*
+		// Can't assume number of outputs == number of inputs, thus requiring upfront declaration
+		for _, t := range out {
+			n := g.NewNode(t, inputWindow(in), bounded)
+			edge.Output = append(edge.Output, &Outbound{To: n, Type: t})
+		}
+	*/
+	return edge
 }
 
 // NewExternal inserts an External transform. The system makes no assumptions about
