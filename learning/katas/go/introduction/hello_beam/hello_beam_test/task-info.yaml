@@ -17,11 +17,17 @@
 # under the License.
 #
 
-title: Beam Katas - Go
-language: English
-summary: "This course provides a series of katas to get familiar with Apache Beam.\
-  \ \n\nApache Beam website – https://beam.apache.org/"
-programming_language: Go
-content:
-- introduction
-- core_transforms
+type: edu
+custom_name: Hello Beam Test
+files:
+- name: pkg/task/task.go
+  visible: true
+- name: test/task_test.go
+  visible: true
+  placeholders:
+  - offset: 1232
+    length: 36
+    placeholder_text: TODO()
+  - offset: 1278
+    length: 12
+    placeholder_text: TODO()
