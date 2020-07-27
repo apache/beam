@@ -36,14 +36,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.zetasql.ArrayType;
-import com.google.zetasql.EnumType;
-import com.google.zetasql.StructType;
-import com.google.zetasql.TVFRelation;
-import com.google.zetasql.TableValuedFunction;
+import com.google.zetasql.*;
 import com.google.zetasql.TableValuedFunction.FixedOutputSchemaTVF;
-import com.google.zetasql.Type;
-import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import com.google.zetasql.functions.ZetaSQLDateTime.DateTimestampPart;
 import com.google.zetasql.resolvedast.ResolvedColumn;
@@ -63,6 +57,7 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedParameter;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedProjectScan;
 import java.math.BigDecimal;
 import java.text.MessageFormat;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -545,7 +540,7 @@ public class ExpressionConverter {
       case TYPE_TIMESTAMP:
       case TYPE_DATE:
       case TYPE_TIME:
-        // case TYPE_DATETIME:
+      case TYPE_DATETIME:
       case TYPE_BYTES:
       case TYPE_ARRAY:
       case TYPE_STRUCT:
@@ -709,7 +704,7 @@ public class ExpressionConverter {
       case TYPE_TIMESTAMP:
       case TYPE_DATE:
       case TYPE_TIME:
-        // case TYPE_DATETIME:
+      case TYPE_DATETIME:
       case TYPE_BYTES:
         ret = convertSimpleValueToRexNode(type.getKind(), value);
         break;
@@ -849,6 +844,25 @@ public class ExpressionConverter {
                     typeFactory().getTypeSystem().getMaxPrecision(SqlTypeName.TIME));
         // TODO: Doing micro to mills truncation, need to throw exception.
         ret = rexBuilder().makeLiteral(convertTimeValueToTimeString(value), timeType, false);
+        break;
+      case TYPE_DATETIME:
+        LocalDateTime dateTime =
+            CivilTimeEncoder.decodePacked96DatetimeNanosAsJavaTime(value.getDatetimeValue());
+        dateTime.toString();
+        ret =
+            rexBuilder()
+                .makeTimestampWithLocalTimeZoneLiteral(
+                    new TimestampString(
+                            dateTime.getYear(),
+                            dateTime.getMonthValue(),
+                            dateTime.getDayOfMonth(),
+                            dateTime.getHour(),
+                            dateTime.getMinute(),
+                            dateTime.getSecond())
+                        .withNanos(dateTime.getNano()),
+                    typeFactory()
+                        .getTypeSystem()
+                        .getMaxPrecision(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE));
         break;
       case TYPE_BYTES:
         ret = rexBuilder().makeBinaryLiteral(new ByteString(value.getBytesValue().toByteArray()));

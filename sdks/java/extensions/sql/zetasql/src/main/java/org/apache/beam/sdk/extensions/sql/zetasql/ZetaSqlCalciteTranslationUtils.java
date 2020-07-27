@@ -17,15 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BOOL;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BYTES;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DATE;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DOUBLE;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_INT64;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_NUMERIC;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIME;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
+import static com.google.zetasql.ZetaSQLType.TypeKind.*;
 import static java.util.stream.Collectors.toList;
 
 import com.google.zetasql.ArrayType;
@@ -72,6 +64,8 @@ public final class ZetaSqlCalciteTranslationUtils {
         return TypeFactory.createSimpleType(TYPE_DATE);
       case TIME:
         return TypeFactory.createSimpleType(TYPE_TIME);
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+        return TypeFactory.createSimpleType(TYPE_DATETIME);
       case TIMESTAMP:
         return TypeFactory.createSimpleType(TYPE_TIMESTAMP);
       case ARRAY:
@@ -107,6 +101,8 @@ public final class ZetaSqlCalciteTranslationUtils {
         return SqlTypeName.DATE;
       case TYPE_TIME:
         return SqlTypeName.TIME;
+      case TYPE_DATETIME:
+        return SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
       case TYPE_TIMESTAMP:
         // TODO: handle timestamp with time zone.
         return SqlTypeName.TIMESTAMP;

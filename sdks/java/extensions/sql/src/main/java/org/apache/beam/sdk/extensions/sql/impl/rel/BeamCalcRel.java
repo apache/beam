@@ -40,7 +40,6 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalTzType;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimestampWithLocalTzType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -385,7 +384,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
             .put(SqlTypes.DATE.getIdentifier(), Long.class)
             .put(SqlTypes.TIME.getIdentifier(), Long.class)
             .put(TimeWithLocalTzType.IDENTIFIER, ReadableInstant.class)
-            .put(TimestampWithLocalTzType.IDENTIFIER, ReadableInstant.class)
+            .put(SqlTypes.DATETIME.getIdentifier(), Row.class)
             .put(CharType.IDENTIFIER, String.class)
             .build();
 

@@ -39,7 +39,7 @@ class SchemaUtils {
           .put("BOOL", FieldType.BOOLEAN)
           .put("BYTES", FieldType.BYTES)
           .put("DATE", FieldType.logicalType(SqlTypes.DATE))
-          .put("DATETIME", FieldType.DATETIME)
+          .put("DATETIME", FieldType.logicalType(SqlTypes.DATETIME))
           .put("DOUBLE", FieldType.DOUBLE)
           .put("FLOAT", FieldType.DOUBLE)
           .put("FLOAT64", FieldType.DOUBLE)

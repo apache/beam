@@ -28,6 +28,7 @@ import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -106,6 +107,9 @@ public final class ZetaSqlBeamTranslationUtils {
     } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
       // Time type
       return TypeFactory.createSimpleType(TypeKind.TYPE_TIME);
+    } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
+      // DateTime type
+      return TypeFactory.createSimpleType(TypeKind.TYPE_DATETIME);
     } else {
       throw new UnsupportedOperationException("Unknown Beam logical type: " + identifier);
     }
@@ -184,6 +188,17 @@ public final class ZetaSqlBeamTranslationUtils {
       } else { // input type
         return Value.createTimeValue(CivilTimeEncoder.encodePacked64TimeNanos((LocalTime) object));
       }
+    } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
+      // DateTime value
+      LocalDateTime datetime;
+      if (object instanceof Row) { // base type
+        datetime =
+            LocalDateTime.of(((Row) object).getValue("Date"), ((Row) object).getValue("Time"));
+      } else { // input type
+        datetime = (LocalDateTime) object;
+      }
+      return Value.createDatetimeValue(
+          CivilTimeEncoder.encodePacked64DatetimeSeconds(datetime), datetime.getNano());
     } else {
       throw new UnsupportedOperationException("Unknown Beam logical type: " + identifier);
     }
@@ -208,6 +223,8 @@ public final class ZetaSqlBeamTranslationUtils {
         return FieldType.logicalType(SqlTypes.DATE).withNullable(true);
       case TYPE_TIME:
         return FieldType.logicalType(SqlTypes.TIME).withNullable(true);
+      case TYPE_DATETIME:
+        return FieldType.logicalType(SqlTypes.DATETIME).withNullable(true);
       case TYPE_TIMESTAMP:
         return FieldType.DATETIME.withNullable(true);
       case TYPE_ARRAY:
@@ -314,6 +331,10 @@ public final class ZetaSqlBeamTranslationUtils {
     } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
       // Time value
       return CivilTimeEncoder.decodePacked64TimeNanosAsJavaTime(value.getTimeValue());
+    } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
+      // DateTime value
+      System.out.println(value.getType());
+      return CivilTimeEncoder.decodePacked96DatetimeNanosAsJavaTime(value.getDatetimeValue());
     } else {
       throw new UnsupportedOperationException("Unknown Beam logical type: " + identifier);
     }
