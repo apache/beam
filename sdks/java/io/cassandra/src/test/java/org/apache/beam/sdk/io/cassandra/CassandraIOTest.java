@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getEs
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getRingFraction;
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.isMurmur3Partitioner;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
+import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -81,6 +82,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.cassandra.service.StorageServiceMBean;
 import org.apache.commons.io.FileUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -287,8 +289,12 @@ public class CassandraIOTest implements Serializable {
             .withTable(CASSANDRA_TABLE);
     CassandraIO.CassandraSource<Scientist> source = new CassandraIO.CassandraSource<>(read, null);
     long estimatedSizeBytes = source.getEstimatedSizeBytes(pipelineOptions);
-    // the size is non determanistic in Cassandra backend
-    assertTrue((estimatedSizeBytes >= 12960L * 0.9f) && (estimatedSizeBytes <= 12960L * 1.1f));
+    // the size is non determanistic in Cassandra backend: checks that estimatedSizeBytes >= 12960L
+    // -20%  && estimatedSizeBytes <= 12960L +20%
+    assertThat(
+        "wrong estimated size in " + CASSANDRA_KEYSPACE + "/" + CASSANDRA_TABLE,
+        (double) estimatedSizeBytes,
+        closeTo(12960.0D, 2592.0D));
   }
 
   @Test
@@ -637,7 +643,7 @@ public class CassandraIOTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

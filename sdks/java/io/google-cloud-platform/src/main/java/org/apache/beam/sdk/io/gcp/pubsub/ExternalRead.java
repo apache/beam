@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import com.google.auto.service.AutoService;
 import com.google.protobuf.ByteString;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Exposes {@link PubsubIO.Read} as an external transform for cross-language usage. */
 @Experimental
@@ -50,10 +50,10 @@ public final class ExternalRead implements ExternalTransformRegistrar {
 
   /** Parameters class to expose the transform to an external SDK. */
   public static class Configuration {
-    @Nullable private String topic;
-    @Nullable private String subscription;
-    @Nullable private String idAttribute;
-    @Nullable private String timestampAttribute;
+    private @Nullable String topic;
+    private @Nullable String subscription;
+    private @Nullable String idAttribute;
+    private @Nullable String timestampAttribute;
     private boolean needsAttributes;
 
     public void setTopic(@Nullable String topic) {

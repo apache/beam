@@ -16,21 +16,36 @@ limitations under the License.
 -->
 
 # Distinct
-<table align="left">
-    <a target="_blank" class="button"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Distinct">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px"
-           alt="Pydoc" />
-     Pydoc
-    </a>
-</table>
-<br><br>
 
+{{< localstorage language language-py >}}
+
+{{< button-pydoc path="apache_beam.transforms.util" class="Distinct" >}}
 
 Produces a collection containing distinct elements of the input collection.
 
 ## Examples
-See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
+
+In the following example, we create a pipeline with two `PCollection`s of produce.
+
+We use `Distinct` to get rid of duplicate elements, which outputs a `PCollection` of all the unique elements.
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/distinct.py" distinct >}}
+{{< /highlight >}}
+
+{{< paragraph class="notebook-skip" >}}
+Output:
+{{< /paragraph >}}
+
+{{< highlight class="notebook-skip" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/distinct_test.py" unique_elements >}}
+{{< /highlight >}}
+
+{{< buttons-code-snippet
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/distinct.py" >}}
 
 ## Related transforms
+
 * [Count](/documentation/transforms/python/aggregation/count) counts the number of elements within each aggregation.
+
+{{< button-pydoc path="apache_beam.transforms.util" class="Distinct" >}}

@@ -18,8 +18,8 @@
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 interface MonitoringInfoToCounterUpdateTransformer {
 

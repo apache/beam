@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
 import net.snowflake.ingest.SimpleIngestManager;
@@ -93,6 +92,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -258,29 +258,22 @@ public class SnowflakeIO {
   /** Implementation of {@link #read()}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable
-    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract String getQuery();
+    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract String getTable();
+    abstract @Nullable String getQuery();
 
-    @Nullable
-    abstract String getStorageIntegrationName();
+    abstract @Nullable String getTable();
 
-    @Nullable
-    abstract String getStagingBucketName();
+    abstract @Nullable String getStorageIntegrationName();
 
-    @Nullable
-    abstract CsvMapper<T> getCsvMapper();
+    abstract @Nullable String getStagingBucketName();
 
-    @Nullable
-    abstract Coder<T> getCoder();
+    abstract @Nullable CsvMapper<T> getCsvMapper();
 
-    @Nullable
-    abstract SnowflakeService getSnowflakeService();
+    abstract @Nullable Coder<T> getCoder();
+
+    abstract @Nullable SnowflakeService getSnowflakeService();
 
     @Nullable
     abstract String getQuotationMark();
@@ -608,50 +601,36 @@ public class SnowflakeIO {
   /** Implementation of {@link #write()}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    @Nullable
-    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract String getTable();
+    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
-    @Nullable
-    abstract String getStorageIntegrationName();
+    abstract @Nullable String getTable();
 
-    @Nullable
-    abstract String getStagingBucketName();
+    abstract @Nullable String getStorageIntegrationName();
 
-    @Nullable
-    abstract String getQuery();
+    abstract @Nullable String getStagingBucketName();
 
-    @Nullable
-    abstract ValueProvider<String> getSnowPipe();
+    abstract @Nullable ValueProvider<String> getSnowPipe();
 
-    @Nullable
-    abstract Integer getFlushRowLimit();
+    abstract @Nullable Integer getFlushRowLimit();
 
-    @Nullable
-    abstract Integer getShardsNumber();
+    abstract @Nullable Integer getShardsNumber();
 
-    @Nullable
-    abstract Duration getFlushTimeLimit();
+    abstract @Nullable Duration getFlushTimeLimit();
 
-    @Nullable
-    abstract String getFileNameTemplate();
+    abstract @Nullable String getFileNameTemplate();
 
-    @Nullable
-    abstract WriteDisposition getWriteDisposition();
+    abstract @Nullable String getQuery();
 
-    @Nullable
-    abstract CreateDisposition getCreateDisposition();
+    abstract @Nullable WriteDisposition getWriteDisposition();
 
-    @Nullable
-    abstract SnowflakeTableSchema getTableSchema();
+    abstract @Nullable CreateDisposition getCreateDisposition();
 
-    @Nullable
-    abstract UserDataMapper getUserDataMapper();
+    abstract @Nullable SnowflakeTableSchema getTableSchema();
 
-    @Nullable
-    abstract SnowflakeService getSnowflakeService();
+    abstract @Nullable UserDataMapper getUserDataMapper();
+
+    abstract @Nullable SnowflakeService getSnowflakeService();
 
     @Nullable
     abstract String getQuotationMark();
@@ -1333,50 +1312,36 @@ public class SnowflakeIO {
    */
   @AutoValue
   public abstract static class DataSourceConfiguration implements Serializable {
-    @Nullable
-    public abstract String getUrl();
 
-    @Nullable
-    public abstract String getUsername();
+    public abstract @Nullable String getUrl();
 
-    @Nullable
-    public abstract String getPassword();
+    public abstract @Nullable String getUsername();
 
-    @Nullable
-    public abstract PrivateKey getPrivateKey();
+    public abstract @Nullable String getPassword();
 
-    @Nullable
-    public abstract String getOauthToken();
+    public abstract @Nullable PrivateKey getPrivateKey();
 
-    @Nullable
-    public abstract String getDatabase();
+    public abstract @Nullable String getOauthToken();
 
-    @Nullable
-    public abstract String getWarehouse();
+    public abstract @Nullable String getDatabase();
 
-    @Nullable
-    public abstract String getSchema();
+    public abstract @Nullable String getWarehouse();
 
-    @Nullable
-    public abstract String getServerName();
+    public abstract @Nullable String getSchema();
 
-    @Nullable
-    public abstract Integer getPortNumber();
+    public abstract @Nullable String getServerName();
 
-    @Nullable
-    public abstract String getRole();
+    public abstract @Nullable Integer getPortNumber();
 
-    @Nullable
-    public abstract Integer getLoginTimeout();
+    public abstract @Nullable String getRole();
 
-    @Nullable
-    public abstract Boolean getSsl();
+    public abstract @Nullable Integer getLoginTimeout();
 
-    @Nullable
-    public abstract Boolean getValidate();
+    public abstract @Nullable Boolean getSsl();
 
-    @Nullable
-    public abstract DataSource getDataSource();
+    public abstract @Nullable Boolean getValidate();
+
+    public abstract @Nullable DataSource getDataSource();
 
     abstract Builder builder();
 

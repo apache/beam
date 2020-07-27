@@ -24,11 +24,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A descriptor for ClickHouse table schema. */
 @Experimental(Kind.SOURCE_SINK)
@@ -122,11 +122,9 @@ public abstract class TableSchema implements Serializable {
 
     public abstract ColumnType columnType();
 
-    @Nullable
-    public abstract DefaultType defaultType();
+    public abstract @Nullable DefaultType defaultType();
 
-    @Nullable
-    public abstract Object defaultValue();
+    public abstract @Nullable Object defaultValue();
 
     public boolean materializedOrAlias() {
       return DefaultType.MATERIALIZED.equals(defaultType())
@@ -211,14 +209,11 @@ public abstract class TableSchema implements Serializable {
 
     public abstract TypeName typeName();
 
-    @Nullable
-    public abstract Map<String, Integer> enumValues();
+    public abstract @Nullable Map<String, Integer> enumValues();
 
-    @Nullable
-    public abstract Integer fixedStringSize();
+    public abstract @Nullable Integer fixedStringSize();
 
-    @Nullable
-    public abstract ColumnType arrayElementType();
+    public abstract @Nullable ColumnType arrayElementType();
 
     public ColumnType withNullable(boolean nullable) {
       return toBuilder().nullable(nullable).build();

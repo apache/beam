@@ -65,18 +65,19 @@ Users may provide a query to read from rather than reading all of a BigQuery
 table. If specified, the result obtained by executing the specified query will
 be used as the data of the input transform.::
 
-  query_results = pipeline | beam.io.Read(beam.io.BigQuerySource(
-      query='SELECT year, mean_temp FROM samples.weather_stations'))
+  query_results = pipeline | beam.io.gcp.bigquery.ReadFromBigQuery(
+      query='SELECT year, mean_temp FROM samples.weather_stations')
 
 When creating a BigQuery input transform, users should provide either a query
 or a table. Pipeline construction will fail with a validation error if neither
 or both are specified.
 
-When reading from BigQuery using `BigQuerySource`, bytes are returned as
-base64-encoded bytes. When reading via `ReadFromBigQuery`, bytes are returned
-as bytes without base64 encoding. This is due to the fact that ReadFromBigQuery
-uses Avro expors by default. To get base64-encoded bytes, you can use the flag
-`use_json_exports` to export data as JSON, and receive base64-encoded bytes.
+When reading via `ReadFromBigQuery`, bytes are returned decoded as bytes.
+This is due to the fact that ReadFromBigQuery uses Avro exports by default.
+When reading from BigQuery using `apache_beam.io.BigQuerySource`, bytes are
+returned as base64-encoded bytes. To get base64-encoded bytes using
+`ReadFromBigQuery`, you can use the flag `use_json_exports` to export
+data as JSON, and receive base64-encoded bytes.
 
 Writing Data to BigQuery
 ========================
@@ -977,6 +978,9 @@ bigquery_v2_messages.TableSchema` object.
         buffer_size=buffer_size)
 
 
+_KNOWN_TABLES = set()
+
+
 class BigQueryWriteFn(DoFn):
   """A ``DoFn`` that streams writes to BigQuery once the table is created."""
 
@@ -1037,7 +1041,6 @@ class BigQueryWriteFn(DoFn):
     self.write_disposition = write_disposition
     self._rows_buffer = []
     self._reset_rows_buffer()
-    self._observed_tables = set()
 
     self._total_buffered_rows = 0
     self.kms_key = kms_key
@@ -1089,8 +1092,6 @@ class BigQueryWriteFn(DoFn):
     self.bigquery_wrapper = bigquery_tools.BigQueryWrapper(
         client=self.test_client)
 
-    self._observed_tables = set()
-
     self._backoff_calculator = iter(
         retry.FuzzedExponentialIntervals(
             initial_delay_secs=0.2, num_retries=10000, max_delay_secs=1500))
@@ -1100,7 +1101,7 @@ class BigQueryWriteFn(DoFn):
         table_reference.projectId,
         table_reference.datasetId,
         table_reference.tableId)
-    if str_table_reference in self._observed_tables:
+    if str_table_reference in _KNOWN_TABLES:
       return
 
     if self.create_disposition == BigQueryDisposition.CREATE_NEVER:
@@ -1124,7 +1125,7 @@ class BigQueryWriteFn(DoFn):
         self.create_disposition,
         self.write_disposition,
         additional_create_parameters=self.additional_bq_parameters)
-    self._observed_tables.add(str_table_reference)
+    _KNOWN_TABLES.add(str_table_reference)
 
   def process(self, element, *schema_side_inputs):
     destination = element[0]

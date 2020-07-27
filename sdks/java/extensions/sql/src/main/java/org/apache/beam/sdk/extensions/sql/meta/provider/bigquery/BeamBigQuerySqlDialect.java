@@ -87,6 +87,16 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
           .put("$extract_time", "TIME")
           .put("$extract_datetime", "DATETIME")
           .build();
+  public static final String DOUBLE_POSITIVE_INF_FUNCTION = "double_positive_inf";
+  public static final String DOUBLE_NEGATIVE_INF_FUNCTION = "double_negative_inf";
+  public static final String DOUBLE_NAN_FUNCTION = "double_nan";
+  private static final Map<String, String> DOUBLE_FUNCTIONS =
+      ImmutableMap.<String, String>builder()
+          .put(DOUBLE_POSITIVE_INF_FUNCTION, "CAST('+inf' AS FLOAT64)")
+          .put(DOUBLE_NEGATIVE_INF_FUNCTION, "CAST('-inf' AS FLOAT64)")
+          .put(DOUBLE_NAN_FUNCTION, "CAST('NaN' AS FLOAT64)")
+          .build();
+  public static final String NUMERIC_LITERAL_FUNCTION = "numeric_literal";
 
   public BeamBigQuerySqlDialect(Context context) {
     super(context);
@@ -156,7 +166,16 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
         break;
       case OTHER_FUNCTION:
         String funName = call.getOperator().getName();
-        if (FUNCTIONS_USING_INTERVAL.contains(funName)) {
+        if (DOUBLE_FUNCTIONS.containsKey(funName)) {
+          // self-designed function dealing with the unparsing of ZetaSQL DOUBLE positive
+          // infinity, negative infinity and NaN
+          unparseDoubleWrapperFunction(writer, funName);
+          break;
+        } else if (NUMERIC_LITERAL_FUNCTION.equals(funName)) {
+          // self-designed function dealing with the unparsing of ZetaSQL NUMERIC literal
+          unparseNumericLiteralWrapperFunction(writer, call, leftPrec, rightPrec);
+          break;
+        } else if (FUNCTIONS_USING_INTERVAL.contains(funName)) {
           unparseFunctionsUsingInterval(writer, call, leftPrec, rightPrec);
           break;
         } else if (EXTRACT_FUNCTIONS.containsKey(funName)) {
@@ -232,6 +251,21 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
       call.operand(1).unparse(writer, leftPrec, rightPrec);
     }
     writer.endFunCall(trimFrame);
+  }
+
+  /**
+   * As there is no direct ZetaSQL literal representation of NaN or infinity, we cast String "+inf",
+   * "-inf" and "NaN" to FLOAT64 representing positive infinity, negative infinity and NaN.
+   */
+  private void unparseDoubleWrapperFunction(SqlWriter writer, String funName) {
+    writer.literal(DOUBLE_FUNCTIONS.get(funName));
+  }
+
+  private void unparseNumericLiteralWrapperFunction(
+      SqlWriter writer, SqlCall call, int leftPrec, int rightPrec) {
+    writer.literal("NUMERIC '");
+    call.operand(0).unparse(writer, leftPrec, rightPrec);
+    writer.literal("'");
   }
 
   /**

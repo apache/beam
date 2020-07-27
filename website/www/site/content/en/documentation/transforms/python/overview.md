@@ -32,7 +32,7 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/python/elementwise/partition">Partition</a></td><td>Routes each input element to a specific output collection based on some partition
   function.</td></tr>
   <tr><td><a href="/documentation/transforms/python/elementwise/regex">Regex</a></td><td>Filters input string elements based on a regex. May also transform them based on the matching groups.</td></tr>
-  <tr><td><a href="/documentation/transforms/python/elementwise/reify">Reify</a></td><td>Transforms for converting between explicit and implicit form of various Beam values.</td></tr> 
+  <tr><td><a href="/documentation/transforms/python/elementwise/reify">Reify</a></td><td>Transforms for converting between explicit and implicit form of various Beam values.</td></tr>
   <tr><td><a href="/documentation/transforms/python/elementwise/tostring">ToString</a></td><td>Transforms every element in an input collection a string.</td></tr>
   <tr><td><a href="/documentation/transforms/python/elementwise/withtimestamps">WithTimestamps</a></td><td>Applies a function to determine a timestamp to each element in the output collection,
   and updates the implicit timestamp associated with each input. Note that it is only
@@ -40,21 +40,20 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/python/elementwise/values">Values</a></td><td>Extracts the value from each element in a collection of key-value pairs.</td></tr>
 </table>
 
+## Aggregation
 
-
-## Aggregation 
 <table class="table-bordered table-striped">
   <tr><th>Transform</th><th>Description</th></tr>
   <tr><td>ApproximateQuantiles</td><td>Not available. See <a href="https://issues.apache.org/jira/browse/BEAM-6694">BEAM-6694</a> for updates.</td></tr>
   <tr><td>ApproximateUnique</td><td>Not available. See <a href="https://issues.apache.org/jira/browse/BEAM-6693">BEAM-6693</a> for updates.</td></tr>
-  <tr><td><a href="/documentation/transforms/python/aggregation/cogroupbykey">CoGroupByKey</a></td><td>Takes several keyed collections of elements and produces a collection where each element 
-  consists of a key and all values associated with that key.</td></tr>  
+  <tr><td><a href="/documentation/transforms/python/aggregation/cogroupbykey">CoGroupByKey</a></td><td>Takes several keyed collections of elements and produces a collection where each element consists of a key and all values associated with that key.</td></tr>  
   <tr><td><a href="/documentation/transforms/python/aggregation/combineglobally">CombineGlobally</a></td><td>Transforms to combine elements.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/combineperkey">CombinePerKey</a></td><td>Transforms to combine elements for each key.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/combinevalues">CombineValues</a></td><td>Transforms to combine keyed iterables.</td></tr>
   <tr><td>CombineWithContext</td><td>Not available.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/count">Count</a></td><td>Counts the number of elements within each aggregation.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/distinct">Distinct</a></td><td>Produces a collection containing distinct elements from the input collection.</td></tr>  
-  <tr><td><a href="/documentation/transforms/python/aggregation/groupbykey">GroupByKey</a></td><td>Takes a keyed collection of elements and produces a collection where each element 
-  consists of a key and all values associated with that key.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/groupbykey">GroupByKey</a></td><td>Takes a keyed collection of elements and produces a collection where each element consists of a key and all values associated with that key.</td></tr>
   <tr><td>GroupIntoBatches</td><td>Not available. See <a href="https://issues.apache.org/jira/browse/BEAM-6696">BEAM-6696</a> for updates.</td></tr>
   <tr><td>Latest</td><td>Not available. See <a href="https://issues.apache.org/jira/browse/BEAM-6695">BEAM-6695</a> for updates.</td></tr>
   <tr><td>Max</td><td>Not available.</td></tr>  
@@ -65,8 +64,8 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/python/aggregation/top">Top</a></td><td>Compute the largest element(s) in each aggregation.</td></tr>
 </table>
 
-
 ## Other
+
 <table class="table-bordered table-striped">
   <tr><th>Transform</th><th>Description</th></tr>
   <tr><td><a href="/documentation/transforms/python/other/create">Create</a></td><td>Creates a collection from an in-memory list.</td></tr>
@@ -80,4 +79,3 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/python/other/windowinto">WindowInto</a></td><td>Logically divides up or groups the elements of a collection into finite
   windows according to a function.</td></tr>
 </table>
-

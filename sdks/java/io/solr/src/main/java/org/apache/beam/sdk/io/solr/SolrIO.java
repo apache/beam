@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Create;
@@ -66,6 +65,7 @@ import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -142,11 +142,9 @@ public class SolrIO {
 
     abstract String getZkHost();
 
-    @Nullable
-    abstract String getUsername();
+    abstract @Nullable String getUsername();
 
-    @Nullable
-    abstract String getPassword();
+    abstract @Nullable String getPassword();
 
     abstract Builder builder();
 
@@ -299,18 +297,15 @@ public class SolrIO {
   public abstract static class Read extends PTransform<PBegin, PCollection<SolrDocument>> {
     private static final long MAX_BATCH_SIZE = 10000L;
 
-    @Nullable
-    abstract ConnectionConfiguration getConnectionConfiguration();
+    abstract @Nullable ConnectionConfiguration getConnectionConfiguration();
 
-    @Nullable
-    abstract String getCollection();
+    abstract @Nullable String getCollection();
 
     abstract String getQuery();
 
     abstract int getBatchSize();
 
-    @Nullable
-    abstract ReplicaInfo getReplicaInfo();
+    abstract @Nullable ReplicaInfo getReplicaInfo();
 
     abstract Builder builder();
 
@@ -511,18 +506,16 @@ public class SolrIO {
   /** A {@link PTransform} writing data to Solr. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<SolrInputDocument>, PDone> {
-    @Nullable
-    abstract ConnectionConfiguration getConnectionConfiguration();
 
-    @Nullable
-    abstract String getCollection();
+    abstract @Nullable ConnectionConfiguration getConnectionConfiguration();
+
+    abstract @Nullable String getCollection();
 
     abstract int getMaxBatchSize();
 
     abstract Builder builder();
 
-    @Nullable
-    abstract RetryConfiguration getRetryConfiguration();
+    abstract @Nullable RetryConfiguration getRetryConfiguration();
 
     @AutoValue.Builder
     abstract static class Builder {

@@ -39,27 +39,17 @@ import org.junit.runners.JUnit4;
 public class ReflectHelpersTest {
 
   @Test
-  public void testClassName() {
-    assertEquals(getClass().getName(), ReflectHelpers.CLASS_NAME.apply(getClass()));
-  }
-
-  @Test
-  public void testClassSimpleName() {
-    assertEquals(getClass().getSimpleName(), ReflectHelpers.CLASS_SIMPLE_NAME.apply(getClass()));
-  }
-
-  @Test
   public void testMethodFormatter() throws Exception {
     assertEquals(
         "testMethodFormatter()",
-        ReflectHelpers.METHOD_FORMATTER.apply(getClass().getMethod("testMethodFormatter")));
+        ReflectHelpers.formatMethod(getClass().getMethod("testMethodFormatter")));
 
     assertEquals(
         "oneArg(int)",
-        ReflectHelpers.METHOD_FORMATTER.apply(getClass().getDeclaredMethod("oneArg", int.class)));
+        ReflectHelpers.formatMethod(getClass().getDeclaredMethod("oneArg", int.class)));
     assertEquals(
         "twoArg(String, List)",
-        ReflectHelpers.METHOD_FORMATTER.apply(
+        ReflectHelpers.formatMethod(
             getClass().getDeclaredMethod("twoArg", String.class, List.class)));
   }
 
@@ -67,16 +57,15 @@ public class ReflectHelpersTest {
   public void testClassMethodFormatter() throws Exception {
     assertEquals(
         getClass().getName() + "#testMethodFormatter()",
-        ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(
-            getClass().getMethod("testMethodFormatter")));
+        ReflectHelpers.formatMethodWithClass(getClass().getMethod("testMethodFormatter")));
 
     assertEquals(
         getClass().getName() + "#oneArg(int)",
-        ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(
-            getClass().getDeclaredMethod("oneArg", int.class)));
+        ReflectHelpers.formatMethodWithClass(getClass().getDeclaredMethod("oneArg", int.class)));
+
     assertEquals(
         getClass().getName() + "#twoArg(String, List)",
-        ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(
+        ReflectHelpers.formatMethodWithClass(
             getClass().getDeclaredMethod("twoArg", String.class, List.class)));
   }
 
@@ -88,32 +77,30 @@ public class ReflectHelpersTest {
 
   @Test
   public void testTypeFormatterOnClasses() throws Exception {
-    assertEquals("Integer", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Integer.class));
-    assertEquals("int", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(int.class));
-    assertEquals("Map", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Map.class));
-    assertEquals(
-        getClass().getSimpleName(), ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(getClass()));
+    assertEquals("Integer", ReflectHelpers.simpleTypeDescription(Integer.class));
+    assertEquals("int", ReflectHelpers.simpleTypeDescription(int.class));
+    assertEquals("Map", ReflectHelpers.simpleTypeDescription(Map.class));
+    assertEquals(getClass().getSimpleName(), ReflectHelpers.simpleTypeDescription(getClass()));
   }
 
   @Test
   public void testTypeFormatterOnArrays() throws Exception {
-    assertEquals("Integer[]", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Integer[].class));
-    assertEquals("int[]", ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(int[].class));
+    assertEquals("Integer[]", ReflectHelpers.simpleTypeDescription(Integer[].class));
+    assertEquals("int[]", ReflectHelpers.simpleTypeDescription(int[].class));
   }
 
   @Test
   public void testTypeFormatterWithGenerics() throws Exception {
     assertEquals(
         "Map<Integer, String>",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
+        ReflectHelpers.simpleTypeDescription(
             new TypeDescriptor<Map<Integer, String>>() {}.getType()));
     assertEquals(
         "Map<?, String>",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeDescriptor<Map<?, String>>() {}.getType()));
+        ReflectHelpers.simpleTypeDescription(new TypeDescriptor<Map<?, String>>() {}.getType()));
     assertEquals(
         "Map<? extends Integer, String>",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
+        ReflectHelpers.simpleTypeDescription(
             new TypeDescriptor<Map<? extends Integer, String>>() {}.getType()));
   }
 
@@ -121,14 +108,14 @@ public class ReflectHelpersTest {
   public <T> void testTypeFormatterWithWildcards() throws Exception {
     assertEquals(
         "Map<T, T>",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(new TypeDescriptor<Map<T, T>>() {}.getType()));
+        ReflectHelpers.simpleTypeDescription(new TypeDescriptor<Map<T, T>>() {}.getType()));
   }
 
   @Test
   public <InputT, OutputT> void testTypeFormatterWithMultipleWildcards() throws Exception {
     assertEquals(
         "Map<? super InputT, ? extends OutputT>",
-        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
+        ReflectHelpers.simpleTypeDescription(
             new TypeDescriptor<Map<? super InputT, ? extends OutputT>>() {}.getType()));
   }
 
@@ -142,22 +129,23 @@ public class ReflectHelpersTest {
   }
 
   @Test
-  public void testAnnotationFormatter() throws Exception {
+  public void testFormatAnnotationDefault() throws Exception {
     // Java 11 puts quotes in unparsed string, Java 8 does not.
     // It would be an improvement for our own formatter to make it have the
     // Java 11 behavior even when running on Java 8, but we can just
     // wait it out.
     assertThat(
-        ReflectHelpers.ANNOTATION_FORMATTER.apply(
-            Options.class.getMethod("getString").getAnnotations()[0]),
+        ReflectHelpers.formatAnnotation(Options.class.getMethod("getString").getAnnotations()[0]),
         anyOf(
             equalTo("Default.String(value=package.OuterClass$InnerClass#method())"),
             equalTo("Default.String(value=\"package.OuterClass$InnerClass#method()\")")));
+  }
 
+  @Test
+  public void testFormatAnnotationJsonIgnore() throws Exception {
     assertEquals(
         "JsonIgnore(value=true)",
-        ReflectHelpers.ANNOTATION_FORMATTER.apply(
-            Options.class.getMethod("getObject").getAnnotations()[0]));
+        ReflectHelpers.formatAnnotation(Options.class.getMethod("getObject").getAnnotations()[0]));
   }
 
   @Test

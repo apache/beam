@@ -22,12 +22,12 @@ import static java.util.stream.Collectors.toList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.CustomTableResolver;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Base class for table providers that look up table metadata using full table names, instead of

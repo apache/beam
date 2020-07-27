@@ -1105,7 +1105,7 @@ class GeneratorHint(IteratorHint):
       yield_type, send_type, return_type = type_params
       if send_type is not None:
         _LOGGER.warning('Ignoring send_type hint: %s' % send_type)
-      if send_type is not None:
+      if return_type is not None:
         _LOGGER.warning('Ignoring return_type hint: %s' % return_type)
     else:
       yield_type = type_params

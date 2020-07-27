@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -62,6 +61,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
@@ -103,13 +103,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   // Because of setKey(Object), we really must refresh stateInternals() at each access
   private final StepContext stepContext;
 
-  @Nullable private final SchemaCoder<InputT> schemaCoder;
+  private final @Nullable SchemaCoder<InputT> schemaCoder;
 
-  @Nullable final SchemaCoder<OutputT> mainOutputSchemaCoder;
+  final @Nullable SchemaCoder<OutputT> mainOutputSchemaCoder;
 
-  @Nullable private Map<TupleTag<?>, Coder<?>> outputCoders;
+  private @Nullable Map<TupleTag<?>, Coder<?>> outputCoders;
 
-  @Nullable private final DoFnSchemaInformation doFnSchemaInformation;
+  private final @Nullable DoFnSchemaInformation doFnSchemaInformation;
 
   private final Map<String, PCollectionView<?>> sideInputMapping;
 
@@ -352,7 +352,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
     final WindowedValue<InputT> elem;
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
-    @Nullable private StateNamespace namespace;
+    private @Nullable StateNamespace namespace;
 
     /**
      * The state namespace for this context.

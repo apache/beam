@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Factory;
@@ -36,6 +35,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collecti
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A Concrete subclass of {@link Row} that delegates to a set of provided {@link FieldValueGetter}s.
@@ -70,7 +70,7 @@ public class RowWithGetters extends Row {
     FieldType type = field.getType();
     Object fieldValue = getters.get(fieldIdx).get(getterTarget);
     if (fieldValue == null && !field.getType().getNullable()) {
-      throw new RuntimeException("Null value set on non-nullable field" + field);
+      throw new RuntimeException("Null value set on non-nullable field " + field);
     }
     return fieldValue != null ? getValue(type, fieldValue, fieldIdx) : null;
   }
@@ -159,7 +159,7 @@ public class RowWithGetters extends Row {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

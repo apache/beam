@@ -22,9 +22,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.util.common.Reiterator;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** BatchingShuffleEntryReader provides a mechanism for reading entries from a shuffle dataset. */
 @NotThreadSafe
@@ -52,13 +52,13 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
     // Shuffle service returns entries in pages. If the response contains a
     // non-null nextStartPosition, we have to ask for more pages. The response
     // with null nextStartPosition signifies the end of stream.
-    @Nullable private final ShufflePosition endPosition;
-    @Nullable private ShufflePosition nextStartPosition;
+    private final @Nullable ShufflePosition endPosition;
+    private @Nullable ShufflePosition nextStartPosition;
 
     /** The most recently read batch. */
-    @Nullable ShuffleBatchReader.Batch currentBatch;
+    ShuffleBatchReader.@Nullable Batch currentBatch;
     /** An iterator over the most recently read batch. */
-    @Nullable private ListIterator<ShuffleEntry> entries;
+    private @Nullable ListIterator<ShuffleEntry> entries;
 
     ShuffleReadIterator(
         @Nullable ShufflePosition startPosition, @Nullable ShufflePosition endPosition) {

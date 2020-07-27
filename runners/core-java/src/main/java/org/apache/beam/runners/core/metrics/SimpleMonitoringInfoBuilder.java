@@ -26,10 +26,10 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encod
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Simplified building of MonitoringInfo fields, allows setting one field at a time with simpler
@@ -165,8 +165,7 @@ public class SimpleMonitoringInfoBuilder {
    * Builds the provided MonitoringInfo. Returns null if validateAndDropInvalid set and fields do
    * not match respecting MonitoringInfoSpec based on urn.
    */
-  @Nullable
-  public MonitoringInfo build() {
+  public @Nullable MonitoringInfo build() {
     final MonitoringInfo result = this.builder.build();
     if (validateAndDropInvalid && this.validator.validate(result).isPresent()) {
       return null;

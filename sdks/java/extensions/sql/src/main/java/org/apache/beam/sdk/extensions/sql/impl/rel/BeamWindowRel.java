@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
+import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAnalyticFunctions;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -291,9 +292,26 @@ public class BeamWindowRel extends Window implements BeamRelNode {
             aggRange = getRange(indexRange, sortedRowsAsList.get(idx));
           }
           Object accumulator = fieldAgg.combineFn.createAccumulator();
-          final int aggFieldIndex = fieldAgg.inputFields.get(0);
+          // if not inputs are needed, put a mock Field index
+          final int aggFieldIndex =
+              fieldAgg.inputFields.isEmpty() ? -1 : fieldAgg.inputFields.get(0);
+          long count = 0;
           for (Row aggRow : aggRange) {
-            fieldAgg.combineFn.addInput(accumulator, aggRow.getBaseValue(aggFieldIndex));
+            if (fieldAgg.combineFn instanceof BeamBuiltinAnalyticFunctions.PositionAwareCombineFn) {
+              BeamBuiltinAnalyticFunctions.PositionAwareCombineFn fn =
+                  (BeamBuiltinAnalyticFunctions.PositionAwareCombineFn) fieldAgg.combineFn;
+              accumulator =
+                  fn.addInput(
+                      accumulator,
+                      getOrderByValue(aggRow),
+                      count,
+                      (long) idx,
+                      (long) sortedRowsAsList.size());
+            } else {
+              accumulator =
+                  fieldAgg.combineFn.addInput(accumulator, aggRow.getBaseValue(aggFieldIndex));
+            }
+            count++;
           }
           Object result = fieldAgg.combineFn.extractOutput(accumulator);
           Row processingRow = sortedRowsAsList.get(idx);
