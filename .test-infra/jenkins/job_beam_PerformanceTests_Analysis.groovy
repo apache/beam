@@ -60,6 +60,11 @@ job(testConfiguration.jobName) {
       delegate,
       '30 */24 * * *')
 
+    wrappers{
+        credentialsBinding {
+            string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
+        }
+    }
 
   steps {
     // Clean up environment after other python using tools.
