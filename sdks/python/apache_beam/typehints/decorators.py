@@ -387,17 +387,17 @@ class IOTypeHints(NamedTuple(
                                    self._has_input_types,
                                    'input_types',
                                     [PBegin],
-                                   'An input typehint to a PTransform must be'
-                                   ' a single (or nested) type wrapped by '
+                                   'An input typehint to a PTransform must be '
+                                   'a single (or nested) type wrapped by '
                                    'a PCollection or PBegin. ',
                                    'strip_pcoll_input()').\
                 strip_pcoll_helper(self.output_types,
                                    self.has_simple_output_type,
                                    'output_types',
-                                   [PDone],
-                                   'An output typehint to a PTransform must be'
-                                   ' a single (or nested) type wrapped by '
-                                   'a PCollection or PDone. ',
+                                   [PDone, None],
+                                   'An output typehint to a PTransform must be '
+                                   'a single (or nested) type wrapped by '
+                                   'a PCollection, PDone, or None. ',
                                    'strip_pcoll_output()')
 
   def strip_pcoll_helper(
@@ -417,7 +417,7 @@ class IOTypeHints(NamedTuple(
 
     my_type = my_type[0][0]
 
-    if isinstance(my_type, typehints.AnyTypeConstraint) or my_type is None:
+    if isinstance(my_type, typehints.AnyTypeConstraint):
       return self
 
     special_containers += [PCollection]

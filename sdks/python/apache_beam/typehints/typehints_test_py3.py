@@ -85,7 +85,7 @@ class TestPTransformAnnotations(unittest.TestCase):
         return pcoll | Map(lambda num: str(num))
 
     error_str = r'An output typehint to a PTransform must be a single ' \
-                r'\(or nested\) type wrapped by a PCollection or PDone. '
+                r'\(or nested\) type wrapped by a PCollection, PDone, or None. '
 
     with self.assertRaisesRegex(TypeCheckError, error_str):
       MyPTransform().get_type_hints()
@@ -156,6 +156,26 @@ class TestPTransformAnnotations(unittest.TestCase):
   def test_annotations_with_pdone(self):
     class MyPTransform(PTransform):
       def expand(self, pcoll) -> PDone:
+        return pcoll | Map(lambda num: str(num))
+
+    th = MyPTransform().get_type_hints()
+    self.assertEqual(th.input_types, ((Any, ), {}))
+    self.assertEqual(th.output_types, ((Any, ), {}))
+
+  def test_annotations_with_none_input(self):
+    class MyPTransform(PTransform):
+      def expand(self, pcoll: None):
+        return pcoll | Map(lambda num: str(num))
+
+    error_str = r'An input typehint to a PTransform must be a single' \
+                r' \(or nested\) type wrapped by a PCollection or PBegin. '
+
+    with self.assertRaisesRegex(TypeCheckError, error_str):
+      MyPTransform().get_type_hints()
+
+  def test_annotations_with_none_output(self):
+    class MyPTransform(PTransform):
+      def expand(self, pcoll) -> None:
         return pcoll | Map(lambda num: str(num))
 
     th = MyPTransform().get_type_hints()

@@ -92,7 +92,7 @@ The following code declares an `int` input and a `str` output type hint on the `
 {{< /highlight >}}
 
 The following code demonstrates how to use annotations on `PTransform` subclasses. 
-A valid annotation is a `PCollection`, `PBegin`, or `PDone` that wraps an internal (nested) type. 
+A valid annotation is a `PCollection` that wraps an internal (nested) type, `PBegin`, `PDone`, or `None`. 
 The following code declares typehints on a custom PTransform, that takes a `PCollection[int]` input
 and outputs a `PCollection[str]`, using annotations.
 
