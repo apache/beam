@@ -17,11 +17,5 @@
 # under the License.
 #
 
-title: Beam Katas - Go
-language: English
-summary: "This course provides a series of katas to get familiar with Apache Beam.\
-  \ \n\nApache Beam website – https://beam.apache.org/"
-programming_language: Go
 content:
-- introduction
-- core_transforms
+- hello_beam
