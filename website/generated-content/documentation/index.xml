@@ -11169,25 +11169,87 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="groupbykey">GroupByKey&lt;/h1>
-&lt;table align="left">
-&lt;a target="_blank" class="button"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.GroupByKey">
-&lt;img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px"
-alt="Pydoc" />
-Pydoc
-&lt;/a>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.GroupByKey"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
 &lt;/table>
-&lt;br>&lt;br>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
 &lt;p>Takes a keyed collection of elements and produces a collection
 where each element consists of a key and all values associated with that key.&lt;/p>
 &lt;p>See more information in the &lt;a href="/documentation/programming-guide/#groupbykey">Beam Programming Guide&lt;/a>.&lt;/p>
 &lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>See &lt;a href="https://issues.apache.org/jira/browse/BEAM-7390">BEAM-7390&lt;/a> for updates.&lt;/p>
+&lt;p>In the following example, we create a pipeline with a &lt;code>PCollection&lt;/code> of produce keyed by season.&lt;/p>
+&lt;p>We use &lt;code>GroupByKey&lt;/code> to group all the produce for each season.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">produce_counts&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create produce counts&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍓&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🌽&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fall&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fall&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;winter&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">])&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Group counts per produce&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupByKey&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class=notebook-skip>
+&lt;pre>&lt;code>(&amp;#39;spring&amp;#39;, [&amp;#39;🍓&amp;#39;, &amp;#39;🥕&amp;#39;, &amp;#39;🍆&amp;#39;, &amp;#39;🍅&amp;#39;])
+(&amp;#39;summer&amp;#39;, [&amp;#39;🥕&amp;#39;, &amp;#39;🍅&amp;#39;, &amp;#39;🌽&amp;#39;])
+(&amp;#39;fall&amp;#39;, [&amp;#39;🥕&amp;#39;, &amp;#39;🍅&amp;#39;])
+(&amp;#39;winter&amp;#39;, [&amp;#39;🍆&amp;#39;])&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;table align="left" style="margin-right:1em" class=".language-py" >
+&lt;td>
+&lt;a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupbykey.py">&lt;img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code&lt;/a>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/transforms/python/aggregation/combineglobally">CombineGlobally&lt;/a> for combining all values associated with a key to a single result.&lt;/li>
 &lt;li>&lt;a href="/documentation/transforms/python/aggregation/cogroupbykey">CoGroupByKey&lt;/a> for multiple input collections.&lt;/li>
-&lt;/ul></description></item><item><title>Documentation: GroupIntoBatches</title><link>/documentation/transforms/java/aggregation/groupintobatches/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/groupintobatches/</guid><description>
+&lt;/ul>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.GroupByKey"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: GroupIntoBatches</title><link>/documentation/transforms/java/aggregation/groupintobatches/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/groupintobatches/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -11232,9 +11294,83 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="groupintobatches">GroupIntoBatches&lt;/h1>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.GroupIntoBatches"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;p>Batches the input into desired batch size.&lt;/p>
 &lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>See &lt;a href="https://issues.apache.org/jira/browse/BEAM-7390">BEAM-7390&lt;/a> for updates.&lt;/p>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2></description></item><item><title>Documentation: HllCount</title><link>/documentation/transforms/java/aggregation/hllcount/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/hllcount/</guid><description>
+&lt;p>In the following example, we create a pipeline with a &lt;code>PCollection&lt;/code> of produce by season.&lt;/p>
+&lt;p>We use &lt;code>GroupIntoBatches&lt;/code> to get fixed-sized batches for every key, which outputs a list of elements for every key.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">batches_with_keys&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create produce&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍓&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🌽&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fall&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fall&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;winter&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">])&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Group into batches&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupIntoBatches&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class=notebook-skip>
+&lt;pre>&lt;code>(&amp;#39;spring&amp;#39;, [&amp;#39;🍓&amp;#39;, &amp;#39;🥕&amp;#39;, &amp;#39;🍆&amp;#39;])
+(&amp;#39;summer&amp;#39;, [&amp;#39;🥕&amp;#39;, &amp;#39;🍅&amp;#39;, &amp;#39;🌽&amp;#39;])
+(&amp;#39;spring&amp;#39;, [&amp;#39;🍅&amp;#39;])
+(&amp;#39;fall&amp;#39;, [&amp;#39;🥕&amp;#39;, &amp;#39;🍅&amp;#39;])
+(&amp;#39;winter&amp;#39;, [&amp;#39;🍆&amp;#39;])&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;table align="left" style="margin-right:1em" class=".language-py" >
+&lt;td>
+&lt;a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupintobatches.py">&lt;img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code&lt;/a>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;h2 id="related-transforms">Related transforms&lt;/h2>
+&lt;p>N/A&lt;/p>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.GroupIntoBatches"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: HllCount</title><link>/documentation/transforms/java/aggregation/hllcount/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/hllcount/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

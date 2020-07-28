@@ -854,7 +854,7 @@ Make sure they have blocker JIRAs attached and are OK to get into the release by
 &lt;li>Run gradle release to create rc tag and push source release into github repo.&lt;/li>
 &lt;li>Run gradle publish to push java artifacts into Maven staging repo.&lt;/li>
 &lt;li>Stage source release into dist.apache.org dev &lt;a href="https://dist.apache.org/repos/dist/dev/beam/">repo&lt;/a>.&lt;/li>
-&lt;li>Stage,sign and hash python binaries into dist.apache.ord dev repo python dir&lt;/li>
+&lt;li>Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir&lt;/li>
 &lt;li>Stage SDK docker images to &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">docker hub Apache organization&lt;/a>.&lt;/li>
 &lt;li>Create a PR to update beam-site, changes includes:
 &lt;ul>
@@ -902,15 +902,6 @@ ls -al /opt/apache/beam/third_party_licenses/ | wc -l
 &lt;li>When prompted for a description, enter “Apache Beam, version X, release candidate Y”.&lt;/li>
 &lt;li>Review all staged artifacts on &lt;a href="https://repository.apache.org/content/repositories/orgapachebeam-NNNN/">https://repository.apache.org/content/repositories/orgapachebeam-NNNN/&lt;/a>. They should contain all relevant parts for each module, including &lt;code>pom.xml&lt;/code>, jar, test jar, javadoc, etc. Artifact names should follow &lt;a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">the existing format&lt;/a> in which artifact name mirrors directory structure, e.g., &lt;code>beam-sdks-java-io-kafka&lt;/code>. Carefully review any new artifacts.&lt;/li>
 &lt;/ol>
-&lt;/li>
-&lt;li>Build and stage python wheels.
-&lt;ul>
-&lt;li>There is a wrapper repo &lt;a href="https://github.com/apache/beam-wheels">beam-wheels&lt;/a> to help build python wheels.&lt;/li>
-&lt;li>If you are interested in how it works, please refer to the &lt;a href="https://github.com/apache/beam-wheels#structure">structure section&lt;/a>.&lt;/li>
-&lt;li>Please follow the &lt;a href="https://github.com/apache/beam-wheels#user-guide">user guide&lt;/a> to build python wheels.&lt;/li>
-&lt;li>Once all python wheels have been staged to GCS,
-please run &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh">./sign_hash_python_wheels.sh&lt;/a>, which copies the wheels along with signatures and hashes to &lt;a href="https://dist.apache.org/repos/dist/dev/beam/">dist.apache.org&lt;/a>.&lt;/li>
-&lt;/ul>
 &lt;/li>
 &lt;/ol>
 &lt;hr>
