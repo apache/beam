@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING
 from typing import Optional
 
 from apache_beam.internal import pickler
+from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
 from apache_beam.utils import counters
 from apache_beam.utils.counters import Counter
@@ -207,23 +208,28 @@ class OperationCounters(object):
     self._next_sample = 0
 
     self.producer_type_hints = None
+    self.producer_full_label = None
+
     if producer and hasattr(producer, 'spec') and hasattr(producer.spec,
                                                           'serialized_fn'):
       fns = pickler.loads(producer.spec.serialized_fn)
       if fns:
         if hasattr(fns[0], '_runtime_type_hints'):
           self.producer_type_hints = fns[0]._runtime_type_hints
+        if hasattr(fns[0], '_full_label'):
+          self.producer_full_label = fns[0]._full_label
 
-    self.consumers_type_hints = []
+    self.consumer_type_hints = []
+    self.consumer_full_labels = []
 
     if consumers:
       for consumer in consumers:
         if hasattr(consumer, 'spec') and hasattr(consumer.spec,
                                                  'serialized_fn'):
           fns = pickler.loads(consumer.spec.serialized_fn)
-          if fns:
-            if hasattr(fns[0], '_runtime_type_hints'):
-              self.consumers_type_hints.append(fns[0]._runtime_type_hints)
+          if fns and hasattr(fns[0], '_runtime_type_hints'):
+            self.consumer_type_hints.append(fns[0]._runtime_type_hints)
+            self.consumer_full_labels.append(getattr(fns[0], '_full_label', 'No Label Found'))
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
@@ -262,9 +268,9 @@ class OperationCounters(object):
       if output_constraint:
         TypeCheckWrapperDoFn.type_check(output_constraint, value, False)
 
-    for consumer_type_hints in self.consumers_type_hints:
-      if consumer_type_hints and hasattr(consumer_type_hints, 'input_types'):
-        input_constraint = consumer_type_hints.input_types
+    for consumer_type_hint in self.consumer_type_hints:
+      if consumer_type_hint and hasattr(consumer_type_hint, 'input_types'):
+        input_constraint = consumer_type_hint.input_types
         while True:
           try:
             input_constraint = next(iter(input_constraint))
