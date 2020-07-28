@@ -281,6 +281,27 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 	return edge, nil
 }
 
+// NewCrossLanguage inserts a Corss-langugae External transform.
+func NewCrossLanguage(g *Graph, s *Scope, in []*Node, payload *Payload) *MultiEdge {
+	edge := g.NewEdge(s)
+	edge.Op = External
+
+	// Payload can be decoupled completely from MultiEdge after current API is implemented
+	edge.Payload = payload
+
+	for _, n := range in {
+		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: n, Type: n.Type()})
+	}
+	/*
+		// Can't assume number of outputs == number of inputs, thus requiring upfront declaration
+		for _, t := range out {
+			n := g.NewNode(t, inputWindow(in), bounded)
+			edge.Output = append(edge.Output, &Outbound{To: n, Type: t})
+		}
+	*/
+	return edge
+}
+
 // NewExternal inserts an External transform. The system makes no assumptions about
 // what this transform might do.
 func NewExternal(g *Graph, s *Scope, payload *Payload, in []*Node, out []typex.FullType, bounded bool) *MultiEdge {

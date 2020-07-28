@@ -16,9 +16,123 @@
 package beam
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"google.golang.org/grpc"
 )
+
+// ExternalTransform ...
+type ExternalTransform struct {
+	id                int
+	Urn               string
+	payload           []byte
+	In                []PCollection
+	out               []FullType
+	bounded           bool
+	expansionAddr     string
+	components        *pipepb.Components
+	expandedTransform *pipepb.PTransform
+}
+
+// func (s ExternalTransform) withExpansionAddress(addr string) ExternalTransform {
+// 	return
+// }
+
+// func CrossLanguage(e ExternalTransform) []PCollection {
+func CrossLanguage(s Scope, e ExternalTransform) {
+
+	// id, bounded, components and expandedTransform should be absent
+
+	if e.expansionAddr == "" { // What's the best way to check if the value was ever set
+		// return Legacy External API
+	}
+
+	// Add ExternalTranform to the Graph
+	/*
+		// Inserting a further subscope for better observability
+		s := s.Scope(expansionAddr)
+	*/
+	if !s.IsValid() {
+		// return nil, errors.New("invalid scope")
+		fmt.Println("invalid scope")
+	}
+	for i, col := range e.In {
+		if !col.IsValid() {
+			// return nil, errors.Errorf("invalid pcollection to external: index %v", i)
+			fmt.Printf("\ninvalid pcollection to external: index %v", i)
+
+		}
+	}
+
+	payload := &graph.Payload{
+		URN:  e.Urn,
+		Data: e.payload,
+	}
+	var ins []*graph.Node
+	for _, col := range e.In {
+		ins = append(ins, col.n)
+	}
+	edge := graph.NewCrossLanguage(s.real, s.scope, ins, payload)
+
+	p, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{})
+	if err != nil {
+		fmt.Println(err)
+	}
+	// fmt.Println(p)
+	transforms := p.Components.Transforms
+	id := p.RootTransformIds[0]
+	for k, v := range transforms[id].Inputs {
+		// fmt.Println("\n\n----\n\n")
+		// fmt.Println(k, v)
+		output := map[string]string{"out": v}
+		key := fmt.Sprintf("%s_%s", "impulse", k)
+		impulse := &pipepb.PTransform{
+			UniqueName: key,
+			Spec: &pipepb.FunctionSpec{
+				Urn: graphx.URNImpulse,
+			},
+			Outputs: output,
+		}
+		// fmt.Println(impulse)
+		transforms[key] = impulse
+	}
+	fmt.Println(p)
+	// Build ExpansionRequest
+	req := &jobpb.ExpansionRequest{
+		Components: p.Components,
+		Transform:  transforms[id],
+		Namespace:  s.String(),
+	}
+	fmt.Println(req)
+
+	conn, err := grpc.Dial("http://localhost:8118", grpc.WithInsecure())
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+	fmt.Println("\n Connection established")
+	client := jobpb.NewExpansionServiceClient(conn)
+	fmt.Println("\n Added client")
+	res, err := client.Expand(context.Background(), req)
+	fmt.Println(res, err)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(res)
+
+	// Handling ExpansionResponse
+	if e.out == nil {
+		// Infer output types from ExpansionResponse and update e.out
+	}
+
+	// for len(out) create output nodes
+}
 
 // External defines a Beam external transform. The interpretation of this primitive is runner
 // specific. The runner is responsible for parsing the payload based on the
