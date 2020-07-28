@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/golang/protobuf/proto"
@@ -49,6 +50,32 @@ func TestCreate(t *testing.T) {
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("beam.Create(%v) failed: %v", test.values, err)
+		}
+	}
+}
+
+func TestCreateEmptyList(t *testing.T) {
+	tests := []struct {
+		values interface{}
+	}{
+		{[]int{}},
+		{[]string{}},
+		{[]float32{}},
+		{[]float64{}},
+		{[]uint{}},
+		{[]bool{}},
+		{[]wc{}},
+		{[]*testProto{}}, // Test for BEAM-4401
+	}
+
+	for _, test := range tests {
+		p, s := beam.NewPipelineWithRoot()
+		c := beam.CreateList(s, test.values)
+
+		passert.Empty(s, c)
+
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("beam.CreateList(%v) failed: %v", test.values, err)
 		}
 	}
 }

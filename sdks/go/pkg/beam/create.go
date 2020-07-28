@@ -23,7 +23,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
-// Create inserts a fixed set of values into the pipeline. The values must
+// Create inserts a fixed non-empty set of values into the pipeline. The values must
 // be of the same type 'A' and the returned PCollection is of type A.
 //
 // The returned PCollections can be used as any other PCollections. The values
@@ -34,31 +34,44 @@ func Create(s Scope, values ...interface{}) PCollection {
 }
 
 // CreateList inserts a fixed set of values into the pipeline from a slice or
-// array. It is a convenience wrapper over Create.
+// array. Differently from Create this supports the creation of an empty
+// PCollection.
 func CreateList(s Scope, list interface{}) PCollection {
-	var ret []interface{}
 	val := reflect.ValueOf(list)
-	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
-		panic(fmt.Sprintf("Input %v must be a slice or array", list))
-	}
+	var ret []interface{}
 	for i := 0; i < val.Len(); i++ {
 		ret = append(ret, val.Index(i).Interface())
 	}
-	return Must(TryCreate(s, ret...))
+	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
+		panic(fmt.Sprintf("Input %v must be a slice or array", list))
+	}
+	if val.Len() == 0 {
+		t := reflect.TypeOf(list).Elem()
+		return Must(TryCreateList(s, t, ret))
+	}
+	t := reflect.ValueOf(ret[0]).Type()
+	return Must(TryCreateList(s, t, ret))
 }
 
 func addCreateCtx(err error, s Scope) error {
 	return errors.WithContextf(err, "inserting Create in scope %s", s)
 }
 
-// TryCreate inserts a fixed set of values into the pipeline. The values must
-// be of the same type.
+// TryCreate inserts a fixed non-empty set of values into the pipeline. The
+// values must be of the same type.
 func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 	if len(values) == 0 {
 		return PCollection{}, addCreateCtx(errors.New("create has no values"), s)
 	}
 
 	t := reflect.ValueOf(values[0]).Type()
+	return TryCreateList(s, t, values)
+}
+
+// TryCreateList inserts a fixed set of values into the pipeline from a slice or
+// array. The values must be of the same type. Differently from TryCreate this
+// supports the creation of an empty PCollection.
+func TryCreateList(s Scope, t reflect.Type, values []interface{}) (PCollection, error) {
 	fn := &createFn{Type: EncodedType{T: t}}
 	enc := NewElementEncoder(t)
 
