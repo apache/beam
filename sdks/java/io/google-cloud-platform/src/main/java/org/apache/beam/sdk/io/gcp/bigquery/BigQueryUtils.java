@@ -31,6 +31,7 @@ import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -320,7 +321,11 @@ public class BigQueryUtils {
         field.setFields(toTableFieldSchema(subType));
       }
       if (TypeName.MAP == type.getTypeName()) {
-        throw new IllegalArgumentException("Maps are not supported in BigQuery.");
+        Schema mapSchema = Schema.builder().addField("key", type.getMapKeyType())
+                .addField("value", type.getMapValueType()).build();
+        type = FieldType.row(mapSchema);
+        field.setFields(toTableFieldSchema(mapSchema));
+        field.setMode(Mode.REPEATED.toString());
       }
       field.setType(toStandardSQLTypeName(type).toString());
 
@@ -440,6 +445,17 @@ public class BigQueryUtils {
         List<Object> convertedItems = Lists.newArrayListWithCapacity(Iterables.size(items));
         for (Object item : items) {
           convertedItems.add(fromBeamField(elementType, item));
+        }
+        return convertedItems;
+
+      case MAP:
+        Map<?, ?> pairs = (Map<?, ?>) fieldValue;
+        convertedItems = Lists.newArrayListWithCapacity(pairs.size());
+        for (Map.Entry<?, ?> pair : pairs.entrySet()) {
+          HashMap<String, Object> item = new HashMap<>(2);
+          item.put("key", pair.getKey());
+          item.put("value", pair.getValue());
+          convertedItems.add(item);
         }
         return convertedItems;
 
