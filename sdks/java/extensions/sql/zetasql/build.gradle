@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -51,5 +53,18 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.quickcheck_core
   testRuntimeClasspath library.java.slf4j_jdk14
+  testCompileOnly project(":sdks:java:extensions:sql:zetasql:udf-test-provider")
 }
 
+task emptyJar(type: Jar) {
+  archiveBaseName = "${project.archivesBaseName}-empty-jar"
+  from fileTree(dir: getTemporaryDir().createNewFile().toString())
+}
+
+test {
+  dependsOn emptyJar
+  // Pass jars used by Java UDF tests via system properties.
+  evaluationDependsOnChildren() // Needed to resolve jarPath for udf-test-provider subproject.
+  systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:zetasql:udf-test-provider").jarPath
+  systemProperty "beam.sql.udf.test.empty_jar_path", emptyJar.archivePath
+}

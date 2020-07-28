@@ -26,6 +26,7 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.PRE_DEFINED_WINDOW_FUNCTIONS;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.USER_DEFINED_FUNCTIONS;
+import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Ascii;
@@ -38,6 +39,7 @@ import com.google.zetasql.TableValuedFunction;
 import com.google.zetasql.TableValuedFunction.FixedOutputSchemaTVF;
 import com.google.zetasql.Type;
 import com.google.zetasql.Value;
+import com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import com.google.zetasql.resolvedast.ResolvedColumn;
 import com.google.zetasql.resolvedast.ResolvedNodes;
@@ -54,6 +56,7 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLiteral;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedParameter;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedProjectScan;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -160,15 +163,15 @@ public class ExpressionConverter {
   private final RelOptCluster cluster;
   private final QueryParameters queryParams;
   private int nullParamCount = 0;
-  private final Map<String, ResolvedCreateFunctionStmt> userDefinedFunctions;
+  final UserFunctionDefinitions userFunctionDefinitions;
 
   public ExpressionConverter(
       RelOptCluster cluster,
       QueryParameters params,
-      Map<String, ResolvedCreateFunctionStmt> userDefinedFunctions) {
+      UserFunctionDefinitions userFunctionDefinitions) {
     this.cluster = cluster;
     this.queryParams = params;
-    this.userDefinedFunctions = userDefinedFunctions;
+    this.userFunctionDefinitions = userFunctionDefinitions;
   }
 
   /** Extract expressions from a project scan node. */
@@ -287,6 +290,7 @@ public class ExpressionConverter {
 
     RexNode ret;
 
+    ResolvedNodeKind nodeKind = expr.nodeKind();
     switch (expr.nodeKind()) {
       case RESOLVED_LITERAL:
         ret = convertResolvedLiteral((ResolvedLiteral) expr);
@@ -662,9 +666,23 @@ public class ExpressionConverter {
         operands.add(
             convertRexNodeFromResolvedExpr(expr, columnList, fieldList, outerFunctionArguments));
       }
+    } else if (funGroup.equals(USER_DEFINED_JAVA_SCALAR_FUNCTIONS)) {
+      Method method =
+          userFunctionDefinitions.javaScalarFunctions.get(functionCall.getFunction().getNamePath());
+      ArrayList<RexNode> innerFunctionArguments = new ArrayList<>();
+      for (int i = 0; i < functionCall.getArgumentList().size(); i++) {
+        ResolvedExpr argExpr = functionCall.getArgumentList().get(i);
+        RexNode argNode =
+            convertRexNodeFromResolvedExpr(argExpr, columnList, fieldList, outerFunctionArguments);
+        innerFunctionArguments.add(argNode);
+      }
+      return rexBuilder()
+          .makeCall(
+              SqlOperators.createUdfOperator(functionCall.getFunction().getName(), method),
+              innerFunctionArguments);
     } else if (funGroup.equals(USER_DEFINED_FUNCTIONS)) {
-      String fullName = functionCall.getFunction().getFullName();
-      ResolvedCreateFunctionStmt createFunctionStmt = userDefinedFunctions.get(fullName);
+      ResolvedCreateFunctionStmt createFunctionStmt =
+          userFunctionDefinitions.sqlScalarFunctions.get(functionCall.getFunction().getNamePath());
       ResolvedExpr functionExpression = createFunctionStmt.getFunctionExpression();
       ImmutableMap.Builder<String, RexNode> innerFunctionArguments = ImmutableMap.builder();
       for (int i = 0; i < functionCall.getArgumentList().size(); i++) {

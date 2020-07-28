@@ -212,4 +212,30 @@ public class ZetaSqlUdfTest extends ZetaSqlTestBase {
     thrown.expectMessage("Table-valued function not found: FunctionNotFound");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
+
+  @Test
+  public void testJavascriptUdfUnsupported() {
+    String sql = "CREATE FUNCTION foo() RETURNS STRING LANGUAGE js; SELECT foo();";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage("Function foo uses unsupported language js.");
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testSqlNativeAggregateFunctionNotSupported() {
+    String sql =
+        "CREATE AGGREGATE FUNCTION double_sum(col FLOAT64)\n"
+            + "AS (2 * SUM(col));\n"
+            + "SELECT double_sum(col1) AS doubled_sum\n"
+            + "FROM (SELECT 1 AS col1 UNION ALL\n"
+            + "      SELECT 3 AS col1 UNION ALL\n"
+            + "      SELECT 5 AS col1\n"
+            + ");";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage("Native SQL aggregate functions are not supported (BEAM-9954).");
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
 }
