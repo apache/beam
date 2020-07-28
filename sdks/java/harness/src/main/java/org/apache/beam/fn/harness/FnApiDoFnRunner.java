@@ -230,7 +230,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
   private final ProcessBundleContextBase processContext;
-  private OnTimerContext onTimerContext;
+  private final OnTimerContext onTimerContext;
   private final FinishBundleArgumentProvider finishBundleArgumentProvider;
 
   /**
