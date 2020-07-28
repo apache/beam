@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,14 +157,11 @@ public class ClickHouseIO {
 
     public abstract Duration initialBackoff();
 
-    @Nullable
-    public abstract Boolean insertDistributedSync();
+    public abstract @Nullable Boolean insertDistributedSync();
 
-    @Nullable
-    public abstract Long insertQuorum();
+    public abstract @Nullable Long insertQuorum();
 
-    @Nullable
-    public abstract Boolean insertDeduplicate();
+    public abstract @Nullable Boolean insertDeduplicate();
 
     abstract Builder<T> toBuilder();
 

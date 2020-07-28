@@ -23,39 +23,39 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 // Common pipeline args for Dataflow job.
 def dataflowPipelineArgs = [
-    project         : 'apache-beam-testing',
-    region          : 'us-central1',
-    staging_location: 'gs://temp-storage-for-end-to-end-tests/staging-it',
-    temp_location   : 'gs://temp-storage-for-end-to-end-tests/temp-it',
+  project         : 'apache-beam-testing',
+  region          : 'us-central1',
+  staging_location: 'gs://temp-storage-for-end-to-end-tests/staging-it',
+  temp_location   : 'gs://temp-storage-for-end-to-end-tests/temp-it',
 ]
 
 testConfigurations = []
 pythonVersions = ['27', '37']
 
 for (pythonVersion in pythonVersions) {
-    def taskVersion = pythonVersion == '27' ? '2' : pythonVersion
-    testConfigurations.add([
-            jobName           : "beam_PerformanceTests_WordCountIT_Py${pythonVersion}",
-            jobDescription    : "Python SDK Performance Test - Run WordCountIT in Py${pythonVersion} with 1Gb files",
-            jobTriggerPhrase  : "Run Python${pythonVersion} WordCountIT Performance Test",
-            test              : "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
-            gradleTaskName    : ":sdks:python:test-suites:dataflow:py${taskVersion}:runPerformanceTest",
-            pipelineOptions   : dataflowPipelineArgs + [
-                    job_name             : "performance-tests-wordcount-python${pythonVersion}-batch-1gb${now}",
-                    runner               : 'TestDataflowRunner',
-                    publish_to_big_query : true,
-                    metrics_dataset      : 'beam_performance',
-                    metrics_table        : "wordcount_py${pythonVersion}_pkb_results",
-                    influx_measurement   : "wordcount_py${pythonVersion}_results",
-                    influx_db_name       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-                    influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostname,
-                    input                : "gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000*", // 1Gb
-                    output               : "gs://temp-storage-for-end-to-end-tests/py-it-cloud/output",
-                    expect_checksum      : "ea0ca2e5ee4ea5f218790f28d0b9fe7d09d8d710",
-                    num_workers          : '10',
-                    autoscaling_algorithm: "NONE",  // Disable autoscale the worker pool.
-            ]
-    ])
+  def taskVersion = pythonVersion == '27' ? '2' : pythonVersion
+  testConfigurations.add([
+    jobName           : "beam_PerformanceTests_WordCountIT_Py${pythonVersion}",
+    jobDescription    : "Python SDK Performance Test - Run WordCountIT in Py${pythonVersion} with 1Gb files",
+    jobTriggerPhrase  : "Run Python${pythonVersion} WordCountIT Performance Test",
+    test              : "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
+    gradleTaskName    : ":sdks:python:test-suites:dataflow:py${taskVersion}:runPerformanceTest",
+    pipelineOptions   : dataflowPipelineArgs + [
+      job_name             : "performance-tests-wordcount-python${pythonVersion}-batch-1gb${now}",
+      runner               : 'TestDataflowRunner',
+      publish_to_big_query : true,
+      metrics_dataset      : 'beam_performance',
+      metrics_table        : "wordcount_py${pythonVersion}_pkb_results",
+      influx_measurement   : "wordcount_py${pythonVersion}_results",
+      influx_db_name       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+      influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostname,
+      input                : "gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000*", // 1Gb
+      output               : "gs://temp-storage-for-end-to-end-tests/py-it-cloud/output",
+      expect_checksum      : "ea0ca2e5ee4ea5f218790f28d0b9fe7d09d8d710",
+      num_workers          : '10',
+      autoscaling_algorithm: "NONE",  // Disable autoscale the worker pool.
+    ]
+  ])
 }
 
 for (testConfig in testConfigurations) {
@@ -78,10 +78,10 @@ private void createPythonPerformanceTestJob(Map testConfig) {
         delegate,
         testConfig.jobDescription,
         testConfig.jobTriggerPhrase,
-    )
+        )
 
     publishers {
-        archiveJunit('**/nosetests*.xml')
+      archiveJunit('**/nosetests*.xml')
     }
 
     steps {

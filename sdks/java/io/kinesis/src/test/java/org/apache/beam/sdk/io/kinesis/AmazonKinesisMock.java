@@ -99,6 +99,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.commons.lang.builder.EqualsBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.mockito.Mockito;
 
@@ -133,7 +134,7 @@ class AmazonKinesisMock implements AmazonKinesis {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return EqualsBuilder.reflectionEquals(this, obj);
     }
 

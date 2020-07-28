@@ -361,20 +361,19 @@ class ReshuffleTest(unittest.TestCase):
       assert_that(result, equal_to(data))
 
   def test_reshuffle_after_gbk_contents_unchanged(self):
-    pipeline = TestPipeline()
-    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)]
-    expected_result = [(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]
+    with TestPipeline() as pipeline:
+      data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)]
+      expected_result = [(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]
 
-    after_gbk = (
-        pipeline
-        | beam.Create(data)
-        | beam.GroupByKey()
-        | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
-    assert_that(after_gbk, equal_to(expected_result), label='after_gbk')
-    after_reshuffle = after_gbk | beam.Reshuffle()
-    assert_that(
-        after_reshuffle, equal_to(expected_result), label='after_reshuffle')
-    pipeline.run()
+      after_gbk = (
+          pipeline
+          | beam.Create(data)
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
+      assert_that(after_gbk, equal_to(expected_result), label='after_gbk')
+      after_reshuffle = after_gbk | beam.Reshuffle()
+      assert_that(
+          after_reshuffle, equal_to(expected_result), label='after_reshuffle')
 
   def test_reshuffle_timestamps_unchanged(self):
     with TestPipeline() as pipeline:
@@ -482,60 +481,57 @@ class ReshuffleTest(unittest.TestCase):
           reify_windows=True)
 
   def test_reshuffle_global_window(self):
-    pipeline = TestPipeline()
-    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
-    expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])]
-    before_reshuffle = (
-        pipeline
-        | beam.Create(data)
-        | beam.WindowInto(GlobalWindows())
-        | beam.GroupByKey()
-        | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
-    assert_that(
-        before_reshuffle, equal_to(expected_data), label='before_reshuffle')
-    after_reshuffle = before_reshuffle | beam.Reshuffle()
-    assert_that(
-        after_reshuffle, equal_to(expected_data), label='after reshuffle')
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+      expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])]
+      before_reshuffle = (
+          pipeline
+          | beam.Create(data)
+          | beam.WindowInto(GlobalWindows())
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
+      assert_that(
+          before_reshuffle, equal_to(expected_data), label='before_reshuffle')
+      after_reshuffle = before_reshuffle | beam.Reshuffle()
+      assert_that(
+          after_reshuffle, equal_to(expected_data), label='after reshuffle')
 
   def test_reshuffle_sliding_window(self):
-    pipeline = TestPipeline()
-    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
-    window_size = 2
-    expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])] * window_size
-    before_reshuffle = (
-        pipeline
-        | beam.Create(data)
-        | beam.WindowInto(SlidingWindows(size=window_size, period=1))
-        | beam.GroupByKey()
-        | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
-    assert_that(
-        before_reshuffle, equal_to(expected_data), label='before_reshuffle')
-    after_reshuffle = before_reshuffle | beam.Reshuffle()
-    # If Reshuffle applies the sliding window function a second time there
-    # should be extra values for each key.
-    assert_that(
-        after_reshuffle, equal_to(expected_data), label='after reshuffle')
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+      window_size = 2
+      expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])] * window_size
+      before_reshuffle = (
+          pipeline
+          | beam.Create(data)
+          | beam.WindowInto(SlidingWindows(size=window_size, period=1))
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
+      assert_that(
+          before_reshuffle, equal_to(expected_data), label='before_reshuffle')
+      after_reshuffle = before_reshuffle | beam.Reshuffle()
+      # If Reshuffle applies the sliding window function a second time there
+      # should be extra values for each key.
+      assert_that(
+          after_reshuffle, equal_to(expected_data), label='after reshuffle')
 
   def test_reshuffle_streaming_global_window(self):
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
-    pipeline = TestPipeline(options=options)
-    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
-    expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])]
-    before_reshuffle = (
-        pipeline
-        | beam.Create(data)
-        | beam.WindowInto(GlobalWindows())
-        | beam.GroupByKey()
-        | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
-    assert_that(
-        before_reshuffle, equal_to(expected_data), label='before_reshuffle')
-    after_reshuffle = before_reshuffle | beam.Reshuffle()
-    assert_that(
-        after_reshuffle, equal_to(expected_data), label='after reshuffle')
-    pipeline.run()
+    with TestPipeline(options=options) as pipeline:
+      data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+      expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])]
+      before_reshuffle = (
+          pipeline
+          | beam.Create(data)
+          | beam.WindowInto(GlobalWindows())
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
+      assert_that(
+          before_reshuffle, equal_to(expected_data), label='before_reshuffle')
+      after_reshuffle = before_reshuffle | beam.Reshuffle()
+      assert_that(
+          after_reshuffle, equal_to(expected_data), label='after reshuffle')
 
   @attr('ValidatesRunner')
   def test_reshuffle_preserves_timestamps(self):

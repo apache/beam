@@ -17,19 +17,19 @@
  */
 
 class InfluxDBCredentialsHelper {
-    final static String InfluxDBHostname = 'http://10.128.0.96:8086'
-    final static String InfluxDBDatabaseName = 'beam_test_metrics'
+  final static String InfluxDBHostname = 'http://10.128.0.96:8086'
+  final static String InfluxDBDatabaseName = 'beam_test_metrics'
 
-    /**
-     * Binds InfluxDB user's credentials to environment variables.
-     *
-     * @param job - jenkins job.
-     */
-    public static void useCredentials(job) {
-        job.wrappers {
-            credentialsBinding {
-              usernamePassword('INFLUXDB_USER', 'INFLUXDB_USER_PASSWORD', 'beam-influxdb-user-creds')
-            }
-        }
+  /**
+   * Binds InfluxDB user's credentials to environment variables.
+   *
+   * @param job - jenkins job.
+   */
+  public static void useCredentials(job) {
+    job.wrappers {
+      credentialsBinding {
+        usernamePassword('INFLUXDB_USER', 'INFLUXDB_USER_PASSWORD', 'beam-influxdb-user-creds')
+      }
     }
+  }
 }

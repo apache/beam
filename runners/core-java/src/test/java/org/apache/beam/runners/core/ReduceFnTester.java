@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
@@ -70,6 +69,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIt
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -284,8 +284,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     this.autoAdvanceOutputWatermark = autoAdvanceOutputWatermark;
   }
 
-  @Nullable
-  public Instant getNextTimer(TimeDomain domain) {
+  public @Nullable Instant getNextTimer(TimeDomain domain) {
     return timerInternals.getNextTimer(domain);
   }
 

@@ -21,10 +21,10 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.More
 
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A test table provider for BigQueryRowCountIT. */
 public class BigQueryTestTableProvider extends BigQueryTableProvider {

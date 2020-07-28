@@ -21,32 +21,32 @@ import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Spark',
-  'Run XVR_Spark PostCommit', 'Spark CrossLanguageValidatesRunner Tests', this) {
-  description('Runs the CrossLanguageValidatesRunner suite on the Spark runner.')
+    'Run XVR_Spark PostCommit', 'Spark CrossLanguageValidatesRunner Tests', this) {
+      description('Runs the CrossLanguageValidatesRunner suite on the Spark runner.')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  // Publish all test results to Jenkins
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
+      // Publish all test results to Jenkins
+      publishers {
+        archiveJunit('**/build/test-results/**/*.xml')
+      }
 
-  // Gradle goals for this job.
-  steps {
-    shell('echo "*** RUN CROSS-LANGUAGE SPARK USING PYTHON 2.7 ***"')
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runners:spark:job-server:validatesCrossLanguageRunner')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-PpythonVersion=2.7')
+      // Gradle goals for this job.
+      steps {
+        shell('echo "*** RUN CROSS-LANGUAGE SPARK USING PYTHON 2.7 ***"')
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:spark:job-server:validatesCrossLanguageRunner')
+          commonJobProperties.setGradleSwitches(delegate)
+          switches('-PpythonVersion=2.7')
+        }
+        shell('echo "*** RUN CROSS-LANGUAGE SPARK USING PYTHON 3.5 ***"')
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:spark:job-server:validatesCrossLanguageRunner')
+          commonJobProperties.setGradleSwitches(delegate)
+          switches('-PpythonVersion=3.5')
+        }
+      }
     }
-    shell('echo "*** RUN CROSS-LANGUAGE SPARK USING PYTHON 3.5 ***"')
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runners:spark:job-server:validatesCrossLanguageRunner')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-PpythonVersion=3.5')
-    }
-  }
-}

@@ -20,41 +20,41 @@ import CommonJobProperties as commonJobProperties
 
 // This creates the Python nightly snapshot build. Into gs://beam-python-nightly-snapshots.
 job('beam_Release_Python_NightlySnapshot') {
-    description('Publish a nightly snapshot for Python SDK.')
+  description('Publish a nightly snapshot for Python SDK.')
 
-    // Execute concurrent builds if necessary.
-    concurrentBuild()
+  // Execute concurrent builds if necessary.
+  concurrentBuild()
 
-    // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(delegate)
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-    // This is a post-commit job that runs once per day, not for every push.
-    commonJobProperties.setAutoJob(
-            delegate,
-            '0 7 * * *',
-            'builds@beam.apache.org')
+  // This is a post-commit job that runs once per day, not for every push.
+  commonJobProperties.setAutoJob(
+      delegate,
+      '0 7 * * *',
+      'builds@beam.apache.org')
 
-    // Allows triggering this build against pull requests.
-    commonJobProperties.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Create Python SDK Nightly Snapshot',
-            'Run Python Publish')
+  // Allows triggering this build against pull requests.
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Create Python SDK Nightly Snapshot',
+      'Run Python Publish')
 
-    steps {
-      // Cleanup Python directory.
-      gradle {
-        rootBuildScriptDir(commonJobProperties.checkoutDir)
-        tasks(':sdks:python:clean')
-        commonJobProperties.setGradleSwitches(delegate)
-      }
-      // Build snapshot.
-      gradle {
-        rootBuildScriptDir(commonJobProperties.checkoutDir)
-        tasks(':sdks:python:buildSnapshot')
-        commonJobProperties.setGradleSwitches(delegate)
-      }
-      // Publish snapshot to a public accessible GCS directory.
-      shell('cd ' + commonJobProperties.checkoutDir +
-        ' && bash sdks/python/scripts/run_snapshot_publish.sh')
+  steps {
+    // Cleanup Python directory.
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sdks:python:clean')
+      commonJobProperties.setGradleSwitches(delegate)
     }
+    // Build snapshot.
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sdks:python:buildSnapshot')
+      commonJobProperties.setGradleSwitches(delegate)
+    }
+    // Publish snapshot to a public accessible GCS directory.
+    shell('cd ' + commonJobProperties.checkoutDir +
+        ' && bash sdks/python/scripts/run_snapshot_publish.sh')
+  }
 }

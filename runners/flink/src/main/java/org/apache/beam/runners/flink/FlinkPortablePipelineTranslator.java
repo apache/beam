@@ -19,10 +19,10 @@ package org.apache.beam.runners.flink;
 
 import java.util.List;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Interface for portable Flink translators. This allows for a uniform invocation pattern for

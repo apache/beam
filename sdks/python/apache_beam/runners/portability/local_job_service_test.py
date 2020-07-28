@@ -60,7 +60,10 @@ class LocalJobServerTest(unittest.TestCase):
     ]
     self.assertEqual([s.state for s in state_results], expected_states)
 
-    self.assertEqual([s.state_response.state for s in message_results],
+    self.assertEqual([
+        s.state_response.state
+        for s in message_results if s.HasField('state_response')
+    ],
                      expected_states)
 
   def test_error_messages_after_pipeline_failure(self):

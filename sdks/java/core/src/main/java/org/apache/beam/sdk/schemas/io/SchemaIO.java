@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.Row;
 
 /**
  * An abstraction to create schema capable and aware IOs. The interface is intended to be used in
- * conjunction with the interface {@link SchemaCapableIOProvider}.
+ * conjunction with the interface {@link SchemaIOProvider}.
  *
  * <p>The interfaces can be implemented to make IOs available in other SDKs in addition to Beam SQL.
  *

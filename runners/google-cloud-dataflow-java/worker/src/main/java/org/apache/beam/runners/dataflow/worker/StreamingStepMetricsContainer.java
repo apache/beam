@@ -22,7 +22,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import java.util.Map.Entry;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
 import org.apache.beam.runners.core.metrics.MetricsMap;
@@ -35,6 +34,7 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * For Dataflow Streaming, we want to efficiently support many threads report metric updates, and a
@@ -93,8 +93,8 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
                   value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
                   justification = "https://github.com/google/guava/issues/920")
               @Override
-              @Nullable
-              public CounterUpdate apply(@Nonnull Map.Entry<MetricName, DeltaCounterCell> entry) {
+              public @Nullable CounterUpdate apply(
+                  @Nonnull Map.Entry<MetricName, DeltaCounterCell> entry) {
                 long value = entry.getValue().getSumAndReset();
                 if (value == 0) {
                   return null;
@@ -115,8 +115,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
                   value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
                   justification = "https://github.com/google/guava/issues/920")
               @Override
-              @Nullable
-              public CounterUpdate apply(
+              public @Nullable CounterUpdate apply(
                   @Nonnull Map.Entry<MetricName, DeltaDistributionCell> entry) {
                 DistributionData value = entry.getValue().getAndReset();
                 if (value.count() == 0) {

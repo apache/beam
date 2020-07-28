@@ -21,24 +21,24 @@ import PostcommitJobBuilder
 
 // This job defines the Python postcommit tests.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python38', 'Run Python 3.8 PostCommit',
-  'Python38_PC("Run Python 3.8 PostCommit")', this) {
-  description('Runs Python postcommit tests using Python 3.8.')
+    'Python38_PC("Run Python 3.8 PostCommit")', this) {
+      description('Runs Python postcommit tests using Python 3.8.')
 
-  previousNames('/beam_PostCommit_Python3_Verify/')
+      previousNames('/beam_PostCommit_Python3_Verify/')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 100)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 100)
 
-  publishers {
-    archiveJunit('**/nosetests*.xml')
-  }
+      publishers {
+        archiveJunit('**/nosetests*.xml')
+      }
 
-  // Execute shell command to test Python SDK.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':python38PostCommit')
-      commonJobProperties.setGradleSwitches(delegate)
+      // Execute shell command to test Python SDK.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':python38PostCommit')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}

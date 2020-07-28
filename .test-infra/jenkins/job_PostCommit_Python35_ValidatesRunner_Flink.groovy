@@ -21,18 +21,18 @@ import PostcommitJobBuilder
 
 // This job runs the suite of Python ValidatesRunner tests against the Flink runner on Python 3.5.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python35_VR_Flink',
-  'Run Python 3.5 Flink ValidatesRunner', 'Run Python 3.5 Flink ValidatesRunner', this) {
-  description('Runs the Python 3.5 ValidatesRunner suite on the Flink runner.')
+    'Run Python 3.5 Flink ValidatesRunner', 'Run Python 3.5 Flink ValidatesRunner', this) {
+      description('Runs the Python 3.5 ValidatesRunner suite on the Flink runner.')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  // Gradle goals for this job.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:python:test-suites:portable:py35:flinkValidatesRunner')
-      commonJobProperties.setGradleSwitches(delegate)
+      // Gradle goals for this job.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:python:test-suites:portable:py35:flinkValidatesRunner')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}

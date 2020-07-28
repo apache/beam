@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.ScanParams;
@@ -161,11 +161,9 @@ public class RedisIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<KV<String, String>>> {
 
-    @Nullable
-    abstract RedisConnectionConfiguration connectionConfiguration();
+    abstract @Nullable RedisConnectionConfiguration connectionConfiguration();
 
-    @Nullable
-    abstract String keyPattern();
+    abstract @Nullable String keyPattern();
 
     abstract int batchSize();
 
@@ -175,11 +173,11 @@ public class RedisIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      @Nullable
-      abstract Builder setConnectionConfiguration(RedisConnectionConfiguration connection);
 
-      @Nullable
-      abstract Builder setKeyPattern(String keyPattern);
+      abstract @Nullable Builder setConnectionConfiguration(
+          RedisConnectionConfiguration connection);
+
+      abstract @Nullable Builder setKeyPattern(String keyPattern);
 
       abstract Builder setBatchSize(int batchSize);
 
@@ -263,8 +261,7 @@ public class RedisIO {
   public abstract static class ReadAll
       extends PTransform<PCollection<String>, PCollection<KV<String, String>>> {
 
-    @Nullable
-    abstract RedisConnectionConfiguration connectionConfiguration();
+    abstract @Nullable RedisConnectionConfiguration connectionConfiguration();
 
     abstract int batchSize();
 
@@ -274,8 +271,9 @@ public class RedisIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      @Nullable
-      abstract Builder setConnectionConfiguration(RedisConnectionConfiguration connection);
+
+      abstract @Nullable Builder setConnectionConfiguration(
+          RedisConnectionConfiguration connection);
 
       abstract Builder setBatchSize(int batchSize);
 
@@ -342,8 +340,7 @@ public class RedisIO {
   public abstract static class ReadKeyPatterns
       extends PTransform<PCollection<String>, PCollection<KV<String, String>>> {
 
-    @Nullable
-    abstract RedisConnectionConfiguration connectionConfiguration();
+    abstract @Nullable RedisConnectionConfiguration connectionConfiguration();
 
     abstract int batchSize();
 
@@ -353,8 +350,9 @@ public class RedisIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      @Nullable
-      abstract Builder setConnectionConfiguration(RedisConnectionConfiguration connection);
+
+      abstract @Nullable Builder setConnectionConfiguration(
+          RedisConnectionConfiguration connection);
 
       abstract Builder setBatchSize(int batchSize);
 
@@ -465,7 +463,7 @@ public class RedisIO {
 
   /** A {@link DoFn} requesting Redis server to get key/value pairs. */
   private static class ReadFn extends BaseReadFn<KV<String, String>> {
-    @Nullable transient Multimap<BoundedWindow, String> bundles = null;
+    transient @Nullable Multimap<BoundedWindow, String> bundles = null;
     @Nullable AtomicInteger batchCount = null;
     private final int batchSize;
 
@@ -594,14 +592,11 @@ public class RedisIO {
       DECRBY,
     }
 
-    @Nullable
-    abstract RedisConnectionConfiguration connectionConfiguration();
+    abstract @Nullable RedisConnectionConfiguration connectionConfiguration();
 
-    @Nullable
-    abstract Method method();
+    abstract @Nullable Method method();
 
-    @Nullable
-    abstract Long expireTime();
+    abstract @Nullable Long expireTime();
 
     abstract Builder toBuilder();
 

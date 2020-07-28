@@ -1,0 +1,51 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(publish: false, exportJavadoc: false, enableChecker:false)
+
+import org.apache.beam.gradle.BeamModulePlugin
+
+project.evaluationDependsOn(":sdks:python")
+project.evaluationDependsOn(":runners:portability:java")
+
+def envDir = project.project(":sdks:python").envdir
+def crossLanguageTestClasspath = project.project(":runners:portability:java").sourceSets.test.runtimeClasspath
+def jobPort = BeamModulePlugin.startingExpansionPortNumber.getAndDecrement()
+def tmpDir = System.getenv("TMPDIR") ?: System.getenv("WORKSPACE") ?: "/tmp"
+def pidFile = "${tmpDir}/local_job_service_main-${jobPort}.pid"
+
+def setupTask = project.tasks.create(name: "fnApiJobServerSetup", type: Exec) {
+  dependsOn ':sdks:python:installGcpTest'
+
+  executable 'sh'
+  args '-c', ". ${envdir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort} --pid_file ${pidFile} --background --stdout_file ${tmpDir}/beam-fnapi-job-server.log"
+}
+
+def cleanupTask = project.tasks.create(name: "fnApiJobServerCleanup", type: Exec) {
+  executable 'sh'
+  args '-c', ". ${envdir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --pid_file ${pidFile} --stop"
+}
+
+createCrossLanguageValidatesRunnerTask(
+  startJobServer: setupTask,
+  cleanupJobServer: cleanupTask,
+  jobEndpoint: "localhost:${jobPort}",
+  numParallelTests: 1,
+  classpath: crossLanguageTestClasspath
+)

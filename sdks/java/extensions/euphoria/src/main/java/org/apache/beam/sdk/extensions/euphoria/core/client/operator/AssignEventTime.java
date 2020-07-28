@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -25,13 +24,13 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.ExtractEve
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -103,17 +102,14 @@ public class AssignEventTime<InputT> extends Operator<InputT>
     Builders.Output<InputT> using(ExtractEventTime<InputT> fn, Duration allowedTimestampSkew);
   }
 
-  /**
-   * Last builder in a chain. It concludes this operators creation by calling {@link
-   * #output(OutputHint...)}.
-   */
+  /** Last builder in a chain. It concludes this operators creation by calling {@link #output()}. */
   public static class Builder<InputT>
       implements OfBuilder, UsingBuilder<InputT>, Builders.Output<InputT> {
 
-    @Nullable private final String name;
+    private final @Nullable String name;
     private PCollection<InputT> input;
     private ExtractEventTime<InputT> eventTimeExtractor;
-    @Nullable private Duration allowedTimestampSkew = null;
+    private @Nullable Duration allowedTimestampSkew = null;
 
     private Builder(@Nullable String name) {
       this.name = name;
@@ -141,7 +137,7 @@ public class AssignEventTime<InputT> extends Operator<InputT>
     }
 
     @Override
-    public PCollection<InputT> output(OutputHint... outputHints) {
+    public PCollection<InputT> output() {
       return OperatorTransform.apply(
           new AssignEventTime<>(
               name, eventTimeExtractor, allowedTimestampSkew, input.getTypeDescriptor()),

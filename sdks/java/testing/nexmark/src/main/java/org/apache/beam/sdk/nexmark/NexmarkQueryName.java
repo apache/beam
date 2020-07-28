@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.nexmark;
 
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Known "Nexmark" queries, some of which are of our own devising but use the same data set. */
 @SuppressWarnings("ImmutableEnumChecker")

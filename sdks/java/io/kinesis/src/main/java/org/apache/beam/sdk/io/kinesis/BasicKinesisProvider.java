@@ -31,14 +31,14 @@ import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Basic implementation of {@link AWSClientsProvider} used by default in {@link KinesisIO}. */
 class BasicKinesisProvider implements AWSClientsProvider {
   private final String accessKey;
   private final String secretKey;
   private final Regions region;
-  @Nullable private final String serviceEndpoint;
+  private final @Nullable String serviceEndpoint;
 
   BasicKinesisProvider(
       String accessKey, String secretKey, Regions region, @Nullable String serviceEndpoint) {

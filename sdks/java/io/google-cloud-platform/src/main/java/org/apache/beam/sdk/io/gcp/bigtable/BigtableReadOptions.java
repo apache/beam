@@ -24,22 +24,20 @@ import com.google.bigtable.v2.RowFilter;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Configuration for which values to read from Bigtable. */
 @AutoValue
 abstract class BigtableReadOptions implements Serializable {
 
   /** Returns the row filter to use. */
-  @Nullable
-  abstract ValueProvider<RowFilter> getRowFilter();
+  abstract @Nullable ValueProvider<RowFilter> getRowFilter();
 
   /** Returns the key ranges to read. */
-  @Nullable
-  abstract ValueProvider<List<ByteKeyRange>> getKeyRanges();
+  abstract @Nullable ValueProvider<List<ByteKeyRange>> getKeyRanges();
 
   abstract Builder toBuilder();
 
