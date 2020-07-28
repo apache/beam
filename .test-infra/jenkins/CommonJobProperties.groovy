@@ -20,6 +20,9 @@
 // common properties that are shared among all Jenkins projects.
 // Code in this directory should conform to the Groovy style guide.
 //  http://groovy-lang.org/style-guide.html
+
+import Committers as committers
+
 class CommonJobProperties {
 
   static String checkoutDir = 'src'

@@ -17,6 +17,9 @@
  */
 
 // Defines the seed job, which creates or updates all other Jenkins projects.
+
+import Committers as committers
+
 job('beam_SeedJob_Standalone') {
   description('Automatically configures all Apache Beam Jenkins projects based' +
       ' on Jenkins DSL groovy files checked into the code repository.')
