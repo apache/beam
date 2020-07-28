@@ -30,7 +30,3 @@ test.dependsOn "testPy${pythonVersionSuffix}Cython"
 project.task("preCommitPy${pythonVersionSuffix}") {
       dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPy${pythonVersionSuffix}Cython"]
 }
-
-project.task("preCommitPy38") {
-      dependsOn = ["testPy38Cloud", "testPy38CloudCoverage"]
-}
