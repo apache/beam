@@ -530,7 +530,7 @@ class _TaggedReceivers(dict):
 
   def __missing__(self, tag):
     self[tag] = receiver = ConsumerSet(
-        self._counter_factory, self._step_name, tag, [], None)
+        self._counter_factory, self._step_name, tag, [], None, None)
     return receiver
 
   def total_output_bytes(self):
