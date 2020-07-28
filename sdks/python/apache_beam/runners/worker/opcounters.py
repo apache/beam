@@ -33,10 +33,10 @@ from typing import TYPE_CHECKING
 from typing import Optional
 
 from apache_beam.internal import pickler
+from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
 from apache_beam.utils import counters
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
-from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
 
 if TYPE_CHECKING:
   from apache_beam.utils import windowed_value
