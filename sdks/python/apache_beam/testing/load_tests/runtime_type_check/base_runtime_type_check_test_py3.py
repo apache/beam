@@ -99,8 +99,3 @@ class BaseRunTimeTypeCheckTest(LoadTest):
                 beam.ParDo(input_transform())
               | 'Measure time: End %i' % branch >>
                 beam.ParDo(MeasureTime(self.metrics_namespace)))
-
-
-if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO)
-  BaseRunTimeTypeCheckTest().run()
