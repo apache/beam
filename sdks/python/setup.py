@@ -201,6 +201,7 @@ REQUIRED_TEST_PACKAGES = [
 GCP_REQUIREMENTS = [
     'cachetools>=3.1.0,<4',
     'google-apitools>=0.5.31,<0.5.32',
+    'google-auth>=1.18.0',
     'google-cloud-datastore>=1.7.1,<1.8.0',
     'google-cloud-pubsub>=0.39.0,<1.1.0',
     # GCP packages required by tests
