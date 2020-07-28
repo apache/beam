@@ -259,16 +259,9 @@ class OperationCounters(object):
   def type_check(self, value):
     # type: (any, bool) -> None
 
-    if self.producer_type_hints and hasattr(self.producer_type_hints,
-                                            'output_types'):
+    if self.producer_type_hints is not None:
       output_constraint = self.producer_type_hints.output_types
-
-      while True:
-        try:
-          output_constraint = next(iter(output_constraint))
-        except TypeError:
-          break
-      if output_constraint:
+      if output_constraint is not None:
         try:
           _check_instance_type(output_constraint, value, verbose=True)
         except TypeCheckError as e:
@@ -280,21 +273,15 @@ class OperationCounters(object):
           OutputCheckWrapperDoFn._check_type(value, should_check_bytes=False)
 
     for consumer_type_hint, consumer_full_label in zip(self.consumer_type_hints, self.consumer_full_labels):
-      if consumer_type_hint and hasattr(consumer_type_hint, 'input_types'):
-        input_constraint = consumer_type_hint.input_types
-        while True:
-          try:
-            input_constraint = next(iter(input_constraint))
-          except (TypeError, StopIteration):
-            break
-        if input_constraint:
-          try:
-            _check_instance_type(input_constraint, value, verbose=True)
-          except TypeCheckError as e:
-            error_msg = (
-                'Runtime type violation detected within %s: '
-                '%s' % (consumer_full_label, e))
-            raise_with_traceback(TypeCheckError(error_msg))
+      input_constraint = consumer_type_hint.input_types
+      if input_constraint is not None:
+        try:
+          _check_instance_type(input_constraint, value, verbose=True)
+        except TypeCheckError as e:
+          error_msg = (
+              'Runtime type violation detected within %s: '
+              '%s' % (consumer_full_label, e))
+          raise_with_traceback(TypeCheckError(error_msg))
 
   def do_sample(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None

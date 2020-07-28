@@ -296,6 +296,39 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     transform = applied_transform.transform
     if isinstance(transform, core.ParDo):
       if not self._in_combine:
-        transform.fn._runtime_type_hints = transform.get_type_hints()
         transform.fn._full_label = applied_transform.full_label
-        transform.fn._runtime_fullargspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
+        transform.fn._runtime_type_hints = self.get_flattened_type_hints(transform)
+
+  def get_flattened_type_hints(self, transform):
+    type_hints = transform.get_type_hints()
+
+    input_types = None
+    if type_hints.input_types:
+      normal_hints, kwarg_hints = type_hints.input_types
+
+      if kwarg_hints:
+        input_types = kwarg_hints
+      if normal_hints:
+        input_types = normal_hints
+
+    output_types = None
+    if type_hints.output_types:
+      normal_hints, kwarg_hints = type_hints.output_types
+
+      if kwarg_hints:
+        output_types = kwarg_hints
+        if normal_hints:
+          output_types = normal_hints
+
+    if isinstance(input_types, dict):
+      argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
+      if argspec.args:
+        input_types = (input_types[argspec.args[0]], )
+
+    if input_types and len(input_types):
+      input_types = input_types[0]
+
+    if output_types and len(output_types):
+      output_types = output_types[0]
+
+    return type_hints._replace(input_types=input_types, output_types=output_types)
