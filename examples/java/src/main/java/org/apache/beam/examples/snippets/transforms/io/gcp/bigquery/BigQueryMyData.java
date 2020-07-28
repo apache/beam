@@ -20,6 +20,7 @@ package org.apache.beam.examples.snippets.transforms.io.gcp.bigquery;
 // [START bigquery_my_data]
 
 import com.google.api.services.bigquery.model.TableRow;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 
 class BigQueryMyData {
 
+  @SuppressFBWarnings("URF_UNREAD_FIELD")
   static class MyStruct {
     String stringValue;
     Long int64Value;
