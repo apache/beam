@@ -737,7 +737,7 @@ You can (optionally) also do additional verification by:
 1. Check hashes (e.g. `md5sum -c *.md5` and `sha1sum -c *.sha1`)
 1. Check signatures (e.g. `gpg --verify apache-beam-1.2.3-python.zip.asc apache-beam-1.2.3-python.zip`)
 1. `grep` for legal headers in each file.
-1. Run all jenkins suites and include links to passing tests in the voting email. (Select "Run with parameters")
+1. Run all jenkins suites and include links to passing tests in the voting email.
 1. Pull docker images to make sure they are pullable.
 ```
 docker pull {image_name}
