@@ -273,19 +273,15 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
   _in_combine = False
 
   def enter_composite_transform(self, applied_transform):
-    if isinstance(applied_transform.transform, core.CombinePerKey):
+    if isinstance(applied_transform.transform, core.CombineFn):
       self._in_combine = True
-      self._type_hints = applied_transform.transform.get_type_hints()
 
   def leave_composite_transform(self, applied_transform):
-    if isinstance(applied_transform.transform, core.CombinePerKey):
+    if isinstance(applied_transform.transform, core.CombineFn):
       self._in_combine = False
 
   def visit_transform(self, applied_transform):
     transform = applied_transform.transform
     if isinstance(transform, core.ParDo):
-      if self._in_combine:
-        if isinstance(transform.fn, core.CombineValuesDoFn):
-          transform.fn.combinefn._runtime_type_hints = self._type_hints
-      else:
+      if not self._in_combine:
         transform.fn._runtime_type_hints = transform.get_type_hints()
