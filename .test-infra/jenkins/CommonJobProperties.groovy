@@ -109,9 +109,10 @@ class CommonJobProperties {
       githubPullRequest {
         admins(['asfbot'])
         useGitHubHooks()
-        orgWhitelist(['apache'])
-        allowMembersOfWhitelistedOrgsAsAdmin()
         permitAll(prPermitAll)
+        if (!prPermitAll) {
+            userWhitelist(committers.GITHUB_USERNAMES)
+        }
         // prTriggerPhrase is the argument which gets set when we want to allow
         // post-commit builds to run against pending pull requests. This block
         // overrides the default trigger phrase with the new one. Setting this

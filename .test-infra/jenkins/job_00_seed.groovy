@@ -17,6 +17,9 @@
  */
 
 // Defines the seed job, which creates or updates all other Jenkins projects.
+
+import Committers as committers
+
 job('beam_SeedJob') {
   description('Automatically configures all Apache Beam Jenkins projects based' +
       ' on Jenkins DSL groovy files checked into the code repository.')
@@ -76,8 +79,7 @@ job('beam_SeedJob') {
     githubPullRequest {
       admins(['asfbot'])
       useGitHubHooks()
-      orgWhitelist(['apache'])
-      allowMembersOfWhitelistedOrgsAsAdmin()
+      userWhitelist(committers.GITHUB_USERNAMES)
 
       // Also run when manually kicked on a pull request
       triggerPhrase('Run Seed Job')
@@ -102,6 +104,7 @@ job('beam_SeedJob') {
   }
 
   steps {
+    shell('python3.8 -m venv ve3 && source ve3/bin/activate && python .test-infra/jenkins/committers_list_generator/main.py -o .test-infra/jenkins && deactivate')
     dsl {
       // A list or a glob of other groovy files to process.
       external('.test-infra/jenkins/job_*.groovy')
