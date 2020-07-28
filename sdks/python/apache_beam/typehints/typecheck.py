@@ -297,7 +297,8 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     if isinstance(transform, core.ParDo):
       if not self._in_combine:
         transform.fn._full_label = applied_transform.full_label
-        transform.fn._runtime_type_hints = self.get_flattened_type_hints(transform)
+        transform.fn._runtime_type_hints = self.get_flattened_type_hints(
+            transform)
 
   def get_flattened_type_hints(self, transform):
     type_hints = transform.get_type_hints()
@@ -331,4 +332,5 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     if output_types and len(output_types):
       output_types = output_types[0]
 
-    return type_hints._replace(input_types=input_types, output_types=output_types)
+    return type_hints._replace(
+        input_types=input_types, output_types=output_types)
