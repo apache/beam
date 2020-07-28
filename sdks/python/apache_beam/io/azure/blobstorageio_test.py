@@ -200,6 +200,40 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertTrue(
         'The specified blob does not exist.' in err.exception.message)
     self.assertEqual(err.exception.code, 404)
+  
+  def test_copy_tree(self):
+    src_dir_name = self.TEST_DATA_PATH + 'mysource/'
+    dest_dir_name = self.TEST_DATA_PATH + 'mydest/'
+    file_size = 1024
+    paths = ['a', 'b/c', 'b/d']
+    for path in paths:
+      src_file_name = src_dir_name + path
+      dest_file_name = dest_dir_name + path
+      self._insert_random_file(src_file_name, file_size)
+      self.assertTrue(
+          src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+      self.assertFalse(
+          dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+      
+    results = self.azfs.copy_tree(src_dir_name, dest_dir_name)
+
+    for src_file_name, dest_file_name, err in results:
+      self.assertTrue(src_dir_name in src_file_name)
+      self.assertTrue(dest_dir_name in dest_file_name)
+      self.assertIsNone(err)
+
+      self.assertTrue(
+        src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+      self.assertTrue(
+        dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+    
+    # Clean up
+    for path in paths:
+      src_file_name = src_dir_name + path
+      dest_file_name = dest_dir_name + path
+      # TODO : Add delete_files functionality
+      self.azfs.delete(src_file_name)
+      self.azfs.delete(dest_file_name)    
 
   def test_rename(self):
     src_file_name = self.TEST_DATA_PATH + 'mysource'
