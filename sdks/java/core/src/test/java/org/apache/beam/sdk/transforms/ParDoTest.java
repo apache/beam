@@ -141,6 +141,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
@@ -2413,7 +2414,7 @@ public class ParDoTest implements Serializable {
       }
 
       @Override
-      public boolean equals(Object other) {
+      public boolean equals(@Nullable Object other) {
         return other instanceof TestSimpleStatefulDoFn;
       }
 
@@ -4126,7 +4127,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTestStream.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void duplicateTimerSetting() {
       TestStream<KV<String, String>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
@@ -4640,7 +4641,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

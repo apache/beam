@@ -44,6 +44,7 @@ cdef class MethodWrapper(object):
   cdef object restriction_provider_arg_name
   cdef object watermark_estimator_provider
   cdef object watermark_estimator_provider_arg_name
+  cdef bint unbounded_per_element
 
 
 cdef class DoFnSignature(object):
@@ -94,7 +95,12 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef object threadsafe_restriction_tracker
   cdef object threadsafe_watermark_estimator
   cdef WindowedValue current_windowed_value
+  cdef object restriction
+  cdef object watermark_estimator_state
+  cdef object current_window_index
+  cdef object stop_window_index
   cdef bint is_key_param_required
+  cdef object splitting_lock
 
 
 cdef class DoFnRunner:

@@ -46,7 +46,6 @@ import java.util.List;
 import java.util.OptionalInt;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -85,6 +84,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -391,11 +391,9 @@ public class SpannerIO {
 
     abstract SpannerConfig getSpannerConfig();
 
-    @Nullable
-    abstract PCollectionView<Transaction> getTransaction();
+    abstract @Nullable PCollectionView<Transaction> getTransaction();
 
-    @Nullable
-    abstract TimestampBound getTimestampBound();
+    abstract @Nullable TimestampBound getTimestampBound();
 
     abstract Builder toBuilder();
 
@@ -512,14 +510,11 @@ public class SpannerIO {
 
     abstract ReadOperation getReadOperation();
 
-    @Nullable
-    abstract TimestampBound getTimestampBound();
+    abstract @Nullable TimestampBound getTimestampBound();
 
-    @Nullable
-    abstract PCollectionView<Transaction> getTransaction();
+    abstract @Nullable PCollectionView<Transaction> getTransaction();
 
-    @Nullable
-    abstract PartitionOptions getPartitionOptions();
+    abstract @Nullable PartitionOptions getPartitionOptions();
 
     abstract Boolean getBatching();
 
@@ -696,8 +691,7 @@ public class SpannerIO {
 
     abstract SpannerConfig getSpannerConfig();
 
-    @Nullable
-    abstract TimestampBound getTimestampBound();
+    abstract @Nullable TimestampBound getTimestampBound();
 
     abstract Builder toBuilder();
 
@@ -807,8 +801,7 @@ public class SpannerIO {
 
     abstract FailureMode getFailureMode();
 
-    @Nullable
-    abstract PCollection getSchemaReadySignal();
+    abstract @Nullable PCollection getSchemaReadySignal();
 
     abstract OptionalInt getGroupingFactor();
 

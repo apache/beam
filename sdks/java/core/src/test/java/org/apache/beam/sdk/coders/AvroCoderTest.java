@@ -48,7 +48,6 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
-import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.Stringable;
 import org.apache.avro.reflect.Union;
@@ -69,6 +68,7 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
@@ -112,7 +112,7 @@ public class AvroCoderTest {
 
     // auto-generated
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -914,8 +914,7 @@ public class AvroCoderTest {
 
   private static class NullableField {
     @SuppressWarnings("unused")
-    @Nullable
-    private String nullable;
+    private @Nullable String nullable;
   }
 
   @Test
@@ -925,20 +924,17 @@ public class AvroCoderTest {
 
   private static class NullableNonDeterministicField {
     @SuppressWarnings("unused")
-    @Nullable
-    private NonDeterministicArray nullableNonDetArray;
+    private @Nullable NonDeterministicArray nullableNonDetArray;
   }
 
   private static class NullableCyclic {
     @SuppressWarnings("unused")
-    @Nullable
-    private NullableCyclic nullableNullableCyclicField;
+    private @Nullable NullableCyclic nullableNullableCyclicField;
   }
 
   private static class NullableCyclicField {
     @SuppressWarnings("unused")
-    @Nullable
-    private Cyclic nullableCyclicField;
+    private @Nullable Cyclic nullableCyclicField;
   }
 
   @Test
@@ -988,7 +984,7 @@ public class AvroCoderTest {
     protected GenericWithAnnotation() {}
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof GenericWithAnnotation
           && onlySomeTypesAllowed.equals(((GenericWithAnnotation<?>) other).onlySomeTypesAllowed);
     }

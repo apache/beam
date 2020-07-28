@@ -347,8 +347,10 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
   @Override
   public void close() throws Exception {
-    metricContainer.registerMetricsForPipelineResult();
     try {
+      if (metricContainer != null) {
+        metricContainer.registerMetricsForPipelineResult();
+      }
       super.close();
       if (localReaders != null) {
         for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {

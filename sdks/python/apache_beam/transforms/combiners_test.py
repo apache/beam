@@ -119,6 +119,13 @@ class CombineTest(unittest.TestCase):
           result_windowed_mean,
           equal_to([mean]),
           label='assert:mean-wo-defaults')
+      result_windowed_count = (
+          windowed
+          | 'count-wo-defaults' >> combine.Count.Globally().without_defaults())
+      assert_that(
+          result_windowed_count,
+          equal_to([size]),
+          label='assert:count-wo-defaults')
 
       # Again for per-key combines.
       pcoll = pipeline | 'start-perkey' >> Create([('a', x) for x in vals])
@@ -129,6 +136,7 @@ class CombineTest(unittest.TestCase):
 
   def test_top(self):
     with TestPipeline() as pipeline:
+      timestamp = 0
 
       # First for global combines.
       pcoll = pipeline | 'start' >> Create([6, 3, 1, 1, 9, 1, 5, 2, 0, 6])
@@ -136,6 +144,23 @@ class CombineTest(unittest.TestCase):
       result_bot = pcoll | 'bot' >> combine.Top.Smallest(4)
       assert_that(result_top, equal_to([[9, 6, 6, 5, 3]]), label='assert:top')
       assert_that(result_bot, equal_to([[0, 1, 1, 1]]), label='assert:bot')
+
+      # Now for global combines without default
+      timestamped = pcoll | Map(lambda x: TimestampedValue(x, timestamp))
+      windowed = timestamped | 'window' >> WindowInto(FixedWindows(60))
+      result_windowed_top = windowed | 'top-wo-defaults' >> combine.Top.Largest(
+          5, has_defaults=False)
+      result_windowed_bot = (
+          windowed
+          | 'bot-wo-defaults' >> combine.Top.Smallest(4, has_defaults=False))
+      assert_that(
+          result_windowed_top,
+          equal_to([[9, 6, 6, 5, 3]]),
+          label='assert:top-wo-defaults')
+      assert_that(
+          result_windowed_bot,
+          equal_to([[0, 1, 1, 1]]),
+          label='assert:bot-wo-defaults')
 
       # Again for per-key combines.
       pcoll = pipeline | 'start-perkey' >> Create(
@@ -333,12 +358,24 @@ class CombineTest(unittest.TestCase):
       assert sorted(actual[0]) in [[1, 1, 2], [1, 2, 2]], actual
 
     with TestPipeline() as pipeline:
+      timestamp = 0
       pcoll = pipeline | 'start' >> Create([1, 1, 2, 2])
+
+      # Now for global combines without default
+      timestamped = pcoll | Map(lambda x: TimestampedValue(x, timestamp))
+      windowed = timestamped | 'window' >> WindowInto(FixedWindows(60))
+
       for ix in range(9):
         assert_that(
             pcoll | 'sample-%d' % ix >> combine.Sample.FixedSizeGlobally(3),
             is_good_sample,
             label='check-%d' % ix)
+        result_windowed = (
+            windowed
+            | 'sample-wo-defaults-%d' % ix >>
+            combine.Sample.FixedSizeGlobally(3).without_defaults())
+        assert_that(
+            result_windowed, is_good_sample, label='check-wo-defaults-%d' % ix)
 
   def test_per_key_sample(self):
     with TestPipeline() as pipeline:
@@ -382,8 +419,16 @@ class CombineTest(unittest.TestCase):
   def test_to_list_and_to_dict(self):
     with TestPipeline() as pipeline:
       the_list = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
+      timestamp = 0
       pcoll = pipeline | 'start' >> Create(the_list)
       result = pcoll | 'to list' >> combine.ToList()
+
+      # Now for global combines without default
+      timestamped = pcoll | Map(lambda x: TimestampedValue(x, timestamp))
+      windowed = timestamped | 'window' >> WindowInto(FixedWindows(60))
+      result_windowed = (
+          windowed
+          | 'to list wo defaults' >> combine.ToList().without_defaults())
 
       def matcher(expected):
         def match(actual):
@@ -392,11 +437,21 @@ class CombineTest(unittest.TestCase):
         return match
 
       assert_that(result, matcher([the_list]))
+      assert_that(
+          result_windowed, matcher([the_list]), label='to-list-wo-defaults')
 
     with TestPipeline() as pipeline:
       pairs = [(1, 2), (3, 4), (5, 6)]
+      timestamp = 0
       pcoll = pipeline | 'start-pairs' >> Create(pairs)
       result = pcoll | 'to dict' >> combine.ToDict()
+
+      # Now for global combines without default
+      timestamped = pcoll | Map(lambda x: TimestampedValue(x, timestamp))
+      windowed = timestamped | 'window' >> WindowInto(FixedWindows(60))
+      result_windowed = (
+          windowed
+          | 'to dict wo defaults' >> combine.ToDict().without_defaults())
 
       def matcher():
         def match(actual):
@@ -406,12 +461,21 @@ class CombineTest(unittest.TestCase):
         return match
 
       assert_that(result, matcher())
+      assert_that(result_windowed, matcher(), label='to-dict-wo-defaults')
 
   def test_to_set(self):
     pipeline = TestPipeline()
     the_list = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
+    timestamp = 0
     pcoll = pipeline | 'start' >> Create(the_list)
     result = pcoll | 'to set' >> combine.ToSet()
+
+    # Now for global combines without default
+    timestamped = pcoll | Map(lambda x: TimestampedValue(x, timestamp))
+    windowed = timestamped | 'window' >> WindowInto(FixedWindows(60))
+    result_windowed = (
+        windowed
+        | 'to set wo defaults' >> combine.ToSet().without_defaults())
 
     def matcher(expected):
       def match(actual):
@@ -420,6 +484,8 @@ class CombineTest(unittest.TestCase):
       return match
 
     assert_that(result, matcher(set(the_list)))
+    assert_that(
+        result_windowed, matcher(set(the_list)), label='to-set-wo-defaults')
 
   def test_combine_globally_with_default(self):
     with TestPipeline() as p:
@@ -715,9 +781,18 @@ class LatestTest(unittest.TestCase):
       # PCollection to go through a DoFn so that the PCollection consists of
       # the elements with timestamps assigned to them instead of a PCollection
       # of TimestampedValue(element, timestamp).
-      pc = p | Create(l) | Map(lambda x: x)
-      latest = pc | combine.Latest.Globally()
+      pcoll = p | Create(l) | Map(lambda x: x)
+      latest = pcoll | combine.Latest.Globally()
       assert_that(latest, equal_to([2]))
+
+      # Now for global combines without default
+      windowed = pcoll | 'window' >> WindowInto(FixedWindows(180))
+      result_windowed = (
+          windowed
+          |
+          'latest wo defaults' >> combine.Latest.Globally().without_defaults())
+
+      assert_that(result_windowed, equal_to([3, 2]), label='latest-wo-defaults')
 
   def test_globally_empty(self):
     l = []

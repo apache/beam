@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Tracks the current value (and delta) for a Counter metric for a specific context and bundle.
@@ -94,7 +95,7 @@ public class CounterCell implements Counter, MetricCell<Long> {
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (object instanceof CounterCell) {
       CounterCell counterCell = (CounterCell) object;
       return Objects.equals(dirty, counterCell.dirty)

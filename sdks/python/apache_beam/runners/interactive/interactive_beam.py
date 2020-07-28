@@ -499,7 +499,7 @@ def head(pcoll, n=5, include_window_info=False):
     # Read from pcoll cache, then convert to DF
     pipeline_instrument = pi.PipelineInstrument(pcoll.pipeline)
     key = pipeline_instrument.cache_key(pcoll)
-    cache_manager = ie.current_env().cache_manager()
+    cache_manager = ie.current_env().get_cache_manager(user_pipeline)
 
     coder = cache_manager.load_pcoder('full', key)
     reader, _ = cache_manager.read('full', key)
@@ -538,11 +538,12 @@ def show_graph(pipeline):
   pipeline_graph.PipelineGraph(pipeline).display_graph()
 
 
-def evict_captured_data():
-  """Forcefully evicts all captured replayable data.
+def evict_captured_data(pipeline=None):
+  """Forcefully evicts all captured replayable data for the given pipeline. If
+  no pipeline is specified, evicts for all user defined pipelines.
 
   Once invoked, Interactive Beam will capture new data based on the guidance of
   options the next time it evaluates/visualizes PCollections or runs pipelines.
   """
   from apache_beam.runners.interactive.options import capture_control
-  capture_control.evict_captured_data()
+  capture_control.evict_captured_data(pipeline)

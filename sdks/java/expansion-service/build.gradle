@@ -17,7 +17,9 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.expansion.service')
+applyJavaNature(
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.sdk.expansion.service')
 
 description = "Apache Beam :: SDKs :: Java :: Expansion Service"
 ext.summary = """Contains code that can be used to run an expansion service."""

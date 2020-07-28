@@ -2356,7 +2356,7 @@ public class TimestampNanos implements LogicalType<Instant, Row> {
     return Row.withSchema(schema).addValues(instant.getEpochSecond(), instant.getNano()).build();
   }
   
-  // Convert the underlying Row type to and Instant. Called by Beam when necessary.
+  // Convert the underlying Row type to an Instant. Called by Beam when necessary.
   @Override public Instant toInputType(Row base) {
     return Instant.of(row.getInt64("seconds"), row.getInt32("nanos"));
   }
@@ -3003,7 +3003,7 @@ For example, the following application
 purchases.apply(AddFields.<PurchasePojo>create()
     .field("timeOfDaySeconds", FieldType.INT32)
     .field("shippingAddress.deliveryNotes", FieldType.STRING)
-    .field("transactions.isFlagged, FieldType.BOOLEAN, false));
+    .field("transactions.isFlagged", FieldType.BOOLEAN, false));
 {{< /highlight >}}
 
 Results in a `PCollection` with an expanded schema. All of the rows and fields of the input, but also with the specified 

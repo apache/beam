@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -64,6 +63,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -210,8 +210,7 @@ public class BigtableIO {
     abstract BigtableReadOptions getBigtableReadOptions();
 
     /** Returns the table being read from. */
-    @Nullable
-    public String getTableId() {
+    public @Nullable String getTableId() {
       ValueProvider<String> tableId = getBigtableConfig().getTableId();
       return tableId != null && tableId.isAccessible() ? tableId.get() : null;
     }
@@ -222,8 +221,7 @@ public class BigtableIO {
      * @deprecated will be replaced by bigtable options configurator.
      */
     @Deprecated
-    @Nullable
-    public BigtableOptions getBigtableOptions() {
+    public @Nullable BigtableOptions getBigtableOptions() {
       return getBigtableConfig().getBigtableOptions();
     }
 
@@ -516,8 +514,7 @@ public class BigtableIO {
      * @deprecated will be replaced by bigtable options configurator.
      */
     @Deprecated
-    @Nullable
-    public BigtableOptions getBigtableOptions() {
+    public @Nullable BigtableOptions getBigtableOptions() {
       return getBigtableConfig().getBigtableOptions();
     }
 
@@ -889,8 +886,8 @@ public class BigtableIO {
     ////// Private state and internal implementation details //////
     private final BigtableConfig config;
     private final BigtableReadOptions readOptions;
-    @Nullable private Long estimatedSizeBytes;
-    @Nullable private transient List<SampleRowKeysResponse> sampleRowKeys;
+    private @Nullable Long estimatedSizeBytes;
+    private transient @Nullable List<SampleRowKeysResponse> sampleRowKeys;
 
     /** Creates a new {@link BigtableSource} with just one {@link ByteKeyRange}. */
     protected BigtableSource withSingleRange(ByteKeyRange range) {
@@ -1236,8 +1233,7 @@ public class BigtableIO {
       return readOptions.getKeyRanges().get();
     }
 
-    @Nullable
-    public RowFilter getRowFilter() {
+    public @Nullable RowFilter getRowFilter() {
       ValueProvider<RowFilter> rowFilter = readOptions.getRowFilter();
       return rowFilter != null && rowFilter.isAccessible() ? rowFilter.get() : null;
     }
@@ -1320,8 +1316,7 @@ public class BigtableIO {
     }
 
     @Override
-    @Nullable
-    public final synchronized BigtableSource splitAtFraction(double fraction) {
+    public final @Nullable synchronized BigtableSource splitAtFraction(double fraction) {
       ByteKey splitKey;
       ByteKeyRange range = rangeTracker.getRange();
       try {

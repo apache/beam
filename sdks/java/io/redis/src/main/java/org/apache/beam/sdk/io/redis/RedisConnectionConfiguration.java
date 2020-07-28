@@ -21,9 +21,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Protocol;
 
@@ -38,8 +38,7 @@ public abstract class RedisConnectionConfiguration implements Serializable {
 
   abstract ValueProvider<Integer> port();
 
-  @Nullable
-  abstract ValueProvider<String> auth();
+  abstract @Nullable ValueProvider<String> auth();
 
   abstract ValueProvider<Integer> timeout();
 

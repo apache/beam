@@ -37,6 +37,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.PrimitiveSink;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A Bloom filter implementation that maintains an expected false probability of {@code 0.000001}
@@ -111,7 +112,7 @@ public class ScalableBloomFilter implements Serializable {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (other == this) {
       return true;
     }

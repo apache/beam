@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.TIMESTAMP_FIELD;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.schemas.transforms.DropFields;
@@ -40,19 +39,14 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * whether config.getValue("timestampAttributeKey") is set.
  */
 class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<PubsubMessage>> {
-  private final Row config;
-  private final Boolean useTimestampAttribute;
+  private final boolean useTimestampAttribute;
 
-  private RowToPubsubMessage(Row config, Boolean useFlatSchema, Boolean useTimestampAttribute) {
-    checkArgument(useFlatSchema, "RowToPubsubMessage is only supported for flattened schemas.");
-
-    this.config = config;
+  private RowToPubsubMessage(boolean useTimestampAttribute) {
     this.useTimestampAttribute = useTimestampAttribute;
   }
 
-  public static RowToPubsubMessage fromConfig(
-      Row config, Boolean useFlatSchema, Boolean useTimestampAttribute) {
-    return new RowToPubsubMessage(config, useFlatSchema, useTimestampAttribute);
+  public static RowToPubsubMessage withTimestampAttribute(boolean useTimestampAttribute) {
+    return new RowToPubsubMessage(useTimestampAttribute);
   }
 
   @Override

@@ -24,6 +24,7 @@ from array import array
 
 from apache_beam.coders import typecoders
 from apache_beam.coders.coder_impl import StreamCoderImpl
+from apache_beam.coders.coders import BooleanCoder
 from apache_beam.coders.coders import BytesCoder
 from apache_beam.coders.coders import Coder
 from apache_beam.coders.coders import FastCoder
@@ -87,7 +88,11 @@ class RowCoder(FastCoder):
   @staticmethod
   def from_type_hint(type_hint, registry):
     if isinstance(type_hint, row_type.RowTypeConstraint):
-      schema = named_fields_to_schema(type_hint._fields)
+      try:
+        schema = named_fields_to_schema(type_hint._fields)
+      except ValueError:
+        # TODO(BEAM-10570): Consider a pythonsdk logical type.
+        return typecoders.registry.get_coder(object)
     else:
       schema = named_tuple_to_schema(type_hint)
     return RowCoder(schema)
@@ -107,6 +112,10 @@ class RowCoder(FastCoder):
         return FloatCoder()
       elif field_type.atomic_type == schema_pb2.STRING:
         return StrUtf8Coder()
+      elif field_type.atomic_type == schema_pb2.BOOLEAN:
+        return BooleanCoder()
+      elif field_type.atomic_type == schema_pb2.BYTES:
+        return BytesCoder()
     elif type_info == "array_type":
       return IterableCoder(
           RowCoder.coder_from_type(field_type.array_type.element_type))

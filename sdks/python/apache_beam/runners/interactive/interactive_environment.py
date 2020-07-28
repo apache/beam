@@ -29,10 +29,13 @@ from __future__ import absolute_import
 import atexit
 import importlib
 import logging
+import os
 import sys
+import tempfile
 
 import apache_beam as beam
 from apache_beam.runners import runner
+from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive.messaging.interactive_environment_inspector import InteractiveEnvironmentInspector
 from apache_beam.runners.interactive.utils import register_ipython_log_handler
 from apache_beam.utils.interactive_utils import is_in_ipython
@@ -99,21 +102,21 @@ _HTML_IMPORT_TEMPLATE = """
         }}"""
 
 
-def current_env(cache_manager=None):
+def current_env():
   """Gets current Interactive Beam environment."""
   global _interactive_beam_env
   if not _interactive_beam_env:
-    _interactive_beam_env = InteractiveEnvironment(cache_manager)
+    _interactive_beam_env = InteractiveEnvironment()
   return _interactive_beam_env
 
 
-def new_env(cache_manager=None):
+def new_env():
   """Creates a new Interactive Beam environment to replace current one."""
   global _interactive_beam_env
   if _interactive_beam_env:
     _interactive_beam_env.cleanup()
   _interactive_beam_env = None
-  return current_env(cache_manager)
+  return current_env()
 
 
 class InteractiveEnvironment(object):
@@ -126,11 +129,13 @@ class InteractiveEnvironment(object):
   also visualize and introspect those PCollections in user code since they have
   handles to the variables.
   """
-  def __init__(self, cache_manager=None):
-    self._cache_manager = cache_manager
-    # Register a cleanup routine when kernel is restarted or terminated.
-    if cache_manager:
-      atexit.register(self.cleanup)
+  def __init__(self):
+    # Registers a cleanup routine when system exits.
+    atexit.register(self.cleanup)
+    # Holds cache managers that manage source recording and intermediate
+    # PCollection cache for each pipeline. Each key is a stringified user
+    # defined pipeline instance's id.
+    self._cache_managers = {}
     # Holds class instances, module object, string of module names.
     self._watching_set = set()
     # Holds variables list of (Dict[str, object]).
@@ -245,12 +250,19 @@ class InteractiveEnvironment(object):
     information consumable by other applications."""
     return self._inspector
 
-  def cleanup(self):
-    # Utilizes cache manager to clean up cache from everywhere.
-    if self.cache_manager():
-      self.cache_manager().cleanup()
-    self.evict_computed_pcollections()
-    self.evict_cached_source_signature()
+  def cleanup(self, pipeline=None):
+    """Cleans up cached states for the given pipeline. Cleans up
+    for all pipelines if no specific pipeline is given."""
+    if pipeline:
+      cache_manager = self.get_cache_manager(pipeline)
+      if cache_manager:
+        cache_manager.cleanup()
+    else:
+      for _, cache_manager in self._cache_managers.items():
+        cache_manager.cleanup()
+
+    self.evict_computed_pcollections(pipeline)
+    self.evict_cached_source_signature(pipeline)
 
   def watch(self, watchable):
     """Watches a watchable.
@@ -286,24 +298,41 @@ class InteractiveEnvironment(object):
         watching.append(vars(watchable).items())
     return watching
 
-  def set_cache_manager(self, cache_manager):
-    """Sets the cache manager held by current Interactive Environment."""
-    if self._cache_manager is cache_manager:
+  def set_cache_manager(self, cache_manager, pipeline):
+    """Sets the cache manager held by current Interactive Environment for the
+    given pipeline."""
+    if self.get_cache_manager(pipeline) is cache_manager:
       # NOOP if setting to the same cache_manager.
       return
-    if self._cache_manager:
+    if self.get_cache_manager(pipeline):
       # Invoke cleanup routine when a new cache_manager is forcefully set and
       # current cache_manager is not None.
-      self.cleanup()
-      atexit.unregister(self.cleanup)
-    self._cache_manager = cache_manager
-    if self._cache_manager:
-      # Re-register cleanup routine for the new cache_manager if it's not None.
-      atexit.register(self.cleanup)
+      self.cleanup(pipeline)
+    self._cache_managers[str(id(pipeline))] = cache_manager
 
-  def cache_manager(self):
-    """Gets the cache manager held by current Interactive Environment."""
-    return self._cache_manager
+  def get_cache_manager(self, pipeline, create_if_absent=False):
+    """Gets the cache manager held by current Interactive Environment for the
+    given pipeline. If the pipeline is absent from the environment while
+    create_if_absent is True, creates and returns a new file based cache
+    manager for the pipeline."""
+    cache_manager = self._cache_managers.get(str(id(pipeline)), None)
+    if not cache_manager and create_if_absent:
+      cache_dir = tempfile.mkdtemp(
+          suffix=str(id(pipeline)),
+          prefix='it-',
+          dir=os.environ.get('TEST_TMPDIR', None))
+      cache_manager = cache.FileBasedCacheManager(cache_dir)
+      self._cache_managers[str(id(pipeline))] = cache_manager
+    return cache_manager
+
+  def evict_cache_manager(self, pipeline=None):
+    """Evicts the cache manager held by current Interactive Environment for the
+    given pipeline. Noop if the pipeline is absent from the environment. If no
+    pipeline is specified, evicts for all pipelines."""
+    self.cleanup(pipeline)
+    if pipeline:
+      return self._cache_managers.pop(str(id(pipeline)), None)
+    self._cache_managers.clear()
 
   def set_pipeline_result(self, pipeline, result):
     """Sets the pipeline run result. Adds one if absent. Otherwise, replace."""
@@ -390,17 +419,15 @@ class InteractiveEnvironment(object):
     code execution is under ipython due to the possibility that any user-defined
     pipeline can be re-evaluated through notebook cell re-execution at any time.
 
-    Each time this is invoked, the tracked user pipelines are refreshed to
-    remove any pipeline instances that are no longer in watched scope. For
-    example, after a notebook cell re-execution re-evaluating a pipeline
-    creation, the last pipeline reference created by last evaluation will not be
-    in watched scope anymore.
+    Each time this is invoked, it will check if there is a cache manager
+    already created for each user defined pipeline. If not, create one for it.
     """
     self._tracked_user_pipelines = set()
     for watching in self.watching():
       for _, val in watching:
         if isinstance(val, beam.pipeline.Pipeline):
           self._tracked_user_pipelines.add(val)
+          _ = self.get_cache_manager(val, create_if_absent=True)
 
   @property
   def tracked_user_pipelines(self):
@@ -421,13 +448,16 @@ class InteractiveEnvironment(object):
     """
     self._computed_pcolls.update(pcoll for pcoll in pcolls)
 
-  def evict_computed_pcollections(self):
-    """Evicts all computed PCollections.
-
-    Interactive Beam will treat none of the PCollections in any given pipeline
-    as completely computed.
+  def evict_computed_pcollections(self, pipeline=None):
+    """Evicts all computed PCollections for the given pipeline. If no pipeline
+    is specified, evicts for all pipelines.
     """
-    self._computed_pcolls = set()
+    if pipeline:
+      for pcoll in self._computed_pcolls:
+        if pcoll.pipeline is pipeline:
+          self._computed_pcolls.discard(pcoll)
+    else:
+      self._computed_pcolls = set()
 
   @property
   def computed_pcollections(self):

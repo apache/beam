@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -110,10 +110,10 @@ public class AssignEventTime<InputT> extends Operator<InputT>
   public static class Builder<InputT>
       implements OfBuilder, UsingBuilder<InputT>, Builders.Output<InputT> {
 
-    @Nullable private final String name;
+    private final @Nullable String name;
     private PCollection<InputT> input;
     private ExtractEventTime<InputT> eventTimeExtractor;
-    @Nullable private Duration allowedTimestampSkew = null;
+    private @Nullable Duration allowedTimestampSkew = null;
 
     private Builder(@Nullable String name) {
       this.name = name;

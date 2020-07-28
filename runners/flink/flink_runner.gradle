@@ -29,6 +29,7 @@ apply plugin: 'org.apache.beam.module'
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.runners.flink',
     enableChecker: false,
+    ignoreRawtypeErrors: true,
     archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName))
 
 description = "Apache Beam :: Runners :: Flink $flink_version"

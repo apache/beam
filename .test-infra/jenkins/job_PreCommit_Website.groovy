@@ -22,7 +22,6 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Website',
     gradleTask: ':websitePreCommit',
-    triggerPathPatterns: ['^website/.*$']
-)
+    triggerPathPatterns: ['^website/.*$'])
 builder.build()
 
