@@ -321,8 +321,11 @@ public class BigQueryUtils {
         field.setFields(toTableFieldSchema(subType));
       }
       if (TypeName.MAP == type.getTypeName()) {
-        Schema mapSchema = Schema.builder().addField("key", type.getMapKeyType())
-                .addField("value", type.getMapValueType()).build();
+        Schema mapSchema =
+            Schema.builder()
+                .addField("key", type.getMapKeyType())
+                .addField("value", type.getMapValueType())
+                .build();
         type = FieldType.row(mapSchema);
         field.setFields(toTableFieldSchema(mapSchema));
         field.setMode(Mode.REPEATED.toString());
