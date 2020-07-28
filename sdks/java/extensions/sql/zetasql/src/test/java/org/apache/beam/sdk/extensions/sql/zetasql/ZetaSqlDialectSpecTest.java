@@ -4329,4 +4329,36 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(singleField).addValues(15L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
+
+  @Test
+  public void testCreateFunctionStatement() {
+    String sql =
+        "CREATE FUNCTION fun (str STRING, regStr STRING) RETURNS BOOLEAN LANGUAGE java OPTIONS (path='gs://test-bucket/udf.jar'); "
+            + "SELECT fun(\"a\", \"a\"), 'apple'='beta'";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema singleField =
+        Schema.builder().addBooleanField("field1").addBooleanField("field2").build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(singleField).addValues(true, false).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testCreateFunctionStatement2() {
+    String sql =
+        "CREATE AGGREGATE FUNCTION agg_fun (str STRING) RETURNS INT64 LANGUAGE java OPTIONS (path='gs://test-bucket/udf.jar'); "
+            + "SELECT agg_fun(Value) from KeyValue";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema singleField = Schema.builder().addInt64Field("field1").build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValue(2L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
 }

@@ -37,6 +37,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteC
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptUtil;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitDef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.prepare.CalciteCatalogReader;
@@ -57,9 +58,13 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Framework
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** ZetaSQLQueryPlanner. */
 public class ZetaSQLQueryPlanner implements QueryPlanner {
+  private static final Logger LOG = LoggerFactory.getLogger(ZetaSQLQueryPlanner.class);
+
   private final ZetaSQLPlannerImpl plannerImpl;
 
   public ZetaSQLQueryPlanner(FrameworkConfig config) {
@@ -95,6 +100,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
           continue;
         } else if (rule instanceof BeamCalcRule) {
           bd.add(BeamZetaSqlCalcRule.INSTANCE);
+          bd.add(BeamJavaUdfCalcRule.INSTANCE);
         } else {
           bd.add(rule);
         }
@@ -164,7 +170,9 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     RelMetadataQuery.THREAD_PROVIDERS.set(
         JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
     root.rel.getCluster().invalidateMetadataQuery();
-    return (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
+    BeamRelNode beamRelNode = (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
+    LOG.info("BEAMPlan>\n" + RelOptUtil.toString(beamRelNode));
+    return beamRelNode;
   }
 
   private static FrameworkConfig defaultConfig(JdbcConnection connection, RuleSet[] ruleSets) {

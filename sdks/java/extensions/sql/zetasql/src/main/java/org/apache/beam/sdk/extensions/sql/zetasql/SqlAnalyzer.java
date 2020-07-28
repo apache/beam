@@ -70,6 +70,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPl
 public class SqlAnalyzer {
   public static final String PRE_DEFINED_WINDOW_FUNCTIONS = "pre_defined_window_functions";
   public static final String USER_DEFINED_FUNCTIONS = "user_defined_functions";
+  public static final String USER_DEFINED_JAVA_SCALAR_FUNCTIONS =
+      "user_defined_java_scalar_functions";
+  public static final String USER_DEFINED_JAVA_AGGREGATE_FUNCTIONS =
+      "user_defined_java_aggregation_functions";
 
   private static final ImmutableSet<ResolvedNodeKind> SUPPORTED_STATEMENT_KINDS =
       ImmutableSet.of(
@@ -133,10 +137,16 @@ public class SqlAnalyzer {
           new Function(
               createFunctionStmt.getNamePath(),
               USER_DEFINED_FUNCTIONS,
-              // TODO(BEAM-9954) handle aggregate functions
               // TODO(BEAM-9969) handle table functions
               Mode.SCALAR,
               ImmutableList.of(createFunctionStmt.getSignature()));
+      // userFunction =
+      //     new Function(
+      //         createFunctionStmt.getNamePath(),
+      //         USER_DEFINED_FUNCTIONS,
+      //         Mode.AGGREGATE,
+      //         ImmutableList.of(createFunctionStmt.getSignature()));
+      // }
       try {
         catalog.addFunction(userFunction);
       } catch (IllegalArgumentException e) {
@@ -179,7 +189,8 @@ public class SqlAnalyzer {
                     LanguageFeature.FEATURE_V_1_1_SELECT_STAR_EXCEPT_REPLACE,
                     LanguageFeature.FEATURE_TABLE_VALUED_FUNCTIONS,
                     LanguageFeature.FEATURE_CREATE_TABLE_FUNCTION,
-                    LanguageFeature.FEATURE_TEMPLATE_FUNCTIONS)));
+                    LanguageFeature.FEATURE_TEMPLATE_FUNCTIONS,
+                    LanguageFeature.FEATURE_CREATE_AGGREGATE_FUNCTION)));
     options.getLanguageOptions().setSupportedStatementKinds(SUPPORTED_STATEMENT_KINDS);
 
     return options;

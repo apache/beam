@@ -48,14 +48,12 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.Aggre
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.AggregateUnionAggregateRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.CalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterAggregateTransposeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterProjectTransposeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterSetOpTransposeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterToCalcRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinCommuteRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinPushExpressionsRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectSetOpTransposeRule;
@@ -80,8 +78,6 @@ public class BeamRuleSets {
           // Rules for window functions
           ProjectToWindowRule.PROJECT,
           // Rules so we only have to implement Calc
-          FilterCalcMergeRule.INSTANCE,
-          ProjectCalcMergeRule.INSTANCE,
           FilterToCalcRule.INSTANCE,
           ProjectToCalcRule.INSTANCE,
           BeamIOPushDownRule.INSTANCE,

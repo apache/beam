@@ -30,6 +30,7 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateTableFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
+import java.lang.reflect.Method;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
@@ -98,6 +99,7 @@ class ZetaSQLPlannerImpl {
         analyzer.createPopulatedCatalog(defaultSchemaPlus.getName(), options, tables);
 
     ImmutableMap.Builder<String, ResolvedCreateFunctionStmt> udfBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<List<String>, Method> javaScalarFunctionBuilder = ImmutableMap.builder();
     ImmutableMap.Builder<List<String>, ResolvedNode> udtvfBuilder = ImmutableMap.builder();
 
     ResolvedStatement statement;
@@ -132,7 +134,8 @@ class ZetaSQLPlannerImpl {
     }
 
     ExpressionConverter expressionConverter =
-        new ExpressionConverter(cluster, params, udfBuilder.build());
+        new ExpressionConverter(
+            cluster, params, udfBuilder.build(), javaScalarFunctionBuilder.build());
     ConversionContext context =
         ConversionContext.of(config, expressionConverter, cluster, trait, udtvfBuilder.build());
 

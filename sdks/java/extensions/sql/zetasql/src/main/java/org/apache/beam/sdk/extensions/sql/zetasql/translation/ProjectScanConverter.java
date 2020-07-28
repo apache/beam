@@ -44,6 +44,7 @@ class ProjectScanConverter extends RelConverter<ResolvedProjectScan> {
     List<RexNode> projects =
         getExpressionConverter().retrieveRexNode(zetaNode, input.getRowType().getFieldList());
     List<String> fieldNames = getTrait().retrieveFieldNames(zetaNode.getColumnList());
+
     return LogicalProject.create(input, projects, fieldNames);
   }
 }

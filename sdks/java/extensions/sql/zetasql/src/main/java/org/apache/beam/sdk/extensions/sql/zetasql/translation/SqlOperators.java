@@ -153,7 +153,7 @@ class SqlOperators {
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
   }
 
-  private static SqlUserDefinedAggFunction createUdafOperator(
+  public static SqlUserDefinedAggFunction createUdafOperator(
       String name, SqlReturnTypeInference returnTypeInference, AggregateFunction function) {
     return new SqlUserDefinedAggFunction(
         new SqlIdentifier(name, SqlParserPos.ZERO),
@@ -185,7 +185,7 @@ class SqlOperators {
   // Helper function to create SqlUserDefinedFunction based on a function name and a method.
   // SqlUserDefinedFunction will be able to pass through Calcite codegen and get proper function
   // called.
-  private static SqlUserDefinedFunction createUdfOperator(String name, Method method) {
+  public static SqlUserDefinedFunction createUdfOperator(String name, Method method) {
     return createUdfOperator(name, method, SqlSyntax.FUNCTION);
   }
 
