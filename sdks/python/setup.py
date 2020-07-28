@@ -128,7 +128,6 @@ except ImportError:
   cythonize = lambda *args, **kwargs: []
 
 REQUIRED_PACKAGES = [
-    'google-auth>=1.18.0,<=1.20.0',
     # Apache Avro does not follow semantic versioning, so we should not auto
     # upgrade on minor versions. Due to AVRO-2429, Dataflow still
     # requires Avro 1.8.x.
@@ -146,6 +145,7 @@ REQUIRED_PACKAGES = [
     'funcsigs>=1.0.2,<2; python_version < "3.0"',
     'future>=0.18.2,<1.0.0',
     'futures>=3.2.0,<4.0.0; python_version < "3.0"',
+    'google-auth>=1.18.0,<=1.20.0',
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.18.0',
