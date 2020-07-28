@@ -298,3 +298,4 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
       if not self._in_combine:
         transform.fn._runtime_type_hints = transform.get_type_hints()
         transform.fn._full_label = applied_transform.full_label
+        transform.fn._runtime_fullargspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
