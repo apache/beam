@@ -22,13 +22,37 @@ import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 
 
+AUCTION_TAG = 'auctions'
+BID_TAG = 'bids'
+PERSON_TAG = 'person'
+
+
 def is_bid(event):
   return isinstance(event, nexmark_model.Bid)
+
+
+def is_auction(event):
+  return isinstance(event, nexmark_model.Auction)
 
 
 class JustBids(beam.PTransform):
   def expand(self, pcoll):
     return pcoll | "IsBid" >> beam.Filter(is_bid)
+
+
+class JustAuctions(beam.PTransform):
+  def expand(self, pcoll):
+    return pcoll | "IsAuction" >> beam.Filter(is_auction)
+
+
+class AuctionByIdFn(beam.DoFn):
+  def process(self, element):
+    yield element.id, element
+
+
+class BidByAuctionIdFn(beam.DoFn):
+  def process(self, element):
+    yield element.auction, element
 
 
 def auction_or_bid(event):

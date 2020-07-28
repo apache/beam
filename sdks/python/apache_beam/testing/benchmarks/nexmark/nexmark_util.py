@@ -42,8 +42,11 @@ import threading
 import json
 
 import apache_beam as beam
+from apache_beam.transforms import window
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
+from apache_beam.testing.benchmarks.nexmark.models import auction_bid
+from apache_beam.testing.benchmarks.nexmark.models import auction_price
 from apache_beam.testing.benchmarks.nexmark.models.field_name import FieldNames
 
 _LOGGER = logging.getLogger(__name__)
@@ -69,6 +72,14 @@ class Command(object):
     thread.daemon = True
     thread.start()
     thread.join(timeout)
+
+
+def setup_coder():
+  beam.coders.registry.register_coder(nexmark_model.Auction, nexmark_model.AuctionCoder)
+  beam.coders.registry.register_coder(nexmark_model.Person, nexmark_model.PersonCoder)
+  beam.coders.registry.register_coder(nexmark_model.Bid, nexmark_model.BidCoder)
+  beam.coders.registry.register_coder(auction_bid.AuctionBid, auction_bid.AuctionBidCoder)
+  beam.coders.registry.register_coder(auction_price.AuctionPrice, auction_price.AuctionPriceCoder)
 
 
 class ParseEventFn(beam.DoFn):
@@ -171,9 +182,10 @@ class ParseJsonEvnetFn(beam.DoFn):
 
 class CountAndLog(beam.PTransform):
   def expand(self, pcoll):
-    return (
-        pcoll | "Count" >> beam.combiners.Count.Globally()
-        | "Log" >> beam.Map(log_count_info))
+    return (pcoll
+            | 'window' >> beam.WindowInto(window.GlobalWindows())
+            | "Count" >> beam.combiners.Count.Globally()
+            | "Log" >> beam.Map(log_count_info))
 
 
 def log_count_info(count):

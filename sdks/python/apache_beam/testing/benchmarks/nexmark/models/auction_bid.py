@@ -15,41 +15,42 @@
 # limitations under the License.
 #
 
-"""Result of Query2."""
+"""Result of WinningBid transform."""
 from apache_beam.coders import coder_impl
 from apache_beam.coders.coders import FastCoder
 from apache_beam.testing.benchmarks.nexmark import nexmark_util
+from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 
 
-class AuctionPriceCoder(FastCoder):
+class AuctionBidCoder(FastCoder):
   def _create_impl(self):
-    return AuctionPriceCoderImpl()
+    return AuctionBidCoderImpl()
 
   def is_deterministic(self):
     # type: () -> bool
     return True
 
 
-class AuctionPrice(object):
-  CODER = AuctionPriceCoder()
+class AuctionBid(object):
+  CODER = AuctionBidCoder()
 
-  def __init__(self, auction, price):
+  def __init__(self, auction, bid):
     self.auction = auction
-    self.price = price
+    self.bid = bid
 
   def __repr__(self):
     return nexmark_util.model_to_json(self)
 
 
-class AuctionPriceCoderImpl(coder_impl.StreamCoderImpl):
-  _int_coder_impl = coder_impl.VarIntCoderImpl()
+class AuctionBidCoderImpl(coder_impl.StreamCoderImpl):
+  _auction_coder_impl = nexmark_model.AuctionCoderImpl()
+  _bid_coder_Impl = nexmark_model.BidCoderImpl()
 
-  def encode_to_stream(self, value: AuctionPrice, stream, nested):
-    self._int_coder_impl.encode_to_stream(value.auction, stream, True)
-    self._int_coder_impl.encode_to_stream(value.price, stream, True)
+  def encode_to_stream(self, value: AuctionBid, stream, nested):
+    self._auction_coder_impl.encode_to_stream(value.auction, stream, True)
+    self._bid_coder_Impl.encode_to_stream(value.bid, stream, True)
 
   def decode_from_stream(self, stream, nested):
-
-    auction = self._int_coder_impl.decode_from_stream(stream, True)
-    price = self._int_coder_impl.decode_from_stream(stream, True)
-    return AuctionPrice(auction, price)
+    auction = self._auction_coder_impl.decode_from_stream(stream, True)
+    bid = self._bid_coder_Impl.decode_from_stream(stream, True)
+    return AuctionBid(auction, bid)
