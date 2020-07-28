@@ -34,10 +34,12 @@ from typing import Optional
 
 from apache_beam.internal import pickler
 from apache_beam.typehints import TypeCheckError
+from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
 from apache_beam.utils import counters
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
+from future.utils import raise_with_traceback
 
 if TYPE_CHECKING:
   from apache_beam.utils import windowed_value
@@ -229,7 +231,8 @@ class OperationCounters(object):
           fns = pickler.loads(consumer.spec.serialized_fn)
           if fns and hasattr(fns[0], '_runtime_type_hints'):
             self.consumer_type_hints.append(fns[0]._runtime_type_hints)
-            self.consumer_full_labels.append(getattr(fns[0], '_full_label', 'No Label Found'))
+            self.consumer_full_labels.append(
+                getattr(fns[0], '_full_label', 'No Label Found'))
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
@@ -266,9 +269,15 @@ class OperationCounters(object):
         except TypeError:
           break
       if output_constraint:
-        TypeCheckWrapperDoFn.type_check(output_constraint, value, False)
+        try:
+          _check_instance_type(output_constraint, value, verbose=True)
+        except TypeCheckError as e:
+          error_msg = (
+              'Runtime type violation detected within %s: '
+              '%s' % (self.producer_full_label, e))
+          raise_with_traceback(TypeCheckError(error_msg))
 
-    for consumer_type_hint in self.consumer_type_hints:
+    for consumer_type_hint, consumer_full_label in zip(self.consumer_type_hints, self.consumer_full_labels):
       if consumer_type_hint and hasattr(consumer_type_hint, 'input_types'):
         input_constraint = consumer_type_hint.input_types
         while True:
@@ -277,7 +286,13 @@ class OperationCounters(object):
           except (TypeError, StopIteration):
             break
         if input_constraint:
-          TypeCheckWrapperDoFn.type_check(input_constraint, value, False)
+          try:
+            _check_instance_type(input_constraint, value, verbose=True)
+          except TypeCheckError as e:
+            error_msg = (
+                'Runtime type violation detected within %s: '
+                '%s' % (consumer_full_label, e))
+            raise_with_traceback(TypeCheckError(error_msg))
 
   def do_sample(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
