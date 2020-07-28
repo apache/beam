@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
-import static org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteGrouped.decode;
-import static org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteGrouped.encode;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -41,14 +39,13 @@ import com.google.cloud.spanner.TimestampBound;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -73,7 +70,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -88,6 +84,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -181,17 +178,17 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>SpannerWriteResult</h3>
  *
- * The {@link SpannerWriteResult SpannerWriteResult} object contains the results of the transform,
- * including a {@link PCollection} of MutationGroups that failed to write, and a {@link PCollection}
- * that can be used in batch pipelines as a completion signal to {@link
+ * <p>The {@link SpannerWriteResult SpannerWriteResult} object contains the results of the
+ * transform, including a {@link PCollection} of MutationGroups that failed to write, and a {@link
+ * PCollection} that can be used in batch pipelines as a completion signal to {@link
  * org.apache.beam.sdk.transforms.Wait Wait.OnSignal} to indicate when all input has been written.
  * Note that in streaming pipelines, this signal will never be triggered as the input is unbounded
  * and this {@link PCollection} is using the {@link GlobalWindow}.
  *
- * <h3>Batching</h3>
+ * <h3>Batching and Grouping</h3>
  *
  * <p>To reduce the number of transactions sent to Spanner, the {@link Mutation Mutations} are
- * grouped into batches The default maximum size of the batch is set to 1MB or 5000 mutated cells,
+ * grouped into batches. The default maximum size of the batch is set to 1MB or 5000 mutated cells,
  * or 500 rows (whichever is reached first). To override this use {@link
  * Write#withBatchSizeBytes(long) withBatchSizeBytes()}, {@link Write#withMaxNumMutations(long)
  * withMaxNumMutations()} or {@link Write#withMaxNumMutations(long) withMaxNumRows()}. Setting
@@ -205,15 +202,41 @@ import org.slf4j.LoggerFactory;
  * MaxNumMutations}.
  *
  * <p>The batches written are obtained from by grouping enough {@link Mutation Mutations} from the
- * Bundle provided by Beam to form (by default) 1000 batches. This group of {@link Mutation
- * Mutations} is then sorted by table and primary key, and the batches are created from the sorted
- * group. Each batch will then have rows with keys that are 'close' to each other to optimise write
- * performance. This grouping factor (number of batches) is controlled by the parameter {@link
+ * Bundle provided by Beam to form several batches. This group of {@link Mutation Mutations} is then
+ * sorted by table and primary key, and the batches are created from the sorted group. Each batch
+ * will then have rows for the same table, with keys that are 'close' to each other, thus optimising
+ * write efficiency by each batch affecting as few table splits as possible performance.
+ *
+ * <p>This grouping factor (number of batches) is controlled by the parameter {@link
  * Write#withGroupingFactor(int) withGroupingFactor()}.
  *
  * <p>Note that each worker will need enough memory to hold {@code GroupingFactor x
  * MaxBatchSizeBytes} Mutations, so if you have a large {@code MaxBatchSize} you may need to reduce
  * {@code GroupingFactor}
+ *
+ * <p>While Grouping and Batching increases write efficiency, it dramatically increases the latency
+ * between when a Mutation is received by the transform, and when it is actually written to the
+ * database. This is because enough Mutations need to be received to fill the grouped batches. In
+ * Batch pipelines (bounded sources), this is not normally an issue, but in Streaming (unbounded)
+ * pipelines, this latency is often seen as unacceptable.
+ *
+ * <p>There are therefore 3 different ways that this transform can be configured:
+ *
+ * <ul>
+ *   <li>With Grouping and Batching. <br>
+ *       This is the default for Batch pipelines, where sorted batches of Mutations are created and
+ *       written. This is the most efficient way to ingest large amounts of data, but the highest
+ *       latency before writing
+ *   <li>With Batching but no Grouping <br>
+ *       If {@link Write#withGroupingFactor(int) .withGroupingFactor(1)}, is set, grouping is
+ *       disabled. This is the default for Streaming pipelines. Unsorted batches are created and
+ *       written as soon as enough mutations to fill a batch are received. This reflects a
+ *       compromise where a small amount of additional latency enables more efficient writes
+ *   <li>Without any Batching <br>
+ *       If {@link Write#withBatchSizeBytes(long) .withBatchSizeBytes(0)} is set, no batching is
+ *       performed and the Mutations are written to the database as soon as they are received.
+ *       ensuring the lowest latency before Mutations are written.
+ * </ul>
  *
  * <h3>Monitoring</h3>
  *
@@ -368,11 +391,9 @@ public class SpannerIO {
 
     abstract SpannerConfig getSpannerConfig();
 
-    @Nullable
-    abstract PCollectionView<Transaction> getTransaction();
+    abstract @Nullable PCollectionView<Transaction> getTransaction();
 
-    @Nullable
-    abstract TimestampBound getTimestampBound();
+    abstract @Nullable TimestampBound getTimestampBound();
 
     abstract Builder toBuilder();
 
@@ -489,14 +510,11 @@ public class SpannerIO {
 
     abstract ReadOperation getReadOperation();
 
-    @Nullable
-    abstract TimestampBound getTimestampBound();
+    abstract @Nullable TimestampBound getTimestampBound();
 
-    @Nullable
-    abstract PCollectionView<Transaction> getTransaction();
+    abstract @Nullable PCollectionView<Transaction> getTransaction();
 
-    @Nullable
-    abstract PartitionOptions getPartitionOptions();
+    abstract @Nullable PartitionOptions getPartitionOptions();
 
     abstract Boolean getBatching();
 
@@ -673,8 +691,7 @@ public class SpannerIO {
 
     abstract SpannerConfig getSpannerConfig();
 
-    @Nullable
-    abstract TimestampBound getTimestampBound();
+    abstract @Nullable TimestampBound getTimestampBound();
 
     abstract Builder toBuilder();
 
@@ -784,8 +801,7 @@ public class SpannerIO {
 
     abstract FailureMode getFailureMode();
 
-    @Nullable
-    abstract PCollection getSchemaReadySignal();
+    abstract @Nullable PCollection getSchemaReadySignal();
 
     abstract OptionalInt getGroupingFactor();
 
@@ -983,20 +999,6 @@ public class SpannerIO {
     }
   }
 
-  /**
-   * A singleton to compare encoded MutationGroups by encoded Key that wraps {@code
-   * UnsignedBytes#lexicographicalComparator} which unfortunately is not serializable.
-   */
-  private enum EncodedKvMutationGroupComparator
-      implements Comparator<KV<byte[], byte[]>>, Serializable {
-    INSTANCE {
-      @Override
-      public int compare(KV<byte[], byte[]> a, KV<byte[], byte[]> b) {
-        return UnsignedBytes.lexicographicalComparator().compare(a.getKey(), b.getKey());
-      }
-    }
-  }
-
   /** Same as {@link Write} but supports grouped mutations. */
   public static class WriteGrouped
       extends PTransform<PCollection<MutationGroup>, SpannerWriteResult> {
@@ -1078,9 +1080,9 @@ public class SpannerIO {
             filteredMutations
                 .get(BATCHABLE_MUTATIONS_TAG)
                 .apply(
-                    "Gather And Sort",
+                    "Gather Sort And Create Batches",
                     ParDo.of(
-                            new GatherBundleAndSortFn(
+                            new GatherSortCreateBatchesFn(
                                 spec.getBatchSizeBytes(),
                                 spec.getMaxNumMutations(),
                                 spec.getMaxNumRows(),
@@ -1090,15 +1092,6 @@ public class SpannerIO {
                                         input.isBounded() == IsBounded.BOUNDED
                                             ? DEFAULT_GROUPING_FACTOR
                                             : 1),
-                                schemaView))
-                        .withSideInputs(schemaView))
-                .apply(
-                    "Create Batches",
-                    ParDo.of(
-                            new BatchFn(
-                                spec.getBatchSizeBytes(),
-                                spec.getMaxNumMutations(),
-                                spec.getMaxNumRows(),
                                 schemaView))
                         .withSideInputs(schemaView));
 
@@ -1163,70 +1156,125 @@ public class SpannerIO {
    * occur, Therefore this DoFn has to be tested in isolation.
    */
   @VisibleForTesting
-  static class GatherBundleAndSortFn extends DoFn<MutationGroup, Iterable<KV<byte[], byte[]>>> {
+  static class GatherSortCreateBatchesFn extends DoFn<MutationGroup, Iterable<MutationGroup>> {
+
     private final long maxBatchSizeBytes;
-    private final long maxNumMutations;
-    private final long maxNumRows;
-
-    // total size of the current batch.
-    private long batchSizeBytes;
-    // total number of mutated cells.
-    private long batchCells;
-    // total number of rows mutated.
-    private long batchRows;
-
+    private final long maxBatchNumMutations;
+    private final long maxBatchNumRows;
+    private final long maxSortableSizeBytes;
+    private final long maxSortableNumMutations;
+    private final long maxSortableNumRows;
     private final PCollectionView<SpannerSchema> schemaView;
+    private final ArrayList<MutationGroupContainer> mutationsToSort = new ArrayList<>();
 
-    private transient ArrayList<KV<byte[], byte[]>> mutationsToSort = null;
+    // total size of MutationGroups in mutationsToSort.
+    private long sortableSizeBytes = 0;
+    // total number of mutated cells in mutationsToSort
+    private long sortableNumCells = 0;
+    // total number of rows mutated in mutationsToSort
+    private long sortableNumRows = 0;
 
-    GatherBundleAndSortFn(
+    GatherSortCreateBatchesFn(
         long maxBatchSizeBytes,
         long maxNumMutations,
         long maxNumRows,
         long groupingFactor,
         PCollectionView<SpannerSchema> schemaView) {
-      this.maxBatchSizeBytes = maxBatchSizeBytes * groupingFactor;
-      this.maxNumMutations = maxNumMutations * groupingFactor;
-      this.maxNumRows = maxNumRows * groupingFactor;
-      this.schemaView = schemaView;
-    }
+      this.maxBatchSizeBytes = maxBatchSizeBytes;
+      this.maxBatchNumMutations = maxNumMutations;
+      this.maxBatchNumRows = maxNumRows;
 
-    @StartBundle
-    public synchronized void startBundle() throws Exception {
-      if (mutationsToSort == null) {
-        initSorter();
-      } else {
-        throw new IllegalStateException("Sorter should be null here");
+      if (groupingFactor <= 0) {
+        groupingFactor = 1;
       }
+
+      this.maxSortableSizeBytes = maxBatchSizeBytes * groupingFactor;
+      this.maxSortableNumMutations = maxNumMutations * groupingFactor;
+      this.maxSortableNumRows = maxNumRows * groupingFactor;
+      this.schemaView = schemaView;
+
+      initSorter();
     }
 
-    private void initSorter() {
-      mutationsToSort = new ArrayList<KV<byte[], byte[]>>((int) maxNumMutations);
-      batchSizeBytes = 0;
-      batchCells = 0;
-      batchRows = 0;
+    private synchronized void initSorter() {
+      mutationsToSort.clear();
+      sortableSizeBytes = 0;
+      sortableNumCells = 0;
+      sortableNumRows = 0;
     }
 
     @FinishBundle
     public synchronized void finishBundle(FinishBundleContext c) throws Exception {
-      // Only output when there is something in the batch.
-      if (mutationsToSort.isEmpty()) {
-        mutationsToSort = null;
-      } else {
-        c.output(sortAndGetList(), Instant.now(), GlobalWindow.INSTANCE);
+      sortAndOutputBatches(new OutputReceiverForFinishBundle(c));
+    }
+
+    private synchronized void sortAndOutputBatches(OutputReceiver<Iterable<MutationGroup>> out)
+        throws IOException {
+      try {
+        if (mutationsToSort.isEmpty()) {
+          // nothing to output.
+          return;
+        }
+
+        if (maxSortableNumMutations == maxBatchNumMutations) {
+          // no grouping is occurring, no need to sort and make batches, just output what we have.
+          outputBatch(out, 0, mutationsToSort.size());
+          return;
+        }
+
+        // Sort then split the sorted mutations into batches.
+        mutationsToSort.sort(Comparator.naturalOrder());
+        int batchStart = 0;
+        int batchEnd = 0;
+
+        // total size of the current batch.
+        long batchSizeBytes = 0;
+        // total number of mutated cells.
+        long batchCells = 0;
+        // total number of rows mutated.
+        long batchRows = 0;
+
+        // collect and output batches.
+        while (batchEnd < mutationsToSort.size()) {
+          MutationGroupContainer mg = mutationsToSort.get(batchEnd);
+
+          if (((batchCells + mg.numCells) > maxBatchNumMutations)
+              || ((batchSizeBytes + mg.sizeBytes) > maxBatchSizeBytes
+                  || (batchRows + mg.numRows > maxBatchNumRows))) {
+            // Cannot add new element, current batch is full; output.
+            outputBatch(out, batchStart, batchEnd);
+            batchStart = batchEnd;
+            batchSizeBytes = 0;
+            batchCells = 0;
+            batchRows = 0;
+          }
+
+          batchEnd++;
+          batchSizeBytes += mg.sizeBytes;
+          batchCells += mg.numCells;
+          batchRows += mg.numRows;
+        }
+
+        if (batchStart < batchEnd) {
+          // output remaining elements
+          outputBatch(out, batchStart, mutationsToSort.size());
+        }
+      } finally {
+        initSorter();
       }
     }
 
-    private Iterable<KV<byte[], byte[]>> sortAndGetList() throws IOException {
-      mutationsToSort.sort(EncodedKvMutationGroupComparator.INSTANCE);
-      ArrayList<KV<byte[], byte[]>> tmp = mutationsToSort;
-      // Ensure no more mutations can be added.
-      mutationsToSort = null;
-      return tmp;
+    private void outputBatch(
+        OutputReceiver<Iterable<MutationGroup>> out, int batchStart, int batchEnd) {
+      out.output(
+          mutationsToSort.subList(batchStart, batchEnd).stream()
+              .map(o -> o.mutationGroup)
+              .collect(Collectors.toList()));
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
+    public synchronized void processElement(
+        ProcessContext c, OutputReceiver<Iterable<MutationGroup>> out) throws Exception {
       SpannerSchema spannerSchema = c.sideInput(schemaView);
       MutationKeyEncoder encoder = new MutationKeyEncoder(spannerSchema);
       MutationGroup mg = c.element();
@@ -1235,79 +1283,69 @@ public class SpannerIO {
       long groupRows = mg.size();
 
       synchronized (this) {
-        if (((batchCells + groupCells) > maxNumMutations)
-            || (batchSizeBytes + groupSize) > maxBatchSizeBytes
-            || (batchRows + groupRows) > maxNumRows) {
-          c.output(sortAndGetList());
-          initSorter();
+        if (((sortableNumCells + groupCells) > maxSortableNumMutations)
+            || (sortableSizeBytes + groupSize) > maxSortableSizeBytes
+            || (sortableNumRows + groupRows) > maxSortableNumRows) {
+          sortAndOutputBatches(out);
         }
 
-        mutationsToSort.add(KV.of(encoder.encodeTableNameAndKey(mg.primary()), encode(mg)));
-        batchSizeBytes += groupSize;
-        batchCells += groupCells;
-        batchRows += groupRows;
+        mutationsToSort.add(
+            new MutationGroupContainer(
+                mg, groupSize, groupCells, groupRows, encoder.encodeTableNameAndKey(mg.primary())));
+        sortableSizeBytes += groupSize;
+        sortableNumCells += groupCells;
+        sortableNumRows += groupRows;
       }
     }
-  }
 
-  /** Batches mutations together. */
-  @VisibleForTesting
-  static class BatchFn extends DoFn<Iterable<KV<byte[], byte[]>>, Iterable<MutationGroup>> {
+    // Container class to store a MutationGroup, its sortable encoded key and its statistics.
+    private static final class MutationGroupContainer
+        implements Comparable<MutationGroupContainer> {
 
-    private final long maxBatchSizeBytes;
-    private final long maxNumMutations;
-    private final long maxNumRows;
-    private final PCollectionView<SpannerSchema> schemaView;
+      final MutationGroup mutationGroup;
+      final long sizeBytes;
+      final long numCells;
+      final long numRows;
+      final byte[] encodedKey;
 
-    BatchFn(
-        long maxBatchSizeBytes,
-        long maxNumMutations,
-        long maxNumRows,
-        PCollectionView<SpannerSchema> schemaView) {
-      this.maxBatchSizeBytes = maxBatchSizeBytes;
-      this.maxNumMutations = maxNumMutations;
-      this.maxNumRows = maxNumRows;
-      this.schemaView = schemaView;
+      MutationGroupContainer(
+          MutationGroup mutationGroup,
+          long sizeBytes,
+          long numCells,
+          long numRows,
+          byte[] encodedKey) {
+        this.mutationGroup = mutationGroup;
+        this.sizeBytes = sizeBytes;
+        this.numCells = numCells;
+        this.numRows = numRows;
+        this.encodedKey = encodedKey;
+      }
+
+      @Override
+      public int compareTo(MutationGroupContainer o) {
+        return UnsignedBytes.lexicographicalComparator().compare(this.encodedKey, o.encodedKey);
+      }
     }
 
-    @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      SpannerSchema spannerSchema = c.sideInput(schemaView);
-      // Current batch of mutations to be written.
-      ImmutableList.Builder<MutationGroup> batch = ImmutableList.builder();
-      // total size of the current batch.
-      long batchSizeBytes = 0;
-      // total number of mutated cells.
-      long batchCells = 0;
-      // total number of rows mutated.
-      long batchRows = 0;
+    // TODO(BEAM-1287): Remove this when FinishBundle has added support for an {@link
+    // OutputReceiver}
+    private static class OutputReceiverForFinishBundle
+        implements OutputReceiver<Iterable<MutationGroup>> {
 
-      // Iterate through list, outputting whenever a batch is complete.
-      for (KV<byte[], byte[]> kv : c.element()) {
-        MutationGroup mg = decode(kv.getValue());
+      private final FinishBundleContext c;
 
-        long groupSize = MutationSizeEstimator.sizeOf(mg);
-        long groupCells = MutationCellCounter.countOf(spannerSchema, mg);
-        long groupRows = mg.size();
-
-        if (((batchCells + groupCells) > maxNumMutations)
-            || ((batchSizeBytes + groupSize) > maxBatchSizeBytes
-                || (batchRows + groupRows > maxNumRows))) {
-          // Batch is full: output and reset.
-          c.output(batch.build());
-          batch = ImmutableList.builder();
-          batchSizeBytes = 0;
-          batchCells = 0;
-          batchRows = 0;
-        }
-        batch.add(mg);
-        batchSizeBytes += groupSize;
-        batchCells += groupCells;
-        batchRows += groupRows;
+      OutputReceiverForFinishBundle(FinishBundleContext c) {
+        this.c = c;
       }
-      // End of list, output what is left.
-      if (batchCells > 0) {
-        c.output(batch.build());
+
+      @Override
+      public void output(Iterable<MutationGroup> output) {
+        outputWithTimestamp(output, Instant.now());
+      }
+
+      @Override
+      public void outputWithTimestamp(Iterable<MutationGroup> output, Instant timestamp) {
+        c.output(output, timestamp, GlobalWindow.INSTANCE);
       }
     }
   }
@@ -1373,9 +1411,11 @@ public class SpannerIO {
   @VisibleForTesting
   static class WriteToSpannerFn extends DoFn<Iterable<MutationGroup>, Void> {
 
-    private transient SpannerAccessor spannerAccessor;
     private final SpannerConfig spannerConfig;
     private final FailureMode failureMode;
+
+    // SpannerAccessor can not be serialized so must be initialized at runtime in setup().
+    private transient SpannerAccessor spannerAccessor;
 
     /* Number of times an aborted write to spanner could be retried */
     private static final int ABORTED_RETRY_ATTEMPTS = 5;
@@ -1413,7 +1453,8 @@ public class SpannerIO {
 
     private final TupleTag<MutationGroup> failedTag;
 
-    private FluentBackoff bundleWriteBackoff;
+    // Fluent Backoff is not serializable so create at runtime in setup().
+    private transient FluentBackoff bundleWriteBackoff;
 
     WriteToSpannerFn(
         SpannerConfig spannerConfig, FailureMode failureMode, TupleTag<MutationGroup> failedTag) {
@@ -1423,9 +1464,8 @@ public class SpannerIO {
     }
 
     @Setup
-    public void setup() throws Exception {
-      // set up non-serializable values here.
-      spannerAccessor = SpannerAccessor.create(spannerConfig);
+    public void setup() {
+      spannerAccessor = SpannerAccessor.getOrCreate(spannerConfig);
       bundleWriteBackoff =
           FluentBackoff.DEFAULT
               .withMaxCumulativeBackoff(spannerConfig.getMaxCumulativeBackoff().get())
@@ -1433,7 +1473,7 @@ public class SpannerIO {
     }
 
     @Teardown
-    public void teardown() throws Exception {
+    public void teardown() {
       spannerAccessor.close();
     }
 

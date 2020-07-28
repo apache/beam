@@ -20,7 +20,8 @@ plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.runners.local',
-    archivesBaseName: 'beam-runners-local-java-core'
+    archivesBaseName: 'beam-runners-local-java-core',
+    enableChecker: false,
 )
 
 description = "Apache Beam :: Runners :: Local Java Core"

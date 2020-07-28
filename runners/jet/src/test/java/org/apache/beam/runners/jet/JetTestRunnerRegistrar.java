@@ -28,7 +28,7 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
  * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the {@link
  * TestJetRunner}.
  *
- * <p>{@link AutoService} will register Apex's implementations of the {@link PipelineRunner} and
+ * <p>{@link AutoService} will register Jet's implementations of the {@link PipelineRunner} and
  * {@link PipelineOptions} as available pipeline runner services.
  */
 public final class JetTestRunnerRegistrar {

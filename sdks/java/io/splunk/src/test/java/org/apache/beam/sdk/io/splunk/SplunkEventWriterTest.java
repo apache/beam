@@ -33,10 +33,12 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.mockserver.client.MockServerClient;
+import org.mockserver.configuration.ConfigurationProperties;
 import org.mockserver.junit.MockServerRule;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
@@ -46,6 +48,12 @@ import org.mockserver.verify.VerificationTimes;
 public class SplunkEventWriterTest {
 
   private static final String EXPECTED_PATH = "/" + HttpEventPublisher.HEC_URL_PATH;
+  private static final long MAX_SOCKET_TIMEOUT_MILLIS = 180000;
+
+  @BeforeClass
+  public static void setup() {
+    ConfigurationProperties.maxSocketTimeout(MAX_SOCKET_TIMEOUT_MILLIS);
+  }
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 

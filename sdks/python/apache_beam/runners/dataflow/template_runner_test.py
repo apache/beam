@@ -22,7 +22,6 @@
 from __future__ import absolute_import
 
 import json
-import sys
 import tempfile
 import unittest
 
@@ -41,8 +40,6 @@ except ImportError:
 
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
-@unittest.skipIf(
-    sys.version_info.minor == 8, 'Doesn\'t work on Python 3.8, see: BEAM-9754')
 class TemplatingDataflowRunnerTest(unittest.TestCase):
   """TemplatingDataflow tests."""
   def test_full_completion(self):

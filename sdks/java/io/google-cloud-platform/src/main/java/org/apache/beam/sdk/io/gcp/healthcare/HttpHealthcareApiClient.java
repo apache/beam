@@ -52,7 +52,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -67,6 +66,7 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -429,8 +429,9 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     String content = EntityUtils.toString(responseEntity);
 
     // Check 2XX code.
-    if (!(response.getStatusLine().getStatusCode() / 100 == 2)) {
-      throw HealthcareHttpException.of(response);
+    int statusCode = response.getStatusLine().getStatusCode();
+    if (!(statusCode / 100 == 2)) {
+      throw HealthcareHttpException.of(statusCode, content);
     }
     HttpBody responseModel = new HttpBody();
     responseModel.setData(content);
@@ -442,11 +443,11 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
    * HealthcareIOError}.
    */
   public static class HealthcareHttpException extends Exception {
-    private final Integer statusCode;
+    private final int statusCode;
 
-    HealthcareHttpException(HttpResponse response, String message) {
+    private HealthcareHttpException(int statusCode, String message) {
       super(message);
-      this.statusCode = response.getStatusLine().getStatusCode();
+      this.statusCode = statusCode;
       if (statusCode / 100 == 2) {
         throw new IllegalArgumentException(
             String.format(
@@ -456,17 +457,18 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     }
 
     /**
-     * Create Exception of {@link HttpResponse}.
+     * Creates an exception from a non-OK response.
      *
-     * @param response the HTTP response
+     * @param statusCode the HTTP status code.
+     * @param message the error message.
      * @return the healthcare http exception
      * @throws IOException the io exception
      */
-    static HealthcareHttpException of(HttpResponse response) throws IOException {
-      return new HealthcareHttpException(response, EntityUtils.toString(response.getEntity()));
+    static HealthcareHttpException of(int statusCode, String message) {
+      return new HealthcareHttpException(statusCode, message);
     }
 
-    Integer getStatusCode() {
+    int getStatusCode() {
       return statusCode;
     }
   }

@@ -51,6 +51,7 @@ import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.DerivedSource;
+import com.google.api.services.dataflow.model.DynamicSourceSplit;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ReportedParallelism;
 import com.google.api.services.dataflow.model.Source;
@@ -66,7 +67,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -110,6 +110,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -171,6 +172,30 @@ public class WorkerCustomSourcesTest {
           contains(valueInGlobalWindow(0L + 2 * i), valueInGlobalWindow(1L + 2 * i)));
       assertTrue(bundle.getSource().getMetadata().getEstimatedSizeBytes() > 0);
     }
+  }
+
+  private static class SourceProducingNegativeEstimatedSizes extends MockSource {
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) {
+      return -100;
+    }
+
+    @Override
+    public String toString() {
+      return "Some description";
+    }
+  }
+
+  @Test
+  public void testNegativeEstimatedSizesNotSet() throws Exception {
+    WorkerCustomSources.BoundedSourceSplit<Integer> boundedSourceSplit =
+        new WorkerCustomSources.BoundedSourceSplit<Integer>(
+            new SourceProducingNegativeEstimatedSizes(),
+            new SourceProducingNegativeEstimatedSizes());
+    DynamicSourceSplit dynamicSourceSplit = WorkerCustomSources.toSourceSplit(boundedSourceSplit);
+    assertNull(dynamicSourceSplit.getPrimary().getSource().getMetadata().getEstimatedSizeBytes());
+    assertNull(dynamicSourceSplit.getResidual().getSource().getMetadata().getEstimatedSizeBytes());
   }
 
   @Test
@@ -690,7 +715,7 @@ public class WorkerCustomSourcesTest {
   }
 
   private static class TestBoundedReader extends BoundedReader<Void> {
-    @Nullable private final Object fractionConsumed;
+    private final @Nullable Object fractionConsumed;
     private final Object splitPointsConsumed;
     private final Object splitPointsRemaining;
 
@@ -729,8 +754,7 @@ public class WorkerCustomSourcesTest {
     }
 
     @Override
-    @Nullable
-    public Double getFractionConsumed() {
+    public @Nullable Double getFractionConsumed() {
       if (fractionConsumed instanceof Number || fractionConsumed == null) {
         return ((Number) fractionConsumed).doubleValue();
       } else {

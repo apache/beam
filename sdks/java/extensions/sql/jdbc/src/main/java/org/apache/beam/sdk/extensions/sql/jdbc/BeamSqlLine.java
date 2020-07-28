@@ -26,7 +26,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import sqlline.SqlLine;
 import sqlline.SqlLine.Status;
 

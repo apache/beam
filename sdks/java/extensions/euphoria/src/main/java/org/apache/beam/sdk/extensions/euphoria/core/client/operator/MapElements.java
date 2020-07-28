@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -26,13 +25,13 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Simple one-to-one transformation of input elements. It is a special case of {@link FlatMap} with
@@ -122,10 +121,10 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
   private static class Builder<InputT, OutputT>
       implements OfBuilder, UsingBuilder<InputT>, Builders.Output<OutputT> {
 
-    @Nullable private final String name;
+    private final @Nullable String name;
     private PCollection<InputT> input;
     private UnaryFunctionEnv<InputT, OutputT> mapper;
-    @Nullable private TypeDescriptor<OutputT> outputType;
+    private @Nullable TypeDescriptor<OutputT> outputType;
 
     Builder(@Nullable String name) {
       this.name = name;
@@ -150,7 +149,7 @@ public class MapElements<InputT, OutputT> extends Operator<OutputT>
     }
 
     @Override
-    public PCollection<OutputT> output(OutputHint... outputHints) {
+    public PCollection<OutputT> output() {
       final MapElements<InputT, OutputT> operator = new MapElements<>(name, mapper, outputType);
       return OperatorTransform.apply(operator, PCollectionList.of(input));
     }

@@ -38,6 +38,7 @@ spec:
       containers:
       - name: beamgrafana
         image: gcr.io/apache-beam-testing/beamgrafana
+        imagePullPolicy: Always
         securityContext:
           runAsUser: 0
         env:
@@ -105,6 +106,7 @@ spec:
             readOnly: true
       - name: beammetricssyncjenkins
         image: gcr.io/apache-beam-testing/beammetricssyncjenkins
+        imagePullPolicy: Always
         env:
           - name: DB_HOST
             value: 127.0.0.1
@@ -124,6 +126,7 @@ spec:
                 key: password
       - name: beammetricssyncjira
         image: gcr.io/apache-beam-testing/beammetricssyncjira
+        imagePullPolicy: Always
         env:
           - name: DB_HOST
             value: 127.0.0.1
@@ -143,6 +146,7 @@ spec:
                 key: password
       - name: beammetricssyncgithub
         image: gcr.io/apache-beam-testing/beammetricssyncgithub
+        imagePullPolicy: Always
         env:
           - name: DB_HOST
             value: 127.0.0.1

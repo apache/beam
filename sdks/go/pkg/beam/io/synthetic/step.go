@@ -17,6 +17,7 @@ package synthetic
 
 import (
 	"fmt"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
 	"math/rand"
 	"reflect"
 	"time"
@@ -92,7 +93,7 @@ type sdfStepFn struct {
 // CreateInitialRestriction creates an offset range restriction representing
 // the number of elements to emit for this received element, as specified by
 // the output per input configuration in StepConfig.
-func (fn *sdfStepFn) CreateInitialRestriction(key, val []byte) offsetrange.Restriction {
+func (fn *sdfStepFn) CreateInitialRestriction(_, _ []byte) offsetrange.Restriction {
 	return offsetrange.Restriction{
 		Start: 0,
 		End:   int64(fn.cfg.OutputPerInput),
@@ -103,20 +104,20 @@ func (fn *sdfStepFn) CreateInitialRestriction(key, val []byte) offsetrange.Restr
 // initial splits specified in StepConfig. Each restriction output by this
 // method will contain at least one element, so the number of splits will not
 // exceed the number of elements.
-func (fn *sdfStepFn) SplitRestriction(key, val []byte, rest offsetrange.Restriction) (splits []offsetrange.Restriction) {
+func (fn *sdfStepFn) SplitRestriction(_, _ []byte, rest offsetrange.Restriction) (splits []offsetrange.Restriction) {
 	return rest.EvenSplits(int64(fn.cfg.InitialSplits))
 }
 
 // RestrictionSize outputs the size of the restriction as the number of elements
 // that restriction will output.
-func (fn *sdfStepFn) RestrictionSize(key, val []byte, rest offsetrange.Restriction) float64 {
+func (fn *sdfStepFn) RestrictionSize(_, _ []byte, rest offsetrange.Restriction) float64 {
 	return rest.Size()
 }
 
 // CreateTracker creates an offset range restriction tracker for the
 // restriction.
-func (fn *sdfStepFn) CreateTracker(rest offsetrange.Restriction) *offsetrange.Tracker {
-	return offsetrange.NewTracker(rest)
+func (fn *sdfStepFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
+	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
 }
 
 // Setup sets up the random number generator.
@@ -126,10 +127,10 @@ func (fn *sdfStepFn) Setup() {
 
 // ProcessElement takes an input and either filters it or produces a number of
 // outputs identical to that input based on the restriction size.
-func (fn *sdfStepFn) ProcessElement(rt *offsetrange.Tracker, key, val []byte, emit func([]byte, []byte)) {
+func (fn *sdfStepFn) ProcessElement(rt *sdf.LockRTracker, key, val []byte, emit func([]byte, []byte)) {
 	filtered := fn.cfg.FilterRatio > 0 && fn.rng.Float64() < fn.cfg.FilterRatio
 
-	for i := rt.Rest.Start; rt.TryClaim(i) == true; i++ {
+	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i) == true; i++ {
 		if !filtered {
 			emit(key, val)
 		}

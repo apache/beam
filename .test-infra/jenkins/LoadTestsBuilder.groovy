@@ -31,19 +31,19 @@ class LoadTestsBuilder {
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
     for (testConfiguration in testConfigurations) {
-        loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.pipelineOptions,
-                testConfiguration.test, testConfiguration.withDataflowWorkerJar ?: false)
+      loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.pipelineOptions,
+          testConfiguration.test, testConfiguration.withDataflowWorkerJar ?: false)
     }
   }
 
 
   static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options,
-                       String mainClass, Boolean withDataflowWorkerJar = false) {
+      String mainClass, Boolean withDataflowWorkerJar = false) {
     options.put('runner', runner.option)
     InfluxDBCredentialsHelper.useCredentials(context)
 
     context.steps {
-      shell('echo "*** ${title} ***"')
+      shell("echo \"*** ${title} ***\"")
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         setGradleTask(delegate, runner, sdk, options, mainClass, withDataflowWorkerJar)
@@ -72,7 +72,7 @@ class LoadTestsBuilder {
   }
 
   private static void setGradleTask(context, Runner runner, SDK sdk, Map<String, ?> options,
-                                    String mainClass, Boolean withDataflowWorkerJar) {
+      String mainClass, Boolean withDataflowWorkerJar) {
     context.tasks(getGradleTaskName(sdk))
     context.switches("-PloadTest.mainClass=\"${mainClass}\"")
     context.switches("-Prunner=${runner.getDependencyBySDK(sdk)}")

@@ -56,7 +56,6 @@ import org.apache.avro.file.DataFileStream;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -106,6 +105,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterator
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -217,7 +217,7 @@ public class AvroIOTest implements Serializable {
       }
 
       @Override
-      public boolean equals(Object other) {
+      public boolean equals(@Nullable Object other) {
         if (other == null || !(other instanceof GenericClass)) {
           return false;
         }
@@ -757,7 +757,7 @@ public class AvroIOTest implements Serializable {
     static class GenericClassV2 {
       int intField;
       String stringField;
-      @Nullable String nullableField;
+      @org.apache.avro.reflect.Nullable String nullableField;
 
       GenericClassV2() {}
 
@@ -782,7 +782,7 @@ public class AvroIOTest implements Serializable {
       }
 
       @Override
-      public boolean equals(Object other) {
+      public boolean equals(@Nullable Object other) {
         if (!(other instanceof GenericClassV2)) {
           return false;
         }

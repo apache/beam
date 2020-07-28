@@ -111,23 +111,13 @@ public interface SnowflakePipelineOptions extends PipelineOptions {
 
   void setLoginTimeout(String loginTimeout);
 
-  @Description("External location name to connect to.")
-  String getExternalLocation();
-
-  void setExternalLocation(String externalLocation);
-
-  @Description("Temporary GCS bucket name")
+  @Description("Temporary GCS bucket name.")
   String getStagingBucketName();
 
   void setStagingBucketName(String stagingBucketName);
 
-  @Description("Storage integration - required in case the external stage is not specified.")
-  String getStorageIntegration();
+  @Description("Storage integration name")
+  String getStorageIntegrationName();
 
-  void setStorageIntegration(String integration);
-
-  @Description("Stage name. Optional.")
-  String getStage();
-
-  void setStage(String stage);
+  void setStorageIntegrationName(String storageIntegrationName);
 }

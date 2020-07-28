@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
@@ -57,6 +56,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.PCollectionViewTesting;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -89,6 +89,7 @@ import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.OutputTag;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -696,11 +697,20 @@ public class DoFnOperatorTest {
         new StreamRecord<>(
             new RawUnionValue(
                 1,
-                valuesInWindow(ImmutableList.of("hello", "ciao"), new Instant(0), firstWindow))));
+                valuesInWindow(
+                    PCollectionViewTesting.materializeValuesFor(
+                        view1.getPipeline().getOptions(), View.asIterable(), "hello", "ciao"),
+                    new Instant(0),
+                    firstWindow))));
     testHarness.processElement2(
         new StreamRecord<>(
             new RawUnionValue(
-                2, valuesInWindow(ImmutableList.of("foo", "bar"), new Instant(0), secondWindow))));
+                2,
+                valuesInWindow(
+                    PCollectionViewTesting.materializeValuesFor(
+                        view2.getPipeline().getOptions(), View.asIterable(), "foo", "bar"),
+                    new Instant(0),
+                    secondWindow))));
 
     // push in a regular elements
     WindowedValue<String> helloElement = valueInWindow("Hello", new Instant(0), firstWindow);
@@ -714,12 +724,19 @@ public class DoFnOperatorTest {
             new RawUnionValue(
                 1,
                 valuesInWindow(
-                    ImmutableList.of("hello", "ciao"), new Instant(1000), firstWindow))));
+                    PCollectionViewTesting.materializeValuesFor(
+                        view1.getPipeline().getOptions(), View.asIterable(), "hello", "ciao"),
+                    new Instant(1000),
+                    firstWindow))));
     testHarness.processElement2(
         new StreamRecord<>(
             new RawUnionValue(
                 2,
-                valuesInWindow(ImmutableList.of("foo", "bar"), new Instant(1000), secondWindow))));
+                valuesInWindow(
+                    PCollectionViewTesting.materializeValuesFor(
+                        view2.getPipeline().getOptions(), View.asIterable(), "foo", "bar"),
+                    new Instant(1000),
+                    secondWindow))));
 
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
@@ -921,7 +938,8 @@ public class DoFnOperatorTest {
             new RawUnionValue(
                 1,
                 valuesInWindow(
-                    ImmutableList.of(KV.of((Void) null, "hello"), KV.of((Void) null, "ciao")),
+                    PCollectionViewTesting.materializeValuesFor(
+                        view1.getPipeline().getOptions(), View.asIterable(), "hello", "ciao"),
                     new Instant(0),
                     firstWindow))));
     testHarness.processElement2(
@@ -929,7 +947,8 @@ public class DoFnOperatorTest {
             new RawUnionValue(
                 2,
                 valuesInWindow(
-                    ImmutableList.of(KV.of((Void) null, "foo"), KV.of((Void) null, "bar")),
+                    PCollectionViewTesting.materializeValuesFor(
+                        view2.getPipeline().getOptions(), View.asIterable(), "foo", "bar"),
                     new Instant(0),
                     secondWindow))));
 
@@ -1074,7 +1093,8 @@ public class DoFnOperatorTest {
             new RawUnionValue(
                 1,
                 valuesInWindow(
-                    ImmutableList.of(KV.of((Void) null, "hello"), KV.of((Void) null, "ciao")),
+                    PCollectionViewTesting.materializeValuesFor(
+                        view1.getPipeline().getOptions(), View.asIterable(), "hello", "ciao"),
                     new Instant(0),
                     firstWindow))));
     testHarness.processElement2(
@@ -1082,7 +1102,8 @@ public class DoFnOperatorTest {
             new RawUnionValue(
                 2,
                 valuesInWindow(
-                    ImmutableList.of(KV.of((Void) null, "foo"), KV.of((Void) null, "bar")),
+                    PCollectionViewTesting.materializeValuesFor(
+                        view2.getPipeline().getOptions(), View.asIterable(), "foo", "bar"),
                     new Instant(0),
                     secondWindow))));
 
@@ -1566,12 +1587,23 @@ public class DoFnOperatorTest {
 
     OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
+    // Check that we have only the element which was emitted before the snapshot
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(WindowedValue.valueInGlobalWindow("regular element")));
+
+    // Check that we would flush the buffered elements when continuing to run
+    testHarness.processWatermark(Long.MAX_VALUE);
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(
+            WindowedValue.valueInGlobalWindow("regular element"),
+            WindowedValue.valueInGlobalWindow("trigger another bundle"),
+            WindowedValue.valueInGlobalWindow("check that the previous element is not flushed")));
+
     testHarness.close();
 
-    // Restore
+    // Check that we would flush the buffered elements when restoring from a checkpoint
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness2 =
         new OneInputStreamOperatorTestHarness<>(doFnOperatorSupplier.get());
 

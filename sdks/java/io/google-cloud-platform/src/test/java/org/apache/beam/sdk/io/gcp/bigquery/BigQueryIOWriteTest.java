@@ -121,6 +121,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -1012,7 +1013,7 @@ public class BigQueryIOWriteTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other instanceof PartitionedGlobalWindow) {
         return value.equals(((PartitionedGlobalWindow) other).value);
       }

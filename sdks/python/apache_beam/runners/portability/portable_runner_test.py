@@ -197,7 +197,7 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
         'data_buffer_time_limit_ms=1000')
     return options
 
-  def create_pipeline(self):
+  def create_pipeline(self, is_drain=False):
     return beam.Pipeline(self.get_runner(), self.create_options())
 
   def test_pardo_state_with_custom_key_coder(self):
@@ -241,6 +241,18 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
           equal_to(expected))
 
   # Inherits all other tests from fn_api_runner_test.FnApiRunnerTest
+
+  def test_sdf_default_truncate_when_bounded(self):
+    raise unittest.SkipTest("Portable runners don't support drain yet.")
+
+  def test_sdf_default_truncate_when_unbounded(self):
+    raise unittest.SkipTest("Portable runners don't support drain yet.")
+
+  def test_sdf_with_truncate(self):
+    raise unittest.SkipTest("Portable runners don't support drain yet.")
+
+  def test_draining_sdf_with_sdf_initiated_checkpointing(self):
+    raise unittest.SkipTest("Portable runners don't support drain yet.")
 
 
 @unittest.skip("BEAM-7248")

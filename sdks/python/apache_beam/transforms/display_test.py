@@ -151,7 +151,7 @@ class DisplayDataTest(unittest.TestCase):
             'RuntimeValueProvider(option: float_flag,'
             ' type: float, default_value: None)')
     ]
-    hc.assert_that(items, hc.contains_inanyorder(*expected_items))
+    hc.assert_that(items, hc.has_items(*expected_items))
 
   def test_create_list_display_data(self):
     flags = ['--extra_package', 'package1', '--extra_package', 'package2']
@@ -159,7 +159,7 @@ class DisplayDataTest(unittest.TestCase):
     items = DisplayData.create_from_options(pipeline_options).items
     hc.assert_that(
         items,
-        hc.contains_inanyorder(
+        hc.has_items(
             DisplayDataItemMatcher(
                 'extra_packages', str(['package1', 'package2']))))
 
@@ -219,7 +219,7 @@ class DisplayDataTest(unittest.TestCase):
             key='static_string', value='static me!', namespace=nspace)
     ]
 
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+    hc.assert_that(dd.items, hc.has_items(*expected_items))
 
   def test_drop_if_none(self):
     class MyDoFn(beam.DoFn):
@@ -236,7 +236,7 @@ class DisplayDataTest(unittest.TestCase):
         DisplayDataItemMatcher('some_val', 'something'),
         DisplayDataItemMatcher('nodef_val', True)
     ]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+    hc.assert_that(dd.items, hc.has_items(*expected_items))
 
   def test_subcomponent(self):
     class SpecialDoFn(beam.DoFn):
@@ -253,7 +253,7 @@ class DisplayDataTest(unittest.TestCase):
         DisplayDataItemMatcher('fn', SpecialDoFn, pardo_nspace)
     ]
 
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+    hc.assert_that(dd.items, hc.has_items(*expected_items))
 
 
 # TODO: Test __repr__ function

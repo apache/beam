@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Class representing a Pub/Sub message. Each message contains a single message payload, a map of
@@ -30,16 +30,17 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 public class PubsubMessage {
 
   private byte[] message;
-  private Map<String, String> attributes;
-  private String messageId;
+  private @Nullable Map<String, String> attributes;
+  private @Nullable String messageId;
 
-  public PubsubMessage(byte[] payload, Map<String, String> attributes) {
+  public PubsubMessage(byte[] payload, @Nullable Map<String, String> attributes) {
     this.message = payload;
     this.attributes = attributes;
     this.messageId = null;
   }
 
-  public PubsubMessage(byte[] payload, Map<String, String> attributes, String messageId) {
+  public PubsubMessage(
+      byte[] payload, @Nullable Map<String, String> attributes, @Nullable String messageId) {
     this.message = payload;
     this.attributes = attributes;
     this.messageId = messageId;
@@ -51,20 +52,18 @@ public class PubsubMessage {
   }
 
   /** Returns the given attribute value. If not such attribute exists, returns null. */
-  @Nullable
-  public String getAttribute(String attribute) {
+  public @Nullable String getAttribute(String attribute) {
     checkNotNull(attribute, "attribute");
     return attributes.get(attribute);
   }
 
   /** Returns the full map of attributes. This is an unmodifiable map. */
-  public Map<String, String> getAttributeMap() {
+  public @Nullable Map<String, String> getAttributeMap() {
     return attributes;
   }
 
   /** Returns the messageId of the message populated by Cloud Pub/Sub. */
-  @Nullable
-  public String getMessageId() {
+  public @Nullable String getMessageId() {
     return messageId;
   }
 

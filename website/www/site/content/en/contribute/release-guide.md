@@ -334,7 +334,7 @@ There are 2 ways to cut a release branch: either running automation script(recom
 
 ### Start a snapshot build
 
-Start a build of [the nightly snapshot](https://builds.apache.org/view/A-D/view/Beam/job/beam_Release_NightlySnapshot/) against master branch.
+Start a build of [the nightly snapshot](https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/) against master branch.
 Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version
 from the `master` branch. Once the release branch is cut, these SNAPSHOT versions are no longer found,
 so builds will be broken until a new snapshot is available.
@@ -562,7 +562,7 @@ For this step, we recommend you using automation script to create a RC, but you 
   1. Run gradle release to create rc tag and push source release into github repo.
   1. Run gradle publish to push java artifacts into Maven staging repo.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
-  1. Stage,sign and hash python binaries into dist.apache.ord dev repo python dir
+  1. Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir
   1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
   1. Create a PR to update beam-site, changes includes:
      * Copy python doc into beam-site
@@ -595,12 +595,6 @@ For this step, we recommend you using automation script to create a RC, but you 
       1. Click the Close button.
       1. When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
       1. Review all staged artifacts on https://repository.apache.org/content/repositories/orgapachebeam-NNNN/. They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc. Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`. Carefully review any new artifacts.
-  1. Build and stage python wheels.
-      - There is a wrapper repo [beam-wheels](https://github.com/apache/beam-wheels) to help build python wheels.
-      - If you are interested in how it works, please refer to the [structure section](https://github.com/apache/beam-wheels#structure).
-      - Please follow the [user guide](https://github.com/apache/beam-wheels#user-guide) to build python wheels.
-      - Once all python wheels have been staged to GCS,
-      please run [./sign_hash_python_wheels.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh), which copies the wheels along with signatures and hashes to [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/).
 
 **********
 
@@ -834,7 +828,7 @@ Since there are a bunch of tests, we recommend you running validations using aut
       ```
 
 * Tasks included
-  1. Run Java quickstart with Direct Runner, Apex local runner, Flink local runner, Spark local runner and Dataflow runner.
+  1. Run Java quickstart with Direct Runner, Flink local runner, Spark local runner and Dataflow runner.
   1. Run Java Mobile Games(UserScore, HourlyTeamScore, Leaderboard) with Dataflow runner.
   1. Create a PR to trigger python validation job, including
      * Python quickstart in batch and streaming mode with direct runner and Dataflow runner.
@@ -861,12 +855,6 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   Direct Runner:
   ```
   ./gradlew :runners:direct-java:runQuickstartJavaDirect \
-  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
-  -Pver=${RELEASE_VERSION}
-  ```
-  Apex Local Runner
-  ```
-  ./gradlew :runners:apex:runQuickstartJavaApex \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```

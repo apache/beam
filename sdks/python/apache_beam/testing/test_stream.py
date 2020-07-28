@@ -237,16 +237,6 @@ class TestStream(PTransform):
   Applying the PTransform will return a single PCollection if only the default
   output or only one output tag has been used. Otherwise a dictionary of output
   names to PCollections will be returned.
-
-  To use the multi-output functionality pelase use the
-  'passthrough_pcollection_output_ids' flag. See BEAM-9322 for more info.
-
-  To add flag::
-
-    from apache_beam.options.pipeline_options import DebugOptions
-    options = ...
-    options.view_as(DebugOptions).add_experiment(
-        'passthrough_pcollection_output_ids')
   """
   def __init__(
       self,
@@ -291,10 +281,10 @@ class TestStream(PTransform):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
     if not self.output_tags:
-      self.output_tags = set([None])
+      self.output_tags = {None}
 
     # For backwards compatibility return a single PCollection.
-    if len(self.output_tags) == 1:
+    if self.output_tags == {None}:
       return pvalue.PCollection(
           self.pipeline, is_bounded=False, tag=list(self.output_tags)[0])
     return {

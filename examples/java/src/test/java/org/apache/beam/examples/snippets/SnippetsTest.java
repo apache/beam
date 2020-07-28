@@ -28,6 +28,7 @@ import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.joda.time.Duration;
@@ -150,6 +152,75 @@ public class SnippetsTest implements Serializable {
         p.apply(Create.of(expectedFormattedResultsList));
     PAssert.that(expectedFormattedResultsPColl).containsInAnyOrder(formattedResults);
     PAssert.that(actualFormattedResults).containsInAnyOrder(formattedResults);
+
+    p.run();
+  }
+
+  /* Tests SchemaJoinPattern */
+  @Test
+  public void testSchemaJoinPattern() {
+    // [START SchemaJoinPatternCreate]
+    // Define Schemas
+    Schema emailSchema =
+        Schema.of(
+            Schema.Field.of("name", Schema.FieldType.STRING),
+            Schema.Field.of("email", Schema.FieldType.STRING));
+
+    Schema phoneSchema =
+        Schema.of(
+            Schema.Field.of("name", Schema.FieldType.STRING),
+            Schema.Field.of("phone", Schema.FieldType.STRING));
+
+    // Create User Data Collections
+    final List<Row> emailUsers =
+        Arrays.asList(
+            Row.withSchema(emailSchema).addValue("person1").addValue("person1@example.com").build(),
+            Row.withSchema(emailSchema).addValue("person2").addValue("person2@example.com").build(),
+            Row.withSchema(emailSchema).addValue("person3").addValue("person3@example.com").build(),
+            Row.withSchema(emailSchema).addValue("person4").addValue("person4@example.com").build(),
+            Row.withSchema(emailSchema)
+                .addValue("person6")
+                .addValue("person6@example.com")
+                .build());
+
+    final List<Row> phoneUsers =
+        Arrays.asList(
+            Row.withSchema(phoneSchema).addValue("person1").addValue("111-222-3333").build(),
+            Row.withSchema(phoneSchema).addValue("person2").addValue("222-333-4444").build(),
+            Row.withSchema(phoneSchema).addValue("person3").addValue("444-333-4444").build(),
+            Row.withSchema(phoneSchema).addValue("person4").addValue("555-333-4444").build(),
+            Row.withSchema(phoneSchema).addValue("person5").addValue("777-333-4444").build());
+
+    // [END SchemaJoinPatternCreate]
+
+    PCollection<String> actualFormattedResult =
+        Snippets.SchemaJoinPattern.main(p, emailUsers, phoneUsers, emailSchema, phoneSchema);
+
+    final List<String> formattedResults =
+        Arrays.asList(
+            "Name: person1 Email: person1@example.com Phone: 111-222-3333",
+            "Name: person2 Email: person2@example.com Phone: 222-333-4444",
+            "Name: person3 Email: person3@example.com Phone: 444-333-4444",
+            "Name: person4 Email: person4@example.com Phone: 555-333-4444");
+
+    List<String> expectedFormattedResultsList = new ArrayList<>(formattedResults.size());
+
+    for (int i = 0; i < formattedResults.size(); ++i) {
+      String userInfo =
+          "Name: "
+              + emailUsers.get(i).getValue("name")
+              + " Email: "
+              + emailUsers.get(i).getValue("email")
+              + " Phone: "
+              + phoneUsers.get(i).getValue("phone");
+      expectedFormattedResultsList.add(userInfo);
+    }
+
+    PCollection<String> expectedFormattedResultPcoll =
+        p.apply(Create.of(expectedFormattedResultsList));
+
+    PAssert.that(expectedFormattedResultPcoll).containsInAnyOrder(formattedResults);
+    PAssert.that(actualFormattedResult).containsInAnyOrder(formattedResults);
 
     p.run();
   }

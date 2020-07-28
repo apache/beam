@@ -22,9 +22,8 @@ import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation.Required;
-import org.apache.beam.sdk.testing.TestPipelineOptions;
 
-public interface FhirIOTestOptions extends TestPipelineOptions {
+public interface FhirIOTestOptions extends HealthcareStoreTestPipelineOptions {
 
   @Description(
       "FHIR store should match the pattern: projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/fhirStores/HL7V2_STORE_ID")

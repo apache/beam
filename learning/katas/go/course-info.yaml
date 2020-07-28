@@ -23,5 +23,5 @@ summary: "This course provides a series of katas to get familiar with Apache Bea
   \ \n\nApache Beam website – https://beam.apache.org/"
 programming_language: Go
 content:
-- Introduction
-- Core Transforms
+- introduction
+- core_transforms

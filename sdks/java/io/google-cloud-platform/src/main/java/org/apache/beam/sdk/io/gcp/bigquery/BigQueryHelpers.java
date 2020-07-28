@@ -39,7 +39,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
@@ -51,6 +50,7 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,7 +91,7 @@ public class BigQueryHelpers {
   static class PendingJobManager {
     private static class JobInfo {
       private final PendingJob pendingJob;
-      @Nullable private final SerializableFunction<PendingJob, Exception> onSuccess;
+      private final @Nullable SerializableFunction<PendingJob, Exception> onSuccess;
 
       public JobInfo(PendingJob pendingJob, SerializableFunction<PendingJob, Exception> onSuccess) {
         this.pendingJob = pendingJob;
@@ -137,8 +137,8 @@ public class BigQueryHelpers {
               throw e;
             }
           } else {
-            // Job failed, schedule it again.
-            LOG.info("Job {} failed. retrying.", jobInfo.pendingJob.currentJobId);
+            // Job not yet complete, schedule it again.
+            LOG.info("Job {} pending. retrying.", jobInfo.pendingJob.currentJobId);
             retryJobs.add(jobInfo);
           }
         }
@@ -369,8 +369,8 @@ public class BigQueryHelpers {
   }
 
   /** Return a displayable string representation for a {@link TableReference}. */
-  @Nullable
-  static ValueProvider<String> displayTable(@Nullable ValueProvider<TableReference> table) {
+  static @Nullable ValueProvider<String> displayTable(
+      @Nullable ValueProvider<TableReference> table) {
     if (table == null) {
       return null;
     }
@@ -389,8 +389,7 @@ public class BigQueryHelpers {
     return sb.toString();
   }
 
-  @Nullable
-  static ValueProvider<String> displayTableRefProto(
+  static @Nullable ValueProvider<String> displayTableRefProto(
       @Nullable ValueProvider<TableReferenceProto.TableReference> table) {
     if (table == null) {
       return null;
@@ -547,8 +546,7 @@ public class BigQueryHelpers {
    *
    * @return The number of rows in the table or null if it cannot get any estimate.
    */
-  @Nullable
-  public static BigInteger getNumRows(BigQueryOptions options, TableReference tableRef)
+  public static @Nullable BigInteger getNumRows(BigQueryOptions options, TableReference tableRef)
       throws InterruptedException, IOException {
 
     DatasetService datasetService = new BigQueryServicesImpl().getDatasetService(options);

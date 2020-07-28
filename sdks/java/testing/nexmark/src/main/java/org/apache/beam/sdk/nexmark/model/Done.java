@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Result of query 10. */
 public class Done implements KnownSize, Serializable {
@@ -83,7 +84,7 @@ public class Done implements KnownSize, Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
