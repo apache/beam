@@ -28,7 +28,7 @@ class SparkMetricsContainerStepMap extends MetricsContainerStepMap {
 
   @Override
   public String toString() {
-    return new SparkBeamMetric().renderAll().toString();
+    return asAttemptedOnlyMetricResults(this).toString();
   }
 
   @Override
