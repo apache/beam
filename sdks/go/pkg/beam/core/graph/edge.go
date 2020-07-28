@@ -283,13 +283,13 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 }
 
 // NewCrossLanguage inserts a Corss-langugae External transform.
-func NewCrossLanguage(g *Graph, s *Scope, in []*Node) *MultiEdge {
+func NewCrossLanguage(g *Graph, s *Scope, in []*Node, payload *Payload) *MultiEdge {
 	edge := g.NewEdge(s)
 	edge.Op = External
-	/*
-		// Payload can be decoupled completely from MultiEdge after current API is implemented
-		edge.Payload = payload
-	*/
+
+	// Payload can be decoupled completely from MultiEdge after current API is implemented
+	edge.Payload = payload
+
 	for _, n := range in {
 		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: n, Type: n.Type()})
 	}

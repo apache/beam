@@ -16,21 +16,23 @@
 package beam
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"google.golang.org/grpc"
 )
 
 // ExternalTransform ...
 type ExternalTransform struct {
 	id                int
-	urn               string
+	Urn               string
 	payload           []byte
-	in                []PCollection
+	In                []PCollection
 	out               []FullType
 	bounded           bool
 	expansionAddr     string
@@ -60,7 +62,7 @@ func CrossLanguage(s Scope, e ExternalTransform) {
 		// return nil, errors.New("invalid scope")
 		fmt.Println("invalid scope")
 	}
-	for i, col := range e.in {
+	for i, col := range e.In {
 		if !col.IsValid() {
 			// return nil, errors.Errorf("invalid pcollection to external: index %v", i)
 			fmt.Printf("\ninvalid pcollection to external: index %v", i)
@@ -68,28 +70,61 @@ func CrossLanguage(s Scope, e ExternalTransform) {
 		}
 	}
 
+	payload := &graph.Payload{
+		URN:  e.Urn,
+		Data: e.payload,
+	}
 	var ins []*graph.Node
-	for _, col := range e.in {
+	for _, col := range e.In {
 		ins = append(ins, col.n)
 	}
-	edge := graph.NewCrossLanguage(s.real, s.scope, ins)
-	m, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{})
+	edge := graph.NewCrossLanguage(s.real, s.scope, ins, payload)
+
+	p, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{})
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(m)
-	// Build ExpansionRequest
-	// Correct way to serialize the input keys
-	/*
-		externalTransform := &pipepb.PTransform{}
-		expansionReq := &jobpb.ExpansionRequest{
-			Components: {},
-			Transform:  {},
-			Namespace:  "",
+	// fmt.Println(p)
+	transforms := p.Components.Transforms
+	id := p.RootTransformIds[0]
+	for k, v := range transforms[id].Inputs {
+		// fmt.Println("\n\n----\n\n")
+		// fmt.Println(k, v)
+		output := map[string]string{"out": v}
+		key := fmt.Sprintf("%s_%s", "impulse", k)
+		impulse := &pipepb.PTransform{
+			UniqueName: key,
+			Spec: &pipepb.FunctionSpec{
+				Urn: graphx.URNImpulse,
+			},
+			Outputs: output,
 		}
-	*/
-	// Query Expansion Service
-	//	 Manage GRPC Client
+		// fmt.Println(impulse)
+		transforms[key] = impulse
+	}
+	fmt.Println(p)
+	// Build ExpansionRequest
+	req := &jobpb.ExpansionRequest{
+		Components: p.Components,
+		Transform:  transforms[id],
+		Namespace:  s.String(),
+	}
+	fmt.Println(req)
+
+	conn, err := grpc.Dial("http://localhost:8118", grpc.WithInsecure())
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+	fmt.Println("\n Connection established")
+	client := jobpb.NewExpansionServiceClient(conn)
+	fmt.Println("\n Added client")
+	res, err := client.Expand(context.Background(), req)
+	fmt.Println(res, err)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(res)
 
 	// Handling ExpansionResponse
 	if e.out == nil {
