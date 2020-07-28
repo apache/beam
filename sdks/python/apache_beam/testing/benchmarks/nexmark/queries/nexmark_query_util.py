@@ -26,11 +26,10 @@ def is_bid(event):
   return isinstance(event, nexmark_model.Bid)
 
 
-class ToString(beam.PTransform):
-  def expand(self, pcoll):
-    return pcoll | beam.Map(repr)
-
-
 class JustBids(beam.PTransform):
   def expand(self, pcoll):
     return pcoll | "IsBid" >> beam.Filter(is_bid)
+
+
+def auction_or_bid(event):
+  return isinstance(event, nexmark_model.Bid) or isinstance(event, nexmark_model.Auction)

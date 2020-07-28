@@ -26,7 +26,7 @@ generate events:
   - The bid on an item for auction (Bid).
 
 """
-import json
+from apache_beam.testing.benchmarks.nexmark import nexmark_util
 
 
 class Person(object):
@@ -44,7 +44,7 @@ class Person(object):
     self.extra = extra
 
   def __repr__(self):
-    return json.dumps(self.__dict__, separators=(',', ':'))
+    return nexmark_util.model_to_json(self)
 
 
 class Auction(object):
@@ -74,7 +74,7 @@ class Auction(object):
     self.extra = extra
 
   def __repr__(self):
-    return json.dumps(self.__dict__, separators=(',', ':'))
+    return nexmark_util.model_to_json(self)
 
 
 class Bid(object):
@@ -88,4 +88,4 @@ class Bid(object):
     self.extra = extra
 
   def __repr__(self):
-    return json.dumps(self.__dict__, separators=(',', ':'))
+    return nexmark_util.model_to_json(self)

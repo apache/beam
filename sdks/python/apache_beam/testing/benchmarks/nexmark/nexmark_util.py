@@ -42,8 +42,9 @@ import threading
 import json
 
 import apache_beam as beam
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
-from apache_beam.testing.benchmarks.nexmark.models.field_name import FieldName
+from apache_beam.testing.benchmarks.nexmark.models.field_name import FieldNames
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -131,37 +132,39 @@ class ParseJsonEvnetFn(beam.DoFn):
   """
   def process(self, elem):
     json_dict = json.loads(elem)
-    if type(json_dict[FieldName.DATE_TIME]) is dict:
-      json_dict[FieldName.DATE_TIME] = json_dict[FieldName.DATE_TIME]['millis']
-    if FieldName.NAME in json_dict:
+    if type(json_dict[FieldNames.DATE_TIME]) is dict:
+      json_dict[FieldNames.DATE_TIME] = json_dict[FieldNames.DATE_TIME]['millis']
+    if FieldNames.NAME in json_dict:
       yield nexmark_model.Person(
-          json_dict[FieldName.ID],
-          json_dict[FieldName.NAME],
-          json_dict[FieldName.EMAIL_ADDRESS],
-          json_dict[FieldName.CREDIT_CARD],
-          json_dict[FieldName.CITY],
-          json_dict[FieldName.STATE],
-          json_dict[FieldName.DATE_TIME],
-          json_dict[FieldName.EXTRA])
-    elif FieldName.ITEM_NAME in json_dict:
+          json_dict[FieldNames.ID],
+          json_dict[FieldNames.NAME],
+          json_dict[FieldNames.EMAIL_ADDRESS],
+          json_dict[FieldNames.CREDIT_CARD],
+          json_dict[FieldNames.CITY],
+          json_dict[FieldNames.STATE],
+          millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
+          json_dict[FieldNames.EXTRA])
+    elif FieldNames.ITEM_NAME in json_dict:
+      if type(json_dict[FieldNames.EXPIRES]) is dict:
+        json_dict[FieldNames.EXPIRES] = json_dict[FieldNames.EXPIRES]['millis']
       yield nexmark_model.Auction(
-          json_dict[FieldName.ID],
-          json_dict[FieldName.ITEM_NAME],
-          json_dict[FieldName.DESCRIPTION],
-          json_dict[FieldName.INITIAL_BID],
-          json_dict[FieldName.RESERVE],
-          json_dict[FieldName.DATE_TIME],
-          json_dict[FieldName.EXPIRES],
-          json_dict[FieldName.SELLER],
-          json_dict[FieldName.CATEGORY],
-          json_dict[FieldName.EXTRA])
-    elif FieldName.AUCTION in json_dict:
+          json_dict[FieldNames.ID],
+          json_dict[FieldNames.ITEM_NAME],
+          json_dict[FieldNames.DESCRIPTION],
+          json_dict[FieldNames.INITIAL_BID],
+          json_dict[FieldNames.RESERVE],
+          millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
+          millis_to_timestamp(json_dict[FieldNames.EXPIRES]),
+          json_dict[FieldNames.SELLER],
+          json_dict[FieldNames.CATEGORY],
+          json_dict[FieldNames.EXTRA])
+    elif FieldNames.AUCTION in json_dict:
       yield nexmark_model.Bid(
-          json_dict[FieldName.AUCTION],
-          json_dict[FieldName.BIDDER],
-          json_dict[FieldName.PRICE],
-          json_dict[FieldName.DATE_TIME],
-          json_dict[FieldName.EXTRA])
+          json_dict[FieldNames.AUCTION],
+          json_dict[FieldNames.BIDDER],
+          json_dict[FieldNames.PRICE],
+          millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
+          json_dict[FieldNames.EXTRA])
     else:
       raise ValueError('Invalid event: %s.' % str(json_dict))
 
@@ -181,3 +184,13 @@ def log_count_info(count):
 def display(elm):
   logging.debug(elm)
   return elm
+
+
+def model_to_json(model):
+  return json.dumps(model.__dict__, separators=(',', ':'))
+
+
+def millis_to_timestamp(millis: int):
+  second = millis // 1000
+  micro_second = millis % 1000 * 1000
+  return Timestamp(second, micro_second)

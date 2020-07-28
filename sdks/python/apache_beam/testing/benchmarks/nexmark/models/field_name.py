@@ -19,7 +19,7 @@
 """
 
 
-class FieldName:
+class FieldNames:
   ID = 'id'
   NAME = 'name'
   EMAIL_ADDRESS = 'emailAddress'

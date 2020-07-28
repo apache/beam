@@ -16,7 +16,7 @@
 #
 
 """Result of Query2."""
-import json
+from apache_beam.testing.benchmarks.nexmark import nexmark_util
 
 
 class AuctionPrice(object):
@@ -25,4 +25,4 @@ class AuctionPrice(object):
     self.price = price
 
   def __repr__(self):
-    return json.dumps(self.__dict__, separators=(',', ':'))
+    return nexmark_util.model_to_json(self)
