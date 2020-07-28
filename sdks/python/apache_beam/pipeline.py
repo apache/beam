@@ -522,9 +522,10 @@ class Pipeline(object):
 
       if (self._options.view_as(TypeOptions).runtime_type_check and
           self._options.view_as(TypeOptions).performance_runtime_type_check):
-        print('You cannot turn on runtime_type_check '
-              'and performance_runtime_type_check simultaneously. '
-              'Beam will default to using performance_runtime_type_check.')
+        print(
+            'You cannot turn on runtime_type_check '
+            'and performance_runtime_type_check simultaneously. '
+            'Beam will default to using performance_runtime_type_check.')
         self._options.view_as(TypeOptions).runtime_type_check = False
 
       if self._options.view_as(TypeOptions).runtime_type_check:
