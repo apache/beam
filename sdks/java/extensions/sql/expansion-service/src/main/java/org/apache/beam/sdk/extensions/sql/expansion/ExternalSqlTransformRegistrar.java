@@ -48,8 +48,8 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
   }
 
   public static class Configuration {
-    String query;
-    String dialect;
+    String query = "";
+    @Nullable String dialect;
 
     public void setQuery(String query) {
       this.query = query;
