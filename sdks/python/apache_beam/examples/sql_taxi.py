@@ -29,15 +29,10 @@ from __future__ import absolute_import
 
 import json
 import logging
-import typing
-from datetime import datetime
-from datetime import timezone
 
 import apache_beam as beam
-from apache_beam.transforms.sql import SqlTransform
-from apache_beam.io.kafka import ReadFromKafka
-from apache_beam.io.kafka import WriteToKafka
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.transforms.sql import SqlTransform
 
 
 def run(output_topic, pipeline_args):
