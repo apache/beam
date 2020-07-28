@@ -169,6 +169,37 @@ class BlobStorageIO(object):
       raise BlobStorageError(message, code)
 
   # We intentionally do not decorate this method with a retry, since the
+  # underlying copy operation is already an idempotent operation protected
+  # by retry decorators.
+  def copy_tree(self, src, dest):
+    """Renames the given Azure Blob storage directory and its contents
+    recursively from src to dest.
+
+    Args:
+      src: Blob Storage file path pattern in the form
+           azfs://<storage-account>/<container>/[name].
+      dest: Blob Storage file path pattern in the form
+            azfs://<storage-account>/<container>/[name].
+      
+    Returns:
+      List of tuples of (src, dest, exception) where exception is None if the
+      operation succeeded or the relevant exception if the operation failed.
+    """
+    assert src.endswith('/')
+    assert dest.endswith('/')
+    
+    results = []
+    for entry in self.list_prefix(src):
+      rel_path = entry[len(src):]
+      try:
+        self.copy(entry, dest + rel_path)
+        results.append((entry, dest + rel_path, None))
+      except BlobStorageError as e:
+        results.append((entry, dest + rel_path, e))
+
+    return results
+
+  # We intentionally do not decorate this method with a retry, since the
   # underlying copy and delete operations are already idempotent operations
   # protected by retry decorators.
   def rename(self, src, dest):
