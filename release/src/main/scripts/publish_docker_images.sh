@@ -37,8 +37,9 @@ echo "Which release version are you working on: "
 read RELEASE
 
 echo "================Setting Up RC candidate Variables==========="
-echo "From which RC candidate do you create publish docker image? (ex: rc0, rc1) "
-read RC_VERSION
+echo "From which RC candidate do you create publish docker image? (ex: 1)"
+read RC_NUM
+RC_VERSION="rc${RC_NUM}"
 
 echo "================Confirmimg Release and RC version==========="
 echo "We are using ${RC_VERSION} to create docker images for ${RELEASE}."
