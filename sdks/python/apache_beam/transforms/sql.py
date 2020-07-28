@@ -69,8 +69,8 @@ class SqlTransform(ExternalTransform):
                                                              row.item_name))
 
   Additional examples can be found in
-  `apache_beam.examples.wordcount_xlang_sql`, `apache_beam.examples.sql_taxi`, and
-  `apache_beam.transforms.sql_test`.
+  `apache_beam.examples.wordcount_xlang_sql`, `apache_beam.examples.sql_taxi`,
+  and `apache_beam.transforms.sql_test`.
 
   For more details about Beam SQL in general see the `Java transform
   <https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html>`_,
