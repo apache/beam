@@ -424,7 +424,7 @@ class IOTypeHints(NamedTuple(
 
     if (my_type not in special_containers and
         getattr(my_type, '__origin__', None) != PCollection):
-      raise TypeCheckError(error_str)
+      raise TypeCheckError(error_str + ' Got: %s' % my_type)
 
     kwarg_dict = {}
 
