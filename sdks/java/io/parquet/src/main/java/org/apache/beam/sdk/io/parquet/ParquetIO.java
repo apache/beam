@@ -369,8 +369,8 @@ public class ParquetIO {
           PageReadStore pages = reader.readNextRowGroup();
           currentBlock += 1;
           RecordReader<GenericRecord> recordReader =
-                  columnIO.getRecordReader(
-                          pages, recordConverter, filterRecords ? filter : FilterCompat.NOOP);
+              columnIO.getRecordReader(
+                  pages, recordConverter, filterRecords ? filter : FilterCompat.NOOP);
           long currentRow = 0;
           long totalRows = pages.getRowCount();
           while (currentRow < totalRows) {
@@ -395,14 +395,15 @@ public class ParquetIO {
               }
               outputReceiver.output(record);
             } catch (RuntimeException e) {
-              throw new ParquetDecodingException(format("Can not read value at %d in block %d in file %s", currentRow, currentBlock, file.toString()), e);
+              throw new ParquetDecodingException(
+                  format(
+                      "Can not read value at %d in block %d in file %s",
+                      currentRow, currentBlock, file.toString()),
+                  e);
             }
           }
           LOG.info("finish read " + currentRow + " rows");
         }
-
-
-
       }
 
       private Configuration setConf() throws Exception {
