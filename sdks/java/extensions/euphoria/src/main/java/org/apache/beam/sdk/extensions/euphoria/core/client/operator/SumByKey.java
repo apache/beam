@@ -27,7 +27,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
@@ -264,7 +263,7 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
     }
 
     @Override
-    public PCollection<KV<KeyT, Long>> output(OutputHint... outputHints) {
+    public PCollection<KV<KeyT, Long>> output() {
       if (valueExtractor == null) {
         valueExtractor = e -> 1L;
       }
