@@ -28,6 +28,7 @@ generate events:
 """
 from apache_beam.coders import coder_impl
 from apache_beam.coders.coders import FastCoder
+from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.testing.benchmarks.nexmark import nexmark_util
 
 
@@ -128,7 +129,7 @@ class Bid(object):
 
 class AuctionCoderImpl(coder_impl.StreamCoderImpl):
   _int_coder_impl = coder_impl.VarIntCoderImpl()
-  _str_coder_impl = coder_impl.BytesCoderImpl()
+  _str_coder_impl = StrUtf8Coder().get_impl()
   _time_coder_impl = coder_impl.TimestampCoderImpl()
 
   def encode_to_stream(self, value: Auction, stream, nested):
@@ -154,12 +155,22 @@ class AuctionCoderImpl(coder_impl.StreamCoderImpl):
     seller = self._int_coder_impl.decode_from_stream(stream, True)
     category = self._int_coder_impl.decode_from_stream(stream, True)
     extra = self._str_coder_impl.decode_from_stream(stream, True)
-    return Auction(id, item_name, description, initial_bid, reserve, date_time, expires, seller, category, extra)
+    return Auction(
+        id,
+        item_name,
+        description,
+        initial_bid,
+        reserve,
+        date_time,
+        expires,
+        seller,
+        category,
+        extra)
 
 
 class BidCoderImpl(coder_impl.StreamCoderImpl):
   _int_coder_impl = coder_impl.VarIntCoderImpl()
-  _str_coder_impl = coder_impl.BytesCoderImpl()
+  _str_coder_impl = StrUtf8Coder().get_impl()
   _time_coder_impl = coder_impl.TimestampCoderImpl()
 
   def encode_to_stream(self, value: Bid, stream, nested):
@@ -180,7 +191,7 @@ class BidCoderImpl(coder_impl.StreamCoderImpl):
 
 class PersonCoderImpl(coder_impl.StreamCoderImpl):
   _int_coder_impl = coder_impl.VarIntCoderImpl()
-  _str_coder_impl = coder_impl.BytesCoderImpl()
+  _str_coder_impl = StrUtf8Coder().get_impl()
   _time_coder_impl = coder_impl.TimestampCoderImpl()
 
   def encode_to_stream(self, value: Person, stream, nested):

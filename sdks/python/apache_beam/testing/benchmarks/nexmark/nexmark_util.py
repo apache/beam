@@ -75,11 +75,15 @@ class Command(object):
 
 
 def setup_coder():
-  beam.coders.registry.register_coder(nexmark_model.Auction, nexmark_model.AuctionCoder)
-  beam.coders.registry.register_coder(nexmark_model.Person, nexmark_model.PersonCoder)
+  beam.coders.registry.register_coder(
+      nexmark_model.Auction, nexmark_model.AuctionCoder)
+  beam.coders.registry.register_coder(
+      nexmark_model.Person, nexmark_model.PersonCoder)
   beam.coders.registry.register_coder(nexmark_model.Bid, nexmark_model.BidCoder)
-  beam.coders.registry.register_coder(auction_bid.AuctionBid, auction_bid.AuctionBidCoder)
-  beam.coders.registry.register_coder(auction_price.AuctionPrice, auction_price.AuctionPriceCoder)
+  beam.coders.registry.register_coder(
+      auction_bid.AuctionBid, auction_bid.AuctionBidCoder)
+  beam.coders.registry.register_coder(
+      auction_price.AuctionPrice, auction_price.AuctionPriceCoder)
 
 
 class ParseEventFn(beam.DoFn):
@@ -144,7 +148,8 @@ class ParseJsonEvnetFn(beam.DoFn):
   def process(self, elem):
     json_dict = json.loads(elem)
     if type(json_dict[FieldNames.DATE_TIME]) is dict:
-      json_dict[FieldNames.DATE_TIME] = json_dict[FieldNames.DATE_TIME]['millis']
+      json_dict[FieldNames.DATE_TIME] = json_dict[
+          FieldNames.DATE_TIME]['millis']
     if FieldNames.NAME in json_dict:
       yield nexmark_model.Person(
           json_dict[FieldNames.ID],
@@ -182,10 +187,11 @@ class ParseJsonEvnetFn(beam.DoFn):
 
 class CountAndLog(beam.PTransform):
   def expand(self, pcoll):
-    return (pcoll
-            | 'window' >> beam.WindowInto(window.GlobalWindows())
-            | "Count" >> beam.combiners.Count.Globally()
-            | "Log" >> beam.Map(log_count_info))
+    return (
+        pcoll
+        | 'window' >> beam.WindowInto(window.GlobalWindows())
+        | "Count" >> beam.combiners.Count.Globally()
+        | "Log" >> beam.Map(log_count_info))
 
 
 def log_count_info(count):
@@ -199,7 +205,16 @@ def display(elm):
 
 
 def model_to_json(model):
-  return json.dumps(model.__dict__, separators=(',', ':'))
+  return json.dumps({k: timestamp_to_int(v)
+                     for k, v in model.__dict__.items()},
+                    separators=(',', ':'))
+
+
+def timestamp_to_int(cand):
+  if isinstance(cand, Timestamp):
+    return cand.micros // 1000
+  else:
+    return cand
 
 
 def millis_to_timestamp(millis: int):

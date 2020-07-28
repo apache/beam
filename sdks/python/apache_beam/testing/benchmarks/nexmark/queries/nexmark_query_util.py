@@ -17,10 +17,8 @@
 
 """Utilities for working with NEXmark data stream."""
 
-
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
-
 
 AUCTION_TAG = 'auctions'
 BID_TAG = 'bids'
@@ -56,4 +54,5 @@ class BidByAuctionIdFn(beam.DoFn):
 
 
 def auction_or_bid(event):
-  return isinstance(event, nexmark_model.Bid) or isinstance(event, nexmark_model.Auction)
+  return isinstance(event, nexmark_model.Bid) or isinstance(
+      event, nexmark_model.Auction)

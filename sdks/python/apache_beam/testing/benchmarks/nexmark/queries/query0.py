@@ -33,7 +33,15 @@ import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import ParseJsonEvnetFn
 
 
+class round_tripFn(beam.DoFn):
+  def process(self, element):
+    coder = element.CODER
+    byte_value = coder.encode(element)
+    recon = coder.decode(byte_value)
+    yield recon
+
+
 def load(events, query_args=None):
   return (
-      events | 'serialization' >> beam.Map(repr)
-      | 'deserialization' >> beam.ParDo(ParseJsonEvnetFn()))
+      events
+      | 'serialization_and_deserialization' >> beam.ParDo(round_tripFn()))
