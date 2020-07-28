@@ -335,7 +335,6 @@ public final class ZetaSqlBeamTranslationUtils {
       return CivilTimeEncoder.decodePacked64TimeNanosAsJavaTime(value.getTimeValue());
     } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
       // DateTime value
-      System.out.println(value.getType());
       return CivilTimeEncoder.decodePacked96DatetimeNanosAsJavaTime(value.getDatetimeValue());
     } else {
       throw new UnsupportedOperationException("Unknown Beam logical type: " + identifier);

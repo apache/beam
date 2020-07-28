@@ -48,6 +48,8 @@ public class BeamRelDataTypeSystem extends RelDataTypeSystemImpl {
     switch (typeName) {
       case TIME:
         return 6; // support microsecond time precision
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+        return 6; // support microsecond datetime precision
       default:
         return super.getMaxPrecision(typeName);
     }

@@ -853,23 +853,36 @@ public class ExpressionConverter {
         ret = rexBuilder().makeLiteral(convertTimeValueToTimeString(value), timeType, false);
         break;
       case TYPE_DATETIME:
+        // Cannot simply call makeTimestampWithLocalTimeZoneLiteral() for ZetaSQL DATETIME type
+        // because later it will be unparsed to the string representation of timestamp (e.g. "SELECT
+        // DATETIME '2008-12-25 15:30:00'" will be unparsed to "SELECT TIMESTAMP '2008-12-25
+        // 15:30:00:000000'"). So we create a wrapper function here such that we can later recognize
+        // it and customize its unparsing in BeamBigQuerySqlDialect.
         LocalDateTime dateTime =
             CivilTimeEncoder.decodePacked96DatetimeNanosAsJavaTime(value.getDatetimeValue());
-        dateTime.toString();
+        TimestampString tsString =
+            new TimestampString(
+                    dateTime.getYear(),
+                    dateTime.getMonthValue(),
+                    dateTime.getDayOfMonth(),
+                    dateTime.getHour(),
+                    dateTime.getMinute(),
+                    dateTime.getSecond())
+                .withNanos(dateTime.getNano());
+
         ret =
             rexBuilder()
-                .makeTimestampWithLocalTimeZoneLiteral(
-                    new TimestampString(
-                            dateTime.getYear(),
-                            dateTime.getMonthValue(),
-                            dateTime.getDayOfMonth(),
-                            dateTime.getHour(),
-                            dateTime.getMinute(),
-                            dateTime.getSecond())
-                        .withNanos(dateTime.getNano()),
-                    typeFactory()
-                        .getTypeSystem()
-                        .getMaxPrecision(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE));
+                .makeCall(
+                    SqlOperators.createZetaSqlFunction(
+                        BeamBigQuerySqlDialect.DATETIME_LITERAL_FUNCTION,
+                        ZetaSqlCalciteTranslationUtils.toCalciteTypeName(kind)),
+                    ImmutableList.of(
+                        rexBuilder()
+                            .makeTimestampWithLocalTimeZoneLiteral(
+                                tsString,
+                                typeFactory()
+                                    .getTypeSystem()
+                                    .getMaxPrecision(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE))));
         break;
       case TYPE_BYTES:
         ret = rexBuilder().makeBinaryLiteral(new ByteString(value.getBytesValue().toByteArray()));

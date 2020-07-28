@@ -234,14 +234,14 @@ class SupportedZetaSqlBuiltinFunctions {
           FunctionSignatureId.FN_UNIX_MILLIS_FROM_TIMESTAMP,
           // FunctionSignatureId.FN_UNIX_MICROS_FROM_TIMESTAMP,
           FunctionSignatureId.FN_DATE_FROM_TIMESTAMP, // date
-          // FunctionSignatureId.FN_DATE_FROM_DATETIME, // date
+          FunctionSignatureId.FN_DATE_FROM_DATETIME, // date
           FunctionSignatureId.FN_DATE_FROM_YEAR_MONTH_DAY, // date
           FunctionSignatureId.FN_TIMESTAMP_FROM_STRING, // timestamp
           FunctionSignatureId.FN_TIMESTAMP_FROM_DATE, // timestamp
-          // FunctionSignatureId.FN_TIMESTAMP_FROM_DATETIME, // timestamp
+          FunctionSignatureId.FN_TIMESTAMP_FROM_DATETIME, // timestamp
           FunctionSignatureId.FN_TIME_FROM_HOUR_MINUTE_SECOND, // time
           FunctionSignatureId.FN_TIME_FROM_TIMESTAMP, // time
-          // FunctionSignatureId.FN_TIME_FROM_DATETIME, // time
+          FunctionSignatureId.FN_TIME_FROM_DATETIME, // time
           FunctionSignatureId.FN_DATETIME_FROM_DATE_AND_TIME, // datetime
           FunctionSignatureId.FN_DATETIME_FROM_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND, // datetime
           FunctionSignatureId.FN_DATETIME_FROM_TIMESTAMP, // datetime
