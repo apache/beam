@@ -94,6 +94,11 @@ class CommonJobProperties {
       }
       timestamps()
     }
+
+    context.publishers {
+      // Clean after job completes.
+      wsCleanup()
+    }
   }
 
   // Sets the pull request build trigger. Accessed through precommit methods
