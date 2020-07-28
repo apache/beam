@@ -96,10 +96,16 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
     else:
       return self._check_type(result)
 
-  def _check_type(self, output):
+  @staticmethod
+  def _check_type(output, should_check_bytes=True):
     if output is None:
       return output
-    elif isinstance(output, (dict, bytes, str, unicode)):
+
+    discouraged_types = (dict, str, unicode)
+    if should_check_bytes:
+      discouraged_types = discouraged_types + bytes
+
+    elif isinstance(output, discouraged_types):
       object_type = type(output).__name__
       raise TypeCheckError(
           'Returning a %s from a ParDo or FlatMap is '

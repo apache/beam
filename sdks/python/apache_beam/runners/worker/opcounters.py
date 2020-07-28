@@ -35,7 +35,7 @@ from typing import Optional
 from apache_beam.internal import pickler
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints.decorators import _check_instance_type
-from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
+from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn, OutputCheckWrapperDoFn
 from apache_beam.utils import counters
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
@@ -276,6 +276,8 @@ class OperationCounters(object):
               'Runtime type violation detected within %s: '
               '%s' % (self.producer_full_label, e))
           raise_with_traceback(TypeCheckError(error_msg))
+        else:
+          OutputCheckWrapperDoFn._check_type(value, should_check_bytes=False)
 
     for consumer_type_hint, consumer_full_label in zip(self.consumer_type_hints, self.consumer_full_labels):
       if consumer_type_hint and hasattr(consumer_type_hint, 'input_types'):
