@@ -25,13 +25,14 @@ import static org.apache.parquet.hadoop.ParquetInputFormat.STRICT_TYPE_CHECKING;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -71,7 +72,6 @@ import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.api.InitContext;
 import org.apache.parquet.hadoop.api.ReadSupport;
-import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.hadoop.metadata.FileMetaData;
 import org.apache.parquet.io.ColumnIOFactory;
@@ -395,6 +395,9 @@ public class ParquetIO {
                 LOG.debug("filtered record reader reached end of block");
                 break;
               }
+              if (tracker instanceof BlockTracker) {
+                ((BlockTracker) tracker).makeProgress();
+              }
               outputReceiver.output(record);
             } catch (RuntimeException e) {
               throw new ParquetDecodingException(
@@ -440,8 +443,11 @@ public class ParquetIO {
       }
 
       @NewTracker
-      public OffsetRangeTracker newTracker(@Restriction OffsetRange restriction) {
-        return new OffsetRangeTracker(restriction);
+      public RestrictionTracker<OffsetRange, Long> newTracker(
+          @Restriction OffsetRange restriction, @Element FileIO.ReadableFile file)
+          throws Exception {
+        return new BlockTracker(
+            restriction, (long) getSize(file, restriction), getRecordCount(file, restriction));
       }
 
       @GetRestrictionCoder
@@ -449,7 +455,24 @@ public class ParquetIO {
         return new OffsetRange.Coder();
       }
 
-      @GetSize
+      public long getRecordCount(
+          @Element FileIO.ReadableFile file, @Restriction OffsetRange restriction)
+          throws Exception {
+        InputFile inputFile = getInputFile(file);
+        Configuration conf = setConf();
+        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
+        ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
+        if (restriction == null) {
+          return 0;
+        } else {
+          long recordCount = 0;
+          for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
+            recordCount += reader.getRowGroups().get((int) i).getRowCount();
+          }
+          return recordCount;
+        }
+      }
+
       public double getSize(@Element FileIO.ReadableFile file, @Restriction OffsetRange restriction)
           throws Exception {
         InputFile inputFile = getInputFile(file);
@@ -459,14 +482,44 @@ public class ParquetIO {
         if (restriction == null) {
           return 0;
         } else {
-          long start = restriction.getFrom();
-          long end = restriction.getTo();
-          List<BlockMetaData> blocks = reader.getRowGroups();
           double size = 0;
-          for (long i = start; i < end; i++) {
-            size += blocks.get((int) i).getRowCount();
+          for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
+            size += reader.getRowGroups().get((int) i).getTotalByteSize();
           }
           return size;
+        }
+      }
+    }
+
+    private static class BlockTracker extends OffsetRangeTracker {
+      private long totalWork;
+      private long progress;
+      private long recordSize;
+
+      public BlockTracker(OffsetRange range, long totalWork, long recordCount) {
+        super(range);
+        this.recordSize = totalWork / recordCount;
+        this.totalWork = recordSize * recordCount;
+        this.progress = 0;
+      }
+
+      public void makeProgress() {
+        progress += recordSize;
+      }
+
+      @Override
+      public Progress getProgress() {
+        if (this.lastAttemptedOffset == null) {
+          return Progress.from(0.0D, BigDecimal.valueOf(this.totalWork).doubleValue());
+        } else {
+          BigDecimal workRemaining =
+              BigDecimal.valueOf(this.totalWork)
+                  .subtract(BigDecimal.valueOf(this.progress), MathContext.DECIMAL128)
+                  .max(BigDecimal.ZERO);
+          BigDecimal work = BigDecimal.valueOf(this.totalWork);
+          return Progress.from(
+              work.subtract(workRemaining, MathContext.DECIMAL128).doubleValue(),
+              workRemaining.doubleValue());
         }
       }
     }
