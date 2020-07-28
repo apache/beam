@@ -200,6 +200,54 @@ class BlobStorageIO(object):
     return results
 
   # We intentionally do not decorate this method with a retry, since the
+  # underlying copy operation is already an idempotent operation protected
+  # by retry decorators.
+  def copy_paths(self, src_dest_pairs):
+    """Copies the given Azure Blob Storage blobs from src to dest. This can
+    handle directory or file paths.
+
+    Args:
+      src_dest_pairs: List of (src, dest) tuples of
+                      azfs://<storage-account>/<container>/[name] file paths
+                      to copy from src to dest.
+    
+    Returns: 
+      List of tuples of (src, dest, exception) in the same order as the
+      src_dest_pairs argument, where exception is None if the operation
+      succeeded or the relevant exception if the operation failed.
+    """
+    if not src_dest_pairs:
+      return []
+    
+    results = []
+
+    for src_path, dest_path in src_dest_pairs:
+      # Case 1. They are directories.
+      if src_path.endswith('/') and dest_path.endswith('/'):
+        try:
+          results += self.copy_tree(src_path, dest_path)
+        except BlobStorageError as e:
+          results.append((src_path, dest_path, e))
+      
+      # Case 2. They are individual blobs.
+      elif not src_path.endswith('/') and not dest_path.endswith('/'):
+        try:
+          self.copy(src_path, dest_path)
+          results.append((src_path, dest_path, None))
+        except BlobStorageError as e:
+          results.append((src_path, dest_path, e))
+      
+      # Mismatched paths (one directory, one non-directory) get an error
+      else:
+        e = BlobStorageError(
+            "Unable to copy mismatched paths" +
+            "(directory, non-directory): %s, %s" % (src_path, dest_path),
+            400)
+        results.append((src_path, dest_path, e))
+        
+    return results
+
+  # We intentionally do not decorate this method with a retry, since the
   # underlying copy and delete operations are already idempotent operations
   # protected by retry decorators.
   def rename(self, src, dest):
