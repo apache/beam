@@ -268,7 +268,7 @@ class OperationCounters(object):
         while True:
           try:
             input_constraint = next(iter(input_constraint))
-          except TypeError:
+          except (TypeError, StopIteration):
             break
         if input_constraint:
           TypeCheckWrapperDoFn.type_check(input_constraint, value, False)
