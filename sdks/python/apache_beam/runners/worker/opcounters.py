@@ -35,7 +35,7 @@ from typing import Optional
 from apache_beam.internal import pickler
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints.decorators import _check_instance_type
-from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn, OutputCheckWrapperDoFn
+from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
 from apache_beam.utils import counters
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
@@ -272,7 +272,8 @@ class OperationCounters(object):
         else:
           OutputCheckWrapperDoFn._check_type(value, should_check_bytes=False)
 
-    for consumer_type_hint, consumer_full_label in zip(self.consumer_type_hints, self.consumer_full_labels):
+    for consumer_type_hint, consumer_full_label in \
+            zip(self.consumer_type_hints, self.consumer_full_labels):
       input_constraint = consumer_type_hint.input_types
       if input_constraint is not None:
         try:
