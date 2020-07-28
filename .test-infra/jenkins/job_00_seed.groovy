@@ -104,7 +104,7 @@ job('beam_SeedJob') {
   }
 
   steps {
-    shell('python3.8 -m venv ve3 && source ve3/bin/activate && python .test-infra/jenkins/committers_list_generator/main.py -o .test-infra/jenkins && deactivate')
+    shell('( cd .test-infra/jenkins/committers_list_generator && python3.8 -m venv ve3 && source ve3/bin/activate && pip install -r requirements.txt && python main.py -o .. && deactivate )')
     dsl {
       // A list or a glob of other groovy files to process.
       external('.test-infra/jenkins/job_*.groovy')
