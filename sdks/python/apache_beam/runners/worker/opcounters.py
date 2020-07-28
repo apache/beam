@@ -29,6 +29,7 @@ import math
 import random
 from builtins import hex
 from builtins import object
+from future.utils import raise_with_traceback
 from typing import TYPE_CHECKING
 from typing import Optional
 
@@ -39,7 +40,6 @@ from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
 from apache_beam.utils import counters
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
-from future.utils import raise_with_traceback
 
 if TYPE_CHECKING:
   from apache_beam.utils import windowed_value
