@@ -30,12 +30,16 @@ import org.apache.beam.sdk.values.Row;
  * offset or time-zone.
  *
  * <p>Its input type is a {@link LocalDateTime}, and base type is a {@link Row} containing Date
- * field and Time field. Date field is a Long that represents incrementing count of days where day 0
- * is 1970-01-01 (ISO). Time field is a Long that represents a count of time in nanoseconds.
+ * field and Time field. Date field is the same as the base type of {@link Date}, which is a Long
+ * that represents incrementing count of days where day 0 is 1970-01-01 (ISO). Time field is the
+ * same as the base type of {@link Time}, which is a Long that represents a count of time in
+ * nanoseconds.
  */
 public class DateTime implements Schema.LogicalType<LocalDateTime, Row> {
-  private final Schema schema =
-      Schema.builder().addInt64Field("Date").addInt64Field("Time").build();
+  public static final String DATE_FIELD = "Date";
+  public static final String TIME_FIELD = "Time";
+  private static final Schema DATETIME_SCHEMA =
+      Schema.builder().addInt64Field(DATE_FIELD).addInt64Field(TIME_FIELD).build();
 
   @Override
   public String getIdentifier() {
@@ -56,14 +60,14 @@ public class DateTime implements Schema.LogicalType<LocalDateTime, Row> {
 
   @Override
   public Schema.FieldType getBaseType() {
-    return Schema.FieldType.row(schema);
+    return Schema.FieldType.row(DATETIME_SCHEMA);
   }
 
   @Override
   public Row toBaseType(LocalDateTime input) {
     return input == null
         ? null
-        : Row.withSchema(schema)
+        : Row.withSchema(DATETIME_SCHEMA)
             .addValues(input.toLocalDate().toEpochDay(), input.toLocalTime().toNanoOfDay())
             .build();
   }
@@ -73,7 +77,7 @@ public class DateTime implements Schema.LogicalType<LocalDateTime, Row> {
     return base == null
         ? null
         : LocalDateTime.of(
-            LocalDate.ofEpochDay(base.getValue("Date")),
-            LocalTime.ofNanoOfDay(base.getValue("Time")));
+            LocalDate.ofEpochDay(base.getValue(DATE_FIELD)),
+            LocalTime.ofNanoOfDay(base.getValue(TIME_FIELD)));
   }
 }

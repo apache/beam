@@ -98,7 +98,6 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
           .build();
   public static final String NUMERIC_LITERAL_FUNCTION = "numeric_literal";
   public static final String DATETIME_LITERAL_FUNCTION = "datetime_literal";
-  public static final int DATETIME_LITERAL_OFFSET = 10;
 
   public BeamBigQuerySqlDialect(Context context) {
     super(context);
@@ -173,8 +172,7 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
           // differentiate it from ZetaSQL TIMESTAMP literal
           unparseDateTimeLiteralWrapperFunction(writer, call, leftPrec, rightPrec);
           break;
-        }
-        if (DOUBLE_FUNCTIONS.containsKey(funName)) {
+        } else if (DOUBLE_FUNCTIONS.containsKey(funName)) {
           // self-designed function dealing with the unparsing of ZetaSQL DOUBLE positive
           // infinity, negative infinity and NaN
           unparseDoubleWrapperFunction(writer, funName);
@@ -263,8 +261,7 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
 
   private void unparseDateTimeLiteralWrapperFunction(
       SqlWriter writer, SqlCall call, int leftPrec, int rightPrec) {
-    writer.literal("DATETIME");
-    writer.literal(call.operand(0).toString().substring(DATETIME_LITERAL_OFFSET));
+    writer.literal(call.operand(0).toString().replace("TIMESTAMP", "DATETIME"));
   }
 
   /**

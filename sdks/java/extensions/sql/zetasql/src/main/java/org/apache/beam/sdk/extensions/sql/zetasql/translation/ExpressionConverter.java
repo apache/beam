@@ -24,9 +24,7 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DOUBLE;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_INT64;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
-import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertDateValueToDateString;
-import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertTimeValueToTimeString;
-import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.safeMicrosToMillis;
+import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.*;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.PRE_DEFINED_WINDOW_FUNCTIONS;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.USER_DEFINED_FUNCTIONS;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
@@ -37,7 +35,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.zetasql.ArrayType;
-import com.google.zetasql.CivilTimeEncoder;
 import com.google.zetasql.EnumType;
 import com.google.zetasql.StructType;
 import com.google.zetasql.TVFRelation;
@@ -64,7 +61,6 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedParameter;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedProjectScan;
 import java.math.BigDecimal;
 import java.text.MessageFormat;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -794,9 +790,7 @@ public class ExpressionConverter {
               rexBuilder()
                   .makeCall(
                       SqlOperators.createZetaSqlFunction(wrapperFun, returnType.getSqlTypeName()),
-                      ImmutableList.of(
-                          rexBuilder()
-                              .makeApproxLiteral(new BigDecimal(Math.random()), returnType)));
+                      rexBuilder().makeApproxLiteral(new BigDecimal(Math.random()), returnType));
           ;
         } else {
           ret =
@@ -825,12 +819,11 @@ public class ExpressionConverter {
                     SqlOperators.createZetaSqlFunction(
                         BeamBigQuerySqlDialect.NUMERIC_LITERAL_FUNCTION,
                         ZetaSqlCalciteTranslationUtils.toCalciteTypeName(kind)),
-                    ImmutableList.of(
-                        rexBuilder()
-                            .makeExactLiteral(
-                                value.getNumericValue(),
-                                ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(
-                                    kind, rexBuilder()))));
+                    rexBuilder()
+                        .makeExactLiteral(
+                            value.getNumericValue(),
+                            ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(
+                                kind, rexBuilder())));
         break;
       case TYPE_TIMESTAMP:
         ret =
@@ -858,31 +851,18 @@ public class ExpressionConverter {
         // DATETIME '2008-12-25 15:30:00'" will be unparsed to "SELECT TIMESTAMP '2008-12-25
         // 15:30:00:000000'"). So we create a wrapper function here such that we can later recognize
         // it and customize its unparsing in BeamBigQuerySqlDialect.
-        LocalDateTime dateTime =
-            CivilTimeEncoder.decodePacked96DatetimeNanosAsJavaTime(value.getDatetimeValue());
-        TimestampString tsString =
-            new TimestampString(
-                    dateTime.getYear(),
-                    dateTime.getMonthValue(),
-                    dateTime.getDayOfMonth(),
-                    dateTime.getHour(),
-                    dateTime.getMinute(),
-                    dateTime.getSecond())
-                .withNanos(dateTime.getNano());
-
         ret =
             rexBuilder()
                 .makeCall(
                     SqlOperators.createZetaSqlFunction(
                         BeamBigQuerySqlDialect.DATETIME_LITERAL_FUNCTION,
                         ZetaSqlCalciteTranslationUtils.toCalciteTypeName(kind)),
-                    ImmutableList.of(
-                        rexBuilder()
-                            .makeTimestampWithLocalTimeZoneLiteral(
-                                tsString,
-                                typeFactory()
-                                    .getTypeSystem()
-                                    .getMaxPrecision(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE))));
+                    rexBuilder()
+                        .makeTimestampWithLocalTimeZoneLiteral(
+                            convertDateTimeValueToTimeStampString(value),
+                            typeFactory()
+                                .getTypeSystem()
+                                .getMaxPrecision(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)));
         break;
       case TYPE_BYTES:
         ret = rexBuilder().makeBinaryLiteral(new ByteString(value.getBytesValue().toByteArray()));

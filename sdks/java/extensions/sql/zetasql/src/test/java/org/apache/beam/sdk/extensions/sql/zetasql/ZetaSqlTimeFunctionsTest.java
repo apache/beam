@@ -221,7 +221,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
   @Test
   public void testDateFromDateTime() {
-    String sql = "SELECT DATE(DATETIME '2008-12-25 15:30:00')";
+    String sql = "SELECT DATE(DATETIME '2008-12-25 15:30:00.123456')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -598,7 +598,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
   @Test
   public void testTimeFromDateTime() {
-    String sql = "SELECT TIME(DATETIME '2008-12-25 15:30:00')";
+    String sql = "SELECT TIME(DATETIME '2008-12-25 15:30:00.123456')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -607,7 +607,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addLogicalTypeField("f_time", SqlTypes.TIME).build())
-                .addValues(LocalTime.of(15, 30, 0))
+                .addValues(LocalTime.of(15, 30, 0, 123456000))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -787,7 +787,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
   @Test
   public void testDateTimeLiteral() {
-    String sql = "SELECT DATETIME '2008-12-25 15:30:00'";
+    String sql = "SELECT DATETIME '2008-12-25 15:30:00.123456'";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -797,14 +797,14 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(
                     Schema.builder().addLogicalTypeField("f_datetime", SqlTypes.DATETIME).build())
-                .addValues(LocalDateTime.of(2008, 12, 25, 15, 30, 0))
+                .addValues(LocalDateTime.of(2008, 12, 25, 15, 30, 0).withNano(123456000))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testDateTimeColumn() {
-    String sql = "SELECT FORMAT_DATETIME('%b-%d-%Y', datetime_field) FROM table_with_datetime";
+    String sql = "SELECT FORMAT_DATETIME('%D %T', datetime_field) FROM table_with_datetime";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -813,10 +813,10 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addStringField("f_datetime_str").build())
-                .addValues("Dec-25-2008")
+                .addValues("12/25/08 15:30:00")
                 .build(),
             Row.withSchema(Schema.builder().addStringField("f_datetime_str").build())
-                .addValues("Oct-06-2012")
+                .addValues("10/06/12 11:45:00")
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -880,8 +880,8 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
             + "EXTRACT(SECOND FROM DATETIME '2008-12-25 15:30:00.123456') as second, "
             + "EXTRACT(MILLISECOND FROM DATETIME '2008-12-25 15:30:00.123456') as millisecond, "
             + "EXTRACT(MICROSECOND FROM DATETIME '2008-12-25 15:30:00.123456') as microsecond, "
-            + "EXTRACT(DATE FROM DATETIME '2008-12-25 15:30:00') as date, "
-            + "EXTRACT(TIME FROM DATETIME '2008-12-25 15:30:00') as time ";
+            + "EXTRACT(DATE FROM DATETIME '2008-12-25 15:30:00.123456') as date, "
+            + "EXTRACT(TIME FROM DATETIME '2008-12-25 15:30:00.123456') as time ";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -910,7 +910,8 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
                 .addValues(
                     2008L,
                     4L,
-                    12L, /*52L, */
+                    12L,
+                    // 52L,
                     25L,
                     5L,
                     360L,
@@ -920,7 +921,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
                     123L,
                     123456L,
                     LocalDate.of(2008, 12, 25),
-                    LocalTime.of(15, 30, 0))
+                    LocalTime.of(15, 30, 0, 123456000))
                 .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
@@ -1356,6 +1357,23 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addLogicalTypeField("time", SqlTypes.TIME).build())
                 .addValues(LocalTime.of(12, 34, 56))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testExtractDateTimeFromTimestamp() {
+    String sql = "SELECT EXTRACT(DATETIME FROM TIMESTAMP '2017-05-26 12:34:56')";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("datetime", SqlTypes.DATETIME).build())
+                .addValues(LocalDateTime.of(2017, 5, 26, 12, 34, 56))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

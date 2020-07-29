@@ -34,6 +34,6 @@ public class SqlTypes {
   /** Beam LogicalType corresponding to ZetaSQL/CalciteSQL TIME type. */
   public static final LogicalType<LocalTime, Long> TIME = new Time();
 
-  /** Beam LogicalType corresponding to ZetaSQL/CalciteSQL DATETIME type. */
+  /** Beam LogicalType corresponding to ZetaSQL DATETIME type. */
   public static final LogicalType<LocalDateTime, Row> DATETIME = new DateTime();
 }

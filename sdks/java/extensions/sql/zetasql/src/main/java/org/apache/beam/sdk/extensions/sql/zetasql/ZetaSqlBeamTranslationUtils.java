@@ -37,6 +37,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
@@ -194,8 +195,8 @@ public final class ZetaSqlBeamTranslationUtils {
       if (object instanceof Row) { // base type
         datetime =
             LocalDateTime.of(
-                LocalDate.ofEpochDay(((Row) object).getValue("Date")),
-                LocalTime.ofNanoOfDay(((Row) object).getValue("Time")));
+                LocalDate.ofEpochDay(((Row) object).getValue(DateTime.DATE_FIELD)),
+                LocalTime.ofNanoOfDay(((Row) object).getValue(DateTime.TIME_FIELD)));
       } else { // input type
         datetime = (LocalDateTime) object;
       }
