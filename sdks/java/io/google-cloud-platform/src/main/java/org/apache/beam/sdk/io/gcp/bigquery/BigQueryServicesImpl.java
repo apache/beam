@@ -816,7 +816,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                             throw e;
                           }
                           /**
-                           * TODO:Check for quotaExceededError The check will be replaced by
+                           * TODO(BEAM-10584): Check for QUOTA_EXCEEDED error will be replaced by
                            * ApiErrorExtractor.INSTANCE.quotaExceeded(e) after the next release of
                            * GoogleCloudDataproc/hadoop-connectors
                            */
