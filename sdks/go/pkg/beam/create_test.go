@@ -87,6 +87,32 @@ func TestCreateList(t *testing.T) {
 	}
 }
 
+func TestCreateEmptyList(t *testing.T) {
+	tests := []struct {
+		values interface{}
+	}{
+		{[]int{}},
+		{[]string{}},
+		{[]float32{}},
+		{[]float64{}},
+		{[]uint{}},
+		{[]bool{}},
+		{[]wc{}},
+		{[]*testProto{}}, // Test for BEAM-4401
+	}
+
+	for _, test := range tests {
+		p, s := beam.NewPipelineWithRoot()
+		c := beam.CreateList(s, test.values)
+
+		passert.Empty(s, c)
+
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("beam.CreateList(%v) failed: %v", test.values, err)
+		}
+	}
+}
+
 type testProto struct {
 	// OneOfField is an interface-typed field and cannot be JSON-marshaled, but
 	// should be specially handled by Beam as a field of a proto.Message.
