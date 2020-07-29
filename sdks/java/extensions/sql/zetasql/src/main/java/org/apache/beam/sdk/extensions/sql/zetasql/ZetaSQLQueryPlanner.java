@@ -99,8 +99,9 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
           // In order to support Java UDF, we need both BeamZetaSqlCalcRel and BeamCalcRel. It is
           // because BeamZetaSqlCalcRel can execute ZetaSQL built-in functions while BeamCalcRel
           // can execute UDFs. So during planning, we expect both Filter and Project are converted
-          // to a Calc before merging with other Projec/Filter/Calc. Thus we should not add
-          // FilterCalcMergeRule and ProjectCalcMergeRule.
+          // to Calc nodes before merging with other Project/Filter/Calc nodes. Thus we should not
+          // add FilterCalcMergeRule and ProjectCalcMergeRule. CalcMergeRule will achieve equivalent
+          // planning result eventually.
           continue;
         } else if (rule instanceof BeamCalcRule) {
           bd.add(BeamZetaSqlCalcRule.INSTANCE);
