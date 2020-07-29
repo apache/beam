@@ -35,8 +35,8 @@ from apache_beam.io import fileio
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.dicomio import DicomSearch
-from apache_beam.io.gcp.dicomio import WriteToDicomStore
 from apache_beam.io.gcp.dicomio import PubsubToQido
+from apache_beam.io.gcp.dicomio import WriteToDicomStore
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
