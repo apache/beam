@@ -37,7 +37,6 @@ from future.utils import raise_with_traceback
 from apache_beam.internal import pickler
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints.decorators import _check_instance_type
-from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
 from apache_beam.utils import counters
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
@@ -282,7 +281,8 @@ class OperationCounters(object):
           raise_with_traceback(TypeCheckError(error_msg))
 
     for consumer_type_hint, consumer_full_label, consumer_parameter_name in \
-            zip(self.consumer_type_hints, self.consumer_full_labels, self.consumer_parameter_names):
+            zip(self.consumer_type_hints, self.consumer_full_labels,
+                self.consumer_parameter_names):
       input_constraint = consumer_type_hint.input_types
       if input_constraint is not None:
         try:
