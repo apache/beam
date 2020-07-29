@@ -233,7 +233,55 @@ class TestBlobStorageIO(unittest.TestCase):
       dest_file_name = dest_dir_name + path
       # TODO : Add delete_files functionality
       self.azfs.delete(src_file_name)
-      self.azfs.delete(dest_file_name)    
+      self.azfs.delete(dest_file_name)
+
+  def test_copy_paths(self):
+    from_name_pattern = self.TEST_DATA_PATH + 'copy_me_%d'
+    to_name_pattern = self.TEST_DATA_PATH + 'destination_%d'
+    file_size = 1024
+    num_files = 10
+
+    src_dest_pairs = [(from_name_pattern % i, to_name_pattern % i)
+                      for i in range(num_files)]
+
+    # Execute batch copy of nonexistent files.
+    result = self.azfs.copy_paths(src_dest_pairs)
+
+    self.assertTrue(result)
+    for i, (src, dest, exception) in enumerate(result):
+      self.assertEqual(src, from_name_pattern % i)
+      self.assertEqual(dest, to_name_pattern % i)
+      self.assertTrue(isinstance(exception, blobstorageio.BlobStorageError))
+      self.assertEqual(exception.code, 404)
+      self.assertFalse(self.azfs.exists(from_name_pattern % i))
+      self.assertFalse(self.azfs.exists(to_name_pattern % i))
+
+    # Insert some files.
+    for i in range(num_files):
+      self._insert_random_file(from_name_pattern % i, file_size)
+    
+    # Check if files were inserte properly.
+    for i in range(num_files):
+      self.assertTrue(self.azfs.exists(from_name_pattern % i))
+
+    # Execute batch copy.
+    result = self.azfs.copy_paths(src_dest_pairs)
+
+    # Check files copied properly.
+    for i in range(num_files):
+      self.assertTrue(self.azfs.exists(from_name_pattern % i))
+      self.assertTrue(self.azfs.exists(to_name_pattern % i))
+
+    # Check results.
+    for i, (src, dest, exception) in enumerate(result):
+      self.assertEqual(src_dest_pairs[i], (src, dest))
+      self.assertEqual(exception, None)
+
+    # Clean up.
+    # TODO : Add delete_files functionality
+    for i in range(num_files):
+      self.azfs.delete(from_name_pattern % i)
+      self.azfs.delete(to_name_pattern % i)
 
   def test_rename(self):
     src_file_name = self.TEST_DATA_PATH + 'mysource'
