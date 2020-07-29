@@ -97,7 +97,7 @@ def get_committers_github_usernames(ldap_uris, cert_path):
             for github_username in github_usernames[committer_dn.decode()]
         ]
 
-        logging.info(f"Committers' GitHub usernames fetched correctly: {committers_github_usernames}")
+        logging.info(f"{len(committers_github_usernames)} committers' GitHub usernames fetched correctly")
 
         return committers_github_usernames
 
