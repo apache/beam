@@ -281,7 +281,7 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 	return edge, nil
 }
 
-// NewCrossLanguage inserts a Corss-langugae External transform.
+// NewCrossLanguage inserts a Cross-langugae External transform.
 func NewCrossLanguage(g *Graph, s *Scope, in []*Node, payload *Payload) *MultiEdge {
 	edge := g.NewEdge(s)
 	edge.Op = External
@@ -292,14 +292,15 @@ func NewCrossLanguage(g *Graph, s *Scope, in []*Node, payload *Payload) *MultiEd
 	for _, n := range in {
 		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: n, Type: n.Type()})
 	}
-	/*
-		// Can't assume number of outputs == number of inputs, thus requiring upfront declaration
-		for _, t := range out {
-			n := g.NewNode(t, inputWindow(in), bounded)
-			edge.Output = append(edge.Output, &Outbound{To: n, Type: t})
-		}
-	*/
 	return edge
+}
+
+// AddOutboundLinks adds Outbound links to existing MultiEdge
+func AddOutboundLinks(g *Graph, e *MultiEdge, in []*Node, out []typex.FullType, bounded bool) {
+	for _, t := range out {
+		n := g.NewNode(t, inputWindow(in), bounded)
+		e.Output = append(e.Output, &Outbound{To: n, Type: t})
+	}
 }
 
 // NewExternal inserts an External transform. The system makes no assumptions about
