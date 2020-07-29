@@ -35,7 +35,7 @@ from apache_beam.io import fileio
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.dicomio import DicomSearch
-from apache_beam.io.gcp.dicomio import DicomStoreInstance
+from apache_beam.io.gcp.dicomio import WriteToDicomStore
 from apache_beam.io.gcp.dicomio import PubsubToQido
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -289,7 +289,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
       results = (
           p
           | beam.Create([bytes_input])
-          | DicomStoreInstance(input_dict, 'bytes')
+          | WriteToDicomStore(input_dict, 'bytes')
           | beam.Map(lambda x: x['success']))
       assert_that(results, equal_to([True]))
     self.assertTrue(dict_input in fc.dicom_metadata)
@@ -316,7 +316,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
           | beam.Create([FileSystems.join(temp_dir, '*')])
           | fileio.MatchAll()
           | fileio.ReadMatches()
-          | DicomStoreInstance(input_dict, 'fileio')
+          | WriteToDicomStore(input_dict, 'fileio')
           | beam.Map(lambda x: x['success']))
       assert_that(results, equal_to([True]))
     self.assertTrue(dict_input in fc.dicom_metadata)
@@ -341,7 +341,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
       results = (
           p
           | beam.Create([''])
-          | DicomStoreInstance(input_dict, 'bytes'))
+          | WriteToDicomStore(input_dict, 'bytes'))
       assert_that(results, equal_to([expected_invalid_dict]))
 
   @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
@@ -361,7 +361,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
     with self.assertRaisesRegex(ValueError,
                                 "Must have dataset_id in the dict."):
       p = TestPipeline()
-      _ = (p | beam.Create(['']) | DicomStoreInstance(input_dict, 'bytes'))
+      _ = (p | beam.Create(['']) | WriteToDicomStore(input_dict, 'bytes'))
 
 
 if __name__ == '__main__':

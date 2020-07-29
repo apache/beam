@@ -15,18 +15,18 @@
 # limitations under the License.
 #
 
-"""DICOM io connector
-This module implements serval tools to facilitate the interaction between
-a Google Cloud Healthcare DICOM store and a beam pipeline.
+"""DICOM IO connector
+This module implements several tools to facilitate the interaction between
+a Google Cloud Healthcare DICOM store and a Beam pipeline.
 For more details on DICOM store and API:
 https://cloud.google.com/healthcare/docs/how-tos/dicom
-DICOM io connector can be used to search metadata or store DICOM files.
-When used together with Google Pubsub message connector, a PTransform
-implemented in this module can be used to convert pubsub messages to search
-requests. Since Traceability is crucial for healthcare API users, every
-input or error message will be recorded in the output of the DICOM io
-connector. As a result, every PTransform in this module will return a
-Pcollection of dict that encodes results and detailed error messages.
+The DICOM IO connector can be used to search metadata or write DICOM files
+to DICOM store. When used together with Google Pubsub message connector,
+a PTransform implemented in this module can be used to convert pubsub
+messages to search requests. Since Traceability is crucial for healthcare
+API users, every input or error message will be recorded in the output of
+the DICOM IO connector. As a result, every PTransform in this module will
+return a PCollection of dict that encodes results and detailed error messages.
 
 Search instance's metadata (QIDO request)
 ===================================================
@@ -36,15 +36,16 @@ dict. They can also refine the search by adding tags to filter the results using
 the 'params' entry. Here is a sample usage:
 
   with Pipeline() as p:
-    input_dict = p | beam.Create([
-      {'project_id': 'abc123', 'type': 'instances',...},
-      {'project_id': 'dicom_go', 'type': 'series',...}
-    ])
-    results = input_dict| io.gcp.DicomSearch()
+    input_dict = p | beam.Create(
+      [{'project_id': 'abc123', 'type': 'instances',...},
+      {'project_id': 'dicom_go', 'type': 'series',...}])
+
+    results = input_dict | io.gcp.DicomSearch()
     results | 'print successful search' >> beam.Map(
-        lambda x: print(x['result'] if x['success'] else None))
+    lambda x: print(x['result'] if x['success'] else None))
+    
     results | 'print failed search' >> beam.Map(
-        lambda x: print(x['result'] if not x['success'] else None))
+    lambda x: print(x['result'] if not x['success'] else None))
 
 In the example above, successful qido search results and error messages for
 failed requests are printed. When used in real life, user can choose to filter
@@ -60,12 +61,12 @@ message into Qido Search dict then use DicomSearch(). Here is a sample usage:
 
   pipeline_options = PipelineOptions()
   pipeline_options.view_as(StandardOptions).streaming = True
-  with beam.Pipeline(options=pipeline_options) as p:
-    pubsub = p | beam.io.ReadStringFromPubsub(subscription='a_dicom_store')
-    results = pubsub | PubsubToQido()
-    success = results | 'filter message' >> beam.Filter(lambda x: x['success'])
-    qido_dict = success | 'get qido request' >> beam.Map(lambda x: x['result'])
-    metadata = qido_dict | DicomSearch()
+  p =  beam.Pipeline(options=pipeline_options)
+  pubsub = p | beam.io.ReadStringFromPubsub(subscription='a_dicom_store')
+  results = pubsub | PubsubToQido()
+  success = results | 'filter message' >> beam.Filter(lambda x: x['success'])
+  qido_dict = success | 'get qido request' >> beam.Map(lambda x: x['result'])
+  metadata = qido_dict | DicomSearch()
 
 In the example above, the pipeline is listening to a pubsub topic and waiting
 for messages from DICOM API. When a new DICOM file comes into the storage, the
@@ -114,55 +115,60 @@ from apache_beam.transforms import PTransform
 
 class DicomSearch(PTransform):
   """A PTransform used for retrieving DICOM instance metadata from Google
-    Cloud DICOM store. It takes a Pcollection of dicts as input and return
-    a Pcollection of dict as results:
+    Cloud DICOM store. It takes a PCollection of dicts as input and return
+    a PCollection of dict as results:
     INPUT:
     The input dict represents DICOM web path parameters, which has the following
     string keys and values:
     {
-      'project_id': str,
-      'region': str,
-      'dataset_id': str,
-      'dicom_store_id': str,
-      'search_type': str,
-      'params': dict(str,str) (Optional),
+    'project_id': str,
+    'region': str,
+    'dataset_id': str,
+    'dicom_store_id': str,
+    'search_type': str,
+    'params': dict(str,str) (Optional),
     }
+
     Key-value pairs:
-      project_id: Id of the project in which DICOM store locates. (Required)
+      project_id: Id of the project in which the DICOM store is
+      located. (Required)
       region: Region where the DICOM store resides. (Required)
       dataset_id: Id of the dataset where DICOM store belongs to. (Required)
       dicom_store_id: Id of the dicom store. (Required)
       search_type: Which type of search it is, could only be one of the three
-        values: 'instances', 'series', or 'studies'. (Required)
+      values: 'instances', 'series', or 'studies'. (Required)
       params: A dict of str:str pairs used to refine QIDO search. (Optional)
-        Supported tags in three categories:
-          1. Studies:
-            StudyInstanceUID
-            PatientName
-            PatientID
-            AccessionNumber
-            ReferringPhysicianName
-            StudyDate
-          2. Series: all study level search terms and
-            SeriesInstanceUID
-            Modality
-          3. Instances: all study/series level search terms and
-            SOPInstanceUID
-        e.g. {"StudyInstanceUID":"1","SeriesInstanceUID":"2"}
+      Supported tags in three categories:
+      1.Studies:
+      StudyInstanceUID,
+      PatientName,
+      PatientID,
+      AccessionNumber,
+      ReferringPhysicianName,
+      StudyDate,
+      2.Series: all study level search terms and
+      SeriesInstanceUID,
+      Modality,
+      3.Instances: all study/series level search terms and
+      SOPInstanceUID,
+
+      e.g. {"StudyInstanceUID":"1","SeriesInstanceUID":"2"}
+
     OUTPUT:
     The output dict wraps results as well as error messages:
     {
-      'result': a list of dicts in JSON style.
-      'success': boolean value telling whether the operation is successful.
-      'input': detail ids and dicomweb path for this retrieval.
-      'status': status code from the server, used as error message.
+    'result': a list of dicts in JSON style.
+    'success': boolean value telling whether the operation is successful.
+    'input': detail ids and dicomweb path for this retrieval.
+    'status': status code from the server, used as error message.
     }
+
   """
   def __init__(self, credential=None):
     """Initializes DicomSearch.
     Args:
       credential: # type: Google credential object, if it is specified, the
-        Http client will use it to create sessions instead of the default.
+      Http client will use it to create sessions instead of the default.
     """
     self.credential = credential
 
@@ -226,27 +232,29 @@ class _QidoSource(beam.DoFn):
 
 class PubsubToQido(PTransform):
   """A PTransform for converting pubsub messages into search input dict.
-    Takes Pcollection of string as input and returns a Pcollection of dict as
+    Takes PCollection of string as input and returns a PCollection of dict as
     results. Note that some pubsub messages may not be from DICOM API, which
     will be recorded as failed conversions.
     INPUT:
     The input are normally strings from Pubsub topic:
-      "projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/
-      dicomStores/DICOM_STORE_ID/dicomWeb/studies/STUDY_UID/
-      series/SERIES_UID/instances/INSTANCE_UID"
+    "projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/
+    dicomStores/DICOM_STORE_ID/dicomWeb/studies/STUDY_UID/
+    series/SERIES_UID/instances/INSTANCE_UID"
+
     OUTPUT:
     The output dict encodes results as well as error messages:
     {
-      'result': a dict representing instance level qido search request.
-      'success': boolean value telling whether the conversion is successful.
-      'input': input pubsub message string.
+    'result': a dict representing instance level qido search request.
+    'success': boolean value telling whether the conversion is successful.
+    'input': input pubsub message string.
     }
+
   """
   def __init__(self, credential=None):
     """Initializes PubsubToQido.
     Args:
       credential: # type: Google credential object, if it is specified, the
-        Http client will use it instead of the default one.
+      Http client will use it instead of the default one.
     """
     self.credential = credential
 
@@ -324,41 +332,45 @@ class _ConvertPubsubToQido(beam.DoFn):
     return [out]
 
 
-class DicomStoreInstance(PTransform):
+class WriteToDicomStore(PTransform):
   """A PTransform for storing instances to a DICOM store.
-    Takes Pcollection of byte[] as input and return a Pcollection of dict as
+    Takes PCollection of byte[] as input and return a PCollection of dict as
     results. The inputs are normally DICOM file in bytes or str filename.
     INPUT:
-      This PTransform supports two types of input:
-        1. Byte[]: representing dicom file.
-        2. Fileio object: stream file object.
+    This PTransform supports two types of input:
+    1. Byte[]: representing dicom file.
+    2. Fileio object: stream file object.
+    
     OUTPUT:
     The output dict encodes status as well as error messages:
     {
-      'success': boolean value telling whether the store is successful
-      'input': undeliverable data. Exactly the same as the input,
-        only set if the operation is failed.
-      'status': status code from the server, used as error messages.
+    'success': boolean value telling whether the store is successful.
+    'input': undeliverable data. Exactly the same as the input,
+    only set if the operation is failed.
+    'status': status code from the server, used as error messages.
     }
+
   """
   def __init__(self, destination_dict, input_type, credential=None):
-    """Initializes DicomStoreInstance.
+    """Initializes WriteToDicomStore.
     Args:
       destination_dict: # type: python dict, encodes DICOM endpoint information:
-        {
-          'project_id': str,
-          'region': str,
-          'dataset_id': str,
-          'dicom_store_id': str,
-        }
-        Key-value pairs:
-          project_id: Id of the project in which DICOM store locates. (Required)
-          region: Region where the DICOM store resides. (Required)
-          dataset_id: Id of the dataset where DICOM store belongs to. (Required)
-          dicom_store_id: Id of the dicom store. (Required)
+      {
+      'project_id': str,
+      'region': str,
+      'dataset_id': str,
+      'dicom_store_id': str,
+      }
+
+      Key-value pairs:
+      project_id: Id of the project in which DICOM store locates. (Required)
+      region: Region where the DICOM store resides. (Required)
+      dataset_id: Id of the dataset where DICOM store belongs to. (Required)
+      dicom_store_id: Id of the dicom store. (Required)
+
       input_type: # type: string, could only be 'bytes' or 'fileio'
       credential: # type: Google credential object, if it is specified, the
-        Http client will use it instead of the default one.
+      Http client will use it instead of the default one.
     """
     self.credential = credential
     self.destination_dict = destination_dict
