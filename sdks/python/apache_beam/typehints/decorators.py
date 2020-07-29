@@ -382,11 +382,12 @@ class IOTypeHints(NamedTuple(
   def strip_pcoll(self):
     from apache_beam.pvalue import PBegin
     from apache_beam.pvalue import PDone
+    from apache_beam.pvalue import Pipeline
 
     return self.strip_pcoll_helper(self.input_types,
                                    self._has_input_types,
                                    'input_types',
-                                    [PBegin],
+                                    [Pipeline, PBegin],
                                    'An input typehint to a PTransform must be '
                                    'a single (or nested) type wrapped by '
                                    'a PCollection or PBegin. ',
