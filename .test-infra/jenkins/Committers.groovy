@@ -25,5 +25,5 @@
  */
 
 class Committers {
-    final static List GITHUB_USERNAMES = []
+  final static List GITHUB_USERNAMES = []
 }
