@@ -193,6 +193,27 @@ class BlobStorageFileSystemTest(unittest.TestCase):
         mime_type='application/octet-stream')
 
 
+  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
+  def test_copy_file(self, unused_mock_blobstorageio):
+    # Prepare mocks.
+    blobstorageio_mock = mock.MagicMock()
+    blobstoragefilesystem.blobstorageio.BlobStorageIO = lambda: blobstorageio_mock
+    sources = [
+        'azfs://storageaccount/container/from1',
+        'azfs://storageaccount/container/from2'
+    ]
+    destinations = [
+        'azfs://storageaccount/container/to1',
+        'azfs://storageaccount/container/to2'
+    ]
+
+    # Issue file copy
+    self.fs.copy(sources, destinations)
+
+    src_dest_pairs = list(zip(sources, destinations))
+    blobstorageio_mock.copy_paths.assert_called_once_with(src_dest_pairs)
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
