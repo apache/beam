@@ -49,7 +49,7 @@ WEBSITE_ROOT_DIR=beam-site
 DOCKER_IMAGE_DEFAULT_REPO_ROOT=apache
 DOCKER_IMAGE_DEFAULT_REPO_PREFIX=beam_
 
-PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
+PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7" "python3.8")
 FLINK_VER=("1.8" "1.9" "1.10")
 
 echo "================Setting Up Environment Variables==========="
@@ -288,14 +288,15 @@ if [[ $confirmation = "y" ]]; then
   mkdir -p ${LOCAL_WEBSITE_REPO}
 
   echo "------------------Building Python Doc------------------------"
-  virtualenv ${LOCAL_PYTHON_VIRTUALENV}
-  source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
+  python3 -m venv "${LOCAL_PYTHON_VIRTUALENV}"
+  source "${LOCAL_PYTHON_VIRTUALENV}/bin/activate"
   cd ${LOCAL_PYTHON_DOC}
   pip install tox
   git clone ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   git checkout ${RELEASE_BRANCH}
-  cd sdks/python && pip install -r build-requirements.txt && tox -e py37-docs
+  RELEASE_COMMIT=$(git rev-parse --verify ${RELEASE_BRANCH})
+  cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
 
@@ -321,7 +322,7 @@ if [[ $confirmation = "y" ]]; then
   cp -r ${GENERATED_PYDOC} pydoc/${RELEASE}
 
   git add -A
-  git commit -m "Update beam-site for release ${RELEASE}\n\nContent generated based on commit ${RELEASE_COMMIT}"
+  git commit -m "Update beam-site for release ${RELEASE}." -m "Content generated from commit ${RELEASE_COMMIT}."
   git push -f ${USER_REMOTE_URL}
 
   # Check if hub is installed. See https://stackoverflow.com/a/677212
@@ -339,7 +340,8 @@ if [[ $confirmation = "y" ]]; then
     fi
   fi
   if hash hub 2> /dev/null; then
-    hub pull-request -m "Publish ${RELEASE} release" -h ${USER_GITHUB_ID}:updates_release_${RELEASE} -b apache:release-docs
+    hub pull-request -m "Publish ${RELEASE} release" -h ${USER_GITHUB_ID}:updates_release_${RELEASE} -b apache:release-docs \
+     || echo "Pull request creation did not succeed. If you created the website PR earlier it may have been updated via force-push."
   else
     echo "Without hub, you need to create PR manually."
   fi

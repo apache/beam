@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 plugins { id 'org.apache.beam.module' }
+
 applyJavaNature(
-  enableChecker: false,
   ignoreRawtypeErrors: true,
   automaticModuleName: 'org.apache.beam.sdks.extensions.sql.expansion',
   validateShadowJar: false,
