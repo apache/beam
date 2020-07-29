@@ -23,6 +23,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+from cachetools.func import ttl_cache
 from future.utils import binary_type
 from future.utils import text_type
 
@@ -31,7 +32,6 @@ from apache_beam.metrics import Metrics
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
-from cachetools.func import ttl_cache
 
 try:
   from google.cloud import videointelligence

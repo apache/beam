@@ -31,12 +31,12 @@ from builtins import range
 from typing import List
 from typing import Union
 
+from cachetools.func import ttl_cache
 from google.api_core import exceptions
 from google.cloud import environment_vars
 from google.cloud.datastore import client
 
 from apache_beam.io.gcp.datastore.v1new import types
-from cachetools.func import ttl_cache
 
 # https://cloud.google.com/datastore/docs/concepts/errors#error_codes
 _RETRYABLE_DATASTORE_ERRORS = (
