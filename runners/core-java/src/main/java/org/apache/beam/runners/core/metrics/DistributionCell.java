@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Tracks the current value (and delta) for a Distribution metric.
@@ -88,7 +89,7 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (object instanceof DistributionCell) {
       DistributionCell distributionCell = (DistributionCell) object;
       return Objects.equals(dirty, distributionCell.dirty)

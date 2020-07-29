@@ -18,11 +18,13 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.translation.impl;
 
 import java.util.TimeZone;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
 /** DateFunctions. */
+@Internal
 public class DateFunctions {
   public DateTime date(Integer year, Integer month, Integer day) {
     return DateTimeUtils.parseDate(

@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Class for capturing errors on IO operations on Google Cloud Healthcare APIs resources. */

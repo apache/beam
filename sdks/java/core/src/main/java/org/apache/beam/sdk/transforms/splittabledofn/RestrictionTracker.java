@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.transforms.splittabledofn;
 
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Manages access to the restriction and keeps track of its claimed part for a <a
@@ -88,8 +88,7 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    *     {@code fractionOfRemainder == 0}, a {@code null} result MUST imply that the restriction
    *     tracker is done and there is no more work left to do.
    */
-  @Nullable
-  public abstract SplitResult<RestrictionT> trySplit(double fractionOfRemainder);
+  public abstract @Nullable SplitResult<RestrictionT> trySplit(double fractionOfRemainder);
 
   /**
    * Called by the runner after {@link DoFn.ProcessElement} returns.
@@ -188,7 +187,6 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
       return new AutoValue_RestrictionTracker_TruncateResult(restriction);
     }
 
-    @Nullable
-    public abstract RestrictionT getTruncatedRestriction();
+    public abstract @Nullable RestrictionT getTruncatedRestriction();
   }
 }

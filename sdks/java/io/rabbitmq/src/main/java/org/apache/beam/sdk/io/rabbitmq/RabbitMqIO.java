@@ -36,7 +36,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeoutException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -48,6 +47,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -187,31 +187,26 @@ public class RabbitMqIO {
   /** A {@link PTransform} to consume messages from RabbitMQ server. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<RabbitMqMessage>> {
-    @Nullable
-    abstract String uri();
 
-    @Nullable
-    abstract String queue();
+    abstract @Nullable String uri();
+
+    abstract @Nullable String queue();
 
     abstract boolean queueDeclare();
 
-    @Nullable
-    abstract String exchange();
+    abstract @Nullable String exchange();
 
-    @Nullable
-    abstract String exchangeType();
+    abstract @Nullable String exchangeType();
 
     abstract boolean exchangeDeclare();
 
-    @Nullable
-    abstract String routingKey();
+    abstract @Nullable String routingKey();
 
     abstract boolean useCorrelationId();
 
     abstract long maxNumRecords();
 
-    @Nullable
-    abstract Duration maxReadTime();
+    abstract @Nullable Duration maxReadTime();
 
     abstract Builder builder();
 
@@ -588,19 +583,15 @@ public class RabbitMqIO {
   public abstract static class Write
       extends PTransform<PCollection<RabbitMqMessage>, PCollection<?>> {
 
-    @Nullable
-    abstract String uri();
+    abstract @Nullable String uri();
 
-    @Nullable
-    abstract String exchange();
+    abstract @Nullable String exchange();
 
-    @Nullable
-    abstract String exchangeType();
+    abstract @Nullable String exchangeType();
 
     abstract boolean exchangeDeclare();
 
-    @Nullable
-    abstract String queue();
+    abstract @Nullable String queue();
 
     abstract boolean queueDeclare();
 

@@ -21,20 +21,20 @@ import InfluxDBCredentialsHelper
 // contains Big query and InfluxDB related properties for Nexmark runs
 class NexmarkDatabaseProperties {
 
-    static Map<String, Object> nexmarkBigQueryArgs = [
-          'bigQueryTable'          : 'nexmark',
-          'bigQueryDataset'        : 'nexmark',
-          'project'                : 'apache-beam-testing',
-          'resourceNameMode'       : 'QUERY_RUNNER_AND_MODE',
-          'exportSummaryToBigQuery': true,
-          'tempLocation'           : 'gs://temp-storage-for-perf-tests/nexmark',
-    ]
+  static Map<String, Object> nexmarkBigQueryArgs = [
+    'bigQueryTable'          : 'nexmark',
+    'bigQueryDataset'        : 'nexmark',
+    'project'                : 'apache-beam-testing',
+    'resourceNameMode'       : 'QUERY_RUNNER_AND_MODE',
+    'exportSummaryToBigQuery': true,
+    'tempLocation'           : 'gs://temp-storage-for-perf-tests/nexmark',
+  ]
 
-    static Map<String, Object> nexmarkInfluxDBArgs = [
-          'influxDatabase'         : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-          'influxHost'             : InfluxDBCredentialsHelper.InfluxDBHostname,
-          'baseInfluxMeasurement'  : 'nexmark',
-          'exportSummaryToInfluxDB': true,
-          'influxRetentionPolicy'  : 'forever',
-    ]
+  static Map<String, Object> nexmarkInfluxDBArgs = [
+    'influxDatabase'         : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    'influxHost'             : InfluxDBCredentialsHelper.InfluxDBHostname,
+    'baseInfluxMeasurement'  : 'nexmark',
+    'exportSummaryToInfluxDB': true,
+    'influxRetentionPolicy'  : 'forever',
+  ]
 }

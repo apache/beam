@@ -20,20 +20,22 @@ import PrecommitJobBuilder
 import CommonJobProperties as properties
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
-        scope: this,
-        nameBase: 'JavaBeamZetaSQLJava11',
-        gradleTask: ':javaPreCommitBeamZetaSQL',
-        gradleSwitches: [
-                '-PdisableSpotlessCheck=true',
-                '-PcompileAndRunTestsWithJava11',
-                "-Pjava11Home=${CommonJobProperties.JAVA_11_HOME}"
-        ], // spotless checked in separate pre-commit
-        triggerPathPatterns: [
-                '^sdks/java/extensions/sql/.*$',
-        ]
-)
+    scope: this,
+    nameBase: 'JavaBeamZetaSQLJava11',
+    gradleTask: ':javaPreCommitBeamZetaSQL',
+    gradleSwitches: [
+      '-PdisableSpotlessCheck=true',
+      '-PcompileAndRunTestsWithJava11',
+      '-PskipCheckerFramework',
+      // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
+      "-Pjava11Home=${CommonJobProperties.JAVA_11_HOME}"
+    ], // spotless checked in separate pre-commit
+    triggerPathPatterns: [
+      '^sdks/java/extensions/sql/.*$',
+    ]
+    )
 builder.build {
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
-    }
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
 }

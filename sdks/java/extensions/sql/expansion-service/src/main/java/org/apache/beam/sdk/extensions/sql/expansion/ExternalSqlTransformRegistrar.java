@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.expansion;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
@@ -31,6 +30,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoService(ExternalTransformRegistrar.class)
 public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar {
@@ -48,8 +48,8 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
   }
 
   public static class Configuration {
-    String query;
-    String dialect;
+    String query = "";
+    @Nullable String dialect;
 
     public void setQuery(String query) {
       this.query = query;

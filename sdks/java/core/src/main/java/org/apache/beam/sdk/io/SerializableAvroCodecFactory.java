@@ -33,8 +33,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.avro.file.CodecFactory;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A wrapper that allows {@link org.apache.avro.file.CodecFactory}s to be serialized using Java's

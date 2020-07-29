@@ -24,6 +24,7 @@ import java.nio.ByteBuffer;
 import javax.annotation.Nonnull;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString.ByteIterator;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A class representing a key consisting of an array of bytes. Arbitrary-length {@code byte[]} keys
@@ -151,7 +152,7 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (o == this) {
       return true;
     }

@@ -35,7 +35,6 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
@@ -122,6 +121,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -923,15 +923,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           residualInUnprocessedWindowsRoot);
     }
 
-    @Nullable
-    public abstract WindowedValue getPrimaryInFullyProcessedWindowsRoot();
+    public abstract @Nullable WindowedValue getPrimaryInFullyProcessedWindowsRoot();
 
     public abstract WindowedValue getPrimarySplitRoot();
 
     public abstract WindowedValue getResidualSplitRoot();
 
-    @Nullable
-    public abstract WindowedValue getResidualInUnprocessedWindowsRoot();
+    public abstract @Nullable WindowedValue getResidualInUnprocessedWindowsRoot();
   }
 
   private void processElementForWindowObservingSizedElementAndRestriction(

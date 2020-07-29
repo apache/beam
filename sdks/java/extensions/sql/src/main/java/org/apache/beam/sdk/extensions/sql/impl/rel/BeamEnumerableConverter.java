@@ -32,7 +32,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
@@ -76,6 +75,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.ConverterImpl;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.ReadableInstant;
 import org.slf4j.Logger;
@@ -266,7 +266,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     // This will only work on the direct runner.
     private static final Map<Long, Queue<Row>> globalValues = new ConcurrentHashMap<>();
 
-    @Nullable private volatile Queue<Row> values;
+    private @Nullable volatile Queue<Row> values;
 
     @StartBundle
     public void startBundle(StartBundleContext context) {

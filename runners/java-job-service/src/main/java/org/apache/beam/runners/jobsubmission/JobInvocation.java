@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
@@ -41,6 +40,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +59,7 @@ public class JobInvocation {
   private final List<Consumer<JobMessage>> messageObservers;
   private JobApi.MetricResults metrics;
   private PortablePipelineResult resultHandle;
-  @Nullable private ListenableFuture<PortablePipelineResult> invocationFuture;
+  private @Nullable ListenableFuture<PortablePipelineResult> invocationFuture;
 
   public JobInvocation(
       JobInfo jobInfo,

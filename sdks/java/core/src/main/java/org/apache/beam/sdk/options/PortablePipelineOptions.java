@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.options;
 
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.Validation.Required;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Pipeline options common to all portable runners. */
 @Experimental(Kind.PORTABILITY)

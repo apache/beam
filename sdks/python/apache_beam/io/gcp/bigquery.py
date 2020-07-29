@@ -65,18 +65,19 @@ Users may provide a query to read from rather than reading all of a BigQuery
 table. If specified, the result obtained by executing the specified query will
 be used as the data of the input transform.::
 
-  query_results = pipeline | beam.io.Read(beam.io.BigQuerySource(
-      query='SELECT year, mean_temp FROM samples.weather_stations'))
+  query_results = pipeline | beam.io.gcp.bigquery.ReadFromBigQuery(
+      query='SELECT year, mean_temp FROM samples.weather_stations')
 
 When creating a BigQuery input transform, users should provide either a query
 or a table. Pipeline construction will fail with a validation error if neither
 or both are specified.
 
-When reading from BigQuery using `BigQuerySource`, bytes are returned as
-base64-encoded bytes. When reading via `ReadFromBigQuery`, bytes are returned
-as bytes without base64 encoding. This is due to the fact that ReadFromBigQuery
-uses Avro expors by default. To get base64-encoded bytes, you can use the flag
-`use_json_exports` to export data as JSON, and receive base64-encoded bytes.
+When reading via `ReadFromBigQuery`, bytes are returned decoded as bytes.
+This is due to the fact that ReadFromBigQuery uses Avro exports by default.
+When reading from BigQuery using `apache_beam.io.BigQuerySource`, bytes are
+returned as base64-encoded bytes. To get base64-encoded bytes using
+`ReadFromBigQuery`, you can use the flag `use_json_exports` to export
+data as JSON, and receive base64-encoded bytes.
 
 Writing Data to BigQuery
 ========================

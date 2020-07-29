@@ -27,7 +27,6 @@ import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
@@ -68,6 +67,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -587,16 +587,14 @@ public class AvroIO {
   /** Implementation of {@link #read} and {@link #readGenericRecords}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable
-    abstract ValueProvider<String> getFilepattern();
+
+    abstract @Nullable ValueProvider<String> getFilepattern();
 
     abstract MatchConfiguration getMatchConfiguration();
 
-    @Nullable
-    abstract Class<T> getRecordClass();
+    abstract @Nullable Class<T> getRecordClass();
 
-    @Nullable
-    abstract Schema getSchema();
+    abstract @Nullable Schema getSchema();
 
     abstract boolean getInferBeamSchema();
 
@@ -736,7 +734,7 @@ public class AvroIO {
         EmptyMatchTreatment emptyMatchTreatment,
         Class<T> recordClass,
         Schema schema,
-        @Nullable AvroSource.DatumReaderFactory<T> readerFactory) {
+        AvroSource.@Nullable DatumReaderFactory<T> readerFactory) {
       AvroSource<?> source =
           AvroSource.from(filepattern).withEmptyMatchTreatment(emptyMatchTreatment);
 
@@ -755,18 +753,16 @@ public class AvroIO {
   @AutoValue
   public abstract static class ReadFiles<T>
       extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
-    @Nullable
-    abstract Class<T> getRecordClass();
 
-    @Nullable
-    abstract Schema getSchema();
+    abstract @Nullable Class<T> getRecordClass();
+
+    abstract @Nullable Schema getSchema();
 
     abstract long getDesiredBundleSizeBytes();
 
     abstract boolean getInferBeamSchema();
 
-    @Nullable
-    abstract AvroSource.DatumReaderFactory<T> getDatumReaderFactory();
+    abstract AvroSource.@Nullable DatumReaderFactory<T> getDatumReaderFactory();
 
     abstract Builder<T> toBuilder();
 
@@ -842,11 +838,9 @@ public class AvroIO {
   public abstract static class ReadAll<T> extends PTransform<PCollection<String>, PCollection<T>> {
     abstract MatchConfiguration getMatchConfiguration();
 
-    @Nullable
-    abstract Class<T> getRecordClass();
+    abstract @Nullable Class<T> getRecordClass();
 
-    @Nullable
-    abstract Schema getSchema();
+    abstract @Nullable Schema getSchema();
 
     abstract long getDesiredBundleSizeBytes();
 
@@ -963,15 +957,14 @@ public class AvroIO {
   /** Implementation of {@link #parseGenericRecords}. */
   @AutoValue
   public abstract static class Parse<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable
-    abstract ValueProvider<String> getFilepattern();
+
+    abstract @Nullable ValueProvider<String> getFilepattern();
 
     abstract MatchConfiguration getMatchConfiguration();
 
     abstract SerializableFunction<GenericRecord, T> getParseFn();
 
-    @Nullable
-    abstract Coder<T> getCoder();
+    abstract @Nullable Coder<T> getCoder();
 
     abstract boolean getHintMatchesManyFiles();
 
@@ -1087,8 +1080,7 @@ public class AvroIO {
       extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
     abstract SerializableFunction<GenericRecord, T> getParseFn();
 
-    @Nullable
-    abstract Coder<T> getCoder();
+    abstract @Nullable Coder<T> getCoder();
 
     abstract long getDesiredBundleSizeBytes();
 
@@ -1164,8 +1156,7 @@ public class AvroIO {
 
     abstract SerializableFunction<GenericRecord, T> getParseFn();
 
-    @Nullable
-    abstract Coder<T> getCoder();
+    abstract @Nullable Coder<T> getCoder();
 
     abstract long getDesiredBundleSizeBytes();
 
@@ -1241,37 +1232,30 @@ public class AvroIO {
     static final SerializableAvroCodecFactory DEFAULT_SERIALIZABLE_CODEC =
         new SerializableAvroCodecFactory(DEFAULT_CODEC);
 
-    @Nullable
-    abstract SerializableFunction<UserT, OutputT> getFormatFunction();
+    abstract @Nullable SerializableFunction<UserT, OutputT> getFormatFunction();
 
-    @Nullable
-    abstract ValueProvider<ResourceId> getFilenamePrefix();
+    abstract @Nullable ValueProvider<ResourceId> getFilenamePrefix();
 
-    @Nullable
-    abstract String getShardTemplate();
+    abstract @Nullable String getShardTemplate();
 
-    @Nullable
-    abstract String getFilenameSuffix();
+    abstract @Nullable String getFilenameSuffix();
 
-    @Nullable
-    abstract ValueProvider<ResourceId> getTempDirectory();
+    abstract @Nullable ValueProvider<ResourceId> getTempDirectory();
 
     abstract int getNumShards();
 
     abstract boolean getGenericRecords();
 
-    @Nullable
-    abstract Schema getSchema();
+    abstract @Nullable Schema getSchema();
 
     abstract boolean getWindowedWrites();
 
     abstract boolean getNoSpilling();
 
-    @Nullable
-    abstract FilenamePolicy getFilenamePolicy();
+    abstract @Nullable FilenamePolicy getFilenamePolicy();
 
-    @Nullable
-    abstract DynamicAvroDestinations<UserT, DestinationT, OutputT> getDynamicDestinations();
+    abstract @Nullable DynamicAvroDestinations<UserT, DestinationT, OutputT>
+        getDynamicDestinations();
 
     /**
      * The codec used to encode the blocks in the Avro file. String value drawn from those in
@@ -1833,8 +1817,7 @@ public class AvroIO {
     @Deprecated
     abstract RecordFormatter<ElementT> getRecordFormatter();
 
-    @Nullable
-    abstract String getJsonSchema();
+    abstract @Nullable String getJsonSchema();
 
     abstract Map<String, Object> getMetadata();
 
@@ -1870,9 +1853,9 @@ public class AvroIO {
       return toBuilder().setCodec(new SerializableAvroCodecFactory(codec)).build();
     }
 
-    @Nullable private transient Schema schema;
-    @Nullable private transient DataFileWriter<ElementT> reflectWriter;
-    @Nullable private transient DataFileWriter<GenericRecord> genericWriter;
+    private transient @Nullable Schema schema;
+    private transient @Nullable DataFileWriter<ElementT> reflectWriter;
+    private transient @Nullable DataFileWriter<GenericRecord> genericWriter;
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {

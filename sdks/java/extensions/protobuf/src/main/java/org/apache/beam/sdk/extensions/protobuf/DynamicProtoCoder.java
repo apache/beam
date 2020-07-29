@@ -35,6 +35,7 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link Coder} using Google Protocol Buffers binary format. {@link DynamicProtoCoder} supports
@@ -103,7 +104,7 @@ public class DynamicProtoCoder extends ProtoCoder<DynamicMessage> {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (this == other) {
       return true;
     }

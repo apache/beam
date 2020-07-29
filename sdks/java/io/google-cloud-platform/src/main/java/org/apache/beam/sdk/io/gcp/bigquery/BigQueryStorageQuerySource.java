@@ -25,7 +25,6 @@ import com.google.api.services.bigquery.model.TableReference;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing reading the results of a query. */
 @Experimental(Kind.SOURCE_SINK)

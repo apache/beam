@@ -33,7 +33,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
@@ -45,6 +44,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimaps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A set of reflection helper methods. */
 @Internal
@@ -89,8 +89,7 @@ public class ReflectUtils {
     return Multimaps.index(getMethods(clazz), Method::getName);
   }
 
-  @Nullable
-  public static Constructor getAnnotatedConstructor(Class clazz) {
+  public static @Nullable Constructor getAnnotatedConstructor(Class clazz) {
     return Arrays.stream(clazz.getDeclaredConstructors())
         .filter(m -> !Modifier.isPrivate(m.getModifiers()))
         .filter(m -> !Modifier.isProtected(m.getModifiers()))
@@ -99,8 +98,7 @@ public class ReflectUtils {
         .orElse(null);
   }
 
-  @Nullable
-  public static Method getAnnotatedCreateMethod(Class clazz) {
+  public static @Nullable Method getAnnotatedCreateMethod(Class clazz) {
     return ANNOTATED_CONSTRUCTORS.computeIfAbsent(
         clazz,
         c -> {
@@ -189,8 +187,7 @@ public class ReflectUtils {
   }
 
   /** For an array T[] or a subclass of Iterable<T>, return a TypeDescriptor describing T. */
-  @Nullable
-  public static TypeDescriptor getIterableComponentType(TypeDescriptor valueType) {
+  public static @Nullable TypeDescriptor getIterableComponentType(TypeDescriptor valueType) {
     TypeDescriptor componentType = null;
     if (valueType.isArray()) {
       Type component = valueType.getComponentType().getType();

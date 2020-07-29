@@ -33,7 +33,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagBag;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagValue;
@@ -50,6 +49,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Forwardi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ForwardingFuture;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -95,7 +95,7 @@ class WindmillStateReader {
      *
      * <p>Null for other kinds.
      */
-    @Nullable private final Long requestPosition;
+    private final @Nullable Long requestPosition;
 
     private StateTag(
         Kind kind, ByteString tag, String stateFamily, @Nullable Long requestPosition) {
@@ -110,7 +110,7 @@ class WindmillStateReader {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (this == obj) {
         return true;
       }
@@ -152,7 +152,7 @@ class WindmillStateReader {
     private final List<T> values;
 
     /** Position to pass to next request for next page of values. Null if done. */
-    @Nullable private final Long continuationPosition;
+    private final @Nullable Long continuationPosition;
 
     public ValuesAndContPosition(List<T> values, @Nullable Long continuationPosition) {
       this.values = values;
@@ -279,8 +279,7 @@ class WindmillStateReader {
    * Internal request to fetch the next 'page' of values in a TagBag. Return null if no continuation
    * position is in {@code contStateTag}, which signals there are no more pages.
    */
-  @Nullable
-  private <T> Future<ValuesAndContPosition<T>> continuationBagFuture(
+  private @Nullable <T> Future<ValuesAndContPosition<T>> continuationBagFuture(
       StateTag contStateTag, Coder<T> elemCoder) {
     if (contStateTag.requestPosition == null) {
       // We're done.
@@ -299,7 +298,7 @@ class WindmillStateReader {
      *
      * <p>NOTE: We must clear this after the read is fulfilled to prevent space leaks.
      */
-    @Nullable private WindmillStateReader reader;
+    private @Nullable WindmillStateReader reader;
 
     public WrappedFuture(WindmillStateReader reader, Future<T> delegate) {
       super(delegate);
@@ -345,7 +344,7 @@ class WindmillStateReader {
      * Reader to request continuation pages from, or {@literal null} if no continuation pages
      * required.
      */
-    @Nullable private WindmillStateReader reader;
+    private @Nullable WindmillStateReader reader;
 
     private final StateTag stateTag;
     private final Coder<T> elemCoder;

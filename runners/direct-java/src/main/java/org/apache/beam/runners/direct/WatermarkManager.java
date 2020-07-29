@@ -48,7 +48,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
@@ -74,6 +73,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SortedMultiset;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultiset;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -895,7 +895,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
   private final Map<ExecutableT, TransformWatermarks> transformToWatermarks;
 
   /** A queue of pending updates to the state of this {@link WatermarkManager}. */
-  private final ConcurrentLinkedQueue<PendingWatermarkUpdate> pendingUpdates;
+  private final ConcurrentLinkedQueue<PendingWatermarkUpdate<ExecutableT, CollectionT>>
+      pendingUpdates;
 
   /** A lock used to control concurrency for updating pending values. */
   private final Lock refreshLock;
@@ -1191,9 +1192,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     // do not share a Mutex within this call and thus can be interleaved with external calls to
     // refresh.
     for (Bundle<?, ? extends CollectionT> bundle : outputs) {
-      for (ExecutableT consumer :
-          // TODO: Remove this cast once CommittedBundle returns a CollectionT
-          graph.getPerElementConsumers((CollectionT) bundle.getPCollection())) {
+      for (ExecutableT consumer : graph.getPerElementConsumers(bundle.getPCollection())) {
         TransformWatermarks watermarks = transformToWatermarks.get(consumer);
         watermarks.addPending(bundle);
       }
@@ -1222,6 +1221,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       while (!toRefresh.isEmpty()) {
         toRefresh = refreshAllOf(toRefresh);
       }
+      pendingRefreshes.clear();
     } finally {
       refreshLock.unlock();
     }
@@ -1248,17 +1248,27 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     return Collections.emptySet();
   }
 
+  @VisibleForTesting
+  Collection<FiredTimers<ExecutableT>> extractFiredTimers() {
+    return extractFiredTimers(Collections.emptyList());
+  }
+
   /**
    * Returns a map of each {@link PTransform} that has pending timers to those timers. All of the
    * pending timers will be removed from this {@link WatermarkManager}.
    */
-  public Collection<FiredTimers<ExecutableT>> extractFiredTimers() {
+  public Collection<FiredTimers<ExecutableT>> extractFiredTimers(
+      Collection<ExecutableT> ignoredExecutables) {
+
     Collection<FiredTimers<ExecutableT>> allTimers = new ArrayList<>();
     refreshLock.lock();
     try {
       for (Map.Entry<ExecutableT, TransformWatermarks> watermarksEntry :
           transformToWatermarks.entrySet()) {
         ExecutableT transform = watermarksEntry.getKey();
+        if (ignoredExecutables.contains(transform)) {
+          continue;
+        }
         if (!transformsWithAlreadyExtractedTimers.containsKey(transform)) {
           TransformWatermarks watermarks = watermarksEntry.getValue();
           Collection<FiredTimers<ExecutableT>> firedTimers = watermarks.extractFiredTimers();
@@ -1325,7 +1335,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other == null || !(other instanceof KeyedHold)) {
         return false;
       }
@@ -1723,7 +1733,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other == null || !(other instanceof TimerUpdate)) {
         return false;
       }
@@ -1812,13 +1822,11 @@ public class WatermarkManager<ExecutableT, CollectionT> {
   abstract static class PendingWatermarkUpdate<ExecutableT, CollectionT> {
     abstract ExecutableT getExecutable();
 
-    @Nullable
-    abstract Bundle<?, ? extends CollectionT> getInputBundle();
+    abstract @Nullable Bundle<?, ? extends CollectionT> getInputBundle();
 
     abstract TimerUpdate getTimerUpdate();
 
-    @Nullable
-    abstract Bundle<?, ? extends CollectionT> getUnprocessedInputs();
+    abstract @Nullable Bundle<?, ? extends CollectionT> getUnprocessedInputs();
 
     abstract Iterable<? extends Bundle<?, ? extends CollectionT>> getOutputs();
 

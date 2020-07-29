@@ -23,7 +23,10 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java_Examples_Dataflow_Java11',
     gradleTask: ':clean',
-    gradleSwitches: ['-PdisableSpotlessCheck=true'], // spotless checked in separate pre-commit
+    gradleSwitches: [
+      '-PdisableSpotlessCheck=true',
+      '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
+    ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/java/.*$',
@@ -33,21 +36,22 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^release/.*$',
     ],
     timeoutMins: 30,
-)
+    )
 builder.build {
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
-    }
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
 
-    steps {
-        gradle {
-            rootBuildScriptDir(properties.checkoutDir)
-            tasks 'javaExamplesDataflowPreCommit'
-            switches '-Pdockerfile=Dockerfile-java11'
-            switches '-PdisableSpotlessCheck=true'
-            switches '-PcompileAndRunTestsWithJava11'
-            switches "-Pjava11Home=${properties.JAVA_11_HOME}"
-            properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
-        }
+  steps {
+    gradle {
+      rootBuildScriptDir(properties.checkoutDir)
+      tasks 'javaExamplesDataflowPreCommit'
+      switches '-Pdockerfile=Dockerfile-java11'
+      switches '-PdisableSpotlessCheck=true'
+      switches '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
+      switches '-PcompileAndRunTestsWithJava11'
+      switches "-Pjava11Home=${properties.JAVA_11_HOME}"
+      properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
     }
+  }
 }
