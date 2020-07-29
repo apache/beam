@@ -734,9 +734,11 @@ public class BigQueryServicesImplTest {
     when(response.getContent())
         .thenReturn(toStream(errorWithReasonAndStatus("actually forbidden", 403)))
         .thenReturn(toStream(new TableDataInsertAllResponse()));
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("actually forbidden");
     try {
-      DatasetServiceImpl dataService =
-          new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
       dataService.insertAll(
           ref,
           rows,
@@ -750,13 +752,11 @@ public class BigQueryServicesImplTest {
           false,
           false,
           false);
-      fail();
-    } catch (RuntimeException e) {
-      assertTrue(e instanceof RuntimeException);
+    } finally {
+      verify(response, times(1)).getStatusCode();
+      verify(response, times(1)).getContent();
+      verify(response, times(1)).getContentType();
     }
-    verify(response, times(1)).getStatusCode();
-    verify(response, times(1)).getContent();
-    verify(response, times(1)).getContentType();
   }
 
   /**
