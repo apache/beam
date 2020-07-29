@@ -25,6 +25,7 @@ from apache_beam.dataframe import doctests
 
 
 @unittest.skipIf(sys.version_info <= (3, ), 'Requires contextlib.ExitStack.')
+@unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
 class DoctestTest(unittest.TestCase):
   def test_dataframe_tests(self):
     result = doctests.testmod(
