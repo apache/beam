@@ -103,7 +103,7 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
 
     discouraged_types = (dict, str, unicode)
     if should_check_bytes:
-      discouraged_types = discouraged_types + bytes
+      discouraged_types = discouraged_types + (bytes, )
 
     elif isinstance(output, discouraged_types):
       object_type = type(output).__name__
@@ -297,10 +297,9 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     if isinstance(transform, core.ParDo):
       if not self._in_combine:
         transform.fn._full_label = applied_transform.full_label
-        transform.fn._runtime_type_hints = self.get_flattened_type_hints(
-            transform)
+        self.store_type_hints(transform)
 
-  def get_flattened_type_hints(self, transform):
+  def store_type_hints(self, transform):
     type_hints = transform.get_type_hints()
 
     input_types = None
@@ -318,13 +317,15 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
 
       if kwarg_hints:
         output_types = kwarg_hints
-        if normal_hints:
-          output_types = normal_hints
+      if normal_hints:
+        output_types = normal_hints
 
-    if isinstance(input_types, dict):
-      argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
-      if argspec.args:
-        input_types = (input_types[argspec.args[0]], )
+    argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
+
+    if argspec.args:
+      transform.fn._runtime_parameter_name = argspec.args[0]
+      if isinstance(input_types, dict):
+          input_types = (input_types[argspec.args[0]], )
 
     if input_types and len(input_types):
       input_types = input_types[0]
@@ -332,5 +333,5 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     if output_types and len(output_types):
       output_types = output_types[0]
 
-    return type_hints._replace(
-        input_types=input_types, output_types=output_types)
+    transform.fn._runtime_type_hints = type_hints._replace(
+      input_types=input_types, output_types=output_types)

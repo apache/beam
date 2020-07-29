@@ -212,6 +212,7 @@ class OperationCounters(object):
 
     self.producer_type_hints = None
     self.producer_full_label = None
+    self.producer_parameter_name = None
 
     if producer and hasattr(producer, 'spec') and hasattr(producer.spec,
                                                           'serialized_fn'):
@@ -221,9 +222,12 @@ class OperationCounters(object):
           self.producer_type_hints = fns[0]._runtime_type_hints
         if hasattr(fns[0], '_full_label'):
           self.producer_full_label = fns[0]._full_label
+        if hasattr(fns[0], '_runtime_parameter_name'):
+          self.producer_parameter_name = fns[0]._runtime_parameter_name
 
     self.consumer_type_hints = []
     self.consumer_full_labels = []
+    self.consumer_parameter_names = []
 
     if consumers:
       for consumer in consumers:
@@ -231,9 +235,11 @@ class OperationCounters(object):
                                                  'serialized_fn'):
           fns = pickler.loads(consumer.spec.serialized_fn)
           if fns and hasattr(fns[0], '_runtime_type_hints'):
-            self.consumer_type_hints.append(fns[0]._runtime_type_hints)
-            self.consumer_full_labels.append(
-                getattr(fns[0], '_full_label', 'No Label Found'))
+              self.consumer_type_hints.append(fns[0]._runtime_type_hints)
+              self.consumer_full_labels.append(
+                  getattr(fns[0], '_full_label', 'No Label Found'))
+              self.consumer_parameter_names.append(
+                  getattr(fns[0], '_runtime_parameter_name', 'Unknown Parameter'))
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
@@ -264,24 +270,22 @@ class OperationCounters(object):
       output_constraint = self.producer_type_hints.output_types
       if output_constraint is not None:
         try:
-          _check_instance_type(output_constraint, value, verbose=True)
+          _check_instance_type(output_constraint, value, self.producer_parameter_name, verbose=True)
         except TypeCheckError as e:
           error_msg = (
               'Runtime type violation detected within %s: '
               '%s' % (self.producer_full_label, e))
           raise_with_traceback(TypeCheckError(error_msg))
-        else:
-          OutputCheckWrapperDoFn._check_type(value, should_check_bytes=False)
 
-    for consumer_type_hint, consumer_full_label in \
-            zip(self.consumer_type_hints, self.consumer_full_labels):
+    for consumer_type_hint, consumer_full_label, consumer_parameter_name in \
+            zip(self.consumer_type_hints, self.consumer_full_labels, self.consumer_parameter_names):
       input_constraint = consumer_type_hint.input_types
       if input_constraint is not None:
         try:
-          _check_instance_type(input_constraint, value, verbose=True)
+          _check_instance_type(input_constraint, value, consumer_parameter_name, verbose=True)
         except TypeCheckError as e:
           error_msg = (
-              'Runtime type violation detected within %s: '
+              'Runtime type violation detected within ParDo(%s): '
               '%s' % (consumer_full_label, e))
           raise_with_traceback(TypeCheckError(error_msg))
 
