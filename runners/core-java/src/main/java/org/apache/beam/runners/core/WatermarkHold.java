@@ -19,6 +19,7 @@ package org.apache.beam.runners.core;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
@@ -69,7 +70,10 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       StateTags.makeSystemTagInternal(
           StateTags.watermarkStateInternal("extra", TimestampCombiner.EARLIEST));
 
+  // [BEAM-420] Seems likely these should all be transient or this class should not be Serializable
+  @SuppressFBWarnings("SE_BAD_FIELD")
   private final TimerInternals timerInternals;
+
   private final WindowingStrategy<?, W> windowingStrategy;
   private final StateTag<WatermarkHoldState> elementHoldTag;
 
@@ -270,6 +274,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
   }
 
   /** Prefetch watermark holds in preparation for merging. */
+  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT") // just prefetch calls to readLater
   public void prefetchOnMerge(MergingStateAccessor<?, W> context) {
     Map<W, WatermarkHoldState> map = context.accessInEachMergingWindow(elementHoldTag);
     WatermarkHoldState result = context.access(elementHoldTag);
@@ -298,6 +303,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * all of the existing holds. For example, if the new window implies a later watermark hold, then
    * earlier holds may be released.
    */
+  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT") // just prefetch calls to readLater
   public void onMerge(ReduceFn<?, ?, ?, W>.OnMergeContext context) {
     WindowTracing.debug(
         "WatermarkHold.onMerge: for key:{}; window:{}; inputWatermark:{}; " + "outputWatermark:{}",

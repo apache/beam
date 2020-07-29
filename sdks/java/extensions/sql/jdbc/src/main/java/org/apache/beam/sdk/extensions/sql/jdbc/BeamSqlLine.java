@@ -26,6 +26,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import sqlline.SqlLine;
 import sqlline.SqlLine.Status;
@@ -65,11 +66,11 @@ public class BeamSqlLine {
     SqlLine sqlLine = new SqlLine();
 
     if (outputStream != null) {
-      sqlLine.setOutputStream(new PrintStream(outputStream));
+      sqlLine.setOutputStream(new PrintStream(outputStream, false, Charsets.UTF_8.name()));
     }
 
     if (errorStream != null) {
-      sqlLine.setErrorStream(new PrintStream(errorStream));
+      sqlLine.setErrorStream(new PrintStream(errorStream, false, Charsets.UTF_8.name()));
     }
 
     return sqlLine.begin(modifiedArgs, inputStream, true);
