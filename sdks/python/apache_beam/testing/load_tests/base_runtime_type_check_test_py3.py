@@ -39,9 +39,6 @@ will be stored,
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
-import logging
 from typing import Iterable, Tuple
 
 import apache_beam as beam
@@ -58,21 +55,25 @@ class BaseRunTimeTypeCheckTest(LoadTest):
     self.fanout = self.get_option_or_default('fanout', 1)
     self.nested_typehint = self.get_option_or_default('nested_typehint', 0)
 
+  @beam.typehints.with_input_types(Tuple[bytes, ...])
   class SimpleInput(beam.DoFn):
-    def process(self, element: Tuple[bytes, ...]):
+    def process(self, element, *args, **kwargs):
       yield element
 
+  @beam.typehints.with_output_types(Iterable[Tuple[bytes, ...]])
   class SimpleOutput(beam.DoFn):
-    def process(self, element) -> Iterable[Tuple[bytes, ...]]:
+    def process(self, element, *args, **kwargs):
       yield element
 
+  @beam.typehints.with_input_types(Tuple[int, str, bytes, Iterable[int]])
   class NestedInput(beam.DoFn):
-    def process(self, element: Tuple[int, str, bytes, Iterable[int]]):
+    def process(self, element, *args, **kwargs):
       yield element
 
+  @beam.typehints.with_output_types(
+      Iterable[Tuple[int, str, bytes, Iterable[int]]])
   class NestedOutput(beam.DoFn):
-    def process(self,
-                element) -> Iterable[Tuple[int, str, bytes, Iterable[int]]]:
+    def process(self, element, *args, **kwargs):
       yield 1, 'a', element, [0]
 
   def test(self):

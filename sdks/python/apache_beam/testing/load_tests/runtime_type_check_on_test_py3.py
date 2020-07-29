@@ -40,7 +40,8 @@ python -m apache_beam.testing.load_tests.runtime_type_check_on_test_py3 \
 
 import logging
 
-from apache_beam.testing.load_tests.base_runtime_type_check_test_py3 import BaseRunTimeTypeCheckTest
+from apache_beam.testing.load_tests.base_runtime_type_check_test_py3 \
+  import BaseRunTimeTypeCheckTest
 
 
 class RunTimeTypeCheckOnTest(BaseRunTimeTypeCheckTest):
