@@ -3959,7 +3959,7 @@ public class ParDoTest implements Serializable {
       }
 
       testEventTimeTimerOrderingWithInputPTransform(
-          now, numTestElements, builder.advanceWatermarkToInfinity(), false);
+          now, numTestElements, builder.advanceWatermarkToInfinity(), IsBounded.BOUNDED);
     }
 
     /** A test makes sure that an event time timers are correctly ordered using Create transform. */
@@ -3980,7 +3980,7 @@ public class ParDoTest implements Serializable {
       }
 
       testEventTimeTimerOrderingWithInputPTransform(
-          now, numTestElements, Create.timestamped(elements), false);
+          now, numTestElements, Create.timestamped(elements), IsBounded.BOUNDED);
     }
 
     /**
@@ -4001,18 +4001,18 @@ public class ParDoTest implements Serializable {
 
       List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
       for (int i = 0; i < numTestElements; i++) {
-        elements.add(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
+        elements.add(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i * 1000)));
       }
 
       testEventTimeTimerOrderingWithInputPTransform(
-          now, numTestElements, Create.timestamped(elements), true);
+          now, numTestElements, Create.timestamped(elements), IsBounded.UNBOUNDED);
     }
 
     private void testEventTimeTimerOrderingWithInputPTransform(
         Instant now,
         int numTestElements,
         PTransform<PBegin, PCollection<KV<String, String>>> transform,
-        boolean isStreaming)
+        IsBounded isBounded)
         throws Exception {
 
       final String timerIdBagAppend = "append";
@@ -4097,10 +4097,7 @@ public class ParDoTest implements Serializable {
           };
 
       PCollection<String> output =
-          pipeline
-              .apply(transform)
-              .setIsBoundedInternal(isStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
-              .apply(ParDo.of(fn));
+          pipeline.apply(transform).setIsBoundedInternal(isBounded).apply(ParDo.of(fn));
       List<String> expected =
           IntStream.rangeClosed(0, numTestElements)
               .mapToObj(expandFn(numTestElements))
@@ -4184,7 +4181,7 @@ public class ParDoTest implements Serializable {
           TestStream.create(KvCoder.of(VoidCoder.of(), VoidCoder.of()))
               .addElements(KV.of(null, null))
               .advanceWatermarkToInfinity();
-      pipeline.apply(TwoTimerTest.of(now, end, input, false));
+      pipeline.apply(TwoTimerTest.of(now, end, input, IsBounded.BOUNDED));
       pipeline.run();
     }
 
@@ -4193,7 +4190,7 @@ public class ParDoTest implements Serializable {
     public void testTwoTimersSettingEachOtherWithCreateAsInputBounded() {
       Instant now = new Instant(1500000000000L);
       Instant end = now.plus(100);
-      pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of(null, null)), false));
+      pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of(null, null)), IsBounded.BOUNDED));
       pipeline.run();
     }
 
@@ -4202,7 +4199,7 @@ public class ParDoTest implements Serializable {
     public void testTwoTimersSettingEachOtherWithCreateAsInputUnbounded() {
       Instant now = new Instant(1500000000000L);
       Instant end = now.plus(100);
-      pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of(null, null)), true));
+      pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of(null, null)), IsBounded.UNBOUNDED));
       pipeline.run();
     }
 
@@ -4379,23 +4376,23 @@ public class ParDoTest implements Serializable {
           Instant start,
           Instant end,
           PTransform<PBegin, PCollection<KV<Void, Void>>> input,
-          boolean isStreaming) {
-        return new TwoTimerTest(start, end, input, isStreaming);
+          IsBounded isBounded) {
+        return new TwoTimerTest(start, end, input, isBounded);
       }
 
       private final Instant start;
       private final Instant end;
-      private final boolean isStreaming;
+      private final IsBounded isBounded;
       private final transient PTransform<PBegin, PCollection<KV<Void, Void>>> inputPTransform;
 
       public TwoTimerTest(
           Instant start,
           Instant end,
           PTransform<PBegin, PCollection<KV<Void, Void>>> input,
-          boolean isStreaming) {
+          IsBounded isBounded) {
         this.start = start;
         this.end = end;
-        this.isStreaming = isStreaming;
+        this.isBounded = isBounded;
         this.inputPTransform = input;
       }
 
@@ -4408,7 +4405,7 @@ public class ParDoTest implements Serializable {
         PCollection<String> result =
             input
                 .apply(inputPTransform)
-                .setIsBoundedInternal(isStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
+                .setIsBoundedInternal(isBounded)
                 .apply(
                     ParDo.of(
                         new DoFn<KV<Void, Void>, String>() {

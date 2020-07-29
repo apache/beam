@@ -24,10 +24,12 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
@@ -562,6 +564,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     private PriorityQueue<TimerData> toBeFiredTimersOrdered = null;
 
     // to track if timer is reset earlier mid-bundle.
+    // Map of timer's id to timer's firing time to check
+    // the actual firing time of a timer.
     private Map<String, Instant> firedTimer = new HashMap<>();
 
     public <W extends BoundedWindow> TimerData getNextFiredUserTimer(Coder<W> windowCoder) {
@@ -588,6 +592,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       }
 
       Instant currentInputWatermark = userTimerInternals.currentInputWatermarkTime();
+
       if (userTimerInternals.hasTimerBefore(currentInputWatermark)) {
         List<TimerData> currentTimers = userTimerInternals.getCurrentTimers();
 
