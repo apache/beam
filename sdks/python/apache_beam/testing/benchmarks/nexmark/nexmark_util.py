@@ -205,14 +205,19 @@ def display(elm):
 
 
 def model_to_json(model):
-  return json.dumps({k: timestamp_to_int(v)
-                     for k, v in model.__dict__.items()},
-                    separators=(',', ':'))
+  return json.dumps(construct_json_dict(model), separators=(',', ':'))
 
 
-def timestamp_to_int(cand):
+def construct_json_dict(model):
+  return {k: unnest_to_json(v) for k, v in model.__dict__.items()}
+
+
+def unnest_to_json(cand):
   if isinstance(cand, Timestamp):
     return cand.micros // 1000
+  elif isinstance(
+      cand, (nexmark_model.Auction, nexmark_model.Bid, nexmark_model.Person)):
+    return construct_json_dict(cand)
   else:
     return cand
 

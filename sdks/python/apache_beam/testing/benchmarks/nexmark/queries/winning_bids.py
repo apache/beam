@@ -43,7 +43,7 @@ class AuctionOrBidWindow(IntervalWindow):
     return AuctionOrBidWindow(
         timestamp, timestamp + expected_duration_micro * 2, bid.auction, False)
 
-  def is_auction_window(self):
+  def is_auction_window_fn(self):
     return self.is_auction_window
 
   def __str__(self):
@@ -102,7 +102,7 @@ class AuctionOrBidWindowFn(WindowFn):
     id_to_auction = {}
     id_to_bid = {}
     for window in merge_context.windows:
-      if window.is_auction_window():
+      if window.is_auction_window_fn():
         id_to_auction[window.auction] = window
       else:
         if window.auction in id_to_bid:
@@ -113,12 +113,12 @@ class AuctionOrBidWindowFn(WindowFn):
         bid_windows.append(window)
 
     for auction, auction_window in id_to_auction.items():
-      bid_window = id_to_bid.get(auction)
-      if bid_window is not None:
+      bid_window_list = id_to_bid.get(auction)
+      if bid_window_list is not None:
         to_merge = []
-        for bid in bid_window:
-          if bid.start < auction_window.end:
-            to_merge.append(bid)
+        for bid_window in bid_window_list:
+          if bid_window.start < auction_window.end:
+            to_merge.append(bid_window)
         if len(to_merge) > 0:
           to_merge.append(auction_window)
           merge_context.merge(to_merge, auction_window)
