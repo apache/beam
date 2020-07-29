@@ -62,7 +62,7 @@ export class KernelModel {
       return;
     }
 
-    value.onIOPub = this._onIOPub;
+    value.onIOPub = this._onIOPub.bind(this);
   }
 
   get executeResult(): object {
@@ -117,7 +117,7 @@ export class KernelModel {
     });
   }
 
-  private _onIOPub = (msg: KernelMessage.IIOPubMessage): void => {
+  private _onIOPub(msg: KernelMessage.IIOPubMessage): void {
     if (this._enableConsoleLog) {
       console.log(msg);
     }
@@ -146,7 +146,7 @@ export class KernelModel {
       }
     }
     return;
-  };
+  }
 
   private _future: Kernel.IFuture<
     KernelMessage.IExecuteRequestMsg,
