@@ -23,6 +23,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -67,6 +68,32 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return errors.WithContextf(err, "generating model pipeline")
 	}
 
+	fmt.Printf("\n\n----\n%v\n----\n\n", pipeline.Components.Environments)
+	// Adding ExpandedTransforms to the pipeline
+	for id, external := range p.ExpandedTransforms {
+		pipeline.Requirements = append(pipeline.Requirements, external.Requirements...)
+		fmt.Printf("\n\n+++n%v\n+++n\n", external.Components.Environments)
+
+		for k, v := range external.Components.Transforms {
+			pipeline.Components.Transforms[k] = v
+		}
+		for k, v := range external.Components.Pcollections {
+			pipeline.Components.Pcollections[k] = v
+		}
+		for k, v := range external.Components.WindowingStrategies {
+			pipeline.Components.WindowingStrategies[k] = v
+		}
+		for k, v := range external.Components.Coders {
+			pipeline.Components.Coders[k] = v
+		}
+		for k, v := range external.Components.Environments {
+			pipeline.Components.Environments[k] = v
+		}
+		pipeline.Components.Transforms[id] = external.ExpandedTransform
+	}
+
+	fmt.Printf("\n\n----\n%v\n----\n\n", pipeline.Components.Environments)
+	// panic("DIE")
 	log.Info(ctx, proto.MarshalTextString(pipeline))
 
 	opt := &runnerlib.JobOptions{

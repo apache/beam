@@ -61,7 +61,7 @@ func (s Scope) String() string {
 type Pipeline struct {
 	// real is the deferred execution Graph as it is being constructed.
 	real               *graph.Graph
-	expandedTransforms map[int]ExternalTransform
+	ExpandedTransforms map[string]*ExternalTransform
 }
 
 // NewPipeline creates a new empty pipeline.

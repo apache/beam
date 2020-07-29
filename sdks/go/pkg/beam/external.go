@@ -24,6 +24,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
 	"google.golang.org/grpc"
 )
 
@@ -31,33 +32,35 @@ import (
 type ExternalTransform struct {
 	id                int
 	Urn               string
-	payload           []byte
+	Payload           []byte
 	In                []PCollection
-	out               []FullType
-	bounded           bool
-	expansionAddr     string
-	components        *pipepb.Components
-	expandedTransform *pipepb.PTransform
+	Out               []FullType
+	Bounded           bool
+	ExpansionAddr     string
+	Components        *pipepb.Components
+	ExpandedTransform *pipepb.PTransform
+	Requirements      []string
 }
 
 // func (s ExternalTransform) withExpansionAddress(addr string) ExternalTransform {
 // 	return
 // }
 
-// func CrossLanguage(e ExternalTransform) []PCollection {
-func CrossLanguage(s Scope, e ExternalTransform) {
+func CrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) []PCollection {
+	// func CrossLanguage(s Scope, e ExternalTransform) {
 
 	// id, bounded, components and expandedTransform should be absent
 
-	if e.expansionAddr == "" { // What's the best way to check if the value was ever set
+	if e.ExpansionAddr == "" { // What's the best way to check if the value was ever set
 		// return Legacy External API
 	}
 
-	// Add ExternalTranform to the Graph
 	/*
-		// Inserting a further subscope for better observability
-		s := s.Scope(expansionAddr)
+		Add ExternalTranform to the Graph
 	*/
+	// Validating scope and inputs
+	// // Inserting a further subscope for better observability?
+	// s := s.Scope(expansionAddr)
 	if !s.IsValid() {
 		// return nil, errors.New("invalid scope")
 		fmt.Println("invalid scope")
@@ -70,9 +73,10 @@ func CrossLanguage(s Scope, e ExternalTransform) {
 		}
 	}
 
+	// Using exisiting MultiEdge format to represent ExternalTransform (backwards compatible)
 	payload := &graph.Payload{
 		URN:  e.Urn,
-		Data: e.payload,
+		Data: e.Payload,
 	}
 	var ins []*graph.Node
 	for _, col := range e.In {
@@ -80,18 +84,31 @@ func CrossLanguage(s Scope, e ExternalTransform) {
 	}
 	edge := graph.NewCrossLanguage(s.real, s.scope, ins, payload)
 
-	p, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{})
+	// todo(pskevin): There needs to be a better way to stich this together
+	// Adding ExternalTransform to pipeline referenced by MultiEdge ID
+	if p.ExpandedTransforms == nil {
+		p.ExpandedTransforms = make(map[string]*ExternalTransform)
+	}
+	p.ExpandedTransforms[fmt.Sprintf("e%v", edge.ID())] = e
+
+	/*
+		Build the ExpansionRequest
+	*/
+	// Obtaining the components and transform proto representing this transform
+	ctx := context.Background()
+	pipeline, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{Environment: graphx.CreateEnvironment(
+		ctx, jobopts.GetEnvironmentUrn(ctx), jobopts.GetEnvironmentConfig)})
 	if err != nil {
 		fmt.Println(err)
 	}
-	// fmt.Println(p)
-	transforms := p.Components.Transforms
-	id := p.RootTransformIds[0]
-	for k, v := range transforms[id].Inputs {
-		// fmt.Println("\n\n----\n\n")
-		// fmt.Println(k, v)
-		output := map[string]string{"out": v}
-		key := fmt.Sprintf("%s_%s", "impulse", k)
+
+	// Adding fake impulses to each input as required for correct expansion
+	transforms := pipeline.Components.Transforms
+	rootTransformID := pipeline.RootTransformIds[0]
+	for tag, id := range transforms[rootTransformID].Inputs {
+		key := fmt.Sprintf("%s_%s", "impulse", tag)
+
+		output := map[string]string{"out": id}
 		impulse := &pipepb.PTransform{
 			UniqueName: key,
 			Spec: &pipepb.FunctionSpec{
@@ -99,39 +116,61 @@ func CrossLanguage(s Scope, e ExternalTransform) {
 			},
 			Outputs: output,
 		}
-		// fmt.Println(impulse)
+
 		transforms[key] = impulse
 	}
-	fmt.Println(p)
-	// Build ExpansionRequest
+
+	// Assembling ExpansionRequest proto
 	req := &jobpb.ExpansionRequest{
-		Components: p.Components,
-		Transform:  transforms[id],
+		Components: pipeline.Components,
+		Transform:  transforms[rootTransformID],
 		Namespace:  s.String(),
 	}
-	fmt.Println(req)
 
-	conn, err := grpc.Dial("http://localhost:8118", grpc.WithInsecure())
+	/*
+		Querying Expansion Service
+	*/
+	// Setting grpc client
+	conn, err := grpc.Dial(e.ExpansionAddr, grpc.WithInsecure())
 	if err != nil {
 		panic(err)
 	}
 	defer conn.Close()
-	fmt.Println("\n Connection established")
 	client := jobpb.NewExpansionServiceClient(conn)
-	fmt.Println("\n Added client")
-	res, err := client.Expand(context.Background(), req)
-	fmt.Println(res, err)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(res)
 
 	// Handling ExpansionResponse
-	if e.out == nil {
-		// Infer output types from ExpansionResponse and update e.out
+	res, err := client.Expand(context.Background(), req)
+	if err != nil {
+		// Add better error handling
+		fmt.Println(res.GetError())
+		panic(err)
+	}
+	fmt.Printf("\n\n!!!%v\n!!!\n\n", req.GetComponents())
+	fmt.Printf("\n\n!!!%v\n!!!\n\n", res.GetComponents())
+	e.Components = res.GetComponents()
+	e.ExpandedTransform = res.GetTransform()
+	e.Requirements = res.GetRequirements()
+
+	/* Associating output PCollections of the expanded transform with correct internal outbound links and nodes */
+	// No information about the output types and bounded nature has been explicitly passed by the user
+	if len(e.Out) == 0 || cap(e.Out) == 0 {
+		// Infer output types from ExpansionResponse and update e.Out
+		if e.Out == nil {
+			// Use reverse schema encoding
+		} else {
+			// Use the coders list and map from coder id to internal FullType?
+		}
 	}
 
-	// for len(out) create output nodes
+	// Using information about the output types and bounded nature inferred orexplicitly passed by the user
+	graph.AddOutboundLinks(s.real, edge, ins, e.Out, e.Bounded)
+	var ret []PCollection
+	for _, out := range edge.Output {
+		c := PCollection{out.To}
+		c.SetCoder(NewCoder(c.Type()))
+		ret = append(ret, c)
+	}
+	return ret
 }
 
 // External defines a Beam external transform. The interpretation of this primitive is runner
