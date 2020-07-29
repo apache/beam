@@ -108,7 +108,7 @@ def get_committers_github_usernames(ldap_uris, cert_path):
             connection.unbind_s()
 
 
-def parse_args():
+def _parse_args():
     parser = argparse.ArgumentParser(
         description="Generates groovy file containing beam committers' usernames."
     )
@@ -138,7 +138,8 @@ def parse_args():
 
 if __name__ == "__main__":
     try:
-        args = parse_args()
+        logging.getLogger().setLevel(logging.INFO)
+        args = _parse_args()
         generate_groovy(args.output_dir, args.ldap_uris, args.cert_path)
     except CommittersGeneratorException as e:
         logging.exception("Couldn't generate the list of committers")
