@@ -1008,7 +1008,7 @@ ${CONTRIBUTORS}
 &lt;li>Check hashes (e.g. &lt;code>md5sum -c *.md5&lt;/code> and &lt;code>sha1sum -c *.sha1&lt;/code>)&lt;/li>
 &lt;li>Check signatures (e.g. &lt;code>gpg --verify apache-beam-1.2.3-python.zip.asc apache-beam-1.2.3-python.zip&lt;/code>)&lt;/li>
 &lt;li>&lt;code>grep&lt;/code> for legal headers in each file.&lt;/li>
-&lt;li>Run all jenkins suites and include links to passing tests in the voting email. (Select &amp;ldquo;Run with parameters&amp;rdquo;)&lt;/li>
+&lt;li>Run all jenkins suites and include links to passing tests in the voting email.&lt;/li>
 &lt;li>Pull docker images to make sure they are pullable.&lt;/li>
 &lt;/ol>
 &lt;pre>&lt;code>docker pull {image_name}
