@@ -37,19 +37,20 @@ func Create(s Scope, values ...interface{}) PCollection {
 // array. Unlike Create this supports the creation of an empty PCollection.
 func CreateList(s Scope, list interface{}) PCollection {
 	val := reflect.ValueOf(list)
+	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
+		panic(fmt.Sprintf("Input %v must be a slice or array", list))
+	}
 	var ret []interface{}
 	for i := 0; i < val.Len(); i++ {
 		ret = append(ret, val.Index(i).Interface())
 	}
-	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
-		panic(fmt.Sprintf("Input %v must be a slice or array", list))
+	var t reflect.Type
+	if len(ret) == 0 {
+		t = reflect.TypeOf(list).Elem()
+	} else {
+		t = reflect.ValueOf(ret[0]).Type()
 	}
-	if val.Len() == 0 {
-		t := reflect.TypeOf(list).Elem()
-		return Must(TryCreateList(s, t, ret))
-	}
-	t := reflect.ValueOf(ret[0]).Type()
-	return Must(TryCreateList(s, t, ret))
+	return Must(TryCreateList(s, ret, t))
 }
 
 func addCreateCtx(err error, s Scope) error {
@@ -64,13 +65,13 @@ func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 	}
 
 	t := reflect.ValueOf(values[0]).Type()
-	return TryCreateList(s, t, values)
+	return TryCreateList(s, values, t)
 }
 
 // TryCreateList inserts a fixed set of values into the pipeline from a slice or
-func TryCreateList(s Scope, t reflect.Type, values []interface{}) (PCollection, error) {
 // array. The values must be of the same type. Unlike TryCreate this supports
 // the creation of an empty PCollection.
+func TryCreateList(s Scope, values []interface{}, t reflect.Type) (PCollection, error) {
 	fn := &createFn{Type: EncodedType{T: t}}
 	enc := NewElementEncoder(t)
 
