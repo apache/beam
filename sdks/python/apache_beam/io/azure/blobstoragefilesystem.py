@@ -191,7 +191,11 @@ class BlobStorageFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if any of the copy operations fail
     """
-    raise NotImplementedError
+    if not len(source_file_names) == len(destination_file_names):
+      message = 'Unable to copy unequal number of sources and destinations.'
+      raise BeamIOError(message)
+    src_dest_pairs = list(zip(source_file_names, destination_file_names))
+    return blobstorageio.BlobStorageIO().copy_paths(src_dest_pairs)
 
   def rename(self, source_file_names, destination_file_names):
     """Rename the files at the source list to the destination list.
