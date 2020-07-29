@@ -45,19 +45,20 @@ class SqlTransform(ExternalTransform):
   1) Register a `typing.NamedTuple` type to use RowCoder, and specify it as the
      output type. For example::
 
-    Purchase = typing.NamedTuple('Purchase',
-                                 [('item_name', unicode), ('price', float)])
-    coders.registry.register_coder(Purchase, coders.RowCoder)
-    with Pipeline() as p:
-      purchases = (p | beam.io...
-                     | beam.Map(..).with_output_types(Purchase))
+      Purchase = typing.NamedTuple('Purchase',
+                                   [('item_name', unicode), ('price', float)])
+      coders.registry.register_coder(Purchase, coders.RowCoder)
+      with Pipeline() as p:
+        purchases = (p | beam.io...
+                       | beam.Map(..).with_output_types(Purchase))
 
   2) Produce `beam.Row` instances. Note this option will fail if Beam is unable
      to infer data types for any of the fields. For example::
-    with Pipeline() as p:
-      purchases = (p | beam.io...
-                     | beam.Map(lambda x: beam.Row(item_name=unicode(..),
-                                                   price=float(..))))
+
+      with Pipeline() as p:
+        purchases = (p | beam.io...
+                       | beam.Map(lambda x: beam.Row(item_name=unicode(..),
+                                                     price=float(..))))
 
   Similarly, the output of SqlTransform is a PCollection with a schema.
   The columns produced by the query can be accessed as attributes. For example::
