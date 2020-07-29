@@ -20,9 +20,14 @@ import logging
 import jinja2
 import os
 import argparse
+import sys
 
 
-class ApacheLDAPException(Exception):
+class CommittersGeneratorException(Exception):
+    pass
+
+
+class _ApacheLDAPException(CommittersGeneratorException):
     pass
 
 
@@ -31,10 +36,16 @@ _PEOPLE_DN = "ou=people,dc=apache,dc=org"
 _BEAM_DN = "cn=beam,ou=project,ou=groups,dc=apache,dc=org"
 _GITHUB_USERNAME_ATTR = "githubUsername"
 _DEFAULT_LDAP_URIS = "ldaps://ldap-us-ro.apache.org:636 ldaps://ldap-eu-ro.apache.org:636"
-_DEFAULT_CERT_PATH = "cert/"
+_DEFAULT_CERT_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "cert.pem")
+
 
 def generate_groovy(output_dir, ldap_uris, cert_path):
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates"))
+    logging.info(f"Generating {_FILENAME}")
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(
+            os.path.join(os.path.dirname(os.path.realpath(__file__)), "templates")
+        ),
+    )
     template = env.get_template(f"{_FILENAME}.template")
     with open(os.path.join(output_dir, _FILENAME), "w") as file:
         file.write(
@@ -45,6 +56,7 @@ def generate_groovy(output_dir, ldap_uris, cert_path):
                 ),
             )
         )
+    logging.info(f"{_FILENAME} saved into {output_dir}")
 
 
 def get_committers_github_usernames(ldap_uris, cert_path):
@@ -63,7 +75,7 @@ def get_committers_github_usernames(ldap_uris, cert_path):
         )
 
         if not people:
-            raise ApacheLDAPException(f"LDAP server returned no people: {repr(people)}")
+            raise _ApacheLDAPException(f"LDAP server returned no people: {repr(people)}")
 
         github_usernames = {
             person_dn: data.get(_GITHUB_USERNAME_ATTR, [])
@@ -77,18 +89,20 @@ def get_committers_github_usernames(ldap_uris, cert_path):
         )
 
         if not committers or "member" not in committers[0][1]:
-            raise ApacheLDAPException(f"LDAP server returned no committers: {repr(committers)}")
+            raise _ApacheLDAPException(f"LDAP server returned no committers: {repr(committers)}")
 
         committers_github_usernames = [
             github_username.decode()
             for committer_dn in committers[0][1]["member"]
             for github_username in github_usernames[committer_dn.decode()]
         ]
+
+        logging.info(f"Committers' GitHub usernames fetched correctly: {committers_github_usernames}")
+
         return committers_github_usernames
 
-    except (ldap.LDAPError, ApacheLDAPException) as e:
-        logging.error(f"Could not fetch LDAP data: {e}")
-        return []
+    except (ldap.LDAPError, _ApacheLDAPException) as e:
+        raise CommittersGeneratorException("Could not fetch LDAP data") from e
     finally:
         if connection is not None:
             connection.unbind_s()
@@ -123,5 +137,9 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    generate_groovy(args.output_dir, args.ldap_uris, args.cert_path)
+    try:
+        args = parse_args()
+        generate_groovy(args.output_dir, args.ldap_uris, args.cert_path)
+    except CommittersGeneratorException as e:
+        logging.exception("Couldn't generate the list of committers")
+        sys.exit(1)
