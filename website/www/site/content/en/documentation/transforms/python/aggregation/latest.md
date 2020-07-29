@@ -67,8 +67,8 @@ Output:
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest.py" >}}
 
-## Related transforms 
+## Related transforms
 
-* [Sample](/documentation/transforms/python/aggregation/sample) to combine elements. takes samples of the elements in a collection.
+* [Sample](/documentation/transforms/python/aggregation/sample) randomly takes some number of elements in a collection.
 
 {{< button-pydoc path="apache_beam.transforms.combiners" class="Latest" >}}
