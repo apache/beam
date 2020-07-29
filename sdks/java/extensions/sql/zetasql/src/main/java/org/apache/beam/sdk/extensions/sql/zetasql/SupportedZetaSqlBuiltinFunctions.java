@@ -246,6 +246,7 @@ class SupportedZetaSqlBuiltinFunctions {
           FunctionSignatureId.FN_DATETIME_FROM_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND, // datetime
           FunctionSignatureId.FN_DATETIME_FROM_TIMESTAMP, // datetime
           FunctionSignatureId.FN_DATETIME_FROM_DATE, // datetime
+
           FunctionSignatureId.FN_STRING_FROM_TIMESTAMP, // string
 
           // Signatures for extracting date parts, taking a date/timestamp
