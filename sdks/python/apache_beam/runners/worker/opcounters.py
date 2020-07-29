@@ -29,9 +29,10 @@ import math
 import random
 from builtins import hex
 from builtins import object
-from future.utils import raise_with_traceback
 from typing import TYPE_CHECKING
 from typing import Optional
+
+from future.utils import raise_with_traceback
 
 from apache_beam.internal import pickler
 from apache_beam.typehints import TypeCheckError
