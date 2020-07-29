@@ -267,6 +267,7 @@ class SupportedZetaSqlBuiltinFunctions {
 
           // Signature specific to extracting the DATETIME date part from a TIMESTAMP.
           FunctionSignatureId.FN_EXTRACT_DATETIME_FROM_TIMESTAMP, // $extract_datetime
+
           FunctionSignatureId.FN_FORMAT_DATE, // format_date
           FunctionSignatureId.FN_FORMAT_DATETIME, // format_datetime
           FunctionSignatureId.FN_FORMAT_TIME, // format_time
