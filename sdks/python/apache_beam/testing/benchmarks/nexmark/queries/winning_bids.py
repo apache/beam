@@ -40,18 +40,19 @@ class AuctionOrBidWindow(IntervalWindow):
 
   @staticmethod
   def for_bid(expected_duration_micro, timestamp, bid: nexmark_model.Bid):
-    return AuctionOrBidWindow(timestamp, timestamp + expected_duration_micro * 2, bid.auction, False)
+    return AuctionOrBidWindow(
+        timestamp, timestamp + expected_duration_micro * 2, bid.auction, False)
 
   def is_auction_window(self):
     return self.is_auction_window
 
   def __str__(self):
-    return ('AuctionOrBidWindow{start:%s; end:%s; auction:%d; isAuctionWindow:%s}'
-            % (self.start, self.end, self.auction, self.is_auction_window))
+    return (
+        'AuctionOrBidWindow{start:%s; end:%s; auction:%d; isAuctionWindow:%s}' %
+        (self.start, self.end, self.auction, self.is_auction_window))
 
 
 class AuctionOrBidWindowCoder(FastCoder):
-
   def _create_impl(self):
     return AuctionOrBidWindowCoderImpl()
 
@@ -68,13 +69,15 @@ class AuctionOrBidWindowCoderImpl(coder_impl.StreamCoderImpl):
   def encode_to_stream(self, value: AuctionOrBidWindow, stream, nested):
     self._super_coder_impl.encode_to_stream(value, stream, True)
     self._id_coder_impl.encode_to_stream(value.auction, stream, True)
-    self._bool_coder_impl.encode_to_stream(value.is_auction_window, stream, True)
+    self._bool_coder_impl.encode_to_stream(
+        value.is_auction_window, stream, True)
 
   def decode_from_stream(self, stream, nested):
     super_window = self._super_coder_impl.decode_from_stream(stream, True)
     auction = self._id_coder_impl.decode_from_stream(stream, True)
     is_auction = self._bool_coder_impl.decode_from_stream(stream, True)
-    return AuctionOrBidWindow(super_window.start, super_window.end, auction, is_auction)
+    return AuctionOrBidWindow(
+        super_window.start, super_window.end, auction, is_auction)
 
 
 class AuctionOrBidWindowFn(WindowFn):
@@ -86,9 +89,14 @@ class AuctionOrBidWindowFn(WindowFn):
     if isinstance(event, nexmark_model.Auction):
       return [AuctionOrBidWindow.for_auction(assign_context.timestamp, event)]
     elif isinstance(event, nexmark_model.Bid):
-      return [AuctionOrBidWindow.for_bid(self.expected_duration, assign_context.timestamp, event)]
+      return [
+          AuctionOrBidWindow.for_bid(
+              self.expected_duration, assign_context.timestamp, event)
+      ]
     else:
-      raise ValueError('%s can only assign windows to auctions and bids, but received %s' % (self.__class__.__name__, event))
+      raise ValueError(
+          '%s can only assign windows to auctions and bids, but received %s' %
+          (self.__class__.__name__, event))
 
   def merge(self, merge_context):
     id_to_auction = {}
@@ -149,24 +157,26 @@ class JoinAuctionBidFn(beam.DoFn):
     yield auction_bid.AuctionBid(auction, best_bid)
 
 
-
 class WinningBids(beam.PTransform):
   def __init__(self):
-    expected_duration = 16667000 #TODO: change this to be calculated by event generation
+    expected_duration = 16667000  #TODO: change this to be calculated by event generation
     self.auction_or_bid_windowFn = AuctionOrBidWindowFn(expected_duration)
-
 
   def expand(self, pcoll):
     events = pcoll | beam.WindowInto(self.auction_or_bid_windowFn)
 
-    auction_by_id = (events
-                     | nexmark_query_util.JustAuctions()
-                     | 'auction_by_id' >> beam.ParDo(nexmark_query_util.AuctionByIdFn()))
-    bids_by_auction_id = (events
-                          | nexmark_query_util.JustBids()
-                          | 'bid_by_auction' >> beam.ParDo(nexmark_query_util.BidByAuctionIdFn()))
+    auction_by_id = (
+        events
+        | nexmark_query_util.JustAuctions()
+        | 'auction_by_id' >> beam.ParDo(nexmark_query_util.AuctionByIdFn()))
+    bids_by_auction_id = (
+        events
+        | nexmark_query_util.JustBids()
+        | 'bid_by_auction' >> beam.ParDo(nexmark_query_util.BidByAuctionIdFn()))
 
-    return ({nexmark_query_util.AUCTION_TAG: auction_by_id,
-             nexmark_query_util.BID_TAG: bids_by_auction_id}
+    return ({
+        nexmark_query_util.AUCTION_TAG: auction_by_id,
+        nexmark_query_util.BID_TAG: bids_by_auction_id
+    }
             | beam.CoGroupByKey()
             | beam.ParDo(JoinAuctionBidFn()))
