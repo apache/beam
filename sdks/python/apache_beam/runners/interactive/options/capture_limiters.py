@@ -115,20 +115,15 @@ class CountLimiter(ElementLimiter):
 class ProcessingTimeLimiter(ElementLimiter):
   """Limits by how long the ProcessingTime passed in the element stream.
 
-  This measures the duration from either a constructor argument or from the
-  first element in the stream. Each subsequent element has a delta
-  "advance_duration" that moves the internal clock forward. This triggers when
-  the duration from the internal clock and the start exceeds the given duration.
+  This measures the duration from the first element in the stream. Each
+  subsequent element has a delta "advance_duration" that moves the internal
+  clock forward. This triggers when the duration from the internal clock and
+  the start exceeds the given duration.
   """
-  def __init__(self, max_duration_secs, start_secs=None):
-    """Initialize the ProcessingTimeLimiter.
-
-    If start_secs is None, then the start of the stream will be taken from the
-    first element. Otherwise the duration will be measured from the first
-    element.
-    """
+  def __init__(self, max_duration_secs):
+    """Initialize the ProcessingTimeLimiter."""
     self._max_duration_us = max_duration_secs * 1e6
-    self._start_us = start_secs * 1e6 if start_secs else None
+    self._start_us = 0
     self._cur_time_us = 0
 
   def update(self, e):
@@ -139,10 +134,9 @@ class ProcessingTimeLimiter(ElementLimiter):
     if not e.recorded_event.processing_time_event:
       return
 
-    if self._start_us is None:
+    if self._start_us == 0:
       self._start_us = e.recorded_event.processing_time_event.advance_duration
     self._cur_time_us += e.recorded_event.processing_time_event.advance_duration
 
   def is_triggered(self):
-    start = self._start_us if self._start_us else 0
-    return self._cur_time_us - start >= self._max_duration_us
+    return self._cur_time_us - self._start_us >= self._max_duration_us
