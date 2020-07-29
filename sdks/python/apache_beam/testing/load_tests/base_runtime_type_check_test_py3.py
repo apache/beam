@@ -39,6 +39,8 @@ will be stored,
 
 # pytype: skip-file
 
+from __future__ import absolute_import
+
 from typing import Iterable, Tuple
 
 import apache_beam as beam

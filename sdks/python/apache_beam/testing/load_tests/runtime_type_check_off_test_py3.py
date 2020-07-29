@@ -16,7 +16,7 @@
 #
 
 """
-For more information, see documentation in the parent class: BaseRunTimeTypeCheckTest.
+For more information, see documentation in the parent class.
 
 Example test run:
 
@@ -37,6 +37,8 @@ python -m apache_beam.testing.load_tests.runtime_type_check_off_test_py3 \
 """
 
 # pytype: skip-file
+
+from __future__ import absolute_import
 
 import logging
 
