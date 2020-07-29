@@ -44,7 +44,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelRoot;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinCommuteRule;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperatorTable;
@@ -92,6 +94,14 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
         // TODO[BEAM-9075]: Fix join re-ordering for ZetaSQL planner. Currently join re-ordering
         //  requires the JoinCommuteRule, which doesn't work without struct flattening.
         if (rule instanceof JoinCommuteRule) {
+          continue;
+        } else if (rule instanceof FilterCalcMergeRule || rule instanceof ProjectCalcMergeRule) {
+          // In order to support Java UDF, we need both BeamZetaSqlCalcRel and BeamCalcRel. It is
+          // because BeamZetaSqlCalcRel can execute ZetaSQL built-in functions while BeamCalcRel
+          // can execute UDFs. So during planning, we expect both Filter and Project are converted
+          // to Calc nodes before merging with other Project/Filter/Calc nodes. Thus we should not
+          // add FilterCalcMergeRule and ProjectCalcMergeRule. CalcMergeRule will achieve equivalent
+          // planning result eventually.
           continue;
         } else if (rule instanceof BeamCalcRule) {
           bd.add(BeamZetaSqlCalcRule.INSTANCE);
