@@ -75,6 +75,7 @@ excluded_patterns=(
     apache_beam/utils/windowed_value.*
     *_pb2.py
     *_test.py
+    *_test_py3.py
     *_test_common.py
     *_py3[`echo $(($current_minor_version+1))`-9]*.py
 )
