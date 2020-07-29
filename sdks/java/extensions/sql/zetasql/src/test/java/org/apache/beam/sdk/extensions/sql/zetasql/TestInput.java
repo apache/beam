@@ -276,8 +276,8 @@ class TestInput {
 
   public static final TestBoundedTable TABLE_WITH_DATETIME =
       TestBoundedTable.of(TABLE_WITH_DATETIME_SCHEMA)
-          .addRows(LocalDateTime.of(2008, 12, 25, 15, 30, 0), "s")
-          .addRows(LocalDateTime.of(2012, 10, 6, 11, 45, 0), "s");
+          .addRows(LocalDateTime.of(2008, 12, 25, 15, 30, 0).withNano(123456000), "s")
+          .addRows(LocalDateTime.of(2012, 10, 6, 11, 45, 0).withNano(987654000), "s");
 
   private static byte[] stringToBytes(String s) {
     return s.getBytes(StandardCharsets.UTF_8);

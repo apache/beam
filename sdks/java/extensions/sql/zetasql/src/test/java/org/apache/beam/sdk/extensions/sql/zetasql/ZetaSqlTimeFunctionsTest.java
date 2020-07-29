@@ -804,7 +804,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
   @Test
   public void testDateTimeColumn() {
-    String sql = "SELECT FORMAT_DATETIME('%D %T', datetime_field) FROM table_with_datetime";
+    String sql = "SELECT FORMAT_DATETIME('%D %T %E6S', datetime_field) FROM table_with_datetime";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -813,10 +813,10 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addStringField("f_datetime_str").build())
-                .addValues("12/25/08 15:30:00")
+                .addValues("12/25/08 15:30:00 00.123456")
                 .build(),
             Row.withSchema(Schema.builder().addStringField("f_datetime_str").build())
-                .addValues("10/06/12 11:45:00")
+                .addValues("10/06/12 11:45:00 00.987654")
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -836,8 +836,12 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
             .build();
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(schema).addValues(LocalDateTime.of(2008, 12, 25, 15, 30, 0), 1L).build(),
-            Row.withSchema(schema).addValues(LocalDateTime.of(2012, 10, 6, 11, 45, 0), 1L).build());
+            Row.withSchema(schema)
+                .addValues(LocalDateTime.of(2008, 12, 25, 15, 30, 0).withNano(123456000), 1L)
+                .build(),
+            Row.withSchema(schema)
+                .addValues(LocalDateTime.of(2012, 10, 6, 11, 45, 0).withNano(987654000), 1L)
+                .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -855,7 +859,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
                     Schema.builder()
                         .addLogicalTypeField("datetime_field", SqlTypes.DATETIME)
                         .build())
-                .addValues(LocalDateTime.of(2012, 10, 6, 11, 45, 0))
+                .addValues(LocalDateTime.of(2012, 10, 6, 11, 45, 0).withNano(987654000))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1167,7 +1171,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
   @Test
   public void testFormatDateTime() {
-    String sql = "SELECT FORMAT_DATETIME('%D %T', DATETIME '2008-12-25 15:30:00')";
+    String sql = "SELECT FORMAT_DATETIME('%D %T %E6S', DATETIME '2008-12-25 15:30:00.123456')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1176,14 +1180,14 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addStringField("f_datetime_str").build())
-                .addValues("12/25/08 15:30:00")
+                .addValues("12/25/08 15:30:00 00.123456")
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testParseDateTime() {
-    String sql = "SELECT PARSE_DATETIME('%Y-%m-%d %H:%M:%S', '2008-12-25 15:30:00')";
+    String sql = "SELECT PARSE_DATETIME('%Y-%m-%d %H:%M:%E6S', '2008-12-25 15:30:00.123456')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1193,7 +1197,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(
                     Schema.builder().addLogicalTypeField("f_datetime", SqlTypes.DATETIME).build())
-                .addValues(LocalDateTime.of(2008, 12, 25, 15, 30, 0))
+                .addValues(LocalDateTime.of(2008, 12, 25, 15, 30, 0).withNano(123456000))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
