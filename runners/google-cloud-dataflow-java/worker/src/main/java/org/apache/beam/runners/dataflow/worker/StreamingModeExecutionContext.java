@@ -24,10 +24,12 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
@@ -519,7 +521,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               synchronizedProcessingTime);
 
       this.cachedFiredTimers = null;
-      this.cachedFiredUserTimers = null;
+      this.toBeFiredTimersOrdered = null;
     }
 
     public void flushState() {
@@ -559,28 +561,67 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       return nextTimer;
     }
 
-    // Lazily initialized
-    private Iterator<TimerData> cachedFiredUserTimers = null;
+    private PriorityQueue<TimerData> toBeFiredTimersOrdered = null;
+
+    // to track if timer is reset earlier mid-bundle.
+    // Map of timer's id to timer's firing time to check
+    // the actual firing time of a timer.
+    private Map<String, Instant> firedTimer = new HashMap<>();
 
     public <W extends BoundedWindow> TimerData getNextFiredUserTimer(Coder<W> windowCoder) {
-      if (cachedFiredUserTimers == null) {
-        cachedFiredUserTimers =
-            FluentIterable.<Timer>from(StreamingModeExecutionContext.this.getFiredTimers())
-                .filter(
-                    timer ->
-                        WindmillTimerInternals.isUserTimer(timer)
-                            && timer.getStateFamily().equals(stateFamily))
-                .transform(
-                    timer ->
-                        WindmillTimerInternals.windmillTimerToTimerData(
-                            WindmillNamespacePrefix.USER_NAMESPACE_PREFIX, timer, windowCoder))
-                .iterator();
+      if (toBeFiredTimersOrdered == null) {
+
+        toBeFiredTimersOrdered = new PriorityQueue<>(Comparator.comparing(TimerData::getTimestamp));
+        FluentIterable.from(StreamingModeExecutionContext.this.getFiredTimers())
+            .filter(
+                timer ->
+                    WindmillTimerInternals.isUserTimer(timer)
+                        && timer.getStateFamily().equals(stateFamily))
+            .transform(
+                timer ->
+                    WindmillTimerInternals.windmillTimerToTimerData(
+                        WindmillNamespacePrefix.USER_NAMESPACE_PREFIX, timer, windowCoder))
+            .iterator()
+            .forEachRemaining(
+                timerData -> {
+                  firedTimer.put(
+                      timerData.getTimerId() + '+' + timerData.getTimerFamilyId(),
+                      timerData.getTimestamp());
+                  toBeFiredTimersOrdered.add(timerData);
+                });
       }
 
-      if (!cachedFiredUserTimers.hasNext()) {
+      Instant currentInputWatermark = userTimerInternals.currentInputWatermarkTime();
+
+      if (userTimerInternals.hasTimerBefore(currentInputWatermark)) {
+        List<TimerData> currentTimers = userTimerInternals.getCurrentTimers();
+
+        for (TimerData timerData : currentTimers) {
+          firedTimer.put(
+              timerData.getTimerId() + '+' + timerData.getTimerFamilyId(),
+              timerData.getTimestamp());
+          toBeFiredTimersOrdered.add(timerData);
+        }
+      }
+
+      TimerData nextTimer = null;
+
+      // fire timer only if its timestamp matched. Else it is either reset or obsolete.
+      while (!toBeFiredTimersOrdered.isEmpty()) {
+        nextTimer = toBeFiredTimersOrdered.poll();
+        String timerUniqueId = nextTimer.getTimerId() + '+' + nextTimer.getTimerFamilyId();
+        if (firedTimer.containsKey(timerUniqueId)
+            && firedTimer.get(timerUniqueId).isEqual(nextTimer.getTimestamp())) {
+          break;
+        } else {
+          nextTimer = null;
+        }
+      }
+
+      if (nextTimer == null) {
         return null;
       }
-      TimerData nextTimer = cachedFiredUserTimers.next();
+
       // User timers must be explicitly deleted when delivered, to release the implied hold
       userTimerInternals.deleteTimer(nextTimer);
       return nextTimer;
