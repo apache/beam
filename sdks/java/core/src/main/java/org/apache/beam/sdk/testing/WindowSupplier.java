@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.testing;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.Collection;
 import org.apache.beam.sdk.coders.Coder;
@@ -33,6 +34,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * supplier is {@link Serializable}, and handles encoding and decoding the windows with a {@link
  * Coder} provided for the windows.
  */
+// Spotbugs thinks synchronization is for the fields, but it is for the act of decoding
+@SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 final class WindowSupplier implements Supplier<Collection<BoundedWindow>>, Serializable {
   private final Coder<? extends BoundedWindow> coder;
   private final Collection<byte[]> encodedWindows;

@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.jdbc.SchemaUtil.checkNullabilityForFields;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.Serializable;
 import java.sql.Connection;
@@ -559,6 +560,8 @@ public class JdbcIO {
       return rows;
     }
 
+    // Spotbugs seems to not understand the multi-statement try-with-resources
+    @SuppressFBWarnings("OBL_UNSATISFIED_OBLIGATION")
     private Schema inferBeamSchema() {
       DataSource ds = getDataSourceProviderFn().apply(null);
       try (Connection conn = ds.getConnection();
@@ -889,6 +892,8 @@ public class JdbcIO {
     }
 
     @ProcessElement
+    // Spotbugs seems to not understand the nested try-with-resources
+    @SuppressFBWarnings("OBL_UNSATISFIED_OBLIGATION")
     public void processElement(ProcessContext context) throws Exception {
       // Only acquire the connection if we need to perform a read.
       if (connection == null) {
