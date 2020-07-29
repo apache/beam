@@ -325,7 +325,7 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     if argspec.args:
       transform.fn._runtime_parameter_name = argspec.args[0]
       if isinstance(input_types, dict):
-          input_types = (input_types[argspec.args[0]], )
+        input_types = (input_types[argspec.args[0]], )
 
     if input_types and len(input_types):
       input_types = input_types[0]
@@ -334,4 +334,4 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
       output_types = output_types[0]
 
     transform.fn._runtime_type_hints = type_hints._replace(
-      input_types=input_types, output_types=output_types)
+        input_types=input_types, output_types=output_types)

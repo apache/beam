@@ -235,11 +235,11 @@ class OperationCounters(object):
                                                  'serialized_fn'):
           fns = pickler.loads(consumer.spec.serialized_fn)
           if fns and hasattr(fns[0], '_runtime_type_hints'):
-              self.consumer_type_hints.append(fns[0]._runtime_type_hints)
-              self.consumer_full_labels.append(
-                  getattr(fns[0], '_full_label', 'No Label Found'))
-              self.consumer_parameter_names.append(
-                  getattr(fns[0], '_runtime_parameter_name', 'Unknown Parameter'))
+            self.consumer_type_hints.append(fns[0]._runtime_type_hints)
+            self.consumer_full_labels.append(
+                getattr(fns[0], '_full_label', 'No Label Found'))
+            self.consumer_parameter_names.append(
+                getattr(fns[0], '_runtime_parameter_name', 'Unknown Parameter'))
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
@@ -270,7 +270,11 @@ class OperationCounters(object):
       output_constraint = self.producer_type_hints.output_types
       if output_constraint is not None:
         try:
-          _check_instance_type(output_constraint, value, self.producer_parameter_name, verbose=True)
+          _check_instance_type(
+              output_constraint,
+              value,
+              self.producer_parameter_name,
+              verbose=True)
         except TypeCheckError as e:
           error_msg = (
               'Runtime type violation detected within %s: '
@@ -282,7 +286,8 @@ class OperationCounters(object):
       input_constraint = consumer_type_hint.input_types
       if input_constraint is not None:
         try:
-          _check_instance_type(input_constraint, value, consumer_parameter_name, verbose=True)
+          _check_instance_type(
+              input_constraint, value, consumer_parameter_name, verbose=True)
         except TypeCheckError as e:
           error_msg = (
               'Runtime type violation detected within ParDo(%s): '
