@@ -43,7 +43,7 @@ the 'params' entry. Here is a sample usage:
     results = input_dict | io.gcp.DicomSearch()
     results | 'print successful search' >> beam.Map(
     lambda x: print(x['result'] if x['success'] else None))
-    
+
     results | 'print failed search' >> beam.Map(
     lambda x: print(x['result'] if not x['success'] else None))
 
@@ -340,7 +340,7 @@ class WriteToDicomStore(PTransform):
     This PTransform supports two types of input:
     1. Byte[]: representing dicom file.
     2. Fileio object: stream file object.
-    
+
     OUTPUT:
     The output dict encodes status as well as error messages:
     {

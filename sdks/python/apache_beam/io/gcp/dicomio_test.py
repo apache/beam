@@ -338,10 +338,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
     fc = FakeHttpClient()
     FakeClient.return_value = fc
     with TestPipeline() as p:
-      results = (
-          p
-          | beam.Create([''])
-          | WriteToDicomStore(input_dict, 'bytes'))
+      results = (p | beam.Create(['']) | WriteToDicomStore(input_dict, 'bytes'))
       assert_that(results, equal_to([expected_invalid_dict]))
 
   @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
