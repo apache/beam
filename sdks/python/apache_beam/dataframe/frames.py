@@ -16,7 +16,6 @@
 
 from __future__ import absolute_import
 
-import numpy as np
 import pandas as pd
 
 from apache_beam.dataframe import expressions
@@ -107,10 +106,6 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   def T(self):
     return self.transpose()
 
-  def transpose(self, dtype=None):
-    raise frame_base.WontImplementError(
-        'require non-index partitioning')  # XXXX ignore for now
-
   def groupby(self, cols):
     # TODO: what happens to the existing index?
     # We set the columns to index as we have a notion of being partitioned by
@@ -180,8 +175,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
 
   applymap = frame_base._elementwise_method('applymap')
 
-  def memory_usage(self):
-    raise frame_base.WontImplementError()
+  memory_usage = frame_base.wont_implement_method('non-deferred value')
 
   all = frame_base._associative_agg_method('all')
   any = frame_base._associative_agg_method('any')
@@ -194,16 +188,25 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   min = frame_base._associative_agg_method('min')
   mode = frame_base._agg_method('mode')
 
-  def dropna(self, axis=0, how='any', thresh=None, subset=None, inplace=False, *args, **kwargs):
+  def dropna(
+      self,
+      axis=0,
+      how='any',
+      thresh=None,
+      subset=None,
+      inplace=False,
+      *args,
+      **kwargs):
     # TODO(robertwb): This is a common pattern. Generalize?
-    if axis == 1:
+    if axis == 1 or axis == 'columns':
       requires_partition_by = partitionings.Singleton()
     else:
       requires_partition_by = partitionings.Nothing()
     result = frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'dropna',
-            lambda df: df.dropna(axis, how, thresh, subset, False, *args, **kwargs),
+            lambda df: df.dropna(
+                axis, how, thresh, subset, False, *args, **kwargs),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
@@ -245,7 +248,8 @@ class DeferredDataFrame(frame_base.DeferredFrame):
     result = frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'replace',
-            lambda df: df.replace(to_replace, value, False, limit, *args, **kwargs),
+            lambda df: df.replace(
+                to_replace, value, False, limit, *args, **kwargs),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
@@ -278,7 +282,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   select_dtypes = frame_base._elementwise_method('select_dtypes')
 
   def shift(self, periods=1, freq=None, axis=0, *args, **kwargs):
-    if axis == 1:
+    if axis == 1 or axis == 'columns':
       requires_partition_by = partitionings.Nothing()
     else:
       requires_partition_by = partitionings.Singleton()
@@ -294,15 +298,17 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   def shape(self):
     raise frame_base.WontImplementError('scalar value')
 
-  def sort_values(self, by, axis=0, ascending=True, inplace=False, *args, **kwargs):
-    if axis == 1:
+  def sort_values(
+      self, by, axis=0, ascending=True, inplace=False, *args, **kwargs):
+    if axis == 1 or axis == 'columns':
       requires_partition_by = partitionings.Nothing()
     else:
       requires_partition_by = partitionings.Singleton()
     result = frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'sort_values',
-            lambda df: df.sort_values(by, axis, ascending, False, *args, **kwargs),
+            lambda df: df.sort_values(
+                by, axis, ascending, False, *args, **kwargs),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
@@ -315,14 +321,13 @@ class DeferredDataFrame(frame_base.DeferredFrame):
 
   sum = frame_base._associative_agg_method('sum')
 
-  def to_string(self, *args, **kwargs):
-    raise frame_base.WontImplementError('non-deferred value')
-
-  to_records = to_dict = to_numpy = to_string
+  to_records = to_dict = to_numpy = to_string = (
+      frame_base.wont_implement_method('non-deferred value'))
 
   to_sparse = to_string # frame_base._elementwise_method('to_sparse')
 
-  transform = frame_base._elementwise_method('transform', restrictions={'axis': 0})
+  transform = frame_base._elementwise_method(
+      'transform', restrictions={'axis': 0})
 
   def transpose(self, *args, **kwargs):
     raise frame_base.WontImplementError('non-deferred column values')
@@ -338,7 +343,11 @@ class DeferredDataFrame(frame_base.DeferredFrame):
     else:
       raise frame_base.WontImplementError('non-deferred column values')
 
-  update = frame_base._proxy_method('update', inplace=True, requires_partition_by=partitionings.Index(), preserves_partition_by=partitionings.Index())
+  update = frame_base._proxy_method(
+      'update',
+      inplace=True,
+      requires_partition_by=partitionings.Index(),
+      preserves_partition_by=partitionings.Index())
 
 for meth in ('filter', ):
   setattr(DeferredDataFrame, meth, frame_base._elementwise_method(meth))

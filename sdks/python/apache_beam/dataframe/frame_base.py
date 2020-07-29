@@ -17,7 +17,12 @@
 from __future__ import absolute_import
 
 import inspect
+from typing import Any
+from typing import Callable
 from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 
 import pandas as pd
 
@@ -27,7 +32,7 @@ from apache_beam.dataframe import partitionings
 
 class DeferredBase(object):
 
-  _pandas_type_map = {}  # type: Dict[type, type]
+  _pandas_type_map = {}  # type: Dict[Union[type, None], type]
 
   def __init__(self, expr):
     self._expr = expr
@@ -50,7 +55,7 @@ class DeferredBase(object):
         raise ValueError(
             'Scalar expression %s partitoned by non-singleton %s' %
             (expr, expr.requires_partition_by()))
-      wrapper_type = _DeferredScaler
+      wrapper_type = _DeferredScalar
     return wrapper_type(expr)
 
   def _elementwise(self, func, name=None, other_args=(), inplace=False):
@@ -63,11 +68,11 @@ class DeferredFrame(DeferredBase):
     return self._expr.proxy().dtypes
 
 
-class _DeferredScaler(DeferredBase):
+class _DeferredScalar(DeferredBase):
   pass
 
 
-DeferredBase._pandas_type_map[None] = _DeferredScaler
+DeferredBase._pandas_type_map[None] = _DeferredScalar
 
 
 def name_and_func(method):
@@ -119,16 +124,19 @@ def _elementwise_function(func, name=None, restrictions=None, inplace=False):
 
 
 def _proxy_function(
-      func,  # type: Union[callable, str]
+      func,  # type: Union[Callable, str]
       name=None,  # type: Optional[str]
-      restrictions=None,  # type: Dict[str, Union[Any, List[Any]]]
+      restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any]]]]
       inplace=False,  # type: bool
-      requires_partition_by=partitionings.Singleton(),  # type: partition.Partitioning
-      preserves_partition_by=partitionings.Nothing(),  # type: partition.Partitioning
+      requires_partition_by=partitionings.Singleton(),  # type: partitionings.Partitioning
+      preserves_partition_by=partitionings.Nothing(),  # type: partitionings.Partitioning
 ):
 
   if name is None:
-    name = func.__name__
+    if isinstance(func, str):
+      name = func
+    else:
+      name = func.__name__
   if restrictions is None:
     restrictions = {}
 

@@ -90,8 +90,6 @@ class DoctestTest(unittest.TestCase):
         pd.core.series,
         use_beam=False,
         skip={
-            'pandas.core.series.Series.agg': ['*'],
-            'pandas.core.series.Series.aggregate': ['*'],
             'pandas.core.series.Series.append': ['*'],
             'pandas.core.series.Series.argmax': ['*'],
             'pandas.core.series.Series.argmin': ['*'],
