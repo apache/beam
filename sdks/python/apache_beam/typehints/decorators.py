@@ -380,9 +380,9 @@ class IOTypeHints(NamedTuple(
         not self.output_types[1])
 
   def strip_pcoll(self):
+    from apache_beam.pipeline import Pipeline
     from apache_beam.pvalue import PBegin
     from apache_beam.pvalue import PDone
-    from apache_beam.pipeline import Pipeline
 
     return self.strip_pcoll_helper(self.input_types,
                                    self._has_input_types,
