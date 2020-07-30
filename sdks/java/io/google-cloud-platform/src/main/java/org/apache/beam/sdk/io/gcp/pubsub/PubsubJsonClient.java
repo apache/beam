@@ -129,7 +129,7 @@ public class PubsubJsonClient extends PubsubClient {
           new PubsubMessage().encodeData(outgoingMessage.message().getData().toByteArray());
       pubsubMessage.setAttributes(getMessageAttributes(outgoingMessage));
       if (!outgoingMessage.message().getOrderingKey().isEmpty()) {
-        pubsubMessage.put("orderingKey", outgoingMessage.message().getOrderingKey());
+        pubsubMessage.setOrderingKey(outgoingMessage.message().getOrderingKey());
       }
       pubsubMessages.add(pubsubMessage);
     }
@@ -156,6 +156,7 @@ public class PubsubJsonClient extends PubsubClient {
   }
 
   @Override
+  @SuppressWarnings("ProtoFieldNullComparison")
   public List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch,
       SubscriptionPath subscription,
@@ -207,8 +208,12 @@ public class PubsubJsonClient extends PubsubClient {
           com.google.pubsub.v1.PubsubMessage.newBuilder();
       protoMessage.setData(ByteString.copyFrom(elementBytes));
       protoMessage.putAllAttributes(attributes);
-      protoMessage.setOrderingKey(
-          (String) pubsubMessage.getUnknownKeys().getOrDefault("orderingKey", ""));
+      // PubsubMessage uses `null` to represent no ordering key where we want a default of "".
+      if (pubsubMessage.getOrderingKey() != null) {
+        protoMessage.setOrderingKey(pubsubMessage.getOrderingKey());
+      } else {
+        protoMessage.setOrderingKey("");
+      }
       incomingMessages.add(
           IncomingMessage.of(
               protoMessage.build(),
