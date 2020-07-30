@@ -26,6 +26,7 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 from __future__ import division
 
+import collections
 import threading
 import traceback
 from builtins import next
@@ -41,6 +42,7 @@ from typing import Mapping
 from typing import Optional
 from typing import Tuple
 
+from apache_beam.typehints import TypeCheckError
 from future.utils import raise_with_traceback
 from past.builtins import unicode
 
@@ -1339,6 +1341,17 @@ class _OutputProcessor(OutputProcessor):
           self.per_element_output_counter.is_cythonized):
         self.per_element_output_counter.add_input(0)
       return
+
+    if isinstance(results, (dict, str, unicode, bytes)):
+      results_type = type(results).__name__
+      raise TypeCheckError(
+          'Returning a %s from a ParDo or FlatMap is '
+          'discouraged. Please use list("%s") if you really '
+          'want this behavior.' % (results_type, results))
+    elif not isinstance(results, collections.Iterable):
+      raise TypeCheckError(
+          'FlatMap and ParDo must return an '
+          'iterable. %s was returned instead.' % type(results))
 
     output_element_count = 0
     for result in results:
