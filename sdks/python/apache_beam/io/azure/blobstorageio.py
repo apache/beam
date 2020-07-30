@@ -378,15 +378,34 @@ class BlobStorageIO(object):
     handle directory or file paths.
 
     Args:
-      paths: list of Azure Blob Storage paths in the form 
-      azfs://<storage-account>/<container>/[name] that give the file 
+      paths: list of Azure Blob Storage paths in the form
+      azfs://<storage-account>/<container>/[name] that give the file
       blobs to be deleted.
-      
-    Returns: 
+
+    Returns:
       List of tuples of (src, dest, exception) in the same order as the
       src_dest_pairs argument, where exception is None if the operation
       succeeded or the relevant exception if the operation failed.
-    """    
+    """
+    directories, blobs = [], []
+
+    # Retrieve directories and not directories.
+    for path in paths:
+      if path.endswith('/'):
+        directories.append(path)
+      else:
+        blobs.append(path)
+    
+    results = {}
+
+    for directory in directories:
+      directory_result = dict(self.delete_tree(directory))
+      results.update(directory_result)
+
+    blobs_results = dict(self.delete_files(blobs))
+    results.update(blobs_results)
+
+    return results
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
