@@ -45,7 +45,8 @@ func CountElms(s beam.Scope, col beam.PCollection) beam.PCollection {
 		col = beam.DropKey(s, col)
 	}
 	pre := beam.ParDo(s, countFn, col)
-	return Sum(s, pre)
+	zero := beam.Create(s, 0)
+	return Sum(s, beam.Flatten(s, pre, zero))
 }
 
 func countFn(_ beam.T) int {
