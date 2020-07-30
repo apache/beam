@@ -388,7 +388,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.8.0"
     def checkerframework_version = "3.5.0"
     def classgraph_version = "4.8.65"
-    def gax_version = "1.54.0"
+    def gax_version = "1.57.1"
     def generated_grpc_ga_version = "1.85.1"
     def google_auth_version = "0.19.0"
     def google_clients_version = "1.30.9"
