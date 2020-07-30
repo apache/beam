@@ -200,7 +200,7 @@ class NexmarkLauncher(object):
         raw_events
         | 'deserialization' >> beam.ParDo(nexmark_util.ParseJsonEvnetFn())
         | 'timestamping' >>
-        beam.Map(lambda e: window.TimestampedValue(e, e.dateTime)))
+        beam.Map(lambda e: window.TimestampedValue(e, e.date_time)))
     return raw_events
 
   def run_query(self, query, query_args, query_errors):

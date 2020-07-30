@@ -40,5 +40,5 @@ def load(raw_events, query_args=None):
           lambda bid: nexmark_model.Bid(
               bid.auction,
               bid.bidder, (bid.price * 89) // 100,
-              bid.dateTime,
+              bid.date_time,
               bid.extra)))

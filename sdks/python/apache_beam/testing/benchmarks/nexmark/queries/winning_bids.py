@@ -138,7 +138,7 @@ class JoinAuctionBidFn(beam.DoFn):
     elif bid.price < other.price:
       return False
     else:
-      return bid.dateTime < other.dateTime
+      return bid.date_time < other.date_time
 
   def process(self, element):
     _, group = element

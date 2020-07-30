@@ -49,11 +49,11 @@ class Person(object):
       self, id, name, email, credit_card, city, state, date_time, extra=None):
     self.id = id
     self.name = name
-    self.emailAddress = email  # key
-    self.creditCard = credit_card
+    self.email_address = email  # key
+    self.credit_card = credit_card
     self.city = city
     self.state = state
-    self.dateTime = date_time
+    self.date_time = date_time
     self.extra = extra
 
   def __repr__(self):
@@ -89,11 +89,11 @@ class Auction(object):
       category,
       extra=None):
     self.id = id
-    self.itemName = item_name  # key
+    self.item_name = item_name  # key
     self.description = description
-    self.initialBid = initial_bid
+    self.initial_bid = initial_bid
     self.reserve = reserve_price
-    self.dateTime = date_time
+    self.date_time = date_time
     self.expires = expires
     self.seller = seller
     self.category = category
@@ -120,7 +120,7 @@ class Bid(object):
     self.auction = auction  # key
     self.bidder = bidder
     self.price = price
-    self.dateTime = date_time
+    self.date_time = date_time
     self.extra = extra
 
   def __repr__(self):
@@ -134,11 +134,11 @@ class AuctionCoderImpl(coder_impl.StreamCoderImpl):
 
   def encode_to_stream(self, value: Auction, stream, nested):
     self._int_coder_impl.encode_to_stream(value.id, stream, True)
-    self._str_coder_impl.encode_to_stream(value.itemName, stream, True)
+    self._str_coder_impl.encode_to_stream(value.item_name, stream, True)
     self._str_coder_impl.encode_to_stream(value.description, stream, True)
-    self._int_coder_impl.encode_to_stream(value.initialBid, stream, True)
+    self._int_coder_impl.encode_to_stream(value.initial_bid, stream, True)
     self._int_coder_impl.encode_to_stream(value.reserve, stream, True)
-    self._time_coder_impl.encode_to_stream(value.dateTime, stream, True)
+    self._time_coder_impl.encode_to_stream(value.date_time, stream, True)
     self._time_coder_impl.encode_to_stream(value.expires, stream, True)
     self._int_coder_impl.encode_to_stream(value.seller, stream, True)
     self._int_coder_impl.encode_to_stream(value.category, stream, True)
@@ -177,7 +177,7 @@ class BidCoderImpl(coder_impl.StreamCoderImpl):
     self._int_coder_impl.encode_to_stream(value.auction, stream, True)
     self._int_coder_impl.encode_to_stream(value.bidder, stream, True)
     self._int_coder_impl.encode_to_stream(value.price, stream, True)
-    self._time_coder_impl.encode_to_stream(value.dateTime, stream, True)
+    self._time_coder_impl.encode_to_stream(value.date_time, stream, True)
     self._str_coder_impl.encode_to_stream(value.extra, stream, True)
 
   def decode_from_stream(self, stream, nested):
@@ -197,11 +197,11 @@ class PersonCoderImpl(coder_impl.StreamCoderImpl):
   def encode_to_stream(self, value: Person, stream, nested):
     self._int_coder_impl.encode_to_stream(value.id, stream, True)
     self._str_coder_impl.encode_to_stream(value.name, stream, True)
-    self._str_coder_impl.encode_to_stream(value.emailAddress, stream, True)
-    self._str_coder_impl.encode_to_stream(value.creditCard, stream, True)
+    self._str_coder_impl.encode_to_stream(value.email_address, stream, True)
+    self._str_coder_impl.encode_to_stream(value.credit_card, stream, True)
     self._str_coder_impl.encode_to_stream(value.city, stream, True)
     self._str_coder_impl.encode_to_stream(value.state, stream, True)
-    self._time_coder_impl.encode_to_stream(value.dateTime, stream, True)
+    self._time_coder_impl.encode_to_stream(value.date_time, stream, True)
     self._str_coder_impl.encode_to_stream(value.extra, stream, True)
 
   def decode_from_stream(self, stream, nested):
