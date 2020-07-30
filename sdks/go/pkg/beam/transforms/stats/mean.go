@@ -79,8 +79,5 @@ func (f *meanFn) MergeAccumulators(a, b meanAccum) meanAccum {
 }
 
 func (f *meanFn) ExtractOutput(a meanAccum) float64 {
-	if a.Count == 0 {
-		return 0
-	}
 	return a.Sum / float64(a.Count)
 }
