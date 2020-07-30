@@ -105,14 +105,14 @@ job('beam_SeedJob') {
 
   steps {
     shell {
-      command("""(
-        cd .test-infra/jenkins/committers_list_generator &&
+      command("""
+        ( cd .test-infra/jenkins/committers_list_generator &&
         python3.8 -m venv ve3 && source ve3/bin/activate &&
         pip install -r requirements.txt &&
         python main.py -o .. &&
-        deactivate ||
-        (echo "ERROR: Failed to fetch committers" && exit 3)
-      )""")
+        deactivate ) ||
+        { echo "ERROR: Failed to fetch committers"; exit 3; }
+      """)
       unstableReturn(3)
     }
     dsl {
