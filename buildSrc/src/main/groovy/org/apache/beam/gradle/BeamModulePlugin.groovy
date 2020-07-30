@@ -2136,6 +2136,14 @@ class BeamModulePlugin implements Plugin<Project> {
         addPortableWordCountTask(true, "FlinkRunner")
         addPortableWordCountTask(false, "SparkRunner")
       }
+
+      project.ext.getVersionSuffix = { String version ->
+        return version == '2.7' ? '2' : version.replace('.', '')
+      }
+
+      project.ext.getVersionsAsList = { String propertyName ->
+        return project.getProperty(propertyName).split(',')
+      }
     }
   }
 
