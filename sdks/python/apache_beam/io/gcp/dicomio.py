@@ -108,6 +108,9 @@ to handle the failed store requests.
 # pytype: skip-file
 from __future__ import absolute_import
 
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import as_completed
+
 import apache_beam as beam
 from apache_beam.io.gcp.dicomclient import DicomApiHttpClient
 from apache_beam.transforms import PTransform
@@ -164,70 +167,109 @@ class DicomSearch(PTransform):
     }
 
   """
-  def __init__(self, credential=None):
+  def __init__(self, buffer_size=8, max_workers=5, credential=None):
     """Initializes DicomSearch.
     Args:
       credential: # type: Google credential object, if it is specified, the
       Http client will use it to create sessions instead of the default.
     """
+    self.buffer_size = buffer_size
+    self.max_workers = max_workers
     self.credential = credential
 
   def expand(self, pcoll):
-    return pcoll | beam.ParDo(_QidoSource(self.credential))
+    return pcoll | beam.ParDo(
+        _QidoSource(self.buffer_size, self.max_workers, self.credential))
 
 
 class _QidoSource(beam.DoFn):
   """A DoFn for executing every qido query request."""
-  def __init__(self, credential=None):
+  def __init__(self, buffer_size, max_workers, credential=None):
+    self.buffer_size = buffer_size
+    self.max_workers = max_workers
     self.credential = credential
 
-  def process(self, element):
+  def start_bundle(self):
+    self.buffer = []
+
+  def finish_bundle(self):
+    return self._flush()
+
+  def validate_element(self, element):
     # Check if all required keys present.
     required_keys = [
         'project_id', 'region', 'dataset_id', 'dicom_store_id', 'search_type'
     ]
 
-    error_message = None
-
     for key in required_keys:
       if key not in element:
         error_message = 'Must have %s in the dict.' % (key)
-        break
+        return False, error_message
 
-    if not error_message:
-      project_id = element['project_id']
-      region = element['region']
-      dataset_id = element['dataset_id']
-      dicom_store_id = element['dicom_store_id']
-      search_type = element['search_type']
-      params = element['params'] if 'params' in element else None
+    # Check if return type is correct.
+    if element['search_type'] in ['instances', "studies", "series"]:
+      return True, None
+    else:
+      error_message = (
+          'Search type can only be "studies", '
+          '"instances" or "series"')
+      return False, error_message
 
-      # Call qido search http client
-      if element['search_type'] in ['instances', "studies", "series"]:
-        result, status_code = DicomApiHttpClient().qido_search(
-          project_id, region, dataset_id, dicom_store_id,
-          search_type, params, self.credential
-        )
-      else:
-        error_message = (
-            'Search type can only be "studies", '
-            '"instances" or "series"')
+  def process(self, element, window=beam.DoFn.WindowParam):
+    # Check if the element is valid
+    valid, error_message = self.validate_element(element)
 
-      if not error_message:
-        out = {}
-        out['result'] = result
-        out['status'] = status_code
-        out['input'] = element
-        out['success'] = (status_code == 200)
-        return [out]
+    if valid:
+      self.buffer.append((element, window))
+      if len(self.buffer) >= self.buffer_size:
+        self._flush()
+    else:
+      # Return this when the input dict dose not meet the requirements
+      out = {}
+      out['result'] = []
+      out['status'] = error_message
+      out['input'] = element
+      out['success'] = False
+      yield out
 
-    # Return this when the input dict dose not meet the requirements
+  def make_request(self, element):
+    # Sending Qido request to DICOM Api
+    project_id = element['project_id']
+    region = element['region']
+    dataset_id = element['dataset_id']
+    dicom_store_id = element['dicom_store_id']
+    search_type = element['search_type']
+    params = element['params'] if 'params' in element else None
+
+    # Call qido search http client
+    result, status_code = DicomApiHttpClient().qido_search(
+      project_id, region, dataset_id, dicom_store_id,
+      search_type, params, self.credential
+    )
+
     out = {}
-    out['result'] = []
-    out['status'] = error_message
+    out['result'] = result
+    out['status'] = status_code
     out['input'] = element
-    out['success'] = False
-    return [out]
+    out['success'] = (status_code == 200)
+    return out
+
+  def process_buffer_element(self, buffer_element):
+    # Thread job runner - each thread makes a Qido search request
+    value = self.make_request(buffer_element[0])
+    windows = [buffer_element[1]]
+    return beam.utils.windowed_value.WindowedValue(
+        value=value, timestamp=0, windows=windows)
+
+  def _flush(self):
+    # Create thread pool executor and process the buffered elements in paralllel
+    executor = ThreadPoolExecutor(max_workers=self.max_workers)
+    futures = [
+        executor.submit(self.process_buffer_element, ele) for ele in self.buffer
+    ]
+    self.buffer = []
+    for f in as_completed(futures):
+      yield f.result()
 
 
 class PubsubToQido(PTransform):
@@ -351,7 +393,13 @@ class WriteToDicomStore(PTransform):
     }
 
   """
-  def __init__(self, destination_dict, input_type, credential=None):
+  def __init__(
+      self,
+      destination_dict,
+      input_type,
+      buffer_size=8,
+      max_workers=5,
+      credential=None):
     """Initializes WriteToDicomStore.
     Args:
       destination_dict: # type: python dict, encodes DICOM endpoint information:
@@ -372,22 +420,34 @@ class WriteToDicomStore(PTransform):
       credential: # type: Google credential object, if it is specified, the
       Http client will use it instead of the default one.
     """
-    self.credential = credential
     self.destination_dict = destination_dict
     # input_type pre-check
     if input_type not in ['bytes', 'fileio']:
       raise ValueError("input_type could only be 'bytes' or 'fileio'")
     self.input_type = input_type
+    self.buffer_size = buffer_size
+    self.max_workers = max_workers
+    self.credential = credential
 
   def expand(self, pcoll):
     return pcoll | beam.ParDo(
-        _StoreInstance(self.destination_dict, self.input_type, self.credential))
+        _StoreInstance(
+            self.destination_dict,
+            self.input_type,
+            self.buffer_size,
+            self.max_workers,
+            self.credential))
 
 
 class _StoreInstance(beam.DoFn):
   """A DoFn read or fetch dicom files then push it to a dicom store."""
-  def __init__(self, destination_dict, input_type, credential=None):
-    self.credential = credential
+  def __init__(
+      self,
+      destination_dict,
+      input_type,
+      buffer_size,
+      max_workers,
+      credential=None):
     # pre-check destination dict
     required_keys = ['project_id', 'region', 'dataset_id', 'dicom_store_id']
     for key in required_keys:
@@ -395,28 +455,27 @@ class _StoreInstance(beam.DoFn):
         raise ValueError('Must have %s in the dict.' % (key))
     self.destination_dict = destination_dict
     self.input_type = input_type
+    self.buffer_size = buffer_size
+    self.max_workers = max_workers
+    self.credential = credential
 
-  def process(self, element):
+  def start_bundle(self):
+    self.buffer = []
+
+  def finish_bundle(self):
+    return self._flush()
+
+  def process(self, element, window=beam.DoFn.WindowParam):
+    self.buffer.append((element, window))
+    if len(self.buffer) >= self.buffer_size:
+      self._flush()
+
+  def make_request(self, dicom_file):
+    # Send file to DICOM store and records the results.
     project_id = self.destination_dict['project_id']
     region = self.destination_dict['region']
     dataset_id = self.destination_dict['dataset_id']
     dicom_store_id = self.destination_dict['dicom_store_id']
-
-    # Read the file based on different input. If the read fails ,return
-    # an error dict which records input and error messages.
-    dicom_file = None
-    try:
-      if self.input_type == 'fileio':
-        f = element.open()
-        dicom_file = f.read()
-      else:
-        dicom_file = element
-    except Exception as error_message:
-      error_out = {}
-      error_out['status'] = error_message
-      error_out['input'] = element
-      error_out['success'] = False
-      return [error_out]
 
     # Feed the dicom file into store client
     _, status_code = DicomApiHttpClient().dicomweb_store_instance(
@@ -426,6 +485,44 @@ class _StoreInstance(beam.DoFn):
 
     out = {}
     out['status'] = status_code
-    out['input'] = None if status_code == 200 else element
+    out['input'] = None if status_code == 200 else dicom_file
     out['success'] = (status_code == 200)
-    return [out]
+    return out
+
+  def read_dicom_file(self, buffer_element):
+    # Read the file based on different input. If the read fails ,return
+    # an error dict which records input and error messages.
+    try:
+      if self.input_type == 'fileio':
+        f = buffer_element.open()
+        return True, f.read()
+      else:
+        return True, buffer_element
+    except Exception as error_message:
+      error_out = {}
+      error_out['status'] = error_message
+      error_out['input'] = buffer_element
+      error_out['success'] = False
+      return False, error_out
+
+  def process_buffer_element(self, buffer_element):
+    # Thread job runner - each thread stores a DICOM file
+    success, read_result = self.read_dicom_file(buffer_element[0])
+    windows = [buffer_element[1]]
+    value = None
+    if success:
+      value = self.make_request(read_result)
+    else:
+      value = read_result
+    return beam.utils.windowed_value.WindowedValue(
+        value=value, timestamp=0, windows=windows)
+
+  def _flush(self):
+    # Create thread pool executor and process the buffered elements in paralllel
+    executor = ThreadPoolExecutor(max_workers=self.max_workers)
+    futures = [
+        executor.submit(self.process_buffer_element, ele) for ele in self.buffer
+    ]
+    self.buffer = []
+    for f in as_completed(futures):
+      yield f.result()
