@@ -138,7 +138,7 @@ public class BigQueryIOReadTest implements Serializable {
   }
 
   private void checkTypedReadQueryObject(
-      BigQueryIO.TypedRead read, String query, String kmsKey, String tempDataset) {
+      BigQueryIO.TypedRead<?> read, String query, String kmsKey, String tempDataset) {
     checkTypedReadQueryObjectWithValidate(read, query, kmsKey, tempDataset, true);
   }
 
@@ -159,7 +159,7 @@ public class BigQueryIOReadTest implements Serializable {
   }
 
   private void checkTypedReadQueryObjectWithValidate(
-      BigQueryIO.TypedRead read,
+      BigQueryIO.TypedRead<?> read,
       String query,
       String kmsKey,
       String tempDataset,
@@ -226,7 +226,7 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testBuildQueryBasedTypedReadSource() {
-    BigQueryIO.TypedRead read =
+    BigQueryIO.TypedRead<?> read =
         BigQueryIO.readTableRows()
             .fromQuery("foo_query")
             .withKmsKey("kms_key")

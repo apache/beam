@@ -193,7 +193,7 @@ public class PubsubIOExternalTest {
 
     RunnerApi.ParDoPayload parDoPayload =
         RunnerApi.ParDoPayload.parseFrom(writeParDo.getSpec().getPayload());
-    DoFn pubsubWriter = ParDoTranslation.getDoFn(parDoPayload);
+    DoFn<?, ?> pubsubWriter = ParDoTranslation.getDoFn(parDoPayload);
 
     String idAttributeActual = (String) Whitebox.getInternalState(pubsubWriter, "idAttribute");
 

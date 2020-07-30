@@ -20,6 +20,7 @@ package org.apache.beam.sdk.testing;
 import static org.hamcrest.Matchers.in;
 import static org.hamcrest.core.Is.is;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -796,6 +797,7 @@ public class SerializableMatchers implements Serializable {
    */
   private static class SerializableArrayViaCoder<T> implements SerializableSupplier<T[]> {
     /** Cached value that is not serialized. */
+    @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
     private transient T @Nullable [] value;
 
     /** The bytes of {@link #value} when encoded via {@link #coder}. */

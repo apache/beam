@@ -68,7 +68,7 @@ public class HadoopFileSystemRegistrarTest {
     for (FileSystemRegistrar registrar :
         Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
       if (registrar instanceof HadoopFileSystemRegistrar) {
-        Iterable<FileSystem> fileSystems = registrar.fromOptions(options);
+        Iterable<FileSystem<?>> fileSystems = registrar.fromOptions(options);
         assertEquals(
             hdfsClusterBaseUri.getScheme(),
             ((HadoopFileSystem) Iterables.getOnlyElement(fileSystems)).getScheme());

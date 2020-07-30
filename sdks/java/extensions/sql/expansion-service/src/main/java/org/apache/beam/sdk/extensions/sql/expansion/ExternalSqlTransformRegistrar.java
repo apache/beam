@@ -42,7 +42,7 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
           .build();
 
   @Override
-  public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+  public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
     return org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap.of(
         URN, Builder.class);
   }

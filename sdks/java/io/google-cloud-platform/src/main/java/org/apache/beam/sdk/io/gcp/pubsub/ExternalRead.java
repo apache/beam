@@ -44,7 +44,7 @@ public final class ExternalRead implements ExternalTransformRegistrar {
   public static final String URN = "beam:external:java:pubsub:read:v1";
 
   @Override
-  public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+  public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
     return ImmutableMap.of(URN, ReadBuilder.class);
   }
 

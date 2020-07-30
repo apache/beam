@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -166,6 +167,8 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   private final Class<T> type;
 
   /** Access via {@link #getEncodedTypeDescriptor()}. */
+  // the field is restored lazily if it is not present due to serialization
+  @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
   private transient @Nullable TypeDescriptor<T> typeDescriptor;
 
   protected SerializableCoder(Class<T> type, TypeDescriptor<T> typeDescriptor) {

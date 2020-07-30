@@ -19,8 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.azure',
-  enableChecker: false,
-  ignoreRawtypeErrors: true)
+  enableChecker: false)
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
