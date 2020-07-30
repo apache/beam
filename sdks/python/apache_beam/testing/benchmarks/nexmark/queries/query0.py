@@ -30,7 +30,6 @@ to verify the infrastructure.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.nexmark_util import ParseJsonEvnetFn
 
 
 class round_tripFn(beam.DoFn):

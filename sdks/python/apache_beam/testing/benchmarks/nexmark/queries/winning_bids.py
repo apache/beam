@@ -141,7 +141,7 @@ class JoinAuctionBidFn(beam.DoFn):
       return bid.dateTime < other.dateTime
 
   def process(self, element):
-    auction_id, group = element
+    _, group = element
     auctions = group[nexmark_query_util.AUCTION_TAG]
     auction = auctions[0] if auctions else None
     if auction is None:
@@ -159,7 +159,8 @@ class JoinAuctionBidFn(beam.DoFn):
 
 class WinningBids(beam.PTransform):
   def __init__(self):
-    expected_duration = 16667000  #TODO: change this to be calculated by event generation
+    #TODO: change this to be calculated by event generation
+    expected_duration = 16667000
     self.auction_or_bid_windowFn = AuctionOrBidWindowFn(expected_duration)
 
   def expand(self, pcoll):

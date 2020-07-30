@@ -54,5 +54,4 @@ class BidByAuctionIdFn(beam.DoFn):
 
 
 def auction_or_bid(event):
-  return isinstance(event, nexmark_model.Bid) or isinstance(
-      event, nexmark_model.Auction)
+  return isinstance(event, (nexmark_model.Auction, nexmark_model.Bid))
