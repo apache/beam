@@ -395,7 +395,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_cloud_bigdataoss_version = "2.1.3"
     def google_cloud_core_version = "1.92.2"
     def google_cloud_pubsublite_version = "0.1.6"
-    def google_cloud_spanner_version = "1.49.1"
+    def google_cloud_spanner_version = "1.59.0"
     def google_cloud_datacatalog_version = "0.32.1"
     def google_code_gson_version = "2.8.6"
     def google_http_clients_version = "1.34.0"
