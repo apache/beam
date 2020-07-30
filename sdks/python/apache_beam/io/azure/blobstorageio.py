@@ -370,6 +370,24 @@ class BlobStorageIO(object):
         logging.error('HTTP error while deleting file %s', path)
         raise e
 
+  # We intentionally do not decorate this method with a retry, since the
+  # underlying copy and delete operations are already idempotent operations
+  # protected by retry decorators.
+  def delete_paths(self, paths):
+    """Deletes the given Azure Blob Storage blobs from src to dest. This can
+    handle directory or file paths.
+
+    Args:
+      paths: list of Azure Blob Storage paths in the form 
+      azfs://<storage-account>/<container>/[name] that give the file 
+      blobs to be deleted.
+      
+    Returns: 
+      List of tuples of (src, dest, exception) in the same order as the
+      src_dest_pairs argument, where exception is None if the operation
+      succeeded or the relevant exception if the operation failed.
+    """    
+
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
   def list_prefix(self, path):

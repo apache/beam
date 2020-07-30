@@ -376,6 +376,24 @@ class TestBlobStorageIO(unittest.TestCase):
     self.azfs.delete(file_name)
     self.assertFalse(self.azfs.exists(file_name))
 
+  def test_delete_paths(self):
+    # Create files.
+    prefix = self.TEST_DATA_PATH + 'delete_paths/'
+    file_names = [prefix + 'x', prefix + 'y/z']
+    file_size = 1024
+    for file_name in file_names:
+      self._insert_random_file(file_name, file_size)
+    
+    self.assertTrue(self.azfs.exists(file_names[0]))
+    self.assertTrue(self.azfs.exists(file_names[1]))
+
+    # Delete paths.
+    paths = [prefix + 'x', prefix + 'y/']
+    self.azfs.delete_paths(paths)
+
+    self.assertFalse(self.azfs.exists(file_names[0]))
+    self.assertFalse(self.azfs.exists(file_names[1]))
+
   # def test_delete_batch(self):
   #   file_name_pattern = self.TEST_DATA_PATH + 'delete_batch/%d'
   #   file_size = 1024
