@@ -30,7 +30,7 @@ for trigger phrase, status and link of all Jenkins jobs. See Apache Beam Develop
 [Jenkins Tips](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips).
 
 An additional execution environment for CI is [GitHub Actions](https://github.com/features/actions). GitHub Actions
-(GA) are very well integrated with GitHub code and Workflow and it has evolved fast in 2019/202 to become
+(GA) are very well integrated with GitHub code and Workflow and it has evolved fast in 2019/2020 to become
 a fully-fledged CI environment, easy to use and develop for, so we decided to use it for building python source
 distribution and wheels.
 
