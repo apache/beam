@@ -320,12 +320,14 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
       if normal_hints:
         output_types = normal_hints
 
-    argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
-
-    if argspec.args:
-      transform.fn._runtime_parameter_name = argspec.args[0]
-      if isinstance(input_types, dict):
-        input_types = (input_types[argspec.args[0]], )
+    try:
+      argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
+      if argspec.args:
+        transform.fn._runtime_parameter_name = argspec.args[0]
+        if isinstance(input_types, dict):
+          input_types = (input_types[argspec.args[0]], )
+    except TypeError:
+      pass
 
     if input_types and len(input_types):
       input_types = input_types[0]
