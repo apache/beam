@@ -101,7 +101,7 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
     if output is None:
       return output
 
-    elif isinstance(output, (dict, str, unicode, bytes )):
+    elif isinstance(output, (dict, str, unicode, bytes)):
       object_type = type(output).__name__
       raise TypeCheckError(
           'Returning a %s from a ParDo or FlatMap is '
