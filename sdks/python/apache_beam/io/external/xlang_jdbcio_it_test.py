@@ -95,7 +95,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
     try:
       self.postgres.stop()
     except:  # pylint: disable=bare-except
-      pass
+      logging.error('Could not stop the postgreSQL container.')
 
   def test_xlang_jdbc_write(self):
     table_name = 'jdbc_external_test_write'
@@ -162,9 +162,10 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
         self.postgres = PostgresContainer('postgres:12.3')
         self.postgres.start()
         break
-      except:  # pylint: disable=bare-except
+      except Exception as e:  # pylint: disable=bare-except
         if i == retries - 1:
-          raise RuntimeError('Unable to initialize postgres container.')
+          logging.error('Unable to initialize postgreSQL container.')
+          raise e
 
 
 if __name__ == '__main__':
