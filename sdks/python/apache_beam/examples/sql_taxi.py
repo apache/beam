@@ -17,11 +17,15 @@
 
 """An example that processes streaming NYC Taxi data with SqlTransform.
 
- This example reads from the PubSub NYC Taxi stream described in
- https://github.com/googlecodelabs/cloud-dataflow-nyc-taxi-tycoon, aggregates
- the data in 15s windows using SqlTransform, and writes the output to
- a user-defined PubSub topic.
- """
+This example reads from the PubSub NYC Taxi stream described in
+https://github.com/googlecodelabs/cloud-dataflow-nyc-taxi-tycoon, aggregates
+the data in 15s windows using SqlTransform, and writes the output to
+a user-defined PubSub topic.
+ 
+Java 8 must be available to run this pipeline, and the
+--experiments=use_runner_v2 flag must be passed when running on Dataflow.
+Docker must also be available to run this pipeline locally.
+"""
 
 # pytype: skip-file
 
