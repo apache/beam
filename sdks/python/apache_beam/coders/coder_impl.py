@@ -530,7 +530,7 @@ class BooleanCoderImpl(CoderImpl):
     return 1
 
 
-class MapCoderImpl(CoderImpl):
+class MapCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder for typing.Mapping objects."""
@@ -571,9 +571,10 @@ class MapCoderImpl(CoderImpl):
       estimate += self._key_coder.estimate_size(key, True)
       estimate += self._value_coder.estimate_size(
           value, not (last and not nested))
+    return estimate
 
 
-class NullableCoderImpl(CoderImpl):
+class NullableCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder for typing.Optional objects."""

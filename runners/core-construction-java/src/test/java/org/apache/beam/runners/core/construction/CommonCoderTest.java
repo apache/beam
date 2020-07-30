@@ -340,7 +340,9 @@ public class CommonCoderTest {
   }
 
   private static Object parseField(Object value, Schema.FieldType fieldType) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
 
     switch (fieldType.getTypeName()) {
       case BYTE:
