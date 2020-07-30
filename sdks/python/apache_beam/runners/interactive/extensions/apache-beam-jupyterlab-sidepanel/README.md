@@ -66,6 +66,32 @@ jupyter lab --watch
 
 Now every change will be built locally and bundled into JupyterLab. Be sure to refresh your browser page after saving file changes to reload the extension (note: you'll need to wait for webpack to finish, which can take 10s+ at times).
 
+### Test
+
+To run all tests, under `apache-beam-jupyterlab-sidepanel` directory, simply do:
+
+```bash
+# Make sure all dependencies are installed.
+jlpm
+
+# Run all tests.
+jlpm jest
+```
+
+This project uses `ts-jest` to test all ts/tsx files under `src/__tests__` directory.
+
+To run a single test, find out the name of a test in the source code that looks like: 
+
+```javascript
+it('does ABC', () => {...})
+```
+
+Then run:
+
+```bash
+jlpm jest -t 'does ABC'
+```
+
 ### Format and lint
 
 The project uses prettier for formatting and eslint for lint.
