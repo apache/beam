@@ -33,6 +33,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -72,6 +73,7 @@ import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.api.InitContext;
 import org.apache.parquet.hadoop.api.ReadSupport;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.hadoop.metadata.FileMetaData;
 import org.apache.parquet.io.ColumnIOFactory;
@@ -301,6 +303,7 @@ public class ParquetIO {
     static class SplitReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
       private Class<? extends GenericData> modelClass;
       private static final Logger LOG = LoggerFactory.getLogger(SplitReadFn.class);
+      private static final long SPLIT_LIMIT = 64000000;
       ReadSupport<GenericRecord> readSupport;
 
       SplitReadFn(GenericData model) {
@@ -436,9 +439,30 @@ public class ParquetIO {
       }
 
       @SplitRestriction
-      public void split(@Restriction OffsetRange restriction, OutputReceiver<OffsetRange> out) {
-        for (OffsetRange range : restriction.split(1, 0)) {
-          out.output(range);
+      public void split(
+          @Restriction OffsetRange restriction,
+          OutputReceiver<OffsetRange> out,
+          @Element FileIO.ReadableFile file)
+          throws Exception {
+        long start = restriction.getFrom();
+        long end = restriction.getFrom();
+        InputFile inputFile = getInputFile(file);
+        Configuration conf = setConf();
+        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
+        ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
+        List<BlockMetaData> rowGroups = reader.getRowGroups();
+        long totalSize = 0;
+        for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
+          totalSize += rowGroups.get((int) i).getTotalByteSize();
+          end += 1;
+          if (totalSize > SPLIT_LIMIT) {
+            start = end;
+            totalSize = 0;
+            out.output(new OffsetRange(start, end));
+          }
+        }
+        if (totalSize != 0) {
+          out.output(new OffsetRange(start, end));
         }
       }
 
