@@ -26,6 +26,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -341,6 +342,9 @@ public class SourceTestUtils {
     }
   }
 
+  @SuppressFBWarnings(
+      value = "RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE",
+      justification = "https://github.com/spotbugs/spotbugs/issues/756")
   private static <T> SourceTestUtils.SplitAtFractionResult assertSplitAtFractionBehaviorImpl(
       BoundedSource<T> source,
       List<T> expectedItems,

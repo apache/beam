@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -149,6 +150,9 @@ public class Mean {
     }
 
     @Override
+    // Comparing doubles directly since class is package private and equals method is only used in
+    // coder test.
+    @SuppressFBWarnings("FE_FLOATING_POINT_EQUALITY")
     public boolean equals(@Nullable Object other) {
       if (!(other instanceof CountSum)) {
         return false;

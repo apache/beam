@@ -23,9 +23,12 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import static org.junit.Assert.assertThat;
 
 import java.util.List;
+import java.util.Objects;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.CoGroup.By;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils.RowFieldMatcherIterableFieldAnyOrder;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -59,6 +62,40 @@ public class CoGroupTest {
           .addInt32Field("count")
           .addStringField("country")
           .build();
+
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class CgPojo {
+    public String user;
+    public int count;
+    public String country;
+
+    public CgPojo() {}
+
+    public CgPojo(String user, int count, String country) {
+      this.user = user;
+      this.count = count;
+      this.country = country;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      CgPojo cgPojo = (CgPojo) o;
+      return count == cgPojo.count
+          && Objects.equals(user, cgPojo.user)
+          && Objects.equals(country, cgPojo.country);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(user, count, country);
+    }
+  }
 
   private static final Schema SIMPLE_CG_KEY_SCHEMA =
       Schema.builder().addStringField("user").addStringField("country").build();
@@ -763,6 +800,71 @@ public class CoGroupTest {
             CoGroup.join("pc1", By.fieldNames("user"))
                 .join("pc3", By.fieldNames("user3"))
                 .crossProductJoin());
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testPojo() {
+    List<CgPojo> pc1Rows =
+        Lists.newArrayList(
+            new CgPojo("user1", 1, "us"),
+            new CgPojo("user1", 2, "us"),
+            new CgPojo("user1", 3, "il"),
+            new CgPojo("user1", 4, "il"));
+
+    List<CgPojo> pc2Rows =
+        Lists.newArrayList(
+            new CgPojo("user1", 3, "us"),
+            new CgPojo("user1", 4, "us"),
+            new CgPojo("user1", 5, "il"),
+            new CgPojo("user1", 6, "il"));
+
+    PCollection<CgPojo> pc1 = pipeline.apply("Create1", Create.of(pc1Rows));
+    PCollection<CgPojo> pc2 = pipeline.apply("Create2", Create.of(pc2Rows));
+
+    PCollection<Row> joined =
+        PCollectionTuple.of("pc1", pc1)
+            .and("pc2", pc2)
+            .apply(
+                CoGroup.join("pc1", By.fieldNames("user", "country"))
+                    .join("pc2", By.fieldNames("user", "country")));
+
+    Schema expectedSchema =
+        Schema.builder()
+            .addRowField("key", SIMPLE_CG_KEY_SCHEMA)
+            .addIterableField("pc1", FieldType.row(CG_SCHEMA_1))
+            .addIterableField("pc2", FieldType.row(CG_SCHEMA_1))
+            .build();
+
+    List<Row> expected =
+        Lists.newArrayList(
+            Row.withSchema(expectedSchema)
+                .addValue(Row.withSchema(SIMPLE_CG_KEY_SCHEMA).addValues("user1", "us").build())
+                .addIterable(
+                    Lists.newArrayList(
+                        Row.withSchema(CG_SCHEMA_1).addValues("user1", 1, "us").build(),
+                        Row.withSchema(CG_SCHEMA_1).addValues("user1", 2, "us").build()))
+                .addIterable(
+                    Lists.newArrayList(
+                        Row.withSchema(CG_SCHEMA_1).addValues("user1", 3, "us").build(),
+                        Row.withSchema(CG_SCHEMA_1).addValues("user1", 4, "us").build()))
+                .build(),
+            Row.withSchema(expectedSchema)
+                .addValue(Row.withSchema(SIMPLE_CG_KEY_SCHEMA).addValues("user1", "il").build())
+                .addIterable(
+                    Lists.newArrayList(
+                        Row.withSchema(CG_SCHEMA_1).addValues("user1", 3, "il").build(),
+                        Row.withSchema(CG_SCHEMA_1).addValues("user1", 4, "il").build()))
+                .addIterable(
+                    Lists.newArrayList(
+                        Row.withSchema(CG_SCHEMA_1).addValues("user1", 5, "il").build(),
+                        Row.withSchema(CG_SCHEMA_1).addValues("user1", 6, "il").build()))
+                .build());
+
+    assertEquals(expectedSchema, joined.getSchema());
+    PAssert.that(joined).satisfies(actual -> containsJoinedFields(expected, actual));
+
     pipeline.run();
   }
 

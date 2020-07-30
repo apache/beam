@@ -36,7 +36,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
@@ -602,12 +601,12 @@ public class ReduceByKey<InputT, KeyT, ValueT, AccT, OutputT>
     }
 
     @Override
-    public PCollection<KV<KeyT, OutputT>> output(OutputHint... outputHints) {
+    public PCollection<KV<KeyT, OutputT>> output() {
       return OperatorTransform.apply(createOperator(), PCollectionList.of(input));
     }
 
     @Override
-    public PCollection<OutputT> outputValues(OutputHint... outputHints) {
+    public PCollection<OutputT> outputValues() {
       return OperatorTransform.apply(
           new OutputValues<>(name, outputType, createOperator()), PCollectionList.of(input));
     }

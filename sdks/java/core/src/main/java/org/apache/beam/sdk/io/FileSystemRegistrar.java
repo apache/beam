@@ -40,5 +40,5 @@ public interface FileSystemRegistrar {
    * <p>Each {@link FileSystem#getScheme() scheme} is required to be unique among all {@link
    * FileSystem}s registered by all {@link FileSystemRegistrar}s.
    */
-  Iterable<FileSystem> fromOptions(PipelineOptions options);
+  Iterable<FileSystem<?>> fromOptions(PipelineOptions options);
 }

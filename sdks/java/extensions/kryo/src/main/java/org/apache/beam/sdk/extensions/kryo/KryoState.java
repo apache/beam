@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.kryo;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.InputChunked;
 import com.esotericsoftware.kryo.io.OutputChunked;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
 import java.util.Map;
 import org.objenesis.strategy.StdInstantiatorStrategy;
@@ -34,8 +35,15 @@ class KryoState {
   }
 
   /** Caching thread local storage for reusable {@link KryoState}s. */
+  @SuppressFBWarnings(
+      value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE",
+      justification = "Spotbugs incorrectly thinks kryoStateMap is marked @Nullable")
   private static class Storage {
-
+    /**
+     * It's a known bug in checkerframework.
+     * https://stackoverflow.com/questions/63049612/checker-framework-incompatible-types-in-type-argument/63078419#63078419
+     */
+    @SuppressWarnings("nullness")
     private final ThreadLocal<Map<String, KryoState>> kryoStateMap =
         ThreadLocal.withInitial(HashMap::new);
 
@@ -51,7 +59,14 @@ class KryoState {
                     new Kryo.DefaultInstantiatorStrategy(new StdInstantiatorStrategy()));
                 kryo.setReferences(coder.getOptions().getReferences());
                 kryo.setRegistrationRequired(coder.getOptions().getRegistrationRequired());
-                kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
+
+                ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+                if (classLoader == null) {
+                  throw new RuntimeException(
+                      "Cannot detect classpath: classload is null (is it the bootstrap classloader?)");
+                }
+
+                kryo.setClassLoader(classLoader);
                 // first id of user provided class registration
                 final int firstRegistrationId = kryo.getNextRegistrationId();
                 // register user provided classes

@@ -226,7 +226,7 @@ public class BigQueryIOStorageQueryTest {
         .withMethod(Method.DIRECT_READ);
   }
 
-  private void checkTypedReadQueryObject(TypedRead typedRead, String query) {
+  private void checkTypedReadQueryObject(TypedRead<?> typedRead, String query) {
     assertNull(typedRead.getTable());
     assertEquals(query, typedRead.getQuery().get());
   }

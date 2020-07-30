@@ -84,8 +84,11 @@ class BeamModulePlugin implements Plugin<Project> {
     /** Controls whether the spotbugs plugin is enabled and configured. */
     boolean enableSpotbugs = true
 
-    /** Conatrols whether the checker framework plugin is enabled and configured. */
+    /** Controls whether the checker framework plugin is enabled and configured. */
     boolean enableChecker = true
+
+    /** Controls whether legacy rawtype usage is allowed. */
+    boolean ignoreRawtypeErrors = false
 
     /** Controls whether the dependency analysis plugin is enabled. */
     boolean enableStrictDependencies = false
@@ -443,6 +446,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_auth                          : "software.amazon.awssdk:auth:$aws_java_sdk2_version",
         aws_java_sdk2_cloudwatch                    : "software.amazon.awssdk:cloudwatch:$aws_java_sdk2_version",
         aws_java_sdk2_dynamodb                      : "software.amazon.awssdk:dynamodb:$aws_java_sdk2_version",
+        aws_java_sdk2_kinesis                       : "software.amazon.awssdk:kinesis:$aws_java_sdk2_version",
         aws_java_sdk2_sdk_core                      : "software.amazon.awssdk:sdk-core:$aws_java_sdk2_version",
         aws_java_sdk2_sns                           : "software.amazon.awssdk:sns:$aws_java_sdk2_version",
         aws_java_sdk2_sqs                           : "software.amazon.awssdk:sqs:$aws_java_sdk2_version",
@@ -695,12 +699,15 @@ class BeamModulePlugin implements Plugin<Project> {
         'deprecation',
         'fallthrough',
         'processing',
-        'rawtypes',
         'serial',
         'try',
         'unchecked',
         'varargs',
       ]
+
+      if (configuration.ignoreRawtypeErrors) {
+        defaultLintSuppressions.add("rawtypes")
+      }
 
       project.tasks.withType(JavaCompile) {
         options.encoding = "UTF-8"

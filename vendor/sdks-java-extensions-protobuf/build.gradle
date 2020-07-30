@@ -22,6 +22,7 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.vendor.sdks.java.extensions.protobuf',
   enableChecker: false,
+  ignoreRawtypeErrors: true,
   exportJavadoc: false,
   shadowClosure: {
     dependencies {

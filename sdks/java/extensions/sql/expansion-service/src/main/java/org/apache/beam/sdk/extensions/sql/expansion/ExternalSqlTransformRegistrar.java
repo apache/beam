@@ -42,14 +42,14 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
           .build();
 
   @Override
-  public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+  public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
     return org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap.of(
         URN, Builder.class);
   }
 
   public static class Configuration {
-    String query;
-    String dialect;
+    String query = "";
+    @Nullable String dialect;
 
     public void setQuery(String query) {
       this.query = query;

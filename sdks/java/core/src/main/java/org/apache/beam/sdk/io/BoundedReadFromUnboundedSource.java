@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -179,6 +180,9 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
 
   private static class ReadFn<T> extends DoFn<Shard<T>, ValueWithRecordId<T>> {
     @ProcessElement
+    @SuppressFBWarnings(
+        value = "RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE",
+        justification = "https://github.com/spotbugs/spotbugs/issues/756")
     public void process(
         @Element Shard<T> shard, OutputReceiver<ValueWithRecordId<T>> out, PipelineOptions options)
         throws Exception {

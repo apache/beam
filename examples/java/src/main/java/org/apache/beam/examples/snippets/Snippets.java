@@ -169,7 +169,7 @@ public class Snippets {
       TableRow row = new TableRow();
       row.set("string", "abc");
       byte[] rawbytes = {(byte) 0xab, (byte) 0xac};
-      row.set("bytes", new String(Base64.getEncoder().encodeToString(rawbytes)));
+      row.set("bytes", Base64.getEncoder().encodeToString(rawbytes));
       row.set("integer", 5);
       row.set("float", 0.5);
       row.set("numeric", 5);

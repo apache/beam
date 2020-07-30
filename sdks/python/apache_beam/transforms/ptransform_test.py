@@ -331,21 +331,22 @@ class PTransformTest(unittest.TestCase):
       def finish_bundle(self):
         yield WindowedValue('finish', 1, [windowfn])
 
-    pipeline = TestPipeline()
-    result = (
-        pipeline
-        | 'Start' >> beam.Create([1])
-        | beam.ParDo(MyDoFn())
-        | WindowInto(windowfn)
-        | 'create tuple' >> beam.Map(
-            lambda v,
-            t=beam.DoFn.TimestampParam,
-            w=beam.DoFn.WindowParam: (v, t, w.start, w.end)))
-    expected_process = [('process1', Timestamp(5), Timestamp(4), Timestamp(6))]
-    expected_finish = [('finish', Timestamp(1), Timestamp(0), Timestamp(2))]
+    with TestPipeline() as pipeline:
+      result = (
+          pipeline
+          | 'Start' >> beam.Create([1])
+          | beam.ParDo(MyDoFn())
+          | WindowInto(windowfn)
+          | 'create tuple' >> beam.Map(
+              lambda v,
+              t=beam.DoFn.TimestampParam,
+              w=beam.DoFn.WindowParam: (v, t, w.start, w.end)))
+      expected_process = [
+          ('process1', Timestamp(5), Timestamp(4), Timestamp(6))
+      ]
+      expected_finish = [('finish', Timestamp(1), Timestamp(0), Timestamp(2))]
 
-    assert_that(result, equal_to(expected_process + expected_finish))
-    pipeline.run()
+      assert_that(result, equal_to(expected_process + expected_finish))
 
   def test_do_fn_with_start(self):
     class MyDoFn(beam.DoFn):
@@ -474,12 +475,11 @@ class PTransformTest(unittest.TestCase):
       assert_that(result, equal_to([('a', m_1), ('b', m_2)]))
 
   def test_group_by_key(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'start' >> beam.Create([(1, 1), (2, 1), (3, 1), (1, 2),
-                                               (2, 2), (1, 3)])
-    result = pcoll | 'Group' >> beam.GroupByKey() | _SortLists
-    assert_that(result, equal_to([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create([(1, 1), (2, 1), (3, 1), (1, 2),
+                                                 (2, 2), (1, 3)])
+      result = pcoll | 'Group' >> beam.GroupByKey() | _SortLists
+      assert_that(result, equal_to([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]))
 
   def test_group_by_key_reiteration(self):
     class MyDoFn(beam.DoFn):
@@ -533,14 +533,13 @@ class PTransformTest(unittest.TestCase):
 
   def test_partition_followed_by_flatten_and_groupbykey(self):
     """Regression test for an issue with how partitions are handled."""
-    pipeline = TestPipeline()
-    contents = [('aa', 1), ('bb', 2), ('aa', 2)]
-    created = pipeline | 'A' >> beam.Create(contents)
-    partitioned = created | 'B' >> beam.Partition(lambda x, n: len(x) % n, 3)
-    flattened = partitioned | 'C' >> beam.Flatten()
-    grouped = flattened | 'D' >> beam.GroupByKey() | _SortLists
-    assert_that(grouped, equal_to([('aa', [1, 2]), ('bb', [2])]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      contents = [('aa', 1), ('bb', 2), ('aa', 2)]
+      created = pipeline | 'A' >> beam.Create(contents)
+      partitioned = created | 'B' >> beam.Partition(lambda x, n: len(x) % n, 3)
+      flattened = partitioned | 'C' >> beam.Flatten()
+      grouped = flattened | 'D' >> beam.GroupByKey() | _SortLists
+      assert_that(grouped, equal_to([('aa', [1, 2]), ('bb', [2])]))
 
   @attr('ValidatesRunner')
   def test_flatten_pcollections(self):
@@ -619,50 +618,47 @@ class PTransformTest(unittest.TestCase):
       assert_that(odd_length, equal_to(['BBB']), label='assert:odd')
 
   def test_co_group_by_key_on_list(self):
-    pipeline = TestPipeline()
-    pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2), ('b', 3),
-                                                   ('c', 4)])
-    pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6), ('c', 7),
-                                                   ('c', 8)])
-    result = (pcoll_1, pcoll_2) | beam.CoGroupByKey() | _SortLists
-    assert_that(
-        result,
-        equal_to([('a', ([1, 2], [5, 6])), ('b', ([3], [])),
-                  ('c', ([4], [7, 8]))]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
+                                                     ('c', 7), ('c', 8)])
+      result = (pcoll_1, pcoll_2) | beam.CoGroupByKey() | _SortLists
+      assert_that(
+          result,
+          equal_to([('a', ([1, 2], [5, 6])), ('b', ([3], [])),
+                    ('c', ([4], [7, 8]))]))
 
   def test_co_group_by_key_on_iterable(self):
-    pipeline = TestPipeline()
-    pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2), ('b', 3),
-                                                   ('c', 4)])
-    pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6), ('c', 7),
-                                                   ('c', 8)])
-    result = [pc for pc in (pcoll_1, pcoll_2)] | beam.CoGroupByKey()
-    result |= _SortLists
-    assert_that(
-        result,
-        equal_to([('a', ([1, 2], [5, 6])), ('b', ([3], [])),
-                  ('c', ([4], [7, 8]))]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
+                                                     ('c', 7), ('c', 8)])
+      result = iter([pcoll_1, pcoll_2]) | beam.CoGroupByKey()
+      result |= _SortLists
+      assert_that(
+          result,
+          equal_to([('a', ([1, 2], [5, 6])), ('b', ([3], [])),
+                    ('c', ([4], [7, 8]))]))
 
   def test_co_group_by_key_on_dict(self):
-    pipeline = TestPipeline()
-    pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2), ('b', 3),
-                                                   ('c', 4)])
-    pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6), ('c', 7),
-                                                   ('c', 8)])
-    result = {'X': pcoll_1, 'Y': pcoll_2} | beam.CoGroupByKey()
-    result |= _SortLists
-    assert_that(
-        result,
-        equal_to([('a', {
-            'X': [1, 2], 'Y': [5, 6]
-        }), ('b', {
-            'X': [3], 'Y': []
-        }), ('c', {
-            'X': [4], 'Y': [7, 8]
-        })]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
+                                                     ('c', 7), ('c', 8)])
+      result = {'X': pcoll_1, 'Y': pcoll_2} | beam.CoGroupByKey()
+      result |= _SortLists
+      assert_that(
+          result,
+          equal_to([('a', {
+              'X': [1, 2], 'Y': [5, 6]
+          }), ('b', {
+              'X': [3], 'Y': []
+          }), ('c', {
+              'X': [4], 'Y': [7, 8]
+          })]))
 
   def test_group_by_key_input_must_be_kv_pairs(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
