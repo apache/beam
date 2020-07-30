@@ -6501,6 +6501,15 @@ DatastoreIO
 &lt;/tr>
 &lt;tr class="language-java">
 &lt;td>
+SnowflakeIO
+&lt;/td>
+&lt;td>Experimental Transforms for reading from and writing to &lt;a href="https://www.snowflake.com/">Snowflake&lt;/a>.&lt;/td>
+&lt;td style="word-break: break-all;">
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/snowflake/SnowflakeIO.html">org.apache.beam.sdk.io.snowflake.SnowflakeIO&lt;/a>&lt;/div>
+&lt;/td>
+&lt;/tr>
+&lt;tr class="language-java">
+&lt;td>
 SpannerIO
 &lt;/td>
 &lt;td>Experimental Transforms for reading from and writing to &lt;a href="https://cloud.google.com/spanner">Google Cloud Spanner&lt;/a>.&lt;/td>
