@@ -855,9 +855,20 @@ message StandardCoders {
     //     BOOLEAN:   beam:coder:bool:v1
     //     BYTES:     beam:coder:bytes:v1
     //   ArrayType:   beam:coder:iterable:v1 (always has a known length)
-    //   MapType:     not yet a standard coder (BEAM-7996)
+    //   MapType:     not a standard coder, specification defined below.
     //   RowType:     beam:coder:row:v1
     //   LogicalType: Uses the coder for its representation.
+    //
+    // The MapType is encoded by:
+    //   - An INT32 representing the size of the map (N)
+    //   - Followed by N interleaved keys and values, encoded with their
+    //     corresponding coder.
+    //
+    // Nullable types in container types (ArrayType, MapType) are encoded by:
+    //   - A one byte null indicator, 0x00 for null values, or 0x01 for present
+    //     values.
+    //   - For present values the null indicator is followed by the value
+    //     encoded with it's corresponding coder.
     //
     // The payload for RowCoder is an instance of Schema.
     // Components: None

@@ -78,6 +78,13 @@ def parse_float(s):
 
 def value_parser_from_schema(schema):
   def attribute_parser_from_type(type_):
+    parser = nonnull_attribute_parser_from_type(type_)
+    if type_.nullable:
+      return lambda x: None if x is None else parser(x)
+    else:
+      return parser
+
+  def nonnull_attribute_parser_from_type(type_):
     # TODO: This should be exhaustive
     type_info = type_.WhichOneof("type_info")
     if type_info == "atomic_type":
@@ -89,8 +96,8 @@ def value_parser_from_schema(schema):
       element_parser = attribute_parser_from_type(type_.array_type.element_type)
       return lambda x: list(map(element_parser, x))
     elif type_info == "map_type":
-      key_parser = attribute_parser_from_type(type_.array_type.key_type)
-      value_parser = attribute_parser_from_type(type_.array_type.value_type)
+      key_parser = attribute_parser_from_type(type_.map_type.key_type)
+      value_parser = attribute_parser_from_type(type_.map_type.value_type)
       return lambda x: dict(
           (key_parser(k), value_parser(v)) for k, v in x.items())
 

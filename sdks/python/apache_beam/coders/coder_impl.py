@@ -530,6 +530,87 @@ class BooleanCoderImpl(CoderImpl):
     return 1
 
 
+class MapCoderImpl(CoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for typing.Mapping objects."""
+  def __init__(
+      self,
+      key_coder,  # type: CoderImpl
+      value_coder  # type: CoderImpl
+  ):
+    self._key_coder = key_coder
+    self._value_coder = value_coder
+
+  def encode_to_stream(self, value, out, nested):
+    size = len(value)
+    out.write_bigendian_int32(size)
+    for i, kv in enumerate(value.items()):
+      key, value = kv
+      last = i == size - 1
+      self._key_coder.encode_to_stream(key, out, True)
+      self._value_coder.encode_to_stream(value, out, not (last and not nested))
+
+  def decode_from_stream(self, in_stream, nested):
+    size = in_stream.read_bigendian_int32()
+    result = {}
+    for i in range(size):
+      last = i == size - 1
+      key = self._key_coder.decode_from_stream(in_stream, True)
+      value = self._value_coder.decode_from_stream(
+          in_stream, not (last and not nested))
+      result[key] = value
+
+    return result
+
+  def estimate_size(self, unused_value, nested=False):
+    estimate = 4  # 4 bytes for int32 size prefix
+    for i, kv in enumerate(unused_value.items()):
+      key, value = kv
+      last = i == len(unused_value) - 1
+      estimate += self._key_coder.estimate_size(key, True)
+      estimate += self._value_coder.estimate_size(
+          value, not (last and not nested))
+
+
+class NullableCoderImpl(CoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for typing.Optional objects."""
+
+  ENCODE_NULL = 0
+  ENCODE_PRESENT = 1
+
+  def __init__(
+      self,
+      value_coder  # type: CoderImpl
+  ):
+    self._value_coder = value_coder
+
+  def encode_to_stream(self, value, out, nested):
+    if value is None:
+      out.write_byte(self.ENCODE_NULL)
+    else:
+      out.write_byte(self.ENCODE_PRESENT)
+      self._value_coder.encode_to_stream(value, out, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    null_indicator = in_stream.read_byte()
+    if null_indicator == self.ENCODE_NULL:
+      return None
+    elif null_indicator == self.ENCODE_PRESENT:
+      return self._value_coder.decode_from_stream(in_stream, nested)
+    else:
+      raise ValueError(
+          "Encountered unexpected value for null indicator: '%s'" %
+          null_indicator)
+
+  def estimate_size(self, unused_value, nested=False):
+    return 1 + (
+        self._value_coder.estimate_size(unused_value)
+        if unused_value is not None else 0)
+
+
 class FloatCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def encode_to_stream(self, value, out, nested):

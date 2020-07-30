@@ -178,6 +178,11 @@ def typing_to_runner_api(type_):
     return schema_pb2.FieldType(
         array_type=schema_pb2.ArrayType(element_type=element_type))
 
+  elif _safe_issubclass(type_, Mapping):
+    key_type, value_type = map(typing_to_runner_api, _get_args(type_))
+    return schema_pb2.FieldType(
+        map_type=schema_pb2.MapType(key_type=key_type, value_type=value_type))
+
   raise ValueError("Unsupported type: %s" % type_)
 
 
