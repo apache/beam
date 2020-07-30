@@ -2043,8 +2043,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
               () -> {
                 try {
                   doFn.waitForSplitElementToBeProcessed();
-                  // Currently processing "3" out of range [0, 5) elements.
-                  assertEquals(0.6, ((HandlesSplits) mainInput).getProgress(), 0.01);
+                  // Currently processing "3" out of range [0, 5) elements for the first window.
+                  assertEquals(0.3, ((HandlesSplits) mainInput).getProgress(), 0.01);
 
                   // Check that during progressing of an element we report progress
                   List<MonitoringInfo> mis =
@@ -2066,7 +2066,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   expectedRemaining.setPayload(
                       ByteString.copyFrom(
                           CoderUtils.encodeToByteArray(
-                              IterableCoder.of(DoubleCoder.of()), Collections.singletonList(2.0))));
+                              IterableCoder.of(DoubleCoder.of()), Collections.singletonList(7.0))));
                   assertThat(
                       mis,
                       containsInAnyOrder(expectedCompleted.build(), expectedRemaining.build()));

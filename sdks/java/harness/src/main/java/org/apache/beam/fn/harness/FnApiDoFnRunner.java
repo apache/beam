@@ -251,6 +251,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private ListIterator<BoundedWindow> currentWindowIterator;
 
   /**
+   * Only valud during {@link
+   * #processElementForWindowObservingSizedElementAndRestriction(WindowedValue)} and {@link
+   * #processElementForWindowObservingTruncateRestriction(WindowedValue)}.
+   */
+  private int windowStopIndex;
+
+  /**
    * Only valid during {@link #processElementForPairWithRestriction}, {@link
    * #processElementForSplitRestriction}, and {@link #processElementForSizedElementAndRestriction},
    * null otherwise.
@@ -512,9 +519,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             || !sideInputMapping.isEmpty()) {
           // Only forward split/progress when the only consumer is splittable.
           if (mainOutputConsumers.size() == 1
-              && Iterables.get(mainOutputConsumers, 0) instanceof HandlesSplits) {
+              && Iterables.getOnlyElement(mainOutputConsumers) instanceof HandlesSplits) {
             mainInputConsumer =
                 new SplittableFnDataReceiver() {
+                  private final HandlesSplits splitDelegate =
+                      (HandlesSplits) Iterables.getOnlyElement(mainOutputConsumers);
+
                   @Override
                   public void accept(WindowedValue input) throws Exception {
                     processElementForWindowObservingTruncateRestriction(input);
@@ -526,9 +536,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     return null;
                   }
 
-                  // TODO(BEAM-10303): Progress should work with window observing optimization.
                   @Override
                   public double getProgress() {
+                    Progress progress =
+                        FnApiDoFnRunner.this.getProgressFromWindowObservingTruncate(
+                            splitDelegate.getProgress());
+                    if (progress != null) {
+                      double totalWork = progress.getWorkCompleted() + progress.getWorkRemaining();
+                      if (totalWork > 0) {
+                        return progress.getWorkCompleted() / totalWork;
+                      }
+                    }
                     return 0;
                   }
                 };
@@ -541,11 +559,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         } else {
           // Only forward split/progress when the only consumer is splittable.
           if (mainOutputConsumers.size() == 1
-              && Iterables.get(mainOutputConsumers, 0) instanceof HandlesSplits) {
+              && Iterables.getOnlyElement(mainOutputConsumers) instanceof HandlesSplits) {
             mainInputConsumer =
                 new SplittableFnDataReceiver() {
                   private final HandlesSplits splitDelegate =
-                      (HandlesSplits) Iterables.get(mainOutputConsumers, 0);
+                      (HandlesSplits) Iterables.getOnlyElement(mainOutputConsumers);
 
                   @Override
                   public void accept(WindowedValue input) throws Exception {
@@ -940,6 +958,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           currentElement.getWindows() instanceof List
               ? ((List) currentElement.getWindows()).listIterator()
               : ImmutableList.<BoundedWindow>copyOf(elem.getWindows()).listIterator();
+      windowStopIndex = currentElement.getWindows().size();
       while (true) {
         synchronized (splitLock) {
           if (!currentWindowIterator.hasNext()) {
@@ -1029,10 +1048,35 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private Progress getProgress() {
     synchronized (splitLock) {
       if (currentTracker instanceof RestrictionTracker.HasProgress) {
-        return ((HasProgress) currentTracker).getProgress();
+        return scaleProgress(
+            ((HasProgress) currentTracker).getProgress(),
+            currentWindowIterator.previousIndex(),
+            windowStopIndex);
       }
     }
     return null;
+  }
+
+  private Progress getProgressFromWindowObservingTruncate(double elementCompleted) {
+    synchronized (splitLock) {
+      if (currentWindow != null) {
+        return scaleProgress(
+            Progress.from(elementCompleted, 1 - elementCompleted),
+            currentWindowIterator.previousIndex(),
+            windowStopIndex);
+      }
+    }
+    return null;
+  }
+
+  private static Progress scaleProgress(
+      Progress progress, int currentWindowIndex, int stopWindowIndex) {
+    double totalWorkPerWindow = progress.getWorkCompleted() + progress.getWorkRemaining();
+    double completed = totalWorkPerWindow * currentWindowIndex + progress.getWorkCompleted();
+    double remaining =
+        totalWorkPerWindow * (stopWindowIndex - currentWindowIndex - 1)
+            + progress.getWorkRemaining();
+    return Progress.from(completed, remaining);
   }
 
   private HandlesSplits.SplitResult trySplitForElementAndRestriction(
@@ -1059,6 +1103,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       List<BoundedWindow> primaryFullyProcessedWindows =
           ImmutableList.copyOf(
               Iterables.limit(currentElement.getWindows(), currentWindowIterator.previousIndex()));
+      windowStopIndex = currentWindowIterator.nextIndex();
       // Advances the iterator consuming the remaining windows.
       List<BoundedWindow> residualUnprocessedWindows = ImmutableList.copyOf(currentWindowIterator);
       // If the window has been observed then the splitAndSize method would have already
