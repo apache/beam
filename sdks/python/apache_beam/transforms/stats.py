@@ -244,17 +244,19 @@ class ApproximateQuantiles(object):
   (e.g. quartiles, percentiles etc.) either globally or per-key.
   """
   @staticmethod
-  def _display_data(num_quantiles, key, reverse):
+  def _display_data(num_quantiles, weighted, key, reverse):
     return {
-        'num_quantiles': DisplayDataItem(num_quantiles, label="Quantile Count"),
+        'num_quantiles': DisplayDataItem(num_quantiles, label='Quantile Count'),
+        'weighted': DisplayDataItem(str(weighted), label='Is Weighted'),
         'key': DisplayDataItem(
             key.__name__
             if hasattr(key, '__name__') else key.__class__.__name__,
             label='Record Comparer Key'),
-        'reverse': DisplayDataItem(str(reverse), label='Is reversed')
+        'reverse': DisplayDataItem(str(reverse), label='Is Reversed')
     }
 
-  @typehints.with_input_types(T)
+  @typehints.with_input_types(
+      typehints.Union[typing.Sequence[T], typing.Tuple[T, float]])
   @typehints.with_output_types(typing.List[T])
   class Globally(PTransform):
     """
@@ -263,13 +265,17 @@ class ApproximateQuantiles(object):
 
     Args:
       num_quantiles: number of elements in the resulting quantiles values list.
+      weighted: (optional) if set to True, the transform returns weighted
+        quantiles. The input PCollection is then expected to contain tuples of
+        input values with the corresponding weight.
       key: (optional) Key is  a mapping of elements to a comparable key, similar
         to the key argument of Python's sorting methods.
       reverse: (optional) whether to order things smallest to largest, rather
         than largest to smallest
     """
-    def __init__(self, num_quantiles, key=None, reverse=False):
+    def __init__(self, num_quantiles, weighted=False, key=None, reverse=False):
       self._num_quantiles = num_quantiles
+      self._weighted = weighted
       self._key = key
       self._reverse = reverse
 
@@ -277,16 +283,20 @@ class ApproximateQuantiles(object):
       return pcoll | CombineGlobally(
           ApproximateQuantilesCombineFn.create(
               num_quantiles=self._num_quantiles,
+              weighted=self._weighted,
               key=self._key,
               reverse=self._reverse))
 
     def display_data(self):
       return ApproximateQuantiles._display_data(
           num_quantiles=self._num_quantiles,
+          weighted=self._weighted,
           key=self._key,
           reverse=self._reverse)
 
-  @typehints.with_input_types(typing.Tuple[K, V])
+  @typehints.with_input_types(
+      typehints.Union[typing.Tuple[K, V],
+                      typing.Tuple[K, typing.Tuple[V, float]]])
   @typehints.with_output_types(typing.Tuple[K, typing.List[V]])
   class PerKey(PTransform):
     """
@@ -296,13 +306,17 @@ class ApproximateQuantiles(object):
 
     Args:
       num_quantiles: number of elements in the resulting quantiles values list.
+      weighted: (optional) if set to True, the transform returns weighted
+        quantiles. The input PCollection is then expected to contain tuples of
+        input values with the corresponding weight.
       key: (optional) Key is  a mapping of elements to a comparable key, similar
         to the key argument of Python's sorting methods.
       reverse: (optional) whether to order things smallest to largest, rather
         than largest to smallest
     """
-    def __init__(self, num_quantiles, key=None, reverse=False):
+    def __init__(self, num_quantiles, weighted=False, key=None, reverse=False):
       self._num_quantiles = num_quantiles
+      self._weighted = weighted
       self._key = key
       self._reverse = reverse
 
@@ -310,12 +324,14 @@ class ApproximateQuantiles(object):
       return pcoll | CombinePerKey(
           ApproximateQuantilesCombineFn.create(
               num_quantiles=self._num_quantiles,
+              weighted=self._weighted,
               key=self._key,
               reverse=self._reverse))
 
     def display_data(self):
       return ApproximateQuantiles._display_data(
           num_quantiles=self._num_quantiles,
+          weighted=self._weighted,
           key=self._key,
           reverse=self._reverse)
 
@@ -324,30 +340,40 @@ class _QuantileBuffer(object):
   """A single buffer in the sense of the referenced algorithm.
   (see http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.6.6513&rep=rep1
   &type=pdf and ApproximateQuantilesCombineFn for further information)"""
-  def __init__(self, elements, level=0, weight=1):
+  def __init__(self, elements, weighted, level=0, weight=1):
+    # In case of weighted quantiles, elements are tuples of values and weights.
     self.elements = elements
+    self.weighted = weighted
     self.level = level
     self.weight = weight
 
   def __lt__(self, other):
-    self.elements < other.elements
+    if self.weighted:
+      [element[0] for element in self.elements
+       ] < [element[0] for element in other.elements]
+    else:
+      self.elements < other.elements
 
   def sized_iterator(self):
     class QuantileBufferIterator(object):
-      def __init__(self, elem, weight):
+      def __init__(self, elem, weighted, weight):
         self._iter = iter(elem)
+        self.weighted = weighted
         self.weight = weight
 
       def __iter__(self):
         return self
 
       def __next__(self):
-        value = next(self._iter)
-        return (value, self.weight)
+        if self.weighted:
+          return next(self._iter)
+        else:
+          value = next(self._iter)
+          return (value, self.weight)
 
       next = __next__  # For Python 2
 
-    return QuantileBufferIterator(self.elements, self.weight)
+    return QuantileBufferIterator(self.elements, self.weighted, self.weight)
 
 
 class _QuantileState(object):
@@ -398,8 +424,8 @@ class ApproximateQuantilesCombineFn(CombineFn):
   http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.6.6513&rep=rep1
   &type=pdf
 
-  The default error bound is (1 / N), though in practice the accuracy
-  tends to be much better.
+  The default error bound is (1 / N) for uniformly distributed data and 1e-2 for
+  weighted case, though in practice the accuracy tends to be much better.
 
   Args:
     num_quantiles: Number of quantiles to produce. It is the size of the final
@@ -408,6 +434,9 @@ class ApproximateQuantilesCombineFn(CombineFn):
       paper.
     num_buffers: The number of buffers, corresponding to b in the referenced
       paper.
+    weighted: (optional) if set to True, the combiner produces weighted
+        quantiles. The input elements are then expected to be tuples of input
+        values with the corresponding weight.
     key: (optional) Key is a mapping of elements to a comparable key, similar
       to the key argument of Python's sorting methods.
     reverse: (optional) whether to order things smallest to largest, rather
@@ -428,7 +457,13 @@ class ApproximateQuantilesCombineFn(CombineFn):
   _qs = None  # Refers to the _QuantileState
 
   def __init__(
-      self, num_quantiles, buffer_size, num_buffers, key=None, reverse=False):
+      self,
+      num_quantiles,
+      buffer_size,
+      num_buffers,
+      weighted=False,
+      key=None,
+      reverse=False):
     def _comparator(a, b):
       if key:
         a, b = key(a), key(b)
@@ -445,13 +480,18 @@ class ApproximateQuantilesCombineFn(CombineFn):
     self._num_quantiles = num_quantiles
     self._buffer_size = buffer_size
     self._num_buffers = num_buffers
-    self._key = key
+    self._weighted = weighted
+    if weighted:
+      self._key = (lambda x: x[0]) if key is None else (lambda x: key(x[0]))
+    else:
+      self._key = key
     self._reverse = reverse
 
   @classmethod
   def create(
       cls,
       num_quantiles,
+      weighted=False,
       epsilon=None,
       max_num_elements=None,
       key=None,
@@ -463,6 +503,10 @@ class ApproximateQuantilesCombineFn(CombineFn):
     Args:
       num_quantiles: Number of quantiles to produce. It is the size of the
       final output list, including the mininum and maximum value items.
+
+      weighted: (optional) if set to True, the combiner produces weighted
+        quantiles. The input elements are then expected to be tuples of values
+        with the corresponding weight.
       epsilon: (optional) The default error bound is `epsilon`, which holds as
         long as the number of elements is less than `_MAX_NUM_ELEMENTS`.
         Specifically, if one considers the input as a sorted list x_1, ...,
@@ -480,7 +524,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
     """
     max_num_elements = max_num_elements or cls._MAX_NUM_ELEMENTS
     if not epsilon:
-      epsilon = 1.0 / num_quantiles
+      epsilon = 1e-2 if weighted else 1.0 / num_quantiles
     b = 2
     while (b - 2) * (1 << (b - 2)) < epsilon * max_num_elements:
       b = b + 1
@@ -490,32 +534,41 @@ class ApproximateQuantilesCombineFn(CombineFn):
         num_quantiles=num_quantiles,
         buffer_size=k,
         num_buffers=b,
+        weighted=weighted,
         key=key,
         reverse=reverse)
 
-  def _add_unbuffered(self, qs, elem):
+  def _add_unbuffered(self, qs, elements):
     """
     Add a new buffer to the unbuffered list, creating a new buffer and
     collapsing if needed.
     """
-    qs.unbuffered_elements.append(elem)
-    if len(qs.unbuffered_elements) == qs.buffer_size:
+    qs.unbuffered_elements.extend(elements)
+    if len(qs.unbuffered_elements) >= qs.buffer_size:
       qs.unbuffered_elements.sort(key=self._key, reverse=self._reverse)
-      heapq.heappush(
-          qs.buffers, _QuantileBuffer(elements=qs.unbuffered_elements))
-      qs.unbuffered_elements = []
-      self._collapse_if_needed(qs)
 
-  def _offset(self, newWeight):
+      while len(qs.unbuffered_elements) >= qs.buffer_size:
+        to_buffer = qs.unbuffered_elements[:qs.buffer_size]
+        heapq.heappush(
+            qs.buffers,
+            _QuantileBuffer(
+                elements=to_buffer,
+                weighted=self._weighted,
+                weight=sum([element[1] for element in to_buffer])
+                if self._weighted else 1))
+        qs.unbuffered_elements = qs.unbuffered_elements[qs.buffer_size:]
+        self._collapse_if_needed(qs)
+
+  def _offset(self, new_weight):
     """
     If the weight is even, we must round up or down. Alternate between these
     two options to avoid a bias.
     """
-    if newWeight % 2 == 1:
-      return (newWeight + 1) / 2
+    if new_weight % 2 == 1:
+      return (new_weight + 1) / 2
     else:
       self._offset_jitter = 2 - self._offset_jitter
-      return (newWeight + self._offset_jitter) / 2
+      return (new_weight + self._offset_jitter) / 2
 
   def _collapse(self, buffers):
     new_level = 0
@@ -527,21 +580,26 @@ class ApproximateQuantilesCombineFn(CombineFn):
       # computed shards.  If they differ we take the max.
       new_level = max([new_level, buffer_elem.level + 1])
       new_weight = new_weight + buffer_elem.weight
-    new_elements = self._interpolate(
-        buffers, self._buffer_size, new_weight, self._offset(new_weight))
-    return _QuantileBuffer(new_elements, new_level, new_weight)
+    if self._weighted:
+      step = new_weight / (self._buffer_size - 1)
+      offset = new_weight / (2 * self._buffer_size)
+    else:
+      step = new_weight
+      offset = self._offset(new_weight)
+    new_elements = self._interpolate(buffers, self._buffer_size, step, offset)
+    return _QuantileBuffer(new_elements, self._weighted, new_level, new_weight)
 
   def _collapse_if_needed(self, qs):
     while len(qs.buffers) > self._num_buffers:
-      toCollapse = []
-      toCollapse.append(heapq.heappop(qs.buffers))
-      toCollapse.append(heapq.heappop(qs.buffers))
-      minLevel = toCollapse[1].level
+      to_collapse = []
+      to_collapse.append(heapq.heappop(qs.buffers))
+      to_collapse.append(heapq.heappop(qs.buffers))
+      min_level = to_collapse[1].level
 
-      while len(qs.buffers) > 0 and qs.buffers[0].level == minLevel:
-        toCollapse.append(heapq.heappop(qs.buffers))
+      while len(qs.buffers) > 0 and qs.buffers[0].level == min_level:
+        to_collapse.append(heapq.heappop(qs.buffers))
 
-      heapq.heappush(qs.buffers, self._collapse(toCollapse))
+      heapq.heappush(qs.buffers, self._collapse(to_collapse))
 
   def _interpolate(self, i_buffers, count, step, offset):
     """
@@ -552,8 +610,8 @@ class ApproximateQuantilesCombineFn(CombineFn):
 
     iterators = []
     new_elements = []
-    compare_key = None
-    if self._key:
+    compare_key = self._key
+    if self._key and not self._weighted:
       compare_key = lambda x: self._key(x[0])
     for buffer_elem in i_buffers:
       iterators.append(buffer_elem.sized_iterator())
@@ -576,17 +634,34 @@ class ApproximateQuantilesCombineFn(CombineFn):
     weighted_element = next(sorted_elem)
     current = weighted_element[1]
     j = 0
-    while j < count:
-      target = j * step + offset
-      j = j + 1
-      try:
-        while current <= target:
-          weighted_element = next(sorted_elem)
-          current = current + weighted_element[1]
-      except StopIteration:
-        pass
-      new_elements.append(weighted_element[0])
-    return new_elements
+    if self._weighted:
+      previous = 0
+      new_weights = []
+      while j < count:
+        target = j * step + offset
+        j = j + 1
+        try:
+          while current <= target:
+            weighted_element = next(sorted_elem)
+            current = current + weighted_element[1]
+        except StopIteration:
+          pass
+        new_elements.append(weighted_element[0])
+        new_weights.append(current - previous)
+        previous = current
+      return list(zip(new_elements, new_weights))
+    else:
+      while j < count:
+        target = j * step + offset
+        j = j + 1
+        try:
+          while current <= target:
+            weighted_element = next(sorted_elem)
+            current = current + weighted_element[1]
+        except StopIteration:
+          pass
+        new_elements.append(weighted_element[0])
+      return new_elements
 
   def create_accumulator(self):
     self._qs = _QuantileState(
@@ -600,13 +675,35 @@ class ApproximateQuantilesCombineFn(CombineFn):
     """
     Add a new element to the collection being summarized by quantile state.
     """
+    value = element[0] if self._weighted else element
     if quantile_state.is_empty():
-      quantile_state.min_val = quantile_state.max_val = element
-    elif self._comparator(element, quantile_state.min_val) < 0:
-      quantile_state.min_val = element
-    elif self._comparator(element, quantile_state.max_val) > 0:
-      quantile_state.max_val = element
-    self._add_unbuffered(quantile_state, elem=element)
+      quantile_state.min_val = quantile_state.max_val = value
+    elif self._comparator(value, quantile_state.min_val) < 0:
+      quantile_state.min_val = value
+    elif self._comparator(value, quantile_state.max_val) > 0:
+      quantile_state.max_val = value
+    self._add_unbuffered(quantile_state, elements=[element])
+    return quantile_state
+
+  def add_inputs(self, quantile_state, elements):
+    """Add new elements to the collection being summarized by quantile state.
+    """
+    if not elements:
+      return quantile_state
+
+    values = [
+        element[0] for element in elements
+    ] if self._weighted else elements
+    min_val = min(values)
+    max_val = max(values)
+    if quantile_state.is_empty():
+      quantile_state.min_val = min_val
+      quantile_state.max_val = max_val
+    elif self._comparator(min_val, quantile_state.min_val) < 0:
+      quantile_state.min_val = min_val
+    elif self._comparator(max_val, quantile_state.max_val) > 0:
+      quantile_state.max_val = max_val
+    self._add_unbuffered(quantile_state, elements=elements)
     return quantile_state
 
   def merge_accumulators(self, accumulators):
@@ -622,8 +719,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
                                             qs.max_val) > 0:
         qs.max_val = accumulator.max_val
 
-      for unbuffered_element in accumulator.unbuffered_elements:
-        self._add_unbuffered(qs, unbuffered_element)
+      self._add_unbuffered(qs, accumulator.unbuffered_elements)
 
       qs.buffers.extend(accumulator.buffers)
     self._collapse_if_needed(qs)
@@ -639,18 +735,44 @@ class ApproximateQuantilesCombineFn(CombineFn):
       return []
 
     all_elems = accumulator.buffers
-    total_count = len(accumulator.unbuffered_elements)
-    for buffer_elem in all_elems:
-      total_count = total_count + accumulator.buffer_size * buffer_elem.weight
+    if self._weighted:
+      unbuffered_weight = sum(
+          [element[1] for element in accumulator.unbuffered_elements])
+      total_weight = unbuffered_weight
+      for buffer_elem in all_elems:
+        total_weight += sum([element[1] for element in buffer_elem.elements])
+      if accumulator.unbuffered_elements:
+        accumulator.unbuffered_elements.sort(
+            key=self._key, reverse=self._reverse)
+        all_elems.append(
+            _QuantileBuffer(
+                accumulator.unbuffered_elements,
+                weighted=True,
+                weight=unbuffered_weight))
 
-    if accumulator.unbuffered_elements:
-      accumulator.unbuffered_elements.sort(key=self._key, reverse=self._reverse)
-      all_elems.append(_QuantileBuffer(accumulator.unbuffered_elements))
+      step = 1.0 * total_weight / (self._num_quantiles - 1)
+      offset = (1.0 * total_weight) / (self._num_quantiles - 1)
+      mid_quantiles = [
+          element[0] for element in self._interpolate(
+              all_elems, self._num_quantiles - 2, step, offset)
+      ]
+    else:
+      total_weight = len(accumulator.unbuffered_elements)
+      for buffer_elem in all_elems:
+        total_weight += accumulator.buffer_size * buffer_elem.weight
 
-    step = 1.0 * total_count / (self._num_quantiles - 1)
-    offset = (1.0 * total_count - 1) / (self._num_quantiles - 1)
+      if accumulator.unbuffered_elements:
+        accumulator.unbuffered_elements.sort(
+            key=self._key, reverse=self._reverse)
+        all_elems.append(
+            _QuantileBuffer(accumulator.unbuffered_elements, weighted=False))
+
+      step = 1.0 * total_weight / (self._num_quantiles - 1)
+      offset = (1.0 * total_weight - 1) / (self._num_quantiles - 1)
+      mid_quantiles = self._interpolate(
+          all_elems, self._num_quantiles - 2, step, offset)
+
     quantiles = [accumulator.min_val]
-    quantiles.extend(
-        self._interpolate(all_elems, self._num_quantiles - 2, step, offset))
+    quantiles.extend(mid_quantiles)
     quantiles.append(accumulator.max_val)
     return quantiles
