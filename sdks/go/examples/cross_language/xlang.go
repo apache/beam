@@ -26,7 +26,7 @@ var (
 	input = flag.String("input", "./in", "File(s) to read.")
 
 	// Set this required option to specify where to write the output.
-	output = flag.String("output", "./out", "Output file (required).")
+	output = flag.String("output", "./out1", "Output file (required).")
 )
 
 // Concept #3: You can make your pipeline assembly code less verbose and by
@@ -125,6 +125,7 @@ func main() {
 		Out:           []typex.FullType{outputType},
 		Bounded:       true,
 	}
+	// _ = beam.CrossLanguage(s, p, external)
 	counted := beam.CrossLanguage(s, p, external)
 
 	formatted := beam.ParDo(s, formatFn, counted[0])

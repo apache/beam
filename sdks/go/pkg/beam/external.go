@@ -145,8 +145,8 @@ func CrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) []PCollection {
 		fmt.Println(res.GetError())
 		panic(err)
 	}
-	fmt.Printf("\n\n!!!%v\n!!!\n\n", req.GetComponents())
-	fmt.Printf("\n\n!!!%v\n!!!\n\n", res.GetComponents())
+	fmt.Printf("\n\n!!!%v\n!!!\n\n", req.GetTransform())
+	fmt.Printf("\n\n!!!%v\n!!!\n\n", res.GetTransform())
 	e.Components = res.GetComponents()
 	e.ExpandedTransform = res.GetTransform()
 	e.Requirements = res.GetRequirements()

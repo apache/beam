@@ -67,12 +67,31 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return errors.WithContextf(err, "generating model pipeline")
 	}
-
-	fmt.Printf("\n\n----\n%v\n----\n\n", pipeline.Components.Environments)
+	fmt.Printf("\n\n+++n%v\n+++n\n", pipeline.Components.Transforms)
 	// Adding ExpandedTransforms to the pipeline
 	for id, external := range p.ExpandedTransforms {
 		pipeline.Requirements = append(pipeline.Requirements, external.Requirements...)
-		fmt.Printf("\n\n+++n%v\n+++n\n", external.Components.Environments)
+		fmt.Printf("\n\n+++n%v\n+++n\n", external.ExpandedTransform)
+
+		// Correct update of transform corresponding to the ExpandedTransform
+		transform := pipeline.Components.Transforms[id]
+		existingInput := ""
+		newInput := ""
+
+		for _, v := range transform.Outputs {
+			existingInput = v
+		}
+		for _, v := range external.ExpandedTransform.Outputs {
+			newInput = v
+		}
+
+		for _, t := range pipeline.Components.Transforms {
+			for idx, i := range t.Inputs {
+				if i == existingInput {
+					t.Inputs[idx] = newInput
+				}
+			}
+		}
 
 		for k, v := range external.Components.Transforms {
 			pipeline.Components.Transforms[k] = v
@@ -89,10 +108,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		for k, v := range external.Components.Environments {
 			pipeline.Components.Environments[k] = v
 		}
+
 		pipeline.Components.Transforms[id] = external.ExpandedTransform
 	}
 
-	fmt.Printf("\n\n----\n%v\n----\n\n", pipeline.Components.Environments)
 	// panic("DIE")
 	log.Info(ctx, proto.MarshalTextString(pipeline))
 
