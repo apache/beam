@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.kinesis;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options for Kinesis integration tests. */
 public interface KinesisTestOptions extends TestPipelineOptions {
@@ -47,6 +48,18 @@ public interface KinesisTestOptions extends TestPipelineOptions {
   String getAwsAccessKey();
 
   void setAwsAccessKey(String value);
+
+  @Description("Aws service endpoint")
+  @Nullable
+  String getAwsServiceEndpoint();
+
+  void setAwsServiceEndpoint(String awsServiceEndpoint);
+
+  @Description("Flag for certificate verification")
+  @Default.Boolean(true)
+  Boolean getAwsVerifyCertificate();
+
+  void setAwsVerifyCertificate(Boolean awsVerifyCertificate);
 
   @Description("Number of shards of stream")
   @Default.Integer(2)

@@ -31,6 +31,7 @@ import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
+import java.net.URI;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Basic implementation of {@link AWSClientsProvider} used by default in {@link KinesisIO}. */
@@ -39,9 +40,14 @@ class BasicKinesisProvider implements AWSClientsProvider {
   private final String secretKey;
   private final Regions region;
   private final @Nullable String serviceEndpoint;
+  private final boolean verifyCertificate;
 
   BasicKinesisProvider(
-      String accessKey, String secretKey, Regions region, @Nullable String serviceEndpoint) {
+      String accessKey,
+      String secretKey,
+      Regions region,
+      @Nullable String serviceEndpoint,
+      boolean verifyCertificate) {
     checkArgument(accessKey != null, "accessKey can not be null");
     checkArgument(secretKey != null, "secretKey can not be null");
     checkArgument(region != null, "region can not be null");
@@ -49,6 +55,12 @@ class BasicKinesisProvider implements AWSClientsProvider {
     this.secretKey = secretKey;
     this.region = region;
     this.serviceEndpoint = serviceEndpoint;
+    this.verifyCertificate = verifyCertificate;
+  }
+
+  BasicKinesisProvider(
+      String accessKey, String secretKey, Regions region, @Nullable String serviceEndpoint) {
+    this(accessKey, secretKey, region, serviceEndpoint, true);
   }
 
   private AWSCredentialsProvider getCredentialsProvider() {
@@ -85,6 +97,12 @@ class BasicKinesisProvider implements AWSClientsProvider {
   public IKinesisProducer createKinesisProducer(KinesisProducerConfiguration config) {
     config.setRegion(region.getName());
     config.setCredentialsProvider(getCredentialsProvider());
+    if (serviceEndpoint != null) {
+      URI uri = URI.create(serviceEndpoint);
+      config.setKinesisEndpoint(uri.getHost());
+      config.setKinesisPort(uri.getPort());
+    }
+    config.setVerifyCertificate(verifyCertificate);
     return new KinesisProducer(config);
   }
 }

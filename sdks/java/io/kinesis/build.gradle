@@ -50,6 +50,7 @@ dependencies {
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito
   testCompile "org.assertj:assertj-core:3.11.1"
+  testCompile 'org.testcontainers:localstack:1.11.2'
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
