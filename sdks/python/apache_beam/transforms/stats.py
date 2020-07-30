@@ -528,7 +528,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
     while (b - 2) * (1 << (b - 2)) < epsilon * max_num_elements:
       b = b + 1
     b = b - 1
-    k = max(2, math.ceil(max_num_elements / float(1 << (b - 1))))
+    k = max(2, int(math.ceil(max_num_elements / float(1 << (b - 1)))))
     return cls(
         num_quantiles=num_quantiles,
         buffer_size=k,

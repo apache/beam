@@ -612,7 +612,8 @@ class ApproximateQuantilesTest(unittest.TestCase):
       per_key = pc | 'Weighted Quantiles PerKey' >> \
                 beam.ApproximateQuantiles.PerKey(2, weighted=True)
       per_key_reversed = pc | 'Weighted Quantiles PerKey Reversed' >> \
-                         beam.ApproximateQuantiles.PerKey(2, weighted=True, reverse=True)
+                         beam.ApproximateQuantiles.PerKey(
+                           2, weighted=True, reverse=True)
 
       assert_that(
           per_key,
