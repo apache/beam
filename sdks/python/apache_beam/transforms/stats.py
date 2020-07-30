@@ -523,7 +523,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
     """
     max_num_elements = max_num_elements or cls._MAX_NUM_ELEMENTS
     if not epsilon:
-      epsilon = 1e-2 if weighted else 1.0 / num_quantiles
+      epsilon = 1e-2 if weighted else (1.0 / num_quantiles)
     b = 2
     while (b - 2) * (1 << (b - 2)) < epsilon * max_num_elements:
       b = b + 1
