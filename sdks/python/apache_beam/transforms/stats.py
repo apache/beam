@@ -503,7 +503,6 @@ class ApproximateQuantilesCombineFn(CombineFn):
     Args:
       num_quantiles: Number of quantiles to produce. It is the size of the
       final output list, including the mininum and maximum value items.
-
       weighted: (optional) if set to True, the combiner produces weighted
         quantiles. The input elements are then expected to be tuples of values
         with the corresponding weight.
