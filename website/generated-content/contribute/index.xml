@@ -2283,8 +2283,8 @@ E.g. when expanding a filepattern into files, log what the filepattern was and h
 &lt;p>Do:&lt;/p>
 &lt;ul>
 &lt;li>Generally, follow the rules of &lt;a href="https://semver.org/">semantic versioning&lt;/a>.&lt;/li>
-&lt;li>If the API of the transform is not yet stable, annotate it as &lt;code>@Experimental&lt;/code> (Java) or &lt;code>@experimental&lt;/code> (&lt;a href="https://beam.apache.org/releases/pydoc/2.22.0/apache_beam.utils.annotations.html">Python&lt;/a>).&lt;/li>
-&lt;li>If the API deprecated, annotate it as &lt;code>@Deprecated&lt;/code> (Java) or &lt;code>@deprecated&lt;/code> (&lt;a href="https://beam.apache.org/releases/pydoc/2.22.0/apache_beam.utils.annotations.html">Python&lt;/a>).&lt;/li>
+&lt;li>If the API of the transform is not yet stable, annotate it as &lt;code>@Experimental&lt;/code> (Java) or &lt;code>@experimental&lt;/code> (&lt;a href="https://beam.apache.org/releases/pydoc/2.23.0/apache_beam.utils.annotations.html">Python&lt;/a>).&lt;/li>
+&lt;li>If the API deprecated, annotate it as &lt;code>@Deprecated&lt;/code> (Java) or &lt;code>@deprecated&lt;/code> (&lt;a href="https://beam.apache.org/releases/pydoc/2.23.0/apache_beam.utils.annotations.html">Python&lt;/a>).&lt;/li>
 &lt;li>Pay attention to the stability and versioning of third-party classes exposed by the transform&amp;rsquo;s API: if they are unstable or improperly versioned (do not obey &lt;a href="https://semver.org/">semantic versioning&lt;/a>), it is better to wrap them in your own classes.&lt;/li>
 &lt;/ul>
 &lt;p>Do not:&lt;/p>
