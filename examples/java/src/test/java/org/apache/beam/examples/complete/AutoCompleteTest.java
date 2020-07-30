@@ -146,7 +146,7 @@ public class AutoCompleteTest implements Serializable {
     List<CompletionCandidate> all = new ArrayList<>();
     for (String s : entries) {
       String[] countValue = s.split(":", -1);
-      all.add(new CompletionCandidate(countValue[0], Integer.valueOf(countValue[1])));
+      all.add(new CompletionCandidate(countValue[0], Integer.parseInt(countValue[1])));
     }
     return all;
   }

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.LanguageOptions;
 import com.google.zetasql.Value;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
@@ -72,7 +73,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
    * Called by {@link org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv}.instantiatePlanner()
    * reflectively.
    */
-  public ZetaSQLQueryPlanner(JdbcConnection jdbcConnection, RuleSet[] ruleSets) {
+  public ZetaSQLQueryPlanner(JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
     plannerImpl =
         new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, modifyRuleSetsForZetaSql(ruleSets)));
     setDefaultTimezone(
@@ -82,15 +83,24 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
             .getZetaSqlDefaultTimezone());
   }
 
-  public static RuleSet[] getZetaSqlRuleSets() {
+  public static final Factory FACTORY =
+      new Factory() {
+        @Override
+        public QueryPlanner createPlanner(
+            JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
+          return new ZetaSQLQueryPlanner(jdbcConnection, ruleSets);
+        }
+      };
+
+  public static Collection<RuleSet> getZetaSqlRuleSets() {
     return modifyRuleSetsForZetaSql(BeamRuleSets.getRuleSets());
   }
 
-  private static RuleSet[] modifyRuleSetsForZetaSql(RuleSet[] ruleSets) {
-    RuleSet[] ret = new RuleSet[ruleSets.length];
-    for (int i = 0; i < ruleSets.length; i++) {
+  private static Collection<RuleSet> modifyRuleSetsForZetaSql(Collection<RuleSet> ruleSets) {
+    ImmutableList.Builder<RuleSet> ret = ImmutableList.builder();
+    for (RuleSet ruleSet : ruleSets) {
       ImmutableList.Builder<RelOptRule> bd = ImmutableList.builder();
-      for (RelOptRule rule : ruleSets[i]) {
+      for (RelOptRule rule : ruleSet) {
         // TODO[BEAM-9075]: Fix join re-ordering for ZetaSQL planner. Currently join re-ordering
         //  requires the JoinCommuteRule, which doesn't work without struct flattening.
         if (rule instanceof JoinCommuteRule) {
@@ -109,9 +119,9 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
           bd.add(rule);
         }
       }
-      ret[i] = RuleSets.ofList(bd.build());
+      ret.add(RuleSets.ofList(bd.build()));
     }
-    return ret;
+    return ret.build();
   }
 
   public String getDefaultTimezone() {
@@ -177,7 +187,8 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     return (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
   }
 
-  private static FrameworkConfig defaultConfig(JdbcConnection connection, RuleSet[] ruleSets) {
+  private static FrameworkConfig defaultConfig(
+      JdbcConnection connection, Collection<RuleSet> ruleSets) {
     final CalciteConnectionConfig config = connection.config();
     final SqlParser.ConfigBuilder parserConfig =
         SqlParser.configBuilder()
@@ -210,7 +221,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
         .parserConfig(parserConfig.build())
         .defaultSchema(defaultSchema)
         .traitDefs(traitDefs)
-        .ruleSets(ruleSets)
+        .ruleSets(ruleSets.toArray(new RuleSet[0]))
         .costFactory(BeamCostModel.FACTORY)
         .typeSystem(connection.getTypeFactory().getTypeSystem())
         .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))

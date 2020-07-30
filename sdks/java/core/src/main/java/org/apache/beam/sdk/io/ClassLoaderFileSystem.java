@@ -154,7 +154,7 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
   @Experimental(Experimental.Kind.FILESYSTEM)
   public static class ClassLoaderFileSystemRegistrar implements FileSystemRegistrar {
     @Override
-    public Iterable<FileSystem> fromOptions(@Nullable PipelineOptions options) {
+    public Iterable<FileSystem<?>> fromOptions(@Nullable PipelineOptions options) {
       return ImmutableList.of(new ClassLoaderFileSystem());
     }
   }

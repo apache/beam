@@ -379,7 +379,9 @@ class WriteTables<DestinationT>
             .setUseAvroLogicalTypes(useAvroLogicalTypes);
     if (schemaUpdateOptions != null) {
       List<String> options =
-          schemaUpdateOptions.stream().map(Enum::name).collect(Collectors.toList());
+          schemaUpdateOptions.stream()
+              .map(Enum<SchemaUpdateOption>::name)
+              .collect(Collectors.toList());
       loadConfig.setSchemaUpdateOptions(options);
     }
     if (timePartitioning != null) {

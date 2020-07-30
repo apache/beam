@@ -134,7 +134,7 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
     public static final String URN = "beam:external:java:generate_sequence:v1";
 
     @Override
-    public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+    public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
       return ImmutableMap.of(URN, AutoValue_GenerateSequence.Builder.class);
     }
 

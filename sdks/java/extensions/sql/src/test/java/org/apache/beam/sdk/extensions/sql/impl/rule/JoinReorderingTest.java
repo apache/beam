@@ -232,7 +232,7 @@ public class JoinReorderingTest {
     TestTableProvider tableProvider = new TestTableProvider();
     createThreeTables(tableProvider);
     List<RelOptRule> ruleSet =
-        Arrays.stream(BeamRuleSets.getRuleSets())
+        BeamRuleSets.getRuleSets().stream()
             .flatMap(rules -> StreamSupport.stream(rules.spliterator(), false))
             .filter(rule -> !(rule instanceof BeamJoinPushThroughJoinRule))
             .filter(rule -> !(rule instanceof BeamJoinAssociateRule))
@@ -242,7 +242,7 @@ public class JoinReorderingTest {
     BeamSqlEnv env =
         BeamSqlEnv.builder(tableProvider)
             .setPipelineOptions(PipelineOptionsFactory.create())
-            .setRuleSets(new RuleSet[] {RuleSets.ofList(ruleSet)})
+            .setRuleSets(ImmutableList.of(RuleSets.ofList(ruleSet)))
             .build();
 
     // This is Join(Join(medium, large), small) which should be converted to a join that large table

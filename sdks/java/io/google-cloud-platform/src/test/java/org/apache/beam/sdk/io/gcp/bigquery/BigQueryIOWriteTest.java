@@ -1641,7 +1641,7 @@ public class BigQueryIOWriteTest implements Serializable {
                   .toString();
           TableRowWriter<TableRow> writer =
               new TableRowWriter<>(filename, SerializableFunctions.identity());
-          try (TableRowWriter ignored = writer) {
+          try (TableRowWriter<TableRow> ignored = writer) {
             TableRow tableRow = new TableRow().set("name", tableName);
             writer.write(tableRow);
           }
@@ -1992,7 +1992,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
 
     List<String> expectedOptions =
-        schemaUpdateOptions.stream().map(Enum::name).collect(Collectors.toList());
+        schemaUpdateOptions.stream().map(SchemaUpdateOption::name).collect(Collectors.toList());
 
     for (Job job : fakeJobService.getAllJobs()) {
       JobConfigurationLoad configuration = job.getConfiguration().getLoad();
