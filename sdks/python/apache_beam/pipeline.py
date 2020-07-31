@@ -534,8 +534,13 @@ class Pipeline(object):
         self.visit(typecheck.TypeCheckVisitor())
 
       if self._options.view_as(TypeOptions).performance_runtime_type_check:
-        from apache_beam.typehints import typecheck
-        self.visit(typecheck.PerformanceTypeCheckVisitor())
+        if sys.version_info < (3, ):
+          print(
+              'You cannot turn on performance_runtime_type_check '
+              'in Python 2. This is a Python 3 feature.')
+        else:
+          from apache_beam.typehints import typecheck
+          self.visit(typecheck.PerformanceTypeCheckVisitor())
 
       if self._options.view_as(SetupOptions).save_main_session:
         # If this option is chosen, verify we can pickle the main session early.
