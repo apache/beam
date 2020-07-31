@@ -30,7 +30,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineRunner;
@@ -77,6 +76,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -195,7 +195,7 @@ public class PAssert {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -668,8 +668,7 @@ public class PAssert {
       }
 
       @Override
-      @Nullable
-      public Void apply(T actual) {
+      public @Nullable Void apply(T actual) {
         assertThat(actual, matcher);
         return null;
       }
@@ -682,7 +681,8 @@ public class PAssert {
      */
     @Deprecated
     @Override
-    public boolean equals(Object o) {
+    @SuppressFBWarnings("EQ_UNUSUAL")
+    public boolean equals(@Nullable Object o) {
       throw new UnsupportedOperationException(
           "If you meant to test object equality, use .containsInAnyOrder instead.");
     }
@@ -912,7 +912,7 @@ public class PAssert {
     @SuppressFBWarnings("EQ_UNUSUAL")
     @Deprecated
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       throw new UnsupportedOperationException(
           String.format(
               "tests for Java equality of the %s object, not the PCollection in question. "
@@ -1049,7 +1049,8 @@ public class PAssert {
      */
     @Deprecated
     @Override
-    public boolean equals(Object o) {
+    @SuppressFBWarnings("EQ_UNUSUAL")
+    public boolean equals(@Nullable Object o) {
       throw new UnsupportedOperationException(
           String.format(
               "tests for Java equality of the %s object, not the PCollection in question. "
@@ -1488,8 +1489,7 @@ public class PAssert {
     }
 
     @Override
-    @Nullable
-    public Void apply(T actual) {
+    public @Nullable Void apply(T actual) {
       assertThat(actual, equalTo(expected));
       return null;
     }
@@ -1507,8 +1507,7 @@ public class PAssert {
     }
 
     @Override
-    @Nullable
-    public Void apply(T actual) {
+    public @Nullable Void apply(T actual) {
       assertThat(actual, not(equalTo(expected)));
       return null;
     }
@@ -1537,8 +1536,7 @@ public class PAssert {
     }
 
     @Override
-    @Nullable
-    public Void apply(Iterable<T> actual) {
+    public @Nullable Void apply(Iterable<T> actual) {
       assertThat(actual, containsInAnyOrder(expected));
       return null;
     }

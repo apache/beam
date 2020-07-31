@@ -17,13 +17,18 @@
  */
 package org.apache.beam.sdk.tpcds;
 
-import java.io.*;
-import java.util.*;
-
 import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.FileNameUtils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+
+import java.io.File;
+import java.io.FileReader;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.ArrayList;
 
 
 /**

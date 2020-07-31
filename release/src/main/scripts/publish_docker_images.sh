@@ -27,7 +27,7 @@ set -e
 DOCKER_IMAGE_DEFAULT_REPO_ROOT=apache
 DOCKER_IMAGE_DEFAULT_REPO_PREFIX=beam_
 
-PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
+PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7" "python3.8")
 FLINK_VER=("1.8" "1.9" "1.10")
 
 echo "Publish SDK docker images to Docker Hub."
@@ -36,17 +36,17 @@ echo "================Setting Up Environment Variables==========="
 echo "Which release version are you working on: "
 read RELEASE
 
-echo "================Setting Up RC candidate Variables==========="
-echo "From which RC candidate do you create publish docker image? (ex: rc0, rc1) "
-read RC_VERSION
+echo "Which release candidate will be the source of final docker images? (ex: 1)"
+read RC_NUM
+RC_VERSION="rc${RC_NUM}"
 
-echo "================Confirmimg Release and RC version==========="
-echo "We are using ${RC_VERSION} to create docker images for ${RELEASE}."
+echo "================Confirming Release and RC version==========="
+echo "We are using ${RC_VERSION} to push docker images for ${RELEASE}."
 echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
 
-  echo '-------------------Generating and Pushing Python images-----------------'
+  echo '-------------------Tagging and Pushing Python images-----------------'
   for ver in "${PYTHON_VER[@]}"; do
     # Pull varified RC from dockerhub.
     docker pull ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_${RC_VERSION}
@@ -65,7 +65,7 @@ if [[ $confirmation = "y" ]]; then
     docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:latest
   done
 
-  echo '-------------------Generating and Pushing Java images-----------------'
+  echo '-------------------Tagging and Pushing Java images-----------------'
   # Pull varified RC from dockerhub.
   docker pull ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}java_sdk:${RELEASE}_${RC_VERSION}
 
@@ -82,7 +82,7 @@ if [[ $confirmation = "y" ]]; then
   docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}java_sdk:${RELEASE}
   docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}java_sdk:latest
 
-  echo '-------------Generating and Pushing Flink job server images-------------'
+  echo '-------------Tagging and Pushing Flink job server images-------------'
   echo "Publishing images for the following Flink versions:" "${FLINK_VER[@]}"
   echo "Make sure the versions are correct, then press any key to proceed."
   read
@@ -106,7 +106,7 @@ if [[ $confirmation = "y" ]]; then
     docker rmi -f "${FLINK_IMAGE_NAME}:latest"
   done
 
-  echo '-------------Generating and Pushing Spark job server image-------------'
+  echo '-------------Tagging and Pushing Spark job server image-------------'
   SPARK_IMAGE_NAME=${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}spark_job_server
 
   # Pull verified RC from dockerhub.

@@ -42,7 +42,7 @@ public class MetricsAccumulator {
     if (instance == null) {
       synchronized (MetricsAccumulator.class) {
         if (instance == null) {
-          MetricsContainerStepMap metricsContainerStepMap = new MetricsContainerStepMap();
+          MetricsContainerStepMap metricsContainerStepMap = new SparkMetricsContainerStepMap();
           MetricsContainerStepMapAccumulator accumulator =
               new MetricsContainerStepMapAccumulator(metricsContainerStepMap);
           jsc.sc().register(accumulator, ACCUMULATOR_NAME);

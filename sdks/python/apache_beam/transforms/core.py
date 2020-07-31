@@ -25,6 +25,7 @@ import copy
 import inspect
 import logging
 import random
+import sys
 import types
 import typing
 from builtins import map
@@ -99,6 +100,7 @@ __all__ = [
     'CombineGlobally',
     'CombinePerKey',
     'CombineValues',
+    'GroupBy',
     'GroupByKey',
     'Partition',
     'Windowing',
@@ -2276,6 +2278,166 @@ class GroupByKey(PTransform):
 
   def runner_api_requires_keyed_input(self):
     return True
+
+
+def _expr_to_callable(expr, pos):
+  if isinstance(expr, str):
+    return lambda x: getattr(x, expr)
+  elif callable(expr):
+    return expr
+  else:
+    raise TypeError(
+        'Field expression %r at %s must be a callable or a string.' %
+        (expr, pos))
+
+
+class GroupBy(PTransform):
+  """Groups a PCollection by one or more expressions, used to derive the key.
+
+  `GroupBy(expr)` is roughly equivalent to
+
+      beam.Map(lambda v: (expr(v), v)) | beam.GroupByKey()
+
+  but provides several conveniences, e.g.
+
+      * Several arguments may be provided, as positional or keyword arguments,
+        resulting in a tuple-like key. For example `GroupBy(a=expr1, b=expr2)`
+        groups by a key with attributes `a` and `b` computed by applying
+        `expr1` and `expr2` to each element.
+
+      * Strings can be used as a shorthand for accessing an attribute, e.g.
+        `GroupBy('some_field')` is equivalent to
+        `GroupBy(lambda v: getattr(v, 'some_field'))`.
+
+  The GroupBy operation can be made into an aggregating operation by invoking
+  its `aggregate_field` method.
+  """
+  def __init__(
+      self,
+      *fields,  # type: typing.Union[str, callable]
+      **kwargs  # type: typing.Union[str, callable]
+    ):
+    if len(fields) == 1 and not kwargs:
+      self._force_tuple_keys = False
+      name = fields[0] if isinstance(fields[0], str) else 'key'
+      key_fields = [(name, _expr_to_callable(fields[0], 0))]
+    else:
+      self._force_tuple_keys = True
+      key_fields = []
+      for ix, field in enumerate(fields):
+        name = field if isinstance(field, str) else 'key%d' % ix
+        key_fields.append((name, _expr_to_callable(field, ix)))
+      if sys.version_info < (3, 6):
+        # Before PEP 468, these are randomly ordered.
+        # At least provide deterministic behavior here.
+        # pylint: disable=dict-items-not-iterating
+        kwargs_items = sorted(kwargs.items())
+      else:
+        kwargs_items = kwargs.items()  # pylint: disable=dict-items-not-iterating
+      for name, expr in kwargs_items:
+        key_fields.append((name, _expr_to_callable(expr, name)))
+    self._key_fields = key_fields
+    field_names = tuple(name for name, _ in key_fields)
+    self._key_type = lambda *values: _dynamic_named_tuple('Key', field_names)(
+        *values)
+
+  def aggregate_field(
+      self,
+      field,  # type: typing.Union[str, callable]
+      combine_fn,  # type: typing.Union[callable, CombineFn]
+      dest,  # type: str
+    ):
+    """Returns a grouping operation that also aggregates grouped values.
+
+    Args:
+      field: indicates the field to be aggregated
+      combine_fn: indicates the aggregation function to be used
+      dest: indicates the name that will be used for the aggregate in the output
+
+    May be called repeatedly to aggregate multiple fields, e.g.
+
+        GroupBy('key')
+            .aggregate_field('some_attr', sum, 'sum_attr')
+            .aggregate_field(lambda v: ..., MeanCombineFn, 'mean')
+    """
+    return _GroupAndAggregate(self, ()).aggregate_field(field, combine_fn, dest)
+
+  def force_tuple_keys(self, value=True):
+    """Forces the keys to always be tuple-like, even if there is only a single
+    expression.
+    """
+    res = copy.copy(self)
+    res._force_tuple_keys = value
+    return res
+
+  def _key_func(self):
+    if not self._force_tuple_keys and len(self._key_fields) == 1:
+      return self._key_fields[0][1]
+    else:
+      key_type = self._key_type
+      key_exprs = [expr for _, expr in self._key_fields]
+      return lambda element: key_type(*(expr(element) for expr in key_exprs))
+
+  def default_label(self):
+    return 'GroupBy(%s)' % ', '.join(name for name, _ in self._key_fields)
+
+  def expand(self, pcoll):
+    return pcoll | Map(lambda x: (self._key_func()(x), x)) | GroupByKey()
+
+
+_dynamic_named_tuple_cache = {}
+
+
+def _dynamic_named_tuple(type_name, field_names):
+  cache_key = (type_name, field_names)
+  result = _dynamic_named_tuple_cache.get(cache_key)
+  if result is None:
+    import collections
+    result = _dynamic_named_tuple_cache[cache_key] = collections.namedtuple(
+        type_name, field_names)
+    result.__reduce__ = lambda self: (
+        _unpickle_dynamic_named_tuple, (type_name, field_names, tuple(self)))
+  return result
+
+
+def _unpickle_dynamic_named_tuple(type_name, field_names, values):
+  return _dynamic_named_tuple(type_name, field_names)(*values)
+
+
+class _GroupAndAggregate(PTransform):
+  def __init__(self, grouping, aggregations):
+    self._grouping = grouping
+    self._aggregations = aggregations
+
+  def aggregate_field(
+      self,
+      field,  # type: typing.Union[str, callable]
+      combine_fn,  # type: typing.Union[callable, CombineFn]
+      dest,  # type: str
+      ):
+    field = _expr_to_callable(field, 0)
+    return _GroupAndAggregate(
+        self._grouping, list(self._aggregations) + [(field, combine_fn, dest)])
+
+  def expand(self, pcoll):
+    from apache_beam.transforms.combiners import TupleCombineFn
+    key_func = self._grouping.force_tuple_keys(True)._key_func()
+    value_exprs = [expr for expr, _, __ in self._aggregations]
+    value_func = lambda element: [expr(element) for expr in value_exprs]
+    result_fields = tuple(name
+                          for name, _ in self._grouping._key_fields) + tuple(
+                              dest for _, __, dest in self._aggregations)
+
+    return (
+        pcoll
+        | Map(lambda x: (key_func(x), value_func(x)))
+        | CombinePerKey(
+            TupleCombineFn(
+                *[combine_fn for _, combine_fn, __ in self._aggregations]))
+        | MapTuple(
+            lambda key,
+            value: _dynamic_named_tuple('Result', result_fields)
+            (*(key + value))))
 
 
 class Partition(PTransformWithSideInputs):

@@ -20,7 +20,10 @@ package org.apache.beam.sdk.tpcds;
 import static org.junit.Assert.assertEquals;
 import org.junit.Test;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 
 public class TableSchemaJSONLoaderTest {
     @Test

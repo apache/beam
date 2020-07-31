@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
@@ -31,6 +30,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -61,7 +61,7 @@ public class PeriodicSequence
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (this == obj) {
         return true;
       }
@@ -93,8 +93,8 @@ public class PeriodicSequence
   public static class OutputRangeTracker extends RestrictionTracker<OffsetRange, Long>
       implements RestrictionTracker.HasProgress {
     private OffsetRange range;
-    @Nullable private Long lastClaimedOffset = null;
-    @Nullable private Long lastAttemptedOffset = null;
+    private @Nullable Long lastClaimedOffset = null;
+    private @Nullable Long lastAttemptedOffset = null;
 
     public OutputRangeTracker(OffsetRange range) {
       this.range = checkNotNull(range);

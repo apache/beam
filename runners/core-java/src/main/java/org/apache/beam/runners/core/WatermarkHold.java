@@ -19,10 +19,10 @@ package org.apache.beam.runners.core;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -69,7 +70,10 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       StateTags.makeSystemTagInternal(
           StateTags.watermarkStateInternal("extra", TimestampCombiner.EARLIEST));
 
+  // [BEAM-420] Seems likely these should all be transient or this class should not be Serializable
+  @SuppressFBWarnings("SE_BAD_FIELD")
   private final TimerInternals timerInternals;
+
   private final WindowingStrategy<?, W> windowingStrategy;
   private final StateTag<WatermarkHoldState> elementHoldTag;
 
@@ -93,8 +97,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * <p>See https://s.apache.org/beam-lateness for the full design of how late data and watermarks
    * interact.
    */
-  @Nullable
-  public Instant addHolds(ReduceFn<?, ?, ?, W>.ProcessValueContext context) {
+  public @Nullable Instant addHolds(ReduceFn<?, ?, ?, W>.ProcessValueContext context) {
     Instant hold = addElementHold(context.timestamp(), context);
     if (hold == null) {
       hold = addGarbageCollectionHold(context, false /*paneIsEmpty*/);
@@ -146,8 +149,8 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * The hold ensures the pane which incorporates the element is will not be considered late by any
    * downstream computation when it is eventually emitted.
    */
-  @Nullable
-  private Instant addElementHold(Instant timestamp, ReduceFn<?, ?, ?, W>.Context context) {
+  private @Nullable Instant addElementHold(
+      Instant timestamp, ReduceFn<?, ?, ?, W>.Context context) {
     // Give the window function a chance to move the hold timestamp forward to encourage progress.
     // (A later hold implies less impediment to the output watermark making progress, which in
     // turn encourages end-of-window triggers to fire earlier in following computations.)
@@ -209,8 +212,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    *
    * <p>We use {@code paneIsEmpty} to distinguish cases 1 and 2.
    */
-  @Nullable
-  private Instant addGarbageCollectionHold(
+  private @Nullable Instant addGarbageCollectionHold(
       ReduceFn<?, ?, ?, W>.Context context, boolean paneIsEmpty) {
     Instant outputWM = timerInternals.currentOutputWatermarkTime();
     Instant inputWM = timerInternals.currentInputWatermarkTime();
@@ -272,6 +274,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
   }
 
   /** Prefetch watermark holds in preparation for merging. */
+  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT") // just prefetch calls to readLater
   public void prefetchOnMerge(MergingStateAccessor<?, W> context) {
     Map<W, WatermarkHoldState> map = context.accessInEachMergingWindow(elementHoldTag);
     WatermarkHoldState result = context.access(elementHoldTag);
@@ -300,6 +303,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * all of the existing holds. For example, if the new window implies a later watermark hold, then
    * earlier holds may be released.
    */
+  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT") // just prefetch calls to readLater
   public void onMerge(ReduceFn<?, ?, ?, W>.OnMergeContext context) {
     WindowTracing.debug(
         "WatermarkHold.onMerge: for key:{}; window:{}; inputWatermark:{}; " + "outputWatermark:{}",
@@ -364,7 +368,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
   /** Result of {@link #extractAndRelease}. */
   public static class OldAndNewHolds {
     public final Instant oldHold;
-    @Nullable public final Instant newHold;
+    public final @Nullable Instant newHold;
 
     public OldAndNewHolds(Instant oldHold, @Nullable Instant newHold) {
       this.oldHold = oldHold;
@@ -463,8 +467,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
   }
 
   /** Return the current data hold, or null if none. Does not clear. For debugging only. */
-  @Nullable
-  public Instant getDataCurrent(ReduceFn<?, ?, ?, W>.Context context) {
+  public @Nullable Instant getDataCurrent(ReduceFn<?, ?, ?, W>.Context context) {
     return context.state().access(elementHoldTag).read();
   }
 }

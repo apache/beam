@@ -20,31 +20,31 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Javadoc', 'Run Javadoc PostCommit',
-        'Javadoc generation', this) {
+    'Javadoc generation', this) {
 
-    description('PostCommit job that generates aggregated Javadoc')
+      description('PostCommit job that generates aggregated Javadoc')
 
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-    publishers {
+      publishers {
         archiveJavadoc {
-            javadocDir("src/sdks/java/javadoc/build/docs/javadoc")
-            keepAll(false)
+          javadocDir("src/sdks/java/javadoc/build/docs/javadoc")
+          keepAll(false)
         }
         recordIssues {
-            tools {
-                java()
-                javaDoc()
-            }
-            enabledForFailure(true)
+          tools {
+            java()
+            javaDoc()
+          }
+          enabledForFailure(true)
         }
-    }
+      }
 
-    steps {
+      steps {
         gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':sdks:java:javadoc:aggregateJavadoc')
-            commonJobProperties.setGradleSwitches(delegate)
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:java:javadoc:aggregateJavadoc')
+          commonJobProperties.setGradleSwitches(delegate)
         }
+      }
     }
-}

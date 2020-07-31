@@ -314,7 +314,7 @@ public class Combine {
    *     int count = 0;
    *
    *    {@literal @Override}
-   *     public boolean equals(Object other) {
+   *     public boolean equals(@Nullable Object other) {
    *       if (other == null) return false;
    *       if (other == this) return true;
    *       if (!(other instanceof Accum))return false;
@@ -510,8 +510,7 @@ public class Combine {
     public abstract V apply(V left, V right);
 
     /** Returns the value that should be used for the combine of the empty set. */
-    @Nullable
-    public V identity() {
+    public @Nullable V identity() {
       return null;
     }
 
@@ -577,7 +576,7 @@ public class Combine {
    * <p>Used only as a private accumulator class.
    */
   public static class Holder<V> {
-    @Nullable private V value;
+    private @Nullable V value;
     private boolean present;
 
     private Holder() {}
@@ -719,7 +718,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof ToIntegerCodingFunction;
       }
 
@@ -737,7 +736,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof FromIntegerCodingFunction;
       }
 
@@ -816,7 +815,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof ToLongCodingFunction;
       }
 
@@ -834,7 +833,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof FromLongCodingFunction;
       }
 
@@ -915,7 +914,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof ToDoubleCodingFunction;
       }
 
@@ -933,7 +932,7 @@ public class Combine {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         return o instanceof FromDoubleCodingFunction;
       }
 
@@ -1996,8 +1995,8 @@ public class Combine {
      * paths.
      */
     private static class InputOrAccum<InputT, AccumT> {
-      @Nullable public final InputT input;
-      @Nullable public final AccumT accum;
+      public final @Nullable InputT input;
+      public final @Nullable AccumT accum;
 
       private InputOrAccum(@Nullable InputT input, @Nullable AccumT aggr) {
         this.input = input;

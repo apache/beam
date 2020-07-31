@@ -26,6 +26,7 @@ import java.util.Objects;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An implementation of {@code MetricKey} based on a MonitoringInfo's URN and label to represent the
@@ -98,7 +99,7 @@ public class MonitoringInfoMetricName extends MetricName {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     // If the object is compared with itself then return true
     if (o == this) {
       return true;

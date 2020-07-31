@@ -29,7 +29,6 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -49,6 +48,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.http.HttpStatus;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -165,20 +165,16 @@ public final class SnsIO {
   @AutoValue
   public abstract static class Write
       extends PTransform<PCollection<PublishRequest>, PCollectionTuple> {
-    @Nullable
-    abstract String getTopicName();
 
-    @Nullable
-    abstract AwsClientsProvider getAWSClientsProvider();
+    abstract @Nullable String getTopicName();
 
-    @Nullable
-    abstract RetryConfiguration getRetryConfiguration();
+    abstract @Nullable AwsClientsProvider getAWSClientsProvider();
 
-    @Nullable
-    abstract TupleTag<PublishResult> getResultOutputTag();
+    abstract @Nullable RetryConfiguration getRetryConfiguration();
 
-    @Nullable
-    abstract Coder getCoder();
+    abstract @Nullable TupleTag<PublishResult> getResultOutputTag();
+
+    abstract @Nullable Coder getCoder();
 
     abstract Builder builder();
 

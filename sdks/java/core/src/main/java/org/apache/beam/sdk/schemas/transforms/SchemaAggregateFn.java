@@ -21,7 +21,6 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -45,6 +44,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** This is the builder used by {@link Group} to build up a composed {@link CombineFn}. */
 @Experimental(Kind.SCHEMAS)
@@ -69,10 +69,10 @@ class SchemaAggregateFn {
       // The TupleTag identifying this aggregation element in the composed combine fn.
       private final TupleTag<Object> combineTag;
       // The schema corresponding to the the subset of input fields being aggregated.
-      @Nullable private final Schema inputSubSchema;
-      @Nullable private final FieldAccessDescriptor flattenedFieldAccessDescriptor;
+      private final @Nullable Schema inputSubSchema;
+      private final @Nullable FieldAccessDescriptor flattenedFieldAccessDescriptor;
       // The flattened version of inputSubSchema.
-      @Nullable private final Schema flattenedInputSubSchema;
+      private final @Nullable Schema flattenedInputSubSchema;
       // The output schema resulting from the aggregation.
       private final Schema aggregationSchema;
       private final boolean needsFlattening;
@@ -260,7 +260,7 @@ class SchemaAggregateFn {
     private static class ExtractSingleFieldFunction<OutputT> extends SimpleFunction<Row, OutputT> {
       private final RowSelector rowSelector;
       private final boolean extractBaseValue;
-      @Nullable private final RowSelector flatteningSelector;
+      private final @Nullable RowSelector flatteningSelector;
       private final FieldAggregation fieldAggregation;
 
       private ExtractSingleFieldFunction(

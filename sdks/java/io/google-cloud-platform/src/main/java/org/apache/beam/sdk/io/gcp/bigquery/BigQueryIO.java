@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
@@ -50,7 +48,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
@@ -78,6 +75,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSche
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TimePartitioningToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
@@ -124,6 +122,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -457,6 +456,22 @@ import org.slf4j.LoggerFactory;
  * </a> for security and permission related information specific to BigQuery.
  */
 public class BigQueryIO {
+
+  /**
+   * Template for BigQuery jobs created by BigQueryIO. This template is: {@code
+   * "beam_bq_job_{TYPE}_{JOB_ID}_{STEP}_{RANDOM}"}, where:
+   *
+   * <ul>
+   *   <li>{@code TYPE} represents the BigQuery job type (e.g. extract / copy / load / query)
+   *   <li>{@code JOB_ID} is the Beam job name.
+   *   <li>{@code STEP} is a UUID representing the the Dataflow step that created the BQ job.
+   *   <li>{@code RANDOM} is a random string.
+   * </ul>
+   *
+   * <p><b>NOTE:</b> This job name template does not have backwards compatibility guarantees.
+   */
+  public static final String BIGQUERY_JOB_TEMPLATE = "beam_bq_job_{TYPE}_{JOB_ID}_{STEP}_{RANDOM}";
+
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIO.class);
 
   /** Singleton instance of the JSON factory used to read and write JSON formatted rows. */
@@ -614,14 +629,12 @@ public class BigQueryIO {
     ///////////////////////////////////////////////////////////////////
 
     /** Returns the table to read, or {@code null} if reading from a query instead. */
-    @Nullable
-    public ValueProvider<TableReference> getTableProvider() {
+    public @Nullable ValueProvider<TableReference> getTableProvider() {
       return this.inner.getTableProvider();
     }
 
     /** Returns the table to read, or {@code null} if reading from a query instead. */
-    @Nullable
-    public TableReference getTable() {
+    public @Nullable TableReference getTable() {
       return this.inner.getTable();
     }
 
@@ -783,19 +796,15 @@ public class BigQueryIO {
       abstract Builder<T> setFromBeamRowFn(FromBeamRowFunction<T> fromRowFn);
     }
 
-    @Nullable
-    abstract ValueProvider<String> getJsonTableRef();
+    abstract @Nullable ValueProvider<String> getJsonTableRef();
 
-    @Nullable
-    abstract ValueProvider<String> getQuery();
+    abstract @Nullable ValueProvider<String> getQuery();
 
     abstract boolean getValidate();
 
-    @Nullable
-    abstract Boolean getFlattenResults();
+    abstract @Nullable Boolean getFlattenResults();
 
-    @Nullable
-    abstract Boolean getUseLegacySql();
+    abstract @Nullable Boolean getUseLegacySql();
 
     abstract Boolean getWithTemplateCompatibility();
 
@@ -803,34 +812,26 @@ public class BigQueryIO {
 
     abstract SerializableFunction<SchemaAndRecord, T> getParseFn();
 
-    @Nullable
-    abstract QueryPriority getQueryPriority();
+    abstract @Nullable QueryPriority getQueryPriority();
 
-    @Nullable
-    abstract String getQueryLocation();
+    abstract @Nullable String getQueryLocation();
 
-    @Nullable
-    abstract String getQueryTempDataset();
+    abstract @Nullable String getQueryTempDataset();
 
     abstract Method getMethod();
 
     /** @deprecated Use {@link #getSelectedFields()} and {@link #getRowRestriction()} instead. */
     @Deprecated
     @Experimental(Kind.SOURCE_SINK)
-    @Nullable
-    abstract TableReadOptions getReadOptions();
+    abstract @Nullable TableReadOptions getReadOptions();
 
-    @Nullable
-    abstract ValueProvider<List<String>> getSelectedFields();
+    abstract @Nullable ValueProvider<List<String>> getSelectedFields();
 
-    @Nullable
-    abstract ValueProvider<String> getRowRestriction();
+    abstract @Nullable ValueProvider<String> getRowRestriction();
 
-    @Nullable
-    abstract Coder<T> getCoder();
+    abstract @Nullable Coder<T> getCoder();
 
-    @Nullable
-    abstract String getKmsKey();
+    abstract @Nullable String getKmsKey();
 
     @Nullable
     @Experimental(Kind.SCHEMAS)
@@ -1167,7 +1168,9 @@ public class BigQueryIO {
               JobReference jobRef =
                   new JobReference()
                       .setProjectId(executingProject)
-                      .setJobId(getExtractJobId(createJobIdToken(bqOptions.getJobName(), jobUuid)));
+                      .setJobId(
+                          BigQueryResourceNaming.createJobIdPrefix(
+                              bqOptions.getJobName(), jobUuid, JobType.EXPORT));
 
               Job extractJob = getBigQueryServices().getJobService(bqOptions).getJob(jobRef);
 
@@ -1376,7 +1379,8 @@ public class BigQueryIO {
               TableReference tempTable =
                   createTempTableReference(
                       options.getProject(),
-                      createJobIdToken(options.getJobName(), jobUuid),
+                      BigQueryResourceNaming.createJobIdPrefix(
+                          options.getJobName(), jobUuid, JobType.QUERY),
                       queryTempDataset);
 
               DatasetService datasetService = getBigQueryServices().getDatasetService(options);
@@ -1430,16 +1434,14 @@ public class BigQueryIO {
     }
 
     /** See {@link Read#getTableProvider()}. */
-    @Nullable
-    public ValueProvider<TableReference> getTableProvider() {
+    public @Nullable ValueProvider<TableReference> getTableProvider() {
       return getJsonTableRef() == null
           ? null
           : NestedValueProvider.of(getJsonTableRef(), new JsonTableRefToTableRef());
     }
 
     /** See {@link Read#getTable()}. */
-    @Nullable
-    public TableReference getTable() {
+    public @Nullable TableReference getTable() {
       ValueProvider<TableReference> provider = getTableProvider();
       return provider == null ? null : provider.get();
     }
@@ -1747,37 +1749,29 @@ public class BigQueryIO {
       STREAMING_INSERTS
     }
 
-    @Nullable
-    abstract ValueProvider<String> getJsonTableRef();
+    abstract @Nullable ValueProvider<String> getJsonTableRef();
 
-    @Nullable
-    abstract SerializableFunction<ValueInSingleWindow<T>, TableDestination> getTableFunction();
+    abstract @Nullable SerializableFunction<ValueInSingleWindow<T>, TableDestination>
+        getTableFunction();
 
-    @Nullable
-    abstract SerializableFunction<T, TableRow> getFormatFunction();
+    abstract @Nullable SerializableFunction<T, TableRow> getFormatFunction();
 
-    @Nullable
-    abstract RowWriterFactory.AvroRowWriterFactory<T, ?, ?> getAvroRowWriterFactory();
+    abstract RowWriterFactory.@Nullable AvroRowWriterFactory<T, ?, ?> getAvroRowWriterFactory();
 
-    @Nullable
-    abstract SerializableFunction<TableSchema, org.apache.avro.Schema> getAvroSchemaFactory();
+    abstract @Nullable SerializableFunction<TableSchema, org.apache.avro.Schema>
+        getAvroSchemaFactory();
 
     abstract boolean getUseAvroLogicalTypes();
 
-    @Nullable
-    abstract DynamicDestinations<T, ?> getDynamicDestinations();
+    abstract @Nullable DynamicDestinations<T, ?> getDynamicDestinations();
 
-    @Nullable
-    abstract PCollectionView<Map<String, String>> getSchemaFromView();
+    abstract @Nullable PCollectionView<Map<String, String>> getSchemaFromView();
 
-    @Nullable
-    abstract ValueProvider<String> getJsonSchema();
+    abstract @Nullable ValueProvider<String> getJsonSchema();
 
-    @Nullable
-    abstract ValueProvider<String> getJsonTimePartitioning();
+    abstract @Nullable ValueProvider<String> getJsonTimePartitioning();
 
-    @Nullable
-    abstract Clustering getClustering();
+    abstract @Nullable Clustering getClustering();
 
     abstract CreateDisposition getCreateDisposition();
 
@@ -1785,18 +1779,15 @@ public class BigQueryIO {
 
     abstract Set<SchemaUpdateOption> getSchemaUpdateOptions();
     /** Table description. Default is empty. */
-    @Nullable
-    abstract String getTableDescription();
+    abstract @Nullable String getTableDescription();
     /** An option to indicate if table validation is desired. Default is true. */
     abstract boolean getValidate();
 
     abstract BigQueryServices getBigQueryServices();
 
-    @Nullable
-    abstract Integer getMaxFilesPerBundle();
+    abstract @Nullable Integer getMaxFilesPerBundle();
 
-    @Nullable
-    abstract Long getMaxFileSize();
+    abstract @Nullable Long getMaxFileSize();
 
     abstract int getNumFileShards();
 
@@ -1804,19 +1795,15 @@ public class BigQueryIO {
 
     abstract long getMaxBytesPerPartition();
 
-    @Nullable
-    abstract Duration getTriggeringFrequency();
+    abstract @Nullable Duration getTriggeringFrequency();
 
     abstract Method getMethod();
 
-    @Nullable
-    abstract ValueProvider<String> getLoadJobProjectId();
+    abstract @Nullable ValueProvider<String> getLoadJobProjectId();
 
-    @Nullable
-    abstract InsertRetryPolicy getFailedInsertRetryPolicy();
+    abstract @Nullable InsertRetryPolicy getFailedInsertRetryPolicy();
 
-    @Nullable
-    abstract ValueProvider<String> getCustomGcsTempLocation();
+    abstract @Nullable ValueProvider<String> getCustomGcsTempLocation();
 
     abstract boolean getExtendedErrorInfo();
 
@@ -1826,8 +1813,7 @@ public class BigQueryIO {
 
     abstract Boolean getIgnoreInsertIds();
 
-    @Nullable
-    abstract String getKmsKey();
+    abstract @Nullable String getKmsKey();
 
     abstract Boolean getOptimizeWrites();
 
@@ -2832,8 +2818,7 @@ public class BigQueryIO {
     }
 
     /** Returns the table reference, or {@code null}. */
-    @Nullable
-    public ValueProvider<TableReference> getTable() {
+    public @Nullable ValueProvider<TableReference> getTable() {
       return getJsonTableRef() == null
           ? null
           : NestedValueProvider.of(getJsonTableRef(), new JsonTableRefToTableRef());

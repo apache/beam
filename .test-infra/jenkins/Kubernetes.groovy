@@ -48,7 +48,7 @@ class Kubernetes {
    * @param cluster - name of the cluster to get credentials for
    */
   static Kubernetes create(job, String kubeconfigLocation, String namespace = '',
-                           String cluster = DEFAULT_CLUSTER) {
+      String cluster = DEFAULT_CLUSTER) {
     Kubernetes kubernetes = new Kubernetes(job, kubeconfigLocation, namespace, cluster)
     setupKubeconfig()
     setupNamespace()

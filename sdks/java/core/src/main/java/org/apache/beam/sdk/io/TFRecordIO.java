@@ -27,7 +27,6 @@ import java.nio.ByteOrder;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -48,6 +47,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link PTransform}s for reading and writing TensorFlow TFRecord files.
@@ -108,8 +108,8 @@ public class TFRecordIO {
   /** Implementation of {@link #read}. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<byte[]>> {
-    @Nullable
-    abstract ValueProvider<String> getFilepattern();
+
+    abstract @Nullable ValueProvider<String> getFilepattern();
 
     abstract boolean getValidate();
 
@@ -256,19 +256,16 @@ public class TFRecordIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
     /** The directory to which files will be written. */
-    @Nullable
-    abstract ValueProvider<ResourceId> getOutputPrefix();
+    abstract @Nullable ValueProvider<ResourceId> getOutputPrefix();
 
     /** The suffix of each file written, combined with prefix and shardTemplate. */
-    @Nullable
-    abstract String getFilenameSuffix();
+    abstract @Nullable String getFilenameSuffix();
 
     /** Requested number of shards. 0 for automatic. */
     abstract int getNumShards();
 
     /** The shard template of each file written, combined with prefix and suffix. */
-    @Nullable
-    abstract String getShardTemplate();
+    abstract @Nullable String getShardTemplate();
 
     /** Option to indicate the output sink's compression type. Default is NONE. */
     abstract Compression getCompression();
@@ -431,8 +428,8 @@ public class TFRecordIO {
 
   /** A {@link FileIO.Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}. */
   public static class Sink implements FileIO.Sink<byte[]> {
-    @Nullable private transient WritableByteChannel channel;
-    @Nullable private transient TFRecordCodec codec;
+    private transient @Nullable WritableByteChannel channel;
+    private transient @Nullable TFRecordCodec codec;
 
     @Override
     public void open(WritableByteChannel channel) throws IOException {
@@ -529,7 +526,7 @@ public class TFRecordIO {
       private long startOfRecord;
       private volatile long startOfNextRecord;
       private volatile boolean elementIsPresent;
-      private @Nullable byte[] currentValue;
+      private byte @Nullable [] currentValue;
       private @Nullable ReadableByteChannel inChannel;
       private @Nullable TFRecordCodec codec;
 
@@ -668,7 +665,7 @@ public class TFRecordIO {
       return HEADER_LEN + data.length + FOOTER_LEN;
     }
 
-    public @Nullable byte[] read(ReadableByteChannel inChannel) throws IOException {
+    public byte @Nullable [] read(ReadableByteChannel inChannel) throws IOException {
       header.clear();
       int headerBytes = read(inChannel, header);
       if (headerBytes == 0) {

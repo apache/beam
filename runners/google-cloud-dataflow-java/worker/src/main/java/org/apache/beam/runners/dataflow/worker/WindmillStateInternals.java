@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -62,6 +61,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Implementation of {@link StateInternals} using Windmill to manage the underlying data. */
@@ -71,16 +71,15 @@ class WindmillStateInternals<K> implements StateInternals {
    * The key will be null when not in a keyed context, from the users perspective. There is still a
    * "key" for the Windmill computation, but it cannot be meaningfully deserialized.
    */
-  @Nullable private final K key;
+  private final @Nullable K key;
 
   @Override
-  @Nullable
-  public K getKey() {
+  public @Nullable K getKey() {
     return key;
   }
 
   private static class CachingStateTable<K> extends StateTable {
-    @Nullable private final K key;
+    private final @Nullable K key;
     private final String stateFamily;
     private final WindmillStateReader reader;
     private final WindmillStateCache.ForKey cache;

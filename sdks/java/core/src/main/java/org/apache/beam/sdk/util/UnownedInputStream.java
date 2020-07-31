@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link OutputStream} wrapper which protects against the user attempting to modify the
@@ -41,7 +42,7 @@ public class UnownedInputStream extends FilterInputStream {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     return obj instanceof UnownedInputStream && ((UnownedInputStream) obj).in.equals(in);
   }
 

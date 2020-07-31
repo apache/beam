@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Destination;
@@ -53,6 +52,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -175,31 +175,23 @@ public class JmsIO {
      *
      * <p>So, a {@link ConnectionFactory} implementation is serializable.
      */
-    @Nullable
-    abstract ConnectionFactory getConnectionFactory();
+    abstract @Nullable ConnectionFactory getConnectionFactory();
 
-    @Nullable
-    abstract String getQueue();
+    abstract @Nullable String getQueue();
 
-    @Nullable
-    abstract String getTopic();
+    abstract @Nullable String getTopic();
 
-    @Nullable
-    abstract String getUsername();
+    abstract @Nullable String getUsername();
 
-    @Nullable
-    abstract String getPassword();
+    abstract @Nullable String getPassword();
 
     abstract long getMaxNumRecords();
 
-    @Nullable
-    abstract Duration getMaxReadTime();
+    abstract @Nullable Duration getMaxReadTime();
 
-    @Nullable
-    abstract MessageMapper<T> getMessageMapper();
+    abstract @Nullable MessageMapper<T> getMessageMapper();
 
-    @Nullable
-    abstract Coder<T> getCoder();
+    abstract @Nullable Coder<T> getCoder();
 
     abstract Builder<T> builder();
 
@@ -583,20 +575,15 @@ public class JmsIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<String>, PDone> {
 
-    @Nullable
-    abstract ConnectionFactory getConnectionFactory();
+    abstract @Nullable ConnectionFactory getConnectionFactory();
 
-    @Nullable
-    abstract String getQueue();
+    abstract @Nullable String getQueue();
 
-    @Nullable
-    abstract String getTopic();
+    abstract @Nullable String getTopic();
 
-    @Nullable
-    abstract String getUsername();
+    abstract @Nullable String getUsername();
 
-    @Nullable
-    abstract String getPassword();
+    abstract @Nullable String getPassword();
 
     abstract Builder builder();
 

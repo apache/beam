@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -79,6 +78,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnels;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
@@ -175,7 +175,7 @@ public class Watch {
     public static final class PollResult<OutputT> {
       private final List<TimestampedValue<OutputT>> outputs;
       // null means unspecified (infer automatically).
-      @Nullable private final Instant watermark;
+      private final @Nullable Instant watermark;
 
       private PollResult(List<TimestampedValue<OutputT>> outputs, @Nullable Instant watermark) {
         this.outputs = outputs;
@@ -259,7 +259,7 @@ public class Watch {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         if (this == o) {
           return true;
         }
@@ -612,20 +612,15 @@ public class Watch {
 
     abstract Contextful<PollFn<InputT, OutputT>> getPollFn();
 
-    @Nullable
-    abstract SerializableFunction<OutputT, KeyT> getOutputKeyFn();
+    abstract @Nullable SerializableFunction<OutputT, KeyT> getOutputKeyFn();
 
-    @Nullable
-    abstract Coder<KeyT> getOutputKeyCoder();
+    abstract @Nullable Coder<KeyT> getOutputKeyCoder();
 
-    @Nullable
-    abstract Duration getPollInterval();
+    abstract @Nullable Duration getPollInterval();
 
-    @Nullable
-    abstract TerminationCondition<InputT, ?> getTerminationPerInput();
+    abstract @Nullable TerminationCondition<InputT, ?> getTerminationPerInput();
 
-    @Nullable
-    abstract Coder<OutputT> getOutputCoder();
+    abstract @Nullable Coder<OutputT> getOutputCoder();
 
     abstract Builder<InputT, OutputT, KeyT> toBuilder();
 
@@ -1016,8 +1011,7 @@ public class Watch {
     // in case of pipeline update. TODO: do this.
     public abstract ImmutableMap<HashCode, Instant> getCompleted();
 
-    @Nullable
-    public abstract Instant getPollWatermark();
+    public abstract @Nullable Instant getPollWatermark();
 
     public abstract TerminationStateT getTerminationState();
   }
@@ -1033,9 +1027,9 @@ public class Watch {
     private final Funnel<OutputT> coderFunnel;
 
     // non-null after first successful tryClaim()
-    @Nullable private Growth.PollResult<OutputT> claimedPollResult;
-    @Nullable private TerminationStateT claimedTerminationState;
-    @Nullable private ImmutableMap<HashCode, Instant> claimedHashes;
+    private Growth.@Nullable PollResult<OutputT> claimedPollResult;
+    private @Nullable TerminationStateT claimedTerminationState;
+    private @Nullable ImmutableMap<HashCode, Instant> claimedHashes;
 
     // The restriction describing the entire work to be done by the current ProcessElement call.
     private GrowthState state;

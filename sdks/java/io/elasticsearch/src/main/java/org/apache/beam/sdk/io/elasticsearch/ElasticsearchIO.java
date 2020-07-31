@@ -46,7 +46,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -82,6 +81,7 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.entity.NStringEntity;
 import org.apache.http.ssl.SSLContexts;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
@@ -234,27 +234,21 @@ public class ElasticsearchIO {
 
     public abstract List<String> getAddresses();
 
-    @Nullable
-    public abstract String getUsername();
+    public abstract @Nullable String getUsername();
 
-    @Nullable
-    public abstract String getPassword();
+    public abstract @Nullable String getPassword();
 
-    @Nullable
-    public abstract String getKeystorePath();
+    public abstract @Nullable String getKeystorePath();
 
-    @Nullable
-    public abstract String getKeystorePassword();
+    public abstract @Nullable String getKeystorePassword();
 
     public abstract String getIndex();
 
     public abstract String getType();
 
-    @Nullable
-    public abstract Integer getSocketTimeout();
+    public abstract @Nullable Integer getSocketTimeout();
 
-    @Nullable
-    public abstract Integer getConnectTimeout();
+    public abstract @Nullable Integer getConnectTimeout();
 
     public abstract boolean isTrustSelfSignedCerts();
 
@@ -470,11 +464,9 @@ public class ElasticsearchIO {
 
     private static final long MAX_BATCH_SIZE = 10000L;
 
-    @Nullable
-    abstract ConnectionConfiguration getConnectionConfiguration();
+    abstract @Nullable ConnectionConfiguration getConnectionConfiguration();
 
-    @Nullable
-    abstract ValueProvider<String> getQuery();
+    abstract @Nullable ValueProvider<String> getQuery();
 
     abstract boolean isWithMetadata();
 
@@ -608,10 +600,10 @@ public class ElasticsearchIO {
 
     private final Read spec;
     // shardPreference is the shard id where the source will read the documents
-    @Nullable private final String shardPreference;
-    @Nullable private final Integer numSlices;
-    @Nullable private final Integer sliceId;
-    @Nullable private Long estimatedByteSize;
+    private final @Nullable String shardPreference;
+    private final @Nullable Integer numSlices;
+    private final @Nullable Integer sliceId;
+    private @Nullable Long estimatedByteSize;
 
     // constructor used in split() when we know the backend version
     private BoundedElasticsearchSource(
@@ -1047,24 +1039,19 @@ public class ElasticsearchIO {
      */
     public interface FieldValueExtractFn extends SerializableFunction<JsonNode, String> {}
 
-    @Nullable
-    abstract ConnectionConfiguration getConnectionConfiguration();
+    abstract @Nullable ConnectionConfiguration getConnectionConfiguration();
 
     abstract long getMaxBatchSize();
 
     abstract long getMaxBatchSizeBytes();
 
-    @Nullable
-    abstract FieldValueExtractFn getIdFn();
+    abstract @Nullable FieldValueExtractFn getIdFn();
 
-    @Nullable
-    abstract FieldValueExtractFn getIndexFn();
+    abstract @Nullable FieldValueExtractFn getIndexFn();
 
-    @Nullable
-    abstract FieldValueExtractFn getTypeFn();
+    abstract @Nullable FieldValueExtractFn getTypeFn();
 
-    @Nullable
-    abstract RetryConfiguration getRetryConfiguration();
+    abstract @Nullable RetryConfiguration getRetryConfiguration();
 
     abstract boolean getUsePartialUpdate();
 

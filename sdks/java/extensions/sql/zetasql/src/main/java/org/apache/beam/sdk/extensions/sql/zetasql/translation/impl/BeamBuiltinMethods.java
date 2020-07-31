@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.translation.impl;
 
 import java.lang.reflect.Method;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Types;
 
 /** BeamBuiltinMethods. */
+@Internal
 public class BeamBuiltinMethods {
   public static final Method STARTS_WITH_METHOD =
       Types.lookupMethod(StringFunctions.class, "startsWith", String.class, String.class);

@@ -89,6 +89,7 @@ include ":sdks:java:harness"
 include ":sdks:java:io:amazon-web-services"
 include ":sdks:java:io:amazon-web-services2"
 include ":sdks:java:io:amqp"
+include ":sdks:java:io:azure"
 include ":sdks:java:io:cassandra"
 include ":sdks:java:io:clickhouse"
 include ":sdks:java:io:common"
@@ -176,4 +177,6 @@ include "beam-test-infra-metrics"
 project(":beam-test-infra-metrics").dir = file(".test-infra/metrics")
 include "beam-test-tools"
 project(":beam-test-tools").dir = file(".test-infra/tools")
+include "beam-test-jenkins"
+project(":beam-test-jenkins").dir = file(".test-infra/jenkins")
 include ":sdks:java:testing:tpcds"
