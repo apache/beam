@@ -143,17 +143,17 @@ class DicomSearch(PTransform):
       params: A dict of str:str pairs used to refine QIDO search. (Optional)
       Supported tags in three categories:
       1.Studies:
-      StudyInstanceUID,
-      PatientName,
-      PatientID,
-      AccessionNumber,
-      ReferringPhysicianName,
-      StudyDate,
+      * StudyInstanceUID,
+      * PatientName,
+      * PatientID,
+      * AccessionNumber,
+      * ReferringPhysicianName,
+      * StudyDate,
       2.Series: all study level search terms and
-      SeriesInstanceUID,
-      Modality,
+      * SeriesInstanceUID,
+      * Modality,
       3.Instances: all study/series level search terms and
-      SOPInstanceUID,
+      * SOPInstanceUID,
 
       e.g. {"StudyInstanceUID":"1","SeriesInstanceUID":"2"}
 
@@ -167,7 +167,8 @@ class DicomSearch(PTransform):
     }
 
   """
-  def __init__(self, buffer_size=8, max_workers=5, credential=None):
+  def __init__(
+      self, buffer_size=8, max_workers=5, client=None, credential=None):
     """Initializes DicomSearch.
     Args:
       credential: # type: Google credential object, if it is specified, the
@@ -175,25 +176,31 @@ class DicomSearch(PTransform):
     """
     self.buffer_size = buffer_size
     self.max_workers = max_workers
+    if not client:
+      self.client = DicomApiHttpClient()
+    else:
+      self.client = client
     self.credential = credential
 
   def expand(self, pcoll):
     return pcoll | beam.ParDo(
-        _QidoSource(self.buffer_size, self.max_workers, self.credential))
+        _QuidoReadFn(
+            self.buffer_size, self.max_workers, self.client, self.credential))
 
 
-class _QidoSource(beam.DoFn):
+class _QuidoReadFn(beam.DoFn):
   """A DoFn for executing every qido query request."""
-  def __init__(self, buffer_size, max_workers, credential=None):
+  def __init__(self, buffer_size, max_workers, client, credential=None):
     self.buffer_size = buffer_size
     self.max_workers = max_workers
+    self.client = client
     self.credential = credential
 
   def start_bundle(self):
     self.buffer = []
 
   def finish_bundle(self):
-    return self._flush()
+    yield from self._flush()
 
   def validate_element(self, element):
     # Check if all required keys present.
@@ -215,14 +222,18 @@ class _QidoSource(beam.DoFn):
           '"instances" or "series"')
       return False, error_message
 
-  def process(self, element, window=beam.DoFn.WindowParam):
+  def process(
+      self,
+      element,
+      window=beam.DoFn.WindowParam,
+      timestamp=beam.DoFn.TimestampParam):
     # Check if the element is valid
     valid, error_message = self.validate_element(element)
 
     if valid:
-      self.buffer.append((element, window))
+      self.buffer.append((element, window, timestamp))
       if len(self.buffer) >= self.buffer_size:
-        self._flush()
+        yield from self._flush()
     else:
       # Return this when the input dict dose not meet the requirements
       out = {}
@@ -242,7 +253,7 @@ class _QidoSource(beam.DoFn):
     params = element['params'] if 'params' in element else None
 
     # Call qido search http client
-    result, status_code = DicomApiHttpClient().qido_search(
+    result, status_code = self.client.qido_search(
       project_id, region, dataset_id, dicom_store_id,
       search_type, params, self.credential
     )
@@ -258,8 +269,9 @@ class _QidoSource(beam.DoFn):
     # Thread job runner - each thread makes a Qido search request
     value = self.make_request(buffer_element[0])
     windows = [buffer_element[1]]
+    timestamp = buffer_element[2]
     return beam.utils.windowed_value.WindowedValue(
-        value=value, timestamp=0, windows=windows)
+        value=value, timestamp=timestamp, windows=windows)
 
   def _flush(self):
     # Create thread pool executor and process the buffered elements in paralllel
@@ -399,6 +411,7 @@ class WriteToDicomStore(PTransform):
       input_type,
       buffer_size=8,
       max_workers=5,
+      client=None,
       credential=None):
     """Initializes WriteToDicomStore.
     Args:
@@ -411,10 +424,10 @@ class WriteToDicomStore(PTransform):
       }
 
       Key-value pairs:
-      project_id: Id of the project in which DICOM store locates. (Required)
-      region: Region where the DICOM store resides. (Required)
-      dataset_id: Id of the dataset where DICOM store belongs to. (Required)
-      dicom_store_id: Id of the dicom store. (Required)
+      * project_id: Id of the project in which DICOM store locates. (Required)
+      * region: Region where the DICOM store resides. (Required)
+      * dataset_id: Id of the dataset where DICOM store belongs to. (Required)
+      * dicom_store_id: Id of the dicom store. (Required)
 
       input_type: # type: string, could only be 'bytes' or 'fileio'
       credential: # type: Google credential object, if it is specified, the
@@ -427,6 +440,7 @@ class WriteToDicomStore(PTransform):
     self.input_type = input_type
     self.buffer_size = buffer_size
     self.max_workers = max_workers
+    self.client = client
     self.credential = credential
 
   def expand(self, pcoll):
@@ -436,6 +450,7 @@ class WriteToDicomStore(PTransform):
             self.input_type,
             self.buffer_size,
             self.max_workers,
+            self.client,
             self.credential))
 
 
@@ -447,6 +462,7 @@ class _StoreInstance(beam.DoFn):
       input_type,
       buffer_size,
       max_workers,
+      client,
       credential=None):
     # pre-check destination dict
     required_keys = ['project_id', 'region', 'dataset_id', 'dicom_store_id']
@@ -457,18 +473,23 @@ class _StoreInstance(beam.DoFn):
     self.input_type = input_type
     self.buffer_size = buffer_size
     self.max_workers = max_workers
+    self.client = client
     self.credential = credential
 
   def start_bundle(self):
     self.buffer = []
 
   def finish_bundle(self):
-    return self._flush()
+    yield from self._flush()
 
-  def process(self, element, window=beam.DoFn.WindowParam):
-    self.buffer.append((element, window))
+  def process(
+      self,
+      element,
+      window=beam.DoFn.WindowParam,
+      timestamp=beam.DoFn.TimestampParam):
+    self.buffer.append((element, window, timestamp))
     if len(self.buffer) >= self.buffer_size:
-      self._flush()
+      yield from self._flush()
 
   def make_request(self, dicom_file):
     # Send file to DICOM store and records the results.
@@ -478,10 +499,16 @@ class _StoreInstance(beam.DoFn):
     dicom_store_id = self.destination_dict['dicom_store_id']
 
     # Feed the dicom file into store client
-    _, status_code = DicomApiHttpClient().dicomweb_store_instance(
-      project_id, region, dataset_id, dicom_store_id, dicom_file,
-      self.credential
-    )
+    if self.client:
+      _, status_code = self.client.dicomweb_store_instance(
+        project_id, region, dataset_id, dicom_store_id, dicom_file,
+        self.credential
+      )
+    else:
+      _, status_code = DicomApiHttpClient().dicomweb_store_instance(
+        project_id, region, dataset_id, dicom_store_id, dicom_file,
+        self.credential
+      )
 
     out = {}
     out['status'] = status_code
@@ -509,13 +536,14 @@ class _StoreInstance(beam.DoFn):
     # Thread job runner - each thread stores a DICOM file
     success, read_result = self.read_dicom_file(buffer_element[0])
     windows = [buffer_element[1]]
+    timestamp = buffer_element[2]
     value = None
     if success:
       value = self.make_request(read_result)
     else:
       value = read_result
     return beam.utils.windowed_value.WindowedValue(
-        value=value, timestamp=0, windows=windows)
+        value=value, timestamp=timestamp, windows=windows)
 
   def _flush(self):
     # Create thread pool executor and process the buffered elements in paralllel

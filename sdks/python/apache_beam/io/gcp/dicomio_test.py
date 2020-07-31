@@ -183,6 +183,28 @@ class TestDicomSearch(unittest.TestCase):
       assert_that(results, equal_to([expected_dict]))
 
   @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  def test_Qido_search_small_buffer_flush(self, FakeClient):
+    input_dict = {}
+    input_dict['project_id'] = "test_project"
+    input_dict['region'] = "test_region"
+    input_dict['dataset_id'] = "test_dataset_id"
+    input_dict['dicom_store_id'] = "test_dicom_store_id"
+    input_dict['search_type'] = "instances"
+
+    fc = FakeHttpClient()
+    FakeClient.return_value = fc
+
+    expected_dict = {}
+    expected_dict['result'] = fc.dicom_metadata
+    expected_dict['status'] = 200
+    expected_dict['input'] = input_dict
+    expected_dict['success'] = True
+
+    with TestPipeline() as p:
+      results = (p | beam.Create([input_dict] * 5) | DicomSearch(buffer_size=1))
+      assert_that(results, equal_to([expected_dict] * 5))
+
+  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
   def test_param_dict_passing(self, FakeClient):
     input_dict = {}
     input_dict = {}
@@ -295,6 +317,39 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
     self.assertTrue(dict_input in fc.dicom_metadata)
 
   @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  def test_store_byte_file_small_buffer_flush(self, FakeClient):
+    input_dict = {}
+    input_dict['project_id'] = "test_project"
+    input_dict['region'] = "test_region"
+    input_dict['dataset_id'] = "test_dataset_id"
+    input_dict['dicom_store_id'] = "test_dicom_store_id"
+
+    fc = FakeHttpClient()
+    FakeClient.return_value = fc
+
+    dict_input_1 = {
+        'PatientName': 'George', 'Age': 23, 'TestResult': 'Negative'
+    }
+    str_input_1 = json.dumps(dict_input_1)
+    bytes_input_1 = bytes(str_input_1.encode("utf-8"))
+    dict_input_2 = {'PatientName': 'Peter', 'Age': 54, 'TestResult': 'Positive'}
+    str_input_2 = json.dumps(dict_input_2)
+    bytes_input_2 = bytes(str_input_2.encode("utf-8"))
+    dict_input_3 = {'PatientName': 'Zen', 'Age': 27, 'TestResult': 'Negative'}
+    str_input_3 = json.dumps(dict_input_3)
+    bytes_input_3 = bytes(str_input_3.encode("utf-8"))
+    with TestPipeline() as p:
+      results = (
+          p
+          | beam.Create([bytes_input_1, bytes_input_2, bytes_input_3])
+          | WriteToDicomStore(input_dict, 'bytes', buffer_size=1)
+          | beam.Map(lambda x: x['success']))
+      assert_that(results, equal_to([True] * 3))
+    self.assertTrue(dict_input_1 in fc.dicom_metadata)
+    self.assertTrue(dict_input_2 in fc.dicom_metadata)
+    self.assertTrue(dict_input_3 in fc.dicom_metadata)
+
+  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
   def test_store_fileio_file(self, FakeClient):
     input_dict = {}
     input_dict['project_id'] = "test_project"
@@ -320,6 +375,43 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
           | beam.Map(lambda x: x['success']))
       assert_that(results, equal_to([True]))
     self.assertTrue(dict_input in fc.dicom_metadata)
+
+  @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
+  def test_store_fileio_file_small_buffer_flush(self, FakeClient):
+    input_dict = {}
+    input_dict['project_id'] = "test_project"
+    input_dict['region'] = "test_region"
+    input_dict['dataset_id'] = "test_dataset_id"
+    input_dict['dicom_store_id'] = "test_dicom_store_id"
+
+    fc = FakeHttpClient()
+    FakeClient.return_value = fc
+
+    temp_dir = '%s%s' % (self._new_tempdir(), os.sep)
+    dict_input_1 = {
+        'PatientName': 'George', 'Age': 23, 'TestResult': 'Negative'
+    }
+    str_input_1 = json.dumps(dict_input_1)
+    self._create_temp_file(dir=temp_dir, content=str_input_1)
+    dict_input_2 = {'PatientName': 'Peter', 'Age': 54, 'TestResult': 'Positive'}
+    str_input_2 = json.dumps(dict_input_2)
+    self._create_temp_file(dir=temp_dir, content=str_input_2)
+    dict_input_3 = {'PatientName': 'Zen', 'Age': 27, 'TestResult': 'Negative'}
+    str_input_3 = json.dumps(dict_input_3)
+    self._create_temp_file(dir=temp_dir, content=str_input_3)
+
+    with TestPipeline() as p:
+      results = (
+          p
+          | beam.Create([FileSystems.join(temp_dir, '*')])
+          | fileio.MatchAll()
+          | fileio.ReadMatches()
+          | WriteToDicomStore(input_dict, 'fileio', buffer_size=1)
+          | beam.Map(lambda x: x['success']))
+      assert_that(results, equal_to([True] * 3))
+    self.assertTrue(dict_input_1 in fc.dicom_metadata)
+    self.assertTrue(dict_input_2 in fc.dicom_metadata)
+    self.assertTrue(dict_input_3 in fc.dicom_metadata)
 
   @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
   def test_destination_notfound(self, FakeClient):
