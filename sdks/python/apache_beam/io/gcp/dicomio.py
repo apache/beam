@@ -528,7 +528,6 @@ class _StoreInstance(beam.DoFn):
 
     out = {}
     out['status'] = status_code
-    out['input'] = None if status_code == 200 else dicom_file
     out['success'] = (status_code == 200)
     return out
 
@@ -538,13 +537,14 @@ class _StoreInstance(beam.DoFn):
     try:
       if self.input_type == 'fileio':
         f = buffer_element.open()
-        return True, f.read()
+        data = f.read()
+        f.close()
+        return True, data
       else:
         return True, buffer_element
     except Exception as error_message:
       error_out = {}
       error_out['status'] = error_message
-      error_out['input'] = buffer_element
       error_out['success'] = False
       return False, error_out
 
@@ -558,6 +558,9 @@ class _StoreInstance(beam.DoFn):
       value = self.make_request(read_result)
     else:
       value = read_result
+    # save the undeliverable data
+    if not value['success']:
+      value['input'] = buffer_element[0]
     return beam.utils.windowed_value.WindowedValue(
         value=value, timestamp=timestamp, windows=windows)
 
