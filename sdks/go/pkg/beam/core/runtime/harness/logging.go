@@ -143,7 +143,7 @@ func (w *remoteWriter) connect(ctx context.Context) error {
 		recordLogEntries(list)
 
 		if err := client.Send(list); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to send message: %v\n%v", err, msg)
+			fmt.Fprintf(os.Stderr, "Failed to send message: %v\n%v\n", err, msg)
 			return err
 		}
 
