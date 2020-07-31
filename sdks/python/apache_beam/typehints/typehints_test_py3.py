@@ -33,7 +33,6 @@ from apache_beam.pvalue import PDone
 from apache_beam.transforms.core import DoFn
 from apache_beam.typehints import KV
 from apache_beam.typehints import Iterable
-from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints.typehints import Any
 
 
@@ -73,22 +72,32 @@ class TestPTransformAnnotations(unittest.TestCase):
       def expand(self, pcoll: int) -> PCollection[str]:
         return pcoll | Map(lambda num: str(num))
 
-    error_str = r'An input typehint to a PTransform must be a single' \
-                r' \(or nested\) type wrapped by a PCollection or PBegin. '
+    error_str = (
+        r'This input type hint will be ignored and not used for '
+        r'type-checking purposes. Typically, input type hints for a '
+        r'PTransform are single (or nested) types wrapped by a '
+        r'PCollection, or PBegin. Got: {} instead.'.format(int))
 
-    with self.assertRaisesRegex(TypeCheckError, error_str):
+    with self.assertLogs(level='WARN') as log:
       MyPTransform().get_type_hints()
+      self.assertIn(error_str, log.output[0])
 
   def test_annotations_without_output_pcollection_wrapper(self):
     class MyPTransform(PTransform):
       def expand(self, pcoll: PCollection[int]) -> str:
         return pcoll | Map(lambda num: str(num))
 
-    error_str = r'An output typehint to a PTransform must be a single ' \
-                r'\(or nested\) type wrapped by a PCollection, PDone, or None. '
+    error_str = (
+        r'This output type hint will be ignored and not used for '
+        r'type-checking purposes. Typically, output type hints for a '
+        r'PTransform are single (or nested) types wrapped by a '
+        r'PCollection, PDone, or None. Got: {} instead.'.format(str))
 
-    with self.assertRaisesRegex(TypeCheckError, error_str):
-      MyPTransform().get_type_hints()
+    with self.assertLogs(level='WARN') as log:
+      th = MyPTransform().get_type_hints()
+      self.assertIn(error_str, log.output[0])
+      self.assertEqual(th.input_types, ((int, ), {}))
+      self.assertEqual(th.output_types, None)
 
   def test_annotations_without_input_internal_type(self):
     class MyPTransform(PTransform):
@@ -164,14 +173,20 @@ class TestPTransformAnnotations(unittest.TestCase):
 
   def test_annotations_with_none_input(self):
     class MyPTransform(PTransform):
-      def expand(self, pcoll: None):
+      def expand(self, pcoll: None) -> PCollection[str]:
         return pcoll | Map(lambda num: str(num))
 
-    error_str = r'An input typehint to a PTransform must be a single' \
-                r' \(or nested\) type wrapped by a PCollection or PBegin. '
+    error_str = (
+        r'This input type hint will be ignored and not used for '
+        r'type-checking purposes. Typically, input type hints for a '
+        r'PTransform are single (or nested) types wrapped by a '
+        r'PCollection, or PBegin. Got: {} instead.'.format(None))
 
-    with self.assertRaisesRegex(TypeCheckError, error_str):
-      MyPTransform().get_type_hints()
+    with self.assertLogs(level='WARN') as log:
+      th = MyPTransform().get_type_hints()
+      self.assertIn(error_str, log.output[0])
+      self.assertEqual(th.input_types, None)
+      self.assertEqual(th.output_types, ((str, ), {}))
 
   def test_annotations_with_none_output(self):
     class MyPTransform(PTransform):
@@ -181,6 +196,39 @@ class TestPTransformAnnotations(unittest.TestCase):
     th = MyPTransform().get_type_hints()
     self.assertEqual(th.input_types, ((Any, ), {}))
     self.assertEqual(th.output_types, ((Any, ), {}))
+
+  def test_annotations_with_arbitrary_output(self):
+    class MyPTransform(PTransform):
+      def expand(self, pcoll) -> str:
+        return pcoll | Map(lambda num: str(num))
+
+    th = MyPTransform().get_type_hints()
+    self.assertEqual(th.input_types, ((Any, ), {}))
+    self.assertEqual(th.output_types, None)
+
+  def test_annotations_with_arbitrary_input_and_output(self):
+    class MyPTransform(PTransform):
+      def expand(self, pcoll: int) -> str:
+        return pcoll | Map(lambda num: str(num))
+
+    input_error_str = (
+        r'This input type hint will be ignored and not used for '
+        r'type-checking purposes. Typically, input type hints for a '
+        r'PTransform are single (or nested) types wrapped by a '
+        r'PCollection, or PBegin. Got: {} instead.'.format(int))
+
+    output_error_str = (
+        r'This output type hint will be ignored and not used for '
+        r'type-checking purposes. Typically, output type hints for a '
+        r'PTransform are single (or nested) types wrapped by a '
+        r'PCollection, PDone, or None. Got: {} instead.'.format(str))
+
+    with self.assertLogs(level='WARN') as log:
+      th = MyPTransform().get_type_hints()
+      self.assertIn(input_error_str, log.output[0])
+      self.assertIn(output_error_str, log.output[1])
+      self.assertEqual(th.input_types, None)
+      self.assertEqual(th.output_types, None)
 
 
 if __name__ == '__main__':

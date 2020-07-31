@@ -388,17 +388,21 @@ class IOTypeHints(NamedTuple(
                                    self._has_input_types,
                                    'input_types',
                                     [Pipeline, PBegin],
-                                   'An input typehint to a PTransform must be '
-                                   'a single (or nested) type wrapped by '
-                                   'a PCollection or PBegin. ',
+                                   'This input type hint will be ignored '
+                                   'and not used for type-checking purposes. '
+                                   'Typically, input type hints for a '
+                                   'PTransform are single (or nested) types '
+                                   'wrapped by a PCollection, or PBegin.',
                                    'strip_pcoll_input()').\
                 strip_pcoll_helper(self.output_types,
                                    self.has_simple_output_type,
                                    'output_types',
                                    [PDone, None],
-                                   'An output typehint to a PTransform must be '
-                                   'a single (or nested) type wrapped by '
-                                   'a PCollection, PDone, or None. ',
+                                   'This output type hint will be ignored '
+                                   'and not used for type-checking purposes. '
+                                   'Typically, output type hints for a '
+                                   'PTransform are single (or nested) types '
+                                   'wrapped by a PCollection, PDone, or None.',
                                    'strip_pcoll_output()')
 
   def strip_pcoll_helper(
@@ -425,8 +429,12 @@ class IOTypeHints(NamedTuple(
 
     if (my_type not in special_containers and
         getattr(my_type, '__origin__', None) != PCollection):
-      raise TypeCheckError(error_str + ' Got: %s' % my_type)
-
+      logging.warning(error_str + ' Got: %s instead.' % my_type)
+      kwarg_dict = {}
+      kwarg_dict[my_key] = None
+      return self._replace(
+          origin=self._make_origin([self], tb=False, msg=[source_str]),
+          **kwarg_dict)
     kwarg_dict = {}
 
     if (getattr(my_type, '__args__', -1) in [-1, None] or
