@@ -16,23 +16,64 @@ limitations under the License.
 -->
 
 # Mean
-<table align="left">
-    <a target="_blank" class="button"
-        href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html?highlight=mean#apache_beam.transforms.combiners.Mean">
-      <img src="https://beam.apache.org/images/logos/sdks/python.png" width="20px" height="20px"
-           alt="Pydoc" />
-     Pydoc
-    </a>
-</table>
-<br><br>
 
+{{< localstorage language language-py >}}
+
+{{< button-pydoc path="apache_beam.transforms.combiners" class="Mean" >}}
 
 Transforms for computing the arithmetic mean of the elements in a collection,
 or the mean of the values associated with each key in a collection of
 key-value pairs.
 
 ## Examples
-See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
-## Related transforms 
-* [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally) to combine elements.
+In the following example, we create a pipeline with a `PCollection`.
+Then, we get the element with the maximum value in different ways.
+
+### Example 1: Maximum element in a PCollection
+
+We use `Mean.Globally()` to get the average of the elements from the *entire* `PCollection`.
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" mean_globally >}}
+{{< /highlight >}}
+
+{{< paragraph class="notebook-skip" >}}
+Output:
+{{< /paragraph >}}
+
+{{< highlight class="notebook-skip" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean_test.py" mean_element >}}
+{{< /highlight >}}
+
+{{< buttons-code-snippet
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
+
+### Example 2: Maximum elements for each key
+
+We use `Mean.PerKey()` to get the avareage of the elements for each unique key in a `PCollection` of key-values.
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" mean_per_key >}}
+{{< /highlight >}}
+
+{{< paragraph class="notebook-skip" >}}
+Output:
+{{< /paragraph >}}
+
+{{< highlight class="notebook-skip" >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean_test.py" elements_with_mean_value_per_key >}}
+{{< /highlight >}}
+
+{{< buttons-code-snippet
+  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
+
+## Related transforms
+
+* [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally)
+* [CombinePerKey](/documentation/transforms/python/aggregation/combineperkey)
+* [Max](/documentation/transforms/python/aggregation/max)
+* [Min](/documentation/transforms/python/aggregation/min)
+* [Sum](/documentation/transforms/python/aggregation/sum)
+
+{{< button-pydoc path="apache_beam.transforms.combiners" class="Mean" >}}
