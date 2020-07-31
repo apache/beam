@@ -171,6 +171,12 @@ class DicomSearch(PTransform):
       self, buffer_size=8, max_workers=5, client=None, credential=None):
     """Initializes DicomSearch.
     Args:
+      buffer_size: # type: Int. Size of the request buffer.
+      max_workers: # type: Int. Maximum number of threads a worker can
+      create. If it is set to one, all the request will be processed
+      sequentially in a worker.
+      client: # type: object. If it is specified, all the Api calls will
+      made by this client instead of the default one (DicomApiHttpClient).
       credential: # type: Google credential object, if it is specified, the
       Http client will use it to create sessions instead of the default.
     """
@@ -200,7 +206,8 @@ class _QuidoReadFn(beam.DoFn):
     self.buffer = []
 
   def finish_bundle(self):
-    yield from self._flush()
+    for item in self._flush():
+      yield item
 
   def validate_element(self, element):
     # Check if all required keys present.
@@ -233,7 +240,8 @@ class _QuidoReadFn(beam.DoFn):
     if valid:
       self.buffer.append((element, window, timestamp))
       if len(self.buffer) >= self.buffer_size:
-        yield from self._flush()
+        for item in self._flush():
+          yield item
     else:
       # Return this when the input dict dose not meet the requirements
       out = {}
@@ -430,6 +438,12 @@ class WriteToDicomStore(PTransform):
       * dicom_store_id: Id of the dicom store. (Required)
 
       input_type: # type: string, could only be 'bytes' or 'fileio'
+      buffer_size: # type: Int. Size of the request buffer.
+      max_workers: # type: Int. Maximum number of threads a worker can
+      create. If it is set to one, all the request will be processed
+      sequentially in a worker.
+      client: # type: object. If it is specified, all the Api calls will
+      made by this client instead of the default one (DicomApiHttpClient).
       credential: # type: Google credential object, if it is specified, the
       Http client will use it instead of the default one.
     """
@@ -480,7 +494,8 @@ class _StoreInstance(beam.DoFn):
     self.buffer = []
 
   def finish_bundle(self):
-    yield from self._flush()
+    for item in self._flush():
+      yield item
 
   def process(
       self,
@@ -489,7 +504,8 @@ class _StoreInstance(beam.DoFn):
       timestamp=beam.DoFn.TimestampParam):
     self.buffer.append((element, window, timestamp))
     if len(self.buffer) >= self.buffer_size:
-      yield from self._flush()
+      for item in self._flush():
+        yield item
 
   def make_request(self, dicom_file):
     # Send file to DICOM store and records the results.
