@@ -115,13 +115,18 @@ class DoctestTest(unittest.TestCase):
     self.assertEqual(result.failed, 0)
 
   def test_wont_implement(self):
-    doctests.teststring(ERROR_RAISING_TESTS, optionflags=doctest.ELLIPSIS)
     doctests.teststring(
-        ERROR_RAISING_TESTS, optionflags=doctest.IGNORE_EXCEPTION_DETAIL)
+        ERROR_RAISING_TESTS, optionflags=doctest.ELLIPSIS, wont_implement=True)
+    doctests.teststring(
+        ERROR_RAISING_TESTS,
+        optionflags=doctest.IGNORE_EXCEPTION_DETAIL,
+        wont_implement=True)
 
   def test_wont_implement_followed_by_name_error(self):
     result = doctests.teststring(
-        ERROR_RAISING_NAME_ERROR_TESTS, optionflags=doctest.ELLIPSIS)
+        ERROR_RAISING_NAME_ERROR_TESTS,
+        optionflags=doctest.ELLIPSIS,
+        wont_implement=True)
     self.assertEqual(result.attempted, 6)
     self.assertEqual(result.failed, 1)  # Only the very last one.
 
