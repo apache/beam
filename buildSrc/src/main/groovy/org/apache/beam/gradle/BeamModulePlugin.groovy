@@ -464,6 +464,7 @@ class BeamModulePlugin implements Plugin<Project> {
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.3.1",
         gax                                         : "com.google.api:gax:$gax_version",
         gax_grpc                                    : "com.google.api:gax-grpc:$gax_version",
+        gax_httpjson                                : "com.google.api:gax-httpjson:0.74.1",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
