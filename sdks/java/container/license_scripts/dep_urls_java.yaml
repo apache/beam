@@ -29,175 +29,20 @@
 #     type: optional, license type, ie: Apache License 2.0. Type should be provided if the plug in does not provide moduleLicense.
 #     source: optional, url_to_maven_repo. If maven artifact repo does not follow a patten of 'https://repo1.maven.org/maven2/{module}/{version}', the url should be provided.
 
-amqp-client:
-  '5.7.3':
-    license: "https://raw.githubusercontent.com/sstone/amqp-client/scala2.11/LICENCE.txt"
-annotations:
-  '16.0.3':
-    license: "https://raw.githubusercontent.com/doctrine/annotations/master/LICENSE"
-ant-launcher:
-  '1.7.0':
-    license: "https://raw.githubusercontent.com/apache/ant/master/LICENSE"
-    notice: "https://raw.githubusercontent.com/apache/ant/master/NOTICE"
-    type: "Apache License 2.0"
 antlr-runtime:
   '3.1.2':
     license: "https://raw.githubusercontent.com/antlr/antlr4/master/LICENSE.txt"
     type: "3-Clause BSD"
-  '3.4':
-    license: "https://raw.githubusercontent.com/antlr/antlr4/master/LICENSE.txt"
-    type: "3-Clause BSD"
-aopalliance:
-  '1.0':
-    license: "skip"
-apache-curator:
-  '2.6.0':
-    license: "https://raw.githubusercontent.com/apache/curator/master/LICENSE"
-    notice: "https://raw.githubusercontent.com/apache/curator/master/NOTICE"
-asm:
-  '3.1':
-    license: "https://asm.ow2.io/license.html"
-    type: "3-Clause BSD"
-asm-commons:
-  '3.1':
-    license: "https://asm.ow2.io/license.html"
-    type: "3-Clause BSD"
-asm-tree:
-  '3.1':
-    license: "https://asm.ow2.io/license.html"
-    type: "3-Clause BSD"
-boilerpipe:
-  '1.1.0':
-    license: "https://raw.githubusercontent.com/kohlschutter/boilerpipe/master/LICENSE"
-    notice: "https://raw.githubusercontent.com/kohlschutter/boilerpipe/master/NOTICE"
-commons-compiler:
-  '2.7.6':
-    license: "https://raw.githubusercontent.com/janino-compiler/janino/master/LICENSE"
-  '2.7.8':
-    license: "https://raw.githubusercontent.com/janino-compiler/janino/master/LICENSE"
-dom4j:
-  '1.6.1':
-    type: "3-Clause BSD"
-ehcache-core:
-  '2.6.2':
-    license: "https://raw.githubusercontent.com/ehcache/ehcache3/master/LICENSE"
-    notice: "https://raw.githubusercontent.com/ehcache/ehcache3/master/LICENSE"
-fmpp:
-  '0.9.14': "http://fmpp.sourceforge.net/license.html"
-hdrhistogram:
-  '2.1.6':
-    license: "https://raw.githubusercontent.com/HdrHistogram/HdrHistogram/master/LICENSE.txt"
-  '2.1.9':
-    license: "https://raw.githubusercontent.com/HdrHistogram/HdrHistogram/master/LICENSE.txt"
 jcip-annotations:
   '1.0':
     license: "https://raw.githubusercontent.com/stephenc/jcip-annotations/master/LICENSE.txt"
     type: "Apache License 2.0"
-jamon-runtime:
-  '2.3.1':
-    license: "https://www.mozilla.org/en-US/MPL/1.1/"
-janino:
-  '2.7.6':
-    license: "https://opensource.org/licenses/BSD-3-Clause"
 jaxen:
   '1.1.6':
     type: "3-Clause BSD"
-jbcrypt:
-  '0.3m':
-    license: "http://www.mindrot.org/files/jBCrypt/LICENSE"
-jline:
-  '0.9.94':
-    license: "https://opensource.org/licenses/BSD-3-Clause"
-jsp-2.1:
-  '6.1.14':
-    license: "https://raw.githubusercontent.com/javaee/glassfish/master/LICENSE"
-jsp-api:
-  '2.0':
-    license: "https://raw.githubusercontent.com/javaee/javaee-jsp-api/master/LICENSE"
-    type: "CDDL"
-  '2.1':
-    license: "https://raw.githubusercontent.com/javaee/javaee-jsp-api/master/LICENSE"
-    type: "CDDL"
-jsr166e:
-  '1.1.0':
-    license: "https://raw.githubusercontent.com/twitter-archive/jsr166e/master/LICENSE"
-jpam:
-  '1.1': "http://jpam.sourceforge.net/LICENSE.txt"
-log4j:
-  '1.2.12':
-    license: "https://raw.githubusercontent.com/apache/log4j/trunk/LICENSE"
-    notice: "https://raw.githubusercontent.com/apache/log4j/trunk/NOTICE"
-    type: "Apache License 2.0"
-model-builder:
-  '1.3':
-    license: "https://www.apache.org/licenses/LICENSE-2.0.txt"
-    type: "Apache License 2.0"
-native-lib-loader:
-  '2.0.2':
-    license: "https://raw.githubusercontent.com/scijava/native-lib-loader/master/LICENSE.txt"
-    notice: "https://raw.githubusercontent.com/scijava/native-lib-loader/master/NOTICE.txt"
-'org.restlet':
-  '2.3.0':
-    source: "https://repo.spring.io/plugins-release/org/restlet/jee/org.restlet/2.3.0"
-'org.restlet.ext.servlet':
-  '2.3.0':
-    source: "https://repo.spring.io/plugins-release/org/restlet/jee/org.restlet.ext.servlet/2.3.0"
-osgi-resource-locator:
-  '1.0.1':
-    license: "https://raw.githubusercontent.com/eclipse-ee4j/glassfish-hk2-extra/master/LICENSE.md"
-    notice: "https://raw.githubusercontent.com/eclipse-ee4j/glassfish-hk2-extra/master/NOTICE.md"
 paranamer:
   '2.7':
     license: "https://raw.githubusercontent.com/paul-hammant/paranamer/master/LICENSE.txt"
-  '2.8':
-    license: "https://raw.githubusercontent.com/paul-hammant/paranamer/master/LICENSE.txt"
-reactive-streams:
-  '1.0.0':
-    license: "https://raw.githubusercontent.com/reactive-streams/reactive-streams-jvm/master/LICENSE"
-  '1.0.2':
-    license: "https://raw.githubusercontent.com/reactive-streams/reactive-streams-jvm/master/LICENSE"
-  '1.0.3':
-    license: "https://raw.githubusercontent.com/reactive-streams/reactive-streams-jvm/master/LICENSE"
-servlet-api:
-  '2.5':
-    license: "https://www.oracle.com/downloads/licenses/javase-license1.html"
-    type: "Oracle"
-servlet-api-2.5:
-  '6.1.14':
-    license: "https://www.oracle.com/downloads/licenses/javase-license1.html"
-snakeyaml:
-  '1.12':
-    license: "https://bitbucket.org/asomov/snakeyaml/raw/3d49667ece57d564668b9a155c55ccfe26aaca00/LICENSE.txt"
-  '1.15':
-    license: "https://bitbucket.org/asomov/snakeyaml/raw/3d49667ece57d564668b9a155c55ccfe26aaca00/LICENSE.txt"
-unit-api:
-  '1.0':
-    license: "https://raw.githubusercontent.com/unitsofmeasurement/unit-api/master/LICENSE"
-validation-api:
-  '1.0.0.GA':
-    license: "https://www.apache.org/licenses/LICENSE-2.0.txt"
 xz:
-  '1.5':
-    license: "https://git.tukaani.org/?p=xz-java.git;a=blob_plain;f=COPYING;h=c1d404dc7a6f06a0437bf1055fedaa4a4c89d728;hb=HEAD"
   '1.8':
     license: "https://git.tukaani.org/?p=xz-java.git;a=blob_plain;f=COPYING;h=c1d404dc7a6f06a0437bf1055fedaa4a4c89d728;hb=HEAD"
-zetasql-client:
-  '2020.04.1':
-    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
-    type: "Apache 2.0"
-zetasql-jni-channel:
-  '2020.04.1':
-    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
-    type: "Apache 2.0"
-zetasql-jni-channel-darwin:
-  '2020.04.1':
-    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
-    type: "Apache 2.0"
-zetasql-jni-channel-linux:
-  '2020.04.1':
-    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
-    type: "Apache 2.0"
-zetasql-types:
-  '2020.04.1':
-    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
-    type: "Apache 2.0"

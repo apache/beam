@@ -34,8 +34,10 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFn.StartBundle;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
+import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -92,6 +94,10 @@ public interface DoFnInvoker<InputT, OutputT> {
 
   /** Invoke the {@link DoFn.SplitRestriction} method on the bound {@link DoFn}. */
   void invokeSplitRestriction(ArgumentProvider<InputT, OutputT> arguments);
+
+  /** Invoke the {@link TruncateRestriction} method on the bound {@link DoFn}. */
+  <RestrictionT> TruncateResult<RestrictionT> invokeTruncateRestriction(
+      ArgumentProvider<InputT, OutputT> arguments);
 
   /**
    * Invoke the {@link DoFn.GetSize} method on the bound {@link DoFn}. Falls back to:

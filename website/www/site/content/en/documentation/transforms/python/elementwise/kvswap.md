@@ -34,7 +34,7 @@ Then, we apply `KvSwap` to swap the keys and values.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `KvSwap`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}

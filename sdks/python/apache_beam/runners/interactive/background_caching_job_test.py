@@ -71,9 +71,9 @@ def _build_an_empty_stream_pipeline():
   return p
 
 
-def _setup_test_streaming_cache():
+def _setup_test_streaming_cache(pipeline):
   cache_manager = StreamingCache(cache_dir=None)
-  ie.current_env().set_cache_manager(cache_manager)
+  ie.current_env().set_cache_manager(cache_manager, pipeline)
   builder = FileRecordsBuilder(tag=_TEST_CACHE_KEY)
   (builder
       .advance_watermark(watermark_secs=0)
@@ -108,7 +108,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
       lambda x: None)
   def test_background_caching_job_starts_when_none_such_job_exists(self):
     p = _build_a_test_stream_pipeline()
-    _setup_test_streaming_cache()
+    _setup_test_streaming_cache(p)
     p.run()
     self.assertIsNotNone(ie.current_env().get_background_caching_job(p))
     expected_cached_source_signature = bcj.extract_source_to_cache_signature(p)
@@ -138,7 +138,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
       lambda x: None)
   def test_background_caching_job_not_start_when_such_job_exists(self):
     p = _build_a_test_stream_pipeline()
-    _setup_test_streaming_cache()
+    _setup_test_streaming_cache(p)
     a_running_background_caching_job = bcj.BackgroundCachingJob(
         runner.PipelineResult(runner.PipelineState.RUNNING), limiters=[])
     ie.current_env().set_background_caching_job(
@@ -162,7 +162,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
       lambda x: None)
   def test_background_caching_job_not_start_when_such_job_is_done(self):
     p = _build_a_test_stream_pipeline()
-    _setup_test_streaming_cache()
+    _setup_test_streaming_cache(p)
     a_done_background_caching_job = bcj.BackgroundCachingJob(
         runner.PipelineResult(runner.PipelineState.DONE), limiters=[])
     ie.current_env().set_background_caching_job(

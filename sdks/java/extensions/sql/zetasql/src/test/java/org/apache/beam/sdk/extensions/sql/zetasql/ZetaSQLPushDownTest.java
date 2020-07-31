@@ -43,6 +43,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitDe
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.BeforeClass;
@@ -186,7 +187,7 @@ public class ZetaSQLPushDownTest {
             .defaultSchema(defaultSchemaPlus)
             .traitDefs(traitDefs)
             .context(Contexts.of(contexts))
-            .ruleSets(ZetaSQLQueryPlanner.getZetaSqlRuleSets())
+            .ruleSets(ZetaSQLQueryPlanner.getZetaSqlRuleSets().toArray(new RuleSet[0]))
             .costFactory(BeamCostModel.FACTORY)
             .typeSystem(jdbcConnection.getTypeFactory().getTypeSystem())
             .build();

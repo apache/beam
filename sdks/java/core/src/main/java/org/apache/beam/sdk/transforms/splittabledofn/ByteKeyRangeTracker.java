@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.ByteKey;
@@ -30,6 +29,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgr
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link RestrictionTracker} for claiming {@link ByteKey}s in a {@link ByteKeyRange} in a
@@ -47,8 +47,8 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   static final ByteKeyRange NO_KEYS = ByteKeyRange.of(ByteKey.EMPTY, ByteKey.of(0x00));
 
   private ByteKeyRange range;
-  @Nullable private ByteKey lastClaimedKey = null;
-  @Nullable private ByteKey lastAttemptedKey = null;
+  private @Nullable ByteKey lastClaimedKey = null;
+  private @Nullable ByteKey lastAttemptedKey = null;
 
   private ByteKeyRangeTracker(ByteKeyRange range) {
     this.range = checkNotNull(range);
@@ -201,6 +201,11 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
               "Last attempted key was %s in range %s, claiming work in [%s, %s) was not attempted",
               lastAttemptedKey, range, nextKey, range.getEndKey()));
     }
+  }
+
+  @Override
+  public IsBounded isBounded() {
+    return IsBounded.BOUNDED;
   }
 
   @Override

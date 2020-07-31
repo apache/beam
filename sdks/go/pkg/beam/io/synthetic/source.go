@@ -24,6 +24,7 @@ package synthetic
 
 import (
 	"fmt"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
 	"math/rand"
 	"reflect"
 	"time"
@@ -106,14 +107,14 @@ func (fn *sourceFn) SplitRestriction(config SourceConfig, rest offsetrange.Restr
 
 // RestrictionSize outputs the size of the restriction as the number of elements
 // that restriction will output.
-func (fn *sourceFn) RestrictionSize(config SourceConfig, rest offsetrange.Restriction) float64 {
+func (fn *sourceFn) RestrictionSize(_ SourceConfig, rest offsetrange.Restriction) float64 {
 	return rest.Size()
 }
 
 // CreateTracker just creates an offset range restriction tracker for the
 // restriction.
-func (fn *sourceFn) CreateTracker(rest offsetrange.Restriction) *offsetrange.Tracker {
-	return offsetrange.NewTracker(rest)
+func (fn *sourceFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
+	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
 }
 
 // Setup sets up the random number generator.
@@ -124,8 +125,8 @@ func (fn *sourceFn) Setup() {
 // ProcessElement creates a number of random elements based on the restriction
 // tracker received. Each element is a random byte slice key and value, in the
 // form of KV<[]byte, []byte>.
-func (fn *sourceFn) ProcessElement(rt *offsetrange.Tracker, config SourceConfig, emit func([]byte, []byte)) error {
-	for i := rt.Rest.Start; rt.TryClaim(i) == true; i++ {
+func (fn *sourceFn) ProcessElement(rt *sdf.LockRTracker, _ SourceConfig, emit func([]byte, []byte)) error {
+	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i) == true; i++ {
 		key := make([]byte, 8)
 		val := make([]byte, 8)
 		if _, err := fn.rng.Read(key); err != nil {

@@ -21,7 +21,6 @@ import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLV
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_TABLE_FUNCTION_STMT;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable.ZETASQL_BUILTIN_FUNCTION_ALLOWLIST;
 import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils.toZetaType;
 
 import com.google.common.collect.ImmutableList;
@@ -63,7 +62,6 @@ import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.TableResolution.SimpleTableWithPath;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Context;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
@@ -92,15 +90,14 @@ public class SqlAnalyzer {
           "CREATE FUNCTION SESSION_START(session_gap STRING) RETURNS TIMESTAMP AS (null);",
           "CREATE FUNCTION SESSION_END(session_gap STRING) RETURNS TIMESTAMP AS (null);");
 
-  private final Builder builder;
+  private final QueryTrait queryTrait;
+  private final SchemaPlus topLevelSchema;
+  private final JavaTypeFactory typeFactory;
 
-  private SqlAnalyzer(Builder builder) {
-    this.builder = builder;
-  }
-
-  /** Static factory method to create the builder. */
-  static Builder getBuilder() {
-    return new Builder();
+  SqlAnalyzer(QueryTrait queryTrait, SchemaPlus topLevelSchema, JavaTypeFactory typeFactory) {
+    this.queryTrait = queryTrait;
+    this.topLevelSchema = topLevelSchema;
+    this.typeFactory = typeFactory;
   }
 
   static boolean isEndOfInput(ParseResumeLocation parseResumeLocation) {
@@ -118,22 +115,6 @@ public class SqlAnalyzer {
       tables.addAll(statementTables);
     }
     return tables.build();
-  }
-
-  /**
-   * Accepts the SQL string, returns the resolved AST.
-   *
-   * <p>Initializes query parameters, populates the catalog based on Calcite's schema and table name
-   * resolution strategy set in the context.
-   */
-  ResolvedStatement analyze(String sql) {
-    AnalyzerOptions options = initAnalyzerOptions(builder.queryParams);
-    List<List<String>> tables = Analyzer.extractTableNamesFromStatement(sql);
-
-    SimpleCatalog catalog =
-        createPopulatedCatalog(builder.topLevelSchema.getName(), options, tables);
-
-    return Analyzer.analyzeStatement(sql, options, catalog);
   }
 
   /**
@@ -182,31 +163,32 @@ public class SqlAnalyzer {
     return resolvedStatement;
   }
 
-  static AnalyzerOptions initAnalyzerOptions() {
+  static AnalyzerOptions baseAnalyzerOptions() {
     AnalyzerOptions options = new AnalyzerOptions();
     options.setErrorMessageMode(ErrorMessageMode.ERROR_MESSAGE_MULTI_LINE_WITH_CARET);
-    // +00:00 UTC offset
-    options.setDefaultTimezone("UTC");
+
     options.getLanguageOptions().setProductMode(ProductMode.PRODUCT_EXTERNAL);
     options
         .getLanguageOptions()
         .setEnabledLanguageFeatures(
             new HashSet<>(
                 Arrays.asList(
+                    LanguageFeature.FEATURE_NUMERIC_TYPE,
                     LanguageFeature.FEATURE_DISALLOW_GROUP_BY_FLOAT,
                     LanguageFeature.FEATURE_V_1_2_CIVIL_TIME,
                     LanguageFeature.FEATURE_V_1_1_SELECT_STAR_EXCEPT_REPLACE,
                     LanguageFeature.FEATURE_TABLE_VALUED_FUNCTIONS,
                     LanguageFeature.FEATURE_CREATE_TABLE_FUNCTION,
                     LanguageFeature.FEATURE_TEMPLATE_FUNCTIONS)));
-
     options.getLanguageOptions().setSupportedStatementKinds(SUPPORTED_STATEMENT_KINDS);
 
     return options;
   }
 
-  static AnalyzerOptions initAnalyzerOptions(QueryParameters queryParams) {
-    AnalyzerOptions options = initAnalyzerOptions();
+  static AnalyzerOptions getAnalyzerOptions(QueryParameters queryParams, String defaultTimezone) {
+    AnalyzerOptions options = baseAnalyzerOptions();
+
+    options.setDefaultTimezone(defaultTimezone);
 
     if (queryParams.getKind() == Kind.NAMED) {
       options.setParameterMode(ParameterMode.PARAMETER_NAMED);
@@ -233,18 +215,17 @@ public class SqlAnalyzer {
     SimpleCatalog catalog = new SimpleCatalog(catalogName);
     addBuiltinFunctionsToCatalog(catalog, options);
 
-    tables.forEach(table -> addTableToLeafCatalog(builder.queryTrait, catalog, table));
+    tables.forEach(table -> addTableToLeafCatalog(queryTrait, catalog, table));
 
     return catalog;
   }
 
   private void addBuiltinFunctionsToCatalog(SimpleCatalog catalog, AnalyzerOptions options) {
-
     // Enable ZetaSQL builtin functions.
     ZetaSQLBuiltinFunctionOptions zetasqlBuiltinFunctionOptions =
         new ZetaSQLBuiltinFunctionOptions(options.getLanguageOptions());
 
-    ZETASQL_BUILTIN_FUNCTION_ALLOWLIST.forEach(
+    SupportedZetaSqlBuiltinFunctions.ALLOWLIST.forEach(
         zetasqlBuiltinFunctionOptions::includeFunctionSignatureId);
 
     catalog.addZetaSQLFunctions(zetasqlBuiltinFunctionOptions);
@@ -338,17 +319,17 @@ public class SqlAnalyzer {
     SimpleCatalog leafCatalog = createNestedCatalogs(topLevelCatalog, tablePath);
 
     org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Table calciteTable =
-        TableResolution.resolveCalciteTable(builder.topLevelSchema, tablePath);
+        TableResolution.resolveCalciteTable(topLevelSchema, tablePath);
 
     if (calciteTable == null) {
       throw new SqlConversionException(
           "Wasn't able to resolve the path "
               + tablePath
               + " in schema: "
-              + builder.topLevelSchema.getName());
+              + topLevelSchema.getName());
     }
 
-    RelDataType rowType = calciteTable.getRowType(builder.typeFactory);
+    RelDataType rowType = calciteTable.getRowType(typeFactory);
 
     SimpleTableWithPath tableWithPath = SimpleTableWithPath.of(tablePath);
     trait.addResolvedTable(tableWithPath);
@@ -388,58 +369,5 @@ public class SqlAnalyzer {
     SimpleCatalog nextCatalog = new SimpleCatalog(nextCatalogName);
     currentCatalog.addSimpleCatalog(nextCatalog);
     return nextCatalog;
-  }
-
-  /** Builder for SqlAnalyzer. */
-  static class Builder {
-
-    private QueryParameters queryParams;
-    private QueryTrait queryTrait;
-    private SchemaPlus topLevelSchema;
-    private JavaTypeFactory typeFactory;
-
-    private Builder() {}
-
-    /** Query parameters. */
-    Builder withQueryParams(QueryParameters params) {
-      this.queryParams = params;
-      return this;
-    }
-
-    /** QueryTrait, has parsing-time configuration for rel conversion. */
-    Builder withQueryTrait(QueryTrait trait) {
-      this.queryTrait = trait;
-      return this;
-    }
-
-    /** Current top-level schema. */
-    Builder withTopLevelSchema(SchemaPlus schema) {
-      this.topLevelSchema = schema;
-      return this;
-    }
-
-    /** Calcite parsing context, can have name resolution and other configuration. */
-    Builder withCalciteContext(Context context) {
-      return this;
-    }
-
-    /**
-     * Current type factory.
-     *
-     * <p>Used to convert field types in schemas.
-     */
-    Builder withTypeFactory(JavaTypeFactory typeFactory) {
-      this.typeFactory = typeFactory;
-      return this;
-    }
-
-    SqlAnalyzer build() {
-      return new SqlAnalyzer(this);
-    }
-
-    /** Returns the parsed and resolved query. */
-    ResolvedStatement analyze(String sql) {
-      return new SqlAnalyzer(this).analyze(sql);
-    }
   }
 }

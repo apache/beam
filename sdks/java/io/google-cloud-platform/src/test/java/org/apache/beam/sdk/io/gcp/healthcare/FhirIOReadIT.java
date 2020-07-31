@@ -25,7 +25,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
@@ -39,7 +38,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -73,7 +71,10 @@ public class FhirIOReadIT {
     long testTime = System.currentTimeMillis();
     this.fhirStoreName =
         "FHIR_store_" + version + "_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
-    this.project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    this.project =
+        TestPipeline.testingPipelineOptions()
+            .as(HealthcareStoreTestPipelineOptions.class)
+            .getStoreProjectId();
     this.pubsubTopic =
         "projects/"
             + project
@@ -119,7 +120,6 @@ public class FhirIOReadIT {
   }
 
   @Test
-  @Ignore("BEAM-10419 ignore due to flakiness.")
   public void testFhirIORead() throws Exception {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 

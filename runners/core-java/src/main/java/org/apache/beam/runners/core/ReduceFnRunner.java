@@ -28,7 +28,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.runners.core.ReduceFnContextFactory.StateStyle;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
@@ -56,6 +55,7 @@ import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -981,8 +981,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    *
    * @return output watermark hold added, or {@literal null} if none.
    */
-  @Nullable
-  private Instant onTrigger(
+  private @Nullable Instant onTrigger(
       final ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
       final boolean isFinished,

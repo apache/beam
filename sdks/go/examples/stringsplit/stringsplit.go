@@ -39,6 +39,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
 	"reflect"
 	"time"
 
@@ -70,7 +71,7 @@ func (fn *StringSplitFn) CreateInitialRestriction(s string) offsetrange.Restrict
 
 // SplitRestriction performs initial splits so that each restriction is split
 // into 5.
-func (fn *StringSplitFn) SplitRestriction(s string, rest offsetrange.Restriction) []offsetrange.Restriction {
+func (fn *StringSplitFn) SplitRestriction(_ string, rest offsetrange.Restriction) []offsetrange.Restriction {
 	splits := rest.EvenSplits(5)
 	log.Debugf(context.Background(), "StringSplit SplitRestrictions: %v -> %v", rest, splits)
 	return splits
@@ -78,16 +79,16 @@ func (fn *StringSplitFn) SplitRestriction(s string, rest offsetrange.Restriction
 
 // RestrictionSize returns the size as the difference between the restriction's
 // start and end.
-func (fn *StringSplitFn) RestrictionSize(s string, rest offsetrange.Restriction) float64 {
+func (fn *StringSplitFn) RestrictionSize(_ string, rest offsetrange.Restriction) float64 {
 	size := rest.Size()
 	log.Debugf(context.Background(), "StringSplit RestrictionSize: %v -> %v", rest, size)
 	return size
 }
 
 // CreateTracker creates an offset range restriction tracker out of the offset
-// range restriction.
-func (fn *StringSplitFn) CreateTracker(rest offsetrange.Restriction) *offsetrange.Tracker {
-	return offsetrange.NewTracker(rest)
+// range restriction, and wraps it a thread-safe restriction tracker.
+func (fn *StringSplitFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
+	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
 }
 
 // ProcessElement splits a string into substrings of a specified size (set in
@@ -100,9 +101,9 @@ func (fn *StringSplitFn) CreateTracker(rest offsetrange.Restriction) *offsetrang
 //
 // Example: If BufSize is 100, then a restriction of 75 to 325 should emit the
 // following substrings: [100, 200], [200, 300], [300, 400]
-func (fn *StringSplitFn) ProcessElement(ctx context.Context, rt *offsetrange.Tracker, elem string, emit func(string)) {
+func (fn *StringSplitFn) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, elem string, emit func(string)) {
 	log.Debugf(ctx, "StringSplit ProcessElement: Tracker = %v", rt)
-	i := rt.Rest.Start
+	i := rt.GetRestriction().(offsetrange.Restriction).Start
 	if rem := i % fn.BufSize; rem != 0 {
 		i += fn.BufSize - rem // Skip to next multiple of BufSize.
 	}

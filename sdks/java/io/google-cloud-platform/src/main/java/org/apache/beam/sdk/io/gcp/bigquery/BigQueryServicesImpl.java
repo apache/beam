@@ -76,7 +76,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
@@ -92,6 +91,7 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -401,11 +401,11 @@ class BigQueryServicesImpl implements BigQueryServices {
     private static final FluentBackoff INSERT_BACKOFF_FACTORY =
         FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(200)).withMaxRetries(5);
 
-    // A backoff for rate limit exceeded errors. Retries forever.
+    // A backoff for rate limit exceeded errors. Only retry upto approximately 2 minutes
+    // and propagate errors afterward. Otherwise, Dataflow UI cannot display rate limit
+    // errors since they are silently retried in Callable threads.
     private static final FluentBackoff RATE_LIMIT_BACKOFF_FACTORY =
-        FluentBackoff.DEFAULT
-            .withInitialBackoff(Duration.standardSeconds(1))
-            .withMaxBackoff(Duration.standardMinutes(2));
+        FluentBackoff.DEFAULT.withInitialBackoff(Duration.standardSeconds(1)).withMaxRetries(13);
 
     private final ApiErrorExtractor errorExtractor;
     private final Bigquery client;
@@ -454,14 +454,13 @@ class BigQueryServicesImpl implements BigQueryServices {
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
-    @Nullable
-    public Table getTable(TableReference tableRef) throws IOException, InterruptedException {
+    public @Nullable Table getTable(TableReference tableRef)
+        throws IOException, InterruptedException {
       return getTable(tableRef, null);
     }
 
     @Override
-    @Nullable
-    public Table getTable(TableReference tableRef, List<String> selectedFields)
+    public @Nullable Table getTable(TableReference tableRef, List<String> selectedFields)
         throws IOException, InterruptedException {
       return getTable(tableRef, selectedFields, createDefaultBackoff(), Sleeper.DEFAULT);
     }
@@ -726,6 +725,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         List<ValueInSingleWindow<TableRow>> rowList,
         @Nullable List<String> insertIdList,
         BackOff backoff,
+        FluentBackoff rateLimitBackoffFactory,
         final Sleeper sleeper,
         InsertRetryPolicy retryPolicy,
         List<ValueInSingleWindow<T>> failedInserts,
@@ -799,9 +799,9 @@ class BigQueryServicesImpl implements BigQueryServices {
             futures.add(
                 executor.submit(
                     () -> {
-                      // A backoff for rate limit exceeded errors. Retries forever.
+                      // A backoff for rate limit exceeded errors.
                       BackOff backoff1 =
-                          BackOffAdapter.toGcpBackOff(RATE_LIMIT_BACKOFF_FACTORY.backoff());
+                          BackOffAdapter.toGcpBackOff(rateLimitBackoffFactory.backoff());
                       while (true) {
                         try {
                           return insert.execute().getInsertErrors();
@@ -811,7 +811,11 @@ class BigQueryServicesImpl implements BigQueryServices {
                                   "BigQuery insertAll error, retrying: %s",
                                   ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
                           try {
-                            sleeper.sleep(backoff1.nextBackOffMillis());
+                            long nextBackOffMillis = backoff1.nextBackOffMillis();
+                            if (nextBackOffMillis == BackOff.STOP) {
+                              throw e;
+                            }
+                            sleeper.sleep(nextBackOffMillis);
                           } catch (InterruptedException interrupted) {
                             throw new IOException(
                                 "Interrupted while waiting before retrying insertAll");
@@ -901,6 +905,7 @@ class BigQueryServicesImpl implements BigQueryServices {
           rowList,
           insertIdList,
           BackOffAdapter.toGcpBackOff(INSERT_BACKOFF_FACTORY.backoff()),
+          RATE_LIMIT_BACKOFF_FACTORY,
           Sleeper.DEFAULT,
           retryPolicy,
           failedInserts,
@@ -1019,9 +1024,9 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   static class BigQueryServerStreamImpl<T> implements BigQueryServerStream<T> {
 
-    private final ServerStream serverStream;
+    private final ServerStream<T> serverStream;
 
-    public BigQueryServerStreamImpl(ServerStream serverStream) {
+    public BigQueryServerStreamImpl(ServerStream<T> serverStream) {
       this.serverStream = serverStream;
     }
 
@@ -1064,7 +1069,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public BigQueryServerStream<ReadRowsResponse> readRows(ReadRowsRequest request) {
-      return new BigQueryServerStreamImpl(client.readRowsCallable().call(request));
+      return new BigQueryServerStreamImpl<>(client.readRowsCallable().call(request));
     }
 
     @Override

@@ -21,7 +21,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link SchemaProvider} for AutoValue classes. */
 @Experimental(Kind.SCHEMAS)

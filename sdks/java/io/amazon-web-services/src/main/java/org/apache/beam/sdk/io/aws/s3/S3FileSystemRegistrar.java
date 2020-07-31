@@ -35,7 +35,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 public class S3FileSystemRegistrar implements FileSystemRegistrar {
 
   @Override
-  public Iterable<FileSystem> fromOptions(@Nonnull PipelineOptions options) {
+  public Iterable<FileSystem<?>> fromOptions(@Nonnull PipelineOptions options) {
     checkNotNull(options, "Expect the runner have called FileSystems.setDefaultPipelineOptions().");
     return ImmutableList.of(new S3FileSystem(options.as(S3Options.class)));
   }

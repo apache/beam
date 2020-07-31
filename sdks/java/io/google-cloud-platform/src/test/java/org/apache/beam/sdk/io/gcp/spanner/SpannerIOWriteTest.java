@@ -62,6 +62,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
@@ -743,7 +744,8 @@ public class SpannerIOWriteTest implements Serializable {
     BatchableMutationFilterFn testFn =
         new BatchableMutationFilterFn(null, null, 10000000, 3 * CELLS_PER_KEY, 1000);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    BatchableMutationFilterFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
@@ -797,7 +799,8 @@ public class SpannerIOWriteTest implements Serializable {
     BatchableMutationFilterFn testFn =
         new BatchableMutationFilterFn(null, null, mutationSize * 3, 1000, 1000);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    DoFn<MutationGroup, MutationGroup>.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
@@ -850,7 +853,8 @@ public class SpannerIOWriteTest implements Serializable {
     long mutationSize = MutationSizeEstimator.sizeOf(m(1L));
     BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 1000, 1000, 3);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    BatchableMutationFilterFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
@@ -888,7 +892,8 @@ public class SpannerIOWriteTest implements Serializable {
 
     BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 0, 0, 0);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
+    BatchableMutationFilterFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
@@ -921,8 +926,10 @@ public class SpannerIOWriteTest implements Serializable {
             100, // groupingFactor
             null);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
-    FinishBundleContext mockFinishBundleContext = Mockito.mock(FinishBundleContext.class);
+    GatherSortCreateBatchesFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
+    GatherSortCreateBatchesFn.FinishBundleContext mockFinishBundleContext =
+        Mockito.mock(FinishBundleContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the outputs.
@@ -982,8 +989,10 @@ public class SpannerIOWriteTest implements Serializable {
             3, // groupingFactor
             null);
 
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
-    FinishBundleContext mockFinishBundleContext = Mockito.mock(FinishBundleContext.class);
+    GatherSortCreateBatchesFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
+    GatherSortCreateBatchesFn.FinishBundleContext mockFinishBundleContext =
+        Mockito.mock(FinishBundleContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
     OutputReceiver<Iterable<MutationGroup>> mockOutputReceiver = mock(OutputReceiver.class);
 
@@ -1090,8 +1099,10 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   private void testAndVerifyBatches(GatherSortCreateBatchesFn testFn) throws Exception {
-    ProcessContext mockProcessContext = Mockito.mock(ProcessContext.class);
-    FinishBundleContext mockFinishBundleContext = Mockito.mock(FinishBundleContext.class);
+    GatherSortCreateBatchesFn.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
+    GatherSortCreateBatchesFn.FinishBundleContext mockFinishBundleContext =
+        Mockito.mock(FinishBundleContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
     // Capture the output at finish bundle..

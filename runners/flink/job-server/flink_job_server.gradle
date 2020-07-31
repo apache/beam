@@ -33,7 +33,6 @@ applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.flink.jobserver',
   archivesBaseName: project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName,
   validateShadowJar: false,
-  enableChecker: false,
   exportJavadoc: false,
   shadowClosure: {
     append "reference.conf"
@@ -206,7 +205,7 @@ createCrossLanguageValidatesRunnerTask(
   startJobServer: setupTask,
   cleanupJobServer: cleanupTask,
   jobEndpoint: "localhost:${jobPort}",
-  testClasspathConfiguration: configurations.validatesPortableRunner,
+  classpath: configurations.validatesPortableRunner,
   numParallelTests: 1,
   pipelineOpts: [
     "--parallelism=2",

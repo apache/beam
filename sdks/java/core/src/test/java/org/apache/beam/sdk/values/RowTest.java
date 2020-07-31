@@ -762,4 +762,17 @@ public class RowTest {
     Row row = Row.withSchema(schema).withFieldValue("char", byteArray).build();
     assertTrue(Arrays.equals(byteArray, row.getLogicalTypeValue("char", byte[].class)));
   }
+
+  @Test
+  public void testWithFieldValues() {
+    EnumerationType enumerationType = EnumerationType.create("zero", "one", "two");
+    Schema schema = Schema.builder().addLogicalTypeField("f1_enum", enumerationType).build();
+    Row row =
+        Row.withSchema(schema)
+            .withFieldValues(ImmutableMap.of("f1_enum", enumerationType.valueOf("zero")))
+            .build();
+    assertEquals(enumerationType.valueOf(0), row.getValue(0));
+    assertEquals(
+        enumerationType.valueOf("zero"), row.getLogicalTypeValue(0, EnumerationType.Value.class));
+  }
 }

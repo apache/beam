@@ -202,7 +202,7 @@ if __name__ == '__main__':
     def test_no_subtransform_composite(self):
       raise unittest.SkipTest("BEAM-4781")
 
-    def test_external_transforms(self):
+    def test_external_transform(self):
       with self.create_pipeline() as p:
         res = (
             p
@@ -213,6 +213,7 @@ if __name__ == '__main__':
 
         assert_that(res, equal_to([i for i in range(1, 10)]))
 
+    def test_expand_kafka_read(self):
       # We expect to fail here because we do not have a Kafka cluster handy.
       # Nevertheless, we check that the transform is expanded by the
       # ExpansionService and that the pipeline fails during execution.
@@ -239,6 +240,7 @@ if __name__ == '__main__':
           'Expected to fail due to invalid bootstrap.servers, but '
           'failed due to:\n%s' % str(ctx.exception))
 
+    def test_expand_kafka_write(self):
       # We just test the expansion but do not execute.
       # pylint: disable=expression-not-assigned
       (
@@ -280,6 +282,9 @@ if __name__ == '__main__':
             self).test_flattened_side_input(with_transcoding=False)
 
     def test_metrics(self):
+      super(FlinkRunnerTest, self).test_metrics(check_gauge=False)
+
+    def test_flink_metrics(self):
       """Run a simple DoFn that increments a counter and verifies state
       caching metrics. Verifies that its expected value is written to a
       temporary file by the FileReporter"""
@@ -391,7 +396,13 @@ if __name__ == '__main__':
       ] + options.view_as(DebugOptions).experiments
       return options
 
-    def test_external_transforms(self):
+    def test_external_transform(self):
+      raise unittest.SkipTest("BEAM-7252")
+
+    def test_expand_kafka_read(self):
+      raise unittest.SkipTest("BEAM-7252")
+
+    def test_expand_kafka_write(self):
       raise unittest.SkipTest("BEAM-7252")
 
     def test_sql(self):

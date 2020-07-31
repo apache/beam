@@ -21,7 +21,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import os
-import platform
 import sys
 import warnings
 from distutils.errors import DistutilsError
@@ -122,16 +121,11 @@ except DistributionNotFound:
   # do nothing if Cython is not installed
   pass
 
-# Currently all compiled modules are optional  (for performance only).
-if platform.system() == 'Windows':
-  # Windows doesn't always provide int64_t.
+try:
+  # pylint: disable=wrong-import-position
+  from Cython.Build import cythonize
+except ImportError:
   cythonize = lambda *args, **kwargs: []
-else:
-  try:
-    # pylint: disable=wrong-import-position
-    from Cython.Build import cythonize
-  except ImportError:
-    cythonize = lambda *args, **kwargs: []
 
 REQUIRED_PACKAGES = [
     # Apache Avro does not follow semantic versioning, so we should not auto
@@ -158,7 +152,7 @@ REQUIRED_PACKAGES = [
     'numpy>=1.14.3,<2',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<4',
-    'protobuf>=3.5.0.post1,<4',
+    'protobuf>=3.12.2,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
     ('pyarrow>=0.15.1,<0.18.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),
@@ -196,6 +190,12 @@ REQUIRED_TEST_PACKAGES = [
     'pytest-xdist>=1.29.0,<2',
     'pytest-timeout>=1.3.3,<2',
     'rsa<4.1; python_version < "3.0"',
+    # sqlalchemy is used only for running xlang jdbc test so limit to Py3
+    'sqlalchemy>=1.3,<2.0; python_version >= "3.5"',
+    # psycopg is used only for running xlang jdbc test so limit to Py3
+    'psycopg2-binary>=2.8.5,<3.0.0; python_version >= "3.5"',
+    # testcontainers is used only for running xlang jdbc test so limit to Py3
+    'testcontainers>=3.0.3,<4.0.0; python_version >= "3.5"',
     ]
 
 GCP_REQUIREMENTS = [
@@ -265,7 +265,7 @@ if sys.version_info.major == 2:
       'You are using Apache Beam with Python 2. '
       'New releases of Apache Beam will soon support Python 3 only.')
 
-if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+if sys.version_info.major == 3 and sys.version_info.minor >= 9:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' % (
@@ -282,8 +282,8 @@ setuptools.setup(
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
     package_data={'apache_beam': [
-        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml',
-        'portability/api/*.yaml']},
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', '*/*.h', '*/*/*.h',
+        'testing/data/*.yaml', 'portability/api/*.yaml']},
     ext_modules=cythonize([
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
@@ -319,6 +319,7 @@ setuptools.setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         # When updating vesion classifiers, also update version warnings
         # above and in apache_beam/__init__.py.
         'Topic :: Software Development :: Libraries',

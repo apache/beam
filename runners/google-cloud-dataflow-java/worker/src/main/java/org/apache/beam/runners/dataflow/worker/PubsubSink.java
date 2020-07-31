@@ -23,7 +23,6 @@ import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A sink that writes to Pubsub, via a Windmill server.

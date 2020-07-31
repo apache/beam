@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate.collector;
 import static java.util.Objects.requireNonNull;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
@@ -30,6 +29,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Implementation of {@link Collector} which forwards output elements through {@link
@@ -45,7 +45,7 @@ public class AdaptableCollector<InputT, OutputT, ElemT>
 
   private final AccumulatorProvider accumulators;
   private final CollectorAdapter<InputT, OutputT, ElemT> adapter;
-  @Nullable private final String operatorName;
+  private final @Nullable String operatorName;
   private transient DoFn<InputT, OutputT>.ProcessContext context;
 
   public AdaptableCollector(
