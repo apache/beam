@@ -379,7 +379,8 @@ public class CassandraIOTest implements Serializable {
                 .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withEntity(ScientistWrite.class));
-    // table to write to is specified in the entity in @Table annotation (in that case scientist)
+    // table to write to is specified in the entity in @Table annotation (in that case
+    // scientist_write)
     pipeline.run();
 
     List<Row> results = getRows(CASSANDRA_TABLE_WRITE);
