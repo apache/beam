@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
@@ -71,6 +70,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices.FakeBigQueryServerStream;
@@ -384,7 +384,7 @@ public class BigQueryIOStorageQueryTest {
     TableReference tempTableReference =
         createTempTableReference(
             options.getProject(),
-            createJobIdToken(options.getJobName(), stepUuid),
+            BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY),
             Optional.empty());
 
     CreateReadSessionRequest expectedRequest =
@@ -475,7 +475,7 @@ public class BigQueryIOStorageQueryTest {
     TableReference tempTableReference =
         createTempTableReference(
             options.getProject(),
-            createJobIdToken(options.getJobName(), stepUuid),
+            BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY),
             Optional.empty());
 
     CreateReadSessionRequest expectedRequest =
@@ -623,7 +623,7 @@ public class BigQueryIOStorageQueryTest {
     TableReference tempTableReference =
         createTempTableReference(
             options.getProject(),
-            createJobIdToken(options.getJobName(), stepUuid),
+            BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY),
             Optional.empty());
 
     CreateReadSessionRequest expectedRequest =
