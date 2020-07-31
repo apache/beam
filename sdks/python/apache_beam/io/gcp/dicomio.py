@@ -182,10 +182,7 @@ class DicomSearch(PTransform):
     """
     self.buffer_size = buffer_size
     self.max_workers = max_workers
-    if not client:
-      self.client = DicomApiHttpClient()
-    else:
-      self.client = client
+    self.client = client or DicomApiHttpClient()
     self.credential = credential
 
   def expand(self, pcoll):

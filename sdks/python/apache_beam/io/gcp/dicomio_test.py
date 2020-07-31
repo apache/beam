@@ -34,12 +34,19 @@ import apache_beam as beam
 from apache_beam.io import fileio
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.io.gcp.dicomio import DicomSearch
-from apache_beam.io.gcp.dicomio import PubsubToQido
-from apache_beam.io.gcp.dicomio import WriteToDicomStore
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+# Protect against environments where gcp library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apache_beam.io.gcp.dicomio import DicomSearch
+  from apache_beam.io.gcp.dicomio import PubsubToQido
+  from apache_beam.io.gcp.dicomio import WriteToDicomStore
+except ImportError:
+  DicomSearch = None  # type: ignore
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class FakeHttpClient():
@@ -158,7 +165,7 @@ class TestPubsubToQido(unittest.TestCase):
           | PubsubToQido())
       assert_that(convert_result, equal_to([self.expected_invalid_pubsub_dict]))
 
-
+@unittest.skipIf(DicomSearch is None, 'GCP dependencies are not installed')
 class TestDicomSearch(unittest.TestCase):
   @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
   def test_successful_search(self, FakeClient):
@@ -292,6 +299,7 @@ class TestDicomSearch(unittest.TestCase):
       assert_that(results, equal_to([expected_invalid_dict]))
 
 
+@unittest.skipIf(DicomSearch is None, 'GCP dependencies are not installed')
 class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
   @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
   def test_store_byte_file(self, FakeClient):
