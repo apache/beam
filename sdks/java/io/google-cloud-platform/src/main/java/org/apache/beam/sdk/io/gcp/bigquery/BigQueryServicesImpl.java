@@ -373,10 +373,17 @@ class BigQueryServicesImpl implements BigQueryServices {
       Exception lastException;
       do {
         try {
-          return client.jobs().get(jobRef.getProjectId(), jobId).execute();
+          return client
+              .jobs()
+              .get(jobRef.getProjectId(), jobId)
+              .setLocation(jobRef.getLocation())
+              .execute();
         } catch (GoogleJsonResponseException e) {
           if (errorExtractor.itemNotFound(e)) {
-            LOG.info("No BigQuery job with job id {} found.", jobId);
+            LOG.info(
+                "No BigQuery job with job id {} found in location {}.",
+                jobId,
+                jobRef.getLocation());
             return null;
           }
           LOG.info(
