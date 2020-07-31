@@ -291,10 +291,10 @@ def pick_port(*ports):
     if port:
       return port
     else:
-      s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
       sockets.append(s)
       s.bind(('localhost', 0))
-      _, free_port = s.getsockname()
+      _, free_port, _, _ = s.getsockname()
       return free_port
 
   ports = list(map(find_free_port, ports))
