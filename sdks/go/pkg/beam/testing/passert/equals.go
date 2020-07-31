@@ -18,6 +18,7 @@ package passert
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -38,6 +39,19 @@ func Equals(s beam.Scope, col beam.PCollection, values ...interface{}) beam.PCol
 
 	other := beam.Create(subScope, values...)
 	return equals(subScope, col, other)
+}
+
+func EqualsList(s beam.Scope, col beam.PCollection, list interface{}) beam.PCollection {
+	subScope := s.Scope("passert.EqualsList")
+	val := reflect.ValueOf(list)
+	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
+		panic(fmt.Sprintf("input %v must be a slice or array", list))
+	}
+	var values []interface{}
+	for i := 0; i < val.Len(); i++ {
+		values = append(values, val.Index(i).Interface())
+	}
+	return Equals(subScope, col, values...)
 }
 
 // equals verifies that the actual values match the expected ones.
