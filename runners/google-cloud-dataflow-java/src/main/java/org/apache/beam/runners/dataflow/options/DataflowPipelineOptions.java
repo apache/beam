@@ -128,13 +128,10 @@ public interface DataflowPipelineOptions
    * href="https://cloud.google.com/compute/docs/regions-zones/regions-zones">region</a> for
    * creating Dataflow jobs.
    */
-  @Hidden
-  @Experimental
   @Description(
       "The Google Compute Engine region for creating Dataflow jobs. See "
           + "https://cloud.google.com/compute/docs/regions-zones/regions-zones for a list of valid "
-          + "options. Currently defaults to us-central1, but future releases of Beam will "
-          + "require the user to set the region explicitly.")
+          + "options.")
   @Default.InstanceFactory(DefaultGcpRegionFactory.class)
   String getRegion();
 
