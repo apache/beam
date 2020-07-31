@@ -326,7 +326,7 @@ To find out which version of Flink is compatible with Beam please see the table 
   <th>Artifact Id</th>
 </tr>
 <tr>
-  <td rowspan="3">2.21.0-2.23.0</td>
+  <td rowspan="3">&ge; 2.21.0</td>
   <td>1.10.x</td>
   <td>beam-runners-flink-1.10</td>
 </tr>
@@ -339,7 +339,7 @@ To find out which version of Flink is compatible with Beam please see the table 
   <td>beam-runners-flink-1.8</td>
 </tr>
 <tr>
-  <td rowspan="3">2.17.0-2.20.0</td>
+  <td rowspan="3">2.17.0 - 2.20.0</td>
   <td>1.9.x</td>
   <td>beam-runners-flink-1.9</td>
 </tr>
