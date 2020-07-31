@@ -41,7 +41,8 @@ will be stored,
 
 from __future__ import absolute_import
 
-from typing import Iterable, Tuple
+from typing import Iterable
+from typing import Tuple
 
 import apache_beam as beam
 from apache_beam.testing.load_tests.load_test import LoadTest

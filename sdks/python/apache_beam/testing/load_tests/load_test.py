@@ -27,10 +27,10 @@ import sys
 from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.testing.load_tests.load_test_metrics_utils import InfluxDBMetricsPublisherOptions
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.options.pipeline_options import TypeOptions
 
 
 class LoadTestOptions(PipelineOptions):
