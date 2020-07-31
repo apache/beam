@@ -80,7 +80,7 @@ jlpm jest
 
 This project uses `ts-jest` to test all ts/tsx files under `src/__tests__` directory.
 
-To run a single test, find out the name of a test in the source code that looks like: 
+To run a single test, find out the name of a test in the source code that looks like:
 
 ```javascript
 it('does ABC', () => {...})
