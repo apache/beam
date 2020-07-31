@@ -78,8 +78,7 @@ coders.registry.register_coder(JdbcWriteTestRow, coders.RowCoder)
     'Do not run this test on precommit suites.')
 class CrossLanguageJdbcIOTest(unittest.TestCase):
   def setUp(self):
-    self.postgres = PostgresContainer('postgres:latest')
-    self.postgres.start()
+    self.start_postgres_container(retries=3)
     self.engine = sqlalchemy.create_engine(self.postgres.get_connection_url())
     self.username = 'test'
     self.password = 'test'
@@ -91,7 +90,12 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
         self.host, self.port, self.database_name)
 
   def tearDown(self):
-    self.postgres.stop()
+    # Sometimes stopping the container raises ReadTimeout. We can ignore it
+    # here to avoid the test failure.
+    try:
+      self.postgres.stop()
+    except:  # pylint: disable=bare-except
+      logging.error('Could not stop the postgreSQL container.')
 
   def test_xlang_jdbc_write(self):
     table_name = 'jdbc_external_test_write'
@@ -149,6 +153,19 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
 
       assert_that(
           result, equal_to([JdbcReadTestRow(i) for i in range(ROW_COUNT)]))
+
+  # Creating a container with testcontainers sometimes raises ReadTimeout
+  # error. In java there are 2 retries set by default.
+  def start_postgres_container(self, retries):
+    for i in range(retries):
+      try:
+        self.postgres = PostgresContainer('postgres:12.3')
+        self.postgres.start()
+        break
+      except Exception as e:  # pylint: disable=bare-except
+        if i == retries - 1:
+          logging.error('Unable to initialize postgreSQL container.')
+          raise e
 
 
 if __name__ == '__main__':

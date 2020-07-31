@@ -635,7 +635,7 @@ class PTransformTest(unittest.TestCase):
                                                      ('b', 3), ('c', 4)])
       pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
                                                      ('c', 7), ('c', 8)])
-      result = [pc for pc in (pcoll_1, pcoll_2)] | beam.CoGroupByKey()
+      result = iter([pcoll_1, pcoll_2]) | beam.CoGroupByKey()
       result |= _SortLists
       assert_that(
           result,

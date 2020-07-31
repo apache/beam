@@ -192,7 +192,7 @@ class WriteTables<DestinationT>
       Integer partition = c.element().getKey().getShardNumber();
       List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
       String jobIdPrefix =
-          BigQueryHelpers.createJobId(
+          BigQueryResourceNaming.createJobIdWithDestination(
               c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
 
       if (tempTable) {
@@ -379,7 +379,9 @@ class WriteTables<DestinationT>
             .setUseAvroLogicalTypes(useAvroLogicalTypes);
     if (schemaUpdateOptions != null) {
       List<String> options =
-          schemaUpdateOptions.stream().map(Enum::name).collect(Collectors.toList());
+          schemaUpdateOptions.stream()
+              .map(Enum<SchemaUpdateOption>::name)
+              .collect(Collectors.toList());
       loadConfig.setSchemaUpdateOptions(options);
     }
     if (timePartitioning != null) {

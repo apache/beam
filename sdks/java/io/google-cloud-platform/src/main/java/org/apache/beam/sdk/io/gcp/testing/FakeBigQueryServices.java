@@ -120,7 +120,7 @@ public class FakeBigQueryServices implements BigQueryServices {
 
   // Longs tend to get converted back to Integers due to JSON serialization. Convert them back.
   public static TableRow convertNumbers(TableRow tableRow) {
-    for (TableRow.Entry entry : tableRow.entrySet()) {
+    for (TableRow.Entry<?, Object> entry : tableRow.entrySet()) {
       if (entry.getValue() instanceof Integer) {
         entry.setValue(Long.valueOf((Integer) entry.getValue()));
       }

@@ -492,8 +492,11 @@ public class KafkaIO {
       public static final String URN = "beam:external:java:kafka:read:v1";
 
       @Override
-      public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
-        return ImmutableMap.of(URN, AutoValue_KafkaIO_Read.Builder.class);
+      public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
+        return ImmutableMap.of(
+            URN,
+            (Class<? extends ExternalTransformBuilder<?, ?, ?>>)
+                (Class<?>) AutoValue_KafkaIO_Read.Builder.class);
       }
 
       /** Parameters class to expose the Read transform to an external SDK. */
@@ -1324,9 +1327,10 @@ public class KafkaIO {
         }
         throw new UnsupportedOperationException(
             runner
-                + " is not a runner known to be compatible with Kafka exactly-once sink. "
-                + "This implementation of exactly-once sink relies on specific checkpoint guarantees. "
-                + "Only the runners with known to have compatible checkpoint semantics are allowed.");
+                + " is not a runner known to be compatible with Kafka exactly-once sink. This"
+                + " implementation of exactly-once sink relies on specific checkpoint guarantees."
+                + " Only the runners with known to have compatible checkpoint semantics are"
+                + " allowed.");
       }
     }
 
@@ -1417,8 +1421,10 @@ public class KafkaIO {
       public static final String URN = "beam:external:java:kafka:write:v1";
 
       @Override
-      public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
-        return ImmutableMap.of(URN, AutoValue_KafkaIO_Write.Builder.class);
+      public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
+        return ImmutableMap.of(
+            URN,
+            (Class<KafkaIO.Write.Builder<?, ?>>) (Class<?>) AutoValue_KafkaIO_Write.Builder.class);
       }
 
       /** Parameters class to expose the Write transform to an external SDK. */

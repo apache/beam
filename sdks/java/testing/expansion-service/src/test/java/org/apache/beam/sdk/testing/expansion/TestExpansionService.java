@@ -164,8 +164,8 @@ public class TestExpansionService {
     private static Schema schema = new Schema.Parser().parse(rawSchema);
 
     @Override
-    public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
-      ImmutableMap.Builder<String, Class<? extends ExternalTransformBuilder>> builder =
+    public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
+      ImmutableMap.Builder<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> builder =
           ImmutableMap.builder();
       builder.put(TEST_PREFIX_URN, PrefixBuilder.class);
       builder.put(TEST_MULTI_URN, MultiBuilder.class);

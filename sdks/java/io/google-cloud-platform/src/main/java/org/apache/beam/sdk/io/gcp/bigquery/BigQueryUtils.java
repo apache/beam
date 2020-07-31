@@ -55,6 +55,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
@@ -362,7 +363,7 @@ public class BigQueryUtils {
   }
 
   private static final SerializableFunction<Row, TableRow> ROW_TO_TABLE_ROW =
-      new ToTableRow(SerializableFunctions.identity());
+      new ToTableRow<>(SerializableFunctions.identity());
 
   /** Convert a Beam {@link Row} to a BigQuery {@link TableRow}. */
   public static SerializableFunction<Row, TableRow> toTableRow() {
@@ -423,7 +424,7 @@ public class BigQueryUtils {
     return output;
   }
 
-  private static Object fromBeamField(FieldType fieldType, Object fieldValue) {
+  private static @Nullable Object fromBeamField(FieldType fieldType, Object fieldValue) {
     if (fieldValue == null) {
       if (!fieldType.getNullable()) {
         throw new IllegalArgumentException("Field is not nullable.");
@@ -435,8 +436,8 @@ public class BigQueryUtils {
       case ARRAY:
       case ITERABLE:
         FieldType elementType = fieldType.getCollectionElementType();
-        Iterable items = (Iterable) fieldValue;
-        List convertedItems = Lists.newArrayListWithCapacity(Iterables.size(items));
+        Iterable<?> items = (Iterable<?>) fieldValue;
+        List<Object> convertedItems = Lists.newArrayListWithCapacity(Iterables.size(items));
         for (Object item : items) {
           convertedItems.add(fromBeamField(elementType, item));
         }
@@ -670,7 +671,7 @@ public class BigQueryUtils {
       FieldType beamField, Object value, BigQueryUtils.ConversionOptions options) {
     // Check whether the type of array element is equal.
     List<Object> values = (List<Object>) value;
-    List<Object> ret = new ArrayList();
+    List<Object> ret = new ArrayList<>();
     FieldType collectionElement = beamField.getCollectionElementType();
     for (Object v : values) {
       ret.add(convertAvroFormat(collectionElement, v, options));

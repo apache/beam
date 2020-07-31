@@ -33,6 +33,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.beans.PropertyDescriptor;
 import java.io.IOException;
 import java.io.NotSerializableException;
@@ -95,8 +96,17 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
   private final int hashCode = ThreadLocalRandom.current().nextInt();
 
   private final Set<Class<? extends PipelineOptions>> knownInterfaces;
+
+  // ProxyInvocationHandler implements Serializable only for the sake of throwing an informative
+  // exception in writeObject()
+  @SuppressFBWarnings("SE_BAD_FIELD")
   private final ClassToInstanceMap<PipelineOptions> interfaceToProxyCache;
+
+  // ProxyInvocationHandler implements Serializable only for the sake of throwing an informative
+  // exception in writeObject()
+  @SuppressFBWarnings("SE_BAD_FIELD")
   private final Map<String, BoundValue> options;
+
   private final Map<String, JsonNode> jsonOptions;
   private final Map<String, String> gettersToPropertyNames;
   private final Map<String, String> settersToPropertyNames;

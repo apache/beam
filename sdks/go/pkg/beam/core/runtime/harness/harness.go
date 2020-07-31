@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
@@ -87,6 +88,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 				log.Errorf(ctx, "control.Send: Failed to respond: %v", err)
 			}
 		}
+		log.Debugf(ctx, "control response channel closed")
 	}()
 
 	ctrl := &control{
@@ -103,9 +105,12 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	// is responsible for managing the network data. All it does is pull data from
 	// the stream, and hand off the message to a goroutine to actually be handled,
 	// so as to avoid blocking the underlying network channel.
+	var shutdown int32
 	for {
 		req, err := stub.Recv()
 		if err != nil {
+			// An error means we can't send or receive anymore. Shut down.
+			atomic.AddInt32(&shutdown, 1)
 			close(respc)
 			wg.Wait()
 
@@ -128,7 +133,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			hooks.RunResponseHooks(ctx, req, resp)
 
 			recordInstructionResponse(resp)
-			if resp != nil {
+			if resp != nil && atomic.LoadInt32(&shutdown) == 0 {
 				respc <- resp
 			}
 		}

@@ -681,6 +681,7 @@ public class PAssert {
      */
     @Deprecated
     @Override
+    @SuppressFBWarnings("EQ_UNUSUAL")
     public boolean equals(@Nullable Object o) {
       throw new UnsupportedOperationException(
           "If you meant to test object equality, use .containsInAnyOrder instead.");
@@ -1048,6 +1049,7 @@ public class PAssert {
      */
     @Deprecated
     @Override
+    @SuppressFBWarnings("EQ_UNUSUAL")
     public boolean equals(@Nullable Object o) {
       throw new UnsupportedOperationException(
           String.format(

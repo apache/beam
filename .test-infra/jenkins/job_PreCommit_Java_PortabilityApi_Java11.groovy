@@ -24,7 +24,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     nameBase: 'JavaPortabilityApiJava11',
     gradleTask: ':clean', // Do nothing here
     gradleSwitches: [
-      '-PdisableSpotlessCheck=true'
+      '-PdisableSpotlessCheck=true',
+      '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^model/.*$',
@@ -47,6 +48,7 @@ builder.build {
       switches '-Pdockerfile=Dockerfile-java11'
       switches '-PdisableSpotlessCheck=true'
       switches '-PcompileAndRunTestsWithJava11'
+      switches '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
       switches "-Pjava11Home=${properties.JAVA_11_HOME}"
       properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
     }

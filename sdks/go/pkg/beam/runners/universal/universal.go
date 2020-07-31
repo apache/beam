@@ -29,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/extworker"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/runnerlib"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/vet"
 	"github.com/golang/protobuf/proto"
@@ -62,8 +63,21 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
+	envUrn := jobopts.GetEnvironmentUrn(ctx)
+	getEnvCfg := jobopts.GetEnvironmentConfig
+
+	if jobopts.IsLoopback() {
+		// TODO(BEAM-10610): Allow user configuration of this port, rather than kernel selected.
+		srv, err := extworker.StartLoopback(ctx, 0)
+		if err != nil {
+			return err
+		}
+		defer srv.Stop(ctx)
+		getEnvCfg = srv.EnvironmentConfig
+	}
+
 	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: graphx.CreateEnvironment(
-		ctx, jobopts.GetEnvironmentUrn(ctx), jobopts.GetEnvironmentConfig)})
+		ctx, envUrn, getEnvCfg)})
 	if err != nil {
 		return errors.WithContextf(err, "generating model pipeline")
 	}

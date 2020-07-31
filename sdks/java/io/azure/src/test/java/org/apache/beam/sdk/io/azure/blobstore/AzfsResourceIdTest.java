@@ -56,7 +56,7 @@ public class AzfsResourceIdTest {
     public String expectedResult;
 
     @Parameterized.Parameters
-    public static Collection paths() {
+    public static Collection<Object[]> paths() {
       return Arrays.asList(
           new Object[][] {
             {"azfs://account/container/", "", RESOLVE_DIRECTORY, "azfs://account/container/"},

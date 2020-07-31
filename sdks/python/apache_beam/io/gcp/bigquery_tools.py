@@ -1481,3 +1481,21 @@ bigquery_v2_messages.TableSchema):
   dict_table_schema = get_dict_table_schema(schema)
   return bigquery_avro_tools.get_record_schema_from_dict_table_schema(
       "root", dict_table_schema)
+
+
+class BigQueryJobTypes:
+  EXPORT = 'EXPORT'
+  COPY = 'COPY'
+  LOAD = 'LOAD'
+  QUERY = 'QUERY'
+
+
+def generate_bq_job_name(job_name, step_id, job_type, random=None):
+  from apache_beam.io.gcp.bigquery import BQ_JOB_NAME_TEMPLATE
+  random = ("_%s" % random) if random else ""
+  return str.format(
+      BQ_JOB_NAME_TEMPLATE,
+      job_type=job_type,
+      job_id=job_name.replace("-", ""),
+      step_id=step_id,
+      random=random)

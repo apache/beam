@@ -91,9 +91,13 @@ class CommonJobProperties {
       }
       credentialsBinding {
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
-        string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
       }
       timestamps()
+    }
+
+    context.publishers {
+      // Clean after job completes.
+      wsCleanup()
     }
   }
 

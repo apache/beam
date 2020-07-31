@@ -44,6 +44,7 @@ import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
@@ -807,6 +808,8 @@ public class GcsUtil {
   }
 
   /** A class that holds either a {@link StorageObject} or an {@link IOException}. */
+  // It is clear from the name that this class holds either StorageObject or IOException.
+  @SuppressFBWarnings("NM_CLASS_NOT_EXCEPTION")
   @AutoValue
   public abstract static class StorageObjectOrIOException {
 

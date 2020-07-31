@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
@@ -77,6 +75,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSche
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TimePartitioningToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
@@ -457,6 +456,22 @@ import org.slf4j.LoggerFactory;
  * </a> for security and permission related information specific to BigQuery.
  */
 public class BigQueryIO {
+
+  /**
+   * Template for BigQuery jobs created by BigQueryIO. This template is: {@code
+   * "beam_bq_job_{TYPE}_{JOB_ID}_{STEP}_{RANDOM}"}, where:
+   *
+   * <ul>
+   *   <li>{@code TYPE} represents the BigQuery job type (e.g. extract / copy / load / query)
+   *   <li>{@code JOB_ID} is the Beam job name.
+   *   <li>{@code STEP} is a UUID representing the the Dataflow step that created the BQ job.
+   *   <li>{@code RANDOM} is a random string.
+   * </ul>
+   *
+   * <p><b>NOTE:</b> This job name template does not have backwards compatibility guarantees.
+   */
+  public static final String BIGQUERY_JOB_TEMPLATE = "beam_bq_job_{TYPE}_{JOB_ID}_{STEP}_{RANDOM}";
+
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIO.class);
 
   /** Singleton instance of the JSON factory used to read and write JSON formatted rows. */
@@ -1153,7 +1168,9 @@ public class BigQueryIO {
               JobReference jobRef =
                   new JobReference()
                       .setProjectId(executingProject)
-                      .setJobId(getExtractJobId(createJobIdToken(bqOptions.getJobName(), jobUuid)));
+                      .setJobId(
+                          BigQueryResourceNaming.createJobIdPrefix(
+                              bqOptions.getJobName(), jobUuid, JobType.EXPORT));
 
               Job extractJob = getBigQueryServices().getJobService(bqOptions).getJob(jobRef);
 
@@ -1362,7 +1379,8 @@ public class BigQueryIO {
               TableReference tempTable =
                   createTempTableReference(
                       options.getProject(),
-                      createJobIdToken(options.getJobName(), jobUuid),
+                      BigQueryResourceNaming.createJobIdPrefix(
+                          options.getJobName(), jobUuid, JobType.QUERY),
                       queryTempDataset);
 
               DatasetService datasetService = getBigQueryServices().getDatasetService(options);
