@@ -318,10 +318,13 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
 
     try:
       argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
-      if argspec.args:
-        transform.fn._runtime_parameter_name = argspec.args[0]
+      if len(argspec.args):
+        arg_index = 0
+        if argspec.args[0] == 'self':
+          arg_index = 1
+        transform.fn._runtime_parameter_name = argspec.args[arg_index]
         if isinstance(input_types, dict):
-          input_types = (input_types[argspec.args[0]], )
+          input_types = (input_types[argspec.args[arg_index]], )
     except TypeError:
       pass
 

@@ -163,36 +163,62 @@ class RuntimeTypeCheckTest(unittest.TestCase):
 
 class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
   def setUp(self):
-    self.p = Pipeline(options=PipelineOptions(
-      performance_runtime_type_check=True,
-      pipeline_type_check=False
-    ))
+    self.p = Pipeline(
+        options=PipelineOptions(
+            performance_runtime_type_check=True, pipeline_type_check=False))
+
+  def assertStartswith(self, msg, prefix):
+    self.assertTrue(
+        msg.startswith(prefix), '"%s" does not start with "%s"' % (msg, prefix))
 
   def test_simple_input_error(self):
     with self.assertRaises(TypeCheckError) as e:
-      (self.p
+      (
+          self.p
           | beam.Create([1, 2, 3])
-          | beam.FlatMap(lambda x: [int(x)]).with_input_types(str).with_output_types(int))
+          | beam.FlatMap(lambda x: [int(x)]).with_input_types(
+              str).with_output_types(int))
       self.p.run()
 
     self.assertIn(
-      "Type-hint for argument: 'x' violated. "
-      "Expected an instance of <class 'str'>, "
-      "instead found 1, an instance of <class 'int'>",
-      e.exception.args[0])
+        "Type-hint for argument: 'x' violated. "
+        "Expected an instance of <class 'str'>, "
+        "instead found 1, an instance of <class 'int'>",
+        e.exception.args[0])
 
   def test_simple_output_error(self):
     with self.assertRaises(TypeCheckError) as e:
-      (self.p
+      (
+          self.p
           | beam.Create(['1', '2', '3'])
-          | beam.FlatMap(lambda x: [int(x)]).with_input_types(int).with_output_types(int))
+          | beam.FlatMap(lambda x: [int(x)]).with_input_types(
+              int).with_output_types(int))
       self.p.run()
 
     self.assertIn(
-      "Type-hint for argument: 'x' violated. "
-      "Expected an instance of <class 'int'>, "
-      "instead found 1, an instance of <class 'str'>.",
-      e.exception.args[0])
+        "Type-hint for argument: 'x' violated. "
+        "Expected an instance of <class 'int'>, "
+        "instead found 1, an instance of <class 'str'>.",
+        e.exception.args[0])
+
+  def test_simple_input_error_with_kwarg_typehints(self):
+    @beam.typehints.with_input_types(element=int)
+    @beam.typehints.with_output_types(int)
+    class ToInt(beam.DoFn):
+      def process(self, element, *args, **kwargs):
+        yield int(element)
+
+    with self.assertRaises(TypeCheckError) as e:
+      (self.p | beam.Create(['1', '2', '3']) | beam.ParDo(ToInt()))
+      self.p.run()
+
+    self.assertStartswith(
+        e.exception.args[0],
+        "Runtime type violation detected within "
+        "ParDo(ParDo(ToInt)): Type-hint for argument: "
+        "'element' violated. Expected an instance of "
+        "<class 'int'>, instead found 1, "
+        "an instance of <class 'str'>.")
 
 
 if __name__ == '__main__':
