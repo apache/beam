@@ -29,6 +29,7 @@ import org.apache.beam.runners.dataflow.worker.fn.control.BeamFnMapTaskExecutor.
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -46,7 +47,7 @@ public class SingularProcessBundleProgressTrackerTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       return o instanceof TestProgress && this.name.equals(((TestProgress) o).name);
     }
 

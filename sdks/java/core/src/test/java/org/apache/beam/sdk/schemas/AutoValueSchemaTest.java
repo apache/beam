@@ -25,7 +25,6 @@ import com.google.auto.value.AutoValue;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import org.apache.beam.sdk.schemas.AutoValueSchemaTest.SimpleAutoValueWithBuilder.Builder;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;

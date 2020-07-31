@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -114,8 +114,7 @@ public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
                 Combine.perKey(
                     new SerializableFunction<Iterable<Void>, Void>() {
                       @Override
-                      @Nullable
-                      public Void apply(Iterable<Void> iter) {
+                      public @Nullable Void apply(Iterable<Void> iter) {
                         return null; // ignore input
                       }
                     }));

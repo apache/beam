@@ -29,7 +29,6 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.ShardingStrategy;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
 import java.io.IOException;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -41,6 +40,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

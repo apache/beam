@@ -39,7 +39,6 @@ from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 from apache_beam.testing.test_stream import TestStream
-from apache_beam.testing.util import timeout
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.timestamp import Timestamp
@@ -155,7 +154,6 @@ class InteractiveRunnerTest(unittest.TestCase):
   @unittest.skipIf(
       sys.version_info < (3, 5, 3),
       'The tests require at least Python 3.6 to work.')
-  @timeout(60)
   def test_streaming_wordcount(self):
     class WordExtractingDoFn(beam.DoFn):
       def process(self, element):

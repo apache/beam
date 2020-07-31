@@ -19,6 +19,7 @@ package org.apache.beam.runners.core;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
@@ -70,6 +71,8 @@ public class PaneInfoTracker {
 
     return new ReadableState<PaneInfo>() {
       @Override
+      @SuppressFBWarnings(
+          "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT") // just prefetch calls to readLater
       public ReadableState<PaneInfo> readLater() {
         previousPaneFuture.readLater();
         return this;

@@ -18,10 +18,9 @@ import apache_beam as beam
 
 from log_elements import LogElements
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-(p | beam.Create(['apple', 'banana', 'cherry', 'durian', 'guava', 'melon'])
-   | beam.WithKeys(lambda word: word[0:1])
-   | LogElements())
+  (p | beam.Create(['apple', 'banana', 'cherry', 'durian', 'guava', 'melon'])
+     | beam.WithKeys(lambda word: word[0:1])
+     | LogElements())
 
-p.run()

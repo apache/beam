@@ -75,7 +75,8 @@ The goal is that all (non-direct) runners and SDKs eventually support
 the portability API, perhaps exclusively.
 
 If you are interested in digging in to the designs, you can find
-them on the [Beam developers' wiki](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam).
+them on the [Beam developers' wiki](https://cwiki.apache.org/confluence/display/BEAM/Design+Documents).
+Another overview can be found [here](https://docs.google.com/presentation/d/1Yg8Xm4fb-oRjiLQjwLt5153hpwwTLclZrVOKP2hQifo/edit#slide=id.g42e4c9aad6_1_3070).
 
 ## Milestones
 
@@ -141,9 +142,11 @@ their respective components.
 
 ## Status
 
-MVP, and FeatureCompletness nearly done (missing SDF, timers) for
+MVP, and FeatureCompletness nearly done for
 SDKs, Python ULR, and shared java runners library.
-Currently, the Flink and Spark runners support portable pipeline execution.
+Performance is good and multi-language pipelines are supported.
+Currently, the Flink and Spark runners support portable pipeline execution,
+as does Dataflow when using the [Dataflow Runner v2](https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2).
 See the
 [Portability support table](https://s.apache.org/apache-beam-portability-support-table)
 for details.
@@ -166,4 +169,7 @@ Python streaming mode is not yet supported on Spark.
 
 ## SDK Harness Configuration {#sdk-harness-config}
 
-See [here](/documentation/runtime/sdk-harness-config/) for more information on SDK harness deployment options.
+See [here](/documentation/runtime/sdk-harness-config/) for more information on SDK harness deployment options
+and [here](https://docs.google.com/presentation/d/1Cso0XP9dmj77OD9Bd53C1M3W1sPJF0ZnA20gzb2BPhE/edit?usp=sharing)
+for what goes into writing a portable SDK.
+

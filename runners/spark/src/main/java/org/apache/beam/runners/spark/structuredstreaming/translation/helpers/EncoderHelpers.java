@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.sql.Encoder;
@@ -42,6 +41,7 @@ import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext;
 import org.apache.spark.sql.catalyst.expressions.codegen.ExprCode;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.ObjectType;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import scala.StringContext;
 import scala.collection.JavaConversions;
 import scala.reflect.ClassTag;
@@ -151,7 +151,7 @@ public class EncoderHelpers {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -263,7 +263,7 @@ public class EncoderHelpers {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -283,7 +283,7 @@ public class EncoderHelpers {
      * Convert value from byte array (invoked by generated code in {@link #doGenCode(CodegenContext,
      * ExprCode)}).
      */
-    public static <T> T decode(boolean isNull, @Nullable byte[] serialized, Coder<T> coder) {
+    public static <T> T decode(boolean isNull, byte @Nullable [] serialized, Coder<T> coder) {
       return isNull ? null : CoderHelpers.fromByteArray(serialized, coder);
     }
   }

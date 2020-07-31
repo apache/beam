@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
@@ -37,6 +38,7 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 
 /**
  * A {@link PrintStream} factory that creates {@link PrintStream}s which output to the specified JUL
@@ -66,14 +68,17 @@ class JulHandlerPrintStreamAdapterFactory {
     private int carryOverBytes;
     private byte[] carryOverByteArray;
 
-    private JulHandlerPrintStream(Handler handler, String loggerName, Level logLevel) {
+    private JulHandlerPrintStream(Handler handler, String loggerName, Level logLevel)
+        throws UnsupportedEncodingException {
       super(
           new OutputStream() {
             @Override
             public void write(int i) throws IOException {
               throw new RuntimeException("All methods should be overwritten so this is unused");
             }
-          });
+          },
+          false,
+          Charsets.UTF_8.name());
       this.handler = handler;
       this.loggerName = loggerName;
       this.messageLevel = logLevel;
@@ -401,7 +406,11 @@ class JulHandlerPrintStreamAdapterFactory {
    * specified {@code loggerName} and {@code level}.
    */
   static PrintStream create(Handler handler, String loggerName, Level messageLevel) {
-    return new JulHandlerPrintStream(handler, loggerName, messageLevel);
+    try {
+      return new JulHandlerPrintStream(handler, loggerName, messageLevel);
+    } catch (UnsupportedEncodingException exc) {
+      throw new RuntimeException("Encoding not supported: " + Charsets.UTF_8.name(), exc);
+    }
   }
 
   @VisibleForTesting

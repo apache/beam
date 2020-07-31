@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code PTransform}s for computing the arithmetic mean (a.k.a. average) of the elements in a
@@ -148,7 +150,10 @@ public class Mean {
     }
 
     @Override
-    public boolean equals(Object other) {
+    // Comparing doubles directly since class is package private and equals method is only used in
+    // coder test.
+    @SuppressFBWarnings("FE_FLOATING_POINT_EQUALITY")
+    public boolean equals(@Nullable Object other) {
       if (!(other instanceof CountSum)) {
         return false;
       }

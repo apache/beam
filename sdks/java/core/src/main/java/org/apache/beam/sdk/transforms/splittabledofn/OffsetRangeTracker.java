@@ -23,12 +23,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.math.BigDecimal;
 import java.math.MathContext;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link RestrictionTracker} for claiming offsets in an {@link OffsetRange} in a monotonically
@@ -41,8 +41,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
     implements HasProgress {
   protected OffsetRange range;
-  @Nullable protected Long lastClaimedOffset = null;
-  @Nullable protected Long lastAttemptedOffset = null;
+  protected @Nullable Long lastClaimedOffset = null;
+  protected @Nullable Long lastAttemptedOffset = null;
 
   public OffsetRangeTracker(OffsetRange range) {
     this.range = checkNotNull(range);

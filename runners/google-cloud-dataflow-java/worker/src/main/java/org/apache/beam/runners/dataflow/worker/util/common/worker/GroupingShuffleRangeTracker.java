@@ -20,9 +20,9 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.RangeTracker;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,10 +41,10 @@ public class GroupingShuffleRangeTracker implements RangeTracker<ShufflePosition
   private static final Logger LOG = LoggerFactory.getLogger(GroupingShuffleRangeTracker.class);
 
   // null means "no limit": read from the beginning of the data.
-  @Nullable private final ShufflePosition startPosition;
+  private final @Nullable ShufflePosition startPosition;
 
   // null means "no limit": read until the end of the data.
-  @Nullable private ShufflePosition stopPosition;
+  private @Nullable ShufflePosition stopPosition;
 
   private ShufflePosition lastGroupStart = null;
   private boolean lastGroupWasAtSplitPoint = false;

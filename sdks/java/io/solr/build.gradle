@@ -17,7 +17,10 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.solr')
+applyJavaNature(
+  enableChecker:false,
+  ignoreRawtypeErrors:true,
+  automaticModuleName: 'org.apache.beam.sdk.io.solr')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Solr"
 ext.summary = "IO to read and write from/to Solr."

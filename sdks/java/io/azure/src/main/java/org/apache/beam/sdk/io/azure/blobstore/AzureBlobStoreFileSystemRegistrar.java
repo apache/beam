@@ -15,3 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.azure.blobstore;
+
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+
+import javax.annotation.Nonnull;
+import org.apache.beam.sdk.io.FileSystem;
+import org.apache.beam.sdk.io.FileSystemRegistrar;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+
+public class AzureBlobStoreFileSystemRegistrar implements FileSystemRegistrar {
+  @Override
+  public Iterable<FileSystem<?>> fromOptions(@Nonnull PipelineOptions options) {
+    checkNotNull(options, "Expect the runner have called FileSystems.setDefaultPipelineOptions().");
+    // TODO
+    return ImmutableList.of();
+  }
+}

@@ -20,12 +20,12 @@ package org.apache.beam.runners.core;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -36,7 +36,7 @@ public abstract class SplittableProcessElementInvoker<
     InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT> {
   /** Specifies how to resume a splittable {@link DoFn.ProcessElement} call. */
   public class Result {
-    @Nullable private final RestrictionT residualRestriction;
+    private final @Nullable RestrictionT residualRestriction;
     private final DoFn.ProcessContinuation continuation;
     private final @Nullable Instant futureOutputWatermark;
     private final @Nullable WatermarkEstimatorStateT futureWatermarkEstimatorState;
@@ -59,8 +59,7 @@ public abstract class SplittableProcessElementInvoker<
     /**
      * Can be {@code null} only if {@link #getContinuation} when there is no more work to resume.
      */
-    @Nullable
-    public RestrictionT getResidualRestriction() {
+    public @Nullable RestrictionT getResidualRestriction() {
       return residualRestriction;
     }
 

@@ -41,7 +41,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.Read.Unbounded;
@@ -52,6 +51,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -314,24 +314,19 @@ public final class KinesisIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<KinesisRecord>> {
 
-    @Nullable
-    abstract String getStreamName();
+    abstract @Nullable String getStreamName();
 
-    @Nullable
-    abstract StartingPoint getInitialPosition();
+    abstract @Nullable StartingPoint getInitialPosition();
 
-    @Nullable
-    abstract AWSClientsProvider getAWSClientsProvider();
+    abstract @Nullable AWSClientsProvider getAWSClientsProvider();
 
     abstract long getMaxNumRecords();
 
-    @Nullable
-    abstract Duration getMaxReadTime();
+    abstract @Nullable Duration getMaxReadTime();
 
     abstract Duration getUpToDateThreshold();
 
-    @Nullable
-    abstract Integer getRequestRecordsLimit();
+    abstract @Nullable Integer getRequestRecordsLimit();
 
     abstract WatermarkPolicyFactory getWatermarkPolicyFactory();
 
@@ -564,20 +559,16 @@ public final class KinesisIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
-    @Nullable
-    abstract String getStreamName();
 
-    @Nullable
-    abstract String getPartitionKey();
+    abstract @Nullable String getStreamName();
 
-    @Nullable
-    abstract KinesisPartitioner getPartitioner();
+    abstract @Nullable String getPartitionKey();
 
-    @Nullable
-    abstract Properties getProducerProperties();
+    abstract @Nullable KinesisPartitioner getPartitioner();
 
-    @Nullable
-    abstract AWSClientsProvider getAWSClientsProvider();
+    abstract @Nullable Properties getProducerProperties();
+
+    abstract @Nullable AWSClientsProvider getAWSClientsProvider();
 
     abstract int getRetries();
 

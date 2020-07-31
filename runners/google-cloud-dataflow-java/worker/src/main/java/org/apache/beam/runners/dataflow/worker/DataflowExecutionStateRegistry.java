@@ -22,12 +22,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Pred
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Manages the instances of {@link ExecutionState} */
 public abstract class DataflowExecutionStateRegistry {
@@ -68,8 +68,8 @@ public abstract class DataflowExecutionStateRegistry {
       final NameContext nameContext,
       final String stateName,
       final String requestingStepName,
-      @Nullable final Integer inputIndex,
-      @Nullable final MetricsContainer container,
+      final @Nullable Integer inputIndex,
+      final @Nullable MetricsContainer container,
       final ProfileScope profileScope) {
     return getStateInternal(
         nameContext, stateName, requestingStepName, inputIndex, container, profileScope);
@@ -78,9 +78,9 @@ public abstract class DataflowExecutionStateRegistry {
   private DataflowOperationContext.DataflowExecutionState getStateInternal(
       final NameContext nameContext,
       final String stateName,
-      @Nullable final String requestingStepName,
-      @Nullable final Integer inputIndex,
-      @Nullable final MetricsContainer container,
+      final @Nullable String requestingStepName,
+      final @Nullable Integer inputIndex,
+      final @Nullable MetricsContainer container,
       final ProfileScope profileScope) {
     DataflowExecutionStateKey stateKey =
         DataflowExecutionStateKey.create(nameContext, stateName, requestingStepName, inputIndex);

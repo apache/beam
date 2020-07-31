@@ -21,7 +21,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaCapableIOProvider.VARCHAR;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.VARCHAR;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.size;
 import static org.junit.Assert.assertEquals;
 

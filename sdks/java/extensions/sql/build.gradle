@@ -22,7 +22,9 @@ plugins {
   id 'org.apache.beam.module'
   id 'ca.coglinc.javacc'
 }
-applyJavaNature(enableChecker:false,
+applyJavaNature(
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann'])

@@ -19,8 +19,8 @@ package org.apache.beam.runners.dataflow.util;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -84,8 +84,7 @@ public final class TimeUtil {
    *
    * @return the parsed time, or null if a parse error occurs
    */
-  @Nullable
-  public static Instant fromCloudTime(String time) {
+  public static @Nullable Instant fromCloudTime(String time) {
     Matcher matcher = TIME_PATTERN.matcher(time);
     if (!matcher.matches()) {
       return null;
@@ -131,8 +130,7 @@ public final class TimeUtil {
    *
    * @return the parsed duration, or null if a parse error occurs
    */
-  @Nullable
-  public static Duration fromCloudDuration(String duration) {
+  public static @Nullable Duration fromCloudDuration(String duration) {
     Matcher matcher = DURATION_PATTERN.matcher(duration);
     if (!matcher.matches()) {
       return null;

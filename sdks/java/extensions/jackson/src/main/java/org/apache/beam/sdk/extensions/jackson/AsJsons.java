@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.jackson;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link PTransform} for serializing objects to JSON {@link String Strings}. Transforms a {@code
@@ -169,10 +169,10 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
   public class AsJsonsWithFailures<FailureT>
       extends PTransform<PCollection<InputT>, WithFailures.Result<PCollection<String>, FailureT>> {
 
-    @Nullable
-    private InferableFunction<WithFailures.ExceptionElement<InputT>, FailureT> exceptionHandler;
+    private @Nullable InferableFunction<WithFailures.ExceptionElement<InputT>, FailureT>
+        exceptionHandler;
 
-    @Nullable private final transient TypeDescriptor<FailureT> failureType;
+    private final transient @Nullable TypeDescriptor<FailureT> failureType;
 
     AsJsonsWithFailures(
         InferableFunction<WithFailures.ExceptionElement<InputT>, FailureT> exceptionHandler,

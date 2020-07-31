@@ -316,8 +316,8 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_DIV_NUMERIC, // div(numeric, numeric) -> numeric
           // FunctionSignatureId.FN_DIV_BIGNUMERIC, // div(bignumeric, bignumeric) -> bignumeric
 
-          // FunctionSignatureId.FN_IS_INF, // is_inf
-          // FunctionSignatureId.FN_IS_NAN, // is_nan
+          FunctionSignatureId.FN_IS_INF, // is_inf
+          FunctionSignatureId.FN_IS_NAN, // is_nan
           // FunctionSignatureId.FN_IEEE_DIVIDE_DOUBLE, // ieee_divide
           // FunctionSignatureId.FN_SAFE_DIVIDE_DOUBLE, // safe_divide
           // FunctionSignatureId.FN_SAFE_DIVIDE_NUMERIC, // safe_divide

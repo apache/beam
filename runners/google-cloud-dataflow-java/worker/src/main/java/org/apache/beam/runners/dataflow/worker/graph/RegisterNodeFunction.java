@@ -37,7 +37,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterRequest;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -85,6 +84,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into an
@@ -115,7 +115,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
 
   private final IdGenerator idGenerator;
   private final Endpoints.ApiServiceDescriptor stateApiServiceDescriptor;
-  private final @Nullable RunnerApi.Pipeline pipeline;
+  private final RunnerApi.@Nullable Pipeline pipeline;
 
   /**
    * Returns a {@link RegisterNodeFunction} for a portable Pipeline. UDF-bearing transform payloads
@@ -144,7 +144,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
   }
 
   private RegisterNodeFunction(
-      @Nullable RunnerApi.Pipeline pipeline,
+      RunnerApi.@Nullable Pipeline pipeline,
       IdGenerator idGenerator,
       Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {

@@ -24,7 +24,6 @@ import com.google.api.services.dataflow.model.SideInputInfo;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -71,7 +71,7 @@ class AssignWindowsParDoFnFactory implements ParDoFnFactory {
     private final DataflowExecutionContext.DataflowStepContext stepContext;
     private final WindowFn<T, W> windowFn;
 
-    @Nullable private Receiver receiver;
+    private @Nullable Receiver receiver;
 
     AssignWindowsParDoFn(
         WindowFn<T, W> windowFn, DataflowExecutionContext.DataflowStepContext stepContext) {

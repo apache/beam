@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.CoreMatchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -148,7 +149,7 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof StateChangingSerializingCoder
           && ((StateChangingSerializingCoder) other).changedState == this.changedState;
     }
@@ -194,7 +195,7 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return (other instanceof ForgetfulSerializingCoder)
           && ((ForgetfulSerializingCoder) other).lostState == lostState;
     }

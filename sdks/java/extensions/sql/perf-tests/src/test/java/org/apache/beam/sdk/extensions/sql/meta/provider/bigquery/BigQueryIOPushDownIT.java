@@ -49,6 +49,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -141,7 +142,7 @@ public class BigQueryIOPushDownIT {
     sqlEnv =
         BeamSqlEnv.builder(inMemoryMetaStore)
             .setPipelineOptions(PipelineOptionsFactory.create())
-            .setRuleSets(new RuleSet[] {RuleSets.ofList(ruleList)})
+            .setRuleSets(ImmutableList.of(RuleSets.ofList(ruleList)))
             .build();
     sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DIRECT_READ.toString()));
 

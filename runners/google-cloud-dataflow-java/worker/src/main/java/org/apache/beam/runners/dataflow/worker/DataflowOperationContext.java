@@ -28,7 +28,6 @@ import java.io.Closeable;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
@@ -168,19 +168,19 @@ public class DataflowOperationContext implements OperationContext {
      * For states that represent consumption / output of IO, this represents the step running when
      * the IO is triggered.
      */
-    @Nullable private final String requestingStepName;
+    private final @Nullable String requestingStepName;
 
     /**
      * For states that represent consumption of IO, this represents the index of the PCollection
      * that is associated to the IO performed (e.g. for side input reading, this is the index of the
      * side input).
      */
-    @Nullable private final Integer inputIndex;
+    private final @Nullable Integer inputIndex;
 
     private final NameContext stepName;
 
     private final ProfileScope profileScope;
-    @Nullable private final MetricsContainer metricsContainer;
+    private final @Nullable MetricsContainer metricsContainer;
 
     /** Clock used to either provide real system time or mocked to virtualize time for testing. */
     private final Clock clock;
@@ -339,13 +339,11 @@ public class DataflowOperationContext implements OperationContext {
       return message.toString();
     }
 
-    @Nullable
-    public MetricsContainer getMetricsContainer() {
+    public @Nullable MetricsContainer getMetricsContainer() {
       return metricsContainer;
     }
 
-    @Nullable
-    public abstract CounterUpdate extractUpdate(boolean isFinalUpdate);
+    public abstract @Nullable CounterUpdate extractUpdate(boolean isFinalUpdate);
 
     protected CounterUpdate createUpdate(boolean isCumulative, long value) {
       CounterStructuredName name =

@@ -141,6 +141,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
@@ -2413,7 +2414,7 @@ public class ParDoTest implements Serializable {
       }
 
       @Override
-      public boolean equals(Object other) {
+      public boolean equals(@Nullable Object other) {
         return other instanceof TestSimpleStatefulDoFn;
       }
 
@@ -3958,7 +3959,7 @@ public class ParDoTest implements Serializable {
       }
 
       testEventTimeTimerOrderingWithInputPTransform(
-          now, numTestElements, builder.advanceWatermarkToInfinity());
+          now, numTestElements, builder.advanceWatermarkToInfinity(), IsBounded.BOUNDED);
     }
 
     /** A test makes sure that an event time timers are correctly ordered using Create transform. */
@@ -3969,7 +3970,7 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       UsesStrictTimerOrdering.class
     })
-    public void testEventTimeTimerOrderingWithCreate() throws Exception {
+    public void testEventTimeTimerOrderingWithCreateBounded() throws Exception {
       final int numTestElements = 100;
       final Instant now = new Instant(1500000000000L);
 
@@ -3979,13 +3980,39 @@ public class ParDoTest implements Serializable {
       }
 
       testEventTimeTimerOrderingWithInputPTransform(
-          now, numTestElements, Create.timestamped(elements));
+          now, numTestElements, Create.timestamped(elements), IsBounded.BOUNDED);
+    }
+
+    /**
+     * A test makes sure that an event time timers are correctly ordered using Create transform
+     * unbounded.
+     */
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesStatefulParDo.class,
+      UsesUnboundedPCollections.class,
+      UsesStrictTimerOrdering.class
+    })
+    public void testEventTimeTimerOrderingWithCreateUnbounded() throws Exception {
+      final int numTestElements = 100;
+      final Instant now = new Instant(1500000000000L);
+
+      List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
+      for (int i = 0; i < numTestElements; i++) {
+        elements.add(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i * 1000)));
+      }
+
+      testEventTimeTimerOrderingWithInputPTransform(
+          now, numTestElements, Create.timestamped(elements), IsBounded.UNBOUNDED);
     }
 
     private void testEventTimeTimerOrderingWithInputPTransform(
         Instant now,
         int numTestElements,
-        PTransform<PBegin, PCollection<KV<String, String>>> transform)
+        PTransform<PBegin, PCollection<KV<String, String>>> transform,
+        IsBounded isBounded)
         throws Exception {
 
       final String timerIdBagAppend = "append";
@@ -4069,7 +4096,8 @@ public class ParDoTest implements Serializable {
             }
           };
 
-      PCollection<String> output = pipeline.apply(transform).apply(ParDo.of(fn));
+      PCollection<String> output =
+          pipeline.apply(transform).setIsBoundedInternal(isBounded).apply(ParDo.of(fn));
       List<String> expected =
           IntStream.rangeClosed(0, numTestElements)
               .mapToObj(expandFn(numTestElements))
@@ -4153,16 +4181,25 @@ public class ParDoTest implements Serializable {
           TestStream.create(KvCoder.of(VoidCoder.of(), VoidCoder.of()))
               .addElements(KV.of(null, null))
               .advanceWatermarkToInfinity();
-      pipeline.apply(TwoTimerTest.of(now, end, input));
+      pipeline.apply(TwoTimerTest.of(now, end, input, IsBounded.BOUNDED));
       pipeline.run();
     }
 
     @Test
     @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStrictTimerOrdering.class})
-    public void testTwoTimersSettingEachOtherWithCreateAsInput() {
+    public void testTwoTimersSettingEachOtherWithCreateAsInputBounded() {
       Instant now = new Instant(1500000000000L);
       Instant end = now.plus(100);
-      pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of(null, null))));
+      pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of(null, null)), IsBounded.BOUNDED));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStrictTimerOrdering.class})
+    public void testTwoTimersSettingEachOtherWithCreateAsInputUnbounded() {
+      Instant now = new Instant(1500000000000L);
+      Instant end = now.plus(100);
+      pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of(null, null)), IsBounded.UNBOUNDED));
       pipeline.run();
     }
 
@@ -4336,18 +4373,26 @@ public class ParDoTest implements Serializable {
     private static class TwoTimerTest extends PTransform<PBegin, PDone> {
 
       private static PTransform<PBegin, PDone> of(
-          Instant start, Instant end, PTransform<PBegin, PCollection<KV<Void, Void>>> input) {
-        return new TwoTimerTest(start, end, input);
+          Instant start,
+          Instant end,
+          PTransform<PBegin, PCollection<KV<Void, Void>>> input,
+          IsBounded isBounded) {
+        return new TwoTimerTest(start, end, input, isBounded);
       }
 
       private final Instant start;
       private final Instant end;
+      private final IsBounded isBounded;
       private final transient PTransform<PBegin, PCollection<KV<Void, Void>>> inputPTransform;
 
       public TwoTimerTest(
-          Instant start, Instant end, PTransform<PBegin, PCollection<KV<Void, Void>>> input) {
+          Instant start,
+          Instant end,
+          PTransform<PBegin, PCollection<KV<Void, Void>>> input,
+          IsBounded isBounded) {
         this.start = start;
         this.end = end;
+        this.isBounded = isBounded;
         this.inputPTransform = input;
       }
 
@@ -4360,6 +4405,7 @@ public class ParDoTest implements Serializable {
         PCollection<String> result =
             input
                 .apply(inputPTransform)
+                .setIsBoundedInternal(isBounded)
                 .apply(
                     ParDo.of(
                         new DoFn<KV<Void, Void>, String>() {
@@ -4424,7 +4470,7 @@ public class ParDoTest implements Serializable {
                         }));
 
         List<String> expected =
-            LongStream.rangeClosed(0, 100)
+            LongStream.rangeClosed(0, end.minus(start.getMillis()).getMillis())
                 .mapToObj(e -> (Long) e)
                 .flatMap(e -> Arrays.asList("t1:" + e + ":" + e, "t2:" + e + ":" + e).stream())
                 .collect(Collectors.toList());
@@ -4640,7 +4686,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

@@ -18,10 +18,9 @@ import apache_beam as beam
 
 from log_elements import LogElements
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-(p | beam.Create(range(1, 11))
-   | beam.combiners.Top.Largest(1)
-   | LogElements())
+  (p | beam.Create(range(1, 11))
+     | beam.combiners.Top.Largest(1)
+     | LogElements())
 
-p.run()

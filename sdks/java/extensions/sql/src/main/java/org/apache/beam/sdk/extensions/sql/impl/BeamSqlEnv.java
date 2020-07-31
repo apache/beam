@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Prec
 import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -146,7 +147,7 @@ public class BeamSqlEnv {
     private boolean autoLoadBuiltinFunctions;
     private boolean autoLoadUdfs;
     private PipelineOptions pipelineOptions;
-    private RuleSet[] ruleSets;
+    private Collection<RuleSet> ruleSets;
 
     private BeamSqlEnvBuilder(TableProvider tableProvider) {
       checkNotNull(tableProvider, "Table provider for the default schema must be sets.");
@@ -178,7 +179,7 @@ public class BeamSqlEnv {
     }
 
     /** Set the ruleSet used for query optimizer. */
-    public BeamSqlEnvBuilder setRuleSets(RuleSet[] ruleSets) {
+    public BeamSqlEnvBuilder setRuleSets(Collection<RuleSet> ruleSets) {
       this.ruleSets = ruleSets;
       return this;
     }
@@ -309,16 +310,28 @@ public class BeamSqlEnv {
       }
     }
 
-    private QueryPlanner instantiatePlanner(JdbcConnection jdbcConnection, RuleSet[] ruleSets) {
+    private QueryPlanner instantiatePlanner(
+        JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
+      Class<?> queryPlannerClass;
       try {
-        return (QueryPlanner)
-            Class.forName(queryPlannerClassName)
-                .getConstructor(JdbcConnection.class, RuleSet[].class)
-                .newInstance(jdbcConnection, ruleSets);
-      } catch (Exception e) {
+        queryPlannerClass = Class.forName(queryPlannerClassName);
+      } catch (ClassNotFoundException exc) {
         throw new RuntimeException(
-            String.format("Cannot construct query planner %s", queryPlannerClassName), e);
+            "Cannot find requested QueryPlanner class: " + queryPlannerClassName, exc);
       }
+
+      QueryPlanner.Factory factory;
+      try {
+        factory = (QueryPlanner.Factory) queryPlannerClass.getField("FACTORY").get(null);
+      } catch (NoSuchFieldException | IllegalAccessException exc) {
+        throw new RuntimeException(
+            String.format(
+                "QueryPlanner class %s does not have an accessible static field 'FACTORY' of type QueryPlanner.Factory",
+                queryPlannerClassName),
+            exc);
+      }
+
+      return factory.createPlanner(jdbcConnection, ruleSets);
     }
   }
 }

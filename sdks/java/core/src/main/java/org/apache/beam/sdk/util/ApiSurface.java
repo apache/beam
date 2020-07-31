@@ -203,7 +203,7 @@ public class ApiSurface {
 
         if (!messages.isEmpty()) {
           mismatchDescription.appendText(
-              "The following white-listed scopes did not have matching classes on the API surface:"
+              "The following allowed scopes did not have matching classes on the API surface:"
                   + "\n\t"
                   + Joiner.on("\n\t").join(messages));
         }
