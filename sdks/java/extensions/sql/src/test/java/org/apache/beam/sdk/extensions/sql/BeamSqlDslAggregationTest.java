@@ -473,6 +473,33 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   //  //    pipeline.run().waitUntilFinish();
   //  //  }
 
+  @Test
+  public void testBitAndFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+        Schema.builder().addInt64Field("f_long").addInt32Field("f_int2").build();
+
+    Schema resultType = Schema.builder().addInt64Field("finalAnswer").build();
+
+    List<Row> rowsInTableA =
+        TestUtils.RowsBuilder.of(schemaInTableA)
+            .addRows(
+                0xF0A1L, 0,
+                0x00A1L, 0,
+                45L, 0)
+            .getRows();
+
+    String sql = "SELECT bit_and(f_long) as bitand " + "FROM PCOLLECTION GROUP BY f_int2";
+
+    Row rowResult = Row.withSchema(resultType).addValues(33L).build();
+
+    PCollection<Row> inputRows =
+        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+    PAssert.that(result).containsInAnyOrder(rowResult);
+  }
+
   private static class CheckerBigDecimalDivide
       implements SerializableFunction<Iterable<Row>, Void> {
 
