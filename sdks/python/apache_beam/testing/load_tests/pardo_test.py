@@ -102,7 +102,7 @@ class ParDoTest(LoadTest):
           'state_cache_size=1000')
 
   def test(self):
-    class CounterOperation(beam.DoFn):
+    class BaseCounterOperation(beam.DoFn):
       def __init__(self, number_of_counters, number_of_operations):
         self.number_of_operations = number_of_operations
         self.counters = []
@@ -110,6 +110,7 @@ class ParDoTest(LoadTest):
           self.counters.append(
               Metrics.counter('do-not-publish', 'name-{}'.format(i)))
 
+    class StatefulCounterOperation(BaseCounterOperation):
       state_param = beam.DoFn.StateParam(
           userstate.CombiningValueStateSpec(
               'count',
@@ -124,36 +125,43 @@ class ParDoTest(LoadTest):
             state.add(1)
         yield element
 
-    if self.get_option_or_default('streaming', False):
-      source = (
+    class CounterOperation(BaseCounterOperation):
+      def process(self, element):
+        for _ in range(self.number_of_operations):
+          for counter in self.counters:
+            counter.inc()
+        yield element
+
+    if self.get_option_or_default('use_stateful_load_generator', False):
+      pc = (
           self.pipeline
-          | 'LoadGenerator' >> StatefulLoadGenerator(self.input_options))
+          | 'LoadGenerator' >> StatefulLoadGenerator(self.input_options)
+          | 'Measure time: Start' >> beam.ParDo(
+              MeasureTime(self.metrics_namespace))
+          | 'Assign timestamps' >> beam.ParDo(AssignTimestamps()))
+
+      for i in range(self.iterations):
+        pc |= 'Step: %d' % i >> beam.ParDo(
+            StatefulCounterOperation(
+                self.number_of_counters, self.number_of_operations))
+
+      pc |= 'Measure latency' >> beam.ParDo(
+          MeasureLatency(self.metrics_namespace))
     else:
-      source = (
+      pc = (
           self.pipeline
           | 'Read synthetic' >> beam.io.Read(
-              SyntheticSource(self.parse_synthetic_source_options())))
+              SyntheticSource(self.parse_synthetic_source_options()))
+          | 'Measure time: Start' >> beam.ParDo(
+              MeasureTime(self.metrics_namespace)))
 
-    pc = (
-        source
-        | 'Measure time: Start' >> beam.ParDo(
-            MeasureTime(self.metrics_namespace))
-        | 'Assign timestamps' >> beam.ParDo(AssignTimestamps()))
-
-    for i in range(self.iterations):
-      pc = (
-          pc
-          | 'Step: %d' % i >> beam.ParDo(
-              CounterOperation(
-                  self.number_of_counters, self.number_of_operations)))
+      for i in range(self.iterations):
+        pc |= 'Step: %d' % i >> beam.ParDo(
+            CounterOperation(
+                self.number_of_counters, self.number_of_operations))
 
     # pylint: disable=expression-not-assigned
-    (
-        pc
-        |
-        'Measure latency' >> beam.ParDo(MeasureLatency(self.metrics_namespace))
-        |
-        'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
+    pc | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
 
 
 if __name__ == '__main__':
