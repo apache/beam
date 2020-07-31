@@ -31,13 +31,15 @@ import unittest
 from typing import Iterable
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam import Pipeline
+from apache_beam.options.pipeline_options import PipelineOptions, TypeOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import decorators
 # TODO(BEAM-8371): Use tempfile.TemporaryDirectory.
 from apache_beam.utils.subprocess_server_test import TemporaryDirectory
+from apache_beam.typehints import decorators, TypeCheckError
 
 decorators._enable_from_callable = True
 
@@ -77,39 +79,21 @@ class MyDoFnBadAnnotation(MyDoFn):
     return super().process()
 
 
-class BaseTypeCheckTest(unittest.TestCase):
-  class CommonTests(unittest.TestCase):
-    def test_setup(self):
-      # Verifies that runtime type checking is enabled for test cases.
-      def fn(e: int) -> int:
-        return str(e)  # type: ignore
+class RuntimeTypeCheckTest(unittest.TestCase):
+  def setUp(self):
+    self.p = TestPipeline(
+        options=PipelineOptions(
+            runtime_type_check=True, performance_runtime_type_check=False))
 
-      with self.assertRaisesRegex(beam.typehints.TypeCheckError,
-                                  r'output should be.*int.*received.*str'):
-        _ = self.p | beam.Create([1, 2, 3]) | beam.Map(fn)
-        self.p.run()
+  def test_setup(self):
+    # Verifies that runtime type checking is enabled for test cases.
+    def fn(e: int) -> int:
+      return str(e)  # type: ignore
 
-    def test_wrapper_pass_through(self):
-      # We use a file to check the result because the MyDoFn instance passed is
-      # not the same one that actually runs in the pipeline (it is serialized
-      # here and deserialized in the worker).
-      with tempfile.NamedTemporaryFile(mode='w+t') as f:
-        dofn = MyDoFn(f.name)
-        result = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
-        assert_that(result, equal_to([1, 2, 3]))
-        self.p.run()
-        f.seek(0)
-        lines = [line.strip() for line in f]
-        self.assertListEqual([
-            'setup',
-            'start_bundle',
-            'process',
-            'process',
-            'process',
-            'finish_bundle',
-            'teardown',
-        ],
-                             lines)
+    with self.assertRaisesRegex(beam.typehints.TypeCheckError,
+                                r'output should be.*int.*received.*str'):
+      _ = self.p | beam.Create([1, 2, 3]) | beam.Map(fn)
+      self.p.run()
 
   def test_wrapper_pass_through(self):
     # We use a file to check the result because the MyDoFn instance passed is
@@ -143,20 +127,72 @@ class BaseTypeCheckTest(unittest.TestCase):
         dofn = MyDoFnBadAnnotation(f.name)
         with self.assertRaisesRegex(ValueError, r'int.*is not iterable'):
           _ = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
+  def test_wrapper_pass_through(self):
+    # We use a file to check the result because the MyDoFn instance passed is
+    # not the same one that actually runs in the pipeline (it is serialized
+    # here and deserialized in the worker).
+    with tempfile.NamedTemporaryFile(mode='w+t') as f:
+      dofn = MyDoFn(f.name)
+      result = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
+      assert_that(result, equal_to([1, 2, 3]))
+      self.p.run()
+      f.seek(0)
+      lines = [line.strip() for line in f]
+      self.assertListEqual([
+          'setup',
+          'start_bundle',
+          'process',
+          'process',
+          'process',
+          'finish_bundle',
+          'teardown',
+      ],
+                           lines)
+
+  def test_wrapper_pipeline_type_check(self):
+    # Verifies that type hints are not masked by the wrapper. What actually
+    # happens is that the wrapper is applied during self.p.run() (not invoked
+    # in this case), while pipeline type checks happen during pipeline
+    # creation. Thus, the wrapper does not have to implement:
+    # default_type_hints, infer_output_type, get_type_hints.
+    with tempfile.NamedTemporaryFile(mode='w+t') as f:
+      dofn = MyDoFnBadAnnotation(f.name)
+      with self.assertRaisesRegex(ValueError, r'int.*is not iterable'):
+        _ = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
 
 
-class RuntimeTypeCheckTest(BaseTypeCheckTest.CommonTests):
+class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
   def setUp(self):
-    self.p = TestPipeline(
-        options=PipelineOptions(
-            runtime_type_check=True, performance_runtime_type_check=False))
+    self.p = Pipeline(options=PipelineOptions(
+      performance_runtime_type_check=True,
+      pipeline_type_check=False
+    ))
 
+  def test_simple_input_error(self):
+    with self.assertRaises(TypeCheckError) as e:
+      (self.p
+          | beam.Create([1, 2, 3])
+          | beam.FlatMap(lambda x: [int(x)]).with_input_types(str).with_output_types(int))
+      self.p.run()
 
-class PerformanceRuntimeTypeCheckTest(BaseTypeCheckTest.CommonTests):
-  def setUp(self):
-    self.p = TestPipeline(
-        options=PipelineOptions(
-            runtime_type_check=False, performance_runtime_type_check=True))
+    self.assertIn(
+      "Type-hint for argument: 'x' violated. "
+      "Expected an instance of <class 'str'>, "
+      "instead found 1, an instance of <class 'int'>",
+      e.exception.args[0])
+
+  def test_simple_output_error(self):
+    with self.assertRaises(TypeCheckError) as e:
+      (self.p
+          | beam.Create(['1', '2', '3'])
+          | beam.FlatMap(lambda x: [int(x)]).with_input_types(int).with_output_types(int))
+      self.p.run()
+
+    self.assertIn(
+      "Type-hint for argument: 'x' violated. "
+      "Expected an instance of <class 'int'>, "
+      "instead found 1, an instance of <class 'str'>.",
+      e.exception.args[0])
 
 
 if __name__ == '__main__':
