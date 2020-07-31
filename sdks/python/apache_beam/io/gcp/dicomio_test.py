@@ -165,6 +165,7 @@ class TestPubsubToQido(unittest.TestCase):
           | PubsubToQido())
       assert_that(convert_result, equal_to([self.expected_invalid_pubsub_dict]))
 
+
 @unittest.skipIf(DicomSearch is None, 'GCP dependencies are not installed')
 class TestDicomSearch(unittest.TestCase):
   @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
