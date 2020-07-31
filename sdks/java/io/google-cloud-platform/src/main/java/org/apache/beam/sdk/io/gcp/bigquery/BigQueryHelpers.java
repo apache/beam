@@ -36,7 +36,6 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
@@ -49,7 +48,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -593,22 +591,6 @@ public class BigQueryHelpers {
     }
   }
 
-  // Create a unique job id for a table load.
-  static String createJobId(
-      String prefix, TableDestination tableDestination, int partition, long index) {
-    // Job ID must be different for each partition of each table.
-    String destinationHash =
-        Hashing.murmur3_128().hashUnencodedChars(tableDestination.toString()).toString();
-    String jobId = String.format("%s_%s", prefix, destinationHash);
-    if (partition >= 0) {
-      jobId += String.format("_%05d", partition);
-    }
-    if (index >= 0) {
-      jobId += String.format("_%05d", index);
-    }
-    return jobId;
-  }
-
   @VisibleForTesting
   static class JsonSchemaToTableSchema implements SerializableFunction<String, TableSchema> {
     @Override
@@ -681,24 +663,6 @@ public class BigQueryHelpers {
     public String apply(TimePartitioning partitioning) {
       return toJsonString(partitioning);
     }
-  }
-
-  static String createJobIdToken(String jobName, String stepUuid) {
-    return String.format("beam_job_%s_%s", stepUuid, jobName.replaceAll("-", ""));
-  }
-
-  static String getExtractJobId(String jobIdToken) {
-    return String.format("%s-extract", jobIdToken);
-  }
-
-  static TableReference createTempTableReference(
-      String projectId, String jobUuid, Optional<String> tempDatasetIdOpt) {
-    String tempDatasetId = tempDatasetIdOpt.orElse("temp_dataset_" + jobUuid);
-    String queryTempTableId = "temp_table_" + jobUuid;
-    return new TableReference()
-        .setProjectId(projectId)
-        .setDatasetId(tempDatasetId)
-        .setTableId(queryTempTableId);
   }
 
   static String resolveTempLocation(
