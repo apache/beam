@@ -121,6 +121,7 @@ class FakeHttpClient():
     return None, 200
 
 
+@unittest.skipIf(DicomSearch is None, 'GCP dependencies are not installed')
 class TestPubsubToQido(unittest.TestCase):
   valid_pubsub_string = (
       "projects/PROJECT_ID/locations/LOCATION/datasets"
