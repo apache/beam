@@ -168,11 +168,12 @@ public final class BeamTableUtils {
             return null;
           }
           return Double.valueOf(raw);
-//          BigDecimal bdvalue = new BigDecimal(raw);
-//          bdvalue = bdvalue.setScale(2);
-//          return bdvalue.doubleValue();
+          //          BigDecimal bdvalue = new BigDecimal(raw);
+          //          bdvalue = bdvalue.setScale(2);
+          //          return bdvalue.doubleValue();
         case DECIMAL:
-          // Decimal case is needed to handle very long decimal number and ensure precision, which can't be simply achieved by double.
+          // Decimal case is needed to handle very long decimal number and ensure precision, which
+          // can't be simply achieved by double.
           if (raw.equals("")) {
             return null;
           }
