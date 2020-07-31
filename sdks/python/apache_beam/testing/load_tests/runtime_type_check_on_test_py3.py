@@ -42,7 +42,7 @@ from __future__ import absolute_import
 
 import logging
 
-from apache_beam.testing.load_tests.base_runtime_type_check_test_py3 import BaseRunTimeTypeCheckTest # pylint: disable=line-too-long
+from apache_beam.testing.load_tests.base_runtime_type_check_test_py3 import BaseRunTimeTypeCheckTest  # pylint: disable=line-too-long
 
 
 class RunTimeTypeCheckOnTest(BaseRunTimeTypeCheckTest):
