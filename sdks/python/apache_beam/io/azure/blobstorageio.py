@@ -407,6 +407,25 @@ class BlobStorageIO(object):
 
     return results
 
+  # We intentionally do not decorate this method with a retry, since the
+  # underlying copy and delete operations are already idempotent operations
+  # protected by retry decorators.
+  def delete_tree(self, root):
+    """Deletes all blobs under the given Azure BlobStorage virtual directory.
+
+    Args:
+      path: Azure Blob Storage file path pattern in the form
+            azfs://<storage-account>/<container>/[name] (ending with a "/").
+
+    Returns: List of tuples of (path, exception), where each path is a blob
+            under the given root. exception is None if the operation succeeded
+            or the relevant exception if the operation failed.
+    """
+    assert root.endswith('/')
+
+    paths_to_delete = self.list_prefix(root)
+    return self.delete_files(paths_to_delete)
+
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
   def list_prefix(self, path):
