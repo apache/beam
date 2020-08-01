@@ -297,6 +297,7 @@ func NewCrossLanguage(g *Graph, s *Scope, in []*Node, payload *Payload) *MultiEd
 }
 
 // AddOutboundLinks adds Outbound links to existing MultiEdge
+// TODO(pskevin): Could be decoupled from exisiting NewExternal and used by all external transforms
 func AddOutboundLinks(g *Graph, e *MultiEdge, in []*Node, out []typex.FullType, bounded bool) {
 	for _, t := range out {
 		n := g.NewNode(t, inputWindow(in), bounded)
