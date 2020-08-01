@@ -25,9 +25,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 
-/**
- * Core pattern class that stores the definition of a single pattern.
- */
+/** Core pattern class that stores the definition of a single pattern. */
 public class CEPPattern implements Serializable {
 
   private final Schema mySchema;

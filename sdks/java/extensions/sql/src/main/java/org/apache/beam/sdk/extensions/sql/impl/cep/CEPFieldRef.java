@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.cep;
 
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexPatternFieldRef;
 
 /**
@@ -44,5 +43,10 @@ public class CEPFieldRef extends CEPOperation {
 
   public int getIndex() {
     return fieldIndex;
+  }
+
+  @Override
+  public String toString() {
+    return String.format("%s.$%d", alpha, fieldIndex);
   }
 }
