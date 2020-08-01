@@ -44,10 +44,10 @@ try:
   # pylint: disable=wrong-import-order, wrong-import-position
   # pylint: disable=ungrouped-imports
   from azure.storage.blob import (
-    BlobServiceClient,
-    BlobClient,
-    ContainerClient,
-    ContentSettings,
+      BlobServiceClient,
+      BlobClient,
+      ContainerClient,
+      ContentSettings,
   )
 except ImportError:
   raise ImportError('Missing `azure` requirement')
@@ -68,12 +68,9 @@ def parse_azfs_path(azfs_path, blob_optional=False, get_account=True):
   if match is None or (match.group(3) == '' and not blob_optional):
     raise ValueError('Azure Blob Storage path must be in the form '
                      'azfs://<storage-account>/<container>/<path>.')
-  result = None         
   if get_account:
-    result = match.group(1), match.group(2), match.group(3)
-  else:
-    result = match.group(2), match.group(3)
-  return result
+    return match.group(1), match.group(2), match.group(3)
+  return match.group(2), match.group(3)
 
 def get_azfs_url(storage_account, container, blob=''):
   """Returns the url in the form of
@@ -294,8 +291,8 @@ class BlobStorageIO(object):
   def size(self, path):
     """Returns the size of a single Blob Storage blob.
 
-    This method does not perform glob expansion. Hence the given path must be
-    for a single Blob Storage blob.
+    This method does not perform glob expansion. Hence the
+    given path must be for a single Blob Storage blob.
 
     Returns: size of the Blob Storage blob in bytes.
     """
@@ -313,12 +310,14 @@ class BlobStorageIO(object):
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
   def last_updated(self, path):
-    """Returns the last updated epoch time of a single Azure Blob Storage blob.
+    """Returns the last updated epoch time of a single
+    Azure Blob Storage blob.
 
-    This method does not perform glob expansion. Hence the given path must be
-    for a single S3 object.
+    This method does not perform glob expansion. Hence the
+    given path must be for a single S3 object.
 
-    Returns: last updated time of the Azure Blob Storage blob in seconds.
+    Returns: last updated time of the Azure Blob Storage blob
+    in seconds.
     """
     storage_account, container, blob = parse_azfs_path(path)
     blob_to_check = self.client.get_blob_client(container, blob)
@@ -379,8 +378,8 @@ class BlobStorageIO(object):
   # underlying copy and delete operations are already idempotent operations
   # protected by retry decorators.
   def delete_paths(self, paths):
-    """Deletes the given Azure Blob Storage blobs from src to dest. This can
-    handle directory or file paths.
+    """Deletes the given Azure Blob Storage blobs from src to dest.
+    This can handle directory or file paths.
 
     Args:
       paths: list of Azure Blob Storage paths in the form
@@ -389,7 +388,7 @@ class BlobStorageIO(object):
 
     Returns:
       List of tuples of (src, dest, exception) in the same order as the
-      src_dest_pairs argument, where exception is None if the operation
+      src_dest_pairs argument, where exception is 202 if the operation
       succeeded or the relevant exception if the operation failed.
     """
     directories, blobs = [], []
@@ -416,20 +415,24 @@ class BlobStorageIO(object):
   # underlying copy and delete operations are already idempotent operations
   # protected by retry decorators.
   def delete_tree(self, root):
-    """Deletes all blobs under the given Azure BlobStorage virtual directory.
+    """Deletes all blobs under the given Azure BlobStorage virtual
+    directory.
 
     Args:
       path: Azure Blob Storage file path pattern in the form
-            azfs://<storage-account>/<container>/[name] (ending with a "/").
+            azfs://<storage-account>/<container>/[name] 
+            (ending with a "/").
 
-    Returns: List of tuples of (path, exception), where each path is a blob
-            under the given root. exception is None if the operation succeeded
-            or the relevant exception if the operation failed.
+    Returns: 
+      List of tuples of (path, exception), where each path is a blob
+      under the given root. exception is 202 if the operation succeeded
+      or the relevant exception if the operation failed.
     """
     assert root.endswith('/')
 
+    # Get the blob under the root directory.
     paths_to_delete = self.list_prefix(root)
-    
+
     return self.delete_files(paths_to_delete)
   
   # We intentionally do not decorate this method with a retry, since the
@@ -445,27 +448,34 @@ class BlobStorageIO(object):
 
     Returns:
       List of tuples of (src, dest, exception) in the same order as the
-      src_dest_pairs argument, where exception is None if the operation
+      src_dest_pairs argument, where exception is 202 if the operation
       succeeded or the relevant exception if the operation failed.
     """
     if not paths:
       return []
 
     # Group blobs into containers.
-    containers, blobs = zip(*[parse_azfs_path(path, get_account=False) for path in paths])
+    containers, blobs = zip(*[parse_azfs_path(path, get_account=False) \
+        for path in paths])
+
     grouped_blobs = {container: [] for container in containers}
+
     # Fill dictionary.
     for container, blob in zip(containers, blobs):
       grouped_blobs[container].append(blob)
 
     results = {}
+
     # Delete minibatches of blobs for each container.
     for container, blobs in grouped_blobs.items():
       for i in range(0, len(blobs), MAX_BATCH_OPERATION_SIZE):
         blobs_to_delete = blobs[i:i + MAX_BATCH_OPERATION_SIZE]
         results.update(self._delete_batch(container, blobs_to_delete))
 
-    final_results = [(path, results[parse_azfs_path(path, get_account=False)]) for path in paths]
+    final_results = \
+        [(path, results[parse_azfs_path(path, get_account=False)]) \
+        for path in paths]
+
     return final_results
 
   @retry.with_exponential_backoff(
@@ -480,12 +490,14 @@ class BlobStorageIO(object):
 
     Returns:
       Dictionary of the form {(container, blob): error}, where error is
-      None if the operation succeeded.
+      202 if the operation succeeded.
     """
     container_client = self.client.get_container_client(container)
     results = {}
+
     try:
-      response = container_client.delete_blobs(*blobs, raise_on_any_failure=False)
+      response = container_client.delete_blobs(*blobs, \
+                                               raise_on_any_failure=False)
 
       for blob, error in zip(blobs, response):
         results[(container, blob)] = error.status_code
