@@ -110,14 +110,6 @@ public class BeamMatchRel extends Match implements BeamRelNode {
         orderKeys,
         interval);
 
-    for (Map.Entry<String, RexNode> entry : measures.entrySet()) {
-      String outKey = entry.getKey();
-      if (outKey.equals("aid")) {
-        RexCall call = (RexCall) entry.getValue();
-        RexCall call1 = (RexCall) call.getOperands().get(0); // LAST
-        RexPatternFieldRef call2 = (RexPatternFieldRef) call1.getOperands().get(0);
-      }
-    }
   }
 
   @Override
