@@ -425,6 +425,42 @@ class BlobStorageIO(object):
 
     paths_to_delete = self.list_prefix(root)
     return self.delete_files(paths_to_delete)
+  
+  # We intentionally do not decorate this method with a retry, since the
+  # underlying copy and delete operations are already idempotent operations
+  # protected by retry decorators.
+  def delete_files(self, paths):
+    """Deletes the given Azure Blob Storage blobs from src to dest.
+
+    Args:
+      paths: list of Azure Blob Storage paths in the form
+      azfs://<storage-account>/<container>/[name] that give the file
+      blobs to be deleted.
+
+    Returns:
+      List of tuples of (src, dest, exception) in the same order as the
+      src_dest_pairs argument, where exception is None if the operation
+      succeeded or the relevant exception if the operation failed.
+    """
+    if not paths:
+      return []
+    
+    # Group blobs into containers.
+    containers, blobs = zip(*[parse_azfs_path(path) for path in paths])
+    grouped_blobs = {container: [] for container in containers}
+    # Fill dictionary.
+    for container, blob in zip(containers, blobs):
+      grouped_blobs[container].append(blob)
+
+    results = {}
+    # Delete minibatches of blobs for each container.
+    for container, blobs in grouped_blobs.items():
+      for i in range(0, len(blobs), MAX_BATCH_OPERATION_SIZE):
+        blobs_to_delete = blobs[i:i + MAX_BATCH_OPERATION_SIZE]
+        results.update(self._delete_batch(container, blobs_to_delete))
+
+    final_results = [(path, results[parse_azfs_path(path)]) for path in paths]
+    return final_results
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
