@@ -69,4 +69,13 @@ public class CEPCall extends CEPOperation {
 
     return new CEPCall(myOp, operandsList);
   }
+
+  @Override
+  public String toString() {
+    ArrayList<String> operandStrings = new ArrayList<>();
+    for (CEPOperation i : operands) {
+      operandStrings.add(i.toString());
+    }
+    return operator.toString() + "(" + String.join(", ", operandStrings) + ")";
+  }
 }

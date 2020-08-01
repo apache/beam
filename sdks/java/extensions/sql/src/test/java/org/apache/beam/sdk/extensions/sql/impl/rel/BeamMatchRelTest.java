@@ -127,18 +127,10 @@ public class BeamMatchRelTest {
 
     registerTable(
         "TestTable",
-        TestBoundedTable.of(schemaType).addRows(
-            1, "a", 1,
-            1, "a", 2,
-            1, "b", 3,
-            1, "c", 4,
-            1, "b", 8,
-            1, "a", 7,
-            1, "c", 9,
-            2, "a", 6,
-            2, "b", 10,
-            2, "c", 11,
-            5, "a", 0));
+        TestBoundedTable.of(schemaType)
+            .addRows(
+                1, "a", 1, 1, "a", 2, 1, "b", 3, 1, "c", 4, 1, "b", 8, 1, "a", 7, 1, "c", 9, 2, "a",
+                6, 2, "b", 10, 2, "c", 11, 5, "a", 0));
 
     String sql =
         "SELECT * "
@@ -147,9 +139,9 @@ public class BeamMatchRelTest {
             + "PARTITION BY id "
             + "ORDER BY proctime "
             + "MEASURES "
-            + "LAST (A.id) AS aid, "
-            + "B.id AS bid, "
-            + "C.id AS cid "
+            + "LAST (A.proctime) AS atime, "
+            + "B.proctime AS btime, "
+            + "C.proctime AS ctime "
             + "PATTERN (A+ B C) "
             + "DEFINE "
             + "A AS name = 'a', "
@@ -162,13 +154,11 @@ public class BeamMatchRelTest {
     PAssert.that(result)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                Schema.FieldType.INT32, "T.aid",
-                Schema.FieldType.INT32, "T.bid",
-                Schema.FieldType.INT32, "T.cid")
-                .addRows(2, 3, 4,
-                    7, 8, 9,
-                    6, 10, 11
-                    )
+                    Schema.FieldType.INT32, "id",
+                    Schema.FieldType.INT32, "T.atime",
+                    Schema.FieldType.INT32, "T.btime",
+                    Schema.FieldType.INT32, "T.ctime")
+                .addRows(1, 2, 3, 4, 1, 7, 8, 9, 2, 6, 10, 11)
                 .getRows());
 
     pipeline.run().waitUntilFinish();
