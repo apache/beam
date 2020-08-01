@@ -446,6 +446,23 @@ class TestBlobStorageIO(unittest.TestCase):
     for i in range(num_files):
       self.assertFalse(self.azfs.exists(file_name_pattern % i))
     
+  def test_delete_files_with_errors(self):
+    real_file = self.TEST_DATA_PATH + 'test_delete_files/file'
+    fake_file = 'azfs://fake/fake-container/test_fake_file'
+    filenames = [real_file, fake_file]
+
+    self._insert_random_file(real_file, 1024)
+
+    result = self.azfs.delete_files(filenames)
+
+    # First is the file in the real bucket, which shouldn't throw an error
+    self.assertEqual(result[0][0], filenames[0])
+    self.assertEqual(result[0][1], 202)
+
+    # Second is the file in the fake bucket, which should throw a 404
+    self.assertEqual(result[1][0], filenames[1])
+    self.assertEqual(result[1][1], 404)
+
   def test_list_prefix(self):
     blobs = [
         ('sloth/pictures/sleeping', 2),
