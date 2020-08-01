@@ -417,6 +417,35 @@ class TestBlobStorageIO(unittest.TestCase):
     for path in paths:
       self.assertFalse(self.azfs.exists(path))
 
+  def test_delete_files(self):
+    file_name_pattern = self.TEST_DATA_PATH + 'test_delete_files/%d'
+    file_size = 1024
+    num_files = 5
+
+    # Test deletion of non-existent files.
+    result = self.azfs.delete_files(
+        [file_name_pattern % i for i in range(num_files)])
+    self.assertTrue(result)
+    for i, (file_name, exception) in enumerate(result):
+      self.assertEqual(file_name, file_name_pattern % i)
+      self.assertEqual(exception, 404)
+      self.assertFalse(self.azfs.exists(file_name_pattern % i))
+
+    # Insert some files.
+    for i in range(num_files):
+      self._insert_random_file(file_name_pattern % i, file_size)
+
+    # Check files inserted properly.
+    for i in range(num_files):
+      self.assertTrue(self.azfs.exists(file_name_pattern % i))
+
+    # Execute batch delete.
+    self.azfs.delete_files([file_name_pattern % i for i in range(num_files)])
+
+    # Check files deleted properly.
+    for i in range(num_files):
+      self.assertFalse(self.azfs.exists(file_name_pattern % i))
+    
   def test_list_prefix(self):
     blobs = [
         ('sloth/pictures/sleeping', 2),
