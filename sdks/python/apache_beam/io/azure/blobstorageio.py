@@ -57,7 +57,7 @@ DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 MAX_BATCH_OPERATION_SIZE = 100
 
 
-def parse_azfs_path(azfs_path, blob_optional=False, get_account=True):
+def parse_azfs_path(azfs_path, blob_optional=False, get_account=False):
   """Return the storage account, the container and
   blob names of the given azfs:// path.
   """
@@ -68,9 +68,12 @@ def parse_azfs_path(azfs_path, blob_optional=False, get_account=True):
   if match is None or (match.group(3) == '' and not blob_optional):
     raise ValueError('Azure Blob Storage path must be in the form '
                      'azfs://<storage-account>/<container>/<path>.')
+  result = None
   if get_account:
-    return match.group(1), match.group(2), match.group(3)
-  return match.group(2), match.group(3)
+    result = match.group(1), match.group(2), match.group(3)
+  else:
+    result = match.group(2), match.group(3)
+  return result
 
 def get_azfs_url(storage_account, container, blob=''):
   """Returns the url in the form of
@@ -157,8 +160,9 @@ class BlobStorageIO(object):
     Raises:
       TimeoutError: on timeout.
     """
-    src_storage_account, src_container, src_blob = parse_azfs_path(src)
-    dest_storage_account, dest_container, dest_blob = parse_azfs_path(dest)
+    src_storage_account, src_container, src_blob = parse_azfs_path(
+        src, get_account=True)
+    dest_container, dest_blob = parse_azfs_path(dest)
 
     source_blob = get_azfs_url(src_storage_account, src_container, src_blob)
     copied_blob = self.client.get_blob_client(dest_container, dest_blob)
@@ -273,7 +277,7 @@ class BlobStorageIO(object):
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
     """
-    storage_account, container, blob = parse_azfs_path(path)
+    container, blob = parse_azfs_path(path)
     blob_to_check = self.client.get_blob_client(container, blob)
     try:
       blob_to_check.get_blob_properties()
@@ -296,7 +300,7 @@ class BlobStorageIO(object):
 
     Returns: size of the Blob Storage blob in bytes.
     """
-    storage_account, container, blob = parse_azfs_path(path)
+    container, blob = parse_azfs_path(path)
     blob_to_check = self.client.get_blob_client(container, blob)
     try:
       properties = blob_to_check.get_blob_properties()
@@ -319,7 +323,7 @@ class BlobStorageIO(object):
     Returns: last updated time of the Azure Blob Storage blob
     in seconds.
     """
-    storage_account, container, blob = parse_azfs_path(path)
+    container, blob = parse_azfs_path(path)
     blob_to_check = self.client.get_blob_client(container, blob)
     try:
       properties = blob_to_check.get_blob_properties()
@@ -342,7 +346,7 @@ class BlobStorageIO(object):
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
     """
-    storage_account, container, blob = parse_azfs_path(path)
+    container, blob = parse_azfs_path(path)
     blob_to_check = self.client.get_blob_client(container, blob)
     try:
       properties = blob_to_check.get_blob_properties()
@@ -362,7 +366,7 @@ class BlobStorageIO(object):
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
     """
-    storage_account, container, blob = parse_azfs_path(path)
+    container, blob = parse_azfs_path(path)
     blob_to_delete = self.client.get_blob_client(container, blob)
     try:
       blob_to_delete.delete_blob()
@@ -520,7 +524,8 @@ class BlobStorageIO(object):
     Returns:
       Dictionary of file name -> size.
     """
-    storage_account, container, blob = parse_azfs_path(path, blob_optional=True)
+    storage_account, container, blob = parse_azfs_path(
+        path, blob_optional=True, get_account=True)
     file_sizes = {}
     counter = 0
     start_time = time.time()
@@ -549,7 +554,7 @@ class BlobStorageDownloader(Downloader):
   def __init__(self, client, path, buffer_size):
     self._client = client
     self._path = path
-    self._storage_account, self._container, self._blob = parse_azfs_path(path)
+    self._container, self._blob = parse_azfs_path(path)
     self._buffer_size = buffer_size
 
     self._blob_to_download = self._client.get_blob_client(
@@ -587,7 +592,7 @@ class BlobStorageUploader(Uploader):
   def __init__(self, client, path, mime_type='application/octet-stream'):
     self._client = client
     self._path = path
-    self._storage_account, self._container, self._blob = parse_azfs_path(path)
+    self._container, self._blob = parse_azfs_path(path)
     self._content_settings = ContentSettings(mime_type)
 
     self._blob_to_upload = self._client.get_blob_client(

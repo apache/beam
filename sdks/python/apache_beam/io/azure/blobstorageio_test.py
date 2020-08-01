@@ -78,11 +78,12 @@ class TestAZFSPathParser(unittest.TestCase):
 
   def test_azfs_path(self):
     self.assertEqual(
-        blobstorageio.parse_azfs_path('azfs://storageaccount/container/name'),
+        blobstorageio.parse_azfs_path(
+            'azfs://storageaccount/container/name', get_account=True),
         ('storageaccount', 'container', 'name'))
     self.assertEqual(
         blobstorageio.parse_azfs_path(
-            'azfs://storageaccount/container/name/sub'),
+            'azfs://storageaccount/container/name/sub', get_account=True),
         ('storageaccount', 'container', 'name/sub'))
 
   def test_bad_azfs_path(self):
@@ -96,11 +97,15 @@ class TestAZFSPathParser(unittest.TestCase):
   def test_azfs_path_blob_optional(self):
     self.assertEqual(
         blobstorageio.parse_azfs_path(
-            'azfs://storageaccount/container/name', blob_optional=True),
+            'azfs://storageaccount/container/name',
+            blob_optional=True,
+            get_account=True),
         ('storageaccount', 'container', 'name'))
     self.assertEqual(
         blobstorageio.parse_azfs_path(
-            'azfs://storageaccount/container/', blob_optional=True),
+            'azfs://storageaccount/container/',
+            blob_optional=True,
+            get_account=True),
         ('storageaccount', 'container', ''))
 
   def test_bad_azfs_path_blob_optional(self):
@@ -110,7 +115,7 @@ class TestAZFSPathParser(unittest.TestCase):
 
 class TestBlobStorageIO(unittest.TestCase):
   def _insert_random_file(self, path, size, last_updated=None):
-    storage_account, container, blob = blobstorageio.parse_azfs_path(path)
+    container, blob = blobstorageio.parse_azfs_path(path)
     contents = os.urandom(size)
     fake_file = FakeFile(container, blob, contents, last_updated=last_updated)
 
