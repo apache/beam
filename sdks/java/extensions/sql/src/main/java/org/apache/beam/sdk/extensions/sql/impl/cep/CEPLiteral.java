@@ -55,8 +55,7 @@ public class CEPLiteral extends CEPOperation {
       case VARCHAR:
         return of(lit.getValueAs(String.class));
       default:
-        throw new SqlConversionException(
-            "sql literal type not supported: " + lit.getTypeName().toString());
+        throw new SqlConversionException("SQL type not supported: " + lit.getTypeName().toString());
     }
   }
 
