@@ -378,7 +378,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   def test_delete_paths(self):
     # Create files.
-    prefix = self.TEST_DATA_PATH + 'delete_paths/'
+    prefix = self.TEST_DATA_PATH + 'test_delete_paths/'
     file_names = [prefix + 'x', prefix + 'y/z']
     file_size = 1024
     for file_name in file_names:
@@ -393,7 +393,30 @@ class TestBlobStorageIO(unittest.TestCase):
 
     self.assertFalse(self.azfs.exists(file_names[0]))
     self.assertFalse(self.azfs.exists(file_names[1]))
+  
+  def test_delete_tree(self):
+    root_path = self.TEST_DATA_PATH + 'test_delete_tree/'
+    leaf_paths = ['x', 'y/a', 'y/b', 'y/b/c']
 
+    # Create path names.
+    paths = [root_path + leaf for leaf in leaf_paths]
+
+    file_size = 1024
+    # Create file tree.
+    for path in paths:
+      self._insert_random_file(path, file_size)
+
+    # Files should exist.
+    for path in paths:
+      self.assertTrue(self.azfs.exists(path))
+
+    # Delete the tree.
+    self.azfs.delete_tree(root_path)
+
+    # Files shouldn't exist.
+    for path in paths:
+      self.assertFalse(self.azfs.exists(path))
+    
   # def test_delete_batch(self):
   #   file_name_pattern = self.TEST_DATA_PATH + 'delete_batch/%d'
   #   file_size = 1024
