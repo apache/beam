@@ -211,7 +211,7 @@ class BlobStorageIO(object):
                       azfs://<storage-account>/<container>/[name] file paths
                       to copy from src to dest.
     
-    Returns: 
+    Returns:
       List of tuples of (src, dest, exception) in the same order as the
       src_dest_pairs argument, where exception is None if the operation
       succeeded or the relevant exception if the operation failed.
@@ -461,6 +461,31 @@ class BlobStorageIO(object):
 
     final_results = [(path, results[parse_azfs_path(path)]) for path in paths]
     return final_results
+  
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_beam_io_error_filter)
+  def _delete_batch(self, container, blobs):
+    """A helper method. Azure Blob Storage Python Client allows batch
+    deletions for blobs within the same container.
+
+    Args:
+      container: container name.
+      blobs: list of blobs to be deleted.
+
+    Returns:
+      Dictionary of the form {(container, blob): error}, where error is
+      None if the operation succeeded.
+    """
+    container_client = self.client.get_container_client(container)
+    results = {}
+    try:
+      response = container_client.delete_blobs(*blobs)
+
+    except ResourceNotFoundError as e:
+      for blob in blobs:
+        results[(container, blob)] = e
+      
+    return results
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
