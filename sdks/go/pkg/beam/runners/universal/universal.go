@@ -81,17 +81,16 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return errors.WithContextf(err, "generating model pipeline")
 	}
-	fmt.Printf("\n\n+++n%v\n+++n\n", pipeline.Components.Transforms)
-	// Adding ExpandedTransforms to the pipeline
+
+	// Adding Expanded transforms to their counterparts in the Pipeline
 	for id, external := range p.ExpandedTransforms {
 		pipeline.Requirements = append(pipeline.Requirements, external.Requirements...)
-		fmt.Printf("\n\n+++n%v\n+++n\n", external.ExpandedTransform)
 
 		// Correct update of transform corresponding to the ExpandedTransform
+		// TODO(pskevin): Figure if there is a better way of supporting multiple outputs
 		transform := pipeline.Components.Transforms[id]
 		existingInput := ""
 		newInput := ""
-
 		for _, v := range transform.Outputs {
 			existingInput = v
 		}
@@ -107,6 +106,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 			}
 		}
 
+		// Adding components of the Expanded Transforms to the current Pipeline
 		for k, v := range external.Components.Transforms {
 			pipeline.Components.Transforms[k] = v
 		}
@@ -120,13 +120,16 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 			pipeline.Components.Coders[k] = v
 		}
 		for k, v := range external.Components.Environments {
+			// TODO(pskevin): Resolve temporary hack to enable LOOPBACK mode
+			if k == "go" {
+				continue
+			}
 			pipeline.Components.Environments[k] = v
 		}
 
 		pipeline.Components.Transforms[id] = external.ExpandedTransform
 	}
 
-	// panic("DIE")
 	log.Info(ctx, proto.MarshalTextString(pipeline))
 
 	opt := &runnerlib.JobOptions{

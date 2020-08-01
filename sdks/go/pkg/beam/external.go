@@ -24,11 +24,10 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
 	"google.golang.org/grpc"
 )
 
-// ExternalTransform ...
+// ExternalTransform represents the cross-language transform in and out of the Pipeline as a MultiEdge and Expanded proto respectively
 type ExternalTransform struct {
 	id                int
 	Urn               string
@@ -42,16 +41,10 @@ type ExternalTransform struct {
 	Requirements      []string
 }
 
-// func (s ExternalTransform) withExpansionAddress(addr string) ExternalTransform {
-// 	return
-// }
-
+// CrossLanguage is the temporary API to execute external transforms
+// TODO(pskevin): Handle errors using the TryN and Must strategies instead one function handling multiple points of failure
 func CrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) []PCollection {
-	// func CrossLanguage(s Scope, e ExternalTransform) {
-
-	// id, bounded, components and expandedTransform should be absent
-
-	if e.ExpansionAddr == "" { // What's the best way to check if the value was ever set
+	if e.ExpansionAddr == "" { // TODO(pskevin): Better way to check if the value was ever set
 		// return Legacy External API
 	}
 
@@ -59,8 +52,6 @@ func CrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) []PCollection {
 		Add ExternalTranform to the Graph
 	*/
 	// Validating scope and inputs
-	// // Inserting a further subscope for better observability?
-	// s := s.Scope(expansionAddr)
 	if !s.IsValid() {
 		// return nil, errors.New("invalid scope")
 		fmt.Println("invalid scope")
@@ -73,7 +64,7 @@ func CrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) []PCollection {
 		}
 	}
 
-	// Using exisiting MultiEdge format to represent ExternalTransform (backwards compatible)
+	// Using exisiting MultiEdge format to represent ExternalTransform (already backwards compatible)
 	payload := &graph.Payload{
 		URN:  e.Urn,
 		Data: e.Payload,
@@ -84,7 +75,7 @@ func CrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) []PCollection {
 	}
 	edge := graph.NewCrossLanguage(s.real, s.scope, ins, payload)
 
-	// todo(pskevin): There needs to be a better way to stich this together
+	// TODO(pskevin): There needs to be a better way of associating this ExternalTransform to the pipeline
 	// Adding ExternalTransform to pipeline referenced by MultiEdge ID
 	if p.ExpandedTransforms == nil {
 		p.ExpandedTransforms = make(map[string]*ExternalTransform)
@@ -95,14 +86,13 @@ func CrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) []PCollection {
 		Build the ExpansionRequest
 	*/
 	// Obtaining the components and transform proto representing this transform
-	ctx := context.Background()
-	pipeline, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{Environment: graphx.CreateEnvironment(
-		ctx, jobopts.GetEnvironmentUrn(ctx), jobopts.GetEnvironmentConfig)})
+	pipeline, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{})
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 
 	// Adding fake impulses to each input as required for correct expansion
+	// TODO(pskevin): Remove these fake impulses from final Pipeline since multiple producers of the same PCollections is logically wrong
 	transforms := pipeline.Components.Transforms
 	rootTransformID := pipeline.RootTransformIds[0]
 	for tag, id := range transforms[rootTransformID].Inputs {
@@ -141,17 +131,15 @@ func CrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) []PCollection {
 	// Handling ExpansionResponse
 	res, err := client.Expand(context.Background(), req)
 	if err != nil {
-		// Add better error handling
-		fmt.Println(res.GetError())
 		panic(err)
 	}
-	fmt.Printf("\n\n!!!%v\n!!!\n\n", req.GetTransform())
-	fmt.Printf("\n\n!!!%v\n!!!\n\n", res.GetTransform())
 	e.Components = res.GetComponents()
 	e.ExpandedTransform = res.GetTransform()
 	e.Requirements = res.GetRequirements()
 
-	/* Associating output PCollections of the expanded transform with correct internal outbound links and nodes */
+	/*
+		Associating output PCollections of the expanded transform with correct internal outbound links and nodes
+	*/
 	// No information about the output types and bounded nature has been explicitly passed by the user
 	if len(e.Out) == 0 || cap(e.Out) == 0 {
 		// Infer output types from ExpansionResponse and update e.Out
@@ -162,7 +150,7 @@ func CrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) []PCollection {
 		}
 	}
 
-	// Using information about the output types and bounded nature inferred orexplicitly passed by the user
+	// Using information about the output types and bounded nature inferred or explicitly passed by the user
 	graph.AddOutboundLinks(s.real, edge, ins, e.Out, e.Bounded)
 	var ret []PCollection
 	for _, out := range edge.Output {
