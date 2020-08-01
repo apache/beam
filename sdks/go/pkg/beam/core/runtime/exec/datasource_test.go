@@ -18,7 +18,6 @@ package exec
 import (
 	"context"
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"io"
 	"math"
 	"testing"
@@ -26,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 func TestDataSource_PerElement(t *testing.T) {
@@ -279,16 +279,17 @@ func TestDataSource_Split(t *testing.T) {
 			runOnRoots(ctx, t, p, "StartBundle", func(root Root, ctx context.Context) error { return root.StartBundle(ctx, "1", dc) })
 
 			// SDK never splits on 0, so check that every test.
-			if splitRes, err := p.Split(SplitPoints{Splits: []int64{0, test.splitIdx}}); err != nil {
+			splitRes, err := p.Split(SplitPoints{Splits: []int64{0, test.splitIdx}})
+			if err != nil {
 				t.Fatalf("error in Split: %v", err)
-			} else {
-				if got, want := splitRes.RI, test.splitIdx; got != want {
-					t.Fatalf("error in Split: got splitIdx = %v, want %v ", got, want)
-				}
-				if got, want := splitRes.PI, test.splitIdx-1; got != want {
-					t.Fatalf("error in Split: got primary index = %v, want %v ", got, want)
-				}
 			}
+			if got, want := splitRes.RI, test.splitIdx; got != want {
+				t.Fatalf("error in Split: got splitIdx = %v, want %v ", got, want)
+			}
+			if got, want := splitRes.PI, test.splitIdx-1; got != want {
+				t.Fatalf("error in Split: got primary index = %v, want %v ", got, want)
+			}
+
 			runOnRoots(ctx, t, p, "Process", Root.Process)
 			runOnRoots(ctx, t, p, "FinishBundle", Root.FinishBundle)
 
@@ -423,15 +424,15 @@ func TestDataSource_Split(t *testing.T) {
 
 		// SDK never splits on 0, so check that every test.
 		sp := SplitPoints{Splits: test.splitPts, Frac: test.frac, BufSize: test.bufSize}
-		if splitRes, err := p.Split(sp); err != nil {
+		splitRes, err := p.Split(sp)
+		if err != nil {
 			t.Fatalf("error in Split: %v", err)
-		} else {
-			if got, want := splitRes.RI, test.splitIdx; got != want {
-				t.Fatalf("error in Split: got splitIdx = %v, want %v ", got, want)
-			}
-			if got, want := splitRes.PI, test.splitIdx-1; got != want {
-				t.Fatalf("error in Split: got primary index = %v, want %v ", got, want)
-			}
+		}
+		if got, want := splitRes.RI, test.splitIdx; got != want {
+			t.Fatalf("error in Split: got splitIdx = %v, want %v ", got, want)
+		}
+		if got, want := splitRes.PI, test.splitIdx-1; got != want {
+			t.Fatalf("error in Split: got primary index = %v, want %v ", got, want)
 		}
 		runOnRoots(ctx, t, p, "Process", Root.Process)
 		runOnRoots(ctx, t, p, "FinishBundle", Root.FinishBundle)

@@ -17,11 +17,12 @@ package exec
 
 import (
 	"context"
+	"testing"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/google/go-cmp/cmp"
-	"testing"
 )
 
 // testTimestamp is a constant used to check that timestamps are retained.
@@ -488,7 +489,9 @@ func TestAsSplittableUnit(t *testing.T) {
 				// Setup, create transforms, inputs, and desired outputs.
 				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{}}
 				node := &ProcessSizedElementsAndRestrictions{PDo: n}
-				node.rt = &VetRTracker{Rest: test.in.Elm.(*FullValue).Elm2.(*VetRestriction)}
+				node.rt = &SplittableUnitRTracker{
+					VetRTracker: VetRTracker{Rest: test.in.Elm.(*FullValue).Elm2.(*VetRestriction)},
+				}
 				node.elm = &test.in
 
 				// Call from SplittableUnit and check results.
@@ -510,4 +513,20 @@ func TestAsSplittableUnit(t *testing.T) {
 			})
 		}
 	})
+}
+
+// SplittableUnitRTracker is a VetRTracker with some added behavior needed for
+// TestAsSplittableUnit.
+type SplittableUnitRTracker struct {
+	VetRTracker
+}
+
+func (rt *SplittableUnitRTracker) IsDone() bool { return false }
+
+func (rt *SplittableUnitRTracker) TrySplit(_ float64) (interface{}, interface{}, error) {
+	rest1 := rt.Rest.copy()
+	rest1.ID += ".1"
+	rest2 := rt.Rest.copy()
+	rest2.ID += ".2"
+	return &rest1, &rest2, nil
 }

@@ -225,11 +225,13 @@ type ProcessSizedElementsAndRestrictions struct {
 	// interface through the channel. That interface can be received on other
 	// threads and used to perform splitting or other related operation.
 	//
-	// Receiving the SplittableUnit prevents the current element from finishing
-	// processing, so he element does not unexpectedly change during a split.
+	// This channel should be received on in a non-blocking manner, to avoid
+	// hanging if no element is processing.
 	//
-	// Receivers of the SplittableUnit do not own it, and must send it back
-	// through the channel once finished with it.
+	// Receiving the SplittableUnit prevents the current element from finishing
+	// processing, so the element does not unexpectedly change during a split.
+	// Therefore, receivers of the SplittableUnit must send it back through the
+	// channel once finished with it, or it will block indefinitely.
 	SU chan SplittableUnit
 
 	elm *FullValue   // Currently processing element.
@@ -291,9 +293,14 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 
 	rest := elm.Elm.(*FullValue).Elm2
 	rt := n.ctInv.Invoke(rest)
+
 	n.rt = rt
 	n.elm = elm
 	n.SU <- n
+	defer func() {
+		<-n.SU
+	}()
+
 	mainIn := &MainInput{
 		Values:   values,
 		RTracker: rt,
@@ -320,11 +327,7 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, 
 		}
 	}
 
-	err := n.PDo.processMainInput(mainIn)
-	<-n.SU
-	n.rt = nil
-	n.elm = nil
-	return err
+	return n.PDo.processMainInput(mainIn)
 }
 
 // FinishBundle resets the invokers and then calls the ParDo's FinishBundle method.
@@ -334,9 +337,8 @@ func (n *ProcessSizedElementsAndRestrictions) FinishBundle(ctx context.Context) 
 	return n.PDo.FinishBundle(ctx)
 }
 
-// Down closes open channels and calls the ParDo's Down method.
+// Down calls the ParDo's Down method.
 func (n *ProcessSizedElementsAndRestrictions) Down(ctx context.Context) error {
-	close(n.SU)
 	return n.PDo.Down(ctx)
 }
 
@@ -371,13 +373,24 @@ type SplittableUnit interface {
 // input structure to this unit, including updating the size of the split
 // elements.
 func (n *ProcessSizedElementsAndRestrictions) Split(f float64) (*FullValue, *FullValue, error) {
-	if n.rt == nil {
-		err := errors.New("Restriction tracker missing.")
-		return nil, nil, errors.WithContext(err, "Attempting split in ProcessSizedElementsAndRestrictions")
+	addContext := func(err error) error {
+		return errors.WithContext(err, "Attempting split in ProcessSizedElementsAndRestrictions")
 	}
+
+	// Check that the restriction tracker is in a state where it can be split.
+	if n.rt == nil {
+		return nil, nil, addContext(errors.New("Restriction tracker missing."))
+	}
+	if err := n.rt.GetError(); err != nil {
+		return nil, nil, addContext(err)
+	}
+	if n.rt.IsDone() { // Not an error, but not splittable.
+		return nil, nil, nil
+	}
+
 	p, r, err := n.rt.TrySplit(f)
 	if err != nil {
-		return nil, nil, errors.WithContext(err, "Attempting split in ProcessSizedElementsAndRestrictions")
+		return nil, nil, addContext(err)
 	}
 	if r == nil { // If r is nil then the split failed/returned an empty residual.
 		return nil, nil, nil

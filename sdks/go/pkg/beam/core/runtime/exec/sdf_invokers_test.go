@@ -16,9 +16,10 @@
 package exec
 
 import (
+	"testing"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/google/go-cmp/cmp"
-	"testing"
 )
 
 // TestInvokes runs tests on each SDF method invoker, using the SDFs defined
@@ -264,11 +265,7 @@ func (rt *VetRTracker) GetProgress() (float64, float64) { return 0, 0 }
 func (rt *VetRTracker) IsDone() bool                    { return true }
 func (rt *VetRTracker) GetRestriction() interface{}     { return nil }
 func (rt *VetRTracker) TrySplit(_ float64) (interface{}, interface{}, error) {
-	rest1 := rt.Rest.copy()
-	rest1.ID += ".1"
-	rest2 := rt.Rest.copy()
-	rest2.ID += ".2"
-	return &rest1, &rest2, nil
+	return nil, nil, nil
 }
 
 // VetSdf runs an SDF In order to test that these methods get called properly,

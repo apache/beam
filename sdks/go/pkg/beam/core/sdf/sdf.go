@@ -78,8 +78,8 @@ type RTracker interface {
 
 	// IsDone returns a boolean indicating whether all blocks inside the restriction have been
 	// claimed. This method is called by the SDK Harness to validate that a splittable DoFn has
-	// correctly processed all work in a restriction before finishing. If this method returns false
-	// then GetError is expected to return a non-nil error.
+	// correctly processed all work in a restriction before finishing. If this method still returns
+	// false after processing, then GetError is expected to return a non-nil error.
 	IsDone() bool
 
 	// GetRestriction returns the restriction this tracker is tracking, or nil if the restriction
