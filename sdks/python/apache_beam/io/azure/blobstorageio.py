@@ -57,7 +57,7 @@ DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 MAX_BATCH_OPERATION_SIZE = 100
 
 
-def parse_azfs_path(azfs_path, blob_optional=False):
+def parse_azfs_path(azfs_path, blob_optional=False, get_account=True):
   """Return the storage account, the container and
   blob names of the given azfs:// path.
   """
@@ -66,9 +66,14 @@ def parse_azfs_path(azfs_path, blob_optional=False):
       '[a-z0-9-]{1,61}[a-z0-9])/(.*)$',
       azfs_path)
   if match is None or (match.group(3) == '' and not blob_optional):
-    raise ValueError('Azure Blob Storage path must be in the form'
+    raise ValueError('Azure Blob Storage path must be in the form '
                      'azfs://<storage-account>/<container>/<path>.')
-  return match.group(1), match.group(2), match.group(3)
+  result = None         
+  if get_account:
+    result = match.group(1), match.group(2), match.group(3)
+  else:
+    result = match.group(2), match.group(3)
+  return result
 
 def get_azfs_url(storage_account, container, blob=''):
   """Returns the url in the form of
@@ -395,7 +400,7 @@ class BlobStorageIO(object):
         directories.append(path)
       else:
         blobs.append(path)
-    
+
     results = {}
 
     for directory in directories:
@@ -424,6 +429,7 @@ class BlobStorageIO(object):
     assert root.endswith('/')
 
     paths_to_delete = self.list_prefix(root)
+    
     return self.delete_files(paths_to_delete)
   
   # We intentionally do not decorate this method with a retry, since the
@@ -444,9 +450,9 @@ class BlobStorageIO(object):
     """
     if not paths:
       return []
-    
+
     # Group blobs into containers.
-    containers, blobs = zip(*[parse_azfs_path(path) for path in paths])
+    containers, blobs = zip(*[parse_azfs_path(path, get_account=False) for path in paths])
     grouped_blobs = {container: [] for container in containers}
     # Fill dictionary.
     for container, blob in zip(containers, blobs):
@@ -459,9 +465,9 @@ class BlobStorageIO(object):
         blobs_to_delete = blobs[i:i + MAX_BATCH_OPERATION_SIZE]
         results.update(self._delete_batch(container, blobs_to_delete))
 
-    final_results = [(path, results[parse_azfs_path(path)]) for path in paths]
+    final_results = [(path, results[parse_azfs_path(path, get_account=False)]) for path in paths]
     return final_results
-  
+
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
   def _delete_batch(self, container, blobs):
@@ -479,12 +485,15 @@ class BlobStorageIO(object):
     container_client = self.client.get_container_client(container)
     results = {}
     try:
-      response = container_client.delete_blobs(*blobs)
+      response = container_client.delete_blobs(*blobs, raise_on_any_failure=False)
 
-    except ResourceNotFoundError as e:
+      for blob, error in zip(blobs, response):
+        results[(container, blob)] = error.status_code
+
+    except BlobStorageError as e:
       for blob in blobs:
-        results[(container, blob)] = e
-      
+        results[(container, blob)] = e.message
+
     return results
 
   @retry.with_exponential_backoff(
