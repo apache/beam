@@ -49,6 +49,9 @@ type DataSource struct {
 
 	// su is non-nil if this DataSource feeds directly to a splittable unit,
 	// and receives that splittable unit when it is available for splitting.
+	// While the splittable unit is received, it is blocked from processing
+	// new elements, so it must be sent back through the channel once the
+	// DataSource is finished using it.
 	su chan SplittableUnit
 
 	mu sync.Mutex
@@ -317,16 +320,23 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 	} else if n.su == nil { // If this isn't sub-element splittable, estimate some progress.
 		currProg = 0.5
 	} else { // If this is sub-element splittable, get progress of the current element.
-		// If splittable, hold this tracker for the rest of the function so the element
-		// doesn't finish processing during a split.
-		su = <-n.su
-		if su == nil {
-			return SplitResult{}, fmt.Errorf("failed to split: splittable unit was nil")
+
+		select {
+		case su = <-n.su:
+			// If an element is processing, we'll get a splittable unit.
+			if su == nil {
+				return SplitResult{}, fmt.Errorf("failed to split: splittable unit was nil")
+			}
+			defer func() {
+				n.su <- su
+			}()
+			currProg = su.GetProgress()
+		case <-time.After(500 * time.Millisecond):
+			// Otherwise, the current element hasn't started processing yet
+			// or has already finished. By adding a short timeout, we avoid
+			// the first possibility, and can assume progress is at max.
+			currProg = 1.0
 		}
-		defer func() {
-			n.su <- su
-		}()
-		currProg = su.GetProgress()
 	}
 	// Size to split within is the minimum of bufSize or splitIdx so we avoid
 	// including elements we already know won't be processed.
@@ -350,34 +360,34 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 		return SplitResult{}, err
 	}
 
-	if p != nil && r != nil { // Successful split.
-		// TODO(BEAM-10579) Eventually encode elements with the splittable
-		// unit's input coder instead of the DataSource's coder.
-		wc := MakeWindowEncoder(n.Coder.Window)
-		ec := MakeElementEncoder(coder.SkipW(n.Coder))
-		pEnc, err := encodeElm(p, wc, ec)
-		if err != nil {
-			return SplitResult{}, err
-		}
-		rEnc, err := encodeElm(r, wc, ec)
-		if err != nil {
-			return SplitResult{}, err
-		}
-		n.splitIdx = s + 1 // In a sub-element split, s is currIdx.
-		res := SplitResult{
-			PI:   s - 1,
-			RI:   s + 1,
-			PS:   pEnc,
-			RS:   rEnc,
-			TId:  su.GetTransformId(),
-			InId: su.GetInputId(),
-		}
-		return res, nil
-	} else {
+	if p == nil || r == nil { // Unsuccessful split.
 		// Fallback to channel split, so split at next elm, not current.
 		n.splitIdx = s + 1
 		return SplitResult{PI: s, RI: s + 1}, nil
 	}
+
+	// TODO(BEAM-10579) Eventually encode elements with the splittable
+	// unit's input coder instead of the DataSource's coder.
+	wc := MakeWindowEncoder(n.Coder.Window)
+	ec := MakeElementEncoder(coder.SkipW(n.Coder))
+	pEnc, err := encodeElm(p, wc, ec)
+	if err != nil {
+		return SplitResult{}, err
+	}
+	rEnc, err := encodeElm(r, wc, ec)
+	if err != nil {
+		return SplitResult{}, err
+	}
+	n.splitIdx = s + 1 // In a sub-element split, s is currIdx.
+	res := SplitResult{
+		PI:   s - 1,
+		RI:   s + 1,
+		PS:   pEnc,
+		RS:   rEnc,
+		TId:  su.GetTransformId(),
+		InId: su.GetInputId(),
+	}
+	return res, nil
 }
 
 // splitHelper is a helper function that finds a split point in a range.

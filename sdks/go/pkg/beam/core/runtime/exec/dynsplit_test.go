@@ -18,7 +18,6 @@ package exec
 import (
 	"bytes"
 	"context"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"io"
 	"reflect"
 	"sync"
@@ -33,6 +32,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 // TestDynamicSplit tests that a dynamic split of an in-progress SDF succeeds
@@ -318,14 +318,6 @@ type splitResult struct {
 // splitPlan is meant to be the goroutine representing the thread handling a
 // split request for the SDF.
 func splitPlan(plan *Plan, result chan splitResult) {
-	// Fake splitting code.
-	//p, r, err := rt.TrySplit(0.5)
-	//result <- splitResult{
-	//	primary:  p.(offsetrange.Restriction),
-	//	residual: r.(offsetrange.Restriction),
-	//	err:      err,
-	//}
-
 	split, err := plan.Split(SplitPoints{Frac: 0.5, BufSize: 1})
 	result <- splitResult{split: split, err: err}
 }
