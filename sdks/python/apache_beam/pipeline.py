@@ -48,7 +48,6 @@ Typical usage::
 # mypy: disallow-untyped-defs
 
 from __future__ import absolute_import
-from __future__ import print_function
 
 import abc
 import logging
@@ -537,7 +536,6 @@ class Pipeline(object):
           raise RuntimeError(
               'You cannot turn on performance_runtime_type_check '
               'in Python 2. This is a Python 3 feature.')
-
         else:
           from apache_beam.typehints import typecheck
           self.visit(typecheck.PerformanceTypeCheckVisitor())
