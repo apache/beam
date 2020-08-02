@@ -184,7 +184,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     with self.assertRaises(TypeCheckError) as e:
       (
           self.p
-          | beam.Create([1, 2, 3])
+          | beam.Create([1, 1])
           | beam.FlatMap(lambda x: [int(x)]).with_input_types(
               str).with_output_types(int))
       self.p.run()
@@ -199,7 +199,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     with self.assertRaises(TypeCheckError) as e:
       (
           self.p
-          | beam.Create(['1', '2', '3'])
+          | beam.Create(['1', '1'])
           | beam.FlatMap(lambda x: [int(x)]).with_input_types(
               int).with_output_types(int))
       self.p.run()
@@ -218,7 +218,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         yield int(element)
 
     with self.assertRaises(TypeCheckError) as e:
-      (self.p | beam.Create(['1', '2', '3']) | beam.ParDo(ToInt()))
+      (self.p | beam.Create(['1', '1']) | beam.ParDo(ToInt()))
       self.p.run()
 
     self.assertStartswith(
@@ -235,7 +235,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
       return x + 5
 
     with self.assertRaises(TypeCheckError) as cm:
-      (self.p | beam.Create([1, 2, 3]) | beam.FlatMap(incorrect_par_do_fn))
+      (self.p | beam.Create([1, 1]) | beam.FlatMap(incorrect_par_do_fn))
       self.p.run()
 
     self.assertStartswith(
