@@ -18,14 +18,4 @@
 #
 
 content:
-- map
-- groupbykey
-- cogroupbykey
-- combine
-- flatten
-- partition
-- side_input
-- additional_outputs
-- branching
-- composite
 - additional_parameters
