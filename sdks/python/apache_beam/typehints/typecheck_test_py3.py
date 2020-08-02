@@ -38,8 +38,8 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.typehints import decorators
 from apache_beam.typehints import TypeCheckError
+from apache_beam.typehints import decorators
 from apache_beam.typehints import decorators
 # TODO(BEAM-8371): Use tempfile.TemporaryDirectory.
 from apache_beam.utils.subprocess_server_test import TemporaryDirectory
