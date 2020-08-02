@@ -30,6 +30,10 @@ from apache_beam import typehints
 
 
 class MainInputTest(unittest.TestCase):
+  def assertStartswith(self, msg, prefix):
+    self.assertTrue(
+        msg.startswith(prefix), '"%s" does not start with "%s"' % (msg, prefix))
+
   def test_typed_dofn_method(self):
     class MyDoFn(beam.DoFn):
       def process(self, element: int) -> typehints.Tuple[str]:
@@ -243,8 +247,13 @@ class MainInputTest(unittest.TestCase):
       return element * 2
 
     # This is raised in runners/common.py (process_outputs).
-    with self.assertRaisesRegex(TypeError, r'int.*is not iterable'):
+    with self.assertRaises(typehints.TypeCheckError) as e:
       _ = [1, 2, 3] | beam.FlatMap(fn)
+
+    self.assertStartswith(
+        e.exception.args[0],
+        "FlatMap and ParDo must return an iterable. "
+        "{} was returned instead.".format(int))
 
   def test_typed_flatmap_optional(self):
     def fn(element: int) -> typehints.Optional[typehints.Iterable[int]]:
