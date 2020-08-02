@@ -51,6 +51,30 @@ import java.util.concurrent.Executors;
  *         --maxNumWorkers=10"
  */
 public class BeamTpcds {
+    private static final String dataDirectory = "gs://beamsql_tpcds_1/data";
+    private static final String resultDirectory = "gs://beamsql_tpcds_1/tpcds_results";
+
+    private static String buildTableCreateStatement(String tableName) {
+        String createStatement = "CREATE EXTERNAL TABLE " + tableName + " (%s) TYPE text LOCATION '%s' TBLPROPERTIES '{\"format\":\"csv\", \"csvformat\": \"InformixUnload\"}'";
+        return createStatement;
+    }
+
+    private static String buildDataLocation(String dataSize, String tableName) {
+        String dataLocation = dataDirectory + "/" + dataSize + "/" + tableName + ".dat";
+        return dataLocation;
+    }
+
+    /** Register all tables into env, set their schemas, and set the locations where their corresponding data are stored. */
+    private static void registerAllTables(BeamSqlEnv env, String dataSize) throws Exception {
+        List<String> tableNames = TableSchemaJSONLoader.getAllTableNames();
+        for (String tableName : tableNames) {
+            String createStatement = buildTableCreateStatement(tableName);
+            String tableSchema = TableSchemaJSONLoader.parseTableSchema(tableName);
+            String dataLocation = buildDataLocation(dataSize, tableName);
+            env.executeDdl(String.format(createStatement, tableSchema, dataLocation));
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
         inMemoryMetaStore.registerProvider(new TextTableProvider());
@@ -65,32 +89,24 @@ public class BeamTpcds {
         ExecutorService executor = Executors.newFixedThreadPool(nThreads);
         CompletionService<PipelineResult> completion = new ExecutorCompletionService<>(executor);
 
-        // After getting necessary parameters from tpcdsOptions, cast tpcdsOptions as a DataflowPipelineOptions object to read and set required parameters for pipeline execution.
-        DataflowPipelineOptions dataflowPipelineOptions = tpcdsOptions.as(DataflowPipelineOptions.class);
-
         BeamSqlEnv env =
                 BeamSqlEnv
                         .builder(inMemoryMetaStore)
-                        .setPipelineOptions(dataflowPipelineOptions)
+                        .setPipelineOptions(tpcdsOptions)
                         .build();
 
-        // Register all tables, set their schemas, and set the locations where their corresponding data are stored.
-        List<String> tableNames = TableSchemaJSONLoader.getAllTableNames();
-        for (String tableName : tableNames) {
-            String createStatement = "CREATE EXTERNAL TABLE " + tableName + " (%s) TYPE text LOCATION '%s' TBLPROPERTIES '{\"format\":\"csv\", \"csvformat\": \"InformixUnload\"}'";
-            String tableSchema = TableSchemaJSONLoader.parseTableSchema(tableName);
-            String dataLocation = "gs://beamsql_tpcds_1/data/" + dataSize +"/" + tableName + ".dat";
-            env.executeDdl(String.format(createStatement, tableSchema, dataLocation));
-        }
+        registerAllTables(env, dataSize);
 
         // Make an array of pipelines, each pipeline is responsible for running a corresponding query.
         Pipeline[] pipelines = new Pipeline[queryNameArr.length];
 
         // Execute all queries, transform the each result into a PCollection<String>, write them into the txt file and store in a GCP directory.
         for (int i = 0; i < queryNameArr.length; i++) {
-            // For each query, get a copy of pipelineOptions from command line arguments, set a unique job name using the time stamp so that multiple different pipelines can run together.
+            // For each query, get a copy of pipelineOptions from command line arguments, cast tpcdsOptions as a DataflowPipelineOptions object to read and set required parameters for pipeline execution.
             TpcdsOptions tpcdsOptionsCopy = PipelineOptionsFactory.fromArgs(args).withValidation().as(TpcdsOptions.class);
             DataflowPipelineOptions dataflowPipelineOptionsCopy = tpcdsOptionsCopy.as(DataflowPipelineOptions.class);
+
+            // Set a unique job name using the time stamp so that multiple different pipelines can run together.
             dataflowPipelineOptionsCopy.setJobName(queryNameArr[i] + "result" + System.currentTimeMillis());
 
             pipelines[i] = Pipeline.create(dataflowPipelineOptionsCopy);
@@ -103,7 +119,7 @@ public class BeamTpcds {
             PCollection<String> rowStrings = rows.apply(MapElements
                     .into(TypeDescriptors.strings())
                     .via((Row row) -> row.toString()));
-            rowStrings.apply(TextIO.write().to("gs://beamsql_tpcds_1/tpcds_results/" + dataSize + "/" + pipelines[i].getOptions().getJobName()).withSuffix(".txt").withNumShards(1));
+            rowStrings.apply(TextIO.write().to(resultDirectory + "/" + dataSize + "/" + pipelines[i].getOptions().getJobName()).withSuffix(".txt").withNumShards(1));
 
             completion.submit(new TpcdsRun(pipelines[i]));
         }

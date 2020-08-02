@@ -56,7 +56,6 @@ dependencies {
   compile "com.alibaba:fastjson:1.2.68"
   compile "org.codehaus.janino:janino:3.0.11"
   compile "org.codehaus.janino:commons-compiler:3.0.11"
-  compile project(path: ":runners:google-cloud-dataflow-java")
   provided "org.checkerframework:checker-qual:3.4.1"
   provided project(":sdks:java:io:kafka")
   provided project(":sdks:java:io:google-cloud-platform")
@@ -73,7 +72,6 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.quickcheck_core
   testCompile project(path: ":sdks:java:io:mongodb", configuration: "testRuntime")
-  testCompile project(path: ":runners:google-cloud-dataflow-java", configuration: "testRuntime")
   testRuntimeClasspath library.java.slf4j_jdk14
 }
 

@@ -149,9 +149,6 @@ public final class BeamTableUtils {
         case INT16:
           return Short.valueOf(raw);
         case INT32:
-          if (raw.equals("")) {
-            return null;
-          }
           return Integer.valueOf(raw);
         case INT64:
           if (raw.equals("")) {
@@ -159,25 +156,12 @@ public final class BeamTableUtils {
           }
           return Long.valueOf(raw);
         case FLOAT:
-          if (raw.equals("")) {
-            return null;
-          }
           return Float.valueOf(raw);
         case DOUBLE:
           if (raw.equals("")) {
             return null;
           }
           return Double.valueOf(raw);
-          //          BigDecimal bdvalue = new BigDecimal(raw);
-          //          bdvalue = bdvalue.setScale(2);
-          //          return bdvalue.doubleValue();
-        case DECIMAL:
-          // Decimal case is needed to handle very long decimal number and ensure precision, which
-          // can't be simply achieved by double.
-          if (raw.equals("")) {
-            return null;
-          }
-          return new BigDecimal(raw);
         default:
           throw new UnsupportedOperationException(
               String.format("Column type %s is not supported yet!", type));
