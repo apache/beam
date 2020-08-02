@@ -42,7 +42,6 @@ from typing import Mapping
 from typing import Optional
 from typing import Tuple
 
-from apache_beam.typehints import TypeCheckError
 from future.utils import raise_with_traceback
 from past.builtins import unicode
 
@@ -64,6 +63,7 @@ from apache_beam.transforms.core import WatermarkEstimatorProvider
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.typehints import TypeCheckError
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 from apache_beam.utils.timestamp import Timestamp
