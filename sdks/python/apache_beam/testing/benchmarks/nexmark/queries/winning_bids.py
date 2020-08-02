@@ -22,6 +22,7 @@ from apache_beam.coders import coder_impl
 from apache_beam.coders.coders import FastCoder
 from apache_beam.transforms.window import WindowFn
 from apache_beam.transforms.window import IntervalWindow
+from apache_beam.utils.timestamp import Duration
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.models import auction_bid
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
@@ -41,7 +42,10 @@ class AuctionOrBidWindow(IntervalWindow):
   @staticmethod
   def for_bid(expected_duration_micro, timestamp, bid: nexmark_model.Bid):
     return AuctionOrBidWindow(
-        timestamp, timestamp + expected_duration_micro * 2, bid.auction, False)
+        timestamp,
+        timestamp + Duration(micros=expected_duration_micro * 2),
+        bid.auction,
+        False)
 
   def is_auction_window_fn(self):
     return self.is_auction_window
@@ -99,21 +103,18 @@ class AuctionOrBidWindowFn(WindowFn):
           (self.__class__.__name__, event))
 
   def merge(self, merge_context):
-    id_to_auction = {}
-    id_to_bid = {}
+    auction_id_to_auction_window = {}
+    auction_id_to_bid_window = {}
     for window in merge_context.windows:
       if window.is_auction_window_fn():
-        id_to_auction[window.auction] = window
+        auction_id_to_auction_window[window.auction] = window
       else:
-        if window.auction in id_to_bid:
-          bid_windows = id_to_bid[window.auction]
-        else:
-          bid_windows = []
-          id_to_bid[window.auction] = bid_windows
-        bid_windows.append(window)
+        if window.auction not in auction_id_to_bid_window:
+          auction_id_to_bid_window[window.auction] = []
+        auction_id_to_bid_window[window.auction].append(window)
 
-    for auction, auction_window in id_to_auction.items():
-      bid_window_list = id_to_bid.get(auction)
+    for auction, auction_window in auction_id_to_auction_window.items():
+      bid_window_list = auction_id_to_bid_window.get(auction)
       if bid_window_list is not None:
         to_merge = []
         for bid_window in bid_window_list:
@@ -152,9 +153,8 @@ class JoinAuctionBidFn(beam.DoFn):
         continue
       if best_bid is None or JoinAuctionBidFn.higher_bid(bid, best_bid):
         best_bid = bid
-    if best_bid is None:
-      return
-    yield auction_bid.AuctionBid(auction, best_bid)
+    if best_bid:
+      yield auction_bid.AuctionBid(auction, best_bid)
 
 
 class WinningBids(beam.PTransform):

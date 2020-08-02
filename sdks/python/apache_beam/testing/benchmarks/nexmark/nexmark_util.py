@@ -223,6 +223,5 @@ def unnest_to_json(cand):
 
 
 def millis_to_timestamp(millis: int):
-  second = millis // 1000
-  micro_second = millis % 1000 * 1000
-  return Timestamp(second, micro_second)
+  micro_second = millis * 1000
+  return Timestamp(micros=micro_second)

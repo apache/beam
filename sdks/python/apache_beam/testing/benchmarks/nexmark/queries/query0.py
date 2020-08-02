@@ -32,7 +32,7 @@ from __future__ import absolute_import
 import apache_beam as beam
 
 
-class round_tripFn(beam.DoFn):
+class RoundTripFn(beam.DoFn):
   def process(self, element):
     coder = element.CODER
     byte_value = coder.encode(element)
@@ -43,4 +43,4 @@ class round_tripFn(beam.DoFn):
 def load(events, query_args=None):
   return (
       events
-      | 'serialization_and_deserialization' >> beam.ParDo(round_tripFn()))
+      | 'serialization_and_deserialization' >> beam.ParDo(RoundTripFn()))

@@ -279,4 +279,4 @@ class NexmarkLauncher(object):
 if __name__ == '__main__':
   launcher = NexmarkLauncher()
   launcher.run()
-  # launcher.cleanup()
+  launcher.cleanup()

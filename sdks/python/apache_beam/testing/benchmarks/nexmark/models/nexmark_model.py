@@ -61,9 +61,6 @@ class Person(object):
 
 
 class AuctionCoder(FastCoder):
-  def to_type_hint(self):
-    pass
-
   def _create_impl(self):
     return AuctionCoderImpl()
 
