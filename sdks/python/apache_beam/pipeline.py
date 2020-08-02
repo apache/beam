@@ -523,11 +523,10 @@ class Pipeline(object):
 
       if (self._options.view_as(TypeOptions).runtime_type_check and
           self._options.view_as(TypeOptions).performance_runtime_type_check):
-        print(
+        raise RuntimeError(
             'You cannot turn on runtime_type_check '
             'and performance_runtime_type_check simultaneously. '
-            'Beam will default to using performance_runtime_type_check.')
-        self._options.view_as(TypeOptions).runtime_type_check = False
+            'Pick one or the other.')
 
       if self._options.view_as(TypeOptions).runtime_type_check:
         from apache_beam.typehints import typecheck
@@ -535,9 +534,10 @@ class Pipeline(object):
 
       if self._options.view_as(TypeOptions).performance_runtime_type_check:
         if sys.version_info < (3, ):
-          print(
+          raise RuntimeError(
               'You cannot turn on performance_runtime_type_check '
               'in Python 2. This is a Python 3 feature.')
+
         else:
           from apache_beam.typehints import typecheck
           self.visit(typecheck.PerformanceTypeCheckVisitor())

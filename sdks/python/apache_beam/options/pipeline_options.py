@@ -470,7 +470,7 @@ class TypeOptions(PipelineOptions):
         'DirectRunner')
     parser.add_argument(
         '--performance_runtime_type_check',
-        default=True,
+        default=False,
         action='store_true',
         help='Enable faster type checking via sampling at pipeline execution '
         'time. NOTE: only supported with the '
