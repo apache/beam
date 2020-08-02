@@ -424,10 +424,10 @@ class BlobStorageIO(object):
 
     Args:
       path: Azure Blob Storage file path pattern in the form
-            azfs://<storage-account>/<container>/[name] 
+            azfs://<storage-account>/<container>/[name]
             (ending with a "/").
 
-    Returns: 
+    Returns:
       List of tuples of (path, exception), where each path is a blob
       under the given root. exception is 202 if the operation succeeded
       or the relevant exception if the operation failed.
@@ -436,7 +436,7 @@ class BlobStorageIO(object):
 
     # Get the blob under the root directory.
     paths_to_delete = self.list_prefix(root)
-
+    
     return self.delete_files(paths_to_delete)
   
   # We intentionally do not decorate this method with a retry, since the
