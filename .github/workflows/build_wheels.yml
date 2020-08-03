@@ -16,7 +16,7 @@
 # under the License.
 #
 
-name: Build python wheels
+name: Build python source distribution and wheels
 
 on:
   schedule:
@@ -38,6 +38,7 @@ jobs:
 
   build_source:
     runs-on: ubuntu-latest
+    name: Build python source distribution
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -90,7 +91,7 @@ jobs:
         run: gsutil rm -r ${{ env.GCP_PATH }} || true
 
   upload_source_to_gcs:
-    name: Upload source to GCS bucket
+    name: Upload python source distribution to GCS bucket
     needs: prepare_gcs
     runs-on: ubuntu-latest
     if: github.repository_owner == 'apache'
@@ -109,7 +110,7 @@ jobs:
         run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
 
   build_wheels:
-    name: Build wheels on ${{ matrix.os_python.os }}
+    name: Build python wheels on ${{ matrix.os_python.os }}
     needs: build_source
     runs-on: ${{ matrix.os_python.os }}
     strategy:
@@ -120,7 +121,7 @@ jobs:
           {"os": "windows-latest", "python": "cp35-* cp36-* cp37-* cp38-*"},
         ]
     steps:
-    - name: Download source from artifacts
+    - name: Download python source distribution from artifacts
       uses: actions/download-artifact@v2
       with:
         name: source
@@ -155,7 +156,7 @@ jobs:
         path: apache-beam-source/wheelhouse/
 
   upload_wheels_to_gcs:
-    name: Upload wheels to GCS bucket
+    name: Upload python wheels to GCS bucket
     needs: build_wheels
     runs-on: ubuntu-latest
     if: github.repository_owner == 'apache' && github.event_name != 'pull_request'
