@@ -18,6 +18,7 @@
 """DICOM IO connector
 This module implements several tools to facilitate the interaction between
 a Google Cloud Healthcare DICOM store and a Beam pipeline.
+
 For more details on DICOM store and API:
 https://cloud.google.com/healthcare/docs/how-tos/dicom
 The DICOM IO connector can be used to search metadata or write DICOM files
