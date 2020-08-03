@@ -23,11 +23,11 @@ For more details on DICOM store and API:
 https://cloud.google.com/healthcare/docs/how-tos/dicom
 
 The DICOM IO connector can be used to search metadata or write DICOM files
-to DICOM store. 
+to DICOM store.
 
-When used together with Google Pubsub message connector, the 
-`PubsubToQuido` PTransform implemented in this module can be used
-to convert Pubsub messages to search requests. 
+When used together with Google Pubsub message connector, the
+`FormatToQido` PTransform implemented in this module can be used
+to convert Pubsub messages to search requests.
 
 Since Traceability is crucial for healthcare
 API users, every input or error message will be recorded in the output of
@@ -62,7 +62,7 @@ Convert DICOM Pubsub message to Qido search request
 Healthcare API users might read messages from Pubsub to monitor the store
 operations (e.g. new file) in a DICOM storage. Pubsub message encode
 DICOM as a web store path as well as instance ids. If users are interested in
-getting new instance's metadata, they can use the `PubsubToQido` transform
+getting new instance's metadata, they can use the `FormatToQido` transform
 to convert the message into Qido Search dict then use the `DicomSearch`
 transform. Here is a sample usage:
 
@@ -70,7 +70,7 @@ transform. Here is a sample usage:
   pipeline_options.view_as(StandardOptions).streaming = True
   p =  beam.Pipeline(options=pipeline_options)
   pubsub = p | beam.io.ReadStringFromPubsub(subscription='a_dicom_store')
-  results = pubsub | PubsubToQido()
+  results = pubsub | FormatToQido()
   success = results | 'filter message' >> beam.Filter(lambda x: x['success'])
   qido_dict = success | 'get qido request' >> beam.Map(lambda x: x['result'])
   metadata = qido_dict | DicomSearch()
@@ -84,7 +84,7 @@ API, so we to filter the results first.
 
 Store a DICOM file in a DICOM storage
 ===================================================
-DicomStoreInstance() wraps store request API and users can use it to send a
+UploadToDicomStore() wraps store request API and users can use it to send a
 DICOM file to a DICOM store. It supports two types of input: 1.file data in
 byte[] 2.fileio object. Users should set the 'input_type' when initialzing
 this PTransform. Here are the examples:
@@ -94,19 +94,19 @@ this PTransform. Here are the examples:
     path = "gcs://bucketname/something/a.dcm"
     match = p | fileio.MatchFiles(path)
     fileio_obj = match | fileio.ReadAll()
-    results = fileio_obj | DicomStoreInstance(input_dict, 'fileio')
+    results = fileio_obj | UploadToDicomStore(input_dict, 'fileio')
 
   with Pipeline() as p:
     input_dict = {'project_id': 'abc123', 'type': 'instances',...}
     f = open("abc.dcm", "rb")
     dcm_file = f.read()
     byte_file = p | 'create byte file' >> beam.Create([dcm_file])
-    results = byte_file | DicomStoreInstance(input_dict, 'bytes')
+    results = byte_file | UploadToDicomStore(input_dict, 'bytes')
 
 The first example uses a PCollection of fileio objects as input.
-DicomStoreInstance will read DICOM files from the objects and send them
+UploadToDicomStore will read DICOM files from the objects and send them
 to a DICOM storage.
-The second example uses a PCollection of byte[] as input. DicomStoreInstance
+The second example uses a PCollection of byte[] as input. UploadToDicomStore
 will directly send those DICOM files to a DICOM storage.
 Users can also get the operation results in the output PCollection if they want
 to handle the failed store requests.
@@ -194,11 +194,11 @@ class DicomSearch(PTransform):
 
   def expand(self, pcoll):
     return pcoll | beam.ParDo(
-        _QuidoReadFn(
+        _QidoReadFn(
             self.buffer_size, self.max_workers, self.client, self.credential))
 
 
-class _QuidoReadFn(beam.DoFn):
+class _QidoReadFn(beam.DoFn):
   """A DoFn for executing every qido query request."""
   def __init__(self, buffer_size, max_workers, client, credential=None):
     self.buffer_size = buffer_size
@@ -296,7 +296,7 @@ class _QuidoReadFn(beam.DoFn):
       yield f.result()
 
 
-class PubsubToQido(PTransform):
+class FormatToQido(PTransform):
   """A PTransform for converting pubsub messages into search input dict.
     Takes PCollection of string as input and returns a PCollection of dict as
     results. Note that some pubsub messages may not be from DICOM API, which
@@ -317,7 +317,7 @@ class PubsubToQido(PTransform):
 
   """
   def __init__(self, credential=None):
-    """Initializes PubsubToQido.
+    """Initializes FormatToQido.
     Args:
       credential: # type: Google credential object, if it is specified, the
       Http client will use it instead of the default one.
@@ -325,10 +325,10 @@ class PubsubToQido(PTransform):
     self.credential = credential
 
   def expand(self, pcoll):
-    return pcoll | beam.ParDo(_ConvertPubsubToQido())
+    return pcoll | beam.ParDo(_ConvertStringToQido())
 
 
-class _ConvertPubsubToQido(beam.DoFn):
+class _ConvertStringToQido(beam.DoFn):
   """A DoFn for converting pubsub string to qido search parameters."""
   def process(self, element):
     # Some constants for DICOM pubsub message
@@ -398,7 +398,7 @@ class _ConvertPubsubToQido(beam.DoFn):
     return [out]
 
 
-class WriteToDicomStore(PTransform):
+class UploadToDicomStore(PTransform):
   """A PTransform for storing instances to a DICOM store.
     Takes PCollection of byte[] as input and return a PCollection of dict as
     results. The inputs are normally DICOM file in bytes or str filename.
@@ -425,7 +425,7 @@ class WriteToDicomStore(PTransform):
       max_workers=5,
       client=None,
       credential=None):
-    """Initializes WriteToDicomStore.
+    """Initializes UploadToDicomStore.
     Args:
       destination_dict: # type: python dict, encodes DICOM endpoint information:
       {

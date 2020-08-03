@@ -42,8 +42,8 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apache_beam.io.gcp.dicomio import DicomSearch
-  from apache_beam.io.gcp.dicomio import PubsubToQido
-  from apache_beam.io.gcp.dicomio import WriteToDicomStore
+  from apache_beam.io.gcp.dicomio import FormatToQido
+  from apache_beam.io.gcp.dicomio import UploadToDicomStore
 except ImportError:
   DicomSearch = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
@@ -122,7 +122,7 @@ class FakeHttpClient():
 
 
 @unittest.skipIf(DicomSearch is None, 'GCP dependencies are not installed')
-class TestPubsubToQido(unittest.TestCase):
+class TestFormatToQido(unittest.TestCase):
   valid_pubsub_string = (
       "projects/PROJECT_ID/locations/LOCATION/datasets"
       "/DATASET_ID/dicomStores/DICOM_STORE_ID/dicomWeb/"
@@ -155,7 +155,7 @@ class TestPubsubToQido(unittest.TestCase):
       convert_result = (
           p
           | beam.Create([self.valid_pubsub_string])
-          | PubsubToQido())
+          | FormatToQido())
       assert_that(convert_result, equal_to([self.expected_valid_pubsub_dict]))
 
   def test_failed_convert(self):
@@ -163,7 +163,7 @@ class TestPubsubToQido(unittest.TestCase):
       convert_result = (
           p
           | beam.Create([self.invalid_pubsub_string])
-          | PubsubToQido())
+          | FormatToQido())
       assert_that(convert_result, equal_to([self.expected_invalid_pubsub_dict]))
 
 
@@ -321,7 +321,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
       results = (
           p
           | beam.Create([bytes_input])
-          | WriteToDicomStore(input_dict, 'bytes')
+          | UploadToDicomStore(input_dict, 'bytes')
           | beam.Map(lambda x: x['success']))
       assert_that(results, equal_to([True]))
     self.assertTrue(dict_input in fc.dicom_metadata)
@@ -352,7 +352,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
       results = (
           p
           | beam.Create([bytes_input_1, bytes_input_2, bytes_input_3])
-          | WriteToDicomStore(input_dict, 'bytes', buffer_size=1)
+          | UploadToDicomStore(input_dict, 'bytes', buffer_size=1)
           | beam.Map(lambda x: x['success']))
       assert_that(results, equal_to([True] * 3))
     self.assertTrue(dict_input_1 in fc.dicom_metadata)
@@ -381,7 +381,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
           | beam.Create([FileSystems.join(temp_dir, '*')])
           | fileio.MatchAll()
           | fileio.ReadMatches()
-          | WriteToDicomStore(input_dict, 'fileio')
+          | UploadToDicomStore(input_dict, 'fileio')
           | beam.Map(lambda x: x['success']))
       assert_that(results, equal_to([True]))
     self.assertTrue(dict_input in fc.dicom_metadata)
@@ -416,7 +416,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
           | beam.Create([FileSystems.join(temp_dir, '*')])
           | fileio.MatchAll()
           | fileio.ReadMatches()
-          | WriteToDicomStore(input_dict, 'fileio', buffer_size=1)
+          | UploadToDicomStore(input_dict, 'fileio', buffer_size=1)
           | beam.Map(lambda x: x['success']))
       assert_that(results, equal_to([True] * 3))
     self.assertTrue(dict_input_1 in fc.dicom_metadata)
@@ -440,7 +440,8 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
     fc = FakeHttpClient()
     FakeClient.return_value = fc
     with TestPipeline() as p:
-      results = (p | beam.Create(['']) | WriteToDicomStore(input_dict, 'bytes'))
+      results = (
+          p | beam.Create(['']) | UploadToDicomStore(input_dict, 'bytes'))
       assert_that(results, equal_to([expected_invalid_dict]))
 
   @patch("apache_beam.io.gcp.dicomio.DicomApiHttpClient")
@@ -460,7 +461,7 @@ class TestDicomStoreInstance(_TestCaseWithTempDirCleanUp):
     with self.assertRaisesRegex(ValueError,
                                 "Must have dataset_id in the dict."):
       p = TestPipeline()
-      _ = (p | beam.Create(['']) | WriteToDicomStore(input_dict, 'bytes'))
+      _ = (p | beam.Create(['']) | UploadToDicomStore(input_dict, 'bytes'))
 
 
 if __name__ == '__main__':
