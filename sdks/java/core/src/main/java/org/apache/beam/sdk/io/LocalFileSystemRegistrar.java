@@ -29,7 +29,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Experimental(Kind.FILESYSTEM)
 public class LocalFileSystemRegistrar implements FileSystemRegistrar {
   @Override
-  public Iterable<FileSystem> fromOptions(@Nullable PipelineOptions options) {
+  public Iterable<FileSystem<?>> fromOptions(@Nullable PipelineOptions options) {
     return ImmutableList.of(new LocalFileSystem());
   }
 }

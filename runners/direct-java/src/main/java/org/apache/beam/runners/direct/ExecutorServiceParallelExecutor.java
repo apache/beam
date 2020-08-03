@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -385,21 +386,33 @@ final class ExecutorServiceParallelExecutor
     private final BlockingQueue<VisibleExecutorUpdate> updates = new LinkedBlockingQueue<>();
 
     @Override
+    // updates is a non-capacity-limited LinkedBlockingQueue, which can never refuse an offered
+    // update
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
     public void failed(Exception e) {
       updates.offer(VisibleExecutorUpdate.fromException(e));
     }
 
     @Override
+    // updates is a non-capacity-limited LinkedBlockingQueue, which can never refuse an offered
+    // update
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
     public void failed(Error e) {
       updates.offer(VisibleExecutorUpdate.fromError(e));
     }
 
     @Override
+    // updates is a non-capacity-limited LinkedBlockingQueue, which can never refuse an offered
+    // update
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
     public void cancelled() {
       updates.offer(VisibleExecutorUpdate.cancelled());
     }
 
     @Override
+    // updates is a non-capacity-limited LinkedBlockingQueue, which can never refuse an offered
+    // update
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
     public void completed() {
       updates.offer(VisibleExecutorUpdate.finished());
     }

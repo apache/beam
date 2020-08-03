@@ -20,6 +20,9 @@
 // common properties that are shared among all Jenkins projects.
 // Code in this directory should conform to the Groovy style guide.
 //  http://groovy-lang.org/style-guide.html
+
+import Committers as committers
+
 class CommonJobProperties {
 
   static String checkoutDir = 'src'
@@ -114,9 +117,10 @@ class CommonJobProperties {
       githubPullRequest {
         admins(['asfbot'])
         useGitHubHooks()
-        orgWhitelist(['apache'])
-        allowMembersOfWhitelistedOrgsAsAdmin()
         permitAll(prPermitAll)
+        if (!prPermitAll) {
+          userWhitelist(committers.GITHUB_USERNAMES)
+        }
         // prTriggerPhrase is the argument which gets set when we want to allow
         // post-commit builds to run against pending pull requests. This block
         // overrides the default trigger phrase with the new one. Setting this

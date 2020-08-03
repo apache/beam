@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
@@ -32,8 +33,17 @@ public class JmsRecord implements Serializable {
   private final @Nullable String jmsMessageID;
   private final long jmsTimestamp;
   private final String jmsCorrelationID;
+
+  // JMS ReplyTo destination is serializable according to the JMS spec even if it doesn't implement
+  // Serializable.
+  @SuppressFBWarnings("SE_BAD_FIELD")
   private final @Nullable Destination jmsReplyTo;
+
+  // JMS destination is serializable according to the JMS spec even if it doesn't implement
+  // Serializable.
+  @SuppressFBWarnings("SE_BAD_FIELD")
   private final Destination jmsDestination;
+
   private final int jmsDeliveryMode;
   private final boolean jmsRedelivered;
   private final String jmsType;

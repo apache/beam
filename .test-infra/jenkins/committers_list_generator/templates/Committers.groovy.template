@@ -16,26 +16,16 @@
  * limitations under the License.
  */
 
-import PrecommitJobBuilder
-import CommonJobProperties as properties
+/**
+ * That's an automatically generated file. It contains the list of Committers' GitHub usernames. It's
+ * used to populate the list of allowed people that can trigger the jobs that are not allowed to be
+ * triggered by non-committers from GitHub pull requests.
+ */
 
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'JavaBeamZetaSQLJava11',
-    gradleTask: ':javaPreCommitBeamZetaSQL',
-    gradleSwitches: [
-      '-PdisableSpotlessCheck=true',
-      '-PcompileAndRunTestsWithJava11',
-      '-PskipCheckerFramework',
-      // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
-      "-Pjava11Home=${CommonJobProperties.JAVA_11_HOME}"
-    ], // spotless checked in separate pre-commit
-    triggerPathPatterns: [
-      '^sdks/java/extensions/sql/.*$',
+class Committers {
+    final static List GITHUB_USERNAMES = [
+        {%- for username in github_usernames|sort %}
+        '{{ username|lower }}'{%- if not loop.last -%},{%- endif -%}
+        {% endfor %}
     ]
-    )
-builder.build {
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
 }

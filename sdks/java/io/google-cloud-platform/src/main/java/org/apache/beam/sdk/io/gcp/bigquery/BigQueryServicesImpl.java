@@ -373,10 +373,17 @@ class BigQueryServicesImpl implements BigQueryServices {
       Exception lastException;
       do {
         try {
-          return client.jobs().get(jobRef.getProjectId(), jobId).execute();
+          return client
+              .jobs()
+              .get(jobRef.getProjectId(), jobId)
+              .setLocation(jobRef.getLocation())
+              .execute();
         } catch (GoogleJsonResponseException e) {
           if (errorExtractor.itemNotFound(e)) {
-            LOG.info("No BigQuery job with job id {} found.", jobId);
+            LOG.info(
+                "No BigQuery job with job id {} found in location {}.",
+                jobId,
+                jobRef.getLocation());
             return null;
           }
           LOG.info(
@@ -1024,9 +1031,9 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   static class BigQueryServerStreamImpl<T> implements BigQueryServerStream<T> {
 
-    private final ServerStream serverStream;
+    private final ServerStream<T> serverStream;
 
-    public BigQueryServerStreamImpl(ServerStream serverStream) {
+    public BigQueryServerStreamImpl(ServerStream<T> serverStream) {
       this.serverStream = serverStream;
     }
 
@@ -1069,7 +1076,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public BigQueryServerStream<ReadRowsResponse> readRows(ReadRowsRequest request) {
-      return new BigQueryServerStreamImpl(client.readRowsCallable().call(request));
+      return new BigQueryServerStreamImpl<>(client.readRowsCallable().call(request));
     }
 
     @Override

@@ -38,7 +38,7 @@ public class JdbcReadRowsRegistrar implements ExternalTransformRegistrar {
   public static final String URN = "beam:external:java:jdbc:read_rows:v1";
 
   @Override
-  public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+  public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
     return ImmutableMap.of(URN, JdbcReadRowsRegistrar.Builder.class);
   }
 

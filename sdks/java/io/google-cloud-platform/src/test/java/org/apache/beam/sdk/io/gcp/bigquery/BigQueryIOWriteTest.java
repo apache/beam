@@ -1631,7 +1631,8 @@ public class BigQueryIOWriteTest implements Serializable {
       String tableName = String.format("project-id:dataset-id.table%05d", i);
       TableDestination tableDestination = new TableDestination(tableName, tableName);
       for (int j = 0; j < numPartitions; ++j) {
-        String tempTableId = BigQueryHelpers.createJobId(jobIdToken, tableDestination, j, 0);
+        String tempTableId =
+            BigQueryResourceNaming.createJobIdWithDestination(jobIdToken, tableDestination, j, 0);
         List<String> filesPerPartition = Lists.newArrayList();
         for (int k = 0; k < numFilesPerPartition; ++k) {
           String filename =
@@ -1641,7 +1642,7 @@ public class BigQueryIOWriteTest implements Serializable {
                   .toString();
           TableRowWriter<TableRow> writer =
               new TableRowWriter<>(filename, SerializableFunctions.identity());
-          try (TableRowWriter ignored = writer) {
+          try (TableRowWriter<TableRow> ignored = writer) {
             TableRow tableRow = new TableRow().set("name", tableName);
             writer.write(tableRow);
           }
@@ -1992,7 +1993,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
 
     List<String> expectedOptions =
-        schemaUpdateOptions.stream().map(Enum::name).collect(Collectors.toList());
+        schemaUpdateOptions.stream().map(SchemaUpdateOption::name).collect(Collectors.toList());
 
     for (Job job : fakeJobService.getAllJobs()) {
       JobConfigurationLoad configuration = job.getConfiguration().getLoad();

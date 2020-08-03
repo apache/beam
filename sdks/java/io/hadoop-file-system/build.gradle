@@ -19,7 +19,6 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   enableChecker:false,
-  ignoreRawtypeErrors:true,
   automaticModuleName: 'org.apache.beam.sdk.io.hdfs')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop File System"

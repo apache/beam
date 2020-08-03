@@ -16,21 +16,14 @@
  * limitations under the License.
  */
 
-import PrecommitJobBuilder
 
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'JavaBeamZetaSQL',
-    gradleTask: ':javaPreCommitBeamZetaSQL',
-    gradleSwitches: [
-      '-PdisableSpotlessCheck=true'
-    ], // spotless checked in separate pre-commit
-    triggerPathPatterns: [
-      '^sdks/java/extensions/sql/.*$',
-    ]
-    )
-builder.build {
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
+/**
+ * That's a placeholder of a file that should be automatically generated as a first step of the Seed
+ * job. It should contain the list of Committers' GitHub usernames. It's used to populate the list of
+ * allowed people that can trigger the jobs that are not allowed to be triggered by non-committers from
+ * GitHub pull requests.
+ */
+
+class Committers {
+  final static List GITHUB_USERNAMES = []
 }

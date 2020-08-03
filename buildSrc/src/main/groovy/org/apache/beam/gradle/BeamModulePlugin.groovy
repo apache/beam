@@ -415,6 +415,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
     def spark_version = "2.4.6"
+    def spotbugs_version = "4.0.6"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -811,7 +812,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // sdks/java/core's FieldValueTypeInformation needs javax.annotations.Nullable at runtime.
         // Therefore, the java core module declares jsr305 dependency (BSD license) as "compile".
         // https://github.com/findbugsproject/findbugs/blob/master/findbugs/licenses/LICENSE-jsr305.txt
-        "com.github.spotbugs:spotbugs-annotations:3.1.12",
+        "com.github.spotbugs:spotbugs-annotations:$spotbugs_version",
         "net.jcip:jcip-annotations:1.0",
         // This explicitly adds javax.annotation.Generated (SOURCE retention)
         // as a compile time dependency since Java 9+ no longer includes common
@@ -904,7 +905,7 @@ class BeamModulePlugin implements Plugin<Project> {
       if (configuration.enableSpotbugs) {
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
-          spotbugs "com.github.spotbugs:spotbugs:3.1.12"
+          spotbugs "com.github.spotbugs:spotbugs:$spotbugs_version"
           spotbugs "com.google.auto.value:auto-value:1.7"
           compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
         }
