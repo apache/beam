@@ -234,7 +234,7 @@ public class SplittableParDoExpander {
             generateUniqueId(
                 transformId + "/ProcessSizedElementsAndRestrictions",
                 existingComponents::containsTransforms);
-        String processSizedElementsInputPCollectionId = splitAndSizeId;
+        String processSizedElementsInputPCollectionId = splitAndSizeOutId;
         if (isDrain()) {
           String truncateAndSizeCoderId =
               generateUniqueId(
@@ -281,7 +281,7 @@ public class SplittableParDoExpander {
             rval.getComponentsBuilder().putTransforms(truncateAndSizeId, truncateAndSize.build());
           }
           newCompositeRoot.addSubtransforms(truncateAndSizeId);
-          processSizedElementsInputPCollectionId = truncateAndSizeId;
+          processSizedElementsInputPCollectionId = truncateAndSizeOutId;
         }
         {
           PTransform.Builder processSizedElementsAndRestrictions = PTransform.newBuilder();
