@@ -37,6 +37,9 @@ The release process consists of several steps:
 
 1. Decide to release
 1. Prepare for the release
+1. Investigate performance regressions
+1. Create a release branch
+1. Verify release branch
 1. Build a release candidate
 1. Vote on the release candidate
 1. During vote process, run validation tests
@@ -45,7 +48,7 @@ The release process consists of several steps:
 1. Promote the release
 
 
-### Decide to release
+## 1. Decide to release
 
 Deciding to release and selecting a Release Manager is the first step of the release process. This is a consensus-based decision of the entire community.
 
@@ -60,7 +63,7 @@ In general, the community prefers to have a rotating set of 3-5 Release Managers
 
 **********
 
-## 1. Prepare for the release
+## 2. Prepare for the release
 
 Before your first release, you should perform one-time configuration steps. This will set up your security keys for signing the release and access to various release repositories.
 
@@ -244,7 +247,21 @@ __Attention__: Only PMC has permission to perform this. If you are not a PMC, pl
 **********
 
 
-## 2. Create a release branch in apache/beam repository
+## 3. Investigate performance regressions
+
+Check the Beam load tests for possible performance regressions. Measurements are available on [metrics.beam.apache.org](http://metrics.beam.apache.org).
+
+All Runners which publish data should be checked for the following, in both *batch* and *streaming* mode:
+
+- [ParDo](http://metrics.beam.apache.org/d/MOi-kf3Zk/pardo-load-tests) and [GBK](http://metrics.beam.apache.org/d/UYZ-oJ3Zk/gbk-load-test): Runtime, latency, checkpoint duration
+- [Nexmark](http://metrics.beam.apache.org/d/ahuaA_zGz/nexmark): Query runtime for all queries
+- [IO](http://metrics.beam.apache.org/d/bnlHKP3Wz/java-io-it-tests-dataflow): Runtime
+
+If regressions are found, the release branch can still be created, but the regressions should be investigated and fixed as part of the release process.
+JIRA issues should be created for each regression with the 'Fix Version' set to the to-be-released version.
+Next, the mailing list should be informed to allow fixing the regressions in the course of the release.
+
+## 4. Create a release branch in apache/beam repository
 
 Attention: Only committer has permission to create release branch in apache/beam.
 
@@ -367,7 +384,7 @@ There are 2 ways to trigger a nightly build, either using automation script(reco
 **********
 
 
-## 3. Verify release branch
+## 5. Verify release branch
 
 After the release branch is cut you need to make sure it builds and has no significant issues that would block the creation of the release candidate.
 There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.
@@ -481,7 +498,7 @@ The verify_release_build.sh script may include failing or flaky tests. For each 
 **********
 
 
-## 4. Triage release-blocking issues in JIRA
+## 6. Triage release-blocking issues in JIRA
 
 There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate. We track them by assigning a specific `Fix version` field even before the issue resolved.
 
@@ -528,7 +545,7 @@ _Tip_: Another tool in your toolbox is the known issues section of the release b
 **********
 
 
-## 5. Build a release candidate
+## 7. Build a release candidate
 
 ### Checklist before proceeding
 
@@ -599,7 +616,7 @@ For this step, we recommend you using automation script to create a RC, but you 
 **********
 
 
-## 6. Prepare documents
+## 8. Prepare documents
 
 ### Update and Verify Javadoc
 
@@ -748,7 +765,7 @@ docker pull apache/beam_python3.5_sdk:2.16.0_rc1
 **********
 
 
-## 7. Vote and validate release candidate
+## 9. Vote and validate release candidate
 
 Once you have built and individually reviewed the release candidate, please share it for the community-wide review. Please review foundation-wide [voting guidelines](http://www.apache.org/foundation/voting.html) for more information.
 
@@ -1074,7 +1091,7 @@ Once all issues have been resolved, you should go back and build a new release c
 **********
 
 
-## 8. Finalize the release
+## 10. Finalize the release
 
 Once the release candidate has been reviewed and approved by the community, the release should be finalized. This involves the final deployment of the release candidate to the release repositories, merging of the website changes, etc.
 
@@ -1163,7 +1180,7 @@ Use reporter.apache.org to seed the information about the release into future pr
 **********
 
 
-## 9. Promote the release
+## 11. Promote the release
 
 Once the release has been finalized, the last step of the process is to promote the release within the project and beyond.
 
