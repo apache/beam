@@ -21,6 +21,22 @@ import static org.junit.Assert.assertEquals;
 import org.junit.Test;
 
 public class QueryReaderTest {
+    private final String headers = "-- Licensed to the Apache Software Foundation (ASF) under one\n" +
+            "-- or more contributor license agreements.  See the NOTICE file\n" +
+            "-- distributed with this work for additional information\n" +
+            "-- regarding copyright ownership.  The ASF licenses this file\n" +
+            "-- to you under the Apache License, Version 2.0 (the\n" +
+            "-- \"License\"); you may not use this file except in compliance\n" +
+            "-- with the License.  You may obtain a copy of the License at\n" +
+            "--\n" +
+            "--     http://www.apache.org/licenses/LICENSE-2.0\n" +
+            "--\n" +
+            "-- Unless required by applicable law or agreed to in writing, software\n" +
+            "-- distributed under the License is distributed on an \"AS IS\" BASIS,\n" +
+            "-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n" +
+            "-- See the License for the specific language governing permissions and\n" +
+            "-- limitations under the License.\n";
+
     @Test
     public void testQuery3String() throws Exception {
         String query3String = QueryReader.readQuery("query3");
@@ -42,7 +58,9 @@ public class QueryReaderTest {
                 "         ,sum_agg desc\n" +
                 "         ,brand_id\n" +
                 " limit 100";
-        assertEquals(expected, query3String);
+        String query3StringNoSpaces = query3String.replaceAll("\\s+", "");
+        String expectedNoSpaces = (headers + expected).replaceAll("\\s+", "");
+        assertEquals(expectedNoSpaces, query3StringNoSpaces);
     }
 
     @Test
@@ -161,7 +179,9 @@ public class QueryReaderTest {
                 "         ,t_s_secyear.customer_last_name\n" +
                 "         ,t_s_secyear.customer_email_address\n" +
                 "limit 100";
-        assertEquals(expected, query4String);
+        String query4StringNoSpaces = query4String.replaceAll("\\s+", "");
+        String expectedNoSpaces = (headers + expected).replaceAll("\\s+", "");
+        assertEquals(expectedNoSpaces, query4StringNoSpaces);
     }
 
     @Test
@@ -178,6 +198,8 @@ public class QueryReaderTest {
                 " group by i_brand, i_brand_id\n" +
                 " order by ext_price desc, i_brand_id\n" +
                 "limit 100";
-        assertEquals(expected, query55String);
+        String query55StringNoSpaces = query55String.replaceAll("\\s+", "");
+        String expectedNoSpaces = (headers + expected).replaceAll("\\s+", "");
+        assertEquals(expectedNoSpaces, query55StringNoSpaces);
     }
 }
