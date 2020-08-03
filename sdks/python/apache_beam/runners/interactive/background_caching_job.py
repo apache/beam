@@ -291,7 +291,7 @@ def is_source_to_cache_changed(
             'data to start at the same time, all captured data has been '
             'cleared and a new segment of data will be recorded.')
 
-    ie.current_env().cleanup()
+    ie.current_env().cleanup(user_pipeline)
     ie.current_env().set_cached_source_signature(
         user_pipeline, current_signature)
   return is_changed
