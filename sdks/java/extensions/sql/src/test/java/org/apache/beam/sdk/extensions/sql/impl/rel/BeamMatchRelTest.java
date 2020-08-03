@@ -27,6 +27,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -164,7 +165,7 @@ public class BeamMatchRelTest {
     pipeline.run().waitUntilFinish();
   }
 
-  /*
+  @Ignore("NFA has not been implemented for now.")
   @Test
   public void matchNFATest() {
     Schema schemaType =
@@ -175,21 +176,51 @@ public class BeamMatchRelTest {
             .build();
 
     registerTable(
-        "Ticker", TestBoundedTable.of(schemaType).addRows(
-            "a", "2020-07-01", 32, // 1st A
-            "a", "2020-06-01", 34,
-            "a", "2020-07-02", 31, // B
-            "a", "2020-08-30", 30, // B
-            "a", "2020-08-31", 35, // C
-            "a", "2020-10-01", 28,
-            "a", "2020-10-15", 30, // 2nd A
-            "a", "2020-11-01", 22, // B
-            "a", "2020-11-08", 29, // C
-            "a", "2020-12-10", 30, // C
-            "b", "2020-12-01", 22,
-            "c", "2020-05-16", 27, // A
-            "c", "2020-09-14", 26, // B
-            "c", "2020-10-13", 30)); // C
+        "Ticker",
+        TestBoundedTable.of(schemaType)
+            .addRows(
+                "a",
+                "2020-07-01",
+                32, // 1st A
+                "a",
+                "2020-06-01",
+                34,
+                "a",
+                "2020-07-02",
+                31, // B
+                "a",
+                "2020-08-30",
+                30, // B
+                "a",
+                "2020-08-31",
+                35, // C
+                "a",
+                "2020-10-01",
+                28,
+                "a",
+                "2020-10-15",
+                30, // 2nd A
+                "a",
+                "2020-11-01",
+                22, // B
+                "a",
+                "2020-11-08",
+                29, // C
+                "a",
+                "2020-12-10",
+                30, // C
+                "b",
+                "2020-12-01",
+                22,
+                "c",
+                "2020-05-16",
+                27, // A
+                "c",
+                "2020-09-14",
+                26, // B
+                "c",
+                "2020-10-13",
+                30)); // C
 
     // match `V` shapes in prices
     String sql =
@@ -201,20 +232,20 @@ public class BeamMatchRelTest {
             + " M.Avgp"
             + "FROM Ticker "
             + "MATCH_RECOGNIZE ("
-              + "PARTITION BY Symbol "
-              + "ORDER BY Tradeday "
-              + "MEASURES "
-              + "MATCH_NUMBER() AS Matchno, "
-              + "A.price AS Startp, "
-              + "LAST (B.Price) AS Bottomp, "
-              + "LAST (C.Price) AS ENDp, "
-              + "AVG (U.Price) AS Avgp "
-              + "AFTER MATCH SKIP PAST LAST ROW "
-              + "PATTERN (A B+ C+) "
-              + "SUBSET U = (A, B, C) "
-              + "DEFINE "
-              + "B AS B.Price < PREV (B.Price), "
-              + "C AS C.Price > PREV (C.Price) "
+            + "PARTITION BY Symbol "
+            + "ORDER BY Tradeday "
+            + "MEASURES "
+            + "MATCH_NUMBER() AS Matchno, "
+            + "A.price AS Startp, "
+            + "LAST (B.Price) AS Bottomp, "
+            + "LAST (C.Price) AS ENDp, "
+            + "AVG (U.Price) AS Avgp "
+            + "AFTER MATCH SKIP PAST LAST ROW "
+            + "PATTERN (A B+ C+) "
+            + "SUBSET U = (A, B, C) "
+            + "DEFINE "
+            + "B AS B.Price < PREV (B.Price), "
+            + "C AS C.Price > PREV (C.Price) "
             + ") AS T";
 
     PCollection<Row> result = compilePipeline(sql, pipeline);
@@ -222,13 +253,12 @@ public class BeamMatchRelTest {
     PAssert.that(result)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                Schema.FieldType.INT32, "id",
-                Schema.FieldType.STRING, "name",
-                Schema.FieldType.INT32, "proctime")
+                    Schema.FieldType.INT32, "id",
+                    Schema.FieldType.STRING, "name",
+                    Schema.FieldType.INT32, "proctime")
                 .addRows(1, "a", 1, 1, "b", 2, 1, "c", 3)
                 .getRows());
 
     pipeline.run().waitUntilFinish();
   }
-  */
 }

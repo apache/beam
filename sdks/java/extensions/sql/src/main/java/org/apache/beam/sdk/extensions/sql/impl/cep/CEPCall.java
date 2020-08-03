@@ -65,7 +65,7 @@ public class CEPCall extends CEPOperation {
         CEPFieldRef fieldRefToAdd = CEPFieldRef.of(fieldRef);
         operandsList.add(fieldRefToAdd);
       } else {
-        throw new UnsupportedOperationException("the RexNode is not recognized.");
+        throw new UnsupportedOperationException("RexNode not supported: " + i.getClass().getName());
       }
     }
 

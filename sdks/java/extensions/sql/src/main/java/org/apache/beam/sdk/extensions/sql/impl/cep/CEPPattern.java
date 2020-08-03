@@ -108,7 +108,7 @@ public class CEPPattern implements Serializable {
     }
   }
 
-  // Last(*.$1, 1) || NEXT(*.$1, 0)
+  // LAST(*.$1, 0)
   private int evalOperation(CEPCall operation, CEPLiteral lit, Row rowEle) {
     CEPOperator call = operation.getOperator();
     List<CEPOperation> operands = operation.getOperands();
@@ -143,7 +143,8 @@ public class CEPPattern implements Serializable {
           case BOOLEAN:
             return rowEle.getBoolean(fIndex).compareTo(lit.getBoolean());
           default:
-            throw new UnsupportedOperationException("specified column not comparable");
+            throw new UnsupportedOperationException(
+                "Specified column not comparable: " + fd.getName());
         }
       }
     }

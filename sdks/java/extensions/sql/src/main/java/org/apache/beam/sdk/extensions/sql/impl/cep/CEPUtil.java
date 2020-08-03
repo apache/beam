@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.impl.cep;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
@@ -143,15 +142,14 @@ public class CEPUtil {
 
   /** Transform a list of keys in Calcite to {@code ORDER BY} to {@code OrderKey}s. */
   public static ArrayList<OrderKey> makeOrderKeysFromCollation(RelCollation orderKeys) {
-    List<RelFieldCollation> revOrderKeys = orderKeys.getFieldCollations();
-    Collections.reverse(revOrderKeys);
+    List<RelFieldCollation> relOrderKeys = orderKeys.getFieldCollations();
 
-    ArrayList<OrderKey> revOrderKeysList = new ArrayList<>();
-    for (RelFieldCollation i : revOrderKeys) {
-      revOrderKeysList.add(OrderKey.of(i));
+    ArrayList<OrderKey> orderKeysList = new ArrayList<>();
+    for (RelFieldCollation i : relOrderKeys) {
+      orderKeysList.add(OrderKey.of(i));
     }
 
-    return revOrderKeysList;
+    return orderKeysList;
   }
 
   /** Transform the partition columns into serializable CEPFieldRef. */
@@ -244,7 +242,7 @@ public class CEPUtil {
       outTableSchemaBuilder.addField(fieldToAdd);
     }
 
-    // TODO: optionally add any columns left for ALL ROWS PER MATCH
+    // TODO: add any columns left for ALL ROWS PER MATCH
 
     return outTableSchemaBuilder.build();
   }

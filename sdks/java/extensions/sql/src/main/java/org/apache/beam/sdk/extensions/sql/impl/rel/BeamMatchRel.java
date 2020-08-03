@@ -420,7 +420,8 @@ public class BeamMatchRel extends Match implements BeamRelNode {
                           outName, rowToProc.getValue(fieldRef.getIndex()));
                 }
               } else {
-                throw new UnsupportedOperationException("The measure function is not supported.");
+                throw new UnsupportedOperationException(
+                    "CEP operation is not recognized: " + opr.getClass().getName());
               }
             }
             Row newRow;
@@ -454,10 +455,13 @@ public class BeamMatchRel extends Match implements BeamRelNode {
         ArrayList<Integer> fIndexList = new ArrayList<>();
         ArrayList<Boolean> dirList = new ArrayList<>();
         ArrayList<Boolean> nullDirList = new ArrayList<>();
-        for (OrderKey i : orderKeys) {
-          fIndexList.add(i.getIndex());
-          dirList.add(i.getDir());
-          nullDirList.add(i.getNullFirst());
+
+        // reversely traverse the order key list
+        for (int i = (orderKeys.size() - 1); i >= 0; --i) {
+          OrderKey thisKey = orderKeys.get(i);
+          fIndexList.add(thisKey.getIndex());
+          dirList.add(thisKey.getDir());
+          nullDirList.add(thisKey.getNullFirst());
         }
 
         rows.sort(new BeamSortRel.BeamSqlRowComparator(fIndexList, dirList, nullDirList));

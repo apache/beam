@@ -42,7 +42,7 @@ public abstract class CEPOperation implements Serializable {
       RexPatternFieldRef fieldRef = (RexPatternFieldRef) operation;
       return CEPFieldRef.of(fieldRef);
     } else {
-      throw new SqlConversionException("RexNode type not supported");
+      throw new SqlConversionException("RexNode not supported: " + operation.getClass().getName());
     }
   }
 }
