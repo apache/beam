@@ -230,7 +230,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
   private final ProcessBundleContextBase processContext;
-  private final OnTimerContext onTimerContext;
+  private final OnTimerContext<?> onTimerContext;
   private final FinishBundleArgumentProvider finishBundleArgumentProvider;
 
   /**
@@ -2013,7 +2013,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   /** Provides arguments for a {@link DoFnInvoker} for {@link DoFn.OnTimer @OnTimer}. */
-  private class OnTimerContext extends BaseArgumentProvider<InputT, OutputT> {
+  private class OnTimerContext<K> extends BaseArgumentProvider<InputT, OutputT> {
 
     private class Context extends DoFn<InputT, OutputT>.OnTimerContext {
       private Context() {
@@ -2113,8 +2113,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
-    public Object key() {
-      return currentTimer.getUserKey();
+    public K key() {
+      return (K) currentTimer.getUserKey();
     }
 
     @Override
