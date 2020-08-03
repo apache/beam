@@ -236,14 +236,33 @@ class InteractiveEnvironmentTest(unittest.TestCase):
   @patch(
       'apache_beam.runners.interactive.interactive_environment'
       '.InteractiveEnvironment.cleanup')
-  def test_cleanup_invoked_when_cache_manager_is_evicted(self, mocked_cleanup):
+  def test_track_user_pipeline_cleanup_non_inspectable_pipeline(
+      self, mocked_cleanup):
     ie._interactive_beam_env = None
     ie.new_env()
-    dummy_pipeline = 'dummy'
+    dummy_pipeline_1 = beam.Pipeline()
+    dummy_pipeline_2 = beam.Pipeline()
+    dummy_pipeline_3 = beam.Pipeline()
+    dummy_pipeline_4 = beam.Pipeline()
+    dummy_pcoll = dummy_pipeline_4 | beam.Create([1])
+    dummy_pipeline_5 = beam.Pipeline()
+    dummy_non_inspectable_pipeline = 'dummy'
+    ie.current_env().watch(locals())
+    from apache_beam.runners.interactive.background_caching_job import BackgroundCachingJob
+    ie.current_env().set_background_caching_job(
+        dummy_pipeline_1,
+        BackgroundCachingJob(
+            runner.PipelineResult(runner.PipelineState.DONE), limiters=[]))
+    ie.current_env().set_test_stream_service_controller(dummy_pipeline_2, None)
     ie.current_env().set_cache_manager(
-        cache.FileBasedCacheManager(), dummy_pipeline)
+        cache.FileBasedCacheManager(), dummy_pipeline_3)
+    ie.current_env().mark_pcollection_computed([dummy_pcoll])
+    ie.current_env().set_cached_source_signature(
+        dummy_non_inspectable_pipeline, None)
+    ie.current_env().set_pipeline_result(
+        dummy_pipeline_5, runner.PipelineResult(runner.PipelineState.RUNNING))
     mocked_cleanup.assert_not_called()
-    ie.current_env().evict_cache_manager(dummy_pipeline)
+    ie.current_env().track_user_pipelines()
     mocked_cleanup.assert_called_once()
 
 

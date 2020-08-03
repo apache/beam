@@ -91,8 +91,6 @@ def _setup_test_streaming_cache(pipeline):
     sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class BackgroundCachingJobTest(unittest.TestCase):
   def tearDown(self):
-    for _, job in ie.current_env()._background_caching_jobs.items():
-      job.cancel()
     ie.new_env()
 
   # TODO(BEAM-8335): remove the patches when there are appropriate test sources
@@ -302,9 +300,11 @@ class BackgroundCachingJobTest(unittest.TestCase):
   def test_determine_a_test_stream_service_running(self):
     pipeline = _build_an_empty_stream_pipeline()
     test_stream_service = TestStreamServiceController(reader=None)
+    test_stream_service.start()
     ie.current_env().set_test_stream_service_controller(
         pipeline, test_stream_service)
     self.assertTrue(bcj.is_a_test_stream_service_running(pipeline))
+    # the test_stream_service will be cleaned up on teardown.
 
   def test_stop_a_running_test_stream_service(self):
     pipeline = _build_an_empty_stream_pipeline()
