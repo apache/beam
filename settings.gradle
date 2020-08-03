@@ -133,6 +133,7 @@ include ":sdks:java:maven-archetypes:starter"
 include ":sdks:java:testing:nexmark"
 include ":sdks:java:testing:expansion-service"
 include ":sdks:java:testing:kafka-service"
+include ":sdks:java:testing:tpcds"
 include ":sdks:python"
 include ":sdks:python:apache_beam:testing:load_tests"
 include ":sdks:python:container"
@@ -179,4 +180,3 @@ include "beam-test-tools"
 project(":beam-test-tools").dir = file(".test-infra/tools")
 include "beam-test-jenkins"
 project(":beam-test-jenkins").dir = file(".test-infra/jenkins")
-include ":sdks:java:testing:tpcds"
