@@ -6219,7 +6219,7 @@ S3FileSystem
 &lt;/td>
 &lt;td>&lt;code>FileSystem&lt;/code> implementation for &lt;a href="https://aws.amazon.com/s3/">Amazon S3&lt;/a>.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hdfs/package-summary.html">org.apache.beam.sdk.io.aws.s3.S3FileSystemRegistrar&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/s3/S3FileSystemRegistrar.html">org.apache.beam.sdk.io.aws.s3.S3FileSystemRegistrar&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-go">
