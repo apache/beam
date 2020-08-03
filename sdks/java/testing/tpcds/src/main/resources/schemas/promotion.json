@@ -1,0 +1,21 @@
+{"schema": [
+  {"name":"p_promo_sk","type":"identifier"},
+  {"name":"p_promo_id","type":"char(16)"},
+  {"name":"p_start_date_sk","type":"identifier"},
+  {"name":"p_end_date_sk","type":"identifier"},
+  {"name":"p_item_sk","type":"identifier"},
+  {"name":"p_cost","type":"decimal(15,2)"},
+  {"name":"p_response_target","type":"integer"},
+  {"name":"p_promo_name","type":"char(50)"},
+  {"name":"p_channel_dmail","type":"char(1)"},
+  {"name":"p_channel_email","type":"char(1)"},
+  {"name":"p_channel_catalog","type":"char(1)"},
+  {"name":"p_channel_tv","type":"char(1)"},
+  {"name":"p_channel_radio","type":"char(1)"},
+  {"name":"p_channel_press","type":"char(1)"},
+  {"name":"p_channel_event","type":"char(1)"},
+  {"name":"p_channel_demo","type":"char(1)"},
+  {"name":"p_channel_details","type":"varchar(100)"},
+  {"name":"p_purpose","type":"char(15)"},
+  {"name":"p_discount_active","type":"char(1)"}
+]}
