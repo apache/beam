@@ -26,6 +26,8 @@ generate events:
   - The bid on an item for auction (Bid).
 
 """
+from __future__ import absolute_import
+
 from apache_beam.coders import coder_impl
 from apache_beam.coders.coders import FastCoder
 from apache_beam.coders.coders import StrUtf8Coder
@@ -37,7 +39,6 @@ class PersonCoder(FastCoder):
     return PersonCoderImpl()
 
   def is_deterministic(self):
-    # type: () -> bool
     return True
 
 
@@ -65,7 +66,6 @@ class AuctionCoder(FastCoder):
     return AuctionCoderImpl()
 
   def is_deterministic(self):
-    # type: () -> bool
     return True
 
 
@@ -105,7 +105,6 @@ class BidCoder(FastCoder):
     return BidCoderImpl()
 
   def is_deterministic(self):
-    # type: () -> bool
     return True
 
 
@@ -129,7 +128,7 @@ class AuctionCoderImpl(coder_impl.StreamCoderImpl):
   _str_coder_impl = StrUtf8Coder().get_impl()
   _time_coder_impl = coder_impl.TimestampCoderImpl()
 
-  def encode_to_stream(self, value: Auction, stream, nested):
+  def encode_to_stream(self, value, stream, nested):
     self._int_coder_impl.encode_to_stream(value.id, stream, True)
     self._str_coder_impl.encode_to_stream(value.item_name, stream, True)
     self._str_coder_impl.encode_to_stream(value.description, stream, True)
@@ -170,7 +169,7 @@ class BidCoderImpl(coder_impl.StreamCoderImpl):
   _str_coder_impl = StrUtf8Coder().get_impl()
   _time_coder_impl = coder_impl.TimestampCoderImpl()
 
-  def encode_to_stream(self, value: Bid, stream, nested):
+  def encode_to_stream(self, value, stream, nested):
     self._int_coder_impl.encode_to_stream(value.auction, stream, True)
     self._int_coder_impl.encode_to_stream(value.bidder, stream, True)
     self._int_coder_impl.encode_to_stream(value.price, stream, True)
@@ -191,7 +190,7 @@ class PersonCoderImpl(coder_impl.StreamCoderImpl):
   _str_coder_impl = StrUtf8Coder().get_impl()
   _time_coder_impl = coder_impl.TimestampCoderImpl()
 
-  def encode_to_stream(self, value: Person, stream, nested):
+  def encode_to_stream(self, value, stream, nested):
     self._int_coder_impl.encode_to_stream(value.id, stream, True)
     self._str_coder_impl.encode_to_stream(value.name, stream, True)
     self._str_coder_impl.encode_to_stream(value.email_address, stream, True)

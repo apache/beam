@@ -16,6 +16,8 @@
 #
 
 """Result of WinningBid transform."""
+from __future__ import absolute_import
+
 from apache_beam.coders import coder_impl
 from apache_beam.coders.coders import FastCoder
 from apache_beam.testing.benchmarks.nexmark import nexmark_util
@@ -27,7 +29,6 @@ class AuctionBidCoder(FastCoder):
     return AuctionBidCoderImpl()
 
   def is_deterministic(self):
-    # type: () -> bool
     return True
 
 
@@ -46,7 +47,7 @@ class AuctionBidCoderImpl(coder_impl.StreamCoderImpl):
   _auction_coder_impl = nexmark_model.AuctionCoderImpl()
   _bid_coder_Impl = nexmark_model.BidCoderImpl()
 
-  def encode_to_stream(self, value: AuctionBid, stream, nested):
+  def encode_to_stream(self, value, stream, nested):
     self._auction_coder_impl.encode_to_stream(value.auction, stream, True)
     self._bid_coder_Impl.encode_to_stream(value.bid, stream, True)
 

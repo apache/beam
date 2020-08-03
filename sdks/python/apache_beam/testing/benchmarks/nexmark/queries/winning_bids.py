@@ -36,11 +36,11 @@ class AuctionOrBidWindow(IntervalWindow):
     self.is_auction_window = is_auction_window
 
   @staticmethod
-  def for_auction(timestamp, auction: nexmark_model.Auction):
+  def for_auction(timestamp, auction):
     return AuctionOrBidWindow(timestamp, auction.expires, auction.id, True)
 
   @staticmethod
-  def for_bid(expected_duration_micro, timestamp, bid: nexmark_model.Bid):
+  def for_bid(expected_duration_micro, timestamp, bid):
     return AuctionOrBidWindow(
         timestamp,
         timestamp + Duration(micros=expected_duration_micro * 2),
@@ -61,7 +61,6 @@ class AuctionOrBidWindowCoder(FastCoder):
     return AuctionOrBidWindowCoderImpl()
 
   def is_deterministic(self):
-    # type: () -> bool
     return True
 
 
@@ -70,7 +69,7 @@ class AuctionOrBidWindowCoderImpl(coder_impl.StreamCoderImpl):
   _id_coder_impl = coder_impl.VarIntCoderImpl()
   _bool_coder_impl = coder_impl.BooleanCoderImpl()
 
-  def encode_to_stream(self, value: AuctionOrBidWindow, stream, nested):
+  def encode_to_stream(self, value, stream, nested):
     self._super_coder_impl.encode_to_stream(value, stream, True)
     self._id_coder_impl.encode_to_stream(value.auction, stream, True)
     self._bool_coder_impl.encode_to_stream(

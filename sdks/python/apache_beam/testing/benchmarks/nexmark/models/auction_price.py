@@ -16,6 +16,8 @@
 #
 
 """Result of Query2."""
+from __future__ import absolute_import
+
 from apache_beam.coders import coder_impl
 from apache_beam.coders.coders import FastCoder
 from apache_beam.testing.benchmarks.nexmark import nexmark_util
@@ -26,7 +28,6 @@ class AuctionPriceCoder(FastCoder):
     return AuctionPriceCoderImpl()
 
   def is_deterministic(self):
-    # type: () -> bool
     return True
 
 
@@ -44,7 +45,7 @@ class AuctionPrice(object):
 class AuctionPriceCoderImpl(coder_impl.StreamCoderImpl):
   _int_coder_impl = coder_impl.VarIntCoderImpl()
 
-  def encode_to_stream(self, value: AuctionPrice, stream, nested):
+  def encode_to_stream(self, value, stream, nested):
     self._int_coder_impl.encode_to_stream(value.auction, stream, True)
     self._int_coder_impl.encode_to_stream(value.price, stream, True)
 
