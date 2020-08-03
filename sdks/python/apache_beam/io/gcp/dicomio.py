@@ -55,11 +55,12 @@ those data and output them to wherever they want.
 
 Convert DICOM Pubsub message to Qido search request
 ===================================================
-Healthcare API users might use Beam's Pubsub streaming pipeline to monitor the
-store operations (new DICOM file) in a DICOM storage. Pubsub message encodes
-DICOM a web store path as well as instance ids. If users are interested in
-getting new instance's metadata, they can use PubsubToQido() to convert the
-message into Qido Search dict then use DicomSearch(). Here is a sample usage:
+Healthcare API users might read messages from Pubsub to monitor the store
+operations (e.g. new file) in a DICOM storage. Pubsub message encode
+DICOM as a web store path as well as instance ids. If users are interested in
+getting new instance's metadata, they can use the `PubsubToQido` transform
+to convert the message into Qido Search dict then use the `DicomSearch`
+transform. Here is a sample usage:
 
   pipeline_options = PipelineOptions()
   pipeline_options.view_as(StandardOptions).streaming = True
