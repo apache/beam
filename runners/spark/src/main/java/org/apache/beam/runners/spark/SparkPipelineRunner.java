@@ -42,6 +42,9 @@ import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.*;
+import org.apache.beam.runners.spark.translation.streaming.Checkpoint;
+import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
+import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
@@ -51,6 +54,9 @@ import org.apache.beam.sdk.options.PortablePipelineOptions.RetrievalServiceType;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.apache.spark.streaming.api.java.JavaStreamingListener;
+import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -70,10 +76,13 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
   @Override
   public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
+    boolean isStreaming;
     SparkPortablePipelineTranslator translator;
     if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(pipeline)) {
+      isStreaming = false;
       translator = new SparkBatchPortablePipelineTranslator();
     } else {
+      isStreaming = true;
       translator = new SparkStreamingPortablePipelineTranslator();
     }
 
@@ -97,6 +106,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             ? trimmedPipeline
             : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
 
+    // File staging.
     if (pipelineOptions.getFilesToStage() == null) {
       pipelineOptions.setFilesToStage(
           detectClassPathResourcesToStage(
@@ -110,37 +120,84 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
         pipelineOptions.getFilesToStage().size());
     LOG.debug("Staging files: {}", pipelineOptions.getFilesToStage());
 
+    PortablePipelineResult result;
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
-    LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
-    AggregatorsAccumulator.init(pipelineOptions, jsc);
 
+    LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
+
+    // Initialize accumulators.
+    AggregatorsAccumulator.init(pipelineOptions, jsc);
     MetricsEnvironment.setMetricsSupported(true);
     MetricsAccumulator.init(pipelineOptions, jsc);
 
     final SparkTranslationContext context =
         translator.createTranslationContext(jsc, pipelineOptions, jobInfo);
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
-    final Future<?> submissionFuture =
-        executorService.submit(
-            () -> {
-              translator.translate(fusedPipeline, context);
-              LOG.info(
-                  String.format(
-                      "Job %s: Pipeline translated successfully. Computing outputs",
-                      jobInfo.jobId()));
-              context.computeOutputs();
-              LOG.info(String.format("Job %s finished.", jobInfo.jobId()));
-            });
 
-    PortablePipelineResult result;
-    if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(pipeline)) {
-      result = new SparkPipelineResult.PortableBatchMode(submissionFuture, jsc);
-    } else {
-      SparkStreamingTranslationContext streamContext = (SparkStreamingTranslationContext) context;
+    if (isStreaming) {
+      final JavaStreamingContext jssc = ((SparkStreamingTranslationContext) context).getStreamingContext();
+
+      jssc.addStreamingListener(
+          new JavaStreamingListenerWrapper(
+              new AggregatorsAccumulator.AccumulatorCheckpointingSparkListener()));
+      jssc.addStreamingListener(
+          new JavaStreamingListenerWrapper(
+              new MetricsAccumulator.AccumulatorCheckpointingSparkListener()));
+
+      // register user-defined listeners.
+      for (JavaStreamingListener listener : pipelineOptions.as(SparkContextOptions.class).getListeners()) {
+        LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
+        jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
+      }
+
+      // register Watermarks listener to broadcast the advanced WMs.
+      jssc.addStreamingListener(
+          new JavaStreamingListenerWrapper(new GlobalWatermarkHolder.WatermarkAdvancingStreamingListener()));
+
+      jssc.checkpoint(pipelineOptions.getCheckpointDir());
+
+      final Future<?> submissionFuture =
+          executorService.submit(
+              () -> {
+                translator.translate(fusedPipeline, context);
+                LOG.info(
+                    String.format(
+                        "Job %s: Pipeline translated successfully. Computing outputs",
+                        jobInfo.jobId()));
+                context.computeOutputs();
+
+                jssc.start();
+                try {
+                  jssc.awaitTermination(); // time in ms
+                } catch (InterruptedException e) {
+                  LOG.warn("#### jssc interrupted");
+                  e.printStackTrace();
+                }
+                jssc.stop();
+                LOG.info(String.format("Job %s finished.", jobInfo.jobId()));
+              });
       result =
           new SparkPipelineResult.PortableStreamingMode(
-              submissionFuture, streamContext.getStreamingContext());
+              submissionFuture, jssc);
     }
+    else {
+      LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
+
+      final Future<?> submissionFuture =
+          executorService.submit(
+              () -> {
+                translator.translate(fusedPipeline, context);
+                LOG.info(
+                    String.format(
+                        "Job %s: Pipeline translated successfully. Computing outputs",
+                        jobInfo.jobId()));
+                context.computeOutputs();
+                LOG.info(String.format("Job %s finished.", jobInfo.jobId()));
+              });
+      result = new SparkPipelineResult.PortableBatchMode(submissionFuture, jsc);
+    }
+    executorService.shutdown();
+    result.waitUntilFinish();
 
     MetricsPusher metricsPusher =
         new MetricsPusher(
@@ -149,8 +206,6 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             result);
     metricsPusher.start();
 
-    result.waitUntilFinish();
-    executorService.shutdown();
     return result;
   }
 

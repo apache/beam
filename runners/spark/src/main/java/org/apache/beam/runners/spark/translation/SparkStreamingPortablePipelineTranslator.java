@@ -23,6 +23,9 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -42,9 +45,12 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -133,13 +139,27 @@ public class SparkStreamingPortablePipelineTranslator
       SparkStreamingTranslationContext context) {
 
     // create windowed RDD from empty byte array
-    Iterable<byte[]> values = Collections.singletonList(new byte[0]);
+//    Iterable<byte[]> values = Collections.singletonList(new byte[0]);
+//    Iterable<WindowedValue<byte[]>> windowedValues =
+//        Iterables.transform(values, WindowedValue::valueInGlobalWindow);
+
+    TimestampedValue<byte[]> tsValue = TimestampedValue.atMinimumTimestamp(new byte[0]);
+    Iterable<TimestampedValue<byte[]>> timestampedValues = Collections.singletonList(tsValue);
     Iterable<WindowedValue<byte[]>> windowedValues =
-        Iterables.transform(values, WindowedValue::valueInGlobalWindow);
+        StreamSupport.stream(timestampedValues.spliterator(), false)
+            .map(
+                timestampedValue ->
+                    WindowedValue.of(
+                        timestampedValue.getValue(),
+                        timestampedValue.getTimestamp(),
+                        GlobalWindow.INSTANCE,
+                        PaneInfo.NO_FIRING))
+            .collect(Collectors.toList());
 
     ByteArrayCoder coder = ByteArrayCoder.of();
-    WindowedValue.ValueOnlyWindowedValueCoder<byte[]> windowCoder =
-        WindowedValue.getValueOnlyCoder(coder);
+
+    WindowedValue.FullWindowedValueCoder<byte[]> windowCoder =
+        WindowedValue.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
     JavaRDD<WindowedValue<byte[]>> emptyRDD =
         context
             .getSparkContext()
@@ -148,7 +168,7 @@ public class SparkStreamingPortablePipelineTranslator
 
     // create input DStream from RDD queue
     Queue<JavaRDD<WindowedValue<byte[]>>> queueRDD = new LinkedBlockingQueue<>();
-    queueRDD.add(emptyRDD);
+    queueRDD.offer(emptyRDD);
     JavaInputDStream<WindowedValue<byte[]>> emptyStream =
         context.getStreamingContext().queueStream(queueRDD, true);
     UnboundedDataset<byte[]> output =
@@ -219,7 +239,7 @@ public class SparkStreamingPortablePipelineTranslator
     // TODO: handle side inputs?
     ImmutableMap<
             String, Tuple2<Broadcast<List<byte[]>>, WindowedValue.WindowedValueCoder<SideInputT>>>
-        broadcastVariables = null;
+        broadcastVariables = ImmutableMap.copyOf(new HashMap<>());
 
     SparkExecutableStageFunction<InputT, SideInputT> function =
         new SparkExecutableStageFunction<>(
@@ -231,6 +251,30 @@ public class SparkStreamingPortablePipelineTranslator
             MetricsAccumulator.getInstance(),
             windowCoder);
     JavaDStream<RawUnionValue> staged = inputDStream.mapPartitions(function);
+
+    String intermediateId = getExecutableStageIntermediateId(transformNode);
+    context.pushDataset(
+        intermediateId,
+        new Dataset() {
+          @Override
+          public void cache(String storageLevel, Coder<?> coder) {
+            StorageLevel level = StorageLevel.fromString(storageLevel);
+            staged.persist(level);
+          }
+
+          @Override
+          public void action() {
+            // Empty function to force computation of RDD.
+            staged.foreachRDD(TranslationUtils.emptyVoidFunction());
+          }
+
+          @Override
+          public void setName(String name) {
+            // ignore
+          }
+        });
+    // pop dataset to mark RDD as used
+    context.popDataset(intermediateId);
 
     for (String outputId : outputs.values()) {
       JavaDStream<WindowedValue<OutputT>> outStream =
@@ -283,6 +327,10 @@ public class SparkStreamingPortablePipelineTranslator
 
   private static String getOutputId(PTransformNode transformNode) {
     return Iterables.getOnlyElement(transformNode.getTransform().getOutputsMap().values());
+  }
+
+  private static String getExecutableStageIntermediateId(PTransformNode transformNode) {
+    return transformNode.getId();
   }
 
   private static <T> WindowedValue.WindowedValueCoder<T> getWindowedValueCoder(
