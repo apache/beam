@@ -28,9 +28,9 @@ key-value pairs.
 ## Examples
 
 In the following example, we create a pipeline with a `PCollection`.
-Then, we get the element with the maximum value in different ways.
+Then, we get the element with the average value in different ways.
 
-### Example 1: Maximum element in a PCollection
+### Example 1: Mean of element in a PCollection
 
 We use `Mean.Globally()` to get the average of the elements from the *entire* `PCollection`.
 
@@ -49,9 +49,9 @@ Output:
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
 
-### Example 2: Maximum elements for each key
+### Example 2: Mean of elements for each key
 
-We use `Mean.PerKey()` to get the avareage of the elements for each unique key in a `PCollection` of key-values.
+We use `Mean.PerKey()` to get the average of the elements for each unique key in a `PCollection` of key-values.
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" mean_per_key >}}
