@@ -21,6 +21,7 @@ a Google Cloud Healthcare DICOM store and a Beam pipeline.
 
 For more details on DICOM store and API:
 https://cloud.google.com/healthcare/docs/how-tos/dicom
+
 The DICOM IO connector can be used to search metadata or write DICOM files
 to DICOM store. When used together with Google Pubsub message connector,
 a PTransform implemented in this module can be used to convert pubsub
