@@ -30,3 +30,10 @@ Non-portable | [![Build Status](https://ci-beam.apache.org/job/beam_PreCommit_Ja
 Portable | --- | [![Build Status](https://ci-beam.apache.org/job/beam_PreCommit_Portable_Python_Cron/lastCompletedBuild/badge/icon)](https://ci-beam.apache.org/job/beam_PreCommit_Portable_Python_Cron/lastCompletedBuild/) | --- | ---
 
 See [.test-infra/jenkins/README](https://github.com/apache/beam/blob/master/.test-infra/jenkins/README.md) for trigger phrase, status and link of all Jenkins jobs.
+
+
+GitHub Actions Tests Status (on master branch)
+------------------------------------------------------------------------------------------------
+![Build python source distribution and wheels](https://github.com/apache/beam/workflows/Build%20python%20source%20distribution%20and%20wheels/badge.svg)
+
+See [CI.md](https://github.com/apache/beam/blob/master/CI.md) for more information about GitHub Actions CI.
