@@ -23,9 +23,13 @@ For more details on DICOM store and API:
 https://cloud.google.com/healthcare/docs/how-tos/dicom
 
 The DICOM IO connector can be used to search metadata or write DICOM files
-to DICOM store. When used together with Google Pubsub message connector,
-a PTransform implemented in this module can be used to convert pubsub
-messages to search requests. Since Traceability is crucial for healthcare
+to DICOM store. 
+
+When used together with Google Pubsub message connector, the 
+`PubsubToQuido` PTransform implemented in this module can be used
+to convert Pubsub messages to search requests. 
+
+Since Traceability is crucial for healthcare
 API users, every input or error message will be recorded in the output of
 the DICOM IO connector. As a result, every PTransform in this module will
 return a PCollection of dict that encodes results and detailed error messages.
