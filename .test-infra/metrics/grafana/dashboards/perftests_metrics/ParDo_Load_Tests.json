@@ -326,7 +326,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT mean(value)/1000 FROM \"${sdk}_${processingType}_pardo_6\" WHERE \"metric\" =~ /latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"",
+          "query": "SELECT min, max, sum / count\nFROM\n(\n  SELECT max(value)/1000 as min FROM \"${sdk}_${processingType}_pardo_5\" WHERE \"metric\" =~ /min_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as max FROM \"${sdk}_${processingType}_pardo_5\" WHERE \"metric\" =~ /max_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as sum FROM \"${sdk}_${processingType}_pardo_5\" WHERE \"metric\" =~ /sum_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as count FROM \"${sdk}_${processingType}_pardo_5\" WHERE \"metric\" =~ /count_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n)\n\n",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
