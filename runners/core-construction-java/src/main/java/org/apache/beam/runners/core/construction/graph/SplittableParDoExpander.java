@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
@@ -66,7 +67,7 @@ public class SplittableParDoExpander {
    * information is available to the runner if it chooses to inspect it.
    */
   public static TransformReplacement createSizedReplacement() {
-    return SizedReplacement.INSTANCE;
+    return SizedReplacement.builder().setDrain(false).build();
   }
 
   /**
@@ -91,20 +92,24 @@ public class SplittableParDoExpander {
    * .
    */
   public static TransformReplacement createTruncateReplacement() {
-    return SizedReplacement.DRAIN_INSTANCE;
+    return SizedReplacement.builder().setDrain(true).build();
   }
 
   /** See {@link #createSizedReplacement()} for details. */
-  private static class SizedReplacement implements TransformReplacement {
+  @AutoValue
+  abstract static class SizedReplacement implements TransformReplacement {
 
-    private static final SizedReplacement INSTANCE = new SizedReplacement();
-    private static final SizedReplacement DRAIN_INSTANCE = new SizedReplacement().withDrain();
+    static Builder builder() {
+      return new AutoValue_SplittableParDoExpander_SizedReplacement.Builder();
+    }
 
-    private boolean isDrain = false;
+    abstract boolean isDrain();
 
-    private SizedReplacement withDrain() {
-      isDrain = true;
-      return this;
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setDrain(boolean isDrain);
+
+      abstract SizedReplacement build();
     }
 
     @Override
@@ -217,48 +222,20 @@ public class SplittableParDoExpander {
           splitAndSize.setEnvironmentId(splittableParDo.getEnvironmentId());
           rval.getComponentsBuilder().putTransforms(splitAndSizeId, splitAndSize.build());
         }
+        PTransform.Builder newCompositeRoot =
+            splittableParDo
+                .toBuilder()
+                // Clear the original splittable ParDo spec and add all the new transforms as
+                // children.
+                .clearSpec()
+                .addAllSubtransforms(Arrays.asList(pairWithRestrictionId, splitAndSizeId));
 
         String processSizedElementsAndRestrictionsId =
             generateUniqueId(
                 transformId + "/ProcessSizedElementsAndRestrictions",
                 existingComponents::containsTransforms);
-        if (!isDrain) {
-          {
-            PTransform.Builder processSizedElementsAndRestrictions = PTransform.newBuilder();
-            processSizedElementsAndRestrictions.putInputs(mainInputName, splitAndSizeOutId);
-            processSizedElementsAndRestrictions.putAllInputs(sideInputs);
-            processSizedElementsAndRestrictions.putAllOutputs(splittableParDo.getOutputsMap());
-            processSizedElementsAndRestrictions.setUniqueName(
-                generateUniquePCollectonName(
-                    splittableParDo.getUniqueName() + "/ProcessSizedElementsAndRestrictions",
-                    existingComponents));
-            processSizedElementsAndRestrictions.setSpec(
-                FunctionSpec.newBuilder()
-                    .setUrn(
-                        PTransformTranslation
-                            .SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN)
-                    .setPayload(splittableParDo.getSpec().getPayload()));
-            processSizedElementsAndRestrictions.setEnvironmentId(
-                splittableParDo.getEnvironmentId());
-            rval.getComponentsBuilder()
-                .putTransforms(
-                    processSizedElementsAndRestrictionsId,
-                    processSizedElementsAndRestrictions.build());
-          }
-
-          PTransform.Builder newCompositeRoot =
-              splittableParDo
-                  .toBuilder()
-                  // Clear the original splittable ParDo spec and add all the new transforms as
-                  // children.
-                  .clearSpec()
-                  .addAllSubtransforms(
-                      Arrays.asList(
-                          pairWithRestrictionId,
-                          splitAndSizeId,
-                          processSizedElementsAndRestrictionsId));
-          rval.setPtransform(newCompositeRoot);
-        } else {
+        String processSizedElementsInputPCollectionId = splitAndSizeId;
+        if (isDrain()) {
           String truncateAndSizeCoderId =
               generateUniqueId(
                   mainInputPCollection.getCoderId() + "/TruncateAndSize",
@@ -303,44 +280,32 @@ public class SplittableParDoExpander {
             truncateAndSize.setEnvironmentId(splittableParDo.getEnvironmentId());
             rval.getComponentsBuilder().putTransforms(truncateAndSizeId, truncateAndSize.build());
           }
-          {
-            PTransform.Builder processSizedElementsAndRestrictions = PTransform.newBuilder();
-            processSizedElementsAndRestrictions.putInputs(mainInputName, truncateAndSizeOutId);
-            processSizedElementsAndRestrictions.putAllInputs(sideInputs);
-            processSizedElementsAndRestrictions.putAllOutputs(splittableParDo.getOutputsMap());
-            processSizedElementsAndRestrictions.setUniqueName(
-                generateUniquePCollectonName(
-                    splittableParDo.getUniqueName() + "/ProcessSizedElementsAndRestrictions",
-                    existingComponents));
-            processSizedElementsAndRestrictions.setSpec(
-                FunctionSpec.newBuilder()
-                    .setUrn(
-                        PTransformTranslation
-                            .SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN)
-                    .setPayload(splittableParDo.getSpec().getPayload()));
-            processSizedElementsAndRestrictions.setEnvironmentId(
-                splittableParDo.getEnvironmentId());
-            rval.getComponentsBuilder()
-                .putTransforms(
-                    processSizedElementsAndRestrictionsId,
-                    processSizedElementsAndRestrictions.build());
-          }
-
-          PTransform.Builder newCompositeRoot =
-              splittableParDo
-                  .toBuilder()
-                  // Clear the original splittable ParDo spec and add all the new transforms as
-                  // children.
-                  .clearSpec()
-                  .addAllSubtransforms(
-                      Arrays.asList(
-                          pairWithRestrictionId,
-                          splitAndSizeId,
-                          truncateAndSizeId,
-                          processSizedElementsAndRestrictionsId));
-          rval.setPtransform(newCompositeRoot);
+          newCompositeRoot.addSubtransforms(truncateAndSizeId);
+          processSizedElementsInputPCollectionId = truncateAndSizeId;
         }
-
+        {
+          PTransform.Builder processSizedElementsAndRestrictions = PTransform.newBuilder();
+          processSizedElementsAndRestrictions.putInputs(
+              mainInputName, processSizedElementsInputPCollectionId);
+          processSizedElementsAndRestrictions.putAllInputs(sideInputs);
+          processSizedElementsAndRestrictions.putAllOutputs(splittableParDo.getOutputsMap());
+          processSizedElementsAndRestrictions.setUniqueName(
+              generateUniquePCollectonName(
+                  splittableParDo.getUniqueName() + "/ProcessSizedElementsAndRestrictions",
+                  existingComponents));
+          processSizedElementsAndRestrictions.setSpec(
+              FunctionSpec.newBuilder()
+                  .setUrn(
+                      PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN)
+                  .setPayload(splittableParDo.getSpec().getPayload()));
+          processSizedElementsAndRestrictions.setEnvironmentId(splittableParDo.getEnvironmentId());
+          rval.getComponentsBuilder()
+              .putTransforms(
+                  processSizedElementsAndRestrictionsId,
+                  processSizedElementsAndRestrictions.build());
+        }
+        newCompositeRoot.addSubtransforms(processSizedElementsAndRestrictionsId);
+        rval.setPtransform(newCompositeRoot);
         return rval.build();
       } catch (IOException e) {
         throw new RuntimeException("Unable to perform expansion for transform " + transformId, e);
