@@ -199,7 +199,7 @@ if 'save_module' in dir(dill.dill):
           except AttributeError:
             pass
 
-        for m in sys.modules.values():
+        for m in list(sys.modules.values()):
           try:
             if (m and m.__name__ != '__main__' and
                 isinstance(m, dill.dill.ModuleType)):
