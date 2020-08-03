@@ -31,6 +31,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOPushDownRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIntersectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinAssociateRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinPushThroughJoinRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamMatchRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamMinusRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputLookupJoinRule;
@@ -164,7 +165,8 @@ public class BeamRuleSets {
           BeamUnnestRule.INSTANCE,
           BeamSideInputJoinRule.INSTANCE,
           BeamCoGBKJoinRule.INSTANCE,
-          BeamSideInputLookupJoinRule.INSTANCE);
+          BeamSideInputLookupJoinRule.INSTANCE,
+          BeamMatchRule.INSTANCE);
 
   private static final List<RelOptRule> BEAM_TO_ENUMERABLE =
       ImmutableList.of(BeamEnumerableConverterRule.INSTANCE);
