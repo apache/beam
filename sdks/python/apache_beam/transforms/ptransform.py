@@ -430,7 +430,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     root_hint = (
         arg_hints[0] if len(arg_hints) == 1 else arg_hints or kwarg_hints)
     for context, pvalue_, hint in _ZipPValues().visit(pvalueish, root_hint):
-      if isinstance(pvalue, DoOutputsTuple):
+      if isinstance(pvalue_, DoOutputsTuple):
         continue
       if pvalue_.element_type is None:
         # TODO(robertwb): It's a bug that we ever get here. (typecheck)
