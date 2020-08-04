@@ -107,7 +107,7 @@ class _SharedControlBlock(object):
   def acquire(
       self,
       constructor_fn,  # type: Callable[[], Any]
-      tag=None # type: Any
+      tag=None  # type: Any
   ):
     # type: (...) -> Any
 
@@ -211,7 +211,7 @@ class _SharedMap(object):
       self,
       key,  # type: Text
       constructor_fn,  # type: Callable[[], Any]
-      tag=None # type: Any
+      tag=None  # type: Any
   ):
     # type: (...) -> Any
 
@@ -277,7 +277,7 @@ class Shared(object):
   def acquire(
       self,
       constructor_fn,  # type: Callable[[], Any]
-      tag=None # type: Any
+      tag=None  # type: Any
   ):
     # type: (...) -> Any
 
