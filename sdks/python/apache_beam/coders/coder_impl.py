@@ -550,10 +550,10 @@ class MapCoderImpl(StreamCoderImpl):
     self._key_coder = key_coder
     self._value_coder = value_coder
 
-  def encode_to_stream(self, value, out, nested):
-    size = len(value)
+  def encode_to_stream(self, dict_value, out, nested):
+    size = len(dict_value)
     out.write_bigendian_int32(size)
-    for key, value in value.items():
+    for key, value in dict_value.items():
       # Note this implementation always uses nested context when encoding keys
       # and values which differs from Java. See note in docstring.
       self._key_coder.encode_to_stream(key, out, True)
@@ -573,8 +573,7 @@ class MapCoderImpl(StreamCoderImpl):
 
   def estimate_size(self, unused_value, nested=False):
     estimate = 4  # 4 bytes for int32 size prefix
-    for i, kv in enumerate(unused_value.items()):
-      key, value = kv
+    for key, value in unused_value.items():
       estimate += self._key_coder.estimate_size(key, True)
       estimate += self._value_coder.estimate_size(value, True)
     return estimate
