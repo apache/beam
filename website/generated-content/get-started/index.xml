@@ -1489,17 +1489,15 @@ environment&amp;rsquo;s directories.&lt;/p>
 &lt;div class=runner-direct>
 &lt;pre>&lt;code>python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts&lt;/code>&lt;/pre>
 &lt;/div>
-&lt;div class=runner-flink-local>
-&lt;pre>&lt;code>Currently, running wordcount.py on Flink requires a full download of the Beam source code.
-See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;div class=runner-flink-cluster>
-&lt;pre>&lt;code>Currently, running wordcount.py on Flink requires a full download of the Beam source code.
-See https://beam.apache.org/documentation/runners/flink/ for more information.&lt;/code>&lt;/pre>
+&lt;div class=runner-flink>
+&lt;pre>&lt;code>python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+--output /path/to/write/counts \
+--runner FlinkRunner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-spark>
-&lt;pre>&lt;code>Currently, running wordcount.py on Spark requires a full download of the Beam source code.
-See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code>python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+--output /path/to/write/counts \
+--runner SparkRunner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-dataflow>
 &lt;pre>&lt;code># As part of the initial setup, install Google Cloud Platform specific extra components. Make sure you
@@ -2094,16 +2092,18 @@ You can monitor the running job by visiting the Flink dashboard at http://&amp;l
 &lt;pre>&lt;code>python -m apache_beam.examples.wordcount --input YOUR_INPUT_FILE --output counts&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-flink-local>
-&lt;pre>&lt;code>Currently, running wordcount.py on Flink requires a full download of the Beam source code.
-See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code>python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+--output /path/to/write/counts \
+--runner FlinkRunner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-flink-cluster>
-&lt;pre>&lt;code>Currently, running wordcount.py on Flink requires a full download of the Beam source code.
-See https://beam.apache.org/documentation/runners/flink/ for more information.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code># Running Beam Python on a distributed Flink cluster requires additional configuration.
+# See https://beam.apache.org/documentation/runners/flink/ for more information.&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-spark>
-&lt;pre>&lt;code>Currently, running wordcount.py on Spark requires a full download of the Beam source code.
-See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code>python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+--output /path/to/write/counts \
+--runner SparkRunner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-dataflow>
 &lt;pre>&lt;code># As part of the initial setup, install Google Cloud Platform specific extra components.
