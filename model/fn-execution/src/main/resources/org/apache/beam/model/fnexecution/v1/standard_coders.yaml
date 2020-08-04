@@ -347,7 +347,6 @@ coder:
   urn: "beam:coder:row:v1"
   # str: string, i32: int32, f64: float64, arr: array[string]
   payload: "\n\t\n\x03str\x1a\x02\x10\x07\n\t\n\x03i32\x1a\x02\x10\x03\n\t\n\x03f64\x1a\x02\x10\x06\n\r\n\x03arr\x1a\x06\x1a\x04\n\x02\x10\x07\x12$4e5e554c-d4c1-4a5d-b5e1-f3293a6b9f05"
-nested: false
 examples:
     "\u0004\u0000\u0003foo\u00a9\u0046\u003f\u00b9\u0099\u0099\u0099\u0099\u0099\u009a\0\0\0\u0003\u0003foo\u0003bar\u0003baz": {str: "foo", i32: 9001, f64: "0.1", arr: ["foo", "bar", "baz"]}
 
@@ -357,7 +356,6 @@ coder:
   urn: "beam:coder:row:v1"
   # str: nullable string, i32: nullable int32, f64: nullable float64
   payload: "\n\x0b\n\x03str\x1a\x04\x08\x01\x10\x07\n\x0b\n\x03i32\x1a\x04\x08\x01\x10\x03\n\x0b\n\x03f64\x1a\x04\x08\x01\x10\x06\x12$b20c6545-57af-4bc8-b2a9-51ace21c7393"
-nested: false
 examples:
   "\u0003\u0001\u0007": {str: null, i32: null, f64: null}
   "\u0003\u0001\u0004\u0003foo\u00a9\u0046": {str: "foo", i32: 9001, f64: null}
@@ -380,7 +378,6 @@ coder:
   urn: "beam:coder:row:v1"
   # f_bool: boolean, f_bytes: nullable bytes
   payload: "\n\x0c\n\x06f_bool\x1a\x02\x10\x08\n\x0f\n\x07f_bytes\x1a\x04\x08\x01\x10\t\x12$eea1b747-7571-43d3-aafa-9255afdceafb"
-nested: false
 examples:
   "\x02\x01\x02\x01": {f_bool: True, f_bytes: null}
   "\x02\x00\x00\x04ab\x00c": {f_bool: False, f_bytes: "ab\0c"}
