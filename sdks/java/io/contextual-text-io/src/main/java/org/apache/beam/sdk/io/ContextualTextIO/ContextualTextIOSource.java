@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.ContextualTextIO;
 
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
@@ -31,14 +30,28 @@ import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
+/**
+ * Implementation detail of {@link ContextualTextIO.Read}.
+ *
+ * <p>A {@link FileBasedSource} which can decode records delimited by newline characters.
+ *
+ * <p>This source splits the data into records using {@code UTF-8} {@code \n}, {@code \r}, or {@code
+ * \r\n} as the delimiter. This source is not strict and supports decoding the last record even if
+ * it is not delimited. Finally, no records are decoded if the stream is empty.
+ *
+ * <p>This source supports reading from any arbitrary byte position within the stream. If the
+ * starting position is not {@code 0}, then bytes are skipped until the first delimiter is found
+ * representing the beginning of the first record to be decoded.
+ */
 @VisibleForTesting
 class ContextualTextIOSource extends FileBasedSource<LineContext> {
   byte[] delimiter;
 
-  // Override isSplittable
+  // Used to Override isSplittable
   private boolean hasRFC4180MultiLineColumn;
 
   @Override
@@ -84,6 +97,12 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
     return SerializableCoder.of(LineContext.class);
   }
 
+  /**
+   * A {@link FileBasedReader FileBasedReader} which can decode records delimited by delimiter
+   * characters.
+   *
+   * <p>See {@link ContextualTextIOSource } for further details.
+   */
   @VisibleForTesting
   static class MultiLineTextBasedReader extends FileBasedReader<LineContext> {
     public static final int READ_BUFFER_SIZE = 8192;
@@ -192,7 +211,7 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
     private void findDelimiterBounds() throws IOException {
       int bytePoistionInBuffer = 0;
       boolean doubleBracketClosed = true;
-      boolean stopSearching = true;
+      boolean bracketEnded = true;
 
       while (true) {
         if (!tryToEnsureNumberOfBytesInBuffer(bytePoistionInBuffer + 1)) {
@@ -203,12 +222,12 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
         byte currentByte = buffer.byteAt(bytePoistionInBuffer);
         if (hasRFC4180MultiLineColumn) {
           // Check if we are inside an open bracket
-          if (currentByte == '"' && hasRFC4180MultiLineColumn) {
+          if (currentByte == '"') {
             doubleBracketClosed = !doubleBracketClosed;
-            stopSearching = doubleBracketClosed;
+            bracketEnded = doubleBracketClosed;
           }
         } else {
-          stopSearching = true;
+          bracketEnded = true;
         }
 
         if (delimiter == null) {
@@ -216,7 +235,7 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
           if (currentByte == '\n') {
             startOfDelimiterInBuffer = bytePoistionInBuffer;
             endOfDelimiterInBuffer = startOfDelimiterInBuffer + 1;
-            if (stopSearching) {
+            if (bracketEnded) {
               break;
             }
           } else if (currentByte == '\r') {
@@ -228,7 +247,7 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
                 endOfDelimiterInBuffer += 1;
               }
             }
-            if (stopSearching) {
+            if (bracketEnded) {
               break;
             }
           }
@@ -249,7 +268,7 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
           }
           if (i == delimiter.length) {
             endOfDelimiterInBuffer = bytePoistionInBuffer + i;
-            if (stopSearching) break;
+            if (bracketEnded) break;
           }
         }
         bytePoistionInBuffer += 1;
@@ -289,16 +308,22 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
 
       /////////////////////////////////////////////
 
-      String line = dataToDecode.toStringUtf8();
+//      Data of the Current Line
+//      dataToDecode.toStringUtf8();
 
       // The line num is:
       Long lineUniqueLineNum = readerlineNum++;
-      // The FileName is:
+      // The Complete FileName (with uri if this is a web url eg: temp/abc.txt) is:
       String fileName = getCurrentSource().getSingleFileMetadata().resourceId().toString();
+
+      // The single filename can be found as:
+      // fileName.substring(fileName.lastIndexOf('/') + 1);
+
       // The Range is the starting Offset for this reader:
       currentValue =
           LineContext.newBuilder()
               .setRangeLineNum(lineUniqueLineNum)
+              .setLineNum(lineUniqueLineNum)
               .setRangeNum(startingOffset)
               .setFile(fileName)
               .setLine(dataToDecode.toStringUtf8())

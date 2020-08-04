@@ -24,6 +24,8 @@ import java.io.Serializable;
 public abstract class LineContext implements Serializable {
   public abstract Long getRangeLineNum();
 
+  public abstract Long getLineNum();
+
   public abstract Long getRangeNum();
 
   public abstract String getLine();
@@ -39,6 +41,8 @@ public abstract class LineContext implements Serializable {
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setRangeLineNum(Long lineNum);
+
+    public abstract Builder setLineNum(Long lineNum);
 
     public abstract Builder setRangeNum(Long rangeNum);
 
