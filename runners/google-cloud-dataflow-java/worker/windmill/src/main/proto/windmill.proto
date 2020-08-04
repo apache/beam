@@ -220,6 +220,7 @@ message GetDataRequest {
 
 message KeyedGetDataResponse {
   required bytes key = 1;
+  optional fixed64 sharding_key = 7;
   // The response for this key is not populated due to the fetch failing.
   optional bool failed = 2;
   repeated TagValue values = 3;

@@ -66,7 +66,9 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** {@link DataflowExecutionContext} for use in streaming mode. */
+/**
+ * {@link DataflowExecutionContext} for use in streaming mode.
+ */
 public class StreamingModeExecutionContext extends DataflowExecutionContext<StepContext> {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingModeExecutionContext.class);
@@ -80,7 +82,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    * <p>This key should not be mistaken for the sharding key of the computation, which is always
    * present.
    */
-  @Nullable private Object key = null;
+  @Nullable
+  private Object key = null;
 
   private final String computationId;
   private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
@@ -180,6 +183,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    * ExecutionState.
    */
   public static class StreamingModeExecutionStateRegistry extends DataflowExecutionStateRegistry {
+
     private final StreamingDataflowWorker worker;
 
     public StreamingModeExecutionStateRegistry(StreamingDataflowWorker worker) {
@@ -344,7 +348,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     activeReader = reader;
   }
 
-  /** Invalidate the state and reader caches for this computation and key. */
+  /**
+   * Invalidate the state and reader caches for this computation and key.
+   */
   public void invalidateCache() {
     ByteString key = getSerializedKey();
     if (key != null) {
@@ -357,7 +363,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         }
       }
       activeReader = null;
-      stateCache.invalidate(key);
+      stateCache.invalidate(key, getWork().getShardingKey());
     }
   }
 
@@ -429,6 +435,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   interface StreamingModeStepContext {
+
     boolean issueSideInputFetch(
         PCollectionView<?> view, BoundedWindow w, StateFetcher.SideInputState s);
 
@@ -440,7 +447,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     Iterable<Windmill.GlobalDataId> getSideInputNotifications();
 
-    /** Writes the given {@code PCollectionView} data to a globally accessible location. */
+    /**
+     * Writes the given {@code PCollectionView} data to a globally accessible location.
+     */
     <T, W extends BoundedWindow> void writePCollectionViewData(
         TupleTag<?> tag,
         Iterable<T> data,
@@ -485,7 +494,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
           };
     }
 
-    /** Update the {@code stateReader} used by this {@code StepContext}. */
+    /**
+     * Update the {@code stateReader} used by this {@code StepContext}.
+     */
     public void start(
         WindmillStateReader stateReader,
         Instant inputDataWatermark,
@@ -499,7 +510,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               stateReader,
               work.getIsNewKey(),
               stateCache.forKey(
-                  getSerializedKey(), stateFamily, getWork().getCacheToken(), getWorkToken()),
+                  getSerializedKey(), getWork().getShardingKey(), stateFamily,
+                  getWork().getCacheToken(), getWorkToken()),
               scopedReadStateSupplier);
 
       this.systemTimerInternals =
@@ -641,7 +653,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       outputBuilder.addGlobalDataUpdates(builder.build());
     }
 
-    /** Fetch the given side input asynchronously and return true if it is present. */
+    /**
+     * Fetch the given side input asynchronously and return true if it is present.
+     */
     @Override
     public boolean issueSideInputFetch(
         PCollectionView<?> view, BoundedWindow mainInputWindow, StateFetcher.SideInputState state) {
@@ -650,7 +664,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
           != null;
     }
 
-    /** Note that there is data on the current key that is blocked on the given side input. */
+    /**
+     * Note that there is data on the current key that is blocked on the given side input.
+     */
     @Override
     public void addBlockingSideInput(Windmill.GlobalDataRequest sideInput) {
       checkState(
@@ -662,7 +678,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       outputBuilder.addGlobalDataIdRequests(sideInput.getDataId());
     }
 
-    /** Note that there is data on the current key that is blocked on the given side inputs. */
+    /**
+     * Note that there is data on the current key that is blocked on the given side inputs.
+     */
     @Override
     public void addBlockingSideInputs(Iterable<Windmill.GlobalDataRequest> sideInputs) {
       for (Windmill.GlobalDataRequest sideInput : sideInputs) {
@@ -769,7 +787,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     }
   }
 
-  /** A {@link SideInputReader} that fetches side inputs from the streaming worker's cache. */
+  /**
+   * A {@link SideInputReader} that fetches side inputs from the streaming worker's cache.
+   */
   public static class StreamingModeSideInputReader implements SideInputReader {
     private StreamingModeExecutionContext context;
     private Set<PCollectionView<?>> viewSet;
