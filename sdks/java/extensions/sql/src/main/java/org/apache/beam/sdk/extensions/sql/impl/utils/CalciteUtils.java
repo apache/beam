@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.Map;
@@ -283,18 +284,26 @@ public class CalciteUtils {
 
   /**
    * SQL-Java type mapping, with specified Beam rules: <br>
-   * 1. redirect {@link AbstractInstant} to {@link Date} so Calcite can recognize it.
+   * 1. redirect {@link AbstractInstant} to {@link Date} so Calcite can recognize it. <br>
+   * 2. For a list, the component type is needed to create a Sql array type.
    *
-   * @param rawType
-   * @return
+   * @param type
+   * @return Calcite RelDataType
    */
-  public static RelDataType sqlTypeWithAutoCast(RelDataTypeFactory typeFactory, Type rawType) {
+  public static RelDataType sqlTypeWithAutoCast(RelDataTypeFactory typeFactory, Type type) {
     // For Joda time types, return SQL type for java.util.Date.
-    if (rawType instanceof Class && AbstractInstant.class.isAssignableFrom((Class<?>) rawType)) {
+    if (type instanceof Class && AbstractInstant.class.isAssignableFrom((Class<?>) type)) {
       return typeFactory.createJavaType(Date.class);
-    } else if (rawType instanceof Class && ByteString.class.isAssignableFrom((Class<?>) rawType)) {
+    } else if (type instanceof Class && ByteString.class.isAssignableFrom((Class<?>) type)) {
       return typeFactory.createJavaType(byte[].class);
+    } else if (type instanceof ParameterizedType
+        && java.util.List.class.isAssignableFrom(
+            (Class<?>) ((ParameterizedType) type).getRawType())) {
+      ParameterizedType parameterizedType = (ParameterizedType) type;
+      Class<?> genericType = (Class<?>) parameterizedType.getActualTypeArguments()[0];
+      RelDataType collectionElementType = typeFactory.createJavaType(genericType);
+      return typeFactory.createArrayType(collectionElementType, UNLIMITED_ARRAY_SIZE);
     }
-    return typeFactory.createJavaType((Class) rawType);
+    return typeFactory.createJavaType((Class) type);
   }
 }
