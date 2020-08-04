@@ -17,10 +17,14 @@
  */
 package org.apache.beam.sdk.expansion;
 
+import java.lang.reflect.Constructor;
 import java.util.Map;
+import java.util.Map.Entry;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * A registrar which contains a mapping from URNs to available {@link ExternalTransformBuilder}s.
@@ -29,6 +33,42 @@ import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 @Experimental(Kind.PORTABILITY)
 public interface ExternalTransformRegistrar {
 
-  /** A mapping from URN to an {@link ExternalTransformBuilder} class. */
-  Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders();
+  /**
+   * A mapping from URN to an {@link ExternalTransformBuilder} class.
+   *
+   * @deprecated Prefer implementing 'knownBuilderInstances'. This method will be removed in a
+   *     future version of Beam.
+   */
+  @Deprecated
+  default Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
+    return ImmutableMap.<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>>builder()
+        .build();
+  }
+
+  /** A mapping from URN to an {@link ExternalTransformBuilder} instance. */
+  default Map<String, ExternalTransformBuilder<?, ?, ?>> knownBuilderInstances() {
+    ImmutableMap.Builder builder = ImmutableMap.<String, ExternalTransformBuilder>builder();
+    Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders = knownBuilders();
+    for (Entry<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilder :
+        knownBuilders.entrySet()) {
+      Preconditions.checkState(
+          ExternalTransformBuilder.class.isAssignableFrom(knownBuilder.getValue()),
+          "Provided identifier %s is not an ExternalTransformBuilder.",
+          knownBuilder.getValue().getName());
+      try {
+        Constructor<? extends ExternalTransformBuilder> constructor =
+            knownBuilder.getValue().getDeclaredConstructor();
+
+        constructor.setAccessible(true);
+        builder.put(knownBuilder.getKey(), constructor.newInstance());
+
+      } catch (RuntimeException e) {
+        throw e;
+      } catch (Exception e) {
+        throw new RuntimeException(
+            "Unable to instantiate ExternalTransformBuilder from constructor.");
+      }
+    }
+    return builder.build();
+  }
 }
