@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
@@ -55,6 +54,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -314,6 +314,8 @@ public class Environments {
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.PROGRESS_REPORTING));
     capabilities.add("beam:version:sdk_base:" + JAVA_SDK_HARNESS_CONTAINER_URL);
+    // TODO(BEAM-10505): Add the capability back.
+    // capabilities.add(BeamUrns.getUrn(SplittableParDoComponents.TRUNCATE_SIZED_RESTRICTION));
     return capabilities.build();
   }
 
@@ -334,28 +336,24 @@ public class Environments {
   }
 
   private static class ProcessPayloadReferenceJSON {
-    @Nullable private String os;
-    @Nullable private String arch;
-    @Nullable private String command;
-    @Nullable private Map<String, String> env;
+    private @Nullable String os;
+    private @Nullable String arch;
+    private @Nullable String command;
+    private @Nullable Map<String, String> env;
 
-    @Nullable
-    public String getOs() {
+    public @Nullable String getOs() {
       return os;
     }
 
-    @Nullable
-    public String getArch() {
+    public @Nullable String getArch() {
       return arch;
     }
 
-    @Nullable
-    public String getCommand() {
+    public @Nullable String getCommand() {
       return command;
     }
 
-    @Nullable
-    public Map<String, String> getEnv() {
+    public @Nullable Map<String, String> getEnv() {
       return env;
     }
   }

@@ -19,6 +19,7 @@
 from __future__ import absolute_import
 
 import concurrent.futures
+import itertools
 import logging
 import os
 import queue
@@ -126,7 +127,11 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     return 'localhost'
 
   def start_grpc_server(self, port=0):
-    self._server = grpc.server(thread_pool_executor.shared_unbounded_instance())
+    no_max_message_sizes = [("grpc.max_receive_message_length", -1),
+                            ("grpc.max_send_message_length", -1)]
+    self._server = grpc.server(
+        thread_pool_executor.shared_unbounded_instance(),
+        options=no_max_message_sizes)
     port = self._server.add_insecure_port(
         '%s:%d' % (self.get_bind_address(), port))
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
@@ -150,8 +155,9 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
 
     result = self._jobs[request.job_id].result
     monitoring_info_list = []
-    for mi in result._monitoring_infos_by_stage.values():
-      monitoring_info_list.extend(mi)
+    if result is not None:
+      for mi in result._monitoring_infos_by_stage.values():
+        monitoring_info_list.extend(mi)
 
     # Filter out system metrics
     user_monitoring_info_list = [
@@ -231,7 +237,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self._artifact_staging_endpoint = artifact_staging_endpoint
     self._artifact_service = artifact_service
     self._state_queues = []  # type: List[queue.Queue]
-    self._log_queues = []  # type: List[queue.Queue]
+    self._log_queues = JobLogQueues()
     self.daemon = True
     self.result = None
 
@@ -256,7 +262,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
 
   def _run_job(self):
     self.set_state(beam_job_api_pb2.JobState.RUNNING)
-    with JobLogHandler(self._log_queues):
+    with JobLogHandler(self._log_queues) as log_handler:
       self._update_dependencies()
       try:
         start = time.time()
@@ -268,8 +274,13 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
         self.set_state(beam_job_api_pb2.JobState.DONE)
         self.result = result
       except:  # pylint: disable=bare-except
+        self._log_queues.put(
+            beam_job_api_pb2.JobMessage(
+                message_id=log_handler._next_id(),
+                time=time.strftime('%Y-%m-%d %H:%M:%S.'),
+                importance=beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR,
+                message_text=traceback.format_exc()))
         _LOGGER.exception('Error running pipeline.')
-        _LOGGER.exception(traceback)
         self.set_state(beam_job_api_pb2.JobState.FAILED)
         raise
 
@@ -307,7 +318,8 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self._log_queues.append(log_queue)
     self._state_queues.append(log_queue)
 
-    for msg in self.with_state_history(_iter_queue(log_queue)):
+    for msg in itertools.chain(self._log_queues.cache(),
+                               self.with_state_history(_iter_queue(log_queue))):
       if isinstance(msg, tuple):
         assert len(msg) == 2 and isinstance(msg[0], int)
         current_state = msg[0]
@@ -324,6 +336,38 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
       for log_entry in log_bundle.log_entries:
         _LOGGER.info('Worker: %s', str(log_entry).replace('\n', ' '))
     return iter([])
+
+
+class JobLogQueues(object):
+  def __init__(self):
+    self._queues = []  # type: List[queue.Queue]
+    self._cache = []
+    self._cache_size = 10
+    self._lock = threading.Lock()
+
+  def cache(self):
+    with self._lock:
+      return list(self._cache)
+
+  def append(self, queue):
+    with self._lock:
+      self._queues.append(queue)
+
+  def put(self, msg):
+    with self._lock:
+      if len(self._cache) < self._cache_size:
+        self._cache.append(msg)
+      else:
+        min_level = min(m.importance for m in self._cache)
+        if msg.importance >= min_level:
+          self._cache.append(msg)
+          for ix, m in enumerate(self._cache):
+            if m.importance == min_level:
+              del self._cache[ix]
+              break
+
+      for queue in self._queues:
+        queue.put(msg)
 
 
 class JobLogHandler(logging.Handler):
@@ -352,6 +396,7 @@ class JobLogHandler(logging.Handler):
     # running pipelines (as Python log handlers are global).
     self._logged_thread = threading.current_thread()
     logging.getLogger().addHandler(self)
+    return self
 
   def __exit__(self, *args):
     self._logged_thread = None
@@ -371,5 +416,4 @@ class JobLogHandler(logging.Handler):
           message_text=self.format(record))
 
       # Inform all message consumers.
-      for queue in self._log_queues:
-        queue.put(msg)
+      self._log_queues.put(msg)

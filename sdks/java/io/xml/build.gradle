@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.xml')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.xml')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: XML"
 ext.summary = "IO to read and write XML files."
@@ -28,6 +28,7 @@ dependencies {
   compile library.java.stax2_api
   compile library.java.woodstox_core_asl
   testCompile library.java.jaxb_api
+  testCompile library.java.jaxb_impl
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core

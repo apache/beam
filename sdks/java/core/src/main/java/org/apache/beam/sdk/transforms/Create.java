@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -67,6 +66,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -467,7 +467,7 @@ public class Create<T> {
        * Use an optional to distinguish between null next element (as Optional.absent()) and no next
        * element (next is null).
        */
-      @Nullable private Optional<T> next;
+      private @Nullable Optional<T> next;
 
       public BytesReader(CreateSource<T> source) {
         super(source);
@@ -475,8 +475,7 @@ public class Create<T> {
       }
 
       @Override
-      @Nullable
-      public T getCurrent() throws NoSuchElementException {
+      public @Nullable T getCurrent() throws NoSuchElementException {
         if (next == null) {
           throw new NoSuchElementException();
         }

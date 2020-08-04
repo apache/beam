@@ -49,6 +49,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimaps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.ClassPath;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Invokable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Parameter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.TypeToken;
@@ -202,7 +203,7 @@ public class ApiSurface {
 
         if (!messages.isEmpty()) {
           mismatchDescription.appendText(
-              "The following white-listed scopes did not have matching classes on the API surface:"
+              "The following allowed scopes did not have matching classes on the API surface:"
                   + "\n\t"
                   + Joiner.on("\n\t").join(messages));
         }
@@ -515,6 +516,7 @@ public class ApiSurface {
   private boolean pruned(Class<?> clazz) {
     return clazz.isPrimitive()
         || clazz.isArray()
+        || clazz.getCanonicalName().equals("jdk.internal.HotSpotIntrinsicCandidate")
         || getPrunedPattern().matcher(clazz.getName()).matches();
   }
 

@@ -60,7 +60,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
@@ -145,6 +144,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -301,8 +301,7 @@ public class StreamingDataflowWorker {
     }
 
     /** Returns and removes the next value, or null if there is no such value. */
-    @Nullable
-    public V poll() {
+    public @Nullable V poll() {
       V result = queue.poll();
       if (result != null) {
         limit.release(weigher.apply(result));
@@ -320,8 +319,7 @@ public class StreamingDataflowWorker {
      *     an element is available
      * @throws InterruptedException if interrupted while waiting
      */
-    @Nullable
-    public V poll(long timeout, TimeUnit unit) throws InterruptedException {
+    public @Nullable V poll(long timeout, TimeUnit unit) throws InterruptedException {
       V result = queue.poll(timeout, unit);
       if (result != null) {
         limit.release(weigher.apply(result));
@@ -330,8 +328,7 @@ public class StreamingDataflowWorker {
     }
 
     /** Returns and removes the next value, or blocks until one is available. */
-    @Nullable
-    public V take() throws InterruptedException {
+    public @Nullable V take() throws InterruptedException {
       V result = queue.take();
       limit.release(weigher.apply(result));
       return result;
@@ -537,7 +534,7 @@ public class StreamingDataflowWorker {
       List<MapTask> mapTasks,
       WorkUnitClient workUnitClient,
       DataflowWorkerHarnessOptions options,
-      @Nullable RunnerApi.Pipeline pipeline,
+      RunnerApi.@Nullable Pipeline pipeline,
       SdkHarnessRegistry sdkHarnessRegistry)
       throws IOException {
     return new StreamingDataflowWorker(
@@ -572,7 +569,7 @@ public class StreamingDataflowWorker {
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       WorkUnitClient workUnitClient,
       StreamingDataflowWorkerOptions options,
-      @Nullable RunnerApi.Pipeline pipeline,
+      RunnerApi.@Nullable Pipeline pipeline,
       SdkHarnessRegistry sdkHarnessRegistry,
       boolean publishCounters,
       HotKeyLogger hotKeyLogger)
@@ -1011,8 +1008,8 @@ public class StreamingDataflowWorker {
         final Instant inputDataWatermark =
             WindmillTimeUtils.windmillToHarnessWatermark(computationWork.getInputDataWatermark());
         Preconditions.checkNotNull(inputDataWatermark);
-        @Nullable
-        final Instant synchronizedProcessingTime =
+
+        final @Nullable Instant synchronizedProcessingTime =
             WindmillTimeUtils.windmillToHarnessWatermark(
                 computationWork.getDependentRealtimeInputWatermark());
         for (final Windmill.WorkItem workItem : computationWork.getWorkList()) {
@@ -1033,7 +1030,7 @@ public class StreamingDataflowWorker {
                   .setMaxBytes(MAX_GET_WORK_FETCH_BYTES)
                   .build(),
               (String computation,
-                  @Nullable Instant inputDataWatermark,
+                  Instant inputDataWatermark,
                   Instant synchronizedProcessingTime,
                   Windmill.WorkItem workItem) -> {
                 memoryMonitor.waitForResources("GetWork");
@@ -1063,8 +1060,8 @@ public class StreamingDataflowWorker {
       final Windmill.WorkItem workItem) {
     Preconditions.checkNotNull(inputDataWatermark);
     // May be null if output watermark not yet known.
-    @Nullable
-    final Instant outputDataWatermark =
+
+    final @Nullable Instant outputDataWatermark =
         WindmillTimeUtils.windmillToHarnessWatermark(workItem.getOutputDataWatermark());
     Preconditions.checkState(
         outputDataWatermark == null || !outputDataWatermark.isAfter(inputDataWatermark));
@@ -1150,8 +1147,7 @@ public class StreamingDataflowWorker {
    * Extracts the userland key coder, if any, from the coder used in the initial read step of a
    * stage. This encodes many assumptions about how the streaming execution context works.
    */
-  @Nullable
-  private Coder<?> extractKeyCoder(Coder<?> readCoder) {
+  private @Nullable Coder<?> extractKeyCoder(Coder<?> readCoder) {
     if (!(readCoder instanceof WindowedValueCoder)) {
       throw new RuntimeException(
           String.format(
@@ -1206,8 +1202,8 @@ public class StreamingDataflowWorker {
       final SdkWorkerHarness worker,
       final ComputationState computationState,
       final Instant inputDataWatermark,
-      @Nullable final Instant outputDataWatermark,
-      @Nullable final Instant synchronizedProcessingTime,
+      final @Nullable Instant outputDataWatermark,
+      final @Nullable Instant synchronizedProcessingTime,
       final Work work) {
     final Windmill.WorkItem workItem = work.getWorkItem();
     final String computationId = computationState.getComputationId();
@@ -2347,7 +2343,7 @@ public class StreamingDataflowWorker {
   private static class ExecutionState {
     public final DataflowWorkExecutor workExecutor;
     public final StreamingModeExecutionContext context;
-    @Nullable public final Coder<?> keyCoder;
+    public final @Nullable Coder<?> keyCoder;
     private final ExecutionStateTracker executionStateTracker;
 
     public ExecutionState(
@@ -2373,8 +2369,7 @@ public class StreamingDataflowWorker {
       return executionStateTracker;
     }
 
-    @Nullable
-    public Coder<?> getKeyCoder() {
+    public @Nullable Coder<?> getKeyCoder() {
       return keyCoder;
     }
   }

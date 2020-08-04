@@ -31,6 +31,7 @@ import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link SchemaProvider} for Java Bean objects.
@@ -72,7 +73,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj != null && this.getClass() == obj.getClass();
     }
   }
@@ -97,7 +98,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj != null && this.getClass() == obj.getClass();
     }
   }
@@ -177,7 +178,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     return obj != null && this.getClass() == obj.getClass();
   }
 }

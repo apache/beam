@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -125,7 +126,10 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
 
   static class GbkThenStatefulParDo<K, InputT, OutputT>
       extends PTransform<PCollection<KV<K, InputT>>, PCollectionTuple> {
+    @SuppressFBWarnings(
+        "SE_TRANSIENT_FIELD_NOT_RESTORED") // PTransforms do not actually support serialization.
     private final transient DoFn<KV<K, InputT>, OutputT> doFn;
+
     private final TupleTagList additionalOutputTags;
     private final TupleTag<OutputT> mainOutputTag;
     private final List<PCollectionView<?>> sideInputs;

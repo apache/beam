@@ -20,9 +20,9 @@ package org.apache.beam.sdk.io.splunk;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A class for capturing errors that occur while writing {@link SplunkEvent} to Splunk's Http Event
@@ -37,14 +37,11 @@ public abstract class SplunkWriteError {
     return new AutoValue_SplunkWriteError.Builder();
   }
 
-  @Nullable
-  public abstract Integer statusCode();
+  public abstract @Nullable Integer statusCode();
 
-  @Nullable
-  public abstract String statusMessage();
+  public abstract @Nullable String statusMessage();
 
-  @Nullable
-  public abstract String payload();
+  public abstract @Nullable String payload();
 
   /** A builder class for creating a {@link SplunkWriteError}. */
   @AutoValue.Builder

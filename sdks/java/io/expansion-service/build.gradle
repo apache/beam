@@ -20,7 +20,7 @@ apply plugin: 'org.apache.beam.module'
 apply plugin: 'application'
 mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
 
-applyJavaNature(
+applyJavaNature(enableChecker:false,
   automaticModuleName: 'org.apache.beam.sdk.io.expansion.service',
   exportJavadoc: false,
   validateShadowJar: false,
@@ -33,6 +33,9 @@ ext.summary = "Expansion service serving several Java IOs"
 dependencies {
   compile project(":sdks:java:expansion-service")
   compile project(":sdks:java:io:kafka")
+  compile project(":sdks:java:io:jdbc")
+  // Include postgres so it can be used with external JDBC
+  compile library.java.postgres
   runtime library.java.kafka_clients
   runtime library.java.slf4j_jdk14
 }

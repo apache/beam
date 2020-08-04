@@ -23,6 +23,8 @@ plugins {
   id 'ca.coglinc.javacc'
 }
 applyJavaNature(
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann'])
@@ -54,6 +56,7 @@ dependencies {
   compile "com.alibaba:fastjson:1.2.68"
   compile "org.codehaus.janino:janino:3.0.11"
   compile "org.codehaus.janino:commons-compiler:3.0.11"
+  provided "org.checkerframework:checker-qual:3.4.1"
   provided project(":sdks:java:io:kafka")
   provided project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:io:mongodb")

@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -61,6 +60,7 @@ import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.SideInput;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
+import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.GetInitialRestrictionMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.GetInitialWatermarkEstimatorStateMethod;
@@ -82,6 +82,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.TruncateResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -97,6 +98,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Utilities for working with {@link DoFnSignature}. See {@link #getSignature}. */
@@ -214,6 +216,17 @@ public class DoFnSignatures {
           Parameter.PaneInfoParameter.class,
           Parameter.PipelineOptionsParameter.class);
 
+  private static final Collection<Class<? extends Parameter>>
+      ALLOWED_TRUNCATE_RESTRICTION_PARAMETERS =
+          ImmutableList.of(
+              Parameter.ElementParameter.class,
+              Parameter.RestrictionParameter.class,
+              Parameter.RestrictionTrackerParameter.class,
+              Parameter.WindowParameter.class,
+              Parameter.TimestampParameter.class,
+              Parameter.PaneInfoParameter.class,
+              Parameter.PipelineOptionsParameter.class);
+
   private static final Collection<Class<? extends Parameter>> ALLOWED_NEW_TRACKER_PARAMETERS =
       ImmutableList.of(
           Parameter.ElementParameter.class,
@@ -303,8 +316,7 @@ public class DoFnSignatures {
     }
 
     /** Field access declaration declared in this context. */
-    @Nullable
-    public Map<String, FieldAccessDeclaration> getFieldAccessDeclarations() {
+    public @Nullable Map<String, FieldAccessDeclaration> getFieldAccessDeclarations() {
       return fieldAccessDeclarations;
     }
 
@@ -362,8 +374,6 @@ public class DoFnSignatures {
     private final Map<String, TimerFamilyParameter> timerFamilyParameters = new HashMap<>();
     private final List<Parameter> extraParameters = new ArrayList<>();
 
-    @Nullable private TypeDescriptor<? extends BoundedWindow> windowT;
-
     private MethodAnalysisContext() {}
 
     /** Indicates whether the specified {@link Parameter} is known in this context. */
@@ -375,8 +385,7 @@ public class DoFnSignatures {
      * Returns the specified {@link Parameter} if it is known in this context. Throws {@link
      * IllegalStateException} if there is more than one instance of the parameter.
      */
-    @Nullable
-    public <T extends Parameter> Optional<T> findParameter(Class<T> type) {
+    public @Nullable <T extends Parameter> Optional<T> findParameter(Class<T> type) {
       List<T> parameters = findParameters(type);
       switch (parameters.size()) {
         case 0:
@@ -394,12 +403,6 @@ public class DoFnSignatures {
     public <T extends Parameter> List<T> findParameters(Class<T> type) {
       return (List<T>)
           extraParameters.stream().filter(Predicates.instanceOf(type)).collect(Collectors.toList());
-    }
-
-    /** The window type, if any, used by this method. */
-    @Nullable
-    public TypeDescriptor<? extends BoundedWindow> getWindowType() {
-      return windowT;
     }
 
     /** State parameters declared in this context, keyed by {@link StateId}. */
@@ -520,6 +523,8 @@ public class DoFnSignatures {
         findAnnotatedMethod(errors, DoFn.GetInitialRestriction.class, fnClass, false);
     Method splitRestrictionMethod =
         findAnnotatedMethod(errors, DoFn.SplitRestriction.class, fnClass, false);
+    Method truncateRestrictionMethod =
+        findAnnotatedMethod(errors, TruncateRestriction.class, fnClass, false);
     Method getRestrictionCoderMethod =
         findAnnotatedMethod(errors, DoFn.GetRestrictionCoder.class, fnClass, false);
     Method newTrackerMethod = findAnnotatedMethod(errors, DoFn.NewTracker.class, fnClass, false);
@@ -717,6 +722,17 @@ public class DoFnSignatures {
                 fnContext));
       }
 
+      if (truncateRestrictionMethod != null) {
+        signatureBuilder.setTruncateRestriction(
+            analyzeTruncateRestrictionMethod(
+                errors.forMethod(TruncateRestriction.class, truncateRestrictionMethod),
+                fnT,
+                truncateRestrictionMethod,
+                inputT,
+                restrictionT,
+                fnContext));
+      }
+
       if (getSizeMethod != null) {
         signatureBuilder.setGetSize(
             analyzeGetSizeMethod(
@@ -777,6 +793,9 @@ public class DoFnSignatures {
       }
       if (splitRestrictionMethod != null) {
         forbiddenMethods.add("@" + format(DoFn.SplitRestriction.class));
+      }
+      if (truncateRestrictionMethod != null) {
+        forbiddenMethods.add("@" + format(TruncateRestriction.class));
       }
       if (newTrackerMethod != null) {
         forbiddenMethods.add("@" + format(DoFn.NewTracker.class));
@@ -1508,20 +1527,17 @@ public class DoFnSignatures {
     }
   }
 
-  @Nullable
-  private static String getTimerId(List<Annotation> annotations) {
+  private static @Nullable String getTimerId(List<Annotation> annotations) {
     DoFn.TimerId timerId = findFirstOfType(annotations, DoFn.TimerId.class);
     return timerId != null ? TimerDeclaration.PREFIX + timerId.value() : null;
   }
 
-  @Nullable
-  private static String getTimerFamilyId(List<Annotation> annotations) {
+  private static @Nullable String getTimerFamilyId(List<Annotation> annotations) {
     DoFn.TimerFamily timerFamilyId = findFirstOfType(annotations, DoFn.TimerFamily.class);
     return timerFamilyId != null ? TimerFamilyDeclaration.PREFIX + timerFamilyId.value() : null;
   }
 
-  @Nullable
-  private static String getStateId(List<Annotation> annotations) {
+  private static @Nullable String getStateId(List<Annotation> annotations) {
     DoFn.StateId stateId = findFirstOfType(annotations, DoFn.StateId.class);
     return stateId != null ? stateId.value() : null;
   }
@@ -1531,20 +1547,17 @@ public class DoFnSignatures {
     return alwaysFetched != null;
   }
 
-  @Nullable
-  private static String getFieldAccessId(List<Annotation> annotations) {
+  private static @Nullable String getFieldAccessId(List<Annotation> annotations) {
     DoFn.FieldAccess access = findFirstOfType(annotations, DoFn.FieldAccess.class);
     return access != null ? access.value() : null;
   }
 
-  @Nullable
-  private static String getSideInputId(List<Annotation> annotations) {
+  private static @Nullable String getSideInputId(List<Annotation> annotations) {
     DoFn.SideInput sideInputId = findFirstOfType(annotations, DoFn.SideInput.class);
     return sideInputId != null ? sideInputId.value() : null;
   }
 
-  @Nullable
-  static <T> T findFirstOfType(List<Annotation> annotations, Class<T> clazz) {
+  static @Nullable <T> T findFirstOfType(List<Annotation> annotations, Class<T> clazz) {
     Optional<Annotation> annotation =
         annotations.stream().filter(a -> a.annotationType().equals(clazz)).findFirst();
     return annotation.isPresent() ? (T) annotation.get() : null;
@@ -1554,8 +1567,7 @@ public class DoFnSignatures {
     return annotations.stream().anyMatch(a -> a.annotationType().equals(annotation));
   }
 
-  @Nullable
-  private static TypeDescriptor<? extends BoundedWindow> getWindowType(
+  private static @Nullable TypeDescriptor<? extends BoundedWindow> getWindowType(
       TypeDescriptor<?> fnClass, Method method) {
     Type[] params = method.getGenericParameterTypes();
     for (Type param : params) {
@@ -1791,6 +1803,59 @@ public class DoFnSignatures {
     }
 
     return DoFnSignature.SplitRestrictionMethod.create(
+        m, windowT, methodContext.getExtraParameters());
+  }
+
+  @VisibleForTesting
+  static DoFnSignature.TruncateRestrictionMethod analyzeTruncateRestrictionMethod(
+      ErrorReporter errors,
+      TypeDescriptor<? extends DoFn<?, ?>> fnT,
+      Method m,
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> restrictionT,
+      FnAnalysisContext fnContext) {
+    // Method is of the form:
+    // @TruncateRestriction
+    // TruncateResult<RestrictionT> truncateRestriction(... parameters ...);
+    errors.checkArgument(
+        TruncateResult.class.equals(m.getReturnType()), "Must return TruncateResult<Restriction>");
+    Type[] params = m.getGenericParameterTypes();
+    MethodAnalysisContext methodContext = MethodAnalysisContext.create();
+    TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnT, m);
+    for (int i = 0; i < params.length; ++i) {
+      Parameter extraParam =
+          analyzeExtraParameter(
+              errors,
+              fnContext,
+              methodContext,
+              fnT,
+              ParameterDescription.of(
+                  m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
+              inputT,
+              restrictionT);
+      if (extraParam instanceof SchemaElementParameter) {
+        errors.throwIllegalArgument(
+            "Schema @%s are not supported for @%s method. Found %s, did you mean to use %s?",
+            format(DoFn.Element.class),
+            format(TruncateRestriction.class),
+            format(((SchemaElementParameter) extraParam).elementT()),
+            format(inputT));
+      } else if (extraParam instanceof RestrictionParameter) {
+        errors.checkArgument(
+            restrictionT.equals(((RestrictionParameter) extraParam).restrictionT()),
+            "Uses restriction type %s, but @%s method uses restriction type %s",
+            format(((RestrictionParameter) extraParam).restrictionT()),
+            format(DoFn.GetInitialRestriction.class),
+            format(restrictionT));
+      }
+      methodContext.addParameter(extraParam);
+    }
+
+    for (Parameter parameter : methodContext.getExtraParameters()) {
+      checkParameterOneOf(errors, parameter, ALLOWED_TRUNCATE_RESTRICTION_PARAMETERS);
+    }
+
+    return DoFnSignature.TruncateRestrictionMethod.create(
         m, windowT, methodContext.getExtraParameters());
   }
 
@@ -2277,8 +2342,7 @@ public class DoFnSignatures {
     return ImmutableMap.copyOf(declarations);
   }
 
-  @Nullable
-  private static Method findAnnotatedMethod(
+  private static @Nullable Method findAnnotatedMethod(
       ErrorReporter errors, Class<? extends Annotation> anno, Class<?> fnClazz, boolean required) {
     Collection<Method> matches = declaredMethodsWithAnnotation(anno, fnClazz, DoFn.class);
 
@@ -2311,15 +2375,15 @@ public class DoFnSignatures {
   }
 
   private static String format(Method method) {
-    return ReflectHelpers.METHOD_FORMATTER.apply(method);
+    return ReflectHelpers.formatMethod(method);
   }
 
   private static String format(TypeDescriptor<?> t) {
-    return ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(t.getType());
+    return ReflectHelpers.simpleTypeDescription(t.getType());
   }
 
   private static String format(Class<?> kls) {
-    return ReflectHelpers.CLASS_SIMPLE_NAME.apply(kls);
+    return kls.getSimpleName();
   }
 
   static class ErrorReporter {

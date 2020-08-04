@@ -562,7 +562,7 @@ For this step, we recommend you using automation script to create a RC, but you 
   1. Run gradle release to create rc tag and push source release into github repo.
   1. Run gradle publish to push java artifacts into Maven staging repo.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
-  1. Stage,sign and hash python binaries into dist.apache.ord dev repo python dir
+  1. Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir
   1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
   1. Create a PR to update beam-site, changes includes:
      * Copy python doc into beam-site
@@ -595,12 +595,6 @@ For this step, we recommend you using automation script to create a RC, but you 
       1. Click the Close button.
       1. When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
       1. Review all staged artifacts on https://repository.apache.org/content/repositories/orgapachebeam-NNNN/. They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc. Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`. Carefully review any new artifacts.
-  1. Build and stage python wheels.
-      - There is a wrapper repo [beam-wheels](https://github.com/apache/beam-wheels) to help build python wheels.
-      - If you are interested in how it works, please refer to the [structure section](https://github.com/apache/beam-wheels#structure).
-      - Please follow the [user guide](https://github.com/apache/beam-wheels#user-guide) to build python wheels.
-      - Once all python wheels have been staged to GCS,
-      please run [./sign_hash_python_wheels.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh), which copies the wheels along with signatures and hashes to [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/).
 
 **********
 
@@ -743,7 +737,7 @@ You can (optionally) also do additional verification by:
 1. Check hashes (e.g. `md5sum -c *.md5` and `sha1sum -c *.sha1`)
 1. Check signatures (e.g. `gpg --verify apache-beam-1.2.3-python.zip.asc apache-beam-1.2.3-python.zip`)
 1. `grep` for legal headers in each file.
-1. Run all jenkins suites and include links to passing tests in the voting email. (Select "Run with parameters")
+1. Run all jenkins suites and include links to passing tests in the voting email.
 1. Pull docker images to make sure they are pullable.
 ```
 docker pull {image_name}

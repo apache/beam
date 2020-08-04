@@ -40,7 +40,7 @@ You can specify a different delimiter using the `delimiter` argument.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `ToString`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -61,7 +61,7 @@ The string output will be equivalent to `str(element)`.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `ToString`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
@@ -84,7 +84,7 @@ The string output will be equivalent to `iterable.join(delimiter)`.
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `ToString`:
+Output:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}

@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
@@ -39,6 +38,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormatter;
@@ -96,8 +96,7 @@ public class DisplayData implements Serializable {
    *
    * @return The inferred {@link Type}, or null if the type cannot be inferred,
    */
-  @Nullable
-  public static Type inferType(@Nullable Object value) {
+  public static @Nullable Type inferType(@Nullable Object value) {
     return Type.tryInferFrom(value);
   }
 
@@ -116,7 +115,7 @@ public class DisplayData implements Serializable {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (obj instanceof DisplayData) {
       DisplayData that = (DisplayData) obj;
       return Objects.equals(this.entries, that.entries);
@@ -241,7 +240,7 @@ public class DisplayData implements Serializable {
      * {@link #getType() type}.
      */
     @JsonGetter("value")
-    public abstract Object getValue();
+    public abstract @Nullable Object getValue();
 
     /**
      * Return the optional short value for an item, or null if none is provided.
@@ -256,8 +255,7 @@ public class DisplayData implements Serializable {
      */
     @JsonGetter("shortValue")
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    @Nullable
-    public abstract Object getShortValue();
+    public abstract @Nullable Object getShortValue();
 
     /**
      * Retrieve the optional label for an item. The label is a human-readable description of what
@@ -267,8 +265,7 @@ public class DisplayData implements Serializable {
      */
     @JsonGetter("label")
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    @Nullable
-    public abstract String getLabel();
+    public abstract @Nullable String getLabel();
 
     /**
      * Retrieve the optional link URL for an item. The URL points to an address where the reader can
@@ -278,8 +275,7 @@ public class DisplayData implements Serializable {
      */
     @JsonGetter("linkUrl")
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    @Nullable
-    public abstract String getLinkUrl();
+    public abstract @Nullable String getLinkUrl();
 
     private static Item create(ItemSpec<?> spec, Path path) {
       checkNotNull(spec, "spec cannot be null");
@@ -316,8 +312,7 @@ public class DisplayData implements Serializable {
      * The namespace for the display item. If unset, defaults to the component which the display
      * item is registered to.
      */
-    @Nullable
-    public abstract Class<?> getNamespace();
+    public abstract @Nullable Class<?> getNamespace();
 
     /**
      * The key for the display item. Each display item is created with a key and value via {@link
@@ -336,8 +331,7 @@ public class DisplayData implements Serializable {
      * DisplayData#item} into a format suitable for display. Translation is based on the item's
      * {@link #getType() type}.
      */
-    @Nullable
-    public abstract Object getValue();
+    public abstract @Nullable Object getValue();
 
     /**
      * The optional short value for an item, or {@code null} if none is provided.
@@ -350,22 +344,19 @@ public class DisplayData implements Serializable {
      * also provide a short-value. If a short value is provided, display data consumers may choose
      * to display it instead of or in addition to the {@link #getValue() value}.
      */
-    @Nullable
-    public abstract Object getShortValue();
+    public abstract @Nullable Object getShortValue();
 
     /**
      * The optional label for an item. The label is a human-readable description of what the
      * metadata represents. UIs may choose to display the label instead of the item key.
      */
-    @Nullable
-    public abstract String getLabel();
+    public abstract @Nullable String getLabel();
 
     /**
      * The optional link URL for an item. The URL points to an address where the reader can find
      * additional context for the display data.
      */
-    @Nullable
-    public abstract String getLinkUrl();
+    public abstract @Nullable String getLinkUrl();
 
     private static <T> ItemSpec<T> create(String key, Type type, @Nullable T value) {
       return ItemSpec.<T>builder().setKey(key).setType(type).setRawValue(value).build();
@@ -564,7 +555,7 @@ public class DisplayData implements Serializable {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj instanceof Path && Objects.equals(components, ((Path) obj).components);
     }
 
@@ -660,8 +651,7 @@ public class DisplayData implements Serializable {
       return format(value);
     }
 
-    @Nullable
-    private static Type tryInferFrom(@Nullable Object value) {
+    private static @Nullable Type tryInferFrom(@Nullable Object value) {
       if (value instanceof Integer || value instanceof Long) {
         return INTEGER;
       } else if (value instanceof Double || value instanceof Float) {
@@ -686,8 +676,8 @@ public class DisplayData implements Serializable {
     /** Default instance which contains null values. */
     private static final FormattedItemValue NULL_VALUES = new FormattedItemValue(null);
 
-    @Nullable private final Object shortValue;
-    @Nullable private final Object longValue;
+    private final @Nullable Object shortValue;
+    private final @Nullable Object longValue;
 
     private FormattedItemValue(@Nullable Object longValue) {
       this(longValue, null);
@@ -712,8 +702,8 @@ public class DisplayData implements Serializable {
     private final Set<HasDisplayData> visitedComponents;
     private final Map<Path, HasDisplayData> visitedPathMap;
 
-    @Nullable private Path latestPath;
-    @Nullable private Class<?> latestNs;
+    private @Nullable Path latestPath;
+    private @Nullable Class<?> latestNs;
 
     private InternalBuilder() {
       this.entries = Maps.newHashMap();

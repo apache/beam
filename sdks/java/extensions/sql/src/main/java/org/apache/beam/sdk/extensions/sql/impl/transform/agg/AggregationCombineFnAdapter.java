@@ -17,18 +17,19 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
+import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAnalyticFunctions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.AggregateCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Wrapper {@link CombineFn}s for aggregation function calls. */
 public class AggregationCombineFnAdapter<T> {
@@ -62,8 +63,7 @@ public class AggregationCombineFnAdapter<T> {
       return combineFn.extractOutput(accumulator);
     }
 
-    @Nullable
-    abstract T getInput(T input);
+    abstract @Nullable T getInput(T input);
 
     @Override
     public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<T> inputCoder)
@@ -158,6 +158,23 @@ public class AggregationCombineFnAdapter<T> {
     } else {
       return new MultiInputCombiner(combineFn);
     }
+  }
+
+  /** Creates either a UDAF or a built-in {@link CombineFn} for Analytic Functions. */
+  public static CombineFn<?, ?, ?> createCombineFnAnalyticsFunctions(
+      AggregateCall call, Schema.Field field, String functionName) {
+    if (call.isDistinct()) {
+      throw new UnsupportedOperationException(
+          "Does not support " + call.getAggregation().getName() + " DISTINCT");
+    }
+
+    CombineFn combineFn;
+    if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
+      combineFn = getUdafCombineFn(call);
+    } else {
+      combineFn = BeamBuiltinAnalyticFunctions.create(functionName, field.getType());
+    }
+    return combineFn;
   }
 
   public static CombineFn<Row, ?, Row> createConstantCombineFn() {

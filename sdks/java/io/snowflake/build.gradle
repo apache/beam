@@ -16,7 +16,10 @@
  * limitations under the License.
  */
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.snowflake')
+applyJavaNature(
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.sdk.io.snowflake')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Snowflake"

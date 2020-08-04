@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker;
 
 import java.util.Collection;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The minimal amount of information required to create and use a {@link SideInputReader} when using

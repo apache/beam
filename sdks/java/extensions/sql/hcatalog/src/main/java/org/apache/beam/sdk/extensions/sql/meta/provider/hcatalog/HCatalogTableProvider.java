@@ -21,11 +21,11 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.hcatalog.HCatalogBeamSchema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Table provider that represents a schema stored in Hive Metastore.

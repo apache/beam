@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.hadoop.common')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.hadoop.common')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Common"
 ext.summary = "Library to add shared Hadoop classes among Beam IOs."

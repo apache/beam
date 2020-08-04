@@ -76,45 +76,38 @@ func goCapabilities() []string {
 	return append(capabilities, knownStandardCoders()...)
 }
 
+// CreateEnvironment produces the appropriate payload for the type of environment.
 func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig func(context.Context) string) *pipepb.Environment {
+	var serializedPayload []byte
 	switch urn {
 	case "beam:env:process:v1":
 		// TODO Support process based SDK Harness.
 		panic(fmt.Sprintf("Unsupported environment %v", urn))
+	case "beam:env:external:v1":
+		config := extractEnvironmentConfig(ctx)
+		payload := &pipepb.ExternalPayload{Endpoint: &pipepb.ApiServiceDescriptor{Url: config}}
+		serializedPayload = protox.MustEncode(payload)
 	case "beam:env:docker:v1":
 		fallthrough
 	default:
 		config := extractEnvironmentConfig(ctx)
 		payload := &pipepb.DockerPayload{ContainerImage: config}
-		serializedPayload, err := proto.Marshal(payload)
-		if err != nil {
-			panic(fmt.Sprintf(
-				"Failed to serialize Environment payload %v for config %v: %v", payload, config, err))
-		}
-
-		return &pipepb.Environment{
-			Urn:          urn,
-			Payload:      serializedPayload,
-			Capabilities: goCapabilities(),
-			Dependencies: []*pipepb.ArtifactInformation{
-				&pipepb.ArtifactInformation{
-					TypeUrn: URNArtifactGoWorker,
-					RoleUrn: URNArtifactStagingTo,
-					RolePayload: MustMarshal(&pipepb.ArtifactStagingToRolePayload{
-						StagedName: "worker",
-					}),
-				},
+		serializedPayload = protox.MustEncode(payload)
+	}
+	return &pipepb.Environment{
+		Urn:          urn,
+		Payload:      serializedPayload,
+		Capabilities: goCapabilities(),
+		Dependencies: []*pipepb.ArtifactInformation{
+			&pipepb.ArtifactInformation{
+				TypeUrn: URNArtifactGoWorker,
+				RoleUrn: URNArtifactStagingTo,
+				RolePayload: protox.MustEncode(&pipepb.ArtifactStagingToRolePayload{
+					StagedName: "worker",
+				}),
 			},
-		}
+		},
 	}
-}
-
-func MustMarshal(msg proto.Message) []byte {
-	res, err := proto.Marshal(msg)
-	if err != nil {
-		panic(err)
-	}
-	return res
 }
 
 // TODO(herohde) 11/6/2017: move some of the configuration into the graph during construction.
