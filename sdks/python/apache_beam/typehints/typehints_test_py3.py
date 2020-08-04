@@ -23,8 +23,10 @@ supported by 2.7."""
 from __future__ import absolute_import
 from __future__ import print_function
 
+import typing
 import unittest
 
+import apache_beam.typehints.typehints as typehints
 from apache_beam import Map
 from apache_beam import PTransform
 from apache_beam.pvalue import PBegin
@@ -229,6 +231,43 @@ class TestPTransformAnnotations(unittest.TestCase):
       self.assertIn(output_error_str, log.output[1])
       self.assertEqual(th.input_types, None)
       self.assertEqual(th.output_types, None)
+
+  def test_typing_module_annotations_are_converted_to_beam_annotations(self):
+    class MyPTransform(PTransform):
+      def expand(
+          self, pcoll: PCollection[typing.Dict[str, str]]
+      ) -> PCollection[typing.Dict[str, str]]:
+        return pcoll
+
+    th = MyPTransform().get_type_hints()
+    self.assertEqual(th.input_types, ((typehints.Dict[str, str], ), {}))
+    self.assertEqual(th.input_types, ((typehints.Dict[str, str], ), {}))
+
+  def test_nested_typing_annotations_are_converted_to_beam_annotations(self):
+    class MyPTransform(PTransform):
+      def expand(self, pcoll:
+                 PCollection[typing.Union[int, typing.Any, typing.Dict[str, float]]]) \
+              -> PCollection[typing.Union[int, typing.Any, typing.Dict[str, float]]]:
+        return pcoll
+
+    th = MyPTransform().get_type_hints()
+    self.assertEqual(
+        th.input_types,
+        ((typehints.Union[int, typehints.Any, typehints.Dict[str,
+                                                             float]], ), {}))
+    self.assertEqual(
+        th.input_types,
+        ((typehints.Union[int, typehints.Any, typehints.Dict[str,
+                                                             float]], ), {}))
+
+  def test_mixed_annotations_are_converted_to_beam_annotations(self):
+    class MyPTransform(PTransform):
+      def expand(self, pcoll: typing.Any) -> typehints.Any:
+        return pcoll
+
+    th = MyPTransform().get_type_hints()
+    self.assertEqual(th.input_types, ((typehints.Any, ), {}))
+    self.assertEqual(th.input_types, ((typehints.Any, ), {}))
 
 
 if __name__ == '__main__':

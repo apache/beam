@@ -426,16 +426,15 @@ class IOTypeHints(NamedTuple(
       return self
 
     special_containers += [PCollection]
+    kwarg_dict = {}
 
     if (my_type not in special_containers and
         getattr(my_type, '__origin__', None) != PCollection):
       logging.warning(error_str + ' Got: %s instead.' % my_type)
-      kwarg_dict = {}
       kwarg_dict[my_key] = None
       return self._replace(
           origin=self._make_origin([self], tb=False, msg=[source_str]),
           **kwarg_dict)
-    kwarg_dict = {}
 
     if (getattr(my_type, '__args__', -1) in [-1, None] or
         len(my_type.__args__) == 0):
@@ -443,7 +442,7 @@ class IOTypeHints(NamedTuple(
       kwarg_dict[my_key] = ((typehints.Any, ), {})
     else:
       # e.g. PCollection[type]
-      kwarg_dict[my_key] = ((my_type.__args__[0], ), {})
+      kwarg_dict[my_key] = ((convert_to_beam_type(my_type.__args__[0]), ), {})
 
     return self._replace(
         origin=self._make_origin([self], tb=False, msg=[source_str]),
