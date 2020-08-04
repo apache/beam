@@ -24,6 +24,7 @@
   },
   "include": [
     "src/*",
+    "src/common/*",
     "src/kernel/*",
     "src/__tests__/**/*"
   ]
