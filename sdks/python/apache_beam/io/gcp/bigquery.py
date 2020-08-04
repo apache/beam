@@ -1488,9 +1488,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
   def _compute_method(self, experiments, is_streaming_pipeline):
     # If the new BQ sink is not activated for experiment flags, then we use
     # streaming inserts by default (it gets overridden in dataflow_runner.py).
-    if 'use_beam_bq_sink' not in experiments:
-      return self.Method.STREAMING_INSERTS
-    elif self.method == self.Method.DEFAULT and is_streaming_pipeline:
+    if self.method == self.Method.DEFAULT and is_streaming_pipeline:
       return self.Method.STREAMING_INSERTS
     elif self.method == self.Method.DEFAULT and not is_streaming_pipeline:
       return self.Method.FILE_LOADS
