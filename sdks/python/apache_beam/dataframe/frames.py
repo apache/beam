@@ -35,20 +35,34 @@ class DeferredSeries(frame_base.DeferredFrame):
   transform = frame_base._elementwise_method(
       'transform', restrictions={'axis': 0})
 
-  def agg(self, *args, **kwargs):
-    return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'agg',
-            lambda df: df.agg(*args, **kwargs), [self._expr],
-            preserves_partition_by=partitionings.Singleton(),
-            requires_partition_by=partitionings.Singleton()))
+  def agg(self, func, axis=0, *args, **kwargs):
+    if isinstance(func, list) and len(func) > 1:
+      rows = [self.agg([f], *args, **kwargs) for f in func]
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'join_aggregate',
+              lambda *rows: pd.concat(rows), [row._expr for row in rows]))
+    else:
+      base_func = func[0] if isinstance(func, list) else func
+      if _is_associative(base_func) and not args and not kwargs:
+        intermediate = expressions.elementwise_expression(
+            'pre_agg',
+            lambda s: s.agg([base_func], *args, **kwargs), [self._expr])
+      else:
+        intermediate = self._expr
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'agg',
+              lambda s: s.agg(func, *args, **kwargs), [intermediate],
+              preserves_partition_by=partitionings.Singleton(),
+              requires_partition_by=partitionings.Singleton()))
 
-  all = frame_base._associative_agg_method('all')
-  any = frame_base._associative_agg_method('any')
-  min = frame_base._associative_agg_method('min')
-  max = frame_base._associative_agg_method('max')
-  prod = product = frame_base._associative_agg_method('prod')
-  sum = frame_base._associative_agg_method('sum')
+  all = frame_base._agg_method('all')
+  any = frame_base._agg_method('any')
+  min = frame_base._agg_method('min')
+  max = frame_base._agg_method('max')
+  prod = product = frame_base._agg_method('prod')
+  sum = frame_base._agg_method('sum')
 
   cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
       'order-sensitive')
@@ -159,17 +173,49 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   def loc(self):
     return _DeferredLoc(self)
 
-  def aggregate(self, *args, **kwargs):
-    if 'axis' in kwargs and kwargs['axis'] is None:
-      return self.agg(*args, **dict(kwargs, axis=1)).agg(
-          *args, **dict(kwargs, axis=0))
-    return frame_base.DeferredFrame.wrap(
+  def aggregate(self, func, axis=0, *args, **kwargs):
+    if axis is None:
+      return self.agg(func, *args, **dict(kwargs, axis=1)).agg(
+          func, *args, **dict(kwargs, axis=0))
+    elif axis in (1, 'columns'):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'aggregate',
+              lambda df: df.agg(func, axis=1, *args, **kwargs),
+              [self._expr],
+              requires_partition_by=partitionings.Nothing()))
+    elif len(self._expr.proxy().columns) == 0 or args or kwargs:
+      return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'aggregate',
-            lambda df: df.agg(*args, **kwargs),
+            lambda df: df.agg(func, *args, **kwargs),
             [self._expr],
-            # TODO(robertwb): Sub-aggregate when possible.
             requires_partition_by=partitionings.Singleton()))
+    else:
+      if not isinstance(func, dict):
+        func = {col: func for col in self._expr.proxy().columns}
+      aggregated_cols = []
+      col_names = list(func.keys())  # Reify the order.
+      for col in col_names:
+        funcs = func[col]
+        if not isinstance(funcs, list):
+          funcs = [funcs]
+        aggregated_cols.append(self[col].agg(funcs, *args, **kwargs))
+      if any(isinstance(funcs, list) for funcs in func.values()):
+        return frame_base.DeferredFrame.wrap(
+            expressions.ComputedExpression(
+                'join_aggregate',
+                lambda *cols: pd.DataFrame(
+                    {col: value for col, value in zip(col_names, cols)}),
+                [col._expr for col in aggregated_cols]))
+      else:
+        return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'join_aggregate',
+                lambda *cols: pd.Series(
+                    {col: value[0] for col, value in zip(col_names, cols)}),
+              [col._expr for col in aggregated_cols],
+              proxy=self._expr.proxy().agg(func, *args, **kwargs)))
 
   agg = aggregate
 
@@ -177,16 +223,27 @@ class DeferredDataFrame(frame_base.DeferredFrame):
 
   memory_usage = frame_base.wont_implement_method('non-deferred value')
 
-  all = frame_base._associative_agg_method('all')
-  any = frame_base._associative_agg_method('any')
+  all = frame_base._agg_method('all')
+  any = frame_base._agg_method('any')
 
   cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
       'order-sensitive')
   diff = frame_base.wont_implement_method('order-sensitive')
 
-  max = frame_base._associative_agg_method('max')
-  min = frame_base._associative_agg_method('min')
-  mode = frame_base._agg_method('mode')
+  max = frame_base._agg_method('max')
+  min = frame_base._agg_method('min')
+
+  def mode(self, axis=0, *args, **kwargs):
+    if axis == 1 or axis == 'columns':
+      raise frame_base.WontImplementError('non-deferred column values')
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'mode',
+            lambda df: df.mode(*args, **kwargs),
+            [self._expr],
+            #TODO(robertwb): Approximate?
+            requires_partition_by=partitionings.Singleton(),
+            preserves_partition_by=partitionings.Singleton()))
 
   def dropna(
       self,
@@ -221,7 +278,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
 
-  prod = product = frame_base._associative_agg_method('prod')
+  prod = product = frame_base._agg_method('prod')
 
   def quantile(self, q=0.5, axis=0, *args, **kwargs):
     if axis != 0:
@@ -319,7 +376,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
 
   stack = frame_base._elementwise_method('stack')
 
-  sum = frame_base._associative_agg_method('sum')
+  sum = frame_base._agg_method('sum')
 
   to_records = to_dict = to_numpy = to_string = (
       frame_base.wont_implement_method('non-deferred value'))
@@ -411,6 +468,12 @@ for meth in LIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _liftable_agg(meth))
 for meth in UNLIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _unliftable_agg(meth))
+
+
+def _is_associative(func):
+  return func in LIFTABLE_AGGREGATIONS or (
+      getattr(func, '__name__', None) in LIFTABLE_AGGREGATIONS
+      and func.__module__ in ('numpy', 'builtins'))
 
 
 class _DeferredLoc(object):

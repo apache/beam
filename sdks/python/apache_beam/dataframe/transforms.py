@@ -125,6 +125,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         return '%s:%s' % (self.stage.ops, id(self))
 
       def expand(self, pcolls):
+
         scalar_inputs = [expr for expr in self.stage.inputs if is_scalar(expr)]
         tabular_inputs = [
             expr for expr in self.stage.inputs if not is_scalar(expr)
@@ -179,6 +180,22 @@ class _DataframeExpressionsTransform(transforms.PTransform):
           self.partitioning = partitioning
         self.ops = []
         self.outputs = set()
+
+      def __repr__(self, indent=0):
+        if indent:
+          sep = '\n' + ' ' * indent
+        else:
+          sep = ''
+        return (
+            "Stage[%sinputs=%s, %spartitioning=%s, %sops=%s, %soutputs=%s]" % (
+                sep,
+                self.inputs,
+                sep,
+                self.partitioning,
+                sep,
+                self.ops,
+                sep,
+                self.outputs))
 
     # First define some helper functions.
     def output_is_partitioned_by(expr, stage, partitioning):
@@ -244,6 +261,9 @@ class _DataframeExpressionsTransform(transforms.PTransform):
             # It also must be declared as an output of the producing stage.
             expr_to_stage(arg).outputs.add(arg)
       stage.ops.append(expr)
+      for arg in expr.args():
+        if arg in inputs:
+          stage.inputs.add(arg)
       # This is a list as given expression may be available in many stages.
       return [stage]
 

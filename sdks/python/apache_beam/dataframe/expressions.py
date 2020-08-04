@@ -62,7 +62,7 @@ class Expression(object):
     self._name = name
     self._proxy = proxy
     # Store for preservation through pickling.
-    self._id = _id or '%s_%s' % (name, id(self))
+    self._id = _id or '%s_%s_%s' % (name, type(proxy).__name__, id(self))
 
   def proxy(self):  # type: () -> T
     return self._proxy

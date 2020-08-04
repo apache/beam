@@ -35,7 +35,7 @@ class DeferredFrameTest(unittest.TestCase):
     expected = func(*args)
     actual = expressions.Session({}).evaluate(func(*deferred_args)._expr)
     self.assertTrue(
-        expected.equals(actual),
+        getattr(expected, 'equals', expected.__eq__)(actual),
         'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
 
   def test_series_arithmetic(self):
@@ -79,6 +79,23 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.loc[:dates[3]], df)
     self._run_test(lambda df: df.loc[df.A > 10], df)
     self._run_test(lambda df: df.loc[lambda df: df.A > 10], df)
+
+  def test_series_agg(self):
+    s = pd.Series(range(16))
+    self._run_test(lambda s: s.agg('sum'), s)
+    self._run_test(lambda s: s.agg(['sum']), s)
+    self._run_test(lambda s: s.agg(['sum', 'mean']), s)
+    self._run_test(lambda s: s.agg(['mean']), s)
+    self._run_test(lambda s: s.agg('mean'), s)
+
+  def test_dataframe_agg(self):
+    df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
+    self._run_test(lambda df: df.agg('sum'), df)
+    self._run_test(lambda df: df.agg(['sum', 'mean']), df)
+    self._run_test(lambda df: df.agg({'A': 'sum', 'B': 'sum'}), df)
+    self._run_test(lambda df: df.agg({'A': 'sum', 'B': 'mean'}), df)
+    self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
+    self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
 
 
 if __name__ == '__main__':

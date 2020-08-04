@@ -205,11 +205,6 @@ def _agg_method(func):
   return wrapper
 
 
-def _associative_agg_method(func):
-  # TODO(robertwb): Multi-level agg.
-  return _agg_method(func)
-
-
 def wont_implement_method(msg):
   def wrapper(self, *args, **kwargs):
     raise WontImplementError(msg)
