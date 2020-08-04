@@ -16,27 +16,20 @@
   ~ limitations under the License.
   -->
 
-# Additional Parameters - Window and Timestamp
+# Windowing
 
-This lesson introduces the concept of windowing and timestamped PCollection elements.
-Before discussing windowing, we need to distinguish bounded from unbounded data.
-Bounded data is of a fixed size such as a file or database query.  Unbounded data comes
-from a continuously updated source such as a subscription or stream.
+This lesson introduces the concept of windowed PCollection elements.  A window is a view into a fixed beginning and 
+fixed end to a set of data.  In the beam model, windowing subdivides a PCollection according to the
+timestamps of its individual elements.
 
-A window is a view into a fixed beginning and fixed end to a set of data.  In the beam model, windowing subdivides 
-a PCollection according to the timestamps of its individual elements.  This is useful
-for unbounded data because it allows the model to work with fixed element sizes.  Note that windowing
-is not unique to unbounded data.  The beam model windows all data whether it is bounded or unbounded.
-Yet, when you read from a fixed size source such as a file, beam applies the same timestamp to all the elements.
-
-Beam will include information about the window and timestamp to your elements in your DoFn.  All your previous
-lessons' DoFn had this information provided, yet you never made use of it in your DoFn parameters.  In this 
+Beam can pass information about the window and timestamp to your elements in your DoFn.  All your previous
+lessons' DoFn had this information available, yet you never made use of it in your DoFn parameters.  In this 
 lesson you will.  The simple toy dataset has five git commit messages and their timestamps 
-from the [Apache Beam public repository](https://github.com/apache/beam).  Their timestamps have been
-applied to the PCollection input to simulate an unbounded dataset.
+from the [Apache Beam public repository](https://github.com/apache/beam).  Timestamps have been
+applied to this PCollection input according to the date and time of these messages.
 
 **Kata:** This lesson challenges you to apply an hourly fixed window to a PCollection.  You are then to 
-apply a ParDo to the hourly fixed windowed PCollection to produce a PCollection of a Commit struct.  The
+apply a ParDo to that hourly fixed windowed PCollection to produce a PCollection of a Commit struct.  The
 Commit struct is provided for you.  You are encouraged to run the pipeline at cmd/main.go of this task 
 to visualize the windowing and timestamps.
 
