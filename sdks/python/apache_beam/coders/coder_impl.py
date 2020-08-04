@@ -533,6 +533,14 @@ class BooleanCoderImpl(CoderImpl):
 class MapCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
+  Note this implementation always uses nested context when encoding keys
+  and values. This differs from Java's MapCoder, which uses
+  nested=False if possible for the last value encoded.
+
+  This difference is acceptable because MapCoder is not standard. It is only
+  used in a standard context by RowCoder which always uses nested context for
+  attribute values.
+
   A coder for typing.Mapping objects."""
   def __init__(
       self,
@@ -547,18 +555,19 @@ class MapCoderImpl(StreamCoderImpl):
     out.write_bigendian_int32(size)
     for i, kv in enumerate(value.items()):
       key, value = kv
-      last = i == size - 1
+      # Note this implementation always uses nested context when encoding keys
+      # and values which differs from Java. See note in docstring.
       self._key_coder.encode_to_stream(key, out, True)
-      self._value_coder.encode_to_stream(value, out, not (last and not nested))
+      self._value_coder.encode_to_stream(value, out, True)
 
   def decode_from_stream(self, in_stream, nested):
     size = in_stream.read_bigendian_int32()
     result = {}
     for i in range(size):
-      last = i == size - 1
+      # Note this implementation always uses nested context when encoding keys
+      # and values which differs from Java. See note in docstring.
       key = self._key_coder.decode_from_stream(in_stream, True)
-      value = self._value_coder.decode_from_stream(
-          in_stream, not (last and not nested))
+      value = self._value_coder.decode_from_stream(in_stream, True)
       result[key] = value
 
     return result
@@ -567,10 +576,8 @@ class MapCoderImpl(StreamCoderImpl):
     estimate = 4  # 4 bytes for int32 size prefix
     for i, kv in enumerate(unused_value.items()):
       key, value = kv
-      last = i == len(unused_value) - 1
       estimate += self._key_coder.estimate_size(key, True)
-      estimate += self._value_coder.estimate_size(
-          value, not (last and not nested))
+      estimate += self._value_coder.estimate_size(value, True)
     return estimate
 
 
