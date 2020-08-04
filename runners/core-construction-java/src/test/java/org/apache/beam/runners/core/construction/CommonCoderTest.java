@@ -380,7 +380,8 @@ public class CommonCoderTest {
                             parseField(entry.getValue(), fieldType.getMapValueType())));
         return kvMap;
       case ROW:
-        Map<String, Object> rowMap = (Map<String, Object>) value;
+        // Clone map so we don't mutate the underlying value
+        Map<String, Object> rowMap = new HashMap<>((Map<String, Object>) value);
         Schema schema = fieldType.getRowSchema();
         Row.Builder row = Row.withSchema(schema);
         for (Schema.Field field : schema.getFields()) {
