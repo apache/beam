@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -34,12 +35,12 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -724,7 +725,7 @@ public class RowTest {
     Row a = Row.withSchema(schema).addValue(a0).build();
     Row b = Row.withSchema(schema).addValue(b0).build();
 
-    Assert.assertEquals(a, b);
+    assertEquals(a, b);
   }
 
   @Test
@@ -737,6 +738,41 @@ public class RowTest {
     Row a = Row.withSchema(schema).addValue(ByteBuffer.wrap(a0)).build();
     Row b = Row.withSchema(schema).addValue(ByteBuffer.wrap(b0)).build();
 
-    Assert.assertEquals(a, b);
+    assertEquals(a, b);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testLogicalTypeWithInvalidInputValueByFieldName() {
+    Schema schema = Schema.builder().addLogicalTypeField("char", FixedBytes.of(10)).build();
+    byte[] byteArrayWithLengthFive = {1, 2, 3, 4, 5};
+    Row row = Row.withSchema(schema).withFieldValue("char", byteArrayWithLengthFive).build();
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testLogicalTypeWithInvalidInputValueByFieldIndex() {
+    Schema schema = Schema.builder().addLogicalTypeField("char", FixedBytes.of(10)).build();
+    byte[] byteArrayWithLengthFive = {1, 2, 3, 4, 5};
+    Row row = Row.withSchema(schema).addValues(byteArrayWithLengthFive).build();
+  }
+
+  @Test
+  public void testFixedBytes() {
+    Schema schema = Schema.builder().addLogicalTypeField("char", FixedBytes.of(10)).build();
+    byte[] byteArray = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    Row row = Row.withSchema(schema).withFieldValue("char", byteArray).build();
+    assertTrue(Arrays.equals(byteArray, row.getLogicalTypeValue("char", byte[].class)));
+  }
+
+  @Test
+  public void testWithFieldValues() {
+    EnumerationType enumerationType = EnumerationType.create("zero", "one", "two");
+    Schema schema = Schema.builder().addLogicalTypeField("f1_enum", enumerationType).build();
+    Row row =
+        Row.withSchema(schema)
+            .withFieldValues(ImmutableMap.of("f1_enum", enumerationType.valueOf("zero")))
+            .build();
+    assertEquals(enumerationType.valueOf(0), row.getValue(0));
+    assertEquals(
+        enumerationType.valueOf("zero"), row.getLogicalTypeValue(0, EnumerationType.Value.class));
   }
 }

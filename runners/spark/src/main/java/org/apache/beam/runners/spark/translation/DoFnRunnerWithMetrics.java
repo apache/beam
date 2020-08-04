@@ -93,6 +93,11 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
     }
   }
 
+  @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    delegate.onWindowExpiration(window, timestamp, key);
+  }
+
   private MetricsContainer metricsContainer() {
     return metricsAccum.value().getContainer(stepName);
   }

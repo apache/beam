@@ -23,16 +23,15 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
-import org.apache.beam.runners.core.construction.graph.PipelineTrimmer;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
+import org.apache.beam.runners.core.construction.graph.TrivialNativeTransformExpander;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.PortablePipelineJarUtils;
@@ -48,6 +47,7 @@ import org.apache.beam.sdk.options.PortablePipelineOptions.RetrievalServiceType;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -98,7 +98,8 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
 
     // Don't let the fuser fuse any subcomponents of native transforms.
     Pipeline trimmedPipeline =
-        PipelineTrimmer.trim(pipelineWithSdfExpanded, translator.knownUrns());
+        TrivialNativeTransformExpander.forKnownUrns(
+            pipelineWithSdfExpanded, translator.knownUrns());
 
     // Fused pipeline proto.
     // TODO: Consider supporting partially-fused graphs.

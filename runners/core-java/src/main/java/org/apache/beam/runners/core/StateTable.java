@@ -20,13 +20,13 @@ package org.apache.beam.runners.core;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateTag.StateBinder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Table mapping {@code StateNamespace} and {@code StateTag<?>} to a {@code State} instance.
@@ -66,8 +66,7 @@ public abstract class StateTable {
    * Gets the {@link State} in the specified {@link StateNamespace} with the specified identifier or
    * {@code null} if it is not yet present.
    */
-  @Nullable
-  public State getOrNull(
+  public @Nullable State getOrNull(
       StateNamespace namespace, Equivalence.Wrapper<StateTag> tag, StateContext<?> c) {
     return stateTable.get(namespace, tag);
   }

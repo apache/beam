@@ -22,24 +22,24 @@ import PostcommitJobBuilder
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_SQL', 'Run SQL PostCommit',
-  'SQL Post Commit Tests', this) {
+    'SQL Post Commit Tests', this) {
 
-  description('Runs PostCommit tests for Beam SQL.')
+      description('Runs PostCommit tests for Beam SQL.')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-  // Publish all test results to Jenkins
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
+      // Publish all test results to Jenkins
+      publishers {
+        archiveJunit('**/build/test-results/**/*.xml')
+      }
 
-  // Gradle goals for this job.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sqlPostCommit')
-      commonJobProperties.setGradleSwitches(delegate)
+      // Gradle goals for this job.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sqlPostCommit')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}

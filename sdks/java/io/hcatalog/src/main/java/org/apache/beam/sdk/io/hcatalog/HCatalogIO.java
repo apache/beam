@@ -26,7 +26,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -60,6 +59,7 @@ import org.apache.hive.hcatalog.data.transfer.ReadEntity;
 import org.apache.hive.hcatalog.data.transfer.ReaderContext;
 import org.apache.hive.hcatalog.data.transfer.WriteEntity;
 import org.apache.hive.hcatalog.data.transfer.WriterContext;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -150,32 +150,23 @@ public class HCatalogIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<HCatRecord>> {
 
-    @Nullable
-    abstract Map<String, String> getConfigProperties();
+    abstract @Nullable Map<String, String> getConfigProperties();
 
-    @Nullable
-    abstract String getDatabase();
+    abstract @Nullable String getDatabase();
 
-    @Nullable
-    abstract String getTable();
+    abstract @Nullable String getTable();
 
-    @Nullable
-    abstract String getFilter();
+    abstract @Nullable String getFilter();
 
-    @Nullable
-    abstract ReaderContext getContext();
+    abstract @Nullable ReaderContext getContext();
 
-    @Nullable
-    abstract Integer getSplitId();
+    abstract @Nullable Integer getSplitId();
 
-    @Nullable
-    abstract Duration getPollingInterval();
+    abstract @Nullable Duration getPollingInterval();
 
-    @Nullable
-    abstract List<String> getPartitionCols();
+    abstract @Nullable List<String> getPartitionCols();
 
-    @Nullable
-    abstract TerminationCondition<Read, ?> getTerminationCondition();
+    abstract @Nullable TerminationCondition<Read, ?> getTerminationCondition();
 
     abstract Builder toBuilder();
 
@@ -428,17 +419,14 @@ public class HCatalogIO {
   /** A {@link PTransform} to write to a HCatalog managed source. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<HCatRecord>, PDone> {
-    @Nullable
-    abstract Map<String, String> getConfigProperties();
 
-    @Nullable
-    abstract String getDatabase();
+    abstract @Nullable Map<String, String> getConfigProperties();
 
-    @Nullable
-    abstract String getTable();
+    abstract @Nullable String getDatabase();
 
-    @Nullable
-    abstract Map<String, String> getPartition();
+    abstract @Nullable String getTable();
+
+    abstract @Nullable Map<String, String> getPartition();
 
     abstract long getBatchSize();
 

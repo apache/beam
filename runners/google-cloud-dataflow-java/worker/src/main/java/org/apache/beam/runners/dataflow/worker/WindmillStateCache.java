@@ -39,6 +39,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuild
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalCause;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Weigher;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Process-wide cache of per-key state.
@@ -50,7 +51,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMult
  * thread at a time, so this is safe.
  */
 public class WindmillStateCache implements StatusDataProvider {
-
+  // Convert Megabytes to bytes
+  private static final long MEGABYTES = 1024 * 1024;
   // Estimate of overhead per StateId.
   private static final int PER_STATE_ID_OVERHEAD = 20;
   // Initial size of hash tables per entry.
@@ -65,13 +67,14 @@ public class WindmillStateCache implements StatusDataProvider {
   private HashMultimap<ComputationKey, StateId> keyIndex =
       HashMultimap.<ComputationKey, StateId>create();
   private int displayedWeight = 0; // Only used for status pages and unit tests.
+  private long workerCacheBytes; // Copy workerCacheMb and convert to bytes.
 
-  public WindmillStateCache() {
+  public WindmillStateCache(Integer workerCacheMb) {
     final Weigher<Weighted, Weighted> weigher = Weighers.weightedKeysAndValues();
-
+    workerCacheBytes = workerCacheMb * MEGABYTES;
     stateCache =
         CacheBuilder.newBuilder()
-            .maximumWeight(100000000 /* 100 MB */)
+            .maximumWeight(workerCacheBytes)
             .recordStats()
             .weigher(weigher)
             .removalListener(
@@ -95,9 +98,11 @@ public class WindmillStateCache implements StatusDataProvider {
     return displayedWeight;
   }
 
-  /**
-   * Per-computation view of the state cache.
-   */
+  public long getMaxWeight() {
+    return workerCacheBytes;
+  }
+
+  /** Per-computation view of the state cache. */
   public class ForComputation {
 
     private final String computation;
@@ -249,7 +254,7 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     @Override
-    public boolean equals(Object that) {
+    public boolean equals(@Nullable Object that) {
       if (that instanceof ComputationKey) {
         ComputationKey other = (ComputationKey) that;
         return computation.equals(other.computation) && key.equals(other.key)
@@ -285,7 +290,7 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other instanceof StateId) {
         StateId otherId = (StateId) other;
         return computationKey.equals(otherId.computationKey)
@@ -383,7 +388,7 @@ public class WindmillStateCache implements StatusDataProvider {
       }
 
       @Override
-      public boolean equals(Object other) {
+      public boolean equals(@Nullable Object other) {
         if (!(other instanceof NamespacedTag)) {
           return false;
         }

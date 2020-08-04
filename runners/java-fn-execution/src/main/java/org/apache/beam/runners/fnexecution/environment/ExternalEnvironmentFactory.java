@@ -27,7 +27,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -51,7 +51,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
   public static ExternalEnvironmentFactory create(
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
+      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator) {
@@ -66,7 +66,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
   private final GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
   private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  private final GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer;
+  private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
@@ -74,7 +74,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
   private ExternalEnvironmentFactory(
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
+      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
       ControlClientPool.Source clientSource) {
@@ -88,7 +88,8 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
   /** Creates a new, active {@link RemoteEnvironment} backed by an unmanaged worker. */
   @Override
-  public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
+  public RemoteEnvironment createEnvironment(Environment environment, String workerId)
+      throws Exception {
     Preconditions.checkState(
         environment
             .getUrn()
@@ -96,7 +97,6 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         "The passed environment does not contain an ExternalPayload.");
     final RunnerApi.ExternalPayload externalPayload =
         RunnerApi.ExternalPayload.parseFrom(environment.getPayload());
-    final String workerId = idGenerator.getId();
 
     BeamFnApi.StartWorkerRequest startWorkerRequest =
         BeamFnApi.StartWorkerRequest.newBuilder()
@@ -177,7 +177,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
     public EnvironmentFactory createEnvironmentFactory(
         GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
         GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-        GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
+        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
         GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator) {

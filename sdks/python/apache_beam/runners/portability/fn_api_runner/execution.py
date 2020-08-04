@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import collections
+import copy
 import itertools
 from typing import TYPE_CHECKING
 from typing import Any
@@ -40,6 +41,7 @@ from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.coders.coders import GlobalWindowCoder
 from apache_beam.coders.coders import WindowedValueCoder
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
@@ -50,6 +52,7 @@ from apache_beam.runners.portability.fn_api_runner.translations import split_buf
 from apache_beam.runners.portability.fn_api_runner.translations import unique_name
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import trigger
+from apache_beam.transforms import window
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
@@ -64,6 +67,9 @@ if TYPE_CHECKING:
 ENCODED_IMPULSE_VALUE = WindowedValueCoder(
     BytesCoder(), GlobalWindowCoder()).get_impl().encode_nested(
         GlobalWindows.windowed_value(b''))
+
+SAFE_WINDOW_FNS = set(window.WindowFn._known_urns.keys()) - set(
+    [python_urns.PICKLED_WINDOWFN])
 
 
 class Buffer(Protocol):
@@ -272,6 +278,26 @@ class WindowGroupingBuffer(object):
       yield encoded_key, encoded_window, output_stream.get()
 
 
+class GenericNonMergingWindowFn(window.NonMergingWindowFn):
+
+  URN = 'internal-generic-non-merging'
+
+  def __init__(self, coder):
+    self._coder = coder
+
+  def assign(self, assign_context):
+    raise NotImplementedError()
+
+  def get_window_coder(self):
+    return self._coder
+
+  @staticmethod
+  @window.urns.RunnerApiFn.register_urn(URN, bytes)
+  def from_runner_api_parameter(window_coder_id, context):
+    return GenericNonMergingWindowFn(
+        context.coders[window_coder_id.decode('utf-8')])
+
+
 class FnApiRunnerExecutionContext(object):
   """
  :var pcoll_buffers: (dict): Mapping of
@@ -306,6 +332,10 @@ class FnApiRunnerExecutionContext(object):
         self.pipeline_components,
         iterable_state_write=self._iterable_state_write)
     self._last_uid = -1
+    self.safe_windowing_strategies = {
+        id: self._make_safe_windowing_strategy(id)
+        for id in self.pipeline_components.windowing_strategies.keys()
+    }
 
   @staticmethod
   def _build_data_side_inputs_map(stages):
@@ -345,6 +375,8 @@ class FnApiRunnerExecutionContext(object):
         for o in transform.outputs.values():
           if o in s.side_inputs():
             continue
+          if o in producing_stages_by_pcoll:
+            continue
           producing_stages_by_pcoll[o] = s
 
     for side_pc in all_side_inputs:
@@ -363,6 +395,28 @@ class FnApiRunnerExecutionContext(object):
                     payload.side_inputs[si_tag].access_pattern)
 
     return data_side_inputs_by_producing_stage
+
+  def _make_safe_windowing_strategy(self, id):
+    windowing_strategy_proto = self.pipeline_components.windowing_strategies[id]
+    if windowing_strategy_proto.window_fn.urn in SAFE_WINDOW_FNS:
+      return id
+    elif (windowing_strategy_proto.merge_status ==
+          beam_runner_api_pb2.MergeStatus.NON_MERGING) or True:
+      safe_id = id + '_safe'
+      while safe_id in self.pipeline_components.windowing_strategies:
+        safe_id += '_'
+      safe_proto = copy.copy(windowing_strategy_proto)
+      safe_proto.window_fn.urn = GenericNonMergingWindowFn.URN
+      safe_proto.window_fn.payload = (
+          windowing_strategy_proto.window_coder_id.encode('utf-8'))
+      self.pipeline_context.windowing_strategies.put_proto(safe_id, safe_proto)
+      return safe_id
+    elif windowing_strategy_proto.window_fn.urn == python_urns.PICKLED_WINDOWFN:
+      return id
+    else:
+      raise NotImplementedError(
+          '[BEAM-10119] Unknown merging WindowFn: %s' %
+          windowing_strategy_proto)
 
   @property
   def state_servicer(self):
@@ -613,8 +667,9 @@ class BundleContextManager(object):
                 self.execution_context.data_channel_coders[output_pcoll]]]
         windowing_strategy = (
             self.execution_context.pipeline_context.windowing_strategies[
-                self.execution_context.pipeline_components.
-                pcollections[output_pcoll].windowing_strategy_id])
+                self.execution_context.safe_windowing_strategies[
+                    self.execution_context.pipeline_components.
+                    pcollections[output_pcoll].windowing_strategy_id]])
         self.execution_context.pcoll_buffers[buffer_id] = GroupingBuffer(
             pre_gbk_coder, post_gbk_coder, windowing_strategy)
     else:
@@ -628,7 +683,21 @@ class BundleContextManager(object):
     input_pcoll = self.process_bundle_descriptor.transforms[
         transform_id].inputs[input_id]
     for read_id, proto in self.process_bundle_descriptor.transforms.items():
+      # The GrpcRead is followed by the SDF/Process.
       if (proto.spec.urn == bundle_processor.DATA_INPUT_URN and
           input_pcoll in proto.outputs.values()):
         return read_id
+      # The GrpcRead is followed by the SDF/Truncate -> SDF/Process.
+      if (proto.spec.urn ==
+          common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn and
+          input_pcoll in proto.outputs.values()):
+        read_input = list(
+            self.process_bundle_descriptor.transforms[read_id].inputs.values()
+        )[0]
+        for (grpc_read,
+             transform_proto) in self.process_bundle_descriptor.transforms.items():  # pylint: disable=line-too-long
+          if (transform_proto.spec.urn == bundle_processor.DATA_INPUT_URN and
+              read_input in transform_proto.outputs.values()):
+            return grpc_read
+
     raise RuntimeError('No IO transform feeds %s' % transform_id)

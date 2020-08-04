@@ -77,8 +77,11 @@ golang {
 import com.github.jk1.license.render.*
 licenseReport {
   outputDir = 'java_third_party_licenses'
-  projects = [project.rootProject] + project.rootProject.subprojects
+  projects = [project,
+              project.rootProject.findProject(':sdks:java:harness'),
+              project.rootProject.findProject(':sdks:java:io:kafka')]
   excludeOwnGroup = true
+  excludeGroups = ["beam.*"] // project dependencies do not match their maven coords
   configurations = ALL
   renderers = [new JsonReportRenderer()]
 }
@@ -95,7 +98,8 @@ docker {
   files "./build/"
 }
 
-if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
+if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
+        project.rootProject.hasProperty(["isRelease"])) {
   task pullLicenses(type: Exec) {
     workingDir project.rootProject.projectDir
     commandLine './sdks/java/container/license_scripts/license_script.sh'

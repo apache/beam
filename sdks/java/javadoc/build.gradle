@@ -24,7 +24,7 @@
  * used as part of the beam-site source tree.
  */
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(publish: false)
+applyJavaNature(enableChecker:false,publish: false)
 description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
 
 for (p in rootProject.subprojects) {
@@ -65,7 +65,6 @@ task aggregateJavadoc(type: Javadoc) {
 
   exclude "org/apache/beam/examples/*"
   exclude "org/apache/beam/fn/harness/*"
-  exclude "org/apache/beam/runners/apex/translation/*"
   exclude "org/apache/beam/runners/core/*"
   exclude "org/apache/beam/runners/dataflow/internal/*"
   exclude "org/apache/beam/runners/flink/examples/*"

@@ -38,8 +38,6 @@ type ScopedDataManager struct {
 	mgr    *DataChannelManager
 	instID instructionID
 
-	// TODO(herohde) 7/20/2018: capture and force close open reads/writes. However,
-	// we would need the underlying Close to be idempotent or a separate method.
 	closed bool
 	mu     sync.Mutex
 }
@@ -82,9 +80,10 @@ func (s *ScopedDataManager) open(ctx context.Context, port exec.Port) (*DataChan
 // Close prevents new IO for this instruction.
 func (s *ScopedDataManager) Close() error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.closed = true
+	s.mgr.closeInstruction(s.instID)
 	s.mgr = nil
-	s.mu.Unlock()
 	return nil
 }
 
@@ -125,6 +124,14 @@ func (m *DataChannelManager) Open(ctx context.Context, port exec.Port) (*DataCha
 	return ch, nil
 }
 
+func (m *DataChannelManager) closeInstruction(instID instructionID) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, ch := range m.ports {
+		ch.removeInstruction(instID)
+	}
+}
+
 // clientID identifies a client of a connected channel.
 type clientID struct {
 	ptransformID string
@@ -148,8 +155,13 @@ type DataChannel struct {
 	id     string
 	client dataClient
 
-	writers map[clientID]*dataWriter
-	readers map[clientID]*dataReader
+	writers map[instructionID]map[string]*dataWriter
+	readers map[instructionID]map[string]*dataReader
+
+	// recently terminated instructions
+	endedInstructions map[instructionID]struct{}
+	rmQueue           []instructionID
+
 	// readErr indicates a client.Recv error and is used to prevent new readers.
 	readErr error
 
@@ -178,11 +190,12 @@ func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 
 func makeDataChannel(ctx context.Context, id string, client dataClient, cancelFn context.CancelFunc) *DataChannel {
 	ret := &DataChannel{
-		id:       id,
-		client:   client,
-		writers:  make(map[clientID]*dataWriter),
-		readers:  make(map[clientID]*dataReader),
-		cancelFn: cancelFn,
+		id:                id,
+		client:            client,
+		writers:           make(map[instructionID]map[string]*dataWriter),
+		readers:           make(map[instructionID]map[string]*dataReader),
+		endedInstructions: make(map[instructionID]struct{}),
+		cancelFn:          cancelFn,
 	}
 	go ret.read(ctx)
 
@@ -227,14 +240,16 @@ func (c *DataChannel) read(ctx context.Context) {
 			// close the r.buf channels twice, or send on a closed channel.
 			// Any other approach is racy, and may cause one of the above
 			// panics.
-			for _, r := range c.readers {
-				log.Errorf(ctx, "DataChannel.read %v reader %v closing due to error on channel", c.id, r.id)
-				if !r.completed {
-					r.completed = true
-					r.err = err
-					close(r.buf)
+			for _, m := range c.readers {
+				for _, r := range m {
+					log.Errorf(ctx, "DataChannel.read %v reader %v closing due to error on channel", c.id, r.id)
+					if !r.completed {
+						r.completed = true
+						r.err = err
+						close(r.buf)
+					}
+					delete(cache, r.id)
 				}
-				delete(cache, r.id)
 			}
 			c.terminateStreamOnError(err)
 			c.mu.Unlock()
@@ -266,24 +281,28 @@ func (c *DataChannel) read(ctx context.Context) {
 				cache[id] = r
 			}
 
-			if r.completed {
-				// The local reader has closed but the remote is still sending data.
-				// Just ignore it. We keep the reader config in the cache so we don't
-				// treat it as a new reader. Eventually the stream will finish and go
-				// through normal teardown.
-				continue
-			}
 			// TODO(BEAM-9558): Cleanup once dataflow is updated.
 			if len(elm.GetData()) == 0 || elm.GetIsLast() {
-				// Sentinel EOF segment for stream. Close buffer to signal EOF.
-				r.completed = true
-				close(r.buf)
+				// If this reader hasn't closed yet, do so now.
+				if !r.completed {
+					// Sentinel EOF segment for stream. Close buffer to signal EOF.
+					r.completed = true
+					close(r.buf)
+				}
 
 				// Clean up local bookkeeping. We'll never see another message
 				// for it again. We have to be careful not to remove the real
 				// one, because readers may be initialized after we've seen
 				// the full stream.
 				delete(cache, id)
+				continue
+			}
+
+			if r.completed {
+				// The local reader has closed but the remote is still sending data.
+				// Just ignore it. We keep the reader config in the cache so we don't
+				// treat it as a new reader. Eventually the stream will finish and go
+				// through normal teardown.
 				continue
 			}
 
@@ -315,31 +334,95 @@ func (r *errReader) Close() error {
 
 // makeReader creates a dataReader. It expects to be called while c.mu is held.
 func (c *DataChannel) makeReader(ctx context.Context, id clientID) *dataReader {
-	if r, ok := c.readers[id]; ok {
+	var m map[string]*dataReader
+	var ok bool
+	if m, ok = c.readers[id.instID]; !ok {
+		m = make(map[string]*dataReader)
+		c.readers[id.instID] = m
+	}
+
+	if r, ok := m[id.ptransformID]; ok {
 		return r
 	}
 
 	r := &dataReader{id: id, buf: make(chan []byte, bufElements), done: make(chan bool, 1), channel: c}
-	c.readers[id] = r
+
+	// Just in case initial data for an instruction arrives *after* an instructon has ended.
+	// eg. it was blocked by another reader being slow, or the other instruction failed.
+	// So we provide a pre-completed reader, and do not cache it, as there's no further cleanup for it.
+	if _, ok := c.endedInstructions[id.instID]; ok {
+		r.completed = true
+		close(r.buf)
+		r.err = io.EOF // In case of any actual data readers, so they terminate without error.
+		return r
+	}
+
+	m[id.ptransformID] = r
 	return r
 }
 
 func (c *DataChannel) removeReader(id clientID) {
 	c.mu.Lock()
-	delete(c.readers, id)
+	if m, ok := c.readers[id.instID]; ok {
+		delete(m, id.ptransformID)
+	}
 	c.mu.Unlock()
+}
+
+const endedInstructionCap = 32
+
+// removeInstruction closes all readers and writers registered for the instruction
+// and deletes this instruction from the channel's reader and writer maps.
+func (c *DataChannel) removeInstruction(instID instructionID) {
+	c.mu.Lock()
+
+	// We don't want to leak memory, so cap the endedInstructions list.
+	if len(c.rmQueue) >= endedInstructionCap {
+		toRemove := c.rmQueue[0]
+		c.rmQueue = c.rmQueue[1:]
+		delete(c.endedInstructions, toRemove)
+	}
+	c.endedInstructions[instID] = struct{}{}
+	c.rmQueue = append(c.rmQueue, instID)
+
+	rs := c.readers[instID]
+	ws := c.writers[instID]
+
+	// Prevent other users while we iterate.
+	delete(c.readers, instID)
+	delete(c.writers, instID)
+	c.mu.Unlock()
+
+	// Close grabs the channel lock, so this must be outside the critical section.
+	for _, r := range rs {
+		r.Close()
+	}
+	for _, w := range ws {
+		w.Close()
+	}
 }
 
 func (c *DataChannel) makeWriter(ctx context.Context, id clientID) *dataWriter {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if w, ok := c.writers[id]; ok {
+	var m map[string]*dataWriter
+	var ok bool
+	if m, ok = c.writers[id.instID]; !ok {
+		m = make(map[string]*dataWriter)
+		c.writers[id.instID] = m
+	}
+
+	if w, ok := m[id.ptransformID]; ok {
 		return w
 	}
 
+	// We don't check for ended instructions for writers, as writers
+	// can only be created if an instruction is in scope, and aren't
+	// runner or user directed.
+
 	w := &dataWriter{ch: c, id: id}
-	c.writers[id] = w
+	m[id.ptransformID] = w
 	return w
 }
 
@@ -385,9 +468,6 @@ func (r *dataReader) Read(buf []byte) (int, error) {
 	return n, nil
 }
 
-// TODO(herohde) 7/20/2018: we should probably either not be tracking writers or
-// make dataWriter threadsafe. Either case is likely a corruption generator.
-
 type dataWriter struct {
 	buf []byte
 
@@ -427,7 +507,7 @@ func (w *dataWriter) Close() error {
 	// Now acquire the locks since we're sending.
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
-	delete(w.ch.writers, w.id)
+	delete(w.ch.writers[w.id.instID], w.id.ptransformID)
 	msg := &fnpb.Elements{
 		Data: []*fnpb.Elements_Data{
 			{

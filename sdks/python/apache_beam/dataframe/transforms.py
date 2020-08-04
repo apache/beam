@@ -16,12 +16,28 @@
 
 from __future__ import absolute_import
 
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Mapping
+from typing import Tuple
+from typing import TypeVar
+from typing import Union
+
 import pandas as pd
 
 import apache_beam as beam
 from apache_beam import transforms
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
+from apache_beam.dataframe import partitionings
+
+if TYPE_CHECKING:
+  # pylint: disable=ungrouped-imports
+  from apache_beam.pvalue import PCollection
+
+T = TypeVar('T')
 
 
 class DataframeTransform(transforms.PTransform):
@@ -82,8 +98,8 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
   def _apply_deferred_ops(
       self,
-      inputs,  # type: Dict[PlaceholderExpr, PCollection]
-      outputs,  # type: Dict[Any, Expression]
+      inputs,  # type: Dict[expressions.Expression, PCollection]
+      outputs,  # type: Dict[Any, expressions.Expression]
       ):  # -> Dict[Any, PCollection]
     """Construct a Beam graph that evaluates a set of expressions on a set of
     input PCollections.
@@ -109,64 +125,86 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         return '%s:%s' % (self.stage.ops, id(self))
 
       def expand(self, pcolls):
-        if self.stage.is_grouping:
+        scalar_inputs = [expr for expr in self.stage.inputs if is_scalar(expr)]
+        tabular_inputs = [
+            expr for expr in self.stage.inputs if not is_scalar(expr)
+        ]
+
+        if len(tabular_inputs) == 0:
+          partitioned_pcoll = next(pcolls.values()).pipeline | beam.Create([{}])
+
+        elif self.stage.partitioning != partitionings.Nothing():
           # Arrange such that partitioned_pcoll is properly partitioned.
-          input_pcolls = {
-              tag: pcoll | 'Flat%s' % tag >> beam.FlatMap(partition_by_index)
-              for (tag, pcoll) in pcolls.items()
-          }
-          partitioned_pcoll = input_pcolls | beam.CoGroupByKey(
-          ) | beam.MapTuple(
+          main_pcolls = {
+              expr._id: pcolls[expr._id] | 'Flat%s' % expr._id >> beam.FlatMap(
+                  self.stage.partitioning.partition_fn)
+              for expr in tabular_inputs
+          } | beam.CoGroupByKey()
+          partitioned_pcoll = main_pcolls | beam.MapTuple(
               lambda _,
               inputs: {tag: pd.concat(vs)
                        for tag, vs in inputs.items()})
+
         else:
           # Already partitioned, or no partitioning needed.
-          (k, pcoll), = pcolls.items()
-          partitioned_pcoll = pcoll | beam.Map(lambda df: {k: df})
+          assert len(tabular_inputs) == 1
+          tag = tabular_inputs[0]._id
+          partitioned_pcoll = pcolls[tag] | beam.Map(lambda df: {tag: df})
+
+        side_pcolls = {
+            expr._id: beam.pvalue.AsSingleton(pcolls[expr._id])
+            for expr in scalar_inputs
+        }
 
         # Actually evaluate the expressions.
-        def evaluate(partition, stage=self.stage):
+        def evaluate(partition, stage=self.stage, **side_inputs):
           session = expressions.Session(
-              {expr: partition[expr._id]
-               for expr in stage.inputs})
+              dict([(expr, partition[expr._id]) for expr in tabular_inputs] +
+                   [(expr, side_inputs[expr._id]) for expr in scalar_inputs]))
           for expr in stage.outputs:
             yield beam.pvalue.TaggedOutput(expr._id, expr.evaluate_at(session))
 
-        return partitioned_pcoll | beam.FlatMap(evaluate).with_outputs()
+        return partitioned_pcoll | beam.FlatMap(evaluate, **
+                                                side_pcolls).with_outputs()
 
     class Stage(object):
       """Used to build up a set of operations that can be fused together.
       """
-      def __init__(self, inputs, is_grouping):
+      def __init__(self, inputs, partitioning):
         self.inputs = set(inputs)
-        self.is_grouping = is_grouping or len(self.inputs) > 1
+        if len(self.inputs) > 1 and partitioning == partitionings.Nothing():
+          # We have to shuffle to co-locate, might as well partition.
+          self.partitioning = partitionings.Index()
+        else:
+          self.partitioning = partitioning
         self.ops = []
         self.outputs = set()
 
     # First define some helper functions.
-    def output_is_partitioned_by_index(expr, stage):
-      if expr in stage.inputs:
-        return stage.is_grouping
-      elif expr.preserves_partition_by_index():
-        if expr.requires_partition_by_index():
+    def output_is_partitioned_by(expr, stage, partitioning):
+      if partitioning == partitionings.Nothing():
+        # Always satisfied.
+        return True
+      elif stage.partitioning == partitionings.Singleton():
+        # Within a stage, the singleton partitioning is trivially preserved.
+        return True
+      elif expr in stage.inputs:
+        # Inputs are all partitioned by stage.partitioning.
+        return stage.partitioning.is_subpartitioning_of(partitioning)
+      elif expr.preserves_partition_by().is_subpartitioning_of(partitioning):
+        # Here expr preserves at least the requested partitioning; its outputs
+        # will also have this partitioning iff its inputs do.
+        if expr.requires_partition_by().is_subpartitioning_of(partitioning):
+          # If expr requires at least this partitioning, we will arrange such
+          # that its inputs satisfy this.
           return True
         else:
+          # Otherwise, recursively check all the inputs.
           return all(
-              output_is_partitioned_by_index(arg, stage) for arg in expr.args())
+              output_is_partitioned_by(arg, stage, partitioning)
+              for arg in expr.args())
       else:
         return False
-
-    def partition_by_index(df, levels=None, parts=10):
-      if levels is None:
-        levels = list(range(df.index.nlevels))
-      elif isinstance(levels, (int, str)):
-        levels = [levels]
-      hashes = sum(
-          pd.util.hash_array(df.index.get_level_values(level))
-          for level in levels)
-      for key in range(parts):
-        yield key, df[hashes % parts == key]
 
     def common_stages(stage_lists):
       # Set intersection, with a preference for earlier items in the list.
@@ -174,6 +212,10 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         for stage in stage_lists[0]:
           if all(stage in other for other in stage_lists[1:]):
             yield stage
+
+    @memoize
+    def is_scalar(expr):
+      return not isinstance(expr.proxy(), pd.core.generic.NDFrame)
 
     @memoize
     def expr_to_stages(expr):
@@ -185,15 +227,15 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       # the first stage where all of expr's inputs are partitioned as required.
       # In either case, use the first such stage because earlier stages are
       # closer to the inputs (have fewer intermediate stages).
+      required_partitioning = expr.requires_partition_by()
       for stage in common_stages([expr_to_stages(arg) for arg in expr.args()
                                   if arg not in inputs]):
-        if (not expr.requires_partition_by_index() or
-            all(output_is_partitioned_by_index(arg, stage)
-                for arg in expr.args())):
+        if all(output_is_partitioned_by(arg, stage, required_partitioning)
+               for arg in expr.args() if not is_scalar(arg)):
           break
       else:
         # Otherwise, compute this expression as part of a new stage.
-        stage = Stage(expr.args(), expr.requires_partition_by_index())
+        stage = Stage(expr.args(), required_partitioning)
         for arg in expr.args():
           if arg not in inputs:
             # For each non-input argument, declare that it is also available in
@@ -248,7 +290,12 @@ def _dict_union(dicts):
   return result
 
 
-def _flatten(valueish, root=()):
+def _flatten(
+    valueish,  # type: Union[T, List[T], Tuple[T], Dict[Any, T]]
+    root=(),  # type: Tuple[Any, ...]
+    ):
+  # type: (...) -> Mapping[Tuple[Any, ...], T]
+
   """Given a nested structure of dicts, tuples, and lists, return a flat
   dictionary where the values are the leafs and the keys are the "paths" to
   these leaves.

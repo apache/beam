@@ -19,7 +19,11 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.runners.samza')
+applyJavaNature(
+  exportJavadoc: false,
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.runners.samza')
 
 description = "Apache Beam :: Runners :: Samza"
 
@@ -88,7 +92,12 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
     excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+  }
+  filter {
+    // TODO(BEAM-10025)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
   }
 }
 

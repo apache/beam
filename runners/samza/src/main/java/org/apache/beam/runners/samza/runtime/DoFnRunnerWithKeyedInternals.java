@@ -95,6 +95,11 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
   }
 
   @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    underlying.onWindowExpiration(window, timestamp, key);
+  }
+
+  @Override
   public DoFn<InputT, OutputT> getFn() {
     return underlying.getFn();
   }

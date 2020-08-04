@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(
+applyJavaNature(enableChecker:false,
     automaticModuleName: 'org.apache.beam.sdk.extensions.jackson',
     archivesBaseName: 'beam-sdks-java-extensions-json-jackson'
 )

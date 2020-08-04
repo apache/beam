@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 /*
  *
  *  * Licensed to the Apache Software Foundation (ASF) under one
@@ -19,22 +21,34 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.protobuf')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.extensions.ml')
 
 description = 'Apache Beam :: SDKs :: Java :: Extensions :: ML'
 
 dependencies {
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile project(":sdks:java:expansion-service")
-    testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
     compile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
+    compile 'com.google.cloud:google-cloud-dlp:1.1.4'
+    compile 'com.google.cloud:google-cloud-language:1.99.4'
+    provided library.java.junit
+    testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
+    compile 'com.google.cloud:google-cloud-vision:1.99.3'
     testCompile library.java.mockito_core
     testCompile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
-    testCompile library.java.junit
+    testCompile 'com.google.cloud:google-cloud-dlp:1.1.4'
+    testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+    testCompile 'com.google.cloud:google-cloud-language:1.99.4'
+    testCompile 'com.google.cloud:google-cloud-vision:1.99.3'
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(":runners:google-cloud-dataflow-java")
 }
 
 project.test {
+    def gcpProject = project.findProperty("gcpProject") ?: 'apache-beam-testing'
     include "**/**IT.class"
+    def pipelineOptions = [
+            "--project=${gcpProject}"
+    ]
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 }

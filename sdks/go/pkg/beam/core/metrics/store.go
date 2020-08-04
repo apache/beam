@@ -52,6 +52,12 @@ func PCollectionLabels(pcollection string) Labels {
 	return Labels{pcollection: pcollection}
 }
 
+// PTransformLabels builds a Labels for transform metrics.
+// Intended for framework use.
+func PTransformLabels(transform string) Labels {
+	return Labels{transform: transform}
+}
+
 // Extractor allows users to access metrics programatically after
 // pipeline completion. Users assign functions to fields that
 // interest them, and that function is called for each metric

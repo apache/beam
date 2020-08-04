@@ -18,7 +18,9 @@
 package org.apache.beam.runners.jobsubmission;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -49,6 +51,8 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.runners.fnexecution.FnService;
+import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -58,6 +62,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusException;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,19 +84,19 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
   /**
    * Creates an InMemoryJobService.
    *
-   * @param stagingServiceDescriptor Endpoint for the staging service.
+   * @param stagingService The staging service.
    * @param stagingServiceTokenProvider Function mapping a preparationId to a staging service token.
    * @param cleanupJobFn A cleanup function to run, parameterized with the staging token of a job.
    * @param invoker A JobInvoker which creates the jobs.
    * @return A new InMemoryJobService.
    */
   public static InMemoryJobService create(
-      Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
+      GrpcFnServer<ArtifactStagingService> stagingService,
       Function<String, String> stagingServiceTokenProvider,
       ThrowingConsumer<Exception, String> cleanupJobFn,
       JobInvoker invoker) {
     return new InMemoryJobService(
-        stagingServiceDescriptor,
+        stagingService,
         stagingServiceTokenProvider,
         cleanupJobFn,
         invoker,
@@ -101,7 +106,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
   /**
    * Creates an InMemoryJobService.
    *
-   * @param stagingServiceDescriptor The endpoint for the staging service.
+   * @param stagingService The staging service.
    * @param stagingServiceTokenProvider Function mapping a preparationId to a staging service token.
    * @param cleanupJobFn A cleanup function to run, parameterized with the staging token of a job.
    * @param invoker A JobInvoker which creates the jobs.
@@ -109,17 +114,13 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
    * @return A new InMemoryJobService.
    */
   public static InMemoryJobService create(
-      Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
+      GrpcFnServer<ArtifactStagingService> stagingService,
       Function<String, String> stagingServiceTokenProvider,
       ThrowingConsumer<Exception, String> cleanupJobFn,
       JobInvoker invoker,
       int maxInvocationHistory) {
     return new InMemoryJobService(
-        stagingServiceDescriptor,
-        stagingServiceTokenProvider,
-        cleanupJobFn,
-        invoker,
-        maxInvocationHistory);
+        stagingService, stagingServiceTokenProvider, cleanupJobFn, invoker, maxInvocationHistory);
   }
 
   /** Map of preparationId to preparation. */
@@ -131,6 +132,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
   /** InvocationIds of completed invocations in least-recently-completed order. */
   private final ConcurrentLinkedDeque<String> completedInvocationsIds;
 
+  private final GrpcFnServer<ArtifactStagingService> stagingService;
   private final Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   private final Function<String, String> stagingServiceTokenProvider;
   private final ThrowingConsumer<Exception, String> cleanupJobFn;
@@ -140,12 +142,13 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
   private final int maxInvocationHistory;
 
   private InMemoryJobService(
-      Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
+      GrpcFnServer<ArtifactStagingService> stagingService,
       Function<String, String> stagingServiceTokenProvider,
       ThrowingConsumer<Exception, String> cleanupJobFn,
       JobInvoker invoker,
       int maxInvocationHistory) {
-    this.stagingServiceDescriptor = stagingServiceDescriptor;
+    this.stagingService = stagingService;
+    this.stagingServiceDescriptor = stagingService.getApiServiceDescriptor();
     this.stagingServiceTokenProvider = stagingServiceTokenProvider;
     this.cleanupJobFn = cleanupJobFn;
     this.invoker = invoker;
@@ -190,6 +193,14 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       String stagingSessionToken = stagingServiceTokenProvider.apply(preparationId);
       stagingSessionTokens.putIfAbsent(preparationId, stagingSessionToken);
 
+      stagingService
+          .getService()
+          .registerJob(
+              stagingSessionToken,
+              Maps.transformValues(
+                  request.getPipeline().getComponents().getEnvironmentsMap(),
+                  RunnerApi.Environment::getDependenciesList));
+
       // send response
       PrepareJobResponse response =
           PrepareJobResponse.newBuilder()
@@ -230,7 +241,9 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       // create new invocation
       JobInvocation invocation =
           invoker.invoke(
-              preparation.pipeline(), preparation.options(), request.getRetrievalToken());
+              resolveDependencies(preparation.pipeline(), stagingSessionTokens.get(preparationId)),
+              preparation.options(),
+              request.getRetrievalToken());
       String invocationId = invocation.getId();
 
       invocation.addStateListener(
@@ -271,6 +284,32 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       LOG.error(errMessage, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
+  }
+
+  private RunnerApi.Pipeline resolveDependencies(RunnerApi.Pipeline pipeline, String stagingToken) {
+    Map<String, List<RunnerApi.ArtifactInformation>> resolvedDependencies =
+        stagingService.getService().getStagedArtifacts(stagingToken);
+    Map<String, RunnerApi.Environment> newEnvironments = new HashMap<>();
+    for (Map.Entry<String, RunnerApi.Environment> entry :
+        pipeline.getComponents().getEnvironmentsMap().entrySet()) {
+      if (entry.getValue().getDependenciesCount() > 0 && resolvedDependencies == null) {
+        throw new RuntimeException(
+            "Artifact dependencies provided but not staged for " + entry.getKey());
+      }
+      newEnvironments.put(
+          entry.getKey(),
+          entry.getValue().getDependenciesCount() == 0
+              ? entry.getValue()
+              : entry
+                  .getValue()
+                  .toBuilder()
+                  .clearDependencies()
+                  .addAllDependencies(resolvedDependencies.get(entry.getKey()))
+                  .build());
+    }
+    RunnerApi.Pipeline.Builder builder = pipeline.toBuilder();
+    builder.getComponentsBuilder().clearEnvironments().putAllEnvironments(newEnvironments);
+    return builder.build();
   }
 
   @Override

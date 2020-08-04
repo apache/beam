@@ -17,18 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv.BeamSqlEnvBuilder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
@@ -36,7 +34,6 @@ import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
@@ -47,6 +44,8 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link SqlTransform} is the DSL interface of Beam SQL. It translates a SQL query as a {@link
@@ -103,6 +102,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   abstract @Nullable String defaultTableProvider();
 
+  abstract @Nullable String queryPlannerClassName();
+
   @Override
   public PCollection<Row> expand(PInput input) {
     BeamSqlEnvBuilder sqlEnvBuilder =
@@ -123,7 +124,9 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     }
 
     sqlEnvBuilder.setQueryPlannerClassName(
-        input.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getPlannerName());
+        MoreObjects.firstNonNull(
+            queryPlannerClassName(),
+            input.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getPlannerName()));
 
     sqlEnvBuilder.setPipelineOptions(input.getPipeline().getOptions());
 
@@ -180,6 +183,11 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
    *   <li>Always, tables from the upstream {@link PCollectionTuple} are only valid in the scope of
    *       the current query call.
    * </ul>
+   *
+   * <p>Any available implementation of {@link QueryPlanner} can be used as the query planner in
+   * {@link SqlTransform}. An implementation can be specified globally for the entire pipeline with
+   * {@link BeamSqlPipelineOptions#getPlannerName()}. The global planner can be overridden
+   * per-transform with {@link #withQueryPlannerClass(Class<? extends QueryPlanner>)}.
    */
   public static SqlTransform query(String queryString) {
     return builder()
@@ -200,6 +208,10 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   public SqlTransform withDefaultTableProvider(String name, TableProvider tableProvider) {
     return withTableProvider(name, tableProvider).toBuilder().setDefaultTableProvider(name).build();
+  }
+
+  public SqlTransform withQueryPlannerClass(Class<? extends QueryPlanner> clazz) {
+    return toBuilder().setQueryPlannerClassName(clazz.getName()).build();
   }
 
   public SqlTransform withNamedParameters(Map<String, ?> parameters) {
@@ -258,8 +270,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   }
 
   @AutoValue.Builder
-  abstract static class Builder
-      implements ExternalTransformBuilder<External.Configuration, PInput, PCollection<Row>> {
+  abstract static class Builder {
     abstract Builder setQueryString(String queryString);
 
     abstract Builder setQueryParameters(QueryParameters queryParameters);
@@ -274,20 +285,9 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
     abstract Builder setDefaultTableProvider(@Nullable String defaultTableProvider);
 
-    abstract SqlTransform build();
+    abstract Builder setQueryPlannerClassName(@Nullable String queryPlannerClassName);
 
-    @Override
-    public PTransform<PInput, PCollection<Row>> buildExternal(
-        External.Configuration configuration) {
-      return builder()
-          .setQueryString(configuration.query)
-          .setQueryParameters(QueryParameters.ofNone())
-          .setUdafDefinitions(Collections.emptyList())
-          .setUdfDefinitions(Collections.emptyList())
-          .setTableProviderMap(Collections.emptyMap())
-          .setAutoUdfUdafLoad(false)
-          .build();
-    }
+    abstract SqlTransform build();
   }
 
   @AutoValue
@@ -311,26 +311,6 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
     static UdafDefinition of(String udafName, Combine.CombineFn combineFn) {
       return new AutoValue_SqlTransform_UdafDefinition(udafName, combineFn);
-    }
-  }
-
-  @AutoService(ExternalTransformRegistrar.class)
-  public static class External implements ExternalTransformRegistrar {
-
-    private static final String URN = "beam:external:java:sql:v1";
-
-    @Override
-    public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
-      return org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap.of(
-          URN, AutoValue_SqlTransform.Builder.class);
-    }
-
-    public static class Configuration {
-      String query;
-
-      public void setQuery(String query) {
-        this.query = query;
-      }
     }
   }
 }

@@ -29,6 +29,7 @@ import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -213,7 +214,9 @@ public class PipelineTranslationTest {
             .orElseThrow(() -> new IOException("Transform does not contain an AccumulatorCoder"));
     Components components = sdkComponents.toComponents();
     return CoderTranslation.fromProto(
-        components.getCodersOrThrow(id), RehydratedComponents.forComponents(components));
+        components.getCodersOrThrow(id),
+        RehydratedComponents.forComponents(components),
+        TranslationContext.DEFAULT);
   }
 
   private static Optional<CombinePayload> getCombinePayload(

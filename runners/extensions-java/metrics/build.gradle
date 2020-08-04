@@ -17,7 +17,11 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.runners.extensions.metrics')
+applyJavaNature(
+  exportJavadoc: false,
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.runners.extensions.metrics',
+  enableChecker:false)
 
 description = "Apache Beam :: Runners :: Extensions Java :: Metrics"
 ext.summary = "Beam Runners Extensions Metrics provides implementations of runners core metrics APIs."

@@ -54,6 +54,7 @@ var sUrns = [...]string{
 
 	"beam:metric:ptransform_progress:remaining:v1",
 	"beam:metric:ptransform_progress:completed:v1",
+	"beam:metric:data_channel:read_index:v1",
 
 	"TestingSentinelUrn", // Must remain last.
 }
@@ -80,6 +81,7 @@ const (
 
 	urnProgressRemaining
 	urnProgressCompleted
+	urnDataChannelReadIndex
 
 	urnTestSentinel // Must remain last.
 )
@@ -111,6 +113,8 @@ func urnToType(u mUrn) string {
 
 	case urnProgressRemaining, urnProgressCompleted:
 		return "beam:metrics:progress:v1"
+	case urnDataChannelReadIndex:
+		return "beam:metrics:sum_int64:v1"
 
 	// Monitoring Table isn't currently in the protos.
 	// case ???:
@@ -265,14 +269,26 @@ func monitoring(p *exec.Plan) ([]*pipepb.MonitoringInfo, map[string][]byte) {
 		if err != nil {
 			panic(err)
 		}
-		payloads[getShortID(metrics.PCollectionLabels(snapshot.PID), urnElementCount)] = payload
 
+		// TODO(BEAM-9934): This metric should account for elements in multiple windows.
+		payloads[getShortID(metrics.PCollectionLabels(snapshot.PID), urnElementCount)] = payload
 		monitoringInfo = append(monitoringInfo,
 			&pipepb.MonitoringInfo{
 				Urn:  sUrns[urnElementCount],
 				Type: urnToType(urnElementCount),
 				Labels: map[string]string{
 					"PCOLLECTION": snapshot.PID,
+				},
+				Payload: payload,
+			})
+
+		payloads[getShortID(metrics.PTransformLabels(snapshot.ID), urnDataChannelReadIndex)] = payload
+		monitoringInfo = append(monitoringInfo,
+			&pipepb.MonitoringInfo{
+				Urn:  sUrns[urnDataChannelReadIndex],
+				Type: urnToType(urnDataChannelReadIndex),
+				Labels: map[string]string{
+					"PTRANSFORM": snapshot.ID,
 				},
 				Payload: payload,
 			})

@@ -35,9 +35,12 @@ import java.util.function.Consumer;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusException;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -53,7 +56,10 @@ public class InMemoryJobServiceTest {
   private static final String TEST_JOB_NAME = "test-job";
   private static final String TEST_JOB_ID = "test-job-id";
   private static final String TEST_RETRIEVAL_TOKEN = "test-staging-token";
-  private static final RunnerApi.Pipeline TEST_PIPELINE = RunnerApi.Pipeline.getDefaultInstance();
+  private static final RunnerApi.Pipeline TEST_PIPELINE =
+      RunnerApi.Pipeline.newBuilder()
+          .setComponents(RunnerApi.Components.getDefaultInstance())
+          .build();
   private static final Struct TEST_OPTIONS = Struct.getDefaultInstance();
   private static final JobApi.JobInfo TEST_JOB_INFO =
       JobApi.JobInfo.newBuilder()
@@ -67,6 +73,8 @@ public class InMemoryJobServiceTest {
   Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   @Mock JobInvoker invoker;
   @Mock JobInvocation invocation;
+  @Mock ArtifactStagingService stagingService;
+  @Mock GrpcFnServer<ArtifactStagingService> stagingServer;
 
   InMemoryJobService service;
 
@@ -74,8 +82,10 @@ public class InMemoryJobServiceTest {
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
     stagingServiceDescriptor = Endpoints.ApiServiceDescriptor.getDefaultInstance();
-    service =
-        InMemoryJobService.create(stagingServiceDescriptor, session -> "token", null, invoker);
+    when(stagingServer.getApiServiceDescriptor()).thenReturn(stagingServiceDescriptor);
+    when(stagingServer.getService()).thenReturn(stagingService);
+    when(stagingService.getStagedArtifacts(any())).thenReturn(ImmutableMap.of());
+    service = InMemoryJobService.create(stagingServer, session -> "token", null, invoker);
     when(invoker.invoke(TEST_PIPELINE, TEST_OPTIONS, TEST_RETRIEVAL_TOKEN)).thenReturn(invocation);
     when(invocation.getId()).thenReturn(TEST_JOB_ID);
     when(invocation.getPipeline()).thenReturn(TEST_PIPELINE);
@@ -198,7 +208,7 @@ public class InMemoryJobServiceTest {
     final int maxInvocationHistory = 3;
     service =
         InMemoryJobService.create(
-            stagingServiceDescriptor, session -> "token", null, invoker, maxInvocationHistory);
+            stagingServer, session -> "token", null, invoker, maxInvocationHistory);
 
     assertThat(getNumberOfInvocations(), is(0));
 

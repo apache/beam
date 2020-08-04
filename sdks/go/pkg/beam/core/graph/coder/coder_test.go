@@ -126,6 +126,7 @@ func TestValidDecoderForms(t *testing.T) {
 func TestCoder_String(t *testing.T) {
 	ints := NewVarInt()
 	bytes := NewBytes()
+	bools := NewBool()
 	global := NewGlobalWindow()
 	interval := NewIntervalWindow()
 	cusString, err := NewCustomCoder("customString", reflectx.String, func(string) []byte { return nil }, func([]byte) string { return "" })
@@ -143,6 +144,9 @@ func TestCoder_String(t *testing.T) {
 	}, {
 		want: "bytes",
 		c:    bytes,
+	}, {
+		want: "bool",
+		c:    bools,
 	}, {
 		want: "varint",
 		c:    ints,

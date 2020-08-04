@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from __future__ import absolute_import
+from __future__ import division
 
 import unittest
 
@@ -37,15 +38,28 @@ class TransformTest(unittest.TestCase):
     actual_deferred = func(input_deferred)._expr.evaluate_at(
         expressions.Session({input_placeholder: input}))
 
+    def concat(parts):
+      if len(parts) > 1:
+        return pd.concat(parts)
+      elif len(parts) == 1:
+        return parts[0]
+      else:
+        return None
+
     def check_correct(actual):
       if actual is None:
         raise AssertionError('Empty frame but expected: \n\n%s' % (expected))
-      sorted_actual = actual.sort_index()
-      sorted_expected = expected.sort_index()
-      if not sorted_actual.equals(sorted_expected):
-        raise AssertionError(
-            'Dataframes not equal: \n\n%s\n\n%s' %
-            (sorted_actual, sorted_expected))
+      if isinstance(expected, pd.core.generic.NDFrame):
+        sorted_actual = actual.sort_index()
+        sorted_expected = expected.sort_index()
+        if not sorted_actual.equals(sorted_expected):
+          raise AssertionError(
+              'Dataframes not equal: \n\n%s\n\n%s' %
+              (sorted_actual, sorted_expected))
+      else:
+        if actual != expected:
+          raise AssertionError(
+              'Scalars not equal: %s != %s' % (actual, expected))
 
     check_correct(actual_deferred)
 
@@ -53,9 +67,7 @@ class TransformTest(unittest.TestCase):
       input_pcoll = p | beam.Create([input[::2], input[1::2]])
       output_pcoll = input_pcoll | transforms.DataframeTransform(
           func, proxy=empty)
-      assert_that(
-          output_pcoll,
-          lambda actual: check_correct(pd.concat(actual) if actual else None))
+      assert_that(output_pcoll, lambda actual: check_correct(concat(actual)))
 
   def test_identity(self):
     df = pd.DataFrame({
@@ -81,6 +93,21 @@ class TransformTest(unittest.TestCase):
     self.run_scenario(df, lambda df: df.filter(regex='A.*'))
     self.run_scenario(
         df, lambda df: df.set_index('Animal').filter(regex='F.*', axis='index'))
+
+  def test_aggregate(self):
+    a = pd.DataFrame({'col': [1, 2, 3]})
+    self.run_scenario(a, lambda a: a.agg(sum))
+    self.run_scenario(a, lambda a: a.agg(['mean', 'min', 'max']))
+
+  def test_scalar(self):
+    a = pd.Series([1, 2, 6])
+    self.run_scenario(a, lambda a: a.agg(sum))
+    self.run_scenario(a, lambda a: a / a.agg(sum))
+
+    # Tests scalar being used as an input to a downstream stage.
+    df = pd.DataFrame({'key': ['a', 'a', 'b'], 'val': [1, 2, 6]})
+    self.run_scenario(
+        df, lambda df: df.groupby('key').sum().val / df.val.agg(sum))
 
   def test_input_output_polymorphism(self):
     one_series = pd.Series([1])

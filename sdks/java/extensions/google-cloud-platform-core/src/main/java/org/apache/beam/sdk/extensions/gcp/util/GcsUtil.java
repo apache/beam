@@ -44,6 +44,7 @@ import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
@@ -64,7 +65,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -75,6 +75,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -144,7 +145,7 @@ public class GcsUtil {
 
   private final HttpRequestInitializer httpRequestInitializer;
   /** Buffer size for GCS uploads (in bytes). */
-  @Nullable private final Integer uploadBufferSizeBytes;
+  private final @Nullable Integer uploadBufferSizeBytes;
 
   // Helper delegate for turning IOExceptions from API calls into higher-level semantics.
   private final ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
@@ -807,16 +808,16 @@ public class GcsUtil {
   }
 
   /** A class that holds either a {@link StorageObject} or an {@link IOException}. */
+  // It is clear from the name that this class holds either StorageObject or IOException.
+  @SuppressFBWarnings("NM_CLASS_NOT_EXCEPTION")
   @AutoValue
   public abstract static class StorageObjectOrIOException {
 
     /** Returns the {@link StorageObject}. */
-    @Nullable
-    public abstract StorageObject storageObject();
+    public abstract @Nullable StorageObject storageObject();
 
     /** Returns the {@link IOException}. */
-    @Nullable
-    public abstract IOException ioException();
+    public abstract @Nullable IOException ioException();
 
     @VisibleForTesting
     public static StorageObjectOrIOException create(StorageObject storageObject) {

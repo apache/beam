@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Basic;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -29,7 +28,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -37,6 +35,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -181,11 +180,11 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
           EventTimeBuilder<InputT, OutputT>,
           Builders.Output<OutputT> {
 
-    @Nullable private final String name;
+    private final @Nullable String name;
     private PCollection<InputT> input;
     private UnaryFunctor<InputT, OutputT> functor;
-    @Nullable private TypeDescriptor<OutputT> outputType;
-    @Nullable private ExtractEventTime<InputT> evtTimeFn;
+    private @Nullable TypeDescriptor<OutputT> outputType;
+    private @Nullable ExtractEventTime<InputT> evtTimeFn;
     private Duration allowedTimestampSkew = Duration.millis(Long.MAX_VALUE);
 
     Builder(@Nullable String name) {
@@ -226,7 +225,7 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
     }
 
     @Override
-    public PCollection<OutputT> output(OutputHint... outputHints) {
+    public PCollection<OutputT> output() {
       return OperatorTransform.apply(
           new FlatMap<>(name, functor, outputType, evtTimeFn, allowedTimestampSkew),
           PCollectionList.of(input));
@@ -234,7 +233,7 @@ public class FlatMap<InputT, OutputT> extends Operator<OutputT>
   }
 
   private final UnaryFunctor<InputT, OutputT> functor;
-  @Nullable private final ExtractEventTime<InputT> eventTimeFn;
+  private final @Nullable ExtractEventTime<InputT> eventTimeFn;
   private final Duration allowedTimestampSkew;
 
   private FlatMap(

@@ -28,6 +28,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link PCollectionTuple} is an immutable tuple of heterogeneously-typed {@link PCollection
@@ -341,7 +342,7 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (!(other instanceof PCollectionTuple)) {
       return false;
     }

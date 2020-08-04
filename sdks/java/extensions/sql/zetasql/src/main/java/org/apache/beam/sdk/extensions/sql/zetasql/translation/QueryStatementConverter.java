@@ -27,6 +27,7 @@ import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLV
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_SET_OPERATION_SCAN;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_SINGLE_ROW_SCAN;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_TABLE_SCAN;
+import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_TVFSCAN;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_WITH_REF_SCAN;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_WITH_SCAN;
 import static java.util.stream.Collectors.toList;
@@ -71,6 +72,7 @@ public class QueryStatementConverter extends RelConverter<ResolvedQueryStmt> {
             .put(RESOLVED_TABLE_SCAN, new TableScanConverter(context))
             .put(RESOLVED_WITH_REF_SCAN, new WithRefScanConverter(context))
             .put(RESOLVED_WITH_SCAN, new WithScanConverter(context))
+            .put(RESOLVED_TVFSCAN, new TVFScanConverter(context))
             .build();
   }
 

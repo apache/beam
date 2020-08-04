@@ -21,6 +21,8 @@
 
 from __future__ import absolute_import
 
+from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.pipeline import PTransformOverride
 
 
@@ -184,3 +186,137 @@ class NativeReadPTransformOverride(PTransformOverride):
     # will choose the incorrect coder for this transform.
     return Read(ptransform.source).with_output_types(
         ptransform.source.coder.to_type_hint())
+
+
+class WriteToBigQueryPTransformOverride(PTransformOverride):
+  def __init__(self, pipeline, options):
+    super(WriteToBigQueryPTransformOverride, self).__init__()
+    self.options = options
+    self.outputs = []
+
+    self._check_bq_outputs(pipeline)
+
+  def _check_bq_outputs(self, pipeline):
+    """Checks that there are no consumers if the transform will be replaced.
+
+    The WriteToBigQuery replacement is the native BigQuerySink which has an
+    output of a PDone. The original transform, however, returns a dict. The user
+    may be inadvertantly using the dict output which will have no side-effects
+    or fail pipeline construction esoterically. This checks the outputs and
+    gives a user-friendsly error.
+    """
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.pipeline import PipelineVisitor
+    from apache_beam.io import WriteToBigQuery
+
+    # First, retrieve all the outpts from all the WriteToBigQuery transforms
+    # that will be replaced. Later, we will use these to make sure no one
+    # consumes these.
+    class GetWriteToBqOutputsVisitor(PipelineVisitor):
+      def __init__(self, matches):
+        self.matches = matches
+        self.outputs = set()
+
+      def enter_composite_transform(self, transform_node):
+        # Only add outputs that are going to be replaced.
+        if self.matches(transform_node):
+          self.outputs.update(set(transform_node.outputs.values()))
+
+    outputs_visitor = GetWriteToBqOutputsVisitor(self.matches)
+    pipeline.visit(outputs_visitor)
+
+    # Finally, verify that there are no consumers to the previously found
+    # outputs.
+    class VerifyWriteToBqOutputsVisitor(PipelineVisitor):
+      def __init__(self, outputs):
+        self.outputs = outputs
+
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
+      def visit_transform(self, transform_node):
+        if [o for o in self.outputs if o in transform_node.inputs]:
+          raise ValueError(
+              'WriteToBigQuery was being replaced with the native '
+              'BigQuerySink, but the transform "{}" has an input which will be '
+              'replaced with a PDone. To fix, please remove all transforms '
+              'that read from any WriteToBigQuery transforms.'.format(
+                  transform_node.full_label))
+
+    pipeline.visit(VerifyWriteToBqOutputsVisitor(outputs_visitor.outputs))
+
+  def matches(self, applied_ptransform):
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam import io
+    from apache_beam.runners.dataflow.internal import apiclient
+
+    transform = applied_ptransform.transform
+    if (not isinstance(transform, io.WriteToBigQuery) or
+        getattr(transform, 'override', False)):
+      return False
+
+    use_fnapi = apiclient._use_fnapi(self.options)
+    experiments = self.options.view_as(DebugOptions).experiments or []
+    if (use_fnapi or 'use_beam_bq_sink' in experiments):
+      return False
+
+    if transform.schema == io.gcp.bigquery.SCHEMA_AUTODETECT:
+      raise RuntimeError(
+          'Schema auto-detection is not supported on the native sink')
+
+    # The replacement is only valid for Batch.
+    standard_options = self.options.view_as(StandardOptions)
+    if standard_options.streaming:
+      if transform.write_disposition == io.BigQueryDisposition.WRITE_TRUNCATE:
+        raise RuntimeError('Can not use write truncation mode in streaming')
+      return False
+
+    self.outputs = list(applied_ptransform.outputs.keys())
+    return True
+
+  def get_replacement_transform(self, ptransform):
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam import io
+
+    class WriteToBigQuery(io.WriteToBigQuery):
+      override = True
+
+      def __init__(self, transform, outputs):
+        self.transform = transform
+        self.outputs = outputs
+
+      def __getattr__(self, name):
+        """Returns the given attribute from the parent.
+
+        This allows this transform to act like a WriteToBigQuery transform
+        without having to construct a new WriteToBigQuery transform.
+        """
+        return self.transform.__getattribute__(name)
+
+      def expand(self, pcoll):
+        from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
+        import json
+
+        schema = None
+        if self.schema:
+          schema = parse_table_schema_from_json(json.dumps(self.schema))
+
+        out = pcoll | io.Write(
+            io.BigQuerySink(
+                self.table_reference.tableId,
+                self.table_reference.datasetId,
+                self.table_reference.projectId,
+                schema,
+                self.create_disposition,
+                self.write_disposition,
+                kms_key=self.kms_key))
+
+        # The WriteToBigQuery can have different outputs depending on if it's
+        # Batch or Streaming. This retrieved the output keys from the node and
+        # is replacing them here to be consistent.
+        return {key: out for key in self.outputs}
+
+    return WriteToBigQuery(ptransform, self.outputs)

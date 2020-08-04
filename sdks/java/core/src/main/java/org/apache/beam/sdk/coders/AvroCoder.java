@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,7 +32,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
-import javax.annotation.Nullable;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Conversion;
 import org.apache.avro.LogicalType;
@@ -60,6 +60,7 @@ import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -210,6 +211,10 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * serialization and hence is able to encode the {@link Schema} object directly.
    */
   private static class SerializableSchemaSupplier implements Serializable, Supplier<Schema> {
+    // writeReplace makes this object serializable. This is a limitation of FindBugs as discussed
+    // here:
+    // http://stackoverflow.com/questions/26156523/is-writeobject-not-neccesary-using-the-serialization-proxy-pattern
+    @SuppressFBWarnings("SE_BAD_FIELD")
     private final Schema schema;
 
     private SerializableSchemaSupplier(Schema schema) {
@@ -490,7 +495,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
     private void checkString(String context, TypeDescriptor<?> type) {
       // For types that are encoded as strings, we need to make sure they're in an approved
-      // whitelist. For other types that are annotated @Stringable, Avro will just use the
+      // list. For other types that are annotated @Stringable, Avro will just use the
       // #toString() methods, which has no guarantees of determinism.
       if (!DETERMINISTIC_STRINGABLE_CLASSES.contains(type.getRawType())) {
         reportError(context, "%s may not have deterministic #toString()", type);
@@ -702,7 +707,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (other == this) {
       return true;
     }

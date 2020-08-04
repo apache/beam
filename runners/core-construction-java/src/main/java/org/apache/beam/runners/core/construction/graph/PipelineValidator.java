@@ -83,9 +83,6 @@ public class PipelineValidator {
           .put(
               PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN,
               PipelineValidator::validateParDo)
-          .put(
-              PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN,
-              PipelineValidator::validateParDo)
           .put(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN, PipelineValidator::validateParDo)
           .put(ExecutableStage.URN, PipelineValidator::validateExecutableStage)
           .build();
@@ -208,6 +205,15 @@ public class PipelineValidator {
     }
 
     String urn = transform.getSpec().getUrn();
+    if (PTransformTranslation.RUNNER_IMPLEMENTED_TRANSFORMS.contains(urn)) {
+      checkArgument(
+          transform.getEnvironmentId().isEmpty(),
+          "Transform %s references environment %s when no environment should be specified since it is a required runner implemented transform %s.",
+          id,
+          transform.getEnvironmentId(),
+          urn);
+    }
+
     if (VALIDATORS.containsKey(urn)) {
       try {
         VALIDATORS.get(urn).validate(id, transform, components, requirements);

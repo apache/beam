@@ -61,10 +61,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
@@ -96,6 +93,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -279,22 +277,17 @@ public class DatastoreV1 {
      */
     static final int QUERY_BATCH_LIMIT = 500;
 
-    @Nullable
-    public abstract ValueProvider<String> getProjectId();
+    public abstract @Nullable ValueProvider<String> getProjectId();
 
-    @Nullable
-    public abstract Query getQuery();
+    public abstract @Nullable Query getQuery();
 
-    @Nullable
-    public abstract ValueProvider<String> getLiteralGqlQuery();
+    public abstract @Nullable ValueProvider<String> getLiteralGqlQuery();
 
-    @Nullable
-    public abstract ValueProvider<String> getNamespace();
+    public abstract @Nullable ValueProvider<String> getNamespace();
 
     public abstract int getNumQuerySplits();
 
-    @Nullable
-    public abstract String getLocalhost();
+    public abstract @Nullable String getLocalhost();
 
     @Override
     public abstract String toString();
@@ -544,19 +537,17 @@ public class DatastoreV1 {
      * ensure that the query is originated from trusted sources to avoid any security
      * vulnerabilities via SQL Injection.
      *
-     * <p><b><i>Experimental</i></b>: Cloud Datastore does not a provide a clean way to translate a
-     * gql query string to {@link Query}, so we end up making a query to the service for translation
-     * but this may read the actual data, although it will be a small amount. It needs more
-     * validation through production use cases before marking it as stable.
+     * <p>Cloud Datastore does not a provide a clean way to translate a gql query string to {@link
+     * Query}, so we end up making a query to the service for translation but this may read the
+     * actual data, although it will be a small amount. It needs more validation through production
+     * use cases before marking it as stable.
      */
-    @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withLiteralGqlQuery(String gqlQuery) {
       checkArgument(gqlQuery != null, "gqlQuery can not be null");
       return toBuilder().setLiteralGqlQuery(StaticValueProvider.of(gqlQuery)).build();
     }
 
     /** Same as {@link Read#withLiteralGqlQuery(String)} but with a {@link ValueProvider}. */
-    @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withLiteralGqlQuery(ValueProvider<String> gqlQuery) {
       checkArgument(gqlQuery != null, "gqlQuery can not be null");
       if (gqlQuery.isAccessible()) {
@@ -689,8 +680,8 @@ public class DatastoreV1 {
     @VisibleForTesting
     static class V1Options implements HasDisplayData, Serializable {
       private final ValueProvider<String> project;
-      @Nullable private final ValueProvider<String> namespace;
-      @Nullable private final String localhost;
+      private final @Nullable ValueProvider<String> namespace;
+      private final @Nullable String localhost;
 
       private V1Options(
           ValueProvider<String> project, ValueProvider<String> namespace, String localhost) {
@@ -713,8 +704,7 @@ public class DatastoreV1 {
         return project.get();
       }
 
-      @Nullable
-      public String getNamespace() {
+      public @Nullable String getNamespace() {
         return namespace == null ? null : namespace.get();
       }
 
@@ -722,13 +712,11 @@ public class DatastoreV1 {
         return project;
       }
 
-      @Nullable
-      public ValueProvider<String> getNamespaceValueProvider() {
+      public @Nullable ValueProvider<String> getNamespaceValueProvider() {
         return namespace;
       }
 
-      @Nullable
-      public String getLocalhost() {
+      public @Nullable String getLocalhost() {
         return localhost;
       }
 
@@ -1123,7 +1111,7 @@ public class DatastoreV1 {
    */
   private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
     protected ValueProvider<String> projectId;
-    @Nullable protected String localhost;
+    protected @Nullable String localhost;
     /** A function that transforms each {@code T} into a mutation. */
     private final SimpleFunction<T, Mutation> mutationFn;
 
@@ -1254,7 +1242,7 @@ public class DatastoreV1 {
   static class DatastoreWriterFn extends DoFn<Mutation, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriterFn.class);
     private final ValueProvider<String> projectId;
-    @Nullable private final String localhost;
+    private final @Nullable String localhost;
     private transient Datastore datastore;
     private final V1DatastoreFactory datastoreFactory;
     // Current batch of mutations to be written.

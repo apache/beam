@@ -31,18 +31,11 @@ import tempfile
 import threading
 import time
 
+import grpc
 from future.moves.urllib.error import URLError
 from future.moves.urllib.request import urlopen
 
 from apache_beam.version import __version__ as beam_version
-
-# Protect against environments where grpc is not available.
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:
-  import grpc
-except ImportError:
-  grpc = None
-# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,7 +89,7 @@ class SubprocessServer(object):
         try:
           channel_ready.result(timeout=wait_secs)
           break
-        except (grpc.FutureTimeoutError, grpc._channel._Rendezvous):
+        except (grpc.FutureTimeoutError, grpc.RpcError):
           wait_secs *= 1.2
           logging.log(
               logging.WARNING if wait_secs > 1 else logging.DEBUG,

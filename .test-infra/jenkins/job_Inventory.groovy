@@ -30,13 +30,13 @@ nums.each {
     commonJobProperties.setTopLevelMainJobProperties(delegate)
 
     // Sets that this is a cron job.
-    commonJobProperties.setCronJob(delegate, '45 18 * * *')
+    commonJobProperties.setCronJob(delegate, '45 6,18 * * *')
 
     // Allows triggering this build against pull requests.
     commonJobProperties.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      "Machine Inventory ${machine}",
-      "Run Inventory ${machine}")
+        delegate,
+        "Machine Inventory ${machine}",
+        "Run Inventory ${machine}")
 
     parameters {
       nodeParam('TEST_HOST') {

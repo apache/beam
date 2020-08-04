@@ -21,7 +21,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import javax.annotation.Nullable;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -193,7 +193,7 @@ public class PubsubIOExternalTest {
 
     RunnerApi.ParDoPayload parDoPayload =
         RunnerApi.ParDoPayload.parseFrom(writeParDo.getSpec().getPayload());
-    DoFn pubsubWriter = ParDoTranslation.getDoFn(parDoPayload);
+    DoFn<?, ?> pubsubWriter = ParDoTranslation.getDoFn(parDoPayload);
 
     String idAttributeActual = (String) Whitebox.getInternalState(pubsubWriter, "idAttribute");
 

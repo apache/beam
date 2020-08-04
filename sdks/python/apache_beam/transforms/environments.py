@@ -595,6 +595,8 @@ def _python_sdk_capabilities_iter():
   yield common_urns.protocols.LEGACY_PROGRESS_REPORTING.urn
   yield common_urns.protocols.WORKER_STATUS.urn
   yield 'beam:version:sdk_base:' + DockerEnvironment.default_docker_image()
+  #TODO(BEAM-10530): Add truncate capability.
+  # yield common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn
 
 
 def python_sdk_dependencies(options, tmp_dir=None):

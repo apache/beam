@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -194,26 +194,19 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     return new AutoValue_Window.Builder<T>().build();
   }
 
-  @Nullable
-  public abstract WindowFn<? super T, ?> getWindowFn();
+  public abstract @Nullable WindowFn<? super T, ?> getWindowFn();
 
-  @Nullable
-  abstract Trigger getTrigger();
+  abstract @Nullable Trigger getTrigger();
 
-  @Nullable
-  abstract AccumulationMode getAccumulationMode();
+  abstract @Nullable AccumulationMode getAccumulationMode();
 
-  @Nullable
-  abstract Duration getAllowedLateness();
+  abstract @Nullable Duration getAllowedLateness();
 
-  @Nullable
-  abstract ClosingBehavior getClosingBehavior();
+  abstract @Nullable ClosingBehavior getClosingBehavior();
 
-  @Nullable
-  abstract OnTimeBehavior getOnTimeBehavior();
+  abstract @Nullable OnTimeBehavior getOnTimeBehavior();
 
-  @Nullable
-  abstract TimestampCombiner getTimestampCombiner();
+  abstract @Nullable TimestampCombiner getTimestampCombiner();
 
   abstract Builder<T> toBuilder();
 
@@ -491,8 +484,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
       original.populateDisplayData(builder);
     }
 
-    @Nullable
-    public WindowFn<T, ?> getWindowFn() {
+    public @Nullable WindowFn<T, ?> getWindowFn() {
       return updatedStrategy.getWindowFn();
     }
   }

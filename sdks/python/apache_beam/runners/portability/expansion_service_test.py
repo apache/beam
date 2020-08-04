@@ -36,7 +36,7 @@ from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigur
 from apache_beam.runners.portability import expansion_service
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 # This script provides an expansion service and example ptransforms for running
 # external transform test cases. See external_test.py for details.
@@ -296,7 +296,7 @@ def main(unused_argv):
       '-p', '--port', type=int, help='port on which to serve the job api')
   options = parser.parse_args()
   global server
-  server = grpc.server(UnboundedThreadPoolExecutor())
+  server = grpc.server(thread_pool_executor.shared_unbounded_instance())
   beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
       expansion_service.ExpansionServiceServicer(
           PipelineOptions(

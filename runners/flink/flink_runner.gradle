@@ -28,8 +28,9 @@ import groovy.json.JsonOutput
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.runners.flink',
-    archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName)
-)
+    enableChecker: false,
+    ignoreRawtypeErrors: true,
+    archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName))
 
 description = "Apache Beam :: Runners :: Flink $flink_version"
 
@@ -207,6 +208,7 @@ def createValidatesRunnerTask(Map m) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
       if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
@@ -246,7 +248,7 @@ def createPipelineOptionsTableTask(String target) {
     args = [target]
     standardOutput = new ByteArrayOutputStream()
     doLast {
-      def dest = file("${project(':website').getProjectDir()}/src/_includes/flink_${target.toLowerCase()}_pipeline_options.html")
+      def dest = file("${project(':website').getProjectDir()}/www/site/layouts/shortcodes/flink_${target.toLowerCase()}_pipeline_options.html")
       if (!dest.exists()) {
         throw new GradleException("Pipeline options file is not in expected location: ${dest}")
       }

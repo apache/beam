@@ -18,10 +18,14 @@
 package org.apache.beam.runners.fnexecution;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /**
  * A {@link Server gRPC Server} which manages a single {@link FnService}. The lifetime of the
@@ -37,6 +41,58 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
     Server server =
         factory.allocateAddressAndCreate(ImmutableList.of(service), apiServiceDescriptor);
     return new GrpcFnServer<>(server, service, apiServiceDescriptor.build());
+  }
+
+  /**
+   * Create {@link GrpcFnServer}s for the provided {@link FnService}s running on an arbitrary port.
+   */
+  public static List<GrpcFnServer<? extends FnService>> allocatePortAndCreateFor(
+      List<? extends FnService> services, ServerFactory factory) throws IOException {
+    ApiServiceDescriptor.Builder apiServiceDescriptor = ApiServiceDescriptor.newBuilder();
+    Server server =
+        factory.allocateAddressAndCreate(
+            Collections.unmodifiableList(services), apiServiceDescriptor);
+    AtomicInteger countdown = new AtomicInteger(services.size());
+    return Lists.transform(
+        services,
+        service ->
+            new SharedGrpcFnServer<>(server, service, apiServiceDescriptor.build(), countdown));
+  }
+
+  /**
+   * Create {@link GrpcFnServer}s for the provided {@link FnService}s running on a specified port.
+   */
+  public static List<GrpcFnServer<? extends FnService>> create(
+      List<? extends FnService> services, ApiServiceDescriptor endpoint, ServerFactory factory)
+      throws IOException {
+    Server server = factory.create(Collections.unmodifiableList(services), endpoint);
+    AtomicInteger countdown = new AtomicInteger(services.size());
+    return Lists.transform(
+        services, service -> new SharedGrpcFnServer<>(server, service, endpoint, countdown));
+  }
+
+  private static class SharedGrpcFnServer<ServiceT extends FnService>
+      extends GrpcFnServer<ServiceT> {
+
+    private AtomicInteger countdown;
+
+    private SharedGrpcFnServer(
+        Server server,
+        ServiceT service,
+        ApiServiceDescriptor apiServiceDescriptor,
+        AtomicInteger countdown) {
+      super(server, service, apiServiceDescriptor);
+      this.countdown = countdown;
+    }
+
+    @Override
+    public void close() throws Exception {
+      if (countdown.addAndGet(-1) == 0) {
+        super.close();
+      } else {
+        getService().close();
+      }
+    }
   }
 
   /**

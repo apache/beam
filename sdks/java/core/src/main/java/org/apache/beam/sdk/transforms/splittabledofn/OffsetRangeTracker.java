@@ -21,23 +21,28 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import javax.annotation.Nullable;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link RestrictionTracker} for claiming offsets in an {@link OffsetRange} in a monotonically
  * increasing fashion.
+ *
+ * <p>The smallest offset is {@code Long.MIN_VALUE} and the largest offset is {@code Long.MAX_VALUE
+ * - 1}.
  */
 @Experimental(Kind.SPLITTABLE_DO_FN)
 public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
     implements HasProgress {
-  private OffsetRange range;
-  @Nullable private Long lastClaimedOffset = null;
-  @Nullable private Long lastAttemptedOffset = null;
+  protected OffsetRange range;
+  protected @Nullable Long lastClaimedOffset = null;
+  protected @Nullable Long lastAttemptedOffset = null;
 
   public OffsetRangeTracker(OffsetRange range) {
     this.range = checkNotNull(range);
@@ -50,16 +55,27 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
 
   @Override
   public SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
-    long cur = (lastAttemptedOffset == null) ? range.getFrom() - 1 : lastAttemptedOffset;
-    long splitPos =
-        cur
-            + Math.max(
-                1L, (Double.valueOf((range.getTo() - cur) * fractionOfRemainder)).longValue());
-    if (splitPos >= range.getTo()) {
+    // Convert to BigDecimal in computation to prevent overflow, which may result in loss of
+    // precision.
+    BigDecimal cur =
+        (lastAttemptedOffset == null)
+            ? BigDecimal.valueOf(range.getFrom()).subtract(BigDecimal.ONE, MathContext.DECIMAL128)
+            : BigDecimal.valueOf(lastAttemptedOffset);
+    // split = cur + max(1, (range.getTo() - cur) * fractionOfRemainder)
+    BigDecimal splitPos =
+        cur.add(
+            BigDecimal.valueOf(range.getTo())
+                .subtract(cur, MathContext.DECIMAL128)
+                .multiply(BigDecimal.valueOf(fractionOfRemainder), MathContext.DECIMAL128)
+                .max(BigDecimal.ONE),
+            MathContext.DECIMAL128);
+
+    long split = splitPos.longValue();
+    if (split >= range.getTo()) {
       return null;
     }
-    OffsetRange res = new OffsetRange(splitPos, range.getTo());
-    this.range = new OffsetRange(range.getFrom(), splitPos);
+    OffsetRange res = new OffsetRange(split, range.getTo());
+    this.range = new OffsetRange(range.getFrom(), split);
     return SplitResult.of(range, res);
   }
 
@@ -108,6 +124,11 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   }
 
   @Override
+  public IsBounded isBounded() {
+    return IsBounded.BOUNDED;
+  }
+
+  @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
         .add("range", range)
@@ -120,13 +141,27 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   public Progress getProgress() {
     // If we have never attempted an offset, we return the length of the entire range as work
     // remaining.
+    // Convert to BigDecimal in computation to prevent overflow, which may result in loss of
+    // precision.
     if (lastAttemptedOffset == null) {
-      return Progress.from(0, range.getTo() - range.getFrom());
+      return Progress.from(
+          0,
+          BigDecimal.valueOf(range.getTo())
+              .subtract(BigDecimal.valueOf(range.getFrom()), MathContext.DECIMAL128)
+              .doubleValue());
     }
 
     // Compute the amount of work remaining from where we are to where we are attempting to get to
     // with a minimum of zero in case we have claimed beyond the end of the range.
-    long workRemaining = Math.max(range.getTo() - lastAttemptedOffset, 0);
-    return Progress.from(range.getTo() - range.getFrom() - workRemaining, workRemaining);
+    BigDecimal workRemaining =
+        BigDecimal.valueOf(range.getTo())
+            .subtract(BigDecimal.valueOf(lastAttemptedOffset), MathContext.DECIMAL128)
+            .max(BigDecimal.ZERO);
+    BigDecimal totalWork =
+        BigDecimal.valueOf(range.getTo())
+            .subtract(BigDecimal.valueOf(range.getFrom()), MathContext.DECIMAL128);
+    return Progress.from(
+        totalWork.subtract(workRemaining, MathContext.DECIMAL128).doubleValue(),
+        workRemaining.doubleValue());
   }
 }

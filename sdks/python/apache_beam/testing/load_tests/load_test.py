@@ -21,11 +21,13 @@ from __future__ import absolute_import
 import argparse
 import json
 import logging
+import os
 import sys
 
 from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.testing.load_tests.load_test_metrics_utils import InfluxDBMetricsPublisherOptions
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -45,6 +47,20 @@ class LoadTestOptions(PipelineOptions):
         '--metrics_table',
         help='A BigQuery table where metrics should be '
         'written.')
+    parser.add_argument(
+        '--influx_measurement',
+        help='An InfluxDB measurement where metrics should be published to. '
+        'Measurement can be thought of as a SQL table. If empty, reporting to '
+        'InfluxDB will be disabled.')
+    parser.add_argument(
+        '--influx_db_name',
+        help='InfluxDB database name. If empty, reporting to InfluxDB will be '
+        'disabled.')
+    parser.add_argument(
+        '--influx_hostname',
+        help='Hostname to connect to InfluxDB. Defaults to '
+        '"http://localhost:8086".',
+        default='http://localhost:8086')
     parser.add_argument(
         '--input_options',
         type=json.loads,
@@ -67,22 +83,36 @@ class LoadTestOptions(PipelineOptions):
 
 
 class LoadTest(object):
-  def __init__(self):
+  """Base class for all integration and performance tests which export
+  metrics to external databases: BigQuery or/and InfluxDB.
+
+  Refer to :class:`~apache_beam.testing.load_tests.LoadTestOptions` for more
+  information on the required pipeline options.
+
+  If using InfluxDB with Basic HTTP authentication enabled, provide the
+  following environment options: `INFLUXDB_USER` and `INFLUXDB_USER_PASSWORD`.
+  """
+  def __init__(self, metrics_namespace=None):
     # Be sure to set blocking to false for timeout_ms to work properly
     self.pipeline = TestPipeline(is_integration_test=True, blocking=False)
     assert not self.pipeline.blocking
 
-    load_test_options = self.pipeline.get_pipeline_options().view_as(
-        LoadTestOptions)
-    self.timeout_ms = load_test_options.timeout_ms
-    self.input_options = load_test_options.input_options
-    self.metrics_namespace = load_test_options.metrics_table or 'default'
-    publish_to_bq = load_test_options.publish_to_big_query
+    options = self.pipeline.get_pipeline_options().view_as(LoadTestOptions)
+    self.timeout_ms = options.timeout_ms
+    self.input_options = options.input_options
+
+    if metrics_namespace:
+      self.metrics_namespace = metrics_namespace
+    else:
+      self.metrics_namespace = options.metrics_table \
+        if options.metrics_table else 'default'
+
+    publish_to_bq = options.publish_to_big_query
     if publish_to_bq is None:
       logging.info(
           'Missing --publish_to_big_query option. Metrics will not '
           'be published to BigQuery.')
-    if load_test_options.input_options is None:
+    if options.input_options is None:
       logging.error('--input_options argument is required.')
       sys.exit(1)
 
@@ -93,8 +123,15 @@ class LoadTest(object):
     self._metrics_monitor = MetricsReader(
         publish_to_bq=publish_to_bq,
         project_name=self.project_id,
-        bq_table=load_test_options.metrics_table,
-        bq_dataset=load_test_options.metrics_dataset,
+        bq_table=options.metrics_table,
+        bq_dataset=options.metrics_dataset,
+        namespace=self.metrics_namespace,
+        influxdb_options=InfluxDBMetricsPublisherOptions(
+            options.influx_measurement,
+            options.influx_db_name,
+            options.influx_hostname,
+            os.getenv('INFLUXDB_USER'),
+            os.getenv('INFLUXDB_USER_PASSWORD')),
         # Apply filter to prevent system metrics from being published
         filters=MetricsFilter().with_namespace(self.metrics_namespace))
 

@@ -19,7 +19,10 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.spark')
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.runners.spark',
+  enableChecker: false,
+  ignoreRawtypeErrors: true)
 
 description = "Apache Beam :: Runners :: Spark"
 
@@ -139,6 +142,7 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
@@ -209,6 +213,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     // Metrics
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'

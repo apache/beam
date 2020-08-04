@@ -24,6 +24,7 @@ import itertools
 
 from apache_beam.transforms import userstate
 from apache_beam.transforms.trigger import _ListStateTag
+from apache_beam.transforms.trigger import _ReadModifyWriteStateTag
 from apache_beam.transforms.trigger import _SetStateTag
 
 
@@ -35,7 +36,10 @@ class DirectRuntimeState(userstate.RuntimeState):
 
   @staticmethod
   def for_spec(state_spec, state_tag, current_value_accessor):
-    if isinstance(state_spec, userstate.BagStateSpec):
+    if isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
+      return ReadModifyWriteRuntimeState(
+          state_spec, state_tag, current_value_accessor)
+    elif isinstance(state_spec, userstate.BagStateSpec):
       return BagRuntimeState(state_spec, state_tag, current_value_accessor)
     elif isinstance(state_spec, userstate.CombiningValueStateSpec):
       return CombiningValueRuntimeState(
@@ -54,6 +58,41 @@ class DirectRuntimeState(userstate.RuntimeState):
 
 # Sentinel designating an unread value.
 UNREAD_VALUE = object()
+
+
+class ReadModifyWriteRuntimeState(DirectRuntimeState,
+                                  userstate.ReadModifyWriteRuntimeState):
+  def __init__(self, state_spec, state_tag, current_value_accessor):
+    super(ReadModifyWriteRuntimeState,
+          self).__init__(state_spec, state_tag, current_value_accessor)
+    self._value = UNREAD_VALUE
+    self._cleared = False
+    self._modified = False
+
+  def read(self):
+    if self._cleared:
+      return None
+    if self._value is UNREAD_VALUE:
+      self._value = self._current_value_accessor()
+    if not self._value:
+      return None
+    return self._decode(self._value[0])
+
+  def write(self, value):
+    self._cleared = False
+    self._modified = True
+    self._value = [self._encode(value)]
+
+  def clear(self):
+    self._cleared = True
+    self._modified = False
+    self._value = []
+
+  def is_cleared(self):
+    return self._cleared
+
+  def is_modified(self):
+    return self._modified
 
 
 class BagRuntimeState(DirectRuntimeState, userstate.BagRuntimeState):
@@ -164,7 +203,9 @@ class DirectUserStateContext(userstate.UserStateContext):
     self.state_tags = {}
     for state_spec in self.all_state_specs:
       state_key = 'user/%s' % state_spec.name
-      if isinstance(state_spec, userstate.BagStateSpec):
+      if isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
+        state_tag = _ReadModifyWriteStateTag(state_key)
+      elif isinstance(state_spec, userstate.BagStateSpec):
         state_tag = _ListStateTag(state_key)
       elif isinstance(state_spec, userstate.CombiningValueStateSpec):
         state_tag = _ListStateTag(state_key)
@@ -228,6 +269,12 @@ class DirectUserStateContext(userstate.UserStateContext):
           for new_value in runtime_state._current_accumulator:
             state.add_state(
                 window, state_tag, state_spec.coder.encode(new_value))
+      elif isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
+        if runtime_state.is_cleared():
+          state.clear_state(window, state_tag)
+        if runtime_state.is_modified():
+          state.clear_state(window, state_tag)
+          state.add_state(window, state_tag, runtime_state._value)
       else:
         raise ValueError('Invalid state spec: %s' % state_spec)
 

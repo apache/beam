@@ -1,0 +1,19 @@
+{
+  "name": "apache-beam-website",
+  "version": "1.0.0",
+  "description": "Apache Beam website",
+  "repository": "apache/beam",
+  "license": "MIT",
+  "scripts": {
+    "build_code_samples": "./build_code_samples.sh",
+    "develop": "cd site && hugo server",
+    "build": "cross-env HUGO_ENV=production hugo --minify -d ../dist -s site -v",
+    "start": "hugo -d ../dist -s site -vw"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "autoprefixer": "^9.7.4",
+    "cross-env": "^7.0.2",
+    "postcss-cli": "^7.1.0"
+  }
+}

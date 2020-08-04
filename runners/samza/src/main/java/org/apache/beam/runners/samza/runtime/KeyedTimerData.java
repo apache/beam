@@ -34,6 +34,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -98,7 +99,19 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public String toString() {
+    return "KeyedTimerData{"
+        + "key="
+        + key
+        + ", keyBytes="
+        + Arrays.toString(keyBytes)
+        + ", timerData="
+        + timerData
+        + '}';
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }
@@ -160,7 +173,7 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
       final StateNamespace namespace =
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       final TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      final TimerData timer = TimerData.of(timerId, namespace, timestamp, domain);
+      final TimerData timer = TimerData.of(timerId, namespace, timestamp, timestamp, domain);
 
       byte[] keyBytes = null;
       K key = null;

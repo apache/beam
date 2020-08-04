@@ -19,7 +19,7 @@ package org.apache.beam.runners.fnexecution.environment;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -44,7 +44,7 @@ public class StaticRemoteEnvironmentFactory implements EnvironmentFactory {
   }
 
   @Override
-  public RemoteEnvironment createEnvironment(Environment environment) {
+  public RemoteEnvironment createEnvironment(Environment environment, String workerId) {
     return StaticRemoteEnvironment.create(environment, this.instructionRequestHandler);
   }
 
@@ -60,7 +60,7 @@ public class StaticRemoteEnvironmentFactory implements EnvironmentFactory {
     public EnvironmentFactory createEnvironmentFactory(
         GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
         GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-        GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
+        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
         GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator) {

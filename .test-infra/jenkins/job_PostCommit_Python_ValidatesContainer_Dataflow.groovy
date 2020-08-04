@@ -22,22 +22,24 @@ import PostcommitJobBuilder
 // This job runs the suite of Python ValidatesContainer tests against the
 // Dataflow runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
-  'Run Python Dataflow ValidatesContainer', 'Google Cloud Dataflow Runner Python ValidatesContainer Tests', this) {
-  description('Runs Python ValidatesContainer suite on the Dataflow runner.')
+    'Run Python Dataflow ValidatesContainer', 'Google Cloud Dataflow Runner Python ValidatesContainer Tests', this) {
+      description('Runs Python ValidatesContainer suite on the Dataflow runner.')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  publishers {
-    archiveJunit('**/nosetests*.xml')
-  }
+      publishers {
+        archiveJunit('**/nosetests*.xml')
+      }
 
-  // Execute shell command to test Python SDK.
-  // TODO: Parallel the script run with Jenkins DSL or Gradle.
-  steps {
-    shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python2')
-    shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python35')
-    shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python36')
-    shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python37')
-  }
-}
+      // Execute shell command to test Python SDK.
+      // TODO: Parallel the script run with Jenkins DSL or Gradle.
+      steps {
+        shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python2')
+        shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python35')
+        shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python36')
+        shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python37')
+        // TODO(BEAM-9754): Turn on ValidatesContainer tests on Python 3.8 once BEAM-9754 is resolved.
+        // shell('cd ' + commonJobProperties.checkoutDir + ' && bash sdks/python/container/run_validatescontainer.sh python38')
+      }
+    }

@@ -23,7 +23,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -76,7 +76,8 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
 
   /** Creates a new, active {@link RemoteEnvironment} backed by a forked process. */
   @Override
-  public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
+  public RemoteEnvironment createEnvironment(Environment environment, String workerId)
+      throws Exception {
     Preconditions.checkState(
         environment
             .getUrn()
@@ -84,7 +85,6 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
         "The passed environment does not contain a ProcessPayload.");
     final RunnerApi.ProcessPayload processPayload =
         RunnerApi.ProcessPayload.parseFrom(environment.getPayload());
-    final String workerId = idGenerator.getId();
 
     String executable = processPayload.getCommand();
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
@@ -145,7 +145,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     public EnvironmentFactory createEnvironmentFactory(
         GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
         GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-        GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
+        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
         GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator) {

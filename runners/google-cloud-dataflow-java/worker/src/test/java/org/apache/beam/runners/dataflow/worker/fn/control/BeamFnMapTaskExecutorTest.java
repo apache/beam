@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
@@ -62,6 +61,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -252,7 +252,11 @@ public class BeamFnMapTaskExecutorTest {
 
           @Override
           public <W extends BoundedWindow> void setStateCleanupTimer(
-              String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {}
+              String timerId,
+              W window,
+              Coder<W> windowCoder,
+              Instant cleanupTime,
+              Instant cleanupOutputTimestamp) {}
 
           @Override
           public DataflowStepContext namespacedToUser() {

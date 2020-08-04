@@ -39,15 +39,18 @@ import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 public class ArtifactRetrievalService
     extends ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceImplBase implements FnService {
 
-  public static final int DEFAULT_BUFFER_SIZE = 4 << 20; // 4 MB
+  public static final int DEFAULT_BUFFER_SIZE = 2 << 20; // 2 MB
 
   public static final String FILE_ARTIFACT_URN = "beam:artifact:type:file:v1";
   public static final String URL_ARTIFACT_URN = "beam:artifact:type:url:v1";
+  public static final String EMBEDDED_ARTIFACT_URN = "beam:artifact:type:embedded:v1";
   public static final String STAGING_TO_ARTIFACT_URN = "beam:artifact:role:staging_to:v1";
 
   static {
     checkState(FILE_ARTIFACT_URN.equals(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE)));
     checkState(URL_ARTIFACT_URN.equals(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.URL)));
+    checkState(
+        EMBEDDED_ARTIFACT_URN.equals(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.EMBEDDED)));
     checkState(
         STAGING_TO_ARTIFACT_URN.equals(
             BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO)));
@@ -89,34 +92,41 @@ public class ArtifactRetrievalService
   public void getArtifact(
       ArtifactApi.GetArtifactRequest request,
       StreamObserver<ArtifactApi.GetArtifactResponse> responseObserver) {
-    switch (request.getArtifact().getTypeUrn()) {
+    try {
+      InputStream inputStream = getArtifact(request.getArtifact());
+      byte[] buffer = new byte[bufferSize];
+      int bytesRead;
+      while ((bytesRead = inputStream.read(buffer)) > 0) {
+        responseObserver.onNext(
+            ArtifactApi.GetArtifactResponse.newBuilder()
+                .setData(ByteString.copyFrom(buffer, 0, bytesRead))
+                .build());
+      }
+      responseObserver.onCompleted();
+    } catch (IOException exn) {
+      exn.printStackTrace();
+      responseObserver.onError(exn);
+    } catch (UnsupportedOperationException exn) {
+      responseObserver.onError(
+          new StatusException(Status.INVALID_ARGUMENT.withDescription(exn.getMessage())));
+    }
+  }
+
+  public static InputStream getArtifact(RunnerApi.ArtifactInformation artifact) throws IOException {
+    switch (artifact.getTypeUrn()) {
       case FILE_ARTIFACT_URN:
-        try {
-          RunnerApi.ArtifactFilePayload payload =
-              RunnerApi.ArtifactFilePayload.parseFrom(request.getArtifact().getTypePayload());
-          InputStream inputStream =
-              Channels.newInputStream(
-                  FileSystems.open(
-                      FileSystems.matchNewResource(payload.getPath(), false /* is directory */)));
-          byte[] buffer = new byte[bufferSize];
-          int bytesRead;
-          while ((bytesRead = inputStream.read(buffer)) > 0) {
-            responseObserver.onNext(
-                ArtifactApi.GetArtifactResponse.newBuilder()
-                    .setData(ByteString.copyFrom(buffer, 0, bytesRead))
-                    .build());
-          }
-          responseObserver.onCompleted();
-        } catch (IOException exn) {
-          exn.printStackTrace();
-          responseObserver.onError(exn);
-        }
-        break;
+        RunnerApi.ArtifactFilePayload payload =
+            RunnerApi.ArtifactFilePayload.parseFrom(artifact.getTypePayload());
+        return Channels.newInputStream(
+            FileSystems.open(
+                FileSystems.matchNewResource(payload.getPath(), false /* is directory */)));
+      case EMBEDDED_ARTIFACT_URN:
+        return RunnerApi.EmbeddedFilePayload.parseFrom(artifact.getTypePayload())
+            .getData()
+            .newInput();
       default:
-        responseObserver.onError(
-            new StatusException(
-                Status.INVALID_ARGUMENT.withDescription(
-                    "Unexpected artifact type: " + request.getArtifact().getTypeUrn())));
+        throw new UnsupportedOperationException(
+            "Unexpected artifact type: " + artifact.getTypeUrn());
     }
   }
 

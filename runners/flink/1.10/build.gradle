@@ -20,7 +20,7 @@ def basePath = '..'
 /* All properties required for loading the Flink build script */
 project.ext {
   // Set the version of all Flink-related dependencies here.
-  flink_version = '1.10.0'
+  flink_version = '1.10.1'
   // Version specific code overrides.
   main_source_overrides = ["${basePath}/1.8/src/main/java", "${basePath}/1.9/src/main/java", './src/main/java']
   test_source_overrides = ["${basePath}/1.8/src/test/java", "${basePath}/1.9/src/test/java", './src/test/java']

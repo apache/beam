@@ -20,6 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  enableChecker: false,
   automaticModuleName: 'org.apache.beam.sdk.io.gcp',
   enableSpotbugs: false,
 )
@@ -52,17 +53,21 @@ dependencies {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
   }
   compile library.java.google_cloud_datastore_v1_proto_client
+  compile library.java.google_cloud_pubsublite
   compile library.java.google_cloud_spanner
   compile library.java.google_http_client
   compile library.java.google_http_client_jackson2
   compile library.java.grpc_all
+  compile library.java.grpc_alts
   compile library.java.grpc_auth
   compile library.java.grpc_core
   compile library.java.grpc_context
   compile library.java.grpc_grpclb
   compile library.java.grpc_netty
+  compile library.java.grpc_netty_shaded
   compile library.java.grpc_stub
   compile library.java.grpc_google_cloud_pubsub_v1
+  compile library.java.grpc_google_cloud_pubsublite_v1
   compile library.java.guava
   compile library.java.jackson_databind
   compile library.java.joda_time
@@ -72,6 +77,7 @@ dependencies {
   compile library.java.proto_google_cloud_bigtable_v2
   compile library.java.proto_google_cloud_datastore_v1
   compile library.java.proto_google_cloud_pubsub_v1
+  compile library.java.proto_google_cloud_pubsublite_v1
   compile library.java.proto_google_cloud_spanner_admin_database_v1
   compile library.java.proto_google_common_protos
   compile library.java.protobuf_java
@@ -92,10 +98,11 @@ dependencies {
   testRuntimeOnly library.java.slf4j_jdk14
 }
 
+
 /**
  * These are integration tests with the real Pubsub service and the DirectRunner.
  */
-task integrationTest(type: Test) {
+task integrationTest(type: Test, dependsOn: processTestResources) {
   group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
@@ -117,6 +124,7 @@ task integrationTest(type: Test) {
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs
+
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.UsesKms"
   }

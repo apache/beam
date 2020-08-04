@@ -939,6 +939,69 @@ class UtilTest(unittest.TestCase):
               mock.ANY, "dataflow_graph.json", mock.ANY)
           client.create_job_description.assert_called_once()
 
+  def test_stage_resources(self):
+    pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://test-location/temp',
+        '--staging_location',
+        'gs://test-location/staging',
+        '--no_auth'
+    ])
+    pipeline = beam_runner_api_pb2.Pipeline(
+        components=beam_runner_api_pb2.Components(
+            environments={
+                'env1': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/foo1').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='foo1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/bar1').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='bar1').SerializeToString())
+                    ]),
+                'env2': beam_runner_api_pb2.Environment(
+                    dependencies=[
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/foo2').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='foo2').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/bar2').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='bar2').SerializeToString())
+                    ])
+            }))
+    client = apiclient.DataflowApplicationClient(pipeline_options)
+    with mock.patch.object(apiclient._LegacyDataflowStager,
+                           'stage_job_resources') as mock_stager:
+      client._stage_resources(pipeline, pipeline_options)
+    mock_stager.assert_called_once_with(
+        [('/tmp/foo1', 'foo1'), ('/tmp/bar1', 'bar1'), ('/tmp/foo2', 'foo2'),
+         ('/tmp/bar2', 'bar2')],
+        staging_location='gs://test-location/staging')
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -19,22 +19,23 @@
 # This script will be run by Jenkins as a post commit test. In order to run
 # locally make the following changes:
 #
-# LOCAL_PATH   -> Path of tox and virtualenv if you have them already installed.
 # GCS_LOCATION -> Temporary location to use for service tests.
 # PROJECT      -> Project name to use for dataflow and docker images.
+# REGION       -> Region name to use for Dataflow
 #
 # Execute from the root of the repository:
 #     test Python2 container: ./sdks/python/container/run_validatescontainer.sh python2
 #     test Python3 container: ./sdks/python/container/run_validatescontainer.sh python35
 #     test Python3 container: ./sdks/python/container/run_validatescontainer.sh python36
 #     test Python3 container: ./sdks/python/container/run_validatescontainer.sh python37
+#     test Python3 container: ./sdks/python/container/run_validatescontainer.sh python38
 
-echo "This script must be executed in the root of beam project. Please set LOCAL_PATH, GCS_LOCATION, and PROJECT as desired."
+echo "This script must be executed in the root of beam project. Please set GCS_LOCATION, PROJECT and REGION as desired."
 
 if [[ $# != 1 ]]; then
   printf "Usage: \n$> ./sdks/python/container/run_validatescontainer.sh <python_version>"
   printf "\n\tpython_version: [required] Python version used for container build and run tests."
-  printf " Use 'python2' for Python2, 'python35' for Python3.5, python36 for Python3.6, python37 for Python3.7."
+  printf " Use 'python2' for Python2, 'python35' for Python3.5, python36 for Python3.6, python37 for Python3.7, python38 for Python3.8."
   exit 1
 fi
 
@@ -46,31 +47,32 @@ GCS_LOCATION=${GCS_LOCATION:-gs://temp-storage-for-end-to-end-tests}
 
 # Project for the container and integration test
 PROJECT=${PROJECT:-apache-beam-testing}
+REGION=${REGION:-us-central1}
 IMAGE_PREFIX="$(grep 'docker_image_default_repo_prefix' gradle.properties | cut -d'=' -f2)"
 
 # Other variables branched by Python version.
 if [[ $1 == "python2" ]]; then
   IMAGE_NAME="${IMAGE_PREFIX}python2.7_sdk"    # Use this to create CONTAINER_IMAGE variable.
   CONTAINER_PROJECT="sdks:python:container:py2"  # Use this to build container by Gradle.
-  GRADLE_PY3_FLAG=""        # Use this in Gradle command.
   PY_INTERPRETER="python"   # Use this in virtualenv command.
 elif [[ $1 == "python35" ]]; then
   IMAGE_NAME="${IMAGE_PREFIX}python3.5_sdk"    # Use this to create CONTAINER_IMAGE variable.
   CONTAINER_PROJECT="sdks:python:container:py35"  # Use this to build container by Gradle.
-  GRADLE_PY3_FLAG="-Ppython3"   # Use this in Gradle command.
   PY_INTERPRETER="python3.5"    # Use this in virtualenv command.
 elif [[ $1 == "python36" ]]; then
   IMAGE_NAME="${IMAGE_PREFIX}python3.6_sdk"    # Use this to create CONTAINER_IMAGE variable.
   CONTAINER_PROJECT="sdks:python:container:py36"  # Use this to build container by Gradle.
-  GRADLE_PY3_FLAG="-Ppython3"   # Use this in Gradle command.
   PY_INTERPRETER="python3.6"    # Use this in virtualenv command.
 elif [[ $1 == "python37" ]]; then
   IMAGE_NAME="${IMAGE_PREFIX}python3.7_sdk"    # Use this to create CONTAINER_IMAGE variable.
   CONTAINER_PROJECT="sdks:python:container:py37"  # Use this to build container by Gradle.
-  GRADLE_PY3_FLAG="-Ppython3"   # Use this in Gradle command.
   PY_INTERPRETER="python3.7"    # Use this in virtualenv command.
+elif [[ $1 == "python38" ]]; then
+  IMAGE_NAME="${IMAGE_PREFIX}python3.8_sdk"    # Use this to create CONTAINER_IMAGE variable.
+  CONTAINER_PROJECT="sdks:python:container:py38"  # Use this to build container by Gradle.
+  PY_INTERPRETER="python3.8"    # Use this in virtualenv command.
 else
-  echo "Must set Python version with one of 'python2', 'python35', 'python36' and 'python37' from commandline."
+  echo "Must set Python version with one of 'python2', 'python35', 'python36', 'python37' and 'python38' from commandline."
   exit 1
 fi
 XUNIT_FILE="nosetests-$IMAGE_NAME.xml"
@@ -88,7 +90,7 @@ gcloud -v
 TAG=$(date +%Y%m%d-%H%M%S)
 CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
 echo "Using container $CONTAINER"
-./gradlew :$CONTAINER_PROJECT:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG $GRADLE_PY3_FLAG --info
+./gradlew :$CONTAINER_PROJECT:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG --info
 
 # Verify it exists
 docker images | grep $TAG

@@ -17,15 +17,22 @@
 from __future__ import absolute_import
 
 import inspect
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 
 import pandas as pd
 
 from apache_beam.dataframe import expressions
+from apache_beam.dataframe import partitionings
 
 
-class DeferredFrame(object):
+class DeferredBase(object):
 
-  _pandas_type_map = {}
+  _pandas_type_map = {}  # type: Dict[Union[type, None], type]
 
   def __init__(self, expr):
     self._expr = expr
@@ -40,10 +47,32 @@ class DeferredFrame(object):
 
   @classmethod
   def wrap(cls, expr):
-    return cls._pandas_type_map[type(expr.proxy())](expr)
+    proxy_type = type(expr.proxy())
+    if proxy_type in cls._pandas_type_map:
+      wrapper_type = cls._pandas_type_map[proxy_type]
+    else:
+      if expr.requires_partition_by() != partitionings.Singleton():
+        raise ValueError(
+            'Scalar expression %s partitoned by non-singleton %s' %
+            (expr, expr.requires_partition_by()))
+      wrapper_type = _DeferredScalar
+    return wrapper_type(expr)
 
   def _elementwise(self, func, name=None, other_args=(), inplace=False):
     return _elementwise_function(func, name, inplace=inplace)(self, *other_args)
+
+
+class DeferredFrame(DeferredBase):
+  @property
+  def dtypes(self):
+    return self._expr.proxy().dtypes
+
+
+class _DeferredScalar(DeferredBase):
+  pass
+
+
+DeferredBase._pandas_type_map[None] = _DeferredScalar
 
 
 def name_and_func(method):
@@ -55,21 +84,64 @@ def name_and_func(method):
 
 
 def _elementwise_method(func, name=None, restrictions=None, inplace=False):
+  return _proxy_method(
+      func,
+      name,
+      restrictions,
+      inplace,
+      requires_partition_by=partitionings.Nothing(),
+      preserves_partition_by=partitionings.Singleton())
+
+
+def _proxy_method(
+    func,
+    name=None,
+    restrictions=None,
+    inplace=False,
+    requires_partition_by=partitionings.Singleton(),
+    preserves_partition_by=partitionings.Nothing()):
   if name is None:
     name, func = name_and_func(func)
   if restrictions is None:
     restrictions = {}
-  return _elementwise_function(func, name, restrictions)
+  return _proxy_function(
+      func,
+      name,
+      restrictions,
+      inplace,
+      requires_partition_by,
+      preserves_partition_by)
 
 
 def _elementwise_function(func, name=None, restrictions=None, inplace=False):
+  return _proxy_function(
+      func,
+      name,
+      restrictions,
+      inplace,
+      requires_partition_by=partitionings.Nothing(),
+      preserves_partition_by=partitionings.Singleton())
+
+
+def _proxy_function(
+      func,  # type: Union[Callable, str]
+      name=None,  # type: Optional[str]
+      restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any]]]]
+      inplace=False,  # type: bool
+      requires_partition_by=partitionings.Singleton(),  # type: partitionings.Partitioning
+      preserves_partition_by=partitionings.Nothing(),  # type: partitionings.Partitioning
+):
+
   if name is None:
-    name = func.__name__
+    if isinstance(func, str):
+      name = func
+    else:
+      name = func.__name__
   if restrictions is None:
     restrictions = {}
 
   def wrapper(*args, **kwargs):
-    for key, values in restrictions.items():
+    for key, values in ():  #restrictions.items():
       if key in kwargs:
         value = kwargs[key]
       else:
@@ -91,7 +163,7 @@ def _elementwise_function(func, name=None, restrictions=None, inplace=False):
     deferred_arg_exprs = []
     constant_args = [None] * len(args)
     for ix, arg in enumerate(args):
-      if isinstance(arg, DeferredFrame):
+      if isinstance(arg, DeferredBase):
         deferred_arg_indices.append(ix)
         deferred_arg_exprs.append(arg._expr)
       elif isinstance(arg, pd.core.generic.NDFrame):
@@ -111,14 +183,36 @@ def _elementwise_function(func, name=None, restrictions=None, inplace=False):
         full_args[ix] = arg
       return actual_func(*full_args, **kwargs)
 
-    result_expr = expressions.elementwise_expression(
-        name, apply, deferred_arg_exprs)
+    result_expr = expressions.ComputedExpression(
+        name,
+        apply,
+        deferred_arg_exprs,
+        requires_partition_by=requires_partition_by,
+        preserves_partition_by=preserves_partition_by)
     if inplace:
       args[0]._expr = result_expr
-      return args[0]
 
     else:
       return DeferredFrame.wrap(result_expr)
+
+  return wrapper
+
+
+def _agg_method(func):
+  def wrapper(self, *args, **kwargs):
+    return self.agg(func, *args, **kwargs)
+
+  return wrapper
+
+
+def _associative_agg_method(func):
+  # TODO(robertwb): Multi-level agg.
+  return _agg_method(func)
+
+
+def wont_implement_method(msg):
+  def wrapper(self, *args, **kwargs):
+    raise WontImplementError(msg)
 
   return wrapper
 
@@ -130,3 +224,13 @@ def copy_and_mutate(func):
     return copy
 
   return wrapper
+
+
+class WontImplementError(NotImplementedError):
+  """An subclass of NotImplementedError to raise indicating that implementing
+  the given method is infeasible.
+
+  Raising this error will also prevent this doctests from being validated
+  when run with the beam dataframe validation doctest runner.
+  """
+  pass

@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -139,7 +140,7 @@ class CoderTranslators {
 
       @Override
       public WindowedValue.ParamWindowedValueCoder<?> fromComponents(
-          List<Coder<?>> components, byte[] payload) {
+          List<Coder<?>> components, byte[] payload, TranslationContext context) {
         return WindowedValue.ParamWindowedValueCoder.fromComponents(components, payload);
       }
     };
@@ -158,7 +159,8 @@ class CoderTranslators {
       }
 
       @Override
-      public RowCoder fromComponents(List<Coder<?>> components, byte[] payload) {
+      public RowCoder fromComponents(
+          List<Coder<?>> components, byte[] payload, TranslationContext context) {
         checkArgument(
             components.isEmpty(), "Expected empty component list, but received: " + components);
         Schema schema;
@@ -175,7 +177,8 @@ class CoderTranslators {
   public abstract static class SimpleStructuredCoderTranslator<T extends Coder<?>>
       implements CoderTranslator<T> {
     @Override
-    public final T fromComponents(List<Coder<?>> components, byte[] payload) {
+    public final T fromComponents(
+        List<Coder<?>> components, byte[] payload, TranslationContext context) {
       return fromComponents(components);
     }
 

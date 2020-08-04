@@ -82,7 +82,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
    * Stream}.
    */
   public BigQueryStorageStreamSource<T> fromExisting(Stream newStream) {
-    return new BigQueryStorageStreamSource(
+    return new BigQueryStorageStreamSource<>(
         readSession, newStream, jsonTableSchema, parseFn, outputCoder, bqServices);
   }
 
@@ -287,6 +287,11 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
           "Received BigQuery Storage API split request for stream {} at fraction {}.",
           source.stream.getName(),
           fraction);
+
+      if (fraction <= 0.0 || fraction >= 1.0) {
+        LOG.info("BigQuery Storage API does not support splitting at fraction {}", fraction);
+        return null;
+      }
 
       SplitReadStreamRequest splitRequest =
           SplitReadStreamRequest.newBuilder()

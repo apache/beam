@@ -22,16 +22,21 @@ class Kubernetes {
 
   private static final String KUBERNETES_SCRIPT = "${KUBERNETES_DIR}/kubernetes.sh"
 
+  private static final String DEFAULT_CLUSTER = 'io-datastores'
+
   private static def job
 
   private static String kubeconfigLocation
 
   private static String namespace
 
-  private Kubernetes(job, String kubeconfigLocation, String namespace) {
+  private static String cluster
+
+  private Kubernetes(job, String kubeconfigLocation, String namespace, String cluster) {
     this.job = job
     this.kubeconfigLocation = kubeconfigLocation
     this.namespace = namespace
+    this.cluster = cluster
   }
 
   /**
@@ -39,10 +44,12 @@ class Kubernetes {
    *
    * @param job - jenkins job
    * @param kubeconfigLocation - place where kubeconfig will be created
-   * @param namepsace - kubernetes namespace
+   * @param namespace - kubernetes namespace. If empty, the default namespace will be used
+   * @param cluster - name of the cluster to get credentials for
    */
-  static Kubernetes create(job, String kubeconfigLocation, String namespace) {
-    Kubernetes kubernetes = new Kubernetes(job, kubeconfigLocation, namespace)
+  static Kubernetes create(job, String kubeconfigLocation, String namespace = '',
+      String cluster = DEFAULT_CLUSTER) {
+    Kubernetes kubernetes = new Kubernetes(job, kubeconfigLocation, namespace, cluster)
     setupKubeconfig()
     setupNamespace()
     addCleanupSteps()
@@ -55,14 +62,17 @@ class Kubernetes {
       environmentVariables {
         env('KUBECONFIG', kubeconfigLocation)
       }
+      shell("gcloud container clusters get-credentials ${cluster} --zone=us-central1-a")
     }
   }
 
   private static void setupNamespace() {
-    job.steps {
-      shell("${KUBERNETES_SCRIPT} createNamespace ${namespace}")
-      environmentVariables {
-        env('KUBERNETES_NAMESPACE', namespace)
+    if (!namespace.isEmpty()) {
+      job.steps {
+        shell("${KUBERNETES_SCRIPT} createNamespace ${namespace}")
+        environmentVariables {
+          env('KUBERNETES_NAMESPACE', namespace)
+        }
       }
     }
   }
@@ -71,7 +81,9 @@ class Kubernetes {
     job.publishers {
       postBuildScripts {
         steps {
-          shell("${KUBERNETES_SCRIPT} deleteNamespace ${namespace}")
+          if (!namespace.isEmpty()) {
+            shell("${KUBERNETES_SCRIPT} deleteNamespace ${namespace}")
+          }
           shell("rm ${kubeconfigLocation}")
         }
         onlyIfBuildSucceeds(false)

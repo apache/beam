@@ -43,6 +43,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitDe
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.BeforeClass;
@@ -56,10 +57,10 @@ public class ZetaSQLPushDownTest {
   private static final Long PIPELINE_EXECUTION_WAITTIME_MINUTES = 2L;
   private static final Schema BASIC_SCHEMA =
       Schema.builder()
-          .addInt32Field("unused1")
-          .addInt32Field("id")
+          .addInt64Field("unused1")
+          .addInt64Field("id")
           .addStringField("name")
-          .addInt32Field("unused2")
+          .addInt64Field("unused2")
           .build();
 
   private static TestTableProvider tableProvider;
@@ -186,7 +187,7 @@ public class ZetaSQLPushDownTest {
             .defaultSchema(defaultSchemaPlus)
             .traitDefs(traitDefs)
             .context(Contexts.of(contexts))
-            .ruleSets(ZetaSQLQueryPlanner.getZetaSqlRuleSets())
+            .ruleSets(ZetaSQLQueryPlanner.getZetaSqlRuleSets().toArray(new RuleSet[0]))
             .costFactory(BeamCostModel.FACTORY)
             .typeSystem(jdbcConnection.getTypeFactory().getTypeSystem())
             .build();
@@ -195,7 +196,9 @@ public class ZetaSQLPushDownTest {
   private static void initializeBeamTableProvider() {
     Table projectTable = getTable("InMemoryTableProject", PushDownOptions.PROJECT);
     Table bothTable = getTable("InMemoryTableBoth", PushDownOptions.BOTH);
-    Row[] rows = {row(BASIC_SCHEMA, 100, 1, "one", 100), row(BASIC_SCHEMA, 200, 2, "two", 200)};
+    Row[] rows = {
+      row(BASIC_SCHEMA, 100L, 1L, "one", 100L), row(BASIC_SCHEMA, 200L, 2L, "two", 200L)
+    };
 
     tableProvider = new TestTableProvider();
     tableProvider.createTable(projectTable);

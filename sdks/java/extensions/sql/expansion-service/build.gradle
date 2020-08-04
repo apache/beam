@@ -16,13 +16,17 @@
  * limitations under the License.
  */
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdks.extensions.sql.expansion',
-                validateShadowJar: false,
-                shadowClosure: {
-                  manifest {
-                    attributes "Main-Class": "org.apache.beam.sdk.expansion.service.ExpansionService"
-                  }
-                })
+
+applyJavaNature(
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.sdks.extensions.sql.expansion',
+  validateShadowJar: false,
+  shadowClosure: {
+    manifest {
+      attributes "Main-Class": "org.apache.beam.sdk.expansion.service.ExpansionService"
+    }
+  }
+)
 
 description = "Apache Beam :: SDKs :: Java :: SQL :: Expansion Service"
 ext.summary = """Contains code to run a SQL Expansion Service."""
@@ -30,6 +34,7 @@ ext.summary = """Contains code to run a SQL Expansion Service."""
 
 dependencies {
   compile project(path: ":sdks:java:extensions:sql")
+  compile project(path: ":sdks:java:extensions:sql:zetasql")
   compile project(path: ":sdks:java:expansion-service")
 }
 

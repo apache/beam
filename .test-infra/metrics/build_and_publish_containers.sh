@@ -19,14 +19,11 @@
 #
 # This script will:
 # * build containers for beam metrics
-# * publish containers if second parameter is provided
-# * update beamgrafana-deploy.yaml with new container versions
+# * publish containers if first parameter is provided
 #
-
-if [ "$#" = 0 ]; then
-  echo "build_and_publish_container.sh <container_tag_name> [<should_publish_containers>]"
-  exit 0;
-fi
+# Usage:
+# "build_and_publish_container.sh [<should_publish_containers>] [<container_tag_name>]"
+#
 
 if [ -z "${PROJECT_ID}" ]; then
   echo "PROJECT_ID not set, trying to automatically get it from gcloud config."
@@ -36,8 +33,8 @@ fi
 
 echo
 echo ===========Start==========
-CONTAINER_VERSION_NAME=$1
-DO_PUSH=$2
+DO_PUSH=$1
+CONTAINER_VERSION_NAME=${2:-latest}
 
 echo
 echo ===========Building containers==========
@@ -54,10 +51,3 @@ if [ "$DO_PUSH" = true ]; then
   docker push gcr.io/${PROJECT_ID}/beammetricssyncjira:$CONTAINER_VERSION_NAME
   docker push gcr.io/${PROJECT_ID}/beammetricssyncgithub:$CONTAINER_VERSION_NAME
 fi
-
-echo
-echo ===========Updating deployment script==========
-set -o xtrace
-sed -i "s/\( *image: gcr.io\/${PROJECT_ID}\/beam.*:\).*$/\1$CONTAINER_VERSION_NAME/g" ./beamgrafana-deploy.yaml
-set +o xtrace
-

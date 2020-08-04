@@ -151,8 +151,9 @@ message PTransform {
   // details.
   FunctionSpec spec = 1;
 
-  // (Optional) if this node is a composite, a list of the ids of
-  // transforms that it contains.
+  // (Optional) A list of the ids of transforms that it contains.
+  //
+  // Primitive transforms are not allowed to specify this.
   repeated string subtransforms = 2;
 
   // (Required) A map from local names of inputs (unique only with this map, and
@@ -184,9 +185,10 @@ message PTransform {
   // there is none, it may be omitted.
   repeated DisplayData display_data = 6;
 
-  // (Optional) Environment where the current PTransform should be executed in.
-  // Runner that executes the pipeline may choose to override this if needed. If
-  // not specified, environment will be decided by the runner.
+  // Environment where the current PTransform should be executed in.
+  //
+  // Transforms that are required to be implemented by a runner must omit this.
+  // All other transforms are required to specify this.
   string environment_id = 7;
 }
 
@@ -227,11 +229,17 @@ message StandardPTransforms {
     // See https://beam.apache.org/documentation/programming-guide/#groupbykey
     // for additional details.
     //
+    // Never defines an environment as the runner is required to implement this
+    // transform.
+    //
     // Payload: None
     GROUP_BY_KEY = 2 [(beam_urn) = "beam:transform:group_by_key:v1"];
 
     // A transform which produces a single empty byte array at the minimum
     // timestamp in the GlobalWindow.
+    //
+    // Never defines an environment as the runner is required to implement this
+    // transform.
     //
     // Payload: None
     IMPULSE = 3 [(beam_urn) = "beam:transform:impulse:v1"];
@@ -357,38 +365,34 @@ message StandardPTransforms {
     // Input: element; output: KV(element, restriction).
     PAIR_WITH_RESTRICTION = 0 [(beam_urn) = "beam:transform:sdf_pair_with_restriction:v1"];
 
-    // Splits the restriction inside an element/restriction pair.
-    // Input: KV(element, restriction); output: KV(element, restriction).
-    SPLIT_RESTRICTION = 1 [(beam_urn) = "beam:transform:sdf_split_restriction:v1"];
-
-    // Applies the DoFn to every element/restriction pair in a uniquely keyed
-    // collection, in a splittable fashion.
-    // Input: KV(bytes, KV(element, restriction)); output: DoFn's output.
-    // The first "bytes" is an opaque unique key using the standard bytes coder.
-    // Typically a runner would rewrite this into a runner-specific grouping
-    // operation supporting state and timers, followed by PROCESS_ELEMENTS,
-    // with some runner-specific glue code in between.
-    PROCESS_KEYED_ELEMENTS = 2 [(beam_urn) = "beam:transform:sdf_process_keyed_elements:v1"];
-
-    // Like PROCESS_KEYED_ELEMENTS, but without the unique key - just elements
-    // and restrictions.
-    // Input: KV(element, restriction); output: DoFn's output.
-    PROCESS_ELEMENTS = 3 [(beam_urn) = "beam:transform:sdf_process_elements:v1"];
-
     // Splits the restriction of each element/restriction pair and returns the
-    // resulting splits, with a corresponding floating point size estimations
+    // resulting splits, with a corresponding floating point size estimation
     // for each.
+    //
     // A reasonable value for size is the number of bytes expected to be
     // produced by this (element, restriction) pair.
+    //
     // Input: KV(element, restriction)
     // Output: KV(KV(element, restriction), size))
-    SPLIT_AND_SIZE_RESTRICTIONS = 4 [(beam_urn) = "beam:transform:sdf_split_and_size_restrictions:v1"];
+    SPLIT_AND_SIZE_RESTRICTIONS = 1 [(beam_urn) = "beam:transform:sdf_split_and_size_restrictions:v1"];
 
-    // Like PROCESS_ELEMENTS, but accepts the sized output produced by
-    // SPLIT_RESTRICTION_WITH_SIZING.
+    // Applies the DoFn to every element and restriction.
+    //
+    // All primary and residuals returned from checkpointing or splitting must
+    // have the same type as the input to this transform.
+    //
     // Input: KV(KV(element, restriction), size); output: DoFn's output.
-    PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS = 5 [(beam_urn) = "beam:transform:sdf_process_sized_element_and_restrictions:v1"];
+    PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS = 2 [(beam_urn) = "beam:transform:sdf_process_sized_element_and_restrictions:v1"];
 
+    // Truncates the restriction of each element/restriction pair and returns
+    // the finite restriction which will be processed when a pipeline is
+    // drained. See
+    // https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#.
+    // for additional details about drain.
+    //
+    // Input: KV(KV(element, restriction), size);
+    // Output: KV(KV(element, restriction), size).
+    TRUNCATE_SIZED_RESTRICTION = 3 [(beam_urn) = "beam:transform:sdf_truncate_sized_restrictions:v1"];
   }
 }
 

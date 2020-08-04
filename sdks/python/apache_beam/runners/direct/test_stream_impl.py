@@ -30,11 +30,17 @@ from __future__ import print_function
 
 import itertools
 import logging
+from queue import Empty as EmptyException
+from queue import Queue
+from threading import Thread
+
+import grpc
 
 from apache_beam import ParDo
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2_grpc
 from apache_beam.testing.test_stream import ElementEvent
 from apache_beam.testing.test_stream import ProcessingTimeEvent
 from apache_beam.testing.test_stream import WatermarkEvent
@@ -46,19 +52,11 @@ from apache_beam.utils import timestamp
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
-try:
-  import grpc
-  from apache_beam.portability.api import beam_runner_api_pb2_grpc  # pylint: disable=ungrouped-imports
-except ImportError:
-  grpc = None
-  beam_runner_api_pb2_grpc = None
-  # A workaround for directrunner users who would cannot depend
-  # on grpc which are missing grpc dependencyy.
-  print(
-      'Exception: grpc was not able to be imported. '
-      'Skip importing all grpc related moduels.')
-
 _LOGGER = logging.getLogger(__name__)
+
+
+class _EndOfStream:
+  pass
 
 
 class _WatermarkController(PTransform):
@@ -263,8 +261,12 @@ class _TestStream(PTransform):
     return itertools.chain(events)
 
   @staticmethod
-  def events_from_rpc(endpoint, output_tags, coder):
+  def _stream_events_from_rpc(endpoint, output_tags, coder, channel, is_alive):
     """Yields the events received from the given endpoint.
+
+    This is the producer thread that reads events from the TestStreamService and
+    puts them onto the shared queue. At the end of the stream, an _EndOfStream
+    is placed on the channel to signify a successful end.
     """
     stub_channel = grpc.insecure_channel(endpoint)
     stub = beam_runner_api_pb2_grpc.TestStreamServiceStub(stub_channel)
@@ -273,20 +275,58 @@ class _TestStream(PTransform):
     event_request = beam_runner_api_pb2.EventsRequest(
         output_ids=[str(tag) for tag in output_tags])
 
-    event_stream = stub.Events(event_request, timeout=30)
-    try:
-      while True:
-        yield _TestStream.test_stream_payload_to_events(
-            next(event_stream), coder)
-    except StopIteration:
-      return
-    except grpc.RpcError as e:
-      if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
+    event_stream = stub.Events(event_request)
+    for e in event_stream:
+      channel.put(_TestStream.test_stream_payload_to_events(e, coder))
+      if not is_alive():
+        return
+    channel.put(_EndOfStream())
+
+  @staticmethod
+  def events_from_rpc(endpoint, output_tags, coder, evaluation_context):
+    """Yields the events received from the given endpoint.
+
+    This method starts a new thread that reads from the TestStreamService and
+    puts the events onto a shared queue. This method then yields all elements
+    from the queue. Unfortunately, this is necessary because the GRPC API does
+    not allow for non-blocking calls when utilizing a streaming RPC. It is
+    officially suggested from the docs to use a producer/consumer pattern to
+    handle streaming RPCs. By doing so, this gives this method control over when
+    to cancel reading from the RPC if the server takes too long to respond.
+    """
+    # Shared variable with the producer queue. This shuts down the producer if
+    # the consumer exits early.
+    shutdown_requested = False
+
+    def is_alive():
+      return not (shutdown_requested or evaluation_context.shutdown_requested)
+
+    # The shared queue that allows the producer and consumer to communicate.
+    channel = Queue()  # type: Queue[Union[test_stream.Event, _EndOfStream]]
+    event_stream = Thread(
+        target=_TestStream._stream_events_from_rpc,
+        args=(endpoint, output_tags, coder, channel, is_alive))
+    event_stream.setDaemon(True)
+    event_stream.start()
+
+    # This pumps the shared queue for events until the _EndOfStream sentinel is
+    # reached. If the TestStreamService takes longer than expected, the queue
+    # will timeout and an EmptyException will be raised. This also sets the
+    # shared is_alive sentinel to shut down the producer.
+    while True:
+      try:
+        # Raise an EmptyException if there are no events during the last timeout
+        # period.
+        event = channel.get(timeout=30)
+        if isinstance(event, _EndOfStream):
+          break
+        yield event
+      except EmptyException as e:
         _LOGGER.warning(
             'TestStream timed out waiting for new events from service.'
             ' Stopping pipeline.')
-        return
-      raise e
+        shutdown_requested = True
+        raise e
 
   @staticmethod
   def test_stream_payload_to_events(payload, coder):

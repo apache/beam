@@ -1,0 +1,41 @@
+{{/*
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License. See accompanying LICENSE file.
+ */}}
+ 
+ <!DOCTYPE html>
+ <html lang="{{ .Site.Language.Lang }}" class="no-js">
+ <head>
+   {{ partial "head.html" . }}
+ </head>
+ <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+   {{ partial "header.html" . }}
+   <div class="clearfix container-main-content">
+     <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+       <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+       <nav>
+         <ul class="section-nav-list" data-section-nav>
+           {{ partial (printf "section-menu/%s/sdks.html" .Lang) . }}
+         </ul>
+       </nav>
+     </div>
+ 
+     <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+       {{ .TableOfContents }}
+     </nav>
+ 
+     <div class="body__contained body__section-nav">
+       {{ .Page.Content }}
+     </div>
+   </div>
+ {{ partial "footer.html" . }}
+ </body>
+ </html>
+ 

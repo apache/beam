@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -29,7 +30,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.local.ExecutionDriver;
 import org.apache.beam.runners.local.ExecutionDriver.DriverState;
 import org.apache.beam.runners.local.PipelineMessageReceiver;
@@ -46,6 +46,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalLis
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -245,9 +246,15 @@ final class ExecutorServiceParallelExecutor
       VisibleExecutorUpdate update = visibleUpdates.tryNext(Duration.millis(25L));
 
       if (update == null && pipelineState.get().isTerminal()) {
-        // there are no updates to process and no updates will ever be published because the
-        // executor is shutdown
-        return pipelineState.get();
+        // state and updates have seperate locks so it is possible for an update
+        // to be posted in a race. updates should arrive before the status is set
+        // to a terminal state, so if there is one we should see it immediately.
+        update = visibleUpdates.tryNext(Duration.millis(1L));
+        if (update == null) {
+          // there are no updates to process and no updates will ever be published because the
+          // executor is shutdown
+          return pipelineState.get();
+        }
       }
 
       if (update != null) {
@@ -346,7 +353,7 @@ final class ExecutorServiceParallelExecutor
    */
   private static class VisibleExecutorUpdate {
     private final Optional<? extends Throwable> thrown;
-    @Nullable private final State newState;
+    private final @Nullable State newState;
 
     public static VisibleExecutorUpdate fromException(Exception e) {
       return new VisibleExecutorUpdate(null, e);
@@ -379,28 +386,39 @@ final class ExecutorServiceParallelExecutor
     private final BlockingQueue<VisibleExecutorUpdate> updates = new LinkedBlockingQueue<>();
 
     @Override
+    // updates is a non-capacity-limited LinkedBlockingQueue, which can never refuse an offered
+    // update
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
     public void failed(Exception e) {
       updates.offer(VisibleExecutorUpdate.fromException(e));
     }
 
     @Override
+    // updates is a non-capacity-limited LinkedBlockingQueue, which can never refuse an offered
+    // update
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
     public void failed(Error e) {
       updates.offer(VisibleExecutorUpdate.fromError(e));
     }
 
     @Override
+    // updates is a non-capacity-limited LinkedBlockingQueue, which can never refuse an offered
+    // update
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
     public void cancelled() {
       updates.offer(VisibleExecutorUpdate.cancelled());
     }
 
     @Override
+    // updates is a non-capacity-limited LinkedBlockingQueue, which can never refuse an offered
+    // update
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
     public void completed() {
       updates.offer(VisibleExecutorUpdate.finished());
     }
 
     /** Try to get the next unconsumed message in this {@link QueueMessageReceiver}. */
-    @Nullable
-    private VisibleExecutorUpdate tryNext(Duration timeout) throws InterruptedException {
+    private @Nullable VisibleExecutorUpdate tryNext(Duration timeout) throws InterruptedException {
       return updates.poll(timeout.getMillis(), TimeUnit.MILLISECONDS);
     }
   }

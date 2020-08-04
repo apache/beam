@@ -32,7 +32,7 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.common import NameContext
 from apache_beam.runners.worker import log_handler
 from apache_beam.runners.worker import statesampler
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
 class FnApiLogRecordHandlerTest(unittest.TestCase):
   def setUp(self):
     self.test_logging_service = BeamFnLoggingServicer()
-    self.server = grpc.server(UnboundedThreadPoolExecutor())
+    self.server = grpc.server(thread_pool_executor.shared_unbounded_instance())
     beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server(
         self.test_logging_service, self.server)
     self.test_port = self.server.add_insecure_port('[::]:0')

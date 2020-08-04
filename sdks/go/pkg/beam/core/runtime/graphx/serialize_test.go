@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 )
 
 func TestEncodeType(t *testing.T) {
@@ -35,7 +35,7 @@ func TestEncodeType(t *testing.T) {
 		if err != nil {
 			t.Fatalf("got error = %v, want nil", err)
 		}
-		if got, want := pbT.Kind, v1.Type_STRUCT; got != want {
+		if got, want := pbT.Kind, v1pb.Type_STRUCT; got != want {
 			t.Fatalf("got pbT.Kind == %v, want %v", got, want)
 		}
 	})
@@ -62,7 +62,7 @@ func TestEncodeType(t *testing.T) {
 		if err != nil {
 			t.Fatalf("got error = %v, want nil", err)
 		}
-		if got, want := pbT.Kind, v1.Type_EXTERNAL; got != want {
+		if got, want := pbT.Kind, v1pb.Type_EXTERNAL; got != want {
 			t.Fatalf("got pbT.Kind == %v, want %v", got, want)
 		}
 	})

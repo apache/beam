@@ -147,6 +147,9 @@ function configure_flink() {
   # Fetch the primary master name from metadata.
   local master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 
+  # Use the staging bucket to store checkpoints
+  local checkpoints_dir="gs://$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)/checkpoints"
+
   # create working directory
   mkdir -p "${FLINK_WORKING_DIR}"
 
@@ -163,7 +166,7 @@ parallelism.default: ${flink_parallelism}
 taskmanager.network.numberOfBuffers: ${FLINK_NETWORK_NUM_BUFFERS}
 fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
 state.backend: filesystem
-state.checkpoints.dir: ${GCS_BUCKET}/checkpoints
+state.checkpoints.dir: ${checkpoints_dir}
 EOF
 
 cat > "${FLINK_YARN_SCRIPT}" << EOF

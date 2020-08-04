@@ -36,7 +36,7 @@ public class KeyedTimerDataTest {
   public void testCoder() throws Exception {
     final TimerInternals.TimerData td =
         TimerInternals.TimerData.of(
-            "timer", StateNamespaces.global(), new Instant(), TimeDomain.EVENT_TIME);
+            "timer", StateNamespaces.global(), new Instant(), new Instant(), TimeDomain.EVENT_TIME);
 
     final String key = "timer-key";
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();

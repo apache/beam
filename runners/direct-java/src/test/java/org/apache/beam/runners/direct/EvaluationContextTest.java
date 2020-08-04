@@ -137,12 +137,14 @@ public class EvaluationContextTest {
     BoundedWindow window = new TestBoundedWindow(new Instant(1024L));
     BoundedWindow second = new TestBoundedWindow(new Instant(899999L));
     ImmutableList.Builder<WindowedValue<?>> valuesBuilder = ImmutableList.builder();
-    for (Object materializedValue : materializeValuesFor(View.asIterable(), 1)) {
+    for (Object materializedValue :
+        materializeValuesFor(view.getPipeline().getOptions(), View.asIterable(), 1)) {
       valuesBuilder.add(
           WindowedValue.of(
               materializedValue, new Instant(1222), window, PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
-    for (Object materializedValue : materializeValuesFor(View.asIterable(), 2)) {
+    for (Object materializedValue :
+        materializeValuesFor(view.getPipeline().getOptions(), View.asIterable(), 2)) {
       valuesBuilder.add(
           WindowedValue.of(
               materializedValue,
@@ -157,7 +159,8 @@ public class EvaluationContextTest {
     assertThat(reader.get(view, second), containsInAnyOrder(2));
 
     ImmutableList.Builder<WindowedValue<?>> overwrittenValuesBuilder = ImmutableList.builder();
-    for (Object materializedValue : materializeValuesFor(View.asIterable(), 4444)) {
+    for (Object materializedValue :
+        materializeValuesFor(view.getPipeline().getOptions(), View.asIterable(), 4444)) {
       overwrittenValuesBuilder.add(
           WindowedValue.of(
               materializedValue,
@@ -316,7 +319,8 @@ public class EvaluationContextTest {
 
     StructuralKey<?> key = StructuralKey.of("foo".length(), VarIntCoder.of());
     TimerData toFire =
-        TimerData.of(StateNamespaces.global(), new Instant(100L), TimeDomain.EVENT_TIME);
+        TimerData.of(
+            StateNamespaces.global(), new Instant(100L), new Instant(100L), TimeDomain.EVENT_TIME);
     TransformResult<?> timerResult =
         StepTransformResult.withoutHold(downstreamProducer)
             .withState(CopyOnAccessInMemoryStateInternals.withUnderlying(key, null))

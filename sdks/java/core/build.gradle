@@ -19,14 +19,14 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk',
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
   shadowClosure: {
     dependencies {
-      include(dependency(library.java.protobuf_java))
       include(dependency("org.apache.commons:.*"))
       include(dependency(library.java.antlr_runtime))
     }
     relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
-    relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
     relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
     relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
   }
@@ -67,9 +67,9 @@ dependencies {
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:job-management", configuration: "shadow")
   shadow library.java.vendored_bytebuddy_1_10_8
+  shadow library.java.vendored_grpc_1_26_0
   shadow library.java.vendored_guava_26_0_jre
   compile library.java.antlr_runtime
-  compile library.java.protobuf_java
   compile library.java.commons_compress
   compile library.java.commons_lang3
   shadow library.java.jsr305

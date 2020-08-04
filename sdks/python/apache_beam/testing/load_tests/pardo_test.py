@@ -76,6 +76,7 @@ from __future__ import absolute_import
 
 import logging
 import os
+import time
 from typing import Tuple
 
 import apache_beam as beam
@@ -84,6 +85,8 @@ from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.testing.load_tests.load_test import LoadTest
+from apache_beam.testing.load_tests.load_test_metrics_utils import AssignTimestamps
+from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureLatency
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
 from apache_beam.transforms import userstate
@@ -93,11 +96,10 @@ class ParDoTest(LoadTest):
   def __init__(self):
     super(ParDoTest, self).__init__()
     self.iterations = self.get_option_or_default('iterations')
-    self.number_of_counters = self.get_option_or_default('number_of_counters')
-    self.number_of_operations = self.get_option_or_default(
-        'number_of_counter_operations', 1)
     self.number_of_counters = self.get_option_or_default(
         'number_of_counters', 1)
+    self.number_of_operations = self.get_option_or_default(
+        'number_of_counter_operations', 1)
     self.stateful = self.get_option_or_default('stateful', False)
     if self.get_option_or_default('state_cache', False):
       self.pipeline.options.view_as(DebugOptions).add_experiment(
@@ -139,7 +141,8 @@ class ParDoTest(LoadTest):
     pc = (
         source
         | 'Measure time: Start' >> beam.ParDo(
-            MeasureTime(self.metrics_namespace)))
+            MeasureTime(self.metrics_namespace))
+        | 'Assign timestamps' >> beam.ParDo(AssignTimestamps()))
 
     for i in range(self.iterations):
       pc = (
@@ -151,6 +154,8 @@ class ParDoTest(LoadTest):
     # pylint: disable=expression-not-assigned
     (
         pc
+        |
+        'Measure latency' >> beam.ParDo(MeasureLatency(self.metrics_namespace))
         |
         'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
@@ -175,33 +180,33 @@ class StatefulLoadGenerator(beam.PTransform):
 
   class GenerateLoad(beam.DoFn):
     state_spec = userstate.CombiningValueStateSpec(
-        'bundles_remaining', beam.coders.VarIntCoder(), sum)
+        'bundles_remaining', combine_fn=sum)
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
 
     def __init__(self, num_records_per_key, value_size, bundle_size=1000):
       self.num_records_per_key = num_records_per_key
       self.payload = os.urandom(value_size)
       self.bundle_size = bundle_size
-      self.key = None
+      self.time_fn = time.time
 
     def process(
         self,
-        element,
+        _element,
         records_remaining=beam.DoFn.StateParam(state_spec),
         timer=beam.DoFn.TimerParam(timer_spec)):
-      self.key, _ = element
       records_remaining.add(self.num_records_per_key)
       timer.set(0)
 
     @userstate.on_timer(timer_spec)
     def process_timer(
         self,
+        key=beam.DoFn.KeyParam,
         records_remaining=beam.DoFn.StateParam(state_spec),
         timer=beam.DoFn.TimerParam(timer_spec)):
       cur_bundle_size = min(self.bundle_size, records_remaining.read())
       for _ in range(cur_bundle_size):
         records_remaining.add(-1)
-        yield self.key, self.payload
+        yield key, self.payload
       if records_remaining.read() > 0:
         timer.set(0)
 
@@ -213,11 +218,9 @@ class StatefulLoadGenerator(beam.PTransform):
         | 'Impulse' >> beam.Impulse()
         | 'GenerateKeys' >> beam.ParDo(
             StatefulLoadGenerator.GenerateKeys(self.num_keys, self.key_size))
-        | 'Reshuffle' >> beam.Reshuffle()
         | 'GenerateLoad' >> beam.ParDo(
             StatefulLoadGenerator.GenerateLoad(
-                self.num_records // self.num_keys, self.value_size))
-        | 'Reshuffle2' >> beam.Reshuffle())
+                self.num_records // self.num_keys, self.value_size)))
 
 
 if __name__ == '__main__':

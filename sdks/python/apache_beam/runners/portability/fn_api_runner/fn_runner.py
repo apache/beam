@@ -64,7 +64,7 @@ from apache_beam.runners.portability.fn_api_runner.worker_handlers import Worker
 from apache_beam.transforms import environments
 from apache_beam.utils import profiler
 from apache_beam.utils import proto_utils
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 if TYPE_CHECKING:
   from apache_beam.pipeline import Pipeline
@@ -91,7 +91,8 @@ class FnApiRunner(runner.PipelineRunner):
       bundle_repeat=0,
       use_state_iterables=False,
       provision_info=None,  # type: Optional[ExtendedProvisionInfo]
-      progress_request_frequency=None):
+      progress_request_frequency=None,
+      is_drain=False):
     # type: (...) -> None
 
     """Creates a new Fn API Runner.
@@ -105,6 +106,7 @@ class FnApiRunner(runner.PipelineRunner):
       provision_info: provisioning info to make available to workers, or None
       progress_request_frequency: The frequency (in seconds) that the runner
           waits before requesting progress from the SDK.
+      is_drain: identify whether expand the sdf graph in the drain mode.
     """
     super(FnApiRunner, self).__init__()
     self._default_environment = (
@@ -114,6 +116,7 @@ class FnApiRunner(runner.PipelineRunner):
     self._progress_frequency = progress_request_frequency
     self._profiler_factory = None  # type: Optional[Callable[..., profiler.Profile]]
     self._use_state_iterables = use_state_iterables
+    self._is_drain = is_drain
     self._provision_info = provision_info or ExtendedProvisionInfo(
         beam_provision_api_pb2.ProvisionInfo(
             retrieval_token='unused-retrieval-token'))
@@ -269,6 +272,15 @@ class FnApiRunner(runner.PipelineRunner):
       if requirement not in supported_requirements:
         raise ValueError(
             'Unable to run pipeline with requirement: %s' % requirement)
+    for transform in pipeline_proto.components.transforms.values():
+      if transform.spec.urn == common_urns.primitives.TEST_STREAM.urn:
+        raise NotImplementedError(transform.spec.urn)
+      elif transform.spec.urn in translations.PAR_DO_URNS:
+        payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        for timer in payload.timer_family_specs.values():
+          if timer.time_domain != beam_runner_api_pb2.TimeDomain.EVENT_TIME:
+            raise NotImplementedError(timer.time_domain)
 
   def create_stages(
       self,
@@ -295,7 +307,8 @@ class FnApiRunner(runner.PipelineRunner):
             common_urns.primitives.FLATTEN.urn,
             common_urns.primitives.GROUP_BY_KEY.urn
         ]),
-        use_state_iterables=self._use_state_iterables)
+        use_state_iterables=self._use_state_iterables,
+        is_drain=self._is_drain)
 
   def run_stages(self,
                  stage_context,  # type: translations.TransformContext
@@ -383,7 +396,9 @@ class FnApiRunner(runner.PipelineRunner):
                                      decoded_timer.windows[0]] = decoded_timer
         out = create_OutputStream()
         for decoded_timer in timers_by_key_and_window.values():
-          timer_coder_impl.encode_to_stream(decoded_timer, out, True)
+          # Only add not cleared timer to fired timers.
+          if not decoded_timer.clear_bit:
+            timer_coder_impl.encode_to_stream(decoded_timer, out, True)
         fired_timers[(transform_id, timer_family_id)] = ListBuffer(
             coder_impl=timer_coder_impl)
         fired_timers[(transform_id, timer_family_id)].append(out.get())
@@ -925,7 +940,7 @@ class ParallelBundleManager(BundleManager):
           expected_output_timers,
           dry_run)
 
-    with UnboundedThreadPoolExecutor() as executor:
+    with thread_pool_executor.shared_unbounded_instance() as executor:
       for result, split_result in executor.map(execute, zip(part_inputs,  # pylint: disable=zip-builtin-not-iterating
                                                             timer_inputs)):
         split_result_list += split_result

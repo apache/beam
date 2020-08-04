@@ -56,6 +56,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -648,7 +649,7 @@ public class ProxyInvocationHandlerTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj != null
           && getClass().equals(obj.getClass())
           && Objects.equals(doubleField, ((InnerType) obj).doubleField);
@@ -668,7 +669,7 @@ public class ProxyInvocationHandlerTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj != null
           && getClass().equals(obj.getClass())
           && Objects.equals(stringField, ((ComplexType) obj).stringField)

@@ -292,6 +292,21 @@ message MonitoringInfoSpecs {
         value: "The remaining amount of work for each active element. Each active element represents an independent amount of work not shared with any other active element."
       }]
     }];
+
+    // The (0-based) index of the latest item processed from the data channel.
+    // This gives an indication of the SDKs progress through the data channel,
+    // and is a lower bound on where it is able to split.
+    // For an SDK that processes items sequentially, this is equivalently the
+    // number of items fully processed (or -1 if processing has not yet started).
+    DATA_CHANNEL_READ_INDEX = 18 [(monitoring_info_spec) = {
+      urn: "beam:metric:data_channel:read_index:v1",
+      type: "beam:metrics:sum_int64:v1",
+      required_labels: [ "PTRANSFORM" ],
+      annotations: [{
+        key: "description",
+        value: "The read index of the data channel."
+      }]
+    }];
   }
 }
 
@@ -511,4 +526,3 @@ message MonitoringInfoTypeUrns {
 //   repeated string column_names = 1;
 //   repeated MonitoringRow row_data = 2;
 // }
-

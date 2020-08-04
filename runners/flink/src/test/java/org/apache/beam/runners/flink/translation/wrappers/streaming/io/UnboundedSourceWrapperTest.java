@@ -25,12 +25,17 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.LongStream;
@@ -39,7 +44,9 @@ import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.streaming.StreamSources;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -66,7 +73,8 @@ import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
-import org.junit.Ignore;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -155,34 +163,7 @@ public class UnboundedSourceWrapperTest {
         testHarness.setProcessingTime(System.currentTimeMillis());
         testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
-        // start a thread that advances processing time, so that we eventually get the final
-        // watermark which is only updated via a processing-time trigger
-        Thread processingTimeUpdateThread =
-            new Thread() {
-              @Override
-              public void run() {
-                while (true) {
-                  try {
-                    // Need to advance this so that the watermark timers in the source wrapper fire
-                    // Synchronize is necessary because this can interfere with updating the
-                    // PriorityQueue of the ProcessingTimeService which is accessed when setting
-                    // timers in UnboundedSourceWrapper.
-                    synchronized (testHarness.getCheckpointLock()) {
-                      testHarness.setProcessingTime(System.currentTimeMillis());
-                    }
-                    Thread.sleep(100);
-                  } catch (InterruptedException e) {
-                    // this is ok
-                    break;
-                  } catch (Exception e) {
-                    LOG.error("Unexpected error advancing processing time", e);
-                    break;
-                  }
-                }
-              }
-            };
-
-        processingTimeUpdateThread.start();
+        Thread processingTimeUpdateThread = startProcessingTimeUpdateThread(testHarness);
 
         try {
           testHarness.open();
@@ -242,7 +223,6 @@ public class UnboundedSourceWrapperTest {
      * <p>This test verifies that watermarks are correctly forwarded.
      */
     @Test(timeout = 30_000)
-    @Ignore("https://issues.apache.org/jira/browse/BEAM-9164")
     public void testWatermarkEmission() throws Exception {
       final int numElements = 500;
       PipelineOptions options = PipelineOptionsFactory.create();
@@ -806,6 +786,214 @@ public class UnboundedSourceWrapperTest {
 
       sourceWrapper.close();
       Mockito.verify(monitoredContainer).registerMetricsForPipelineResult();
+    }
+  }
+
+  @RunWith(JUnit4.class)
+  public static class IntegrationTests {
+
+    /** Tests that idle readers are polled for more data after having returned no data. */
+    @Test(timeout = 30_000)
+    public void testPollingOfIdleReaders() throws Exception {
+      IdlingUnboundedSource<String> source =
+          new IdlingUnboundedSource<>(
+              Arrays.asList("first", "second", "third"), StringUtf8Coder.of());
+
+      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      options.setShutdownSourcesAfterIdleMs(0L);
+      options.setParallelism(4);
+
+      UnboundedSourceWrapper<String, UnboundedSource.CheckpointMark> wrappedSource =
+          new UnboundedSourceWrapper<>("sequentialRead", options, source, 4);
+
+      StreamSource<
+              WindowedValue<ValueWithRecordId<String>>,
+              UnboundedSourceWrapper<String, UnboundedSource.CheckpointMark>>
+          sourceOperator = new StreamSource<>(wrappedSource);
+      AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<String>>> testHarness =
+          new AbstractStreamOperatorTestHarness<>(sourceOperator, 4, 4, 0);
+      testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
+      testHarness.getExecutionConfig().setAutoWatermarkInterval(10L);
+
+      testHarness.open();
+      ArrayList<String> output = new ArrayList<>();
+
+      Thread processingTimeUpdateThread = startProcessingTimeUpdateThread(testHarness);
+
+      StreamSources.run(
+          sourceOperator,
+          testHarness.getCheckpointLock(),
+          new TestStreamStatusMaintainer(),
+          new Output<StreamRecord<WindowedValue<ValueWithRecordId<String>>>>() {
+            @Override
+            public void emitWatermark(Watermark mark) {}
+
+            @Override
+            public void emitLatencyMarker(LatencyMarker latencyMarker) {}
+
+            @Override
+            public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+              throw new IllegalStateException();
+            }
+
+            @Override
+            public void collect(StreamRecord<WindowedValue<ValueWithRecordId<String>>> record) {
+              output.add(record.getValue().getValue().getValue());
+            }
+
+            @Override
+            public void close() {}
+          });
+
+      // Two idles in between elements + one after end of input.
+      assertThat(source.getNumIdles(), is(3));
+      assertThat(output, contains("first", "second", "third"));
+
+      processingTimeUpdateThread.interrupt();
+      processingTimeUpdateThread.join();
+    }
+  }
+
+  private static Thread startProcessingTimeUpdateThread(
+      AbstractStreamOperatorTestHarness testHarness) {
+    // start a thread that advances processing time, so that we eventually get the final
+    // watermark which is only updated via a processing-time trigger
+    Thread processingTimeUpdateThread =
+        new Thread() {
+          @Override
+          public void run() {
+            while (true) {
+              try {
+                // Need to advance this so that the watermark timers in the source wrapper fire
+                // Synchronize is necessary because this can interfere with updating the
+                // PriorityQueue of the ProcessingTimeService which is accessed when setting
+                // timers in UnboundedSourceWrapper.
+                synchronized (testHarness.getCheckpointLock()) {
+                  testHarness.setProcessingTime(System.currentTimeMillis());
+                }
+                Thread.sleep(10);
+              } catch (InterruptedException e) {
+                // this is ok
+                break;
+              } catch (Exception e) {
+                LOG.error("Unexpected error advancing processing time", e);
+                break;
+              }
+            }
+          }
+        };
+    processingTimeUpdateThread.start();
+    return processingTimeUpdateThread;
+  }
+
+  /**
+   * Source that advances on every second call to {@link UnboundedReader#advance()}.
+   *
+   * @param <T> Type of elements.
+   */
+  private static class IdlingUnboundedSource<T extends Serializable>
+      extends UnboundedSource<T, UnboundedSource.CheckpointMark> {
+
+    private final ConcurrentHashMap<String, Integer> numIdles = new ConcurrentHashMap<>();
+
+    private final String uuid = UUID.randomUUID().toString();
+
+    private final List<T> data;
+    private final Coder<T> outputCoder;
+
+    public IdlingUnboundedSource(List<T> data, Coder<T> outputCoder) {
+      this.data = data;
+      this.outputCoder = outputCoder;
+    }
+
+    @Override
+    public List<? extends UnboundedSource<T, CheckpointMark>> split(
+        int desiredNumSplits, PipelineOptions options) {
+      return Collections.singletonList(this);
+    }
+
+    @Override
+    public UnboundedReader<T> createReader(
+        PipelineOptions options, @Nullable CheckpointMark checkpointMark) {
+      return new UnboundedReader<T>() {
+
+        private int currentIdx = -1;
+        private boolean lastAdvanced = false;
+
+        @Override
+        public boolean start() {
+          return advance();
+        }
+
+        @Override
+        public boolean advance() {
+          if (lastAdvanced) {
+            // Idle for this call.
+            numIdles.merge(uuid, 1, Integer::sum);
+            lastAdvanced = false;
+            return false;
+          }
+          if (currentIdx < data.size() - 1) {
+            currentIdx++;
+            lastAdvanced = true;
+            return true;
+          }
+          return false;
+        }
+
+        @Override
+        public Instant getWatermark() {
+          if (currentIdx >= data.size() - 1) {
+            return BoundedWindow.TIMESTAMP_MAX_VALUE;
+          }
+          return new Instant(currentIdx);
+        }
+
+        @Override
+        public CheckpointMark getCheckpointMark() {
+          return CheckpointMark.NOOP_CHECKPOINT_MARK;
+        }
+
+        @Override
+        public UnboundedSource<T, ?> getCurrentSource() {
+          return IdlingUnboundedSource.this;
+        }
+
+        @Override
+        public T getCurrent() throws NoSuchElementException {
+          if (currentIdx >= 0 && currentIdx < data.size()) {
+            return data.get(currentIdx);
+          }
+          throw new NoSuchElementException();
+        }
+
+        @Override
+        public Instant getCurrentTimestamp() throws NoSuchElementException {
+          if (currentIdx >= 0 && currentIdx < data.size()) {
+            return new Instant(currentIdx);
+          }
+          throw new NoSuchElementException();
+        }
+
+        @Override
+        public void close() {
+          // No-op.
+        }
+      };
+    }
+
+    @Override
+    public Coder<CheckpointMark> getCheckpointMarkCoder() {
+      return null;
+    }
+
+    @Override
+    public Coder<T> getOutputCoder() {
+      return outputCoder;
+    }
+
+    int getNumIdles() {
+      return numIdles.getOrDefault(uuid, 0);
     }
   }
 

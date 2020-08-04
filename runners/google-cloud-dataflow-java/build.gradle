@@ -19,7 +19,10 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.dataflow')
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.runners.dataflow',
+  enableChecker: false,
+  ignoreRawtypeErrors: true)
 
 description = "Apache Beam :: Runners :: Google Cloud Dataflow"
 
@@ -39,7 +42,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.container_version' : 'beam-master-20200227'
+    'dataflow.container_version' : 'beam-master-20200629'
   ]
 }
 
@@ -223,7 +226,12 @@ task validatesRunner {
   dependsOn validatesRunnerLegacyWorkerTest
 }
 
-task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
+task copyGoogleCloudPlatformTestResources(type: Copy){
+  from project(':sdks:java:io:google-cloud-platform').fileTree("src/test/resources")
+  into "$buildDir/resources/test/"
+}
+
+task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyGoogleCloudPlatformTestResources) {
   group = "Verification"
   dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
@@ -239,6 +247,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'
+  exclude '**/FhirIOReadIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)

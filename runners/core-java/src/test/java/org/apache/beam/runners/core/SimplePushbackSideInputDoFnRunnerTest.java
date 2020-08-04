@@ -318,6 +318,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
                 timerId,
                 StateNamespaces.window(IntervalWindow.getCoder(), window),
                 timestamp,
+                timestamp,
                 TimeDomain.EVENT_TIME)));
   }
 
@@ -372,6 +373,9 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     public void finishBundle() {
       finished = true;
     }
+
+    @Override
+    public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
   }
 
   private SimplePushbackSideInputDoFnRunner<KV<String, Integer>, Integer> createRunner(

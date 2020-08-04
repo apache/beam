@@ -21,11 +21,11 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.CounterCell;
@@ -41,6 +41,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WeightedValue;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -49,6 +50,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** {@link DataflowExecutionContext} for use in batch mode. */
@@ -268,8 +270,7 @@ public class BatchModeExecutionContext
    *
    * <p>If there is not a currently defined key, returns null.
    */
-  @Nullable
-  public Object getKey() {
+  public @Nullable Object getKey() {
     return key;
   }
 
@@ -320,13 +321,16 @@ public class BatchModeExecutionContext
   public class StepContext extends DataflowExecutionContext.DataflowStepContext {
 
     // State internals only for use by the system, lazily instantiated
-    @Nullable private InMemoryStateInternals<Object> systemStateInternals;
+    private @Nullable InMemoryStateInternals<Object> systemStateInternals;
 
     // State internals scoped to the user, lazily instantiated
-    @Nullable private InMemoryStateInternals<Object> userStateInternals;
+    private @Nullable InMemoryStateInternals<Object> userStateInternals;
 
     // Timer internals scoped to the user, lazily instantiated
-    @Nullable private InMemoryTimerInternals userTimerInternals;
+    private @Nullable InMemoryTimerInternals userTimerInternals;
+
+    // Timer internals added for OnWindowExpiration functionality
+    private @Nullable InMemoryTimerInternals systemTimerInternals;
 
     private InMemoryStateInternals<Object> getUserStateInternals() {
       if (userStateInternals == null) {
@@ -347,6 +351,7 @@ public class BatchModeExecutionContext
       systemStateInternals = null;
       userStateInternals = null;
       userTimerInternals = null;
+      systemTimerInternals = null;
     }
 
     public void setKey(Object newKey) {
@@ -361,6 +366,7 @@ public class BatchModeExecutionContext
 
       userStateInternals = null;
       userTimerInternals = null;
+      systemTimerInternals = null;
     }
 
     @Override
@@ -372,25 +378,39 @@ public class BatchModeExecutionContext
     }
 
     @Override
-    public TimerInternals timerInternals() {
-      throw new UnsupportedOperationException(
-          "System timerInternals() are not supported in Batch mode."
-              + " Perhaps you meant stepContext.namespacedToUser().timerInternals()");
+    public InMemoryTimerInternals timerInternals() {
+      if (systemTimerInternals == null) {
+        systemTimerInternals = new InMemoryTimerInternals();
+      }
+      return systemTimerInternals;
     }
 
     @Override
-    @Nullable
-    public <W extends BoundedWindow> TimerData getNextFiredTimer(Coder<W> windowCoder) {
-      // There are no actual timer firings, since in batch all state is cleaned up trivially
-      // and all user processing time timers are "expired" by the time they fire.
-      // Event time timers are handled in the UserStepContext
-      return null;
+    public @Nullable <W extends BoundedWindow> TimerData getNextFiredTimer(Coder<W> windowCoder) {
+      try {
+        timerInternals().advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+      } catch (Exception e) {
+        throw new IllegalStateException("Exception thrown advancing watermark", e);
+      }
+
+      return timerInternals().removeNextEventTimer();
     }
 
     @Override
     public <W extends BoundedWindow> void setStateCleanupTimer(
-        String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {
-      // noop, as the state will be discarded when the step is complete
+        String timerId,
+        W window,
+        Coder<W> windowCoder,
+        Instant cleanupTime,
+        Instant cleanupOutputTimestamp) {
+      timerInternals()
+          .setTimer(
+              StateNamespaces.window(windowCoder, window),
+              timerId,
+              "",
+              cleanupTime,
+              cleanupOutputTimestamp,
+              TimeDomain.EVENT_TIME);
     }
 
     @Override
@@ -441,7 +461,11 @@ public class BatchModeExecutionContext
 
     @Override
     public <W extends BoundedWindow> void setStateCleanupTimer(
-        String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {
+        String timerId,
+        W window,
+        Coder<W> windowCoder,
+        Instant cleanupTime,
+        Instant cleanupOutputTimestamp) {
       throw new UnsupportedOperationException(
           String.format(
               "setStateCleanupTimer should not be called on %s, only on a system %s",

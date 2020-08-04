@@ -43,14 +43,19 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
+import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.Join;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -75,6 +80,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -163,7 +169,7 @@ public class Snippets {
       TableRow row = new TableRow();
       row.set("string", "abc");
       byte[] rawbytes = {(byte) 0xab, (byte) 0xac};
-      row.set("bytes", new String(Base64.getEncoder().encodeToString(rawbytes)));
+      row.set("bytes", Base64.getEncoder().encodeToString(rawbytes));
       row.set("integer", 5);
       row.set("float", 0.5);
       row.set("numeric", 5);
@@ -784,8 +790,64 @@ public class Snippets {
           Window.<TableRow>into(
               DynamicSessions.withDefaultGapDuration(Duration.standardSeconds(10))));
       // [END CustomSessionWindow6]
-
     }
+  }
+
+  public static class DeadLetterBigQuery {
+
+    public static void main(String[] args) {
+
+      // [START BigQueryIODeadLetter]
+
+      PipelineOptions options =
+          PipelineOptionsFactory.fromArgs(args).withValidation().as(BigQueryOptions.class);
+
+      Pipeline p = Pipeline.create(options);
+
+      // Create a bug by writing the 2nd value as null. The API will correctly
+      // throw an error when trying to insert a null value into a REQUIRED field.
+      WriteResult result =
+          p.apply(Create.of(1, 2))
+              .apply(
+                  BigQueryIO.<Integer>write()
+                      .withSchema(
+                          new TableSchema()
+                              .setFields(
+                                  ImmutableList.of(
+                                      new TableFieldSchema()
+                                          .setName("num")
+                                          .setType("INTEGER")
+                                          .setMode("REQUIRED"))))
+                      .to("Test.dummyTable")
+                      .withFormatFunction(x -> new TableRow().set("num", (x == 2) ? null : x))
+                      .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
+                      // Forcing the bounded pipeline to use streaming inserts
+                      .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
+                      // set the withExtendedErrorInfo property.
+                      .withExtendedErrorInfo()
+                      .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                      .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND));
+
+      result
+          .getFailedInsertsWithErr()
+          .apply(
+              MapElements.into(TypeDescriptors.strings())
+                  .via(
+                      x -> {
+                        System.out.println(" The table was " + x.getTable());
+                        System.out.println(" The row was " + x.getRow());
+                        System.out.println(" The error was " + x.getError());
+                        return "";
+                      }));
+      p.run();
+
+      /*  Sample Output From the pipeline:
+       <p>The table was GenericData{classInfo=[datasetId, projectId, tableId], {datasetId=Test,projectId=<>, tableId=dummyTable}}
+       <p>The row was GenericData{classInfo=[f], {num=null}}
+       <p>The error was GenericData{classInfo=[errors, index],{errors=[GenericData{classInfo=[debugInfo, location, message, reason], {debugInfo=,location=, message=Missing required field: Msg_0_CLOUD_QUERY_TABLE.num., reason=invalid}}],index=0}}
+      */
+    }
+    // [END BigQueryIODeadLetter]
   }
 
   public static class PeriodicallyUpdatingSideInputs {
@@ -852,6 +914,73 @@ public class Snippets {
                       })
                   .withSideInputs(sideInput));
       // [END PeriodicallyUpdatingSideInputs]
+      return result;
+    }
+  }
+
+  public static class SchemaJoinPattern {
+    public static PCollection<String> main(
+        Pipeline p,
+        final List<Row> emailUsers,
+        final List<Row> phoneUsers,
+        Schema emailSchema,
+        Schema phoneSchema) {
+      // [START SchemaJoinPatternJoin]
+      // Create/Read Schema PCollections
+      PCollection<Row> emailList =
+          p.apply("CreateEmails", Create.of(emailUsers).withRowSchema(emailSchema));
+
+      PCollection<Row> phoneList =
+          p.apply("CreatePhones", Create.of(phoneUsers).withRowSchema(phoneSchema));
+
+      // Perform Join
+      PCollection<Row> resultRow =
+          emailList.apply("Apply Join", Join.<Row, Row>innerJoin(phoneList).using("name"));
+
+      // Preview Result
+      resultRow.apply(
+          "Preview Result",
+          MapElements.into(TypeDescriptors.strings())
+              .via(
+                  x -> {
+                    System.out.println(x);
+                    return "";
+                  }));
+
+      /* Sample Output From the pipeline:
+       Row:[Row:[person1, person1@example.com], Row:[person1, 111-222-3333]]
+       Row:[Row:[person2, person2@example.com], Row:[person2, 222-333-4444]]
+       Row:[Row:[person4, person4@example.com], Row:[person4, 555-333-4444]]
+       Row:[Row:[person3, person3@example.com], Row:[person3, 444-333-4444]]
+      */
+      // [END SchemaJoinPatternJoin]
+
+      // [START SchemaJoinPatternFormat]
+      PCollection<String> result =
+          resultRow.apply(
+              "Format Output",
+              MapElements.into(TypeDescriptors.strings())
+                  .via(
+                      x -> {
+                        String userInfo =
+                            "Name: "
+                                + x.getRow(0).getValue("name")
+                                + " Email: "
+                                + x.getRow(0).getValue("email")
+                                + " Phone: "
+                                + x.getRow(1).getValue("phone");
+                        System.out.println(userInfo);
+                        return userInfo;
+                      }));
+
+      /* Sample output From the pipeline
+      Name: person4 Email: person4@example.com Phone: 555-333-4444
+      Name: person2 Email: person2@example.com Phone: 222-333-4444
+      Name: person3 Email: person3@example.com Phone: 444-333-4444
+      Name: person1 Email: person1@example.com Phone: 111-222-3333
+       */
+      // [END SchemaJoinPatternFormat]
+
       return result;
     }
   }

@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.util;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.fasterxml.jackson.core.Base64Variants;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.DataflowPackage;
@@ -30,14 +29,13 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -45,7 +43,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsCreateOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.FileSystems;
@@ -54,14 +52,13 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.MoreFutures;
-import org.apache.beam.sdk.util.ZipFiles;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnels;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteSource;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutputStream;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.Seconds;
@@ -69,7 +66,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Helper routines for packages. */
-class PackageUtil implements Closeable {
+public class PackageUtil implements Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(PackageUtil.class);
 
@@ -114,41 +111,12 @@ class PackageUtil implements Closeable {
     executorService.shutdown();
   }
 
-  /** Utility comparator used in uploading packages efficiently. */
-  private static class PackageUploadOrder implements Comparator<PackageAttributes>, Serializable {
-    @Override
-    public int compare(PackageAttributes o1, PackageAttributes o2) {
-      // Smaller size compares high so that bigger packages are uploaded first.
-      long sizeDiff = o2.getSize() - o1.getSize();
-      if (sizeDiff != 0) {
-        // returns sign of long
-        return Long.signum(sizeDiff);
-      }
-
-      // Otherwise, choose arbitrarily based on hash.
-      return o1.getHash().compareTo(o2.getHash());
-    }
-  }
-
   /** Asynchronously computes {@link PackageAttributes} for a single staged file. */
   private CompletionStage<PackageAttributes> computePackageAttributes(
-      final DataflowPackage source, final String stagingPath) {
+      final String source, final String hash, final String dest, final String stagingPath) {
 
     return MoreFutures.supplyAsync(
-        () -> {
-          final File file = new File(source.getLocation());
-          if (!file.exists()) {
-            throw new FileNotFoundException(
-                String.format("Non-existent file to stage: %s", file.getAbsolutePath()));
-          }
-
-          PackageAttributes attributes = PackageAttributes.forFileToStage(file, stagingPath);
-          if (source.getName() != null) {
-            attributes = attributes.withPackageName(source.getName());
-          }
-          return attributes;
-        },
-        executorService);
+        () -> PackageAttributes.forFileToStage(source, hash, dest, stagingPath), executorService);
   }
 
   private boolean alreadyStaged(PackageAttributes attributes) throws IOException {
@@ -251,11 +219,7 @@ class PackageUtil implements Closeable {
             "Internal inconsistency: we tried to stage something to %s, but neither a source file "
                 + "nor the byte content was specified",
             target);
-        if (sourceFile.isDirectory()) {
-          ZipFiles.zipDirectory(sourceFile, Channels.newOutputStream(writer));
-        } else {
-          Files.asByteSource(sourceFile).copyTo(Channels.newOutputStream(writer));
-        }
+        Files.asByteSource(sourceFile).copyTo(Channels.newOutputStream(writer));
       }
     }
     return StagingResult.uploaded(attributes);
@@ -267,7 +231,7 @@ class PackageUtil implements Closeable {
    * @see #stageClasspathElements(Collection, String, Sleeper, CreateOptions)
    */
   List<DataflowPackage> stageClasspathElements(
-      Collection<String> classpathElements, String stagingPath, CreateOptions createOptions) {
+      Collection<StagedFile> classpathElements, String stagingPath, CreateOptions createOptions) {
     return stageClasspathElements(classpathElements, stagingPath, DEFAULT_SLEEPER, createOptions);
   }
 
@@ -277,7 +241,7 @@ class PackageUtil implements Closeable {
    * @see #stageClasspathElements(Collection, String, Sleeper, CreateOptions)
    */
   List<DataflowPackage> stageClasspathElements(
-      Collection<String> classpathElements, String stagingPath) {
+      Collection<StagedFile> classpathElements, String stagingPath) {
     return stageClasspathElements(
         classpathElements, stagingPath, DEFAULT_SLEEPER, DEFAULT_CREATE_OPTIONS);
   }
@@ -308,7 +272,7 @@ class PackageUtil implements Closeable {
    * @return A list of cloud workflow packages, each representing a classpath element.
    */
   List<DataflowPackage> stageClasspathElements(
-      Collection<String> classpathElements,
+      Collection<StagedFile> classpathElements,
       final String stagingPath,
       final Sleeper retrySleeper,
       final CreateOptions createOptions) {
@@ -335,29 +299,33 @@ class PackageUtil implements Closeable {
     final AtomicInteger numUploaded = new AtomicInteger(0);
     final AtomicInteger numCached = new AtomicInteger(0);
     List<CompletionStage<DataflowPackage>> destinationPackages = new ArrayList<>();
+    final Set<String> distinctDestinations = Sets.newConcurrentHashSet();
 
-    for (String classpathElement : classpathElements) {
-      DataflowPackage sourcePackage = new DataflowPackage();
-      if (classpathElement.contains("=")) {
-        String[] components = classpathElement.split("=", 2);
-        sourcePackage.setName(components[0]);
-        sourcePackage.setLocation(components[1]);
-      } else {
-        sourcePackage.setName(null);
-        sourcePackage.setLocation(classpathElement);
-      }
+    for (StagedFile classpathElement : classpathElements) {
+      String dest = classpathElement.getDestination();
+      String source = classpathElement.getSource();
+      String hash = classpathElement.getSha256();
 
-      File sourceFile = new File(sourcePackage.getLocation());
+      File sourceFile = new File(source);
       if (!sourceFile.exists()) {
         LOG.warn("Skipping non-existent file to stage {}.", sourceFile);
         continue;
       }
 
       CompletionStage<StagingResult> stagingResult =
-          computePackageAttributes(sourcePackage, stagingPath)
+          computePackageAttributes(source, hash, dest, stagingPath)
               .thenComposeAsync(
-                  packageAttributes ->
-                      stagePackage(packageAttributes, retrySleeper, createOptions));
+                  packageAttributes -> {
+                    String destLocation = packageAttributes.getDestination().getLocation();
+                    if (distinctDestinations.add(destLocation)) {
+                      return stagePackage(packageAttributes, retrySleeper, createOptions);
+                    } else {
+                      LOG.debug("Upload of {} skipped because it was already queued", destLocation);
+
+                      return CompletableFuture.completedFuture(
+                          StagingResult.cached(packageAttributes));
+                    }
+                  });
 
       CompletionStage<DataflowPackage> stagedPackage =
           stagingResult.thenApply(
@@ -402,26 +370,18 @@ class PackageUtil implements Closeable {
     }
   }
 
-  /**
-   * Returns a unique name for a file with a given content hash.
-   *
-   * <p>Directory paths are removed. Example:
-   *
-   * <pre>
-   * dir="a/b/c/d", contentHash="f000" => d-f000.jar
-   * file="a/b/c/d.txt", contentHash="f000" => d-f000.txt
-   * file="a/b/c/d", contentHash="f000" => d-f000
-   * </pre>
-   */
-  static String getUniqueContentName(File classpathElement, String contentHash) {
-    String fileName = Files.getNameWithoutExtension(classpathElement.getAbsolutePath());
-    String fileExtension = Files.getFileExtension(classpathElement.getAbsolutePath());
-    if (classpathElement.isDirectory()) {
-      return fileName + "-" + contentHash + ".jar";
-    } else if (fileExtension.isEmpty()) {
-      return fileName + "-" + contentHash;
+  @AutoValue
+  public abstract static class StagedFile {
+    public static PackageUtil.StagedFile of(String source, String sha256, String destination) {
+      return new AutoValue_PackageUtil_StagedFile(source, sha256, destination);
     }
-    return fileName + "-" + contentHash + "." + fileExtension;
+
+    /** The file to stage. */
+    public abstract String getSource();
+    /** The SHA-256 hash of the source file. */
+    public abstract String getSha256();
+    /** Staged target for this file. */
+    public abstract String getDestination();
   }
 
   @AutoValue
@@ -442,59 +402,59 @@ class PackageUtil implements Closeable {
   /** Holds the metadata necessary to stage a file or confirm that a staged file has not changed. */
   @AutoValue
   abstract static class PackageAttributes {
-
-    public static PackageAttributes forFileToStage(File source, String stagingPath)
-        throws IOException {
-
-      // Compute size and hash in one pass over file or directory.
-      long size;
-      String hash;
-      Hasher hasher = Hashing.md5().newHasher();
-      OutputStream hashStream = Funnels.asOutputStream(hasher);
-      try (CountingOutputStream countingOutputStream = new CountingOutputStream(hashStream)) {
-        if (!source.isDirectory()) {
-          // Files are staged as-is.
-          Files.asByteSource(source).copyTo(countingOutputStream);
-        } else {
-          // Directories are recursively zipped.
-          ZipFiles.zipDirectory(source, countingOutputStream);
-        }
-        countingOutputStream.flush();
-
-        size = countingOutputStream.getCount();
-        hash = Base64Variants.MODIFIED_FOR_URL.encode(hasher.hash().asBytes());
+    public static PackageAttributes forFileToStage(
+        String source, String hash, String dest, String stagingPath) throws IOException {
+      final File file = new File(source);
+      if (!file.exists()) {
+        throw new FileNotFoundException(
+            String.format("Non-existent file to stage: %s", file.getAbsolutePath()));
       }
-
-      String uniqueName = getUniqueContentName(source, hash);
-
+      checkState(!file.isDirectory(), "Source file must not be a directory.");
+      String target;
+      // Dataflow worker jar and windmill binary can be overridden by providing files with
+      // predefined file names. Normally, we can use the artifact file name as same as
+      // the last component of GCS object resource path. However, we need special handling
+      // for those predefined names since they also need to be unique even in the same
+      // staging directory.
+      switch (dest) {
+        case "dataflow-worker.jar":
+        case "windmill_main":
+          target =
+              Environments.createStagingFileName(
+                  file, Files.asByteSource(file).hash(Hashing.sha256()));
+          LOG.info("Staging custom {} as {}", dest, target);
+          break;
+        default:
+          target = dest;
+      }
+      DataflowPackage destination = new DataflowPackage();
       String resourcePath =
           FileSystems.matchNewResource(stagingPath, true)
-              .resolve(uniqueName, StandardResolveOptions.RESOLVE_FILE)
+              .resolve(target, StandardResolveOptions.RESOLVE_FILE)
               .toString();
-      DataflowPackage target = new DataflowPackage();
-      target.setName(uniqueName);
-      target.setLocation(resourcePath);
-
-      return new AutoValue_PackageUtil_PackageAttributes(source, null, target, size, hash);
+      destination.setLocation(resourcePath);
+      destination.setName(dest);
+      return new AutoValue_PackageUtil_PackageAttributes(
+          file, null, destination, file.length(), hash);
     }
 
     public static PackageAttributes forBytesToStage(
         byte[] bytes, String targetName, String stagingPath) {
-      Hasher hasher = Hashing.md5().newHasher();
-      String hash = Base64Variants.MODIFIED_FOR_URL.encode(hasher.putBytes(bytes).hash().asBytes());
+      HashCode hashCode = Hashing.sha256().newHasher().putBytes(bytes).hash();
       long size = bytes.length;
 
-      String uniqueName = getUniqueContentName(new File(targetName), hash);
+      String target = Environments.createStagingFileName(new File(targetName), hashCode);
 
       String resourcePath =
           FileSystems.matchNewResource(stagingPath, true)
-              .resolve(uniqueName, StandardResolveOptions.RESOLVE_FILE)
+              .resolve(target, StandardResolveOptions.RESOLVE_FILE)
               .toString();
-      DataflowPackage target = new DataflowPackage();
-      target.setName(uniqueName);
-      target.setLocation(resourcePath);
+      DataflowPackage targetPackage = new DataflowPackage();
+      targetPackage.setName(target);
+      targetPackage.setLocation(resourcePath);
 
-      return new AutoValue_PackageUtil_PackageAttributes(null, bytes, target, size, hash);
+      return new AutoValue_PackageUtil_PackageAttributes(
+          null, bytes, targetPackage, size, hashCode.toString());
     }
 
     public PackageAttributes withPackageName(String overridePackageName) {
@@ -507,13 +467,11 @@ class PackageUtil implements Closeable {
     }
 
     /** @return the file to be uploaded, if any */
-    @Nullable
-    public abstract File getSource();
+    public abstract @Nullable File getSource();
 
     /** @return the bytes to be uploaded, if any */
     @SuppressWarnings("mutable")
-    @Nullable
-    public abstract byte[] getBytes();
+    public abstract byte @Nullable [] getBytes();
 
     /** @return the dataflowPackage */
     public abstract DataflowPackage getDestination();

@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
@@ -258,6 +259,64 @@ public class ProcessBundleHandlerTest {
       return new TestBundleProcessor(
           super.get(bundleDescriptorId, instructionId, bundleProcessorSupplier));
     }
+  }
+
+  @Test
+  public void testTrySplitBeforeBundleDoesNotFail() {
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            null,
+            beamFnDataClient,
+            null /* beamFnStateClient */,
+            null /* finalizeBundleHandler */,
+            ImmutableMap.of(),
+            new BundleProcessorCache());
+
+    BeamFnApi.InstructionResponse response =
+        handler
+            .trySplit(
+                BeamFnApi.InstructionRequest.newBuilder()
+                    .setInstructionId("999L")
+                    .setProcessBundleSplit(
+                        BeamFnApi.ProcessBundleSplitRequest.newBuilder()
+                            .setInstructionId("unknown-id"))
+                    .build())
+            .build();
+    assertNotNull(response.getProcessBundleSplit());
+    assertEquals(0, response.getProcessBundleSplit().getChannelSplitsCount());
+  }
+
+  @Test
+  public void testProgressBeforeBundleDoesNotFail() throws Exception {
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            null,
+            beamFnDataClient,
+            null /* beamFnStateClient */,
+            null /* finalizeBundleHandler */,
+            ImmutableMap.of(),
+            new BundleProcessorCache());
+
+    handler.progress(
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setInstructionId("999L")
+            .setProcessBundleProgress(
+                BeamFnApi.ProcessBundleProgressRequest.newBuilder().setInstructionId("unknown-id"))
+            .build());
+    BeamFnApi.InstructionResponse response =
+        handler
+            .trySplit(
+                BeamFnApi.InstructionRequest.newBuilder()
+                    .setInstructionId("999L")
+                    .setProcessBundleSplit(
+                        BeamFnApi.ProcessBundleSplitRequest.newBuilder()
+                            .setInstructionId("unknown-id"))
+                    .build())
+            .build();
+    assertNotNull(response.getProcessBundleProgress());
+    assertEquals(0, response.getProcessBundleProgress().getMonitoringInfosCount());
   }
 
   @Test

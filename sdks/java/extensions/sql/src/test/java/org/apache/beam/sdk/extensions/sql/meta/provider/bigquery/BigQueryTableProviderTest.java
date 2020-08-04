@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
 import static org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTable.METHOD_PROPERTY;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTable.WRITE_DISPOSITION_PROPERTY;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -29,6 +30,7 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 
@@ -89,6 +91,54 @@ public class BigQueryTableProviderTest {
     BigQueryTable sqlTable = (BigQueryTable) provider.buildBeamSqlTable(table);
 
     assertEquals(Method.EXPORT, sqlTable.method);
+  }
+
+  @Test
+  public void testSelectWriteDispositionMethodTruncate() {
+    Table table =
+        fakeTableWithProperties(
+            "hello",
+            "{ "
+                + WRITE_DISPOSITION_PROPERTY
+                + ": "
+                + "\""
+                + WriteDisposition.WRITE_TRUNCATE.toString()
+                + "\" }");
+    BigQueryTable sqlTable = (BigQueryTable) provider.buildBeamSqlTable(table);
+
+    assertEquals(WriteDisposition.WRITE_TRUNCATE, sqlTable.writeDisposition);
+  }
+
+  @Test
+  public void testSelectWriteDispositionMethodAppend() {
+    Table table =
+        fakeTableWithProperties(
+            "hello",
+            "{ "
+                + WRITE_DISPOSITION_PROPERTY
+                + ": "
+                + "\""
+                + WriteDisposition.WRITE_APPEND.toString()
+                + "\" }");
+    BigQueryTable sqlTable = (BigQueryTable) provider.buildBeamSqlTable(table);
+
+    assertEquals(WriteDisposition.WRITE_APPEND, sqlTable.writeDisposition);
+  }
+
+  @Test
+  public void testSelectWriteDispositionMethodEmpty() {
+    Table table =
+        fakeTableWithProperties(
+            "hello",
+            "{ "
+                + WRITE_DISPOSITION_PROPERTY
+                + ": "
+                + "\""
+                + WriteDisposition.WRITE_EMPTY.toString()
+                + "\" }");
+    BigQueryTable sqlTable = (BigQueryTable) provider.buildBeamSqlTable(table);
+
+    assertEquals(WriteDisposition.WRITE_EMPTY, sqlTable.writeDisposition);
   }
 
   @Test

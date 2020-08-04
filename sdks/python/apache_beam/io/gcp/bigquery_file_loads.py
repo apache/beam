@@ -30,7 +30,6 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 
 from __future__ import absolute_import
 
-import datetime
 import hashlib
 import logging
 import random
@@ -42,9 +41,11 @@ import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
+from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.window import GlobalWindows
 
 _LOGGER = logging.getLogger(__name__)
@@ -67,10 +68,9 @@ _MAXIMUM_SOURCE_URIS = 10 * 1000
 _FILE_TRIGGERING_RECORD_COUNT = 500000
 
 
-def _generate_load_job_name():
-  datetime_component = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S")
-  # TODO(pabloem): include job id / pipeline component?
-  return 'beam_load_%s_%s' % (datetime_component, random.randint(0, 100))
+def _generate_job_name(job_name, job_type, step_name):
+  return bigquery_tools.generate_bq_job_name(
+      job_name, step_name, job_type, random.randint(0, 1000))
 
 
 def file_prefix_generator(
@@ -88,10 +88,12 @@ def file_prefix_generator(
     if with_validation and (not gcs_base or not gcs_base.startswith('gs://')):
       raise ValueError(
           'Invalid GCS location: %r.\n'
-          'Writing to BigQuery with FILE_LOADS method requires a '
-          'GCS location to be provided to write files to be loaded'
-          ' loaded into BigQuery. Please provide a GCS bucket, or '
-          'pass method="STREAMING_INSERTS" to WriteToBigQuery.' % gcs_base)
+          'Writing to BigQuery with FILE_LOADS method requires a'
+          ' GCS location to be provided to write files to be loaded'
+          ' into BigQuery. Please provide a GCS bucket through'
+          ' custom_gcs_temp_location in the constructor of WriteToBigQuery'
+          ' or the fallback option --temp_location, or pass'
+          ' method="STREAMING_INSERTS" to WriteToBigQuery.' % gcs_base)
 
     prefix_uuid = _bq_uuid()
     return fs.FileSystems.join(gcs_base, 'bq_load', prefix_uuid)
@@ -325,10 +327,19 @@ class TriggerCopyJobs(beam.DoFn):
     self.write_disposition = write_disposition
     self.test_client = test_client
     self._observed_tables = set()
+    self.bq_io_metadata = None
+
+  def display_data(self):
+    return {
+        'launchesBigQueryJobs': DisplayDataItem(
+            True, label="This Dataflow job launches bigquery jobs.")
+    }
 
   def start_bundle(self):
     self._observed_tables = set()
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
 
   def process(self, element, job_name_prefix=None):
     destination = element[0]
@@ -345,13 +356,8 @@ class TriggerCopyJobs(beam.DoFn):
       copy_from_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
 
-    copy_job_name = '%s_copy_%s_to_%s' % (
+    copy_job_name = '%s_%s' % (
         job_name_prefix,
-        _bq_uuid(
-            '%s:%s.%s' % (
-                copy_from_reference.projectId,
-                copy_from_reference.datasetId,
-                copy_from_reference.tableId)),
         _bq_uuid(
             '%s:%s.%s' % (
                 copy_to_reference.projectId,
@@ -378,13 +384,16 @@ class TriggerCopyJobs(beam.DoFn):
       wait_for_job = False
       write_disposition = 'WRITE_APPEND'
 
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
     job_reference = self.bq_wrapper._insert_copy_job(
         copy_to_reference.projectId,
         copy_job_name,
         copy_from_reference,
         copy_to_reference,
         create_disposition=self.create_disposition,
-        write_disposition=write_disposition)
+        write_disposition=write_disposition,
+        job_labels=self.bq_io_metadata.add_additional_bq_job_labels())
 
     if wait_for_job:
       self.bq_wrapper.wait_for_bq_job(job_reference, sleep_duration_sec=10)
@@ -414,6 +423,7 @@ class TriggerLoadJobs(beam.DoFn):
     self.temporary_tables = temporary_tables
     self.additional_bq_parameters = additional_bq_parameters or {}
     self.source_format = source_format
+    self.bq_io_metadata = None
     if self.temporary_tables:
       # If we are loading into temporary tables, we rely on the default create
       # and write dispositions, which mean that a new table will be created.
@@ -426,14 +436,17 @@ class TriggerLoadJobs(beam.DoFn):
   def display_data(self):
     result = {
         'create_disposition': str(self.create_disposition),
-        'write_disposition': str(self.write_disposition)
+        'write_disposition': str(self.write_disposition),
     }
     result['schema'] = str(self.schema)
-
+    result['launchesBigQueryJobs'] = DisplayDataItem(
+        True, label="This Dataflow job launches bigquery jobs.")
     return result
 
   def start_bundle(self):
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
 
   def process(self, element, load_job_name_prefix, *schema_side_inputs):
     # Each load job is assumed to have files respecting these constraints:
@@ -491,6 +504,8 @@ class TriggerLoadJobs(beam.DoFn):
         table_reference,
         schema,
         additional_parameters)
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
     job_reference = self.bq_wrapper.perform_load_job(
         table_reference,
         files,
@@ -499,7 +514,8 @@ class TriggerLoadJobs(beam.DoFn):
         write_disposition=self.write_disposition,
         create_disposition=create_disposition,
         additional_load_parameters=additional_parameters,
-        source_format=self.source_format)
+        source_format=self.source_format,
+        job_labels=self.bq_io_metadata.add_additional_bq_job_labels())
     yield (destination, job_reference)
 
 
@@ -765,6 +781,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       partitions_using_temp_tables,
       partitions_direct_to_destination,
       load_job_name_pcv,
+      copy_job_name_pcv,
       singleton_pc):
     """Load data to BigQuery
 
@@ -810,7 +827,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 create_disposition=self.create_disposition,
                 write_disposition=self.write_disposition,
                 test_client=self.test_client),
-            load_job_name_pcv))
+            copy_job_name_pcv))
 
     finished_copy_jobs_pc = (
         singleton_pc
@@ -861,13 +878,27 @@ class BigQueryBatchFileLoads(beam.PTransform):
     p = pcoll.pipeline
 
     temp_location = p.options.view_as(GoogleCloudOptions).temp_location
+    job_name = (
+        p.options.view_as(GoogleCloudOptions).job_name or 'AUTOMATIC_JOB_NAME')
 
     empty_pc = p | "ImpulseEmptyPC" >> beam.Create([])
     singleton_pc = p | "ImpulseSingleElementPC" >> beam.Create([None])
 
     load_job_name_pcv = pvalue.AsSingleton(
         singleton_pc
-        | beam.Map(lambda _: _generate_load_job_name()))
+        | "LoadJobNamePrefix" >> beam.Map(
+            lambda _: _generate_job_name(
+                job_name,
+                bigquery_tools.BigQueryJobTypes.LOAD,
+                'LOAD_NAME_STEP')))
+
+    copy_job_name_pcv = pvalue.AsSingleton(
+        singleton_pc
+        | "CopyJobNamePrefix" >> beam.Map(
+            lambda _: _generate_job_name(
+                job_name,
+                bigquery_tools.BigQueryJobTypes.COPY,
+                'COPY_NAME_STEP')))
 
     file_prefix_pcv = pvalue.AsSingleton(
         singleton_pc
@@ -911,14 +942,17 @@ class BigQueryBatchFileLoads(beam.PTransform):
           multiple_partitions_per_destination_pc,
           single_partition_per_destination_pc)
                         | "FlattenPartitions" >> beam.Flatten())
-      destination_load_job_ids_pc, destination_copy_job_ids_pc = self.\
-        _load_data(all_partitions, empty_pc, load_job_name_pcv,
-                   singleton_pc)
+      destination_load_job_ids_pc, destination_copy_job_ids_pc = (
+          self._load_data(all_partitions,
+                          empty_pc,
+                          load_job_name_pcv,
+                          copy_job_name_pcv,
+                          singleton_pc))
     else:
-      destination_load_job_ids_pc, destination_copy_job_ids_pc = self.\
-        _load_data(multiple_partitions_per_destination_pc,
-                   single_partition_per_destination_pc,
-                   load_job_name_pcv, singleton_pc)
+      destination_load_job_ids_pc, destination_copy_job_ids_pc = (
+          self._load_data(multiple_partitions_per_destination_pc,
+                         single_partition_per_destination_pc,
+                         load_job_name_pcv, copy_job_name_pcv, singleton_pc))
 
     return {
         self.DESTINATION_JOBID_PAIRS: destination_load_job_ids_pc,

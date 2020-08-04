@@ -104,7 +104,12 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
 
     try {
       evaluator.onTimer(
-          TimerData.of("foo", StateNamespaces.global(), new Instant(0), TimeDomain.EVENT_TIME),
+          TimerData.of(
+              "foo",
+              StateNamespaces.global(),
+              new Instant(0),
+              new Instant(0),
+              TimeDomain.EVENT_TIME),
           "",
           GlobalWindow.INSTANCE);
     } catch (Exception e) {

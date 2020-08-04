@@ -35,12 +35,14 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaceForTest;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagBag;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagValue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
@@ -83,8 +85,14 @@ public class WindmillStateInternalsTest {
       Sum.ofIntegers().getAccumulatorCoder(null, VarIntCoder.of());
   private long workToken = 0;
 
+<<<<<<< HEAD
   @Mock
   private WindmillStateReader mockReader;
+=======
+  DataflowWorkerHarnessOptions options;
+
+  @Mock private WindmillStateReader mockReader;
+>>>>>>> upstream/master
 
   private WindmillStateInternals<String> underTest;
   private WindmillStateInternals<String> underTestNewKey;
@@ -104,7 +112,8 @@ public class WindmillStateInternalsTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    cache = new WindmillStateCache();
+    options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    cache = new WindmillStateCache(options.getWorkerCacheMb());
     resetUnderTest();
   }
 

@@ -42,6 +42,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -59,7 +60,7 @@ import org.joda.time.Instant;
 
 /** A {@link RichGroupReduceFunction} for stateful {@link ParDo} in Flink Batch Runner. */
 public class FlinkStatefulDoFnFunction<K, V, OutputT>
-    extends RichGroupReduceFunction<WindowedValue<KV<K, V>>, WindowedValue<OutputT>> {
+    extends RichGroupReduceFunction<WindowedValue<KV<K, V>>, WindowedValue<RawUnionValue>> {
 
   private final DoFn<KV<K, V>, OutputT> dofn;
   private String stepName;
@@ -104,7 +105,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
 
   @Override
   public void reduce(
-      Iterable<WindowedValue<KV<K, V>>> values, Collector<WindowedValue<OutputT>> out)
+      Iterable<WindowedValue<KV<K, V>>> values, Collector<WindowedValue<RawUnionValue>> out)
       throws Exception {
     RuntimeContext runtimeContext = getRuntimeContext();
 
@@ -113,7 +114,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
       outputManager = new FlinkDoFnFunction.DoFnOutputManager(out);
     } else {
       // it has some additional Outputs
-      outputManager = new FlinkDoFnFunction.MultiDoFnOutputManager((Collector) out, outputMap);
+      outputManager = new FlinkDoFnFunction.MultiDoFnOutputManager(out, outputMap);
     }
 
     final Iterator<WindowedValue<KV<K, V>>> iterator = values.iterator();

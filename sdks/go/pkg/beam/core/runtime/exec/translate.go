@@ -25,7 +25,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/stringx"
@@ -337,7 +337,6 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 	var u Node
 	switch urn {
 	case graphx.URNParDo,
-		graphx.URNJavaDoFn,
 		urnPerKeyCombinePre,
 		urnPerKeyCombineMerge,
 		urnPerKeyCombineExtract,
@@ -372,7 +371,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		// TODO(herohde) 1/28/2018: Once Dataflow's fully off the old way,
 		// we can simply switch on the ParDo DoFn URN directly.
 
-		var tp v1.TransformPayload
+		var tp v1pb.TransformPayload
 		if err := protox.DecodeBase64(data, &tp); err != nil {
 			return nil, errors.Wrapf(err, "invalid transform payload for %v", transform)
 		}
@@ -420,6 +419,8 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					u = n
 					if urn == urnProcessSizedElementsAndRestrictions {
 						u = &ProcessSizedElementsAndRestrictions{PDo: n}
+					} else if dofn.IsSplittable() {
+						u = &SdfFallback{PDo: n}
 					}
 				}
 

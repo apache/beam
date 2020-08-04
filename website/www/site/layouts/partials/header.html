@@ -1,0 +1,94 @@
+{{/*
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+*/}}
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">{{ T "nav-toggle-navigation" }}</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href={{ "/" | relLangURL }} class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "nav-get-started" }}</a>
+        </li>
+        <li>
+          <a href={{ "/documentation/" | relLangURL }}>{{ T "nav-documentation" }}</a>
+        </li>
+        <li>
+          <a href={{ "/documentation/sdks/java/" | relLangURL }}>{{ T "nav-languages" }}</a>
+        </li>
+        <li>
+          <a href={{ "/documentation/runners/capability-matrix/" | relLangURL }}>{{ T "nav-runners" }}</a>
+        </li>
+        <li>
+          <a href={{ "/roadmap/" | relLangURL }}>{{ T "nav-roadmap" }}</a>
+        </li>
+        <li>
+          <a href={{ "/contribute/" | relLangURL }}>{{ T "nav-contribute" }}</a>
+        </li>
+        <li>
+          <a href={{ "/community/contact-us/" | relLangURL }}>{{ T "nav-community" }}</a>
+        </li>
+        <li><a href={{ "/blog/" | relLangURL }}>{{ T "nav-blog" }}</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+          <div style="width: 300px;">
+            <script>
+              (function() {
+                var cx = '012923275103528129024:4emlchv9wzi';
+                var gcse = document.createElement('script');
+                gcse.type = 'text/javascript';
+                gcse.async = true;
+                gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
+                var s = document.getElementsByTagName('script')[0];
+                s.parentNode.insertBefore(gcse, s);
+              })();
+            </script>
+            <gcse:search></gcse:search>
+          </div>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">{{ T "nav-asf-homepage" }}</a></li>
+            <li><a href="http://www.apache.org/licenses/">{{ T "nav-license" }}</a></li>
+            <li><a href="http://www.apache.org/security/">{{ T "nav-security" }}</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">{{ T "nav-thanks" }}</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">{{ T "nav-sponsorship" }}</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">{{ T "nav-code-of-conduct" }}</a></li>
+          </ul>
+        </li>
+        <li>
+          <!--
+            data-proofer-ignore disables link checking from website test automation.
+            GitHub links will not resolve until the markdown source is available on the master branch.
+            New pages would fail validation during development / PR test automation.
+          -->
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/{{ .Site.Language.Lang }}/{{ .Path }}" data-proofer-ignore>
+            <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
+          </a>
+        </li>
+      </ul>
+    </div>
+</nav>

@@ -25,6 +25,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
@@ -42,24 +43,6 @@ public class CalciteUtils {
 
   // SQL has schema types that do not directly correspond to Beam Schema types. We define
   // LogicalTypes to represent each of these types.
-
-  /** A LogicalType corresponding to DATE. */
-  public static class DateType extends PassThroughLogicalType<Instant> {
-    public static final String IDENTIFIER = "SqlDateType";
-
-    public DateType() {
-      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
-    }
-  }
-
-  /** A LogicalType corresponding to TIME. */
-  public static class TimeType extends PassThroughLogicalType<Instant> {
-    public static final String IDENTIFIER = "SqlTimeType";
-
-    public TimeType() {
-      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
-    }
-  }
 
   /** A LogicalType corresponding to TIME_WITH_LOCAL_TIME_ZONE. */
   public static class TimeWithLocalTzType extends PassThroughLogicalType<Instant> {
@@ -96,8 +79,8 @@ public class CalciteUtils {
 
     if (fieldType.getTypeName().isLogicalType()) {
       String logicalId = fieldType.getLogicalType().getIdentifier();
-      return logicalId.equals(DateType.IDENTIFIER)
-          || logicalId.equals(TimeType.IDENTIFIER)
+      return logicalId.equals(SqlTypes.DATE.getIdentifier())
+          || logicalId.equals(SqlTypes.TIME.getIdentifier())
           || logicalId.equals(TimeWithLocalTzType.IDENTIFIER)
           || logicalId.equals(TimestampWithLocalTzType.IDENTIFIER);
     }
@@ -128,12 +111,12 @@ public class CalciteUtils {
   public static final FieldType VARBINARY = FieldType.BYTES;
   public static final FieldType VARCHAR = FieldType.STRING;
   public static final FieldType CHAR = FieldType.logicalType(new CharType());
-  public static final FieldType DATE = FieldType.logicalType(new DateType());
+  public static final FieldType DATE = FieldType.logicalType(SqlTypes.DATE);
   public static final FieldType NULLABLE_DATE =
-      FieldType.logicalType(new DateType()).withNullable(true);
-  public static final FieldType TIME = FieldType.logicalType(new TimeType());
+      FieldType.logicalType(SqlTypes.DATE).withNullable(true);
+  public static final FieldType TIME = FieldType.logicalType(SqlTypes.TIME);
   public static final FieldType NULLABLE_TIME =
-      FieldType.logicalType(new TimeType()).withNullable(true);
+      FieldType.logicalType(SqlTypes.TIME).withNullable(true);
   public static final FieldType TIME_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimeWithLocalTzType());
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
@@ -205,12 +188,16 @@ public class CalciteUtils {
         return SqlTypeName.MAP;
       default:
         SqlTypeName typeName = BEAM_TO_CALCITE_TYPE_MAPPING.get(type.withNullable(false));
-        if (typeName != null) {
-          return typeName;
-        } else {
+        if (typeName == null) {
           // This will happen e.g. if looking up a STRING type, and metadata isn't set to say which
           // type of SQL string we want. In this case, use the default mapping.
-          return BEAM_TO_CALCITE_DEFAULT_MAPPING.get(type);
+          typeName = BEAM_TO_CALCITE_DEFAULT_MAPPING.get(type);
+        }
+        if (typeName == null) {
+          throw new IllegalArgumentException(
+              String.format("Cannot find a matching Calcite SqlTypeName for Beam type: %s", type));
+        } else {
+          return typeName;
         }
     }
   }

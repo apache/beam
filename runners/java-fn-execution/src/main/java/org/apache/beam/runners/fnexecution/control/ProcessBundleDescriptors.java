@@ -29,7 +29,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -65,6 +64,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableTable;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utility methods for creating {@link ProcessBundleDescriptor} instances. */
 // TODO: Rename to ExecutableStages?
@@ -396,18 +396,16 @@ public class ProcessBundleDescriptors {
               .getTransformsOrThrow(timerReference.transform().getId())
               .toBuilder()
               .getSpecBuilder();
-      RunnerApi.ParDoPayload updatedPayload =
-          RunnerApi.ParDoPayload.parseFrom(updatedSpec.getPayload());
-      updatedPayload
-          .toBuilder()
-          .putTimerFamilySpecs(
-              timerReference.localName(),
-              updatedPayload
-                  .getTimerFamilySpecsOrThrow(timerReference.localName())
-                  .toBuilder()
-                  .setTimerFamilyCoderId(sdkCoderId)
-                  .build());
-      updatedSpec.setPayload(updatedPayload.toByteString());
+      RunnerApi.ParDoPayload.Builder updatedPayload =
+          RunnerApi.ParDoPayload.parseFrom(updatedSpec.getPayload()).toBuilder();
+      updatedPayload.putTimerFamilySpecs(
+          timerReference.localName(),
+          updatedPayload
+              .getTimerFamilySpecsOrThrow(timerReference.localName())
+              .toBuilder()
+              .setTimerFamilyCoderId(sdkCoderId)
+              .build());
+      updatedSpec.setPayload(updatedPayload.build().toByteString());
       components.putTransforms(
           timerReference.transform().getId(),
           // Since a transform can have more then one timer, update the transform inside components

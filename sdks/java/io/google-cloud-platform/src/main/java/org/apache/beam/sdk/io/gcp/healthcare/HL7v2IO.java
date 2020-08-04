@@ -21,14 +21,15 @@ import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.text.ParseException;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -36,9 +37,12 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
+import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -47,8 +51,13 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -148,12 +157,12 @@ public class HL7v2IO {
 
   /** Write HL7v2 Messages to a store. */
   private static Write.Builder write(String hl7v2Store) {
-    return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(hl7v2Store);
+    return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(StaticValueProvider.of(hl7v2Store));
   }
 
   /** Write HL7v2 Messages to a store. */
   private static Write.Builder write(ValueProvider<String> hl7v2Store) {
-    return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(hl7v2Store.get());
+    return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(hl7v2Store);
   }
 
   /**
@@ -265,9 +274,7 @@ public class HL7v2IO {
       PCollectionTuple pct;
 
       public static Result of(PCollectionTuple pct) throws IllegalArgumentException {
-        if (pct.getAll()
-            .keySet()
-            .containsAll((Collection<?>) TupleTagList.of(OUT).and(DEAD_LETTER))) {
+        if (pct.getAll().keySet().containsAll(TupleTagList.of(OUT).and(DEAD_LETTER).getAll())) {
           return new Result(pct);
         } else {
           throw new IllegalArgumentException(
@@ -278,9 +285,9 @@ public class HL7v2IO {
 
       private Result(PCollectionTuple pct) {
         this.pct = pct;
-        this.messages = pct.get(OUT).setCoder(new HL7v2MessageCoder());
+        this.messages = pct.get(OUT).setCoder(HL7v2MessageCoder.of());
         this.failedReads =
-            pct.get(DEAD_LETTER).setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
+            pct.get(DEAD_LETTER).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       }
 
       public PCollection<HealthcareIOError<String>> getFailedReads() {
@@ -314,6 +321,8 @@ public class HL7v2IO {
 
     @Override
     public Result expand(PCollection<String> input) {
+      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+      coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
       return input.apply("Fetch HL7v2 messages", new FetchHL7v2Message());
     }
 
@@ -343,6 +352,8 @@ public class HL7v2IO {
 
       @Override
       public Result expand(PCollection<String> msgIds) {
+        CoderRegistry coderRegistry = msgIds.getPipeline().getCoderRegistry();
+        coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
         return new Result(
             msgIds.apply(
                 ParDo.of(new FetchHL7v2Message.HL7v2MessageGetFn())
@@ -415,10 +426,32 @@ public class HL7v2IO {
     }
   }
 
-  /** List HL7v2 messages in HL7v2 Stores with optional filter. */
+  /**
+   * List HL7v2 messages in HL7v2 Stores with optional filter.
+   *
+   * <p>This transform is optimized for splitting of message.list calls for large batches of
+   * historical data and assumes rather continuous stream of sendTimes.
+   *
+   * <p>Note on Benchmarking: The default initial splitting on day will make more queries than
+   * necessary when used with very small data sets (or very sparse data sets in the sendTime
+   * dimension). If you are looking to get an accurate benchmark be sure to use sufficient volume of
+   * data with messages that span sendTimes over a realistic time range (days)
+   *
+   * <p>Implementation includes overhead for:
+   *
+   * <ol>
+   *   <li>two api calls to determine the min/max sendTime of the HL7v2 store at invocation time.
+   *   <li>initial splitting into non-overlapping time ranges (default daily) to achieve
+   *       parallelization in separate messages.list calls.
+   * </ol>
+   *
+   * If your use case doesn't lend itself to daily splitting, you can can control initial splitting
+   * with {@link ListHL7v2Messages#withInitialSplitDuration(Duration)}
+   */
   public static class ListHL7v2Messages extends PTransform<PBegin, PCollection<HL7v2Message>> {
-    private final List<String> hl7v2Stores;
-    private final String filter;
+    private final ValueProvider<List<String>> hl7v2Stores;
+    private final ValueProvider<String> filter;
+    private Duration initialSplitDuration;
 
     /**
      * Instantiates a new List HL7v2 message IDs with filter.
@@ -427,39 +460,59 @@ public class HL7v2IO {
      * @param filter the filter
      */
     ListHL7v2Messages(ValueProvider<List<String>> hl7v2Stores, ValueProvider<String> filter) {
-      this.hl7v2Stores = hl7v2Stores.get();
-      this.filter = filter.get();
+      this.hl7v2Stores = hl7v2Stores;
+      this.filter = filter;
+      this.initialSplitDuration = null;
     }
 
-    ListHL7v2Messages(ValueProvider<List<String>> hl7v2Stores) {
-      this.hl7v2Stores = hl7v2Stores.get();
-      this.filter = null;
+    public ListHL7v2Messages withInitialSplitDuration(Duration initialSplitDuration) {
+      this.initialSplitDuration = initialSplitDuration;
+      return this;
     }
 
     @Override
     public PCollection<HL7v2Message> expand(PBegin input) {
+      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+      coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
       return input
-          .apply(Create.of(this.hl7v2Stores))
-          .apply(ParDo.of(new ListHL7v2MessagesFn(this.filter)))
-          .setCoder(new HL7v2MessageCoder())
+          .apply(Create.ofProvider(this.hl7v2Stores, ListCoder.of(StringUtf8Coder.of())))
+          .apply(FlatMapElements.into(TypeDescriptors.strings()).via((x) -> x))
+          .apply(ParDo.of(new ListHL7v2MessagesFn(filter, initialSplitDuration)))
+          .setCoder(HL7v2MessageCoder.of())
           // Break fusion to encourage parallelization of downstream processing.
           .apply(Reshuffle.viaRandomKey());
     }
   }
 
+  /**
+   * Implemented as Splitable DoFn that claims millisecond resolutions of offset restrictions in the
+   * Message.sendTime dimension.
+   */
+  @BoundedPerElement
+  @VisibleForTesting
   static class ListHL7v2MessagesFn extends DoFn<String, HL7v2Message> {
+    // These control the initial restriction split which means that the list of integer pairs
+    // must comfortably fit in memory.
+    private static final Duration DEFAULT_DESIRED_SPLIT_DURATION = Duration.standardDays(1);
+    private static final Duration DEFAULT_MIN_SPLIT_DURATION = Duration.standardHours(1);
 
-    private final String filter;
+    private static final Logger LOG = LoggerFactory.getLogger(ListHL7v2MessagesFn.class);
+    private ValueProvider<String> filter;
+    private Duration initialSplitDuration;
     private transient HealthcareApiClient client;
-    private Distribution messageListingLatencyMs =
-        Metrics.distribution(ListHL7v2MessagesFn.class, "message-list-pagination-latency-ms");
     /**
      * Instantiates a new List HL7v2 fn.
      *
      * @param filter the filter
      */
     ListHL7v2MessagesFn(String filter) {
+      this(StaticValueProvider.of(filter), null);
+    }
+
+    ListHL7v2MessagesFn(ValueProvider<String> filter, @Nullable Duration initialSplitDuration) {
       this.filter = filter;
+      this.initialSplitDuration =
+          (initialSplitDuration == null) ? DEFAULT_DESIRED_SPLIT_DURATION : initialSplitDuration;
     }
 
     /**
@@ -472,24 +525,80 @@ public class HL7v2IO {
       this.client = new HttpHealthcareApiClient();
     }
 
+    @GetInitialRestriction
+    public OffsetRange getEarliestToLatestRestriction(@Element String hl7v2Store)
+        throws IOException {
+      Instant from = this.client.getEarliestHL7v2SendTime(hl7v2Store, this.filter.get());
+      // filters are [from, to) to match logic of OffsetRangeTracker but need latest element to be
+      // included in results set to add an extra ms to the upper bound.
+      Instant to = this.client.getLatestHL7v2SendTime(hl7v2Store, this.filter.get()).plus(1);
+      return new OffsetRange(from.getMillis(), to.getMillis());
+    }
+
+    @SplitRestriction
+    public void split(@Restriction OffsetRange timeRange, OutputReceiver<OffsetRange> out) {
+      List<OffsetRange> splits =
+          timeRange.split(initialSplitDuration.getMillis(), DEFAULT_MIN_SPLIT_DURATION.getMillis());
+      Instant from = Instant.ofEpochMilli(timeRange.getFrom());
+      Instant to = Instant.ofEpochMilli(timeRange.getTo());
+      Duration totalDuration = new Duration(from, to);
+      LOG.info(
+          String.format(
+              "splitting initial sendTime restriction of [minSendTime, now): [%s,%s), "
+                  + "or [%s, %s). \n"
+                  + "total days: %s \n"
+                  + "into %s splits. \n"
+                  + "Last split: %s",
+              from,
+              to,
+              timeRange.getFrom(),
+              timeRange.getTo(),
+              totalDuration.getStandardDays(),
+              splits.size(),
+              splits.get(splits.size() - 1).toString()));
+
+      for (OffsetRange s : splits) {
+        out.output(s);
+      }
+    }
+
     /**
      * List messages.
      *
-     * @param context the context
+     * @param hl7v2Store the HL7v2 store to list messages from
      * @throws IOException the io exception
      */
     @ProcessElement
-    public void listMessages(ProcessContext context) throws IOException {
-      String hl7v2Store = context.element();
-      // Output all elements of all pages.
+    public void listMessages(
+        @Element String hl7v2Store,
+        RestrictionTracker<OffsetRange, Long> tracker,
+        OutputReceiver<HL7v2Message> outputReceiver)
+        throws IOException {
+      OffsetRange currentRestriction = (OffsetRange) tracker.currentRestriction();
+      Instant startRestriction = Instant.ofEpochMilli(currentRestriction.getFrom());
+      Instant endRestriction = Instant.ofEpochMilli(currentRestriction.getTo());
       HttpHealthcareApiClient.HL7v2MessagePages pages =
-          new HttpHealthcareApiClient.HL7v2MessagePages(client, hl7v2Store, this.filter);
-      long reqestTime = Instant.now().getMillis();
-      for (Stream<HL7v2Message> page : pages) {
-        messageListingLatencyMs.update(Instant.now().getMillis() - reqestTime);
-        page.forEach(context::output);
-        reqestTime = Instant.now().getMillis();
+          new HttpHealthcareApiClient.HL7v2MessagePages(
+              client, hl7v2Store, startRestriction, endRestriction, filter.get(), "sendTime");
+      Instant cursor;
+      long lastClaimedMilliSecond = startRestriction.getMillis() - 1;
+      for (HL7v2Message msg : FluentIterable.concat(pages)) {
+        cursor = Instant.parse(msg.getSendTime());
+        if (cursor.getMillis() > lastClaimedMilliSecond) {
+          // Return early after the first claim failure preventing us from iterating
+          // through the remaining messages.
+          if (!tracker.tryClaim(cursor.getMillis())) {
+            return;
+          }
+          lastClaimedMilliSecond = cursor.getMillis();
+        }
+
+        outputReceiver.output(msg);
       }
+
+      // We've paginated through all messages for this restriction but the last message may be
+      // before the end of the restriction
+      tracker.tryClaim(currentRestriction.getTo());
     }
   }
 
@@ -509,7 +618,7 @@ public class HL7v2IO {
      *
      * @return the HL7v2 store
      */
-    abstract String getHL7v2Store();
+    abstract ValueProvider<String> getHL7v2Store();
 
     /**
      * Gets write method.
@@ -520,6 +629,8 @@ public class HL7v2IO {
 
     @Override
     public Result expand(PCollection<HL7v2Message> messages) {
+      CoderRegistry coderRegistry = messages.getPipeline().getCoderRegistry();
+      coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
       return messages.apply(new WriteHL7v2(this.getHL7v2Store(), this.getWriteMethod()));
     }
 
@@ -547,7 +658,7 @@ public class HL7v2IO {
        * @param hl7v2Store the HL7v2 store
        * @return the HL7v2 store
        */
-      abstract Builder setHL7v2Store(String hl7v2Store);
+      abstract Builder setHL7v2Store(ValueProvider<String> hl7v2Store);
 
       /**
        * Sets write method.
@@ -586,7 +697,7 @@ public class HL7v2IO {
 
       @Override
       public Map<TupleTag<?>, PValue> expand() {
-        failedInsertsWithErr.setCoder(new HealthcareIOErrorCoder<>(new HL7v2MessageCoder()));
+        failedInsertsWithErr.setCoder(HealthcareIOErrorCoder.of(HL7v2MessageCoder.of()));
         return ImmutableMap.of(FAILED, failedInsertsWithErr);
       }
 
@@ -604,7 +715,7 @@ public class HL7v2IO {
 
   /** The type Write hl 7 v 2. */
   static class WriteHL7v2 extends PTransform<PCollection<HL7v2Message>, Write.Result> {
-    private final String hl7v2Store;
+    private final ValueProvider<String> hl7v2Store;
     private final Write.WriteMethod writeMethod;
 
     /**
@@ -613,7 +724,7 @@ public class HL7v2IO {
      * @param hl7v2Store the hl 7 v 2 store
      * @param writeMethod the write method
      */
-    WriteHL7v2(String hl7v2Store, Write.WriteMethod writeMethod) {
+    WriteHL7v2(ValueProvider<String> hl7v2Store, Write.WriteMethod writeMethod) {
       this.hl7v2Store = hl7v2Store;
       this.writeMethod = writeMethod;
     }
@@ -623,7 +734,7 @@ public class HL7v2IO {
       PCollection<HealthcareIOError<HL7v2Message>> failedInserts =
           input
               .apply(ParDo.of(new WriteHL7v2Fn(hl7v2Store, writeMethod)))
-              .setCoder(new HealthcareIOErrorCoder<>(new HL7v2MessageCoder()));
+              .setCoder(HealthcareIOErrorCoder.of(HL7v2MessageCoder.of()));
       return Write.Result.in(input.getPipeline(), failedInserts);
     }
 
@@ -636,7 +747,7 @@ public class HL7v2IO {
           Metrics.distribution(WriteHL7v2Fn.class, "message-ingest-latency-ms");
       private Counter failedMessageWrites =
           Metrics.counter(WriteHL7v2Fn.class, "failed-hl7v2-message-writes");
-      private final String hl7v2Store;
+      private final ValueProvider<String> hl7v2Store;
       private final Counter successfulHL7v2MessageWrites =
           Metrics.counter(WriteHL7v2.class, "successful-hl7v2-message-writes");
       private final Write.WriteMethod writeMethod;
@@ -650,7 +761,7 @@ public class HL7v2IO {
        * @param hl7v2Store the HL7v2 store
        * @param writeMethod the write method
        */
-      WriteHL7v2Fn(String hl7v2Store, Write.WriteMethod writeMethod) {
+      WriteHL7v2Fn(ValueProvider<String> hl7v2Store, Write.WriteMethod writeMethod) {
         this.hl7v2Store = hl7v2Store;
         this.writeMethod = writeMethod;
       }
@@ -686,7 +797,7 @@ public class HL7v2IO {
           default:
             try {
               long requestTimestamp = Instant.now().getMillis();
-              client.ingestHL7v2Message(hl7v2Store, model);
+              client.ingestHL7v2Message(hl7v2Store.get(), model);
               messageIngestLatencyMs.update(Instant.now().getMillis() - requestTimestamp);
             } catch (Exception e) {
               failedMessageWrites.inc();

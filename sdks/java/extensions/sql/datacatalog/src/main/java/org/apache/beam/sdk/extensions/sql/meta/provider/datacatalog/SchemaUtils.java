@@ -24,10 +24,10 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Strings;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 
@@ -38,7 +38,7 @@ class SchemaUtils {
       ImmutableMap.<String, FieldType>builder()
           .put("BOOL", FieldType.BOOLEAN)
           .put("BYTES", FieldType.BYTES)
-          .put("DATE", FieldType.logicalType(new CalciteUtils.DateType()))
+          .put("DATE", FieldType.logicalType(SqlTypes.DATE))
           .put("DATETIME", FieldType.DATETIME)
           .put("DOUBLE", FieldType.DOUBLE)
           .put("FLOAT", FieldType.DOUBLE)
@@ -46,7 +46,7 @@ class SchemaUtils {
           .put("INT32", FieldType.INT32)
           .put("INT64", FieldType.INT64)
           .put("STRING", FieldType.STRING)
-          .put("TIME", FieldType.logicalType(new CalciteUtils.TimeType()))
+          .put("TIME", FieldType.logicalType(SqlTypes.TIME))
           .put("TIMESTAMP", FieldType.DATETIME)
           .put("MAP<STRING,STRING>", FieldType.map(FieldType.STRING, FieldType.STRING))
           .build();

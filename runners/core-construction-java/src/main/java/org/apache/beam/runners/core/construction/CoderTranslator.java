@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction;
 
 import java.util.List;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.coders.Coder;
 
 /**
@@ -41,6 +42,9 @@ public interface CoderTranslator<T extends Coder<?>> {
     return new byte[0];
   }
 
-  /** Create a {@link Coder} from its component {@link Coder coders}. */
-  T fromComponents(List<Coder<?>> components, byte[] payload);
+  /**
+   * Create a {@link Coder} from its component {@link Coder coders} using the specified translation
+   * context.
+   */
+  T fromComponents(List<Coder<?>> components, byte[] payload, TranslationContext context);
 }

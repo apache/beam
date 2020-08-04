@@ -46,6 +46,8 @@ import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -54,8 +56,11 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBu
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusException;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,9 +108,15 @@ public class ArtifactStagingService
     return staged.remove(stagingToken);
   }
 
+  public void removeStagedArtifacts(String stagingToken) throws IOException {
+    destinationProvider.removeStagedArtifacts(stagingToken);
+  }
+
   /** Provides a concrete location to which artifacts can be staged on retrieval. */
   public interface ArtifactDestinationProvider {
     ArtifactDestination getDestination(String stagingToken, String name) throws IOException;
+
+    void removeStagedArtifacts(String stagingToken) throws IOException;
   }
 
   /**
@@ -147,12 +158,40 @@ public class ArtifactStagingService
    * @param root the directory in which to place all artifacts
    */
   public static ArtifactDestinationProvider beamFilesystemArtifactDestinationProvider(String root) {
-    return (stagingToken, name) -> {
-      ResourceId path =
-          FileSystems.matchNewResource(root, true)
-              .resolve(stagingToken, ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
-              .resolve(name, ResolveOptions.StandardResolveOptions.RESOLVE_FILE);
-      return ArtifactDestination.fromFile(path.toString());
+    return new ArtifactDestinationProvider() {
+      @Override
+      public ArtifactDestination getDestination(String stagingToken, String name)
+          throws IOException {
+        ResourceId path =
+            stagingDir(stagingToken)
+                .resolve(name, ResolveOptions.StandardResolveOptions.RESOLVE_FILE);
+        return ArtifactDestination.fromFile(path.toString());
+      }
+
+      @Override
+      public void removeStagedArtifacts(String stagingToken) throws IOException {
+        // TODO(robertwb): Consider adding recursive delete.
+        ResourceId stagingDir = stagingDir(stagingToken);
+        List<ResourceId> toDelete = new ArrayList<>();
+        for (MatchResult match :
+            FileSystems.matchResources(
+                ImmutableList.of(
+                    stagingDir.resolve("*", ResolveOptions.StandardResolveOptions.RESOLVE_FILE)))) {
+          for (MatchResult.Metadata m : match.metadata()) {
+            toDelete.add(m.resourceId());
+          }
+        }
+        FileSystems.delete(toDelete, MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
+        FileSystems.delete(
+            ImmutableList.of(stagingDir), MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
+      }
+
+      private ResourceId stagingDir(String stagingToken) {
+        return FileSystems.matchNewResource(root, true)
+            .resolve(
+                Hashing.sha256().hashString(stagingToken, Charsets.UTF_8).toString(),
+                ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY);
+      }
     };
   }
 
@@ -290,6 +329,13 @@ public class ArtifactStagingService
             stagingToken = responseWrapper.getStagingToken();
             LOG.info("Staging artifacts for {}.", stagingToken);
             toResolve = toStage.get(stagingToken);
+            if (toResolve == null) {
+              responseObserver.onError(
+                  new StatusException(
+                      Status.INVALID_ARGUMENT.withDescription(
+                          "Unknown staging token " + stagingToken)));
+              return;
+            }
             stagedFutures = new ConcurrentHashMap<>();
             pendingResolves = new ArrayDeque<>();
             pendingResolves.addAll(toResolve.keySet());

@@ -26,34 +26,29 @@ from __future__ import print_function
 
 import contextlib
 import copy
+import functools
 import threading
 from typing import Dict
+
+import grpc
 
 from apache_beam import pvalue
 from apache_beam.coders import registry
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2
+from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import ptransform
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import Union
 from apache_beam.typehints.typehints import UnionConstraint
-
-# Protect against environments where grpc is not available.
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:
-  import grpc
-  from apache_beam.runners.portability import artifact_service
-  from apache_beam.portability.api import beam_artifact_api_pb2_grpc
-  from apache_beam.portability.api import beam_expansion_api_pb2_grpc
-  from apache_beam.utils import subprocess_server
-except ImportError:
-  grpc = None
-# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+from apache_beam.utils import subprocess_server
 
 DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
 
@@ -242,8 +237,6 @@ class ExternalTransform(ptransform.PTransform):
         or an address (as a str) to a grpc server that provides this method.
     """
     expansion_service = expansion_service or DEFAULT_EXPANSION_SERVICE
-    if grpc is None and isinstance(expansion_service, str):
-      raise NotImplementedError('Grpc required for external transforms.')
     self._urn = urn
     self._payload = (
         payload.payload() if isinstance(payload, PayloadBuilder) else payload)
@@ -294,7 +287,8 @@ class ExternalTransform(ptransform.PTransform):
     pipeline = (
         next(iter(self._inputs.values())).pipeline
         if self._inputs else pvalueish.pipeline)
-    context = pipeline_context.PipelineContext()
+    context = pipeline_context.PipelineContext(
+        component_id_map=pipeline.component_id_map)
     transform_proto = beam_runner_api_pb2.PTransform(
         unique_name=pipeline._current_transform().full_label,
         spec=beam_runner_api_pb2.FunctionSpec(
@@ -348,15 +342,26 @@ class ExternalTransform(ptransform.PTransform):
   @contextlib.contextmanager
   def _service(self):
     if isinstance(self._expansion_service, str):
-      # Some environments may not support unsecure channels. Hence using a
-      # secure channel with local credentials here.
-      # TODO: update this to support secure non-local channels.
-      channel_creds = grpc.local_channel_credentials()
       channel_options = [("grpc.max_receive_message_length", -1),
                          ("grpc.max_send_message_length", -1)]
-      with grpc.secure_channel(self._expansion_service,
-                               channel_creds,
-                               options=channel_options) as channel:
+      if hasattr(grpc, 'local_channel_credentials'):
+        # Some environments may not support insecure channels. Hence use a
+        # secure channel with local credentials here.
+        # TODO: update this to support secure non-local channels.
+        channel_factory_fn = functools.partial(
+            grpc.secure_channel,
+            self._expansion_service,
+            grpc.local_channel_credentials(),
+            options=channel_options)
+      else:
+        # local_channel_credentials is an experimental API which is unsupported
+        # by older versions of grpc which may be pulled in due to other project
+        # dependencies.
+        channel_factory_fn = functools.partial(
+            grpc.insecure_channel,
+            self._expansion_service,
+            options=channel_options)
+      with channel_factory_fn() as channel:
         yield ExpansionAndArtifactRetrievalStub(channel)
     elif hasattr(self._expansion_service, 'Expand'):
       yield self._expansion_service

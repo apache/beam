@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.ListQualifier;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.joda.time.base.AbstractInstant;
 
@@ -519,7 +519,7 @@ class RowUtils {
       Object retValue = null;
       FieldOverride override = override(rowPosition);
       if (override != null) {
-        retValue = override.getOverrideValue();
+        retValue = logicalType.toInputType(logicalType.toBaseType(override.getOverrideValue()));
       } else if (value != null) {
         retValue = logicalType.toInputType(logicalType.toBaseType(value));
       }

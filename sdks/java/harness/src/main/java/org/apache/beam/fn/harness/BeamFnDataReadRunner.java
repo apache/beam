@@ -17,11 +17,13 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -32,6 +34,7 @@ import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest.DesiredSplit;
@@ -44,6 +47,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
@@ -53,8 +58,8 @@ import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -116,6 +121,8 @@ public class BeamFnDataReadRunner<OutputT> {
               processBundleInstructionId,
               coders,
               beamFnDataClient,
+              beamFnStateClient,
+              addProgressRequestCallback,
               consumer);
       startFunctionRegistry.register(pTransformId, runner::registerInputLocation);
       finishFunctionRegistry.register(pTransformId, runner::blockTillReadFinishes);
@@ -131,10 +138,11 @@ public class BeamFnDataReadRunner<OutputT> {
   private final Coder<WindowedValue<OutputT>> coder;
 
   private final Object splittingLock = new Object();
+  private boolean started = false;
   // 0-based index of the current element being processed
-  private long index = -1;
+  private long index;
   // 0-based index of the first element to not process, aka the first element of the residual
-  private long stopIndex = Long.MAX_VALUE;
+  private long stopIndex;
   private InboundDataClient readFuture;
 
   BeamFnDataReadRunner(
@@ -143,6 +151,8 @@ public class BeamFnDataReadRunner<OutputT> {
       Supplier<String> processBundleInstructionIdSupplier,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClient,
+      BeamFnStateClient beamFnStateClient,
+      Consumer<PTransformRunnerFactory.ProgressRequestCallback> addProgressRequestCallback,
       FnDataReceiver<WindowedValue<OutputT>> consumer)
       throws IOException {
     this.pTransformId = pTransformId;
@@ -156,10 +166,42 @@ public class BeamFnDataReadRunner<OutputT> {
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
     this.coder =
         (Coder<WindowedValue<OutputT>>)
-            CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
+            CoderTranslation.fromProto(
+                coders.get(port.getCoderId()),
+                components,
+                new StateBackedIterableTranslationContext() {
+                  @Override
+                  public BeamFnStateClient getStateClient() {
+                    return beamFnStateClient;
+                  }
+
+                  @Override
+                  public Supplier<String> getCurrentInstructionId() {
+                    return processBundleInstructionIdSupplier;
+                  }
+                });
+
+    addProgressRequestCallback.accept(
+        () -> {
+          // TODO(BEAM-9979): Fix race condition where reused BeamFnDataReadRunner reports
+          // read index from last bundle since registerInputLocation may have not yet been called.
+          synchronized (splittingLock) {
+            return ImmutableList.of(
+                new SimpleMonitoringInfoBuilder()
+                    .setUrn(MonitoringInfoConstants.Urns.DATA_CHANNEL_READ_INDEX)
+                    .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId)
+                    .setInt64SumValue(index)
+                    .build());
+          }
+        });
   }
 
   public void registerInputLocation() {
+    synchronized (splittingLock) {
+      started = true;
+      index = -1;
+      stopIndex = Long.MAX_VALUE;
+    }
     this.readFuture =
         beamFnDataClient.receive(
             apiServiceDescriptor,
@@ -186,6 +228,7 @@ public class BeamFnDataReadRunner<OutputT> {
     }
 
     long totalBufferSize = desiredSplit.getEstimatedInputElements();
+    List<Long> allowedSplitPoints = new ArrayList<>(desiredSplit.getAllowedSplitPointsList());
 
     HandlesSplits splittingConsumer = null;
     if (consumer instanceof HandlesSplits) {
@@ -193,6 +236,10 @@ public class BeamFnDataReadRunner<OutputT> {
     }
 
     synchronized (splittingLock) {
+      // Don't attempt to split if we haven't started.
+      if (!started) {
+        return;
+      }
       // Since we hold the splittingLock, we guarantee that we will not pass the next element
       // to the downstream consumer. We still have a race where the downstream consumer may
       // have yet to see the element or has completed processing the element by the time
@@ -220,10 +267,6 @@ public class BeamFnDataReadRunner<OutputT> {
         }
       }
 
-      checkArgument(
-          desiredSplit.getAllowedSplitPointsList().isEmpty(),
-          "TODO: BEAM-3836, support split point restrictions.");
-
       // Now figure out where to split.
       //
       // The units here (except for keepOfElementRemainder) are all in terms of number or
@@ -240,14 +283,17 @@ public class BeamFnDataReadRunner<OutputT> {
         // See if the amount we need to keep falls within the current element's remainder and if
         // so, attempt to split it.
         double keepOfElementRemainder = keep / (1 - currentElementProgress);
-        if (keepOfElementRemainder < 1) {
+        // If both index and index are allowed split point, we can split at index.
+        if (keepOfElementRemainder < 1
+            && isValidSplitPoint(allowedSplitPoints, index)
+            && isValidSplitPoint(allowedSplitPoints, index + 1)) {
           SplitResult splitResult =
               splittingConsumer != null ? splittingConsumer.trySplit(keepOfElementRemainder) : null;
           if (splitResult != null) {
             stopIndex = index + 1;
             response
-                .addPrimaryRoots(splitResult.getPrimaryRoot())
-                .addResidualRoots(splitResult.getResidualRoot())
+                .addAllPrimaryRoots(splitResult.getPrimaryRoots())
+                .addAllResidualRoots(splitResult.getResidualRoots())
                 .addChannelSplitsBuilder()
                 .setLastPrimaryElement(index - 1)
                 .setFirstResidualElement(stopIndex);
@@ -256,10 +302,28 @@ public class BeamFnDataReadRunner<OutputT> {
         }
       }
 
-      // Otherwise, split at the closest element boundary.
-      int newStopIndex =
-          Ints.checkedCast(index + Math.max(1, Math.round(currentElementProgress + keep)));
-      if (newStopIndex < stopIndex) {
+      // Otherwise, split at the closest allowed element boundary.
+      long newStopIndex = index + Math.max(1, Math.round(currentElementProgress + keep));
+      if (!isValidSplitPoint(allowedSplitPoints, newStopIndex)) {
+        // Choose the closest allowed split point.
+        Collections.sort(allowedSplitPoints);
+        int closestSplitPointIndex =
+            -(Collections.binarySearch(allowedSplitPoints, newStopIndex) + 1);
+        if (closestSplitPointIndex == 0) {
+          newStopIndex = allowedSplitPoints.get(0);
+        } else if (closestSplitPointIndex == allowedSplitPoints.size()) {
+          newStopIndex = allowedSplitPoints.get(closestSplitPointIndex - 1);
+        } else {
+          long prevPoint = allowedSplitPoints.get(closestSplitPointIndex - 1);
+          long nextPoint = allowedSplitPoints.get(closestSplitPointIndex);
+          if (index < prevPoint && newStopIndex - prevPoint < nextPoint - newStopIndex) {
+            newStopIndex = prevPoint;
+          } else {
+            newStopIndex = nextPoint;
+          }
+        }
+      }
+      if (newStopIndex < stopIndex && newStopIndex > index) {
         stopIndex = newStopIndex;
         response
             .addChannelSplitsBuilder()
@@ -276,5 +340,13 @@ public class BeamFnDataReadRunner<OutputT> {
         processBundleInstructionIdSupplier.get(),
         pTransformId);
     readFuture.awaitCompletion();
+    synchronized (splittingLock) {
+      started = false;
+      index += 1;
+    }
+  }
+
+  private boolean isValidSplitPoint(List<Long> allowedSplitPoints, long index) {
+    return allowedSplitPoints.isEmpty() || allowedSplitPoints.contains(index);
   }
 }

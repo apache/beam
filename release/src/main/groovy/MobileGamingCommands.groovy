@@ -27,7 +27,6 @@ class MobileGamingCommands {
   public static final RUNNERS = [DirectRunner: "direct-runner",
     DataflowRunner: "dataflow-runner",
     SparkRunner: "spark-runner",
-    ApexRunner: "apex-runner",
     FlinkRunner: "flink-runner"]
 
   public static final EXECUTION_TIMEOUT_IN_MINUTES = 20
@@ -146,7 +145,7 @@ class MobileGamingCommands {
   }
 
   private Map getLeaderBoardWithStreamingEngineArgs(String runner, String jobName){
-    args = [project: testScripts.gcpProject(),
+    def args = [project: testScripts.gcpProject(),
             dataset: testScripts.bqDataset(),
             topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
             leaderBoardTableName: "leaderboard_${runner}",
@@ -160,7 +159,7 @@ class MobileGamingCommands {
   }
 
   private Map getGameStatsArgs(String runner, String jobName){
-    args = [project: testScripts.gcpProject(),
+    def args = [project: testScripts.gcpProject(),
       dataset: testScripts.bqDataset(),
       topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
       fixedWindowDuration: 5,

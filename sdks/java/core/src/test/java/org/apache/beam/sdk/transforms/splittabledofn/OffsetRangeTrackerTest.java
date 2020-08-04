@@ -22,6 +22,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.junit.Rule;
@@ -34,6 +36,12 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class OffsetRangeTrackerTest {
   @Rule public final ExpectedException expected = ExpectedException.none();
+
+  @Test
+  public void testIllegalInitialization() throws Exception {
+    expected.expect(NullPointerException.class);
+    OffsetRangeTracker tracker = new OffsetRangeTracker(null);
+  }
 
   @Test
   public void testTryClaim() throws Exception {
@@ -230,5 +238,40 @@ public class OffsetRangeTrackerTest {
     progress = tracker.getProgress();
     assertEquals(50, progress.getWorkCompleted(), 0.001);
     assertEquals(50, progress.getWorkRemaining(), 0.001);
+  }
+
+  @Test
+  public void testLargeRange() throws Exception {
+    OffsetRangeTracker tracker =
+        new OffsetRangeTracker(new OffsetRange(Long.MIN_VALUE, Long.MAX_VALUE));
+
+    Progress progress = tracker.getProgress();
+    assertEquals(0, progress.getWorkCompleted(), 0.001);
+    assertEquals(
+        BigDecimal.valueOf(Long.MAX_VALUE)
+            .subtract(BigDecimal.valueOf(Long.MIN_VALUE), MathContext.DECIMAL128)
+            .doubleValue(),
+        progress.getWorkRemaining(),
+        0.001);
+
+    SplitResult res = tracker.trySplit(0);
+    assertEquals(new OffsetRange(Long.MIN_VALUE, Long.MIN_VALUE), res.getPrimary());
+    assertEquals(new OffsetRange(Long.MIN_VALUE, Long.MAX_VALUE), res.getResidual());
+  }
+
+  @Test
+  public void testSmallRangeWithLargeValue() throws Exception {
+    OffsetRangeTracker tracker =
+        new OffsetRangeTracker(new OffsetRange(123456789012345677L, 123456789012345679L));
+    assertTrue(tracker.tryClaim(123456789012345677L));
+    SplitResult res = tracker.trySplit(0.5);
+    assertEquals(new OffsetRange(123456789012345677L, 123456789012345678L), res.getPrimary());
+    assertEquals(new OffsetRange(123456789012345678L, 123456789012345679L), res.getResidual());
+
+    tracker = new OffsetRangeTracker(new OffsetRange(123456789012345681L, 123456789012345683L));
+    assertTrue(tracker.tryClaim(123456789012345681L));
+    res = tracker.trySplit(0.5);
+    assertEquals(new OffsetRange(123456789012345681L, 123456789012345682L), res.getPrimary());
+    assertEquals(new OffsetRange(123456789012345682L, 123456789012345683L), res.getResidual());
   }
 }

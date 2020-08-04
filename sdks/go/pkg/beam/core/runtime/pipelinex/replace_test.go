@@ -63,9 +63,11 @@ func TestEnsureUniqueName(t *testing.T) {
 
 func TestComputeInputOutput(t *testing.T) {
 	tests := []struct {
+		name    string
 		in, exp map[string]*pipepb.PTransform
 	}{
-		{ // singleton composite
+		{
+			name: "singleton composite",
 			in: map[string]*pipepb.PTransform{
 				"1": {
 					UniqueName:    "a",
@@ -91,7 +93,8 @@ func TestComputeInputOutput(t *testing.T) {
 				},
 			},
 		},
-		{ // closed composite
+		{
+			name: "closed composite",
 			in: map[string]*pipepb.PTransform{
 				"1": {
 					UniqueName:    "a",
@@ -109,12 +112,91 @@ func TestComputeInputOutput(t *testing.T) {
 				"3": {UniqueName: "c", Inputs: map[string]string{"i0": "p1"}},
 			},
 		},
+		{
+			name: "nested composites",
+			in: map[string]*pipepb.PTransform{
+				"1": {
+					UniqueName:    "a",
+					Subtransforms: []string{"2"},
+				},
+				"2": {
+					UniqueName:    "b",
+					Subtransforms: []string{"3", "7", "8"},
+				},
+				"3": {
+					UniqueName:    "c",
+					Subtransforms: []string{"4", "5", "6"},
+				},
+				"4": {UniqueName: "d", Inputs: map[string]string{"i0": "p1"}, Outputs: map[string]string{"i0": "p2"}},
+				"5": {UniqueName: "e", Inputs: map[string]string{"i0": "p2"}, Outputs: map[string]string{"i0": "p3", "i1": "p4"}},
+				"6": {UniqueName: "f", Inputs: map[string]string{"i0": "p2", "i1": "p5"}, Outputs: map[string]string{"i0": "p6"}},
+				"7": {UniqueName: "g", Inputs: map[string]string{"i0": "p4", "i1": "p6", "i2": "p8"}, Outputs: map[string]string{"i0": "p7"}},
+				"8": {UniqueName: "h", Inputs: map[string]string{"i0": "p7"}},
+			},
+			exp: map[string]*pipepb.PTransform{
+				"1": {
+					UniqueName:    "a",
+					Subtransforms: []string{"2"},
+					Inputs:        map[string]string{"p1": "p1", "p5": "p5", "p8": "p8"},
+					Outputs:       map[string]string{"p3": "p3"},
+				},
+				"2": {
+					UniqueName:    "b",
+					Subtransforms: []string{"3", "7", "8"},
+					Inputs:        map[string]string{"p1": "p1", "p5": "p5", "p8": "p8"},
+					Outputs:       map[string]string{"p3": "p3"},
+				},
+				"3": {
+					UniqueName:    "c",
+					Subtransforms: []string{"4", "6", "5"}, // topologically sorted.
+					Inputs:        map[string]string{"p1": "p1", "p5": "p5"},
+					Outputs:       map[string]string{"p4": "p4", "p6": "p6", "p3": "p3"},
+				},
+				"4": {UniqueName: "d", Inputs: map[string]string{"i0": "p1"}, Outputs: map[string]string{"i0": "p2"}},
+				"5": {UniqueName: "e", Inputs: map[string]string{"i0": "p2"}, Outputs: map[string]string{"i0": "p3", "i1": "p4"}},
+				"6": {UniqueName: "f", Inputs: map[string]string{"i0": "p2", "i1": "p5"}, Outputs: map[string]string{"i0": "p6"}},
+				"7": {UniqueName: "g", Inputs: map[string]string{"i0": "p4", "i1": "p6", "i2": "p8"}, Outputs: map[string]string{"i0": "p7"}},
+				"8": {UniqueName: "h", Inputs: map[string]string{"i0": "p7"}},
+			},
+		}, {
+			name: "sibling composite",
+			in: map[string]*pipepb.PTransform{
+				"1": {
+					UniqueName:    "a",
+					Subtransforms: []string{"3", "4"},
+				},
+				"2": {
+					UniqueName:    "b",
+					Subtransforms: []string{"5"},
+				},
+				"3": {UniqueName: "c", Outputs: map[string]string{"i0": "p1"}},
+				"4": {UniqueName: "d", Inputs: map[string]string{"i0": "p1"}},
+				"5": {UniqueName: "e", Inputs: map[string]string{"i0": "p1"}},
+			},
+			exp: map[string]*pipepb.PTransform{
+				"1": {
+					UniqueName:    "a",
+					Subtransforms: []string{"3", "4"},
+					Outputs:       map[string]string{"p1": "p1"},
+				},
+				"2": {
+					UniqueName:    "b",
+					Subtransforms: []string{"5"},
+					Inputs:        map[string]string{"p1": "p1"},
+				},
+				"3": {UniqueName: "c", Outputs: map[string]string{"i0": "p1"}},
+				"4": {UniqueName: "d", Inputs: map[string]string{"i0": "p1"}},
+				"5": {UniqueName: "e", Inputs: map[string]string{"i0": "p1"}},
+			},
+		},
 	}
 
 	for _, test := range tests {
-		actual := computeCompositeInputOutput(test.in)
-		if !cmp.Equal(actual, test.exp, cmp.Comparer(proto.Equal)) {
-			t.Errorf("coimputeInputOutput(%v) = %v, want %v", test.in, actual, test.exp)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			actual := computeCompositeInputOutput(test.in)
+			if diff := cmp.Diff(actual, test.exp, cmp.Comparer(proto.Equal)); diff != "" {
+				t.Errorf("computeInputOutput(%v)\ndiff: %v", test.in, diff)
+			}
+		})
 	}
 }

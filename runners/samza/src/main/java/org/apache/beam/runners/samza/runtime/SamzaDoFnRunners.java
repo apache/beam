@@ -289,6 +289,9 @@ public class SamzaDoFnRunners {
     }
 
     @Override
+    public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
+
+    @Override
     public DoFn<InT, FnOutT> getFn() {
       throw new UnsupportedOperationException();
     }

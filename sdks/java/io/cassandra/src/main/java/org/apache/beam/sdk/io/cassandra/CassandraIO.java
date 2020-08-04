@@ -29,6 +29,7 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.SocketOptions;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
 import com.datastax.driver.core.policies.TokenAwarePolicy;
 import com.google.auto.value.AutoValue;
@@ -43,7 +44,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -61,11 +61,12 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An IO to read from Apache Cassandra.
+ * An IO to read and write from/to Apache Cassandra
  *
  * <h3>Reading from Apache Cassandra</h3>
  *
@@ -103,6 +104,22 @@ import org.slf4j.LoggerFactory;
  *        .withKeyspace("beam")
  *        .withEntity(Person.class));
  * }</pre>
+ *
+ * <h3>Cassandra Socket Options</h3>
+ *
+ * <p>The following example illustrates setting timeouts for the Cassandra client:
+ *
+ * <pre>{@code
+ * pipeline.apply(CassandraIO.<Person>read()
+ *     .withHosts(Arrays.asList("host1", "host2"))
+ *     .withPort(9042)
+ *     .withConnectTimeout(1000)
+ *     .withReadTimeout(5000)
+ *     .withKeyspace("beam")
+ *     .withTable("Person")
+ *     .withEntity(Person.class)
+ *     .withCoder(SerializableCoder.of(Person.class))
+ * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
 public class CassandraIO {
@@ -132,44 +149,36 @@ public class CassandraIO {
    */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable
-    abstract ValueProvider<List<String>> hosts();
 
-    @Nullable
-    abstract ValueProvider<String> query();
+    abstract @Nullable ValueProvider<List<String>> hosts();
 
-    @Nullable
-    abstract ValueProvider<Integer> port();
+    abstract @Nullable ValueProvider<String> query();
 
-    @Nullable
-    abstract ValueProvider<String> keyspace();
+    abstract @Nullable ValueProvider<Integer> port();
 
-    @Nullable
-    abstract ValueProvider<String> table();
+    abstract @Nullable ValueProvider<String> keyspace();
 
-    @Nullable
-    abstract Class<T> entity();
+    abstract @Nullable ValueProvider<String> table();
 
-    @Nullable
-    abstract Coder<T> coder();
+    abstract @Nullable Class<T> entity();
 
-    @Nullable
-    abstract ValueProvider<String> username();
+    abstract @Nullable Coder<T> coder();
 
-    @Nullable
-    abstract ValueProvider<String> password();
+    abstract @Nullable ValueProvider<String> username();
 
-    @Nullable
-    abstract ValueProvider<String> localDc();
+    abstract @Nullable ValueProvider<String> password();
 
-    @Nullable
-    abstract ValueProvider<String> consistencyLevel();
+    abstract @Nullable ValueProvider<String> localDc();
 
-    @Nullable
-    abstract ValueProvider<Integer> minNumberOfSplits();
+    abstract @Nullable ValueProvider<String> consistencyLevel();
 
-    @Nullable
-    abstract SerializableFunction<Session, Mapper> mapperFactoryFn();
+    abstract @Nullable ValueProvider<Integer> minNumberOfSplits();
+
+    abstract @Nullable ValueProvider<Integer> connectTimeout();
+
+    abstract @Nullable ValueProvider<Integer> readTimeout();
+
+    abstract @Nullable SerializableFunction<Session, Mapper> mapperFactoryFn();
 
     abstract Builder<T> builder();
 
@@ -278,11 +287,13 @@ public class CassandraIO {
       return builder().setLocalDc(localDc).build();
     }
 
+    /** Specify the consistency level for the request (e.g. ONE, LOCAL_ONE, LOCAL_QUORUM, etc). */
     public Read<T> withConsistencyLevel(String consistencyLevel) {
       checkArgument(consistencyLevel != null, "consistencyLevel can not be null");
       return withConsistencyLevel(ValueProvider.StaticValueProvider.of(consistencyLevel));
     }
 
+    /** Specify the consistency level for the request (e.g. ONE, LOCAL_ONE, LOCAL_QUORUM, etc). */
     public Read<T> withConsistencyLevel(ValueProvider<String> consistencyLevel) {
       return builder().setConsistencyLevel(consistencyLevel).build();
     }
@@ -305,6 +316,42 @@ public class CassandraIO {
      */
     public Read<T> withMinNumberOfSplits(ValueProvider<Integer> minNumberOfSplits) {
       return builder().setMinNumberOfSplits(minNumberOfSplits).build();
+    }
+
+    /**
+     * Specify the Cassandra client connect timeout in ms. See
+     * https://docs.datastax.com/en/drivers/java/3.8/com/datastax/driver/core/SocketOptions.html#setConnectTimeoutMillis-int-
+     */
+    public Read<T> withConnectTimeout(Integer timeout) {
+      checkArgument(timeout != null, "Connect timeout can not be null");
+      checkArgument(timeout > 0, "Connect timeout must be > 0, but was: %s", timeout);
+      return withConnectTimeout(ValueProvider.StaticValueProvider.of(timeout));
+    }
+
+    /**
+     * Specify the Cassandra client connect timeout in ms. See
+     * https://docs.datastax.com/en/drivers/java/3.8/com/datastax/driver/core/SocketOptions.html#setConnectTimeoutMillis-int-
+     */
+    public Read<T> withConnectTimeout(ValueProvider<Integer> timeout) {
+      return builder().setConnectTimeout(timeout).build();
+    }
+
+    /**
+     * Specify the Cassandra client read timeout in ms. See
+     * https://docs.datastax.com/en/drivers/java/3.8/com/datastax/driver/core/SocketOptions.html#setReadTimeoutMillis-int-
+     */
+    public Read<T> withReadTimeout(Integer timeout) {
+      checkArgument(timeout != null, "Read timeout can not be null");
+      checkArgument(timeout > 0, "Read timeout must be > 0, but was: %s", timeout);
+      return withReadTimeout(ValueProvider.StaticValueProvider.of(timeout));
+    }
+
+    /**
+     * Specify the Cassandra client read timeout in ms. See
+     * https://docs.datastax.com/en/drivers/java/3.8/com/datastax/driver/core/SocketOptions.html#setReadTimeoutMillis-int-
+     */
+    public Read<T> withReadTimeout(ValueProvider<Integer> timeout) {
+      return builder().setReadTimeout(timeout).build();
     }
 
     /**
@@ -356,6 +403,10 @@ public class CassandraIO {
       abstract Builder<T> setConsistencyLevel(ValueProvider<String> consistencyLevel);
 
       abstract Builder<T> setMinNumberOfSplits(ValueProvider<Integer> minNumberOfSplits);
+
+      abstract Builder<T> setConnectTimeout(ValueProvider<Integer> timeout);
+
+      abstract Builder<T> setReadTimeout(ValueProvider<Integer> timeout);
 
       abstract Builder<T> setMapperFactoryFn(SerializableFunction<Session, Mapper> mapperFactoryFn);
 
@@ -410,7 +461,9 @@ public class CassandraIO {
               spec.username(),
               spec.password(),
               spec.localDc(),
-              spec.consistencyLevel())) {
+              spec.consistencyLevel(),
+              spec.connectTimeout(),
+              spec.readTimeout())) {
         if (isMurmur3Partitioner(cluster)) {
           LOG.info("Murmur3Partitioner detected, splitting");
           return splitWithTokenRanges(
@@ -537,7 +590,9 @@ public class CassandraIO {
                 spec.username(),
                 spec.password(),
                 spec.localDc(),
-                spec.consistencyLevel())) {
+                spec.consistencyLevel(),
+                spec.connectTimeout(),
+                spec.readTimeout())) {
           if (isMurmur3Partitioner(cluster)) {
             try {
               List<TokenRange> tokenRanges =
@@ -689,7 +744,9 @@ public class CassandraIO {
                 source.spec.username(),
                 source.spec.password(),
                 source.spec.localDc(),
-                source.spec.consistencyLevel());
+                source.spec.consistencyLevel(),
+                source.spec.connectTimeout(),
+                source.spec.readTimeout());
         session = cluster.connect(source.spec.keyspace().get());
         LOG.debug("Queries: " + source.splitQueries);
         List<ResultSetFuture> futures = new ArrayList<>();
@@ -762,34 +819,30 @@ public class CassandraIO {
    */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    @Nullable
-    abstract ValueProvider<List<String>> hosts();
 
-    @Nullable
-    abstract ValueProvider<Integer> port();
+    abstract @Nullable ValueProvider<List<String>> hosts();
 
-    @Nullable
-    abstract ValueProvider<String> keyspace();
+    abstract @Nullable ValueProvider<Integer> port();
 
-    @Nullable
-    abstract Class<T> entity();
+    abstract @Nullable ValueProvider<String> keyspace();
 
-    @Nullable
-    abstract ValueProvider<String> username();
+    abstract @Nullable Class<T> entity();
 
-    @Nullable
-    abstract ValueProvider<String> password();
+    abstract @Nullable ValueProvider<String> username();
 
-    @Nullable
-    abstract ValueProvider<String> localDc();
+    abstract @Nullable ValueProvider<String> password();
 
-    @Nullable
-    abstract ValueProvider<String> consistencyLevel();
+    abstract @Nullable ValueProvider<String> localDc();
+
+    abstract @Nullable ValueProvider<String> consistencyLevel();
 
     abstract MutationType mutationType();
 
-    @Nullable
-    abstract SerializableFunction<Session, Mapper> mapperFactoryFn();
+    abstract @Nullable ValueProvider<Integer> connectTimeout();
+
+    abstract @Nullable ValueProvider<Integer> readTimeout();
+
+    abstract @Nullable SerializableFunction<Session, Mapper> mapperFactoryFn();
 
     abstract Builder<T> builder();
 
@@ -911,6 +964,7 @@ public class CassandraIO {
       return builder().setLocalDc(localDc).build();
     }
 
+    /** Specify the consistency level for the request (e.g. ONE, LOCAL_ONE, LOCAL_QUORUM, etc). */
     public Write<T> withConsistencyLevel(String consistencyLevel) {
       checkArgument(
           consistencyLevel != null,
@@ -921,8 +975,43 @@ public class CassandraIO {
       return withConsistencyLevel(ValueProvider.StaticValueProvider.of(consistencyLevel));
     }
 
+    /** Specify the consistency level for the request (e.g. ONE, LOCAL_ONE, LOCAL_QUORUM, etc). */
     public Write<T> withConsistencyLevel(ValueProvider<String> consistencyLevel) {
       return builder().setConsistencyLevel(consistencyLevel).build();
+    }
+
+    /** Cassandra client socket option for connect timeout in ms. */
+    public Write<T> withConnectTimeout(Integer timeout) {
+      checkArgument(
+          (timeout != null && timeout > 0),
+          "CassandraIO."
+              + getMutationTypeName()
+              + "().withConnectTimeout(timeout) called with invalid timeout "
+              + "number (%s)",
+          timeout);
+      return withConnectTimeout(ValueProvider.StaticValueProvider.of(timeout));
+    }
+
+    /** Cassandra client socket option for connect timeout in ms. */
+    public Write<T> withConnectTimeout(ValueProvider<Integer> timeout) {
+      return builder().setConnectTimeout(timeout).build();
+    }
+
+    /** Cassandra client socket option to set the read timeout in ms. */
+    public Write<T> withReadTimeout(Integer timeout) {
+      checkArgument(
+          (timeout != null && timeout > 0),
+          "CassandraIO."
+              + getMutationTypeName()
+              + "().withReadTimeout(timeout) called with invalid timeout "
+              + "number (%s)",
+          timeout);
+      return withReadTimeout(ValueProvider.StaticValueProvider.of(timeout));
+    }
+
+    /** Cassandra client socket option to set the read timeout in ms. */
+    public Write<T> withReadTimeout(ValueProvider<Integer> timeout) {
+      return builder().setReadTimeout(timeout).build();
     }
 
     public Write<T> withMapperFactoryFn(SerializableFunction<Session, Mapper> mapperFactoryFn) {
@@ -980,6 +1069,7 @@ public class CassandraIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
+
       abstract Builder<T> setHosts(ValueProvider<List<String>> hosts);
 
       abstract Builder<T> setPort(ValueProvider<Integer> port);
@@ -999,6 +1089,10 @@ public class CassandraIO {
       abstract Builder<T> setConsistencyLevel(ValueProvider<String> consistencyLevel);
 
       abstract Builder<T> setMutationType(MutationType mutationType);
+
+      abstract Builder<T> setConnectTimeout(ValueProvider<Integer> timeout);
+
+      abstract Builder<T> setReadTimeout(ValueProvider<Integer> timeout);
 
       abstract Builder<T> setMapperFactoryFn(SerializableFunction<Session, Mapper> mapperFactoryFn);
 
@@ -1073,7 +1167,10 @@ public class CassandraIO {
       ValueProvider<String> username,
       ValueProvider<String> password,
       ValueProvider<String> localDc,
-      ValueProvider<String> consistencyLevel) {
+      ValueProvider<String> consistencyLevel,
+      ValueProvider<Integer> connectTimeout,
+      ValueProvider<Integer> readTimeout) {
+
     Cluster.Builder builder =
         Cluster.builder().addContactPoints(hosts.get().toArray(new String[0])).withPort(port.get());
 
@@ -1091,6 +1188,18 @@ public class CassandraIO {
     if (consistencyLevel != null) {
       builder.withQueryOptions(
           new QueryOptions().setConsistencyLevel(ConsistencyLevel.valueOf(consistencyLevel.get())));
+    }
+
+    SocketOptions socketOptions = new SocketOptions();
+
+    builder.withSocketOptions(socketOptions);
+
+    if (connectTimeout != null) {
+      socketOptions.setConnectTimeoutMillis(connectTimeout.get());
+    }
+
+    if (readTimeout != null) {
+      socketOptions.setReadTimeoutMillis(readTimeout.get());
     }
 
     return builder.build();
@@ -1119,7 +1228,9 @@ public class CassandraIO {
               spec.username(),
               spec.password(),
               spec.localDc(),
-              spec.consistencyLevel());
+              spec.consistencyLevel(),
+              spec.connectTimeout(),
+              spec.readTimeout());
       this.session = cluster.connect(spec.keyspace().get());
       this.mapperFactoryFn = spec.mapperFactoryFn();
       this.mutateFutures = new ArrayList<>();

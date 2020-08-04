@@ -58,6 +58,7 @@ import sys
 import tempfile
 from builtins import object
 from builtins import zip
+from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Dict
 from typing import FrozenSet
@@ -123,20 +124,16 @@ class Pipeline(object):
   should be used to designate new names
   (e.g. ``input | "label" >> my_transform``).
   """
-
-  # TODO: BEAM-9001 - set environment ID in all transforms and allow runners to
-  # override.
   @classmethod
-  def sdk_transforms_with_environment(cls):
+  def runner_implemented_transforms(cls):
     # type: () -> FrozenSet[str]
-    from apache_beam.runners.portability.fn_api_runner import translations
-    sets = [
-        translations.PAR_DO_URNS,
-        translations.COMBINE_URNS,
-        frozenset([common_urns.primitives.ASSIGN_WINDOWS.urn])
-    ]
-    result = frozenset()  # type: FrozenSet[str]
-    return result.union(*sets)
+
+    # This set should only contain transforms which are required to be
+    # implemented by a runner.
+    return frozenset([
+        common_urns.primitives.GROUP_BY_KEY.urn,
+        common_urns.primitives.IMPULSE.urn,
+    ])
 
   def __init__(self, runner=None, options=None, argv=None):
     # type: (Optional[Union[str, PipelineRunner]], Optional[PipelineOptions], Optional[List[str]]) -> None
@@ -224,6 +221,13 @@ class Pipeline(object):
     # If a transform is applied and the full label is already in the set
     # then the transform will have to be cloned with a new label.
     self.applied_labels = set()  # type: Set[str]
+
+    # Create a ComponentIdMap for assigning IDs to components. Ensures that any
+    # components that receive an ID during pipeline construction (for example in
+    # ExternalTransform), will receive the same component ID when generating the
+    # full pipeline proto.
+    self.component_id_map = ComponentIdMap()
+
 
   @property  # type: ignore[misc]  # decorated property not supported
   @deprecated(
@@ -513,7 +517,8 @@ class Pipeline(object):
         return Pipeline.from_runner_api(
             self.to_runner_api(use_fake_coders=True),
             self.runner,
-            self._options).run(False)
+            self._options,
+            allow_proto_holders=True).run(False)
 
       if self._options.view_as(TypeOptions).runtime_type_check:
         from apache_beam.typehints import typecheck
@@ -547,7 +552,8 @@ class Pipeline(object):
 
     try:
       if not exc_type:
-        self.run().wait_until_finish()
+        self.result = self.run()
+        self.result.wait_until_finish()
     finally:
       self._extra_context.__exit__(exc_type, exc_val, exc_tb)
 
@@ -678,30 +684,14 @@ class Pipeline(object):
           current.add_output(result, result._main_tag)
           continue
 
-        # TODO(BEAM-9322): Remove the experiment check and have this
-        # conditional be the default.
-        if self._options.view_as(DebugOptions).lookup_experiment(
-            'passthrough_pcollection_output_ids', default=False):
-          # Passthrough the PCollection output_ids from the PCollection tag.
-          # Only generate a tag if there are multiple PCollections that have a
-          # None tag. This happens when returning multiple PCollections from a
-          # composite.
-          if result.tag is None and None in current.outputs:
-            tag = len(current.outputs)
-          else:
-            tag = result.tag
-          current.add_output(result, tag)
-          continue
-
-        if self._options.view_as(DebugOptions).lookup_experiment(
-            'force_generated_pcollection_output_ids', default=False):
-          tag = len(current.outputs) if None in current.outputs else None
-        else:
-          base = tag
-          counter = 0
-          while tag in current.outputs:
-            counter += 1
-            tag = '%s_%d' % (base, counter)
+        # If there is already a tag with the same name, increase a counter for
+        # the name. This can happen, for example, when a composite outputs a
+        # list of PCollections where all the tags are None.
+        base = tag
+        counter = 0
+        while tag in current.outputs:
+          counter += 1
+          tag = '%s_%d' % (base, counter)
 
         current.add_output(result, tag)
 
@@ -814,6 +804,7 @@ class Pipeline(object):
     if context is None:
       context = pipeline_context.PipelineContext(
           use_fake_coders=use_fake_coders,
+          component_id_map=self.component_id_map,
           default_environment=default_environment)
     elif default_environment is not None:
       raise ValueError(
@@ -1149,8 +1140,8 @@ class AppliedPTransform(object):
     transform_spec = transform_to_runner_api(self.transform, context)
     environment_id = self.environment_id
     transform_urn = transform_spec.urn if transform_spec else None
-    if (not environment_id and transform_urn and
-        (transform_urn in Pipeline.sdk_transforms_with_environment())):
+    if (not environment_id and
+        (transform_urn not in Pipeline.runner_implemented_transforms())):
       environment_id = context.default_environment_id()
 
     def _maybe_preserve_tag(new_tag, pc, input_tags_to_preserve):
@@ -1341,6 +1332,32 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
     """
     # Returns a PTransformReplacement
     raise NotImplementedError
+
+
+class ComponentIdMap(object):
+  """A utility for assigning unique component ids to Beam components.
+
+  Component ID assignments are only guaranteed to be unique and consistent
+  within the scope of a ComponentIdMap instance.
+  """
+  def __init__(self, namespace="ref"):
+    self.namespace = namespace
+    self._counters = defaultdict(lambda: 0)  # type: Dict[type, int]
+    self._obj_to_id = {}  # type: Dict[Any, str]
+
+  def get_or_assign(self, obj=None, obj_type=None, label=None):
+    if obj not in self._obj_to_id:
+      self._obj_to_id[obj] = self._unique_ref(obj, obj_type, label)
+
+    return self._obj_to_id[obj]
+
+  def _unique_ref(self, obj=None, obj_type=None, label=None):
+    self._counters[obj_type] += 1
+    return "%s_%s_%s_%d" % (
+        self.namespace,
+        obj_type.__name__,
+        label or type(obj).__name__,
+        self._counters[obj_type])
 
 
 if sys.version_info >= (3, ):

@@ -35,7 +35,7 @@
 #    HARNESS_IMAGES_TO_PULL='gcr.io/<IMAGE_REPOSITORY>/python:latest gcr.io/<IMAGE_REPOSITORY>/java:latest' \
 #    JOB_SERVER_IMAGE=gcr.io/<IMAGE_REPOSITORY>/job-server-flink:latest \
 #    ARTIFACTS_DIR=gs://<bucket-for-artifacts> \
-#    FLINK_DOWNLOAD_URL=https://archive.apache.org/dist/flink/flink-1.10.0/flink-1.10.0-bin-scala_2.11.tgz \
+#    FLINK_DOWNLOAD_URL=https://archive.apache.org/dist/flink/flink-1.10.1/flink-1.10.1-bin-scala_2.11.tgz \
 #    HADOOP_DOWNLOAD_URL=https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-9.0/flink-shaded-hadoop-2-uber-2.8.3-9.0.jar \
 #    FLINK_NUM_WORKERS=2 \
 #    FLINK_TASKMANAGER_SLOTS=1 \

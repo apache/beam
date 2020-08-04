@@ -375,6 +375,9 @@ message ProcessBundleSplitRequest {
 
     // A set of allowed element indices where the SDK may split. When this is
     // empty, there are no constraints on where to split.
+    // Specifically, the first_residual_element of a split result must be an
+    // allowed split point, and the last_primary_element must immediately
+    // preceded an allowed split point.
     repeated int64 allowed_split_points = 3;
 
     // (Required for GrpcRead operations) Number of total elements expected

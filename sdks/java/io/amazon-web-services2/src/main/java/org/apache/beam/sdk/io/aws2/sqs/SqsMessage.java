@@ -21,19 +21,16 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoValue
 public abstract class SqsMessage implements Serializable {
 
-  @Nullable
-  abstract String getBody();
+  abstract @Nullable String getBody();
 
-  @Nullable
-  abstract String getMessageId();
+  abstract @Nullable String getMessageId();
 
-  @Nullable
-  abstract String getTimeStamp();
+  abstract @Nullable String getTimeStamp();
 
   abstract Builder toBuilder();
 

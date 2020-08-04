@@ -45,6 +45,7 @@ from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
 from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
 from apache_beam.runners.direct.direct_runner import _DirectReadFromPubSub
+from apache_beam.runners.direct.direct_runner import _GroupByKeyOnly
 from apache_beam.runners.direct.direct_runner import _StreamingGroupAlsoByWindow
 from apache_beam.runners.direct.direct_runner import _StreamingGroupByKeyOnly
 from apache_beam.runners.direct.direct_userstate import DirectUserStateContext
@@ -67,7 +68,7 @@ from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.transforms.trigger import TimeDomain
 from apache_beam.transforms.trigger import _CombiningValueStateTag
 from apache_beam.transforms.trigger import _ListStateTag
-from apache_beam.transforms.trigger import _ValueStateTag
+from apache_beam.transforms.trigger import _ReadModifyWriteStateTag
 from apache_beam.transforms.trigger import create_trigger_driver
 from apache_beam.transforms.userstate import get_dofn_specs
 from apache_beam.transforms.userstate import is_stateful_dofn
@@ -106,7 +107,7 @@ class TransformEvaluatorRegistry(object):
         core.Flatten: _FlattenEvaluator,
         core.Impulse: _ImpulseEvaluator,
         core.ParDo: _ParDoEvaluator,
-        core._GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
+        _GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
         _StreamingGroupByKeyOnly: _StreamingGroupByKeyOnlyEvaluator,
         _StreamingGroupAlsoByWindow: _StreamingGroupAlsoByWindowEvaluator,
         _NativeWrite: _NativeWriteEvaluator,
@@ -176,7 +177,7 @@ class TransformEvaluatorRegistry(object):
       True if executor should execute applied_ptransform serially.
     """
     if isinstance(applied_ptransform.transform,
-                  (core._GroupByKeyOnly,
+                  (_GroupByKeyOnly,
                    _StreamingGroupByKeyOnly,
                    _StreamingGroupAlsoByWindow,
                    _NativeWrite)):
@@ -220,7 +221,10 @@ class _TestStreamRootBundleProvider(RootBundleProvider):
     # TestStreamService.
     if test_stream.endpoint:
       _TestStreamEvaluator.event_stream = _TestStream.events_from_rpc(
-          test_stream.endpoint, test_stream.output_tags, test_stream.coder)
+          test_stream.endpoint,
+          test_stream.output_tags,
+          test_stream.coder,
+          self._evaluation_context)
     else:
       _TestStreamEvaluator.event_stream = (
           _TestStream.events_from_script(test_stream._events))
@@ -381,7 +385,8 @@ class _WatermarkControllerEvaluator(_TransformEvaluator):
   """
 
   # The state tag used to store the watermark.
-  WATERMARK_TAG = _ValueStateTag('_WatermarkControllerEvaluator_Watermark_Tag')
+  WATERMARK_TAG = _ReadModifyWriteStateTag(
+      '_WatermarkControllerEvaluator_Watermark_Tag')
 
   def __init__(
       self,

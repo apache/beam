@@ -26,7 +26,6 @@ import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.concurrent.TimeoutException;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -53,7 +52,10 @@ public class HL7v2IOWriteIT {
 
   @BeforeClass
   public static void createHL7v2tore() throws IOException {
-    String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    String project =
+        TestPipeline.testingPipelineOptions()
+            .as(HealthcareStoreTestPipelineOptions.class)
+            .getStoreProjectId();
     healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
     HealthcareApiClient client = new HttpHealthcareApiClient();
     Hl7V2Store store = client.createHL7v2Store(healthcareDataset, HL7V2_STORE_NAME);
@@ -82,7 +84,7 @@ public class HL7v2IOWriteIT {
   public void testHL7v2IOWrite() throws Exception {
     HL7v2IO.Write.Result result =
         pipeline
-            .apply(Create.of(MESSAGES).withCoder(new HL7v2MessageCoder()))
+            .apply(Create.of(MESSAGES).withCoder(HL7v2MessageCoder.of()))
             .apply(HL7v2IO.ingestMessages(healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME));
 
     PAssert.that(result.getFailedInsertsWithErr()).empty();

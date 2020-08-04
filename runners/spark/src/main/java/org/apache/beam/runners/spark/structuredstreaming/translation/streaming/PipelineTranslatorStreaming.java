@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
@@ -28,6 +27,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link PipelineTranslator} for executing a {@link Pipeline} in Spark in streaming mode. This

@@ -228,7 +228,7 @@ public class FlinkStreamingPortablePipelineTranslator
 
   @Override
   public Set<String> knownUrns() {
-    // Do not expose Read as a known URN because PipelineTrimmer otherwise removes
+    // Do not expose Read as a known URN because TrivialNativeTransformExpander otherwise removes
     // the subtransforms which are added in case of bounded reads. We only have a
     // translator here for unbounded Reads which are native transforms which do not
     // have subtransforms. Unbounded Reads are used by cross-language transforms, e.g.

@@ -20,6 +20,9 @@
 // common properties that are shared among all Jenkins projects.
 // Code in this directory should conform to the Groovy style guide.
 //  http://groovy-lang.org/style-guide.html
+
+import Committers as committers
+
 class CommonJobProperties {
 
   static String checkoutDir = 'src'
@@ -28,10 +31,10 @@ class CommonJobProperties {
 
   // Sets common top-level job properties for main repository jobs.
   static void setTopLevelMainJobProperties(def context,
-                                           String defaultBranch = 'master',
-                                           int defaultTimeout = 100,
-                                           boolean allowRemotePoll = true,
-                                           String jenkinsExecutorLabel =  'beam') {
+      String defaultBranch = 'master',
+      int defaultTimeout = 100,
+      boolean allowRemotePoll = true,
+      String jenkinsExecutorLabel =  'beam') {
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/beam/')
@@ -56,7 +59,7 @@ class CommonJobProperties {
           // Single quotes here mean that ${ghprbPullId} is not interpolated and instead passed
           // through to Jenkins where it refers to the environment variable.
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
-                  '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
+              '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
         }
         branch('${sha1}')
         extensions {
@@ -91,27 +94,33 @@ class CommonJobProperties {
       }
       credentialsBinding {
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
-        string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
       }
       timestamps()
+    }
+
+    context.publishers {
+      // Clean after job completes.
+      wsCleanup()
     }
   }
 
   // Sets the pull request build trigger. Accessed through precommit methods
   // below to insulate callers from internal parameter defaults.
   static void setPullRequestBuildTrigger(context,
-                                         String commitStatusContext,
-                                         String prTriggerPhrase = '',
-                                         boolean onlyTriggerPhraseToggle = true,
-                                         List<String> triggerPathPatterns = [],
-                                         List<String> excludePathPatterns = []) {
+      String commitStatusContext,
+      String prTriggerPhrase = '',
+      boolean onlyTriggerPhraseToggle = true,
+      boolean prPermitAll = true,
+      List<String> triggerPathPatterns = [],
+      List<String> excludePathPatterns = []) {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
         useGitHubHooks()
-        orgWhitelist(['apache'])
-        allowMembersOfWhitelistedOrgsAsAdmin()
-        permitAll()
+        permitAll(prPermitAll)
+        if (!prPermitAll) {
+          userWhitelist(committers.GITHUB_USERNAMES)
+        }
         // prTriggerPhrase is the argument which gets set when we want to allow
         // post-commit builds to run against pending pull requests. This block
         // overrides the default trigger phrase with the new one. Setting this
@@ -166,8 +175,7 @@ class CommonJobProperties {
     context.switches("-Dorg.gradle.jvmargs=-Xms2g")
     context.switches("-Dorg.gradle.jvmargs=-Xmx4g")
 
-    // Add docker-pull-licenses option to all Jenkins test to add licenses to when build docker images.
-    // as discussed at https://s.apache.org/zt68q
+    // Include dependency licenses when build docker images on Jenkins, see https://s.apache.org/zt68q
     context.switches("-Pdocker-pull-licenses")
   }
 
@@ -175,13 +183,15 @@ class CommonJobProperties {
   // specified in the postcommit job and have the job run against their PR to run
   // tests not in the presubmit suite for additional confidence.
   static void enablePhraseTriggeringFromPullRequest(context,
-                                                    String commitStatusName,
-                                                    String prTriggerPhrase) {
+      String commitStatusName,
+      String prTriggerPhrase,
+      boolean prPermitAll = true) {
     setPullRequestBuildTrigger(
-      context,
-      commitStatusName,
-      prTriggerPhrase,
-      true)
+        context,
+        commitStatusName,
+        prTriggerPhrase,
+        true,
+        prPermitAll)
   }
 
   // Sets this as a cron job, running on a schedule.
@@ -193,10 +203,10 @@ class CommonJobProperties {
 
   // Sets common config for jobs which run on a schedule; optionally on push
   static void setAutoJob(context,
-                         String buildSchedule = '0 */6 * * *',
-                         notifyAddress = 'builds@beam.apache.org',
-                         triggerOnCommit = false,
-                         emailIndividuals = false) {
+      String buildSchedule = '0 */6 * * *',
+      notifyAddress = 'builds@beam.apache.org',
+      triggerOnCommit = false,
+      emailIndividuals = false) {
 
     // Set build triggers
     context.triggers {
@@ -236,54 +246,11 @@ class CommonJobProperties {
 
   static def mapToArgString(LinkedHashMap<String, String> inputArgs) {
     List argList = []
-    inputArgs.each({
-        // FYI: Replacement only works with double quotes.
-      key, value -> argList.add("--$key=$value")
+    inputArgs.each({ // FYI: Replacement only works with double quotes.
+      key, value ->
+      argList.add("--$key=$value")
     })
     return argList.join(' ')
-  }
-
-  // Configures the argument list for performance tests, adding the standard
-  // performance test job arguments.
-  private static def genPerformanceArgs(def argMap) {
-    LinkedHashMap<String, String> standardArgs = [
-      project: 'apache-beam-testing',
-      dpb_log_level: 'INFO',
-      bigquery_table: 'beam_performance.pkb_results',
-      // wait up to 6 minutes for K8s LoadBalancer
-      k8s_get_retry_count: 36,
-      k8s_get_wait_interval: 10,
-      temp_dir: '$WORKSPACE',
-      // Use source cloned by Jenkins and not clone it second time (redundantly).
-      beam_location: '$WORKSPACE/src',
-      // Publishes results with official tag, for use in dashboards.
-      official: 'true',
-      // dpb_service_zone is required in Perfkit BaseDpbService which Beam Perfkit benchmarks
-      // depends on. However, it doesn't get used in Beam. Passing a fake value from here is to
-      // avoid breakage.
-      // TODO(BEAM-7347): Remove this flag after dpb_service_zone is not required.
-      dpb_service_zone: 'fake_zone',
-    ]
-    // Note: in case of key collision, keys present in ArgMap win.
-    LinkedHashMap<String, String> joinedArgs = standardArgs.plus(argMap)
-    return mapToArgString(joinedArgs)
-  }
-
-  static def setupKubernetes(def context, def namespace, def kubeconfigLocation) {
-    context.steps {
-      shell('gcloud container clusters get-credentials io-datastores --zone=us-central1-a --verbosity=debug')
-      shell("cp /home/jenkins/.kube/config ${kubeconfigLocation}")
-
-      shell("kubectl --kubeconfig=${kubeconfigLocation} create namespace ${namespace}")
-      shell("kubectl --kubeconfig=${kubeconfigLocation} config set-context \$(kubectl config current-context) --namespace=${namespace}")
-    }
-  }
-
-  static def cleanupKubernetes(def context, def namespace, def kubeconfigLocation) {
-    context.steps {
-      shell("kubectl --kubeconfig=${kubeconfigLocation} delete namespace ${namespace}")
-      shell("rm ${kubeconfigLocation}")
-    }
   }
 
   // Namespace must contain lower case alphanumeric characters or '-'
@@ -293,38 +260,7 @@ class CommonJobProperties {
   }
 
   static String getKubeconfigLocationForNamespace(def namespace) {
-    return '"$WORKSPACE/' + "config-${namespace}" + '"'
-  }
-
-  // Adds the standard performance test job steps.
-  static def buildPerformanceTest(def context, def argMap) {
-    def pkbArgs = genPerformanceArgs(argMap)
-
-    // Absolute path of project root and virtualenv path of Perfkit.
-    def perfkit_root = makePathAbsolute("PerfKitBenchmarker")
-    def perfkit_env = makePathAbsolute("env/.perfkit_env")
-
-    context.steps {
-        // Clean up environment.
-        shell("rm -rf ${perfkit_root}")
-        shell("rm -rf ${perfkit_env}")
-
-        // create new VirtualEnv for Perfkit framework. Explicitly pin to python2.7
-        // here otherwise python3 is used by default.
-        shell("virtualenv ${perfkit_env} --python=python2.7")
-
-        // update setuptools and pip
-        shell("${perfkit_env}/bin/pip install --upgrade setuptools pip")
-
-        // Clone appropriate perfkit branch
-        shell("git clone --single-branch --branch=v1.14.0 https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
-
-        // Install Perfkit benchmark requirements.
-        shell("${perfkit_env}/bin/pip install -r ${perfkit_root}/requirements.txt")
-
-        // Launch performance test.
-        shell("${perfkit_env}/bin/python ${perfkit_root}/pkb.py ${pkbArgs}")
-    }
+    return '$WORKSPACE/' + "config-${namespace}"
   }
 
   /**
@@ -335,8 +271,8 @@ class CommonJobProperties {
    */
   static String joinPipelineOptions(Map pipelineOptions) {
     List<String> pipelineArgList = []
-    pipelineOptions.each({
-      key, value -> pipelineArgList.add("\"--$key=$value\"")
+    pipelineOptions.each({ key, value ->
+      pipelineArgList.add("\"--$key=$value\"")
     })
     return "[" + pipelineArgList.join(',') + "]"
   }
@@ -351,8 +287,8 @@ class CommonJobProperties {
    */
   static String joinOptionsWithNestedJsonValues(Map pipelineOptions) {
     List<String> pipelineArgList = []
-    pipelineOptions.each({
-      key, value -> pipelineArgList.add("\"--$key=${value.replaceAll("\"", "\\\\\\\\\"")}\"")
+    pipelineOptions.each({ key, value ->
+      pipelineArgList.add("\"--$key=${value.replaceAll("\"", "\\\\\\\\\"")}\"")
     })
     return "[" + pipelineArgList.join(',') + "]"
   }

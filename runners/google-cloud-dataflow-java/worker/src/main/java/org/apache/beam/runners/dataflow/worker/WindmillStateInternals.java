@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -62,6 +61,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Implementation of {@link StateInternals} using Windmill to manage the underlying data. */
@@ -71,16 +71,15 @@ class WindmillStateInternals<K> implements StateInternals {
    * The key will be null when not in a keyed context, from the users perspective. There is still a
    * "key" for the Windmill computation, but it cannot be meaningfully deserialized.
    */
-  @Nullable private final K key;
+  private final @Nullable K key;
 
   @Override
-  @Nullable
-  public K getKey() {
+  public @Nullable K getKey() {
     return key;
   }
 
   private static class CachingStateTable<K> extends StateTable {
-    @Nullable private final K key;
+    private final @Nullable K key;
     private final String stateFamily;
     private final WindmillStateReader reader;
     private final WindmillStateCache.ForKey cache;
@@ -345,6 +344,8 @@ class WindmillStateInternals<K> implements StateInternals {
     private boolean modified = false;
     /** Whether the in memory value is the true value. */
     private boolean valueIsKnown = false;
+    /** The size of the encoded value */
+    private long cachedSize = -1;
 
     private T value;
 
@@ -382,6 +383,9 @@ class WindmillStateInternals<K> implements StateInternals {
     @Override
     public T read() {
       try (Closeable scope = scopedReadState()) {
+        if (!valueIsKnown) {
+          cachedSize = -1;
+        }
         value = getFuture().get();
         valueIsKnown = true;
         return value;
@@ -397,6 +401,7 @@ class WindmillStateInternals<K> implements StateInternals {
     public void write(T value) {
       modified = true;
       valueIsKnown = true;
+      cachedSize = -1;
       this.value = value;
     }
 
@@ -410,14 +415,18 @@ class WindmillStateInternals<K> implements StateInternals {
         return WorkItemCommitRequest.newBuilder().buildPartial();
       }
 
-      ByteString.Output stream = ByteString.newOutput();
-      if (value != null) {
-        coder.encode(value, stream, Coder.Context.OUTER);
+      ByteString encoded = null;
+      if (cachedSize == -1 || modified) {
+        ByteString.Output stream = ByteString.newOutput();
+        if (value != null) {
+          coder.encode(value, stream, Coder.Context.OUTER);
+        }
+        encoded = stream.toByteString();
+        cachedSize = encoded.size();
       }
-      ByteString encoded = stream.toByteString();
 
       // Place in cache to avoid a future read.
-      cache.put(namespace, address, this, encoded.size());
+      cache.put(namespace, address, this, cachedSize);
 
       if (!modified) {
         // The value was read, but never written or cleared.

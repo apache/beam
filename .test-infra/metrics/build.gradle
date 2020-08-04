@@ -20,6 +20,7 @@ plugins {
   id 'org.apache.beam.module'
   // https://github.com/avast/gradle-docker-compose-plugin
   id 'com.avast.gradle.docker-compose'
+  id 'org.ajoberstar.grgit'
 }
 applyGroovyNature()
 
@@ -50,9 +51,67 @@ dockerCompose {
 
 dockerCompose.isRequiredBy(testMetricsStack)
 
-task preCommit { dependsOn testMetricsStack }
+task validateConfiguration(type: Exec) {
+  commandLine 'sh', '-c', 'kubectl apply --dry-run=true -Rf kubernetes'
+}
 
-task checkProber(type:Test) {
+task preCommit {
+  dependsOn validateConfiguration
+  dependsOn testMetricsStack
+}
+
+task checkLastCommitId {
+  doLast {
+    assert grgit : 'Cannot use outside of git repository'
+
+    def git = grgit.open()
+    def lastCommit = git.log(paths: ['.test-infra/metrics'], maxCommits: 1)[0]
+    project.ext.lastCommitId = lastCommit.abbreviatedId
+  }
+}
+
+// Checks if Grafana deployment needs to be updated and deploys changes, if necessary.
+// Grafana's images tags keep track of the last commit ID in `.test-infra/metrics` path.
+// The deployment needs to be updated if new commit appears.
+task deploy {
+  dependsOn checkLastCommitId
+  doLast {
+    def stdout = new ByteArrayOutputStream()
+    exec {
+      executable 'sh'
+      args '-c', 'kubectl get deployment beamgrafana -o jsonpath="{..image}"'
+      standardOutput = stdout
+    }
+
+    // All images have the same tag, it doesn't matter which we choose.
+    String image = (stdout.toString().split(' ') as List)[0]
+    String currentImageTag = (image.split(':') as List)[1]
+    println "Current image tag: ${currentImageTag}"
+    println "Last commit ID: ${lastCommitId}"
+
+    Boolean updateRequired = lastCommitId != currentImageTag
+
+    if (updateRequired) {
+      // Build new images and force Kubernetes to re-pull images for Grafana deployment.
+      exec {
+        commandLine './build_and_publish_containers.sh', 'true', "${project.lastCommitId}"
+      }
+
+      exec {
+        executable 'sh'
+        args '-c', "kubectl set image deployment/beamgrafana \
+          beamgrafana=gcr.io/apache-beam-testing/beamgrafana:${project.lastCommitId} \
+          beammetricssyncjenkins=gcr.io/apache-beam-testing/beammetricssyncjenkins:${project.lastCommitId} \
+          beammetricssyncjira=gcr.io/apache-beam-testing/beammetricssyncjira:${project.lastCommitId} \
+          beammetricssyncgithub=gcr.io/apache-beam-testing/beammetricssyncgithub:${project.lastCommitId}"
+      }
+    } else {
+      println 'Nothing to do, exiting.'
+    }
+  }
+}
+
+task checkProber(type: Test) {
   include "**/ProberTests.class"
 }
 

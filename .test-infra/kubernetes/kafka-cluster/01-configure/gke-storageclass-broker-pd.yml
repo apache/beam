@@ -18,7 +18,7 @@ apiVersion: storage.k8s.io/v1
 metadata:
   name: kafka-broker
 provisioner: kubernetes.io/gce-pd
-reclaimPolicy: Retain
+reclaimPolicy: Delete
 allowVolumeExpansion: true
 parameters:
   type: pd-standard

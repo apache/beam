@@ -35,6 +35,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -136,11 +137,15 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
       outboundCoder =
           (Coder)
               CoderTranslation.fromProto(
-                  components.getCodersOrThrow(mainInputWindowCoderId), rehydratedComponents);
+                  components.getCodersOrThrow(mainInputWindowCoderId),
+                  rehydratedComponents,
+                  TranslationContext.DEFAULT);
       inboundCoder =
           (Coder)
               CoderTranslation.fromProto(
-                  components.getCodersOrThrow(sideInputWindowCoderId), rehydratedComponents);
+                  components.getCodersOrThrow(sideInputWindowCoderId),
+                  rehydratedComponents,
+                  TranslationContext.DEFAULT);
     } catch (IOException e) {
       throw new IllegalStateException(
           "Unable to create side input window mapping process bundle specification.", e);

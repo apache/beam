@@ -42,9 +42,7 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemLegacyArtifactRetrievalService;
-import org.apache.beam.runners.fnexecution.artifact.ClassLoaderLegacyArtifactRetrievalService;
-import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.TimerSpec;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
@@ -70,7 +68,6 @@ import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.sdk.options.PortablePipelineOptions.RetrievalServiceType;
 import org.apache.beam.sdk.util.NoopLock;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -234,6 +231,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                       environmentFactoryProviderMap.get(environment.getUrn());
                   ServerFactory serverFactory = environmentFactoryProvider.getServerFactory();
                   ServerInfo serverInfo = serverInfoCreator.apply(serverFactory);
+                  String workerId = stageIdGenerator.getId();
+                  serverInfo
+                      .getProvisioningServer()
+                      .getService()
+                      .registerEnvironment(workerId, environment);
                   EnvironmentFactory environmentFactory =
                       environmentFactoryProvider.createEnvironmentFactory(
                           serverInfo.getControlServer(),
@@ -243,7 +245,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                           clientPool,
                           stageIdGenerator);
                   return WrappedSdkHarnessClient.wrapping(
-                      environmentFactory.createEnvironment(environment), serverInfo);
+                      environmentFactory.createEnvironment(environment, workerId), serverInfo);
                 }
               });
 
@@ -653,13 +655,6 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     PortablePipelineOptions portableOptions =
         PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())
             .as(PortablePipelineOptions.class);
-    LegacyArtifactRetrievalService artifactRetrievalService;
-
-    if (portableOptions.getRetrievalServiceType() == RetrievalServiceType.CLASSLOADER) {
-      artifactRetrievalService = new ClassLoaderLegacyArtifactRetrievalService();
-    } else {
-      artifactRetrievalService = BeamFileSystemLegacyArtifactRetrievalService.create();
-    }
 
     GrpcFnServer<FnApiControlClientPoolService> controlServer =
         GrpcFnServer.allocatePortAndCreateFor(
@@ -669,15 +664,17 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     GrpcFnServer<GrpcLoggingService> loggingServer =
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
-    GrpcFnServer<LegacyArtifactRetrievalService> retrievalServer =
-        GrpcFnServer.allocatePortAndCreateFor(artifactRetrievalService, serverFactory);
+    GrpcFnServer<ArtifactRetrievalService> retrievalServer =
+        GrpcFnServer.allocatePortAndCreateFor(new ArtifactRetrievalService(), serverFactory);
     ProvisionApi.ProvisionInfo.Builder provisionInfo = jobInfo.toProvisionInfo().toBuilder();
     provisionInfo.setLoggingEndpoint(loggingServer.getApiServiceDescriptor());
     provisionInfo.setArtifactEndpoint(retrievalServer.getApiServiceDescriptor());
     provisionInfo.setControlEndpoint(controlServer.getApiServiceDescriptor());
     GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            StaticGrpcProvisionService.create(provisionInfo.build()), serverFactory);
+            StaticGrpcProvisionService.create(
+                provisionInfo.build(), GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
+            serverFactory);
     GrpcFnServer<GrpcDataService> dataServer =
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcDataService.create(
@@ -705,7 +702,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
     abstract GrpcFnServer<GrpcLoggingService> getLoggingServer();
 
-    abstract GrpcFnServer<LegacyArtifactRetrievalService> getRetrievalServer();
+    abstract GrpcFnServer<ArtifactRetrievalService> getRetrievalServer();
 
     abstract GrpcFnServer<StaticGrpcProvisionService> getProvisioningServer();
 
@@ -721,7 +718,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
       abstract Builder setLoggingServer(GrpcFnServer<GrpcLoggingService> server);
 
-      abstract Builder setRetrievalServer(GrpcFnServer<LegacyArtifactRetrievalService> server);
+      abstract Builder setRetrievalServer(GrpcFnServer<ArtifactRetrievalService> server);
 
       abstract Builder setProvisioningServer(GrpcFnServer<StaticGrpcProvisionService> server);
 

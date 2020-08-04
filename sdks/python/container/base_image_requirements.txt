@@ -25,29 +25,30 @@
 
 avro==1.8.2;python_version<="2.7"
 avro-python3==1.8.2;python_version>="3.4"
-fastavro==0.21.24
+fastavro==0.23.3
 crcmod==1.7
 dill==0.3.1.1
-future==0.17.1
+future==0.18.2
 futures==3.2.0;python_version<"3.0"
-grpcio==1.24.3
+grpcio==1.29.0
 hdfs==2.5.8
 httplib2==0.12.0
 mock==2.0.0
 oauth2client==3.0.0
-protobuf==3.11.1
-pyarrow==0.15.1
+protobuf==3.12.2
+pyarrow==0.16.0
 pydot==1.4.1
 pytz==2019.3
 pyvcf==0.6.8;python_version<"3.0"
 pyyaml==5.1
-typing==3.7.4.1;python_version<"3.5.3"
+typing==3.7.4.1;python_full_version<"3.5.3"
 typing-extensions==3.7.4.1
 
 # GCP extra features
+google-api-core==1.20.0
 google-apitools==0.5.28
 google-cloud-pubsub==1.0.2
-google-cloud-bigquery==1.24.0
+google-cloud-bigquery==1.26.1
 google-cloud-bigtable==1.0.0
 google-cloud-core==1.1.0
 google-cloud-datastore==1.7.4
@@ -66,8 +67,8 @@ pandas==0.24.2;python_version<="2.7"
 pandas==0.25.2;python_version>="3.4"
 protorpc==0.12.0
 python-gflags==3.0.6
-
-tensorflow==2.1.0
+tensorflow==2.1.0;python_version<="2.7"
+tensorflow==2.2.0;python_version>="3.5"
 pymongo==3.9.0
 
 # Packages needed for testing.

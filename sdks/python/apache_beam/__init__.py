@@ -77,11 +77,16 @@ import os
 import sys
 import warnings
 
-if sys.version_info[0] == 2 and sys.version_info[1] == 7:
+if sys.version_info.major == 2 and sys.version_info.minor == 7:
   warnings.warn(
       'You are using Apache Beam with Python 2. '
       'New releases of Apache Beam will soon support Python 3 only.')
-elif sys.version_info[0] == 3:
+elif sys.version_info.major == 3:
+  if sys.version_info.minor >= 9:
+    warnings.warn(
+        'This version of Apache Beam has not been sufficiently tested on '
+        'Python %s.%s. You may encounter bugs or missing features.' %
+        (sys.version_info.major, sys.version_info.minor))
   pass
 else:
   raise RuntimeError(
@@ -98,6 +103,9 @@ from apache_beam import typehints
 from apache_beam import version
 from apache_beam.pipeline import Pipeline
 from apache_beam.transforms import *
+from apache_beam.pvalue import PCollection
+from apache_beam.pvalue import Row
+from apache_beam.pvalue import TaggedOutput
 # pylint: enable=wrong-import-position
 
 __version__ = version.__version__

@@ -38,7 +38,9 @@ except ImportError:
   pubsub = None
 
 DEFAULT_TIMEOUT = 5 * 60
-MAX_MESSAGES_IN_ONE_PULL = 50
+DEFAULT_SLEEP_TIME = 1
+DEFAULT_MAX_MESSAGES_IN_ONE_PULL = 50
+DEFAULT_PULL_TIMEOUT = 30.0
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,7 +59,10 @@ class PubSubMessageMatcher(BaseMatcher):
       expected_msg_len=None,
       timeout=DEFAULT_TIMEOUT,
       with_attributes=False,
-      strip_attributes=None):
+      strip_attributes=None,
+      sleep_time=DEFAULT_SLEEP_TIME,
+      max_messages_in_one_pull=DEFAULT_MAX_MESSAGES_IN_ONE_PULL,
+      pull_timeout=DEFAULT_PULL_TIMEOUT):
     """Initialize PubSubMessageMatcher object.
 
     Args:
@@ -65,6 +70,8 @@ class PubSubMessageMatcher(BaseMatcher):
       sub_name: A name string of subscription which is attached to output.
       expected_msg: A string list that contains expected message data pulled
         from the subscription. See also: with_attributes.
+      expected_msg_len: Number of expected messages pulled from the
+        subscription.
       timeout: Timeout in seconds to wait for all expected messages appears.
       with_attributes: If True, will match against both message data and
         attributes. If True, expected_msg should be a list of ``PubsubMessage``
@@ -73,6 +80,10 @@ class PubSubMessageMatcher(BaseMatcher):
         attributes keyed by these values from incoming messages.
         If a key is missing, will add an attribute with an error message as
         value to prevent a successful match.
+      sleep_time: Time in seconds between which the pulls from pubsub are done.
+      max_messages_in_one_pull: Maximum number of messages pulled from pubsub
+        at once.
+      pull_timeout: Time in seconds after which the pull from pubsub is repeated
     """
     if pubsub is None:
       raise ImportError('PubSub dependencies are not installed.')
@@ -97,6 +108,9 @@ class PubSubMessageMatcher(BaseMatcher):
     self.messages = None
     self.with_attributes = with_attributes
     self.strip_attributes = strip_attributes
+    self.sleep_time = sleep_time
+    self.max_messages_in_one_pull = max_messages_in_one_pull
+    self.pull_timeout = pull_timeout
 
   def _matches(self, _):
     if self.messages is None:
@@ -116,8 +130,9 @@ class PubSubMessageMatcher(BaseMatcher):
     while time.time() - start_time <= timeout:
       response = sub_client.pull(
           self.sub_name,
-          max_messages=MAX_MESSAGES_IN_ONE_PULL,
-          return_immediately=True)
+          max_messages=self.max_messages_in_one_pull,
+          return_immediately=True,
+          timeout=self.pull_timeout)
       for rm in response.received_messages:
         msg = PubsubMessage._from_message(rm.message)
         if not self.with_attributes:
@@ -139,7 +154,7 @@ class PubSubMessageMatcher(BaseMatcher):
         sub_client.acknowledge(self.sub_name, ack_ids)
       if len(total_messages) >= expected_num:
         break
-      time.sleep(1)
+      time.sleep(self.sleep_time)
 
     if time.time() - start_time > timeout:
       _LOGGER.error(

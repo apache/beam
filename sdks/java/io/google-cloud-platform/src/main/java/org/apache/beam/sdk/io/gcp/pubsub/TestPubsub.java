@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeoutException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matcher;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -162,7 +162,9 @@ public class TestPubsub implements TestRule {
     }
 
     if (description.getMethodName() != null) {
-      topicName.append(description.getMethodName()).append("-");
+      // Remove braces (which are illegal in pubsub naming restrictions) in dynamic method names
+      // when using parameterized tests.
+      topicName.append(description.getMethodName().replaceAll("[\\[\\]]", "")).append("-");
     }
 
     DATETIME_FORMAT.printTo(topicName, Instant.now());

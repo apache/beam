@@ -17,7 +17,11 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.sdk.io.synthetic')
+applyJavaNature(
+  enableChecker:false,
+  ignoreRawtypeErrors:true,
+  exportJavadoc: false,
+  automaticModuleName: 'org.apache.beam.sdk.io.synthetic')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Synthetic"
 ext.summary = "Generators of Synthetic IO for Testing."

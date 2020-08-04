@@ -92,7 +92,7 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
             stage.getEnvironment(),
             env -> {
               try {
-                return environmentFactory.createEnvironment(env);
+                return environmentFactory.createEnvironment(env, idGenerator.getId());
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }

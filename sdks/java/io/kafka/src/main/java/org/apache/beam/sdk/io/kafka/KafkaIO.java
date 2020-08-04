@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -79,6 +78,7 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.common.utils.AppInfoParser;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -356,38 +356,30 @@ public class KafkaIO {
 
     abstract List<TopicPartition> getTopicPartitions();
 
-    @Nullable
-    abstract Coder<K> getKeyCoder();
+    abstract @Nullable Coder<K> getKeyCoder();
 
-    @Nullable
-    abstract Coder<V> getValueCoder();
+    abstract @Nullable Coder<V> getValueCoder();
 
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
 
-    @Nullable
-    abstract SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
+    abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
 
     abstract long getMaxNumRecords();
 
-    @Nullable
-    abstract Duration getMaxReadTime();
+    abstract @Nullable Duration getMaxReadTime();
 
-    @Nullable
-    abstract Instant getStartReadTime();
+    abstract @Nullable Instant getStartReadTime();
 
     abstract boolean isCommitOffsetsInFinalizeEnabled();
 
     abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
-    @Nullable
-    abstract Map<String, Object> getOffsetConsumerConfig();
+    abstract @Nullable Map<String, Object> getOffsetConsumerConfig();
 
-    @Nullable
-    abstract DeserializerProvider getKeyDeserializerProvider();
+    abstract @Nullable DeserializerProvider getKeyDeserializerProvider();
 
-    @Nullable
-    abstract DeserializerProvider getValueDeserializerProvider();
+    abstract @Nullable DeserializerProvider getValueDeserializerProvider();
 
     abstract Builder<K, V> toBuilder();
 
@@ -500,8 +492,11 @@ public class KafkaIO {
       public static final String URN = "beam:external:java:kafka:read:v1";
 
       @Override
-      public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
-        return ImmutableMap.of(URN, AutoValue_KafkaIO_Read.Builder.class);
+      public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
+        return ImmutableMap.of(
+            URN,
+            (Class<? extends ExternalTransformBuilder<?, ?, ?>>)
+                (Class<?>) AutoValue_KafkaIO_Read.Builder.class);
       }
 
       /** Parameters class to expose the Read transform to an external SDK. */
@@ -1095,33 +1090,28 @@ public class KafkaIO {
     // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
     // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
 
-    @Nullable
-    abstract String getTopic();
+    abstract @Nullable String getTopic();
 
     abstract Map<String, Object> getProducerConfig();
 
-    @Nullable
-    abstract SerializableFunction<Map<String, Object>, Producer<K, V>> getProducerFactoryFn();
+    abstract @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>>
+        getProducerFactoryFn();
 
-    @Nullable
-    abstract Class<? extends Serializer<K>> getKeySerializer();
+    abstract @Nullable Class<? extends Serializer<K>> getKeySerializer();
 
-    @Nullable
-    abstract Class<? extends Serializer<V>> getValueSerializer();
+    abstract @Nullable Class<? extends Serializer<V>> getValueSerializer();
 
-    @Nullable
-    abstract KafkaPublishTimestampFunction<ProducerRecord<K, V>> getPublishTimestampFunction();
+    abstract @Nullable KafkaPublishTimestampFunction<ProducerRecord<K, V>>
+        getPublishTimestampFunction();
 
     // Configuration for EOS sink
     abstract boolean isEOS();
 
-    @Nullable
-    abstract String getSinkGroupId();
+    abstract @Nullable String getSinkGroupId();
 
     abstract int getNumShards();
 
-    @Nullable
-    abstract SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
+    abstract @Nullable SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
         getConsumerFactoryFn();
 
     abstract Builder<K, V> toBuilder();
@@ -1258,9 +1248,9 @@ public class KafkaIO {
      * transform ties checkpointing semantics in compatible Beam runners and transactions in Kafka
      * (version 0.11+) to ensure a record is written only once. As the implementation relies on
      * runners checkpoint semantics, not all the runners are compatible. The sink throws an
-     * exception during initialization if the runner is not whitelisted. Flink runner is one of the
-     * runners whose checkpoint semantics are not compatible with current implementation (hope to
-     * provide a solution in near future). Dataflow runner and Spark runners are whitelisted as
+     * exception during initialization if the runner is not explicitly allowed. Flink runner is one
+     * of the runners whose checkpoint semantics are not compatible with current implementation
+     * (hope to provide a solution in near future). Dataflow runner and Spark runners are
      * compatible.
      *
      * <p>Note on performance: Exactly-once sink involves two shuffles of the records. In addition
@@ -1337,9 +1327,10 @@ public class KafkaIO {
         }
         throw new UnsupportedOperationException(
             runner
-                + " is not whitelisted among runners compatible with Kafka exactly-once sink. "
-                + "This implementation of exactly-once sink relies on specific checkpoint guarantees. "
-                + "Only the runners with known to have compatible checkpoint semantics are whitelisted.");
+                + " is not a runner known to be compatible with Kafka exactly-once sink. This"
+                + " implementation of exactly-once sink relies on specific checkpoint guarantees."
+                + " Only the runners with known to have compatible checkpoint semantics are"
+                + " allowed.");
       }
     }
 
@@ -1382,8 +1373,7 @@ public class KafkaIO {
     // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
     // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
 
-    @Nullable
-    abstract String getTopic();
+    abstract @Nullable String getTopic();
 
     abstract WriteRecords<K, V> getWriteRecordsTransform();
 
@@ -1431,8 +1421,10 @@ public class KafkaIO {
       public static final String URN = "beam:external:java:kafka:write:v1";
 
       @Override
-      public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
-        return ImmutableMap.of(URN, AutoValue_KafkaIO_Write.Builder.class);
+      public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
+        return ImmutableMap.of(
+            URN,
+            (Class<KafkaIO.Write.Builder<?, ?>>) (Class<?>) AutoValue_KafkaIO_Write.Builder.class);
       }
 
       /** Parameters class to expose the Write transform to an external SDK. */

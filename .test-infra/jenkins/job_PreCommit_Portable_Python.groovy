@@ -34,7 +34,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^sdks/python/.*$',
       '^release/.*$',
     ]
-)
+    )
 
 builder.build {
   // Due to BEAM-7993, run multiple Python version of portable precommit

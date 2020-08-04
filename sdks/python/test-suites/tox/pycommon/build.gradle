@@ -23,9 +23,11 @@
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
-toxTask "docs", "py37-docs"
+toxTask "docs", "py38-docs"
 assemble.dependsOn docs
 
 task preCommitPyCommon() {
   dependsOn "docs"
 }
+
+toxTask "dependency-check", "py3-dependency-check"

@@ -33,16 +33,13 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
-from apache_beam.testing.util import timeout
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 
 class DataChannelTest(unittest.TestCase):
-  @timeout(5)
   def test_grpc_data_channel(self):
     self._grpc_data_channel_test()
 
-  @timeout(5)
   def test_time_based_flush_grpc_data_channel(self):
     self._grpc_data_channel_test(True)
 
@@ -56,7 +53,7 @@ class DataChannelTest(unittest.TestCase):
     data_channel_service = \
       data_servicer.get_conn_by_worker_id(worker_id)
 
-    server = grpc.server(UnboundedThreadPoolExecutor())
+    server = grpc.server(thread_pool_executor.shared_unbounded_instance())
     beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(data_servicer, server)
     test_port = server.add_insecure_port('[::]:0')
     server.start()

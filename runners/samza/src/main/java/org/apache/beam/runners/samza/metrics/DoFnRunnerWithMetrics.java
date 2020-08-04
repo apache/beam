@@ -77,6 +77,11 @@ public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
   }
 
   @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    underlying.onWindowExpiration(window, timestamp, key);
+  }
+
+  @Override
   public DoFn<InT, OutT> getFn() {
     return underlying.getFn();
   }

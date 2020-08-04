@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.TreeSet;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTags;
@@ -49,6 +48,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.operators.Scheduler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -218,6 +218,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
                   timerData.getTimerId(),
                   timerData.getNamespace(),
                   new Instant(lastTimestamp),
+                  new Instant(lastTimestamp),
                   timerData.getDomain());
           deleteTimer(lastTimerData, false);
         }
@@ -244,12 +245,14 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-      deleteTimer(TimerData.of(timerId, namespace, Instant.now(), timeDomain));
+      Instant now = Instant.now();
+      deleteTimer(TimerData.of(timerId, namespace, now, now, timeDomain));
     }
 
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
-      deleteTimer(TimerData.of(timerId, namespace, Instant.now(), TimeDomain.EVENT_TIME));
+      Instant now = Instant.now();
+      deleteTimer(TimerData.of(timerId, namespace, now, now, TimeDomain.EVENT_TIME));
     }
 
     @Override
@@ -455,7 +458,11 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
           keyBytes,
           timerKey.key,
           TimerInternals.TimerData.of(
-              timerKey.timerId, timerKey.stateNamespace, new Instant(timestamp), domain));
+              timerKey.timerId,
+              timerKey.stateNamespace,
+              new Instant(timestamp),
+              new Instant(timestamp),
+              domain));
     }
 
     private TimerKey(K key, StateNamespace stateNamespace, String timerId) {
@@ -477,7 +484,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

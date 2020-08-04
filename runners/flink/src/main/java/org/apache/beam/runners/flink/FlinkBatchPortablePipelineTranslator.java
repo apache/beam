@@ -37,7 +37,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.runners.core.construction.NativeTransforms;
@@ -96,6 +95,7 @@ import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A translator that translates bounded portable pipelines into executable Flink pipelines.

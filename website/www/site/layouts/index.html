@@ -1,0 +1,150 @@
+{{/*
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+*/}}
+
+{{ define "hero-section" }}
+  <div class="hero-bg">
+    <div class="hero section">
+      <div class="hero__cols">
+        <div class="hero__cols__col">
+          <div class="hero__cols__col__content">
+            <div class="hero__title">
+              {{ T "home-hero-title" }}
+            </div>
+            <div class="hero__subtitle">
+              {{ T "home-hero-subtitle" }}
+            </div>
+            <div class="hero__ctas hero__ctas--first">
+              <a class="button button--primary" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "home-learn-more" }}</a>
+              <a class="button button--primary" href={{ "/get-started/try-apache-beam/" | relLangURL }}>{{ T "home-try-beam" }}</a>
+              <a class="button button--primary" href={{ "/get-started/downloads/" | relLangURL }}>{{ T "home-download-beam" . }}</a>
+            </div>
+            <div class="hero__ctas">
+              <a class="button" href="/get-started/quickstart-java/">{{ T "home-java-quickstart" }}</a>
+              <a class="button" href="/get-started/quickstart-py/">{{ T "home-python-quickstart" }}</a>
+              <a class="button" href="/get-started/quickstart-go/">{{ T "home-go-quickstart" }}</a>
+            </div>
+          </div>
+        </div>
+        <div class="hero__cols__col">
+          <div class="hero__blog">
+            <div class="hero__blog__title">
+              {{ T "home-hero-blog-title" }}
+            </div>
+            <div class="hero__blog__cards">
+
+              {{ range ( where site.RegularPages "Section" "blog" | first 3 ) }}
+                  <a class="hero__blog__cards__card" href="{{ .RelPermalink }}">
+                    <div class="hero__blog__cards__card__title">{{ .Title }}</div>
+                    <div class="hero__blog__cards__card__date">{{ .Date.Format "Jan 2, 2006" }}</div>
+                  </a>
+              {{ end }}
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{{ end }}
+
+{{ define "pillars-section" }}
+  <div class="pillars section">
+    <div class="pillars__title">
+      {{ T "home-pillars-title" }}
+    </div>
+    <div class="pillars__cols">
+      {{ $data := index $.Site.Data .Site.Language.Lang }}
+      {{ range $pillar := $data.pillars }}
+      <div class="pillars__cols__col">
+        <div class="pillars__cols__col__title">
+          {{ $pillar.title }}
+        </div>
+        <div class="pillars__cols__col__body">
+          {{ $pillar.body }}
+        </div>
+      </div>
+      {{ end }}
+    </div>
+  </div>
+{{ end }}
+
+{{ define "graphic-section" }}
+  <div class="graphic section">
+    <div class="graphic__image">
+      <img src="/images/beam_architecture.png" alt="Beam architecture">
+    </div>
+  </div>
+{{ end }}
+
+{{ define "logos-section" }}
+  <div class="logos section">
+    <div class="logos__title">
+      {{ T "home-logos-title" }}
+    </div>
+    <div class="logos__logos">
+      {{ range $logo := $.Site.Data.works_with }}
+      <div class="logos__logos__logo">
+        <a href="{{ $logo.url }}"><img src="{{ $logo.image_url }}" alt="{{ $logo.title }}"></a>
+      </div>
+      {{ end }}
+    </div>
+  </div>
+{{ end }}
+
+{{ define "cards-section" }}
+  <div class="cards section section--wide">
+    <div class="section__contained">
+      <div class="cards__title">
+        {{ T "home-cards-title" }}
+      </div>
+      <div class="cards__cards">
+        {{ $data := index $.Site.Data .Site.Language.Lang }}
+        {{ range $card := $data.cards }}
+        <div class="cards__cards__card">
+          <div class="cards__cards__card__body">
+            {{ $card.quote }}
+          </div>
+          <div class="cards__cards__card__user">
+            {{/* TODO: Implement icons (Original comment from Jekyll)
+            <div class="cards__cards__card__user__icon">
+            </div>
+            */}}
+            <div class="cards__cards__card__user__name">
+              {{ $card.name }}
+            </div>
+          </div>
+        </div>
+        {{ end }}
+      </div>
+      <div class="cards__body">
+        {{ T "home-cards-body" }} <a href={{ "/contribute/" | relLangURL }}>{{ T "home-contribute" }}</a> {{ T "home-section" }}.
+      </div>
+    </div>
+  </div>
+{{ end }}
+
+{{ define "ctas-section" }}
+  <div class="ctas section">
+    <div class="ctas__title">
+      {{ T "home-ctas-title" }}
+    </div>
+    <div class="ctas__ctas ctas__ctas--top">
+    <a class="button button--primary" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "home-learn-more" }}</a>
+    <a class="button button--primary" href={{ "/get-started/downloads/" | relLangURL }}>{{ T "home-download-beam" . }}</a>
+    </div>
+    <div class="ctas__ctas">
+    <a class="button" href={{ "/get-started/quickstart-java/" | relLangURL }}>{{ T "home-java-quickstart" }}</a>
+    <a class="button" href={{ "/get-started/quickstart-py/" | relLangURL }}>{{ T "home-python-quickstart" }}</a>
+    <a class="button" href={{ "/get-started/quickstart-go/" | relLangURL }}>{{ T "home-go-quickstart" }}</a>
+    </div>
+  </div>
+{{ end }}

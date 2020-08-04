@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import javax.naming.SizeLimitExceededException;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.ReflectData;
@@ -69,6 +68,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -584,44 +584,36 @@ public class PubsubIO {
   /** Implementation of read methods. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable
-    abstract ValueProvider<PubsubTopic> getTopicProvider();
+
+    abstract @Nullable ValueProvider<PubsubTopic> getTopicProvider();
 
     abstract PubsubClient.PubsubClientFactory getPubsubClientFactory();
 
-    @Nullable
-    abstract ValueProvider<PubsubSubscription> getSubscriptionProvider();
+    abstract @Nullable ValueProvider<PubsubSubscription> getSubscriptionProvider();
 
     /** The name of the message attribute to read timestamps from. */
-    @Nullable
-    abstract String getTimestampAttribute();
+    abstract @Nullable String getTimestampAttribute();
 
     /** The name of the message attribute to read unique message IDs from. */
-    @Nullable
-    abstract String getIdAttribute();
+    abstract @Nullable String getIdAttribute();
 
     /** The coder used to decode each record. */
     abstract Coder<T> getCoder();
 
     /** User function for parsing PubsubMessage object. */
-    @Nullable
-    abstract SerializableFunction<PubsubMessage, T> getParseFn();
+    abstract @Nullable SerializableFunction<PubsubMessage, T> getParseFn();
 
     @Nullable
     @Experimental(Kind.SCHEMAS)
     abstract Schema getBeamSchema();
 
-    @Nullable
-    abstract TypeDescriptor<T> getTypeDescriptor();
+    abstract @Nullable TypeDescriptor<T> getTypeDescriptor();
 
-    @Nullable
-    abstract SerializableFunction<T, Row> getToRowFn();
+    abstract @Nullable SerializableFunction<T, Row> getToRowFn();
 
-    @Nullable
-    abstract SerializableFunction<Row, T> getFromRowFn();
+    abstract @Nullable SerializableFunction<Row, T> getFromRowFn();
 
-    @Nullable
-    abstract Clock getClock();
+    abstract @Nullable Clock getClock();
 
     abstract boolean getNeedsAttributes();
 
@@ -752,8 +744,8 @@ public class PubsubIO {
      *       (i.e., time units smaller than milliseconds) will be ignored.
      * </ul>
      *
-     * <p>If {@code timestampAttribute} is not provided, the system will generate record timestamps
-     * the first time it sees each record. All windowing will be done relative to these timestamps.
+     * <p>If {@code timestampAttribute} is not provided, the timestamp will be taken from the Pubsub
+     * message's publish timestamp. All windowing will be done relative to these timestamps.
      *
      * <p>By default, windows are emitted based on an estimate of when this source is likely done
      * producing data for a given timestamp (referred to as the Watermark; see {@link
@@ -866,26 +858,21 @@ public class PubsubIO {
 
     private static final int MAX_PUBLISH_BATCH_SIZE = 100;
 
-    @Nullable
-    abstract ValueProvider<PubsubTopic> getTopicProvider();
+    abstract @Nullable ValueProvider<PubsubTopic> getTopicProvider();
 
     abstract PubsubClient.PubsubClientFactory getPubsubClientFactory();
 
     /** the batch size for bulk submissions to pubsub. */
-    @Nullable
-    abstract Integer getMaxBatchSize();
+    abstract @Nullable Integer getMaxBatchSize();
 
     /** the maximum batch size, by bytes. */
-    @Nullable
-    abstract Integer getMaxBatchBytesSize();
+    abstract @Nullable Integer getMaxBatchBytesSize();
 
     /** The name of the message attribute to publish message timestamps in. */
-    @Nullable
-    abstract String getTimestampAttribute();
+    abstract @Nullable String getTimestampAttribute();
 
     /** The name of the message attribute to publish unique message IDs in. */
-    @Nullable
-    abstract String getIdAttribute();
+    abstract @Nullable String getIdAttribute();
 
     /** The format function for input PubsubMessage objects. */
     abstract SerializableFunction<T, PubsubMessage> getFormatFn();

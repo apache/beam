@@ -52,18 +52,28 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
 
   protected final SerializablePipelineOptions serializedOptions;
 
+  /** WindowedValues has been exploded and pre-grouped by window. */
+  private final boolean groupedByWindow;
+
   public FlinkReduceFunction(
       CombineFnBase.GlobalCombineFn<?, AccumT, OutputT> combineFn,
       WindowingStrategy<Object, W> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions pipelineOptions) {
+    this(combineFn, windowingStrategy, sideInputs, pipelineOptions, false);
+  }
 
+  public FlinkReduceFunction(
+      CombineFnBase.GlobalCombineFn<?, AccumT, OutputT> combineFn,
+      WindowingStrategy<Object, W> windowingStrategy,
+      Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
+      PipelineOptions pipelineOptions,
+      boolean groupedByWindow) {
     this.combineFn = combineFn;
-
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
-
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
+    this.groupedByWindow = groupedByWindow;
   }
 
   @Override
@@ -85,12 +95,17 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
 
     AbstractFlinkCombineRunner<K, AccumT, AccumT, OutputT, W> reduceRunner;
 
-    if (!windowingStrategy.getWindowFn().isNonMerging()
-        && !windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
-      reduceRunner = new HashingFlinkCombineRunner<>();
+    if (groupedByWindow) {
+      reduceRunner = new SingleWindowFlinkCombineRunner<>();
     } else {
-      reduceRunner = new SortingFlinkCombineRunner<>();
+      if (!windowingStrategy.getWindowFn().isNonMerging()
+          && !windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
+        reduceRunner = new HashingFlinkCombineRunner<>();
+      } else {
+        reduceRunner = new SortingFlinkCombineRunner<>();
+      }
     }
+
     reduceRunner.combine(
         new AbstractFlinkCombineRunner.FinalFlinkCombiner<>(combineFn),
         windowingStrategy,

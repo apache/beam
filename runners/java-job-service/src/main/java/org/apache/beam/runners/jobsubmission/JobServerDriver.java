@@ -22,7 +22,7 @@ import java.nio.file.Paths;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemLegacyArtifactStagingService;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 import org.apache.beam.sdk.expansion.service.ExpansionServer;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -43,7 +43,7 @@ public abstract class JobServerDriver implements Runnable {
   private final JobInvokerFactory jobInvokerFactory;
 
   private volatile GrpcFnServer<InMemoryJobService> jobServer;
-  private volatile GrpcFnServer<BeamFileSystemLegacyArtifactStagingService> artifactStagingServer;
+  private volatile GrpcFnServer<ArtifactStagingService> artifactStagingServer;
   private volatile ExpansionServer expansionServer;
 
   public interface JobInvokerFactory {
@@ -51,16 +51,16 @@ public abstract class JobServerDriver implements Runnable {
   }
 
   protected InMemoryJobService createJobService() throws IOException {
-    artifactStagingServer = createLegacyArtifactStagingService();
+    artifactStagingServer = createArtifactStagingService();
     expansionServer = createExpansionService();
 
     JobInvoker invoker = jobInvokerFactory.create();
     return InMemoryJobService.create(
-        artifactStagingServer.getApiServiceDescriptor(),
+        artifactStagingServer,
         this::createSessionToken,
         (String stagingSessionToken) -> {
           if (configuration.cleanArtifactsPerJob) {
-            artifactStagingServer.getService().removeArtifacts(stagingSessionToken);
+            artifactStagingServer.getService().removeStagedArtifacts(stagingSessionToken);
           }
         },
         invoker,
@@ -164,6 +164,7 @@ public abstract class JobServerDriver implements Runnable {
   public void run() {
     try {
       jobServer = createJobServer();
+      LOG.info("Job server now running, terminate with Ctrl+C");
       jobServer.getServer().awaitTermination();
     } catch (InterruptedException e) {
       LOG.warn("Job server interrupted", e);
@@ -211,8 +212,7 @@ public abstract class JobServerDriver implements Runnable {
   }
 
   protected String createSessionToken(String session) {
-    return BeamFileSystemLegacyArtifactStagingService.generateStagingSessionToken(
-        session, configuration.artifactStagingPath);
+    return session;
   }
 
   private GrpcFnServer<InMemoryJobService> createJobServer() throws IOException {
@@ -231,25 +231,23 @@ public abstract class JobServerDriver implements Runnable {
     return jobServiceGrpcFnServer;
   }
 
-  private GrpcFnServer<BeamFileSystemLegacyArtifactStagingService>
-      createLegacyArtifactStagingService() throws IOException {
-    BeamFileSystemLegacyArtifactStagingService service =
-        new BeamFileSystemLegacyArtifactStagingService();
-    final GrpcFnServer<BeamFileSystemLegacyArtifactStagingService> artifactStagingService;
+  private GrpcFnServer<ArtifactStagingService> createArtifactStagingService() throws IOException {
+    ArtifactStagingService service =
+        new ArtifactStagingService(
+            ArtifactStagingService.beamFilesystemArtifactDestinationProvider(
+                configuration.artifactStagingPath));
+    GrpcFnServer<ArtifactStagingService> server;
     if (configuration.artifactPort == 0) {
-      artifactStagingService =
-          GrpcFnServer.allocatePortAndCreateFor(service, artifactServerFactory);
+      server = GrpcFnServer.allocatePortAndCreateFor(service, artifactServerFactory);
     } else {
       Endpoints.ApiServiceDescriptor descriptor =
           Endpoints.ApiServiceDescriptor.newBuilder()
               .setUrl(configuration.host + ":" + configuration.artifactPort)
               .build();
-      artifactStagingService = GrpcFnServer.create(service, descriptor, artifactServerFactory);
+      server = GrpcFnServer.create(service, descriptor, artifactServerFactory);
     }
-    LOG.info(
-        "LegacyArtifactStagingService started on {}",
-        artifactStagingService.getApiServiceDescriptor().getUrl());
-    return artifactStagingService;
+    LOG.info("ArtifactStagingService started on {}", server.getApiServiceDescriptor().getUrl());
+    return server;
   }
 
   private ExpansionServer createExpansionService() throws IOException {

@@ -25,6 +25,7 @@ import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HL7v2MessagePages;
@@ -51,8 +52,8 @@ public class HL7V2MessagePagesTest {
   public void test_EmptyStoreEmptyIterator() throws IOException {
     Mockito.doReturn(new ListMessagesResponse())
         .when(client)
-        .makeHL7v2ListRequest("foo", null, null);
-    HL7v2MessagePages emptyPages = new HL7v2MessagePages(client, "foo");
+        .makeSendTimeBoundHL7v2ListRequest("foo", null, null, null, null, null);
+    HL7v2MessagePages emptyPages = new HL7v2MessagePages(client, "foo", null, null);
     // In the case that the store is empty we should return a single empty list.
     assertFalse(emptyPages.iterator().hasNext());
   }
@@ -76,19 +77,23 @@ public class HL7V2MessagePagesTest {
                 Stream.of("foo3", "foo4", "foo5")
                     .map(HL7v2IOTestUtil::testMessage)
                     .collect(Collectors.toList()));
-    Mockito.doReturn(page0).when(client).makeHL7v2ListRequest("foo", null, null);
+    Mockito.doReturn(page0)
+        .when(client)
+        .makeSendTimeBoundHL7v2ListRequest("foo", null, null, null, null, null);
 
-    Mockito.doReturn(page1).when(client).makeHL7v2ListRequest("foo", null, "page1");
+    Mockito.doReturn(page1)
+        .when(client)
+        .makeSendTimeBoundHL7v2ListRequest("foo", null, null, null, null, "page1");
 
-    HL7v2MessagePages pages = new HL7v2MessagePages(client, "foo");
+    HL7v2MessagePages pages = new HL7v2MessagePages(client, "foo", null, null);
     assertTrue(pages.iterator().hasNext());
-    Iterator<Stream<HL7v2Message>> pagesIterator = pages.iterator();
+    Iterator<List<HL7v2Message>> pagesIterator = pages.iterator();
     assertEquals(
         page0.getHl7V2Messages().stream().map(Message::getName).collect(Collectors.toList()),
-        pagesIterator.next().map(HL7v2Message::getName).collect(Collectors.toList()));
+        pagesIterator.next().stream().map(HL7v2Message::getName).collect(Collectors.toList()));
     assertEquals(
         page1.getHl7V2Messages().stream().map(Message::getName).collect(Collectors.toList()),
-        pagesIterator.next().map(HL7v2Message::getName).collect(Collectors.toList()));
+        pagesIterator.next().stream().map(HL7v2Message::getName).collect(Collectors.toList()));
     assertFalse(pagesIterator.hasNext());
   }
 }

@@ -42,8 +42,10 @@ from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery_test import HttpError
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
+from apache_beam.io.gcp.bigquery_tools import BigQueryJobTypes
 from apache_beam.io.gcp.bigquery_tools import JsonRowWriter
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
+from apache_beam.io.gcp.bigquery_tools import generate_bq_job_name
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -810,6 +812,43 @@ class TestAvroRowWriter(unittest.TestCase):
     self.assertEqual(len(records), 1)
     self.assertTrue(math.isnan(records[0]['number']))
     self.assertEqual(records[0]['stamp'], stamp)
+
+
+class TestBQJobNames(unittest.TestCase):
+  def test_simple_names(self):
+    self.assertEqual(
+        "beam_bq_job_EXPORT_beamappjobtest_abcd",
+        generate_bq_job_name(
+            "beamapp-job-test", "abcd", BigQueryJobTypes.EXPORT))
+
+    self.assertEqual(
+        "beam_bq_job_LOAD_beamappjobtest_abcd",
+        generate_bq_job_name("beamapp-job-test", "abcd", BigQueryJobTypes.LOAD))
+
+    self.assertEqual(
+        "beam_bq_job_QUERY_beamappjobtest_abcd",
+        generate_bq_job_name(
+            "beamapp-job-test", "abcd", BigQueryJobTypes.QUERY))
+
+    self.assertEqual(
+        "beam_bq_job_COPY_beamappjobtest_abcd",
+        generate_bq_job_name("beamapp-job-test", "abcd", BigQueryJobTypes.COPY))
+
+  def test_random_in_name(self):
+    self.assertEqual(
+        "beam_bq_job_COPY_beamappjobtest_abcd_randome",
+        generate_bq_job_name(
+            "beamapp-job-test", "abcd", BigQueryJobTypes.COPY, "randome"))
+
+  def test_matches_template(self):
+    base_pattern = "beam_bq_job_[A-Z]+_[a-z0-9-]+_[a-z0-9-]+(_[a-z0-9-]+)?"
+    job_name = generate_bq_job_name(
+        "beamapp-job-test", "abcd", BigQueryJobTypes.COPY, "randome")
+    self.assertRegex(job_name, base_pattern)
+
+    job_name = generate_bq_job_name(
+        "beamapp-job-test", "abcd", BigQueryJobTypes.COPY)
+    self.assertRegex(job_name, base_pattern)
 
 
 if __name__ == '__main__':

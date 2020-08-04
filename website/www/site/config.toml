@@ -1,0 +1,112 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+baseURL = "/"
+title = "Apache Beam"
+
+enableRobotsTXT = true
+
+# Hugo allows theme composition (and inheritance). The precedence is from left to right.
+theme = ["docsy"]
+
+# Will give values to .Lastmod etc.
+enableGitInfo = true
+
+# Language settings
+contentDir = "content/en"
+defaultContentLanguage = "en"
+defaultContentLanguageInSubdir = false
+# Useful when translating.
+enableMissingTranslationPlaceholders = true
+
+# Highlighting config
+pygmentsCodeFences = true
+pygmentsUseClasses = false
+# Use the new Chroma Go highlighter in Hugo.
+pygmentsUseClassic = false
+#pygmentsOptions = "linenos=table"
+# See https://help.farbox.com/pygments.html
+pygmentsStyle = "tango"
+
+summaryLength = "unlimited"
+
+canonifyURLs = true
+
+[markup.goldmark.renderer]
+unsafe= true
+
+[markup.highlight]
+noClasses = false
+
+[markup]
+  [markup.tableOfContents]
+    endLevel = 4
+
+## Configuration for BlackFriday markdown parser: https://github.com/russross/blackfriday
+[blackfriday]
+plainIDAnchors = true
+hrefTargetBlank = true
+angledQuotes = false
+latexDashes = true
+
+# Image processing configuration.
+[imaging]
+resampleFilter = "CatmullRom"
+quality = 75
+anchor = "smart"
+
+[services]
+[services.googleAnalytics]
+# Comment out the next line to disable GA tracking. Also disables the feature described in [params.ui.feedback].
+# id = "UA-73650088-1"
+
+# Language configuration
+
+[languages]
+[languages.en]
+title = "Apache Beam"
+description = "Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes."
+languageName ="English"
+# Weight used for sorting.
+weight = 1
+
+# RSS template configuration
+[outputs]
+home = ["HTML","FEED"]
+
+[mediaTypes]
+[mediaTypes."application/rss"]
+suffixes = ["xml"]
+
+[outputFormats]
+[outputFormats.FEED]
+mediatype = "application/rss"
+baseName = "feed"
+
+# Everything below this are Site Params
+
+# First one is picked as the Twitter card image if not set on page.
+# images = ["images/feature-image.png"]
+
+# Repository configuration (URLs for in-page links to opening issues and suggesting changes)
+github_repo = "https://github.com/apache/beam"
+# An optional link to a related project repo. For example, the sibling repository where your product code lives.
+github_project_repo = "https://github.com/apache/beam"
+
+[params]
+description = "Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes."
+release_latest = "2.23.0"
+# The repository and branch where the files live in Github or Colab. This is used
+# to serve and stage from your local branch, but publish to the master branch.
+#   e.g. https://github.com/{{< param branch_repo >}}/path/to/notebook.ipynb
+#   e.g. https://colab.sandbox.google.com/github/{{< param branch_repo >}}/path/to/notebook.ipynb
+branch_repo = "apache/beam/blob/master"

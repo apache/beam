@@ -18,10 +18,12 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.dataflow.DataflowRunner.getContainerImageForJob;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files.getFileExtension;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
@@ -29,7 +31,6 @@ import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -81,7 +82,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowRunner.BatchGroupIntoBatches;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
@@ -144,6 +147,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
@@ -788,9 +792,9 @@ public class DataflowRunnerTest implements Serializable {
     final String cloudDataflowDataset = "somedataset";
 
     // Create some temporary files.
-    File temp1 = File.createTempFile("DataflowRunnerTest", "txt");
+    File temp1 = File.createTempFile("DataflowRunnerTest-", ".txt");
     temp1.deleteOnExit();
-    File temp2 = File.createTempFile("DataflowRunnerTest2", "txt");
+    File temp2 = File.createTempFile("DataflowRunnerTest2-", ".txt");
     temp2.deleteOnExit();
 
     String overridePackageName = "alias.txt";
@@ -836,7 +840,7 @@ public class DataflowRunnerTest implements Serializable {
     assertEquals(2, workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().size());
     DataflowPackage workflowPackage1 =
         workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().get(0);
-    assertThat(workflowPackage1.getName(), startsWith(temp1.getName()));
+    assertThat(workflowPackage1.getName(), endsWith(getFileExtension(temp1.getAbsolutePath())));
     DataflowPackage workflowPackage2 =
         workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().get(1);
     assertEquals(overridePackageName, workflowPackage2.getName());
@@ -851,6 +855,49 @@ public class DataflowRunnerTest implements Serializable {
     assertEquals(
         DataflowRunnerInfo.getDataflowRunnerInfo().getVersion(),
         workflowJob.getEnvironment().getUserAgent().get("version"));
+  }
+
+  /**
+   * Tests that {@link DataflowRunner} throws an appropriate exception when an explicitly specified
+   * file to stage does not exist locally.
+   */
+  @Test(expected = RuntimeException.class)
+  public void testRunWithMissingFiles() throws IOException {
+    final String cloudDataflowDataset = "somedataset";
+
+    File temp = new File("/this/is/not/a/path/that/will/exist");
+
+    String overridePackageName = "alias.txt";
+
+    when(mockGcsUtil.getObjects(anyListOf(GcsPath.class)))
+        .thenReturn(
+            ImmutableList.of(
+                GcsUtil.StorageObjectOrIOException.create(new FileNotFoundException("some/path"))));
+
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setFilesToStage(ImmutableList.of(overridePackageName + "=" + temp.getAbsolutePath()));
+    options.setStagingLocation(VALID_STAGING_BUCKET);
+    options.setTempLocation(VALID_TEMP_BUCKET);
+    options.setTempDatasetId(cloudDataflowDataset);
+    options.setProject(PROJECT_ID);
+    options.setRegion(REGION_ID);
+    options.setJobName("job");
+    options.setDataflowClient(buildMockDataflow());
+    options.setGcsUtil(mockGcsUtil);
+    options.setGcpCredential(new TestCredential());
+
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+        .then(
+            invocation ->
+                FileChannel.open(
+                    Files.createTempFile("channel-", ".tmp"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.DELETE_ON_CLOSE));
+
+    Pipeline p = buildDataflowPipeline(options);
+
+    DataflowPipelineJob job = (DataflowPipelineJob) p.run();
   }
 
   @Test
@@ -1200,8 +1247,15 @@ public class DataflowRunnerTest implements Serializable {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(containsString("no translator registered"));
+    SdkComponents sdkComponents = SdkComponents.create(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
     DataflowPipelineTranslator.fromOptions(options)
-        .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList());
+        .translate(
+            p,
+            pipelineProto,
+            sdkComponents,
+            DataflowRunner.fromOptions(options),
+            Collections.emptyList());
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
@@ -1232,7 +1286,14 @@ public class DataflowRunnerTest implements Serializable {
           stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform1));
         });
 
-    translator.translate(p, DataflowRunner.fromOptions(options), Collections.emptyList());
+    SdkComponents sdkComponents = SdkComponents.create(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    translator.translate(
+        p,
+        pipelineProto,
+        sdkComponents,
+        DataflowRunner.fromOptions(options),
+        Collections.emptyList());
     assertTrue(transform.translated);
   }
 

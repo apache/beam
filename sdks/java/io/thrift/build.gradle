@@ -20,7 +20,7 @@ plugins {
     id 'org.apache.beam.module'
     // id "org.jruyi.thrift" version "0.4.1"
 }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.thrift')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.thrift')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Thrift"
 ext.summary = "IO to read and write Thrift encoded data files"
@@ -37,7 +37,7 @@ dependencies {
     testCompile "com.google.code.gson:gson:2.8.6"
     testCompile "commons-io:commons-io:2.6"
     testRuntimeOnly library.java.slf4j_jdk14
-    testRuntimeOnly project(":runners:direct-java")
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 /*
 Removed due to lack of Thrift on Jenkins workers.

@@ -50,12 +50,12 @@ from apache_beam.runners.interactive.display import pipeline_graph_renderer
 
 class PipelineGraph(object):
   """Creates a DOT representing the pipeline. Thread-safe. Runner agnostic."""
-
-  def __init__(self,
-               pipeline,  # type: Union[beam_runner_api_pb2.Pipeline, beam.Pipeline]
-               default_vertex_attrs={'shape': 'box'},
-               default_edge_attrs=None,
-               render_option=None):
+  def __init__(
+      self,
+      pipeline,  # type: Union[beam_runner_api_pb2.Pipeline, beam.Pipeline]
+      default_vertex_attrs={'shape': 'box'},
+      default_edge_attrs=None,
+      render_option=None):
     """Constructor of PipelineGraph.
 
     Examples:
@@ -78,7 +78,8 @@ class PipelineGraph(object):
     self._graph = None  # type: pydot.Dot
     self._pipeline_instrument = None
     if isinstance(pipeline, beam.Pipeline):
-      self._pipeline_instrument = inst.PipelineInstrument(pipeline)
+      self._pipeline_instrument = inst.PipelineInstrument(
+          pipeline, pipeline._options)
       # The pre-process links user pipeline to runner pipeline through analysis
       # but without mutating runner pipeline.
       self._pipeline_instrument.preprocess()

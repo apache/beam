@@ -17,7 +17,10 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.fn')
+applyJavaNature(
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.sdk.fn')
 
 description = "Apache Beam :: SDKs :: Java :: Fn Execution"
 ext.summary = """Contains code shared across the Beam Java SDK Harness and Java Runners to execute using

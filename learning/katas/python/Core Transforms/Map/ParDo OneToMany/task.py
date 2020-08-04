@@ -25,10 +25,9 @@ class BreakIntoWordsDoFn(beam.DoFn):
         return element.split()
 
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-(p | beam.Create(['Hello Beam', 'It is awesome'])
-   | beam.ParDo(BreakIntoWordsDoFn())
-   | LogElements())
+  (p | beam.Create(['Hello Beam', 'It is awesome'])
+     | beam.ParDo(BreakIntoWordsDoFn())
+     | LogElements())
 
-p.run()
