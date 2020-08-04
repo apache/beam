@@ -32,13 +32,6 @@ check.dependsOn formatter
 toxTask "testPy38CloudCoverage", "py38-cloudcoverage"
 test.dependsOn "testPy38CloudCoverage"
 
-task python38CloudCoverage() {
-  dependsOn 'sdks:python:test-suites:tox:py38:testPy38CloudCoverage'
-}
-
-toxTask "testPy38Cython"
-test.dependsOn "testPy38CloudCoverage"
-
 apply from: "../common.gradle"
 
 // TODO(BEAM-8954): Remove this once tox uses isolated builds.

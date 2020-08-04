@@ -28,5 +28,9 @@ toxTask "testPy${pythonVersionSuffix}Cython", "py${pythonVersionSuffix}-cython"
 test.dependsOn "testPy${pythonVersionSuffix}Cython"
 
 project.task("preCommitPy${pythonVersionSuffix}") {
-      dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPy${pythonVersionSuffix}Cython"]
+      if (pythonVersionSuffix.equals('38') {
+          dependsOn = ["testPy${pythonVersionSuffix}CloudCoverage", "testPy${pythonVersionSuffix}Cython"]
+      } else {
+          dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPy${pythonVersionSuffix}Cython"]
+      }
 }
