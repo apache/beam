@@ -43,7 +43,7 @@ public final class SnowflakeReadRegistrar implements ExternalTransformRegistrar 
   public static final String URN = "beam:external:java:snowflake:read:v1";
 
   @Override
-  public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+  public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
     return ImmutableMap.of(URN, ReadBuilder.class);
   }
 
