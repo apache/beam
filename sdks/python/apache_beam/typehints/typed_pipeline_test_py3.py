@@ -22,6 +22,7 @@
 
 from __future__ import absolute_import
 
+import typing
 import unittest
 
 import apache_beam as beam
@@ -352,6 +353,23 @@ class MainInputTest(unittest.TestCase):
     # Feed integers to a PTransform that should expect strings
     # but has no typehints so it expects any
     _ = [1, 2, 3] | StrToInt() | IntToStr()
+
+  def test_typed_ptransform_with_generic_annotations(self):
+    T = typing.TypeVar('T')
+
+    class IntToInt(beam.PTransform):
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[T]) -> beam.pvalue.PCollection[T]:
+        return pcoll | beam.Map(lambda x: x)
+
+    class IntToStr(beam.PTransform):
+      def expand(
+          self,
+          pcoll: beam.pvalue.PCollection[T]) -> beam.pvalue.PCollection[str]:
+        return pcoll | beam.Map(lambda x: str(x))
+
+    _ = [1, 2, 3] | IntToInt() | IntToStr()
 
 
 class AnnotationsTest(unittest.TestCase):
