@@ -29,6 +29,7 @@ import os.path
 import sys
 import unittest
 from builtins import map
+from copy import deepcopy
 from typing import Dict
 from typing import Tuple
 
@@ -108,6 +109,7 @@ def value_parser_from_schema(schema):
 
   def value_parser(x):
     result = []
+    x = deepcopy(x)
     for name, parser in parsers:
       value = x.pop(name)
       result.append(None if value is None else parser(value))
