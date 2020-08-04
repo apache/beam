@@ -29,8 +29,8 @@ It illustrates a simple filter.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.testing.benchmarks.nexmark.models import auction_price
+from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 
 
 def load(events, metadata=None):

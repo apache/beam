@@ -37,17 +37,17 @@ To run a process for a certain duration, define in the code:
 from __future__ import absolute_import
 from __future__ import print_function
 
+import json
 import logging
 import threading
-import json
 
 import apache_beam as beam
-from apache_beam.transforms import window
-from apache_beam.utils.timestamp import Timestamp
-from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.models import auction_bid
 from apache_beam.testing.benchmarks.nexmark.models import auction_price
+from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.models.field_name import FieldNames
+from apache_beam.transforms import window
+from apache_beam.utils.timestamp import Timestamp
 
 _LOGGER = logging.getLogger(__name__)
 

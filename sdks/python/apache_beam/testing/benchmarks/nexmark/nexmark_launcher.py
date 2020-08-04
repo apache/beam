@@ -67,7 +67,6 @@ import logging
 import sys
 import uuid
 
-from apache_beam.transforms import window
 from google.cloud import pubsub
 
 import apache_beam as beam
@@ -82,6 +81,7 @@ from apache_beam.testing.benchmarks.nexmark.queries import query0
 from apache_beam.testing.benchmarks.nexmark.queries import query1
 from apache_beam.testing.benchmarks.nexmark.queries import query2
 from apache_beam.testing.benchmarks.nexmark.queries import query9
+from apache_beam.transforms import window
 
 
 class NexmarkLauncher(object):
@@ -211,11 +211,11 @@ class NexmarkLauncher(object):
       events = self.generate_events()
       output = query.load(events, query_args)
       # print results
-      (
+      (  # pylint: disable=expression-not-assigned
           output | beam.Map(repr)
           | beam.io.WriteToText(
               "py-query-result", file_name_suffix='.json', num_shards=1))
-      output | nexmark_util.CountAndLog()
+      output | nexmark_util.CountAndLog()  # pylint: disable=expression-not-assigned
       # end of results output
       result = self.pipeline.run()
       job_duration = (

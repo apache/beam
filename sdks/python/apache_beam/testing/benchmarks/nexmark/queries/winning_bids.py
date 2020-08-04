@@ -20,12 +20,12 @@ from __future__ import absolute_import
 import apache_beam as beam
 from apache_beam.coders import coder_impl
 from apache_beam.coders.coders import FastCoder
-from apache_beam.transforms.window import WindowFn
-from apache_beam.transforms.window import IntervalWindow
-from apache_beam.utils.timestamp import Duration
-from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.models import auction_bid
+from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
+from apache_beam.transforms.window import IntervalWindow
+from apache_beam.transforms.window import WindowFn
+from apache_beam.utils.timestamp import Duration
 
 
 class AuctionOrBidWindow(IntervalWindow):
