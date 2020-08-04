@@ -21,7 +21,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import os
-import platform
 import sys
 import warnings
 from distutils.errors import DistutilsError
@@ -122,16 +121,11 @@ except DistributionNotFound:
   # do nothing if Cython is not installed
   pass
 
-# Currently all compiled modules are optional  (for performance only).
-if platform.system() == 'Windows':
-  # Windows doesn't always provide int64_t.
+try:
+  # pylint: disable=wrong-import-position
+  from Cython.Build import cythonize
+except ImportError:
   cythonize = lambda *args, **kwargs: []
-else:
-  try:
-    # pylint: disable=wrong-import-position
-    from Cython.Build import cythonize
-  except ImportError:
-    cythonize = lambda *args, **kwargs: []
 
 REQUIRED_PACKAGES = [
     # Apache Avro does not follow semantic versioning, so we should not auto
@@ -158,7 +152,7 @@ REQUIRED_PACKAGES = [
     'numpy>=1.14.3,<2',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<4',
-    'protobuf>=3.5.0.post1,<4',
+    'protobuf>=3.12.2,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
     ('pyarrow>=0.15.1,<0.18.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),
@@ -196,24 +190,31 @@ REQUIRED_TEST_PACKAGES = [
     'pytest-xdist>=1.29.0,<2',
     'pytest-timeout>=1.3.3,<2',
     'rsa<4.1; python_version < "3.0"',
+    # sqlalchemy is used only for running xlang jdbc test so limit to Py3
+    'sqlalchemy>=1.3,<2.0; python_version >= "3.5"',
+    # psycopg is used only for running xlang jdbc test so limit to Py3
+    'psycopg2-binary>=2.8.5,<3.0.0; python_version >= "3.5"',
+    # testcontainers is used only for running xlang jdbc test so limit to Py3
+    'testcontainers>=3.0.3,<4.0.0; python_version >= "3.5"',
     ]
 
 GCP_REQUIREMENTS = [
     'cachetools>=3.1.0,<4',
     'google-apitools>=0.5.31,<0.5.32',
-    'google-cloud-datastore>=1.7.1,<1.8.0',
-    'google-cloud-pubsub>=0.39.0,<1.1.0',
+    'google-auth>=1.18.0,<2',
+    'google-cloud-datastore>=1.7.1,<2',
+    'google-cloud-pubsub>=0.39.0,<2',
     # GCP packages required by tests
-    'google-cloud-bigquery>=1.6.0,<=1.24.0',
+    'google-cloud-bigquery>=1.6.0,<2',
     'google-cloud-core>=0.28.1,<2',
-    'google-cloud-bigtable>=0.31.1,<1.1.0',
-    'google-cloud-spanner>=1.13.0,<1.14.0',
+    'google-cloud-bigtable>=0.31.1,<2',
+    'google-cloud-spanner>=1.13.0,<2',
     'grpcio-gcp>=0.2.2,<1',
     # GCP Packages required by ML functionality
-    'google-cloud-dlp>=0.12.0,<=0.13.0',
+    'google-cloud-dlp>=0.12.0,<2',
     'google-cloud-language>=1.3.0,<2',
-    'google-cloud-videointelligence>=1.8.0,<1.14.0',
-    'google-cloud-vision>=0.38.0,<0.43.0',
+    'google-cloud-videointelligence>=1.8.0,<2',
+    'google-cloud-vision>=0.38.0,<2',
 ]
 
 INTERACTIVE_BEAM = [
@@ -282,8 +283,8 @@ setuptools.setup(
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
     package_data={'apache_beam': [
-        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml',
-        'portability/api/*.yaml']},
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', '*/*.h', '*/*/*.h',
+        'testing/data/*.yaml', 'portability/api/*.yaml']},
     ext_modules=cythonize([
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',

@@ -417,7 +417,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(
         strategy,
         DataflowRunner.deserialize_windowing_strategy(
-            DataflowRunner.serialize_windowing_strategy(strategy)))
+            DataflowRunner.serialize_windowing_strategy(strategy, None)))
 
   def test_side_input_visitor(self):
     p = TestPipeline()

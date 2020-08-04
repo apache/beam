@@ -82,7 +82,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
@@ -148,6 +147,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
@@ -855,6 +855,49 @@ public class DataflowRunnerTest implements Serializable {
     assertEquals(
         DataflowRunnerInfo.getDataflowRunnerInfo().getVersion(),
         workflowJob.getEnvironment().getUserAgent().get("version"));
+  }
+
+  /**
+   * Tests that {@link DataflowRunner} throws an appropriate exception when an explicitly specified
+   * file to stage does not exist locally.
+   */
+  @Test(expected = RuntimeException.class)
+  public void testRunWithMissingFiles() throws IOException {
+    final String cloudDataflowDataset = "somedataset";
+
+    File temp = new File("/this/is/not/a/path/that/will/exist");
+
+    String overridePackageName = "alias.txt";
+
+    when(mockGcsUtil.getObjects(anyListOf(GcsPath.class)))
+        .thenReturn(
+            ImmutableList.of(
+                GcsUtil.StorageObjectOrIOException.create(new FileNotFoundException("some/path"))));
+
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setFilesToStage(ImmutableList.of(overridePackageName + "=" + temp.getAbsolutePath()));
+    options.setStagingLocation(VALID_STAGING_BUCKET);
+    options.setTempLocation(VALID_TEMP_BUCKET);
+    options.setTempDatasetId(cloudDataflowDataset);
+    options.setProject(PROJECT_ID);
+    options.setRegion(REGION_ID);
+    options.setJobName("job");
+    options.setDataflowClient(buildMockDataflow());
+    options.setGcsUtil(mockGcsUtil);
+    options.setGcpCredential(new TestCredential());
+
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+        .then(
+            invocation ->
+                FileChannel.open(
+                    Files.createTempFile("channel-", ".tmp"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.DELETE_ON_CLOSE));
+
+    Pipeline p = buildDataflowPipeline(options);
+
+    DataflowPipelineJob job = (DataflowPipelineJob) p.run();
   }
 
   @Test

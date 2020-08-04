@@ -18,7 +18,10 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.testing.expansion')
+applyJavaNature(
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.sdk.testing.expansion')
 
 description = "Apache Beam :: SDKs :: Java :: Test Expansion Service"
 ext.summary = """Testing Expansion Service used for executing cross-language transform tests."""

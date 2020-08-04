@@ -33,9 +33,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +73,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
         Metrics.counter(LoggingHttpBackOffHandler.class, "cumulativeThrottlingSeconds");
     private int ioExceptionRetries;
     private int unsuccessfulResponseRetries;
-    @Nullable private CustomHttpErrors customHttpErrors;
+    private @Nullable CustomHttpErrors customHttpErrors;
 
     private LoggingHttpBackOffHandler(
         Sleeper sleeper,

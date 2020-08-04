@@ -40,16 +40,15 @@ class AddTimestampDoFn(beam.DoFn):
         yield window.TimestampedValue(element, unix_timestamp)
 
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-(p | beam.Create([
-        Event('1', 'book-order', datetime.datetime(2020, 3, 4, 0, 0, 0, 0, tzinfo=pytz.UTC)),
-        Event('2', 'pencil-order', datetime.datetime(2020, 3, 5, 0, 0, 0, 0, tzinfo=pytz.UTC)),
-        Event('3', 'paper-order', datetime.datetime(2020, 3, 6, 0, 0, 0, 0, tzinfo=pytz.UTC)),
-        Event('4', 'pencil-order', datetime.datetime(2020, 3, 7, 0, 0, 0, 0, tzinfo=pytz.UTC)),
-        Event('5', 'book-order', datetime.datetime(2020, 3, 8, 0, 0, 0, 0, tzinfo=pytz.UTC)),
-     ])
-   | beam.ParDo(AddTimestampDoFn())
-   | LogElements(with_timestamp=True))
+  (p | beam.Create([
+          Event('1', 'book-order', datetime.datetime(2020, 3, 4, 0, 0, 0, 0, tzinfo=pytz.UTC)),
+          Event('2', 'pencil-order', datetime.datetime(2020, 3, 5, 0, 0, 0, 0, tzinfo=pytz.UTC)),
+          Event('3', 'paper-order', datetime.datetime(2020, 3, 6, 0, 0, 0, 0, tzinfo=pytz.UTC)),
+          Event('4', 'pencil-order', datetime.datetime(2020, 3, 7, 0, 0, 0, 0, tzinfo=pytz.UTC)),
+          Event('5', 'book-order', datetime.datetime(2020, 3, 8, 0, 0, 0, 0, tzinfo=pytz.UTC)),
+       ])
+     | beam.ParDo(AddTimestampDoFn())
+     | LogElements(with_timestamp=True))
 
-p.run()

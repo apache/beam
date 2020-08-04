@@ -141,7 +141,7 @@ public class BatchSnowflakeIOIT {
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .withWriteDisposition(WriteDisposition.TRUNCATE)
                 .withUserDataMapper(getTestRowDataMapper())
-                .withTable(tableName)
+                .to(tableName)
                 .withStagingBucketName(stagingBucketName)
                 .withStorageIntegrationName(storageIntegrationName));
 

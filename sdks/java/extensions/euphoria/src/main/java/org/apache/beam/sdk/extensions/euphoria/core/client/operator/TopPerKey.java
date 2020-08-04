@@ -21,7 +21,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Optional;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -29,7 +28,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
@@ -44,6 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -218,14 +217,14 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
 
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
-    @Nullable private final String name;
+    private final @Nullable String name;
     private PCollection<InputT> input;
     private UnaryFunction<InputT, KeyT> keyExtractor;
-    @Nullable private TypeDescriptor<KeyT> keyType;
+    private @Nullable TypeDescriptor<KeyT> keyType;
     private UnaryFunction<InputT, ValueT> valueExtractor;
-    @Nullable private TypeDescriptor<ValueT> valueType;
+    private @Nullable TypeDescriptor<ValueT> valueType;
     private UnaryFunction<InputT, ScoreT> scoreExtractor;
-    @Nullable private TypeDescriptor<ScoreT> scoreType;
+    private @Nullable TypeDescriptor<ScoreT> scoreType;
 
     Builder(@Nullable String name) {
       this.name = name;
@@ -317,7 +316,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
     }
 
     @Override
-    public PCollection<Triple<KeyT, ValueT, ScoreT>> output(OutputHint... outputHints) {
+    public PCollection<Triple<KeyT, ValueT, ScoreT>> output() {
       final TopPerKey<InputT, KeyT, ValueT, ScoreT> sbk =
           new TopPerKey<>(
               name,
@@ -334,9 +333,9 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
   }
 
   private UnaryFunction<InputT, ValueT> valueExtractor;
-  @Nullable private TypeDescriptor<ValueT> valueType;
+  private @Nullable TypeDescriptor<ValueT> valueType;
   private UnaryFunction<InputT, ScoreT> scoreExtractor;
-  @Nullable private TypeDescriptor<ScoreT> scoreType;
+  private @Nullable TypeDescriptor<ScoreT> scoreType;
 
   private TopPerKey(
       @Nullable String name,

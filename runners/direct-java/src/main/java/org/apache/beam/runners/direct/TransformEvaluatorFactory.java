@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.direct;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A factory for creating instances of {@link TransformEvaluator} for the application of a {@link

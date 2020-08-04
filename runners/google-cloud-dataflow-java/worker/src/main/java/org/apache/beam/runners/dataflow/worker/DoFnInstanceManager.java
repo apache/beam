@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.DoFnInfo;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Contains methods for obtaining and clearing {@link DoFnInfo} instances. t */
 public interface DoFnInstanceManager {

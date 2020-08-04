@@ -34,9 +34,9 @@ nums.each {
 
     // Allows triggering this build against pull requests.
     commonJobProperties.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      "Machine Inventory ${machine}",
-      "Run Inventory ${machine}")
+        delegate,
+        "Machine Inventory ${machine}",
+        "Run Inventory ${machine}")
 
     parameters {
       nodeParam('TEST_HOST') {

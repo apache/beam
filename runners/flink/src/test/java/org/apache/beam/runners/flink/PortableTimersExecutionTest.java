@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -198,9 +198,9 @@ public class PortableTimersExecutionTest implements Serializable {
                 new FlinkPipelineRunner(options, null, Collections.emptyList()));
 
     jobInvocation.start();
-    while (jobInvocation.getState() != Enum.DONE) {
+    while (jobInvocation.getState() != JobState.Enum.DONE) {
       Thread.sleep(1000);
     }
-    assertThat(jobInvocation.getState(), is(Enum.DONE));
+    assertThat(jobInvocation.getState(), is(JobState.Enum.DONE));
   }
 }

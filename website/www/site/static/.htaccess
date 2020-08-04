@@ -21,4 +21,4 @@ RewriteRule ^(.*)$ https://beam.apache.org/$1 [L,R=301]
 # The following redirect maintains the previously supported URLs.
 RedirectMatch permanent "/documentation/sdks/(javadoc|pydoc)(.*)" "https://beam.apache.org/releases/$1$2"
 # Keep this updated to point to the current release.
-RedirectMatch "/releases/([^/]+)/current(.*)" "https://beam.apache.org/releases/$1/2.22.0$2"
+RedirectMatch "/releases/([^/]+)/current(.*)" "https://beam.apache.org/releases/$1/2.23.0$2"

@@ -19,9 +19,9 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static java.util.Objects.requireNonNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -30,7 +30,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.TimestampExtractTransform;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -206,7 +206,7 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
 
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
-    @Nullable private final String name;
+    private final @Nullable String name;
     private PCollection<InputT> input;
 
     @SuppressWarnings("unchecked")
@@ -214,8 +214,12 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
 
     private SelectionPolicy policy = null;
 
-    @Nullable private TypeDescriptor<KeyT> projectedType;
-    @Nullable private TypeDescriptor<InputT> outputType;
+    private @Nullable TypeDescriptor<KeyT> projectedType;
+
+    @SuppressFBWarnings("UWF_NULL_FIELD")
+    private @Nullable TypeDescriptor<InputT> outputType =
+        null; // spotbugs says this field could be inlined to null
+
     private boolean projected = false;
 
     Builder(@Nullable String name) {
@@ -294,7 +298,7 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
 
     @Override
     @SuppressWarnings("unchecked")
-    public PCollection<InputT> output(OutputHint... outputHints) {
+    public PCollection<InputT> output() {
       if (transform == null) {
         this.transform = (UnaryFunction) UnaryFunction.identity();
       }

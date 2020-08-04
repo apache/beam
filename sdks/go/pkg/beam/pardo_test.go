@@ -16,6 +16,7 @@
 package beam
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -55,8 +56,8 @@ func testFunction() int64 {
 
 func TestFormatParDoError(t *testing.T) {
 	got := formatParDoError(testFunction, 2, 1)
-	want := "DoFn github.com/apache/beam/sdks/go/pkg/beam.testFunction has 2 outputs, but ParDo requires 1 outputs, use ParDo2 instead."
-	if got != want {
+	want := "beam.testFunction has 2 outputs, but ParDo requires 1 outputs, use ParDo2 instead."
+	if !strings.Contains(got, want) {
 		t.Errorf("formatParDoError(testFunction,2,1) = %v, want = %v", got, want)
 	}
 }

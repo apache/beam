@@ -40,11 +40,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse.ChannelSplit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -76,6 +83,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
@@ -85,6 +93,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -246,6 +255,229 @@ public class SdkHarnessClientTest {
       processBundleResponseFuture.complete(
           BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response).build());
     }
+  }
+
+  @Test
+  public void testClosingActiveBundleMultipleTimesIsNoop() throws Exception {
+    CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
+    when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
+        .thenReturn(processBundleResponseFuture);
+
+    FullWindowedValueCoder<String> coder =
+        FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
+    BundleProcessor processor =
+        sdkHarnessClient.getProcessor(
+            descriptor,
+            Collections.singletonList(
+                RemoteInputDestination.of(
+                    (FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)));
+    when(dataService.send(any(), eq(coder))).thenReturn(mock(CloseableFnDataReceiver.class));
+
+    RemoteBundle activeBundle =
+        processor.newBundle(Collections.emptyMap(), BundleProgressHandler.ignored());
+    // Correlating the request and response is owned by the underlying
+    // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
+    // the response.
+    //
+    // Currently there are no fields so there's nothing to check. This test is formulated
+    // to match the pattern it should have if/when the response is meaningful.
+    BeamFnApi.ProcessBundleResponse response = ProcessBundleResponse.getDefaultInstance();
+    processBundleResponseFuture.complete(
+        BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response).build());
+    activeBundle.close();
+
+    activeBundle.close();
+  }
+
+  @Test
+  public void testProgressAndSplitCallsAreIgnoredWhenBundleIsComplete() throws Exception {
+    CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
+    when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
+        .thenReturn(processBundleResponseFuture);
+
+    FullWindowedValueCoder<String> coder =
+        FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
+    BundleProcessor processor =
+        sdkHarnessClient.getProcessor(
+            descriptor,
+            Collections.singletonList(
+                RemoteInputDestination.of(
+                    (FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)));
+    when(dataService.send(any(), eq(coder))).thenReturn(mock(CloseableFnDataReceiver.class));
+
+    RemoteBundle activeBundle =
+        processor.newBundle(Collections.emptyMap(), BundleProgressHandler.ignored());
+    // Correlating the request and response is owned by the underlying
+    // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
+    // the response.
+    BeamFnApi.ProcessBundleResponse response = ProcessBundleResponse.getDefaultInstance();
+    processBundleResponseFuture.complete(
+        BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response).build());
+    activeBundle.close();
+
+    verify(fnApiControlClient).registerProcessBundleDescriptor(any(ProcessBundleDescriptor.class));
+    verify(fnApiControlClient).handle(any(BeamFnApi.InstructionRequest.class));
+
+    activeBundle.requestProgress();
+    activeBundle.split(0);
+    verifyNoMoreInteractions(fnApiControlClient);
+  }
+
+  @Test
+  @SuppressWarnings("FutureReturnValueIgnored")
+  public void testProgressHandlerOnCompletedHappensAfterOnProgress() throws Exception {
+    CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
+    CompletableFuture<InstructionResponse> progressResponseFuture = new CompletableFuture<>();
+    when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
+        .thenAnswer(
+            invocationOnMock -> {
+              switch (invocationOnMock
+                  .<BeamFnApi.InstructionRequest>getArgument(0)
+                  .getRequestCase()) {
+                case PROCESS_BUNDLE:
+                  return processBundleResponseFuture;
+                case PROCESS_BUNDLE_PROGRESS:
+                  return progressResponseFuture;
+                default:
+                  throw new IllegalArgumentException(
+                      "Unexpected request "
+                          + invocationOnMock.<BeamFnApi.InstructionRequest>getArgument(0));
+              }
+            });
+
+    FullWindowedValueCoder<String> coder =
+        FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
+    BundleProcessor processor =
+        sdkHarnessClient.getProcessor(
+            descriptor,
+            Collections.singletonList(
+                RemoteInputDestination.of(
+                    (FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)));
+    when(dataService.send(any(), eq(coder))).thenReturn(mock(CloseableFnDataReceiver.class));
+
+    BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
+
+    RemoteBundle activeBundle = processor.newBundle(Collections.emptyMap(), mockProgressHandler);
+    BeamFnApi.ProcessBundleResponse response =
+        ProcessBundleResponse.newBuilder().putMonitoringData("test", ByteString.EMPTY).build();
+    BeamFnApi.ProcessBundleProgressResponse progressResponse =
+        ProcessBundleProgressResponse.newBuilder()
+            .putMonitoringData("test2", ByteString.EMPTY)
+            .build();
+
+    ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
+    // Correlating the request and response is owned by the underlying
+    // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
+    // the response.
+    //
+    // Schedule the progress response to come in after the bundle response and after the close call.
+    activeBundle.requestProgress();
+    executor.schedule(
+        () ->
+            processBundleResponseFuture.complete(
+                BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response).build()),
+        1,
+        TimeUnit.SECONDS);
+    executor.schedule(
+        () ->
+            progressResponseFuture.complete(
+                BeamFnApi.InstructionResponse.newBuilder()
+                    .setProcessBundleProgress(progressResponse)
+                    .build()),
+        2,
+        TimeUnit.SECONDS);
+    activeBundle.close();
+
+    InOrder inOrder = Mockito.inOrder(mockProgressHandler);
+    inOrder.verify(mockProgressHandler).onProgress(eq(progressResponse));
+    inOrder.verify(mockProgressHandler).onCompleted(eq(response));
+  }
+
+  @Test
+  @SuppressWarnings("FutureReturnValueIgnored")
+  public void testCheckpointHappensAfterAnySplitCalls() throws Exception {
+    CompletableFuture<InstructionResponse> processBundleResponseFuture = new CompletableFuture<>();
+    CompletableFuture<InstructionResponse> splitResponseFuture = new CompletableFuture<>();
+    when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
+        .thenAnswer(
+            invocationOnMock -> {
+              switch (invocationOnMock
+                  .<BeamFnApi.InstructionRequest>getArgument(0)
+                  .getRequestCase()) {
+                case PROCESS_BUNDLE:
+                  return processBundleResponseFuture;
+                case PROCESS_BUNDLE_SPLIT:
+                  return splitResponseFuture;
+                default:
+                  throw new IllegalArgumentException(
+                      "Unexpected request "
+                          + invocationOnMock.<BeamFnApi.InstructionRequest>getArgument(0));
+              }
+            });
+
+    FullWindowedValueCoder<String> coder =
+        FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE);
+    BundleProcessor processor =
+        sdkHarnessClient.getProcessor(
+            descriptor,
+            Collections.singletonList(
+                RemoteInputDestination.of(
+                    (FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)));
+    when(dataService.send(any(), eq(coder))).thenReturn(mock(CloseableFnDataReceiver.class));
+
+    BundleCheckpointHandler mockCheckpointHandler = mock(BundleCheckpointHandler.class);
+    BundleSplitHandler mockSplitHandler = mock(BundleSplitHandler.class);
+    BundleFinalizationHandler mockFinalizationHandler = mock(BundleFinalizationHandler.class);
+
+    RemoteBundle activeBundle =
+        processor.newBundle(
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            StateRequestHandler.unsupported(),
+            BundleProgressHandler.ignored(),
+            mockSplitHandler,
+            mockCheckpointHandler,
+            mockFinalizationHandler);
+    BeamFnApi.ProcessBundleResponse response =
+        ProcessBundleResponse.newBuilder()
+            .addResidualRoots(
+                DelayedBundleApplication.newBuilder()
+                    .setApplication(BundleApplication.newBuilder().setTransformId("test").build())
+                    .build())
+            .build();
+    BeamFnApi.ProcessBundleSplitResponse splitResponse =
+        ProcessBundleSplitResponse.newBuilder()
+            .addChannelSplits(ChannelSplit.newBuilder().setTransformId("test2"))
+            .build();
+
+    ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
+    // Correlating the request and response is owned by the underlying
+    // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
+    // the response.
+    //
+    // Schedule the split response to come in after the bundle response and after the close call.
+    activeBundle.split(0.5);
+    executor.schedule(
+        () ->
+            processBundleResponseFuture.complete(
+                BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response).build()),
+        1,
+        TimeUnit.SECONDS);
+    executor.schedule(
+        () ->
+            splitResponseFuture.complete(
+                BeamFnApi.InstructionResponse.newBuilder()
+                    .setProcessBundleSplit(splitResponse)
+                    .build()),
+        2,
+        TimeUnit.SECONDS);
+    activeBundle.close();
+
+    InOrder inOrder = Mockito.inOrder(mockCheckpointHandler, mockSplitHandler);
+    inOrder.verify(mockSplitHandler).split(eq(splitResponse));
+    inOrder.verify(mockCheckpointHandler).onCheckpoint(eq(response));
   }
 
   @Test

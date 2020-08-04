@@ -24,7 +24,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.metrics.Counter;
@@ -49,6 +48,7 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -76,7 +76,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
     /** Timing of records in this file. */
     private final PaneInfo.Timing timing;
     /** Path to file containing records, or {@literal null} if no output required. */
-    @Nullable private final String filename;
+    private final @Nullable String filename;
 
     public OutputFile(
         Instant maxTimestamp,
@@ -98,7 +98,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
   }
 
   /** GCS uri prefix for all log and 'finished' files. If null they won't be written. */
-  @Nullable private String outputPath;
+  private @Nullable String outputPath;
 
   /** Maximum number of workers, used to determine log sharding factor. */
   private int maxNumWorkers;
@@ -162,8 +162,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
    * Return path to which we should write the index for {@code window}, or {@literal null} if no
    * output required.
    */
-  @Nullable
-  private String indexPathFor(BoundedWindow window) {
+  private @Nullable String indexPathFor(BoundedWindow window) {
     if (outputPath == null) {
       return null;
     }

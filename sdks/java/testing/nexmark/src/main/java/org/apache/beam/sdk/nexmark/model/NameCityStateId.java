@@ -32,6 +32,7 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Result of Query3. */
 @DefaultSchema(JavaFieldSchema.class)
@@ -93,7 +94,7 @@ public class NameCityStateId implements KnownSize, Serializable {
   }
 
   @Override
-  public boolean equals(Object otherObject) {
+  public boolean equals(@Nullable Object otherObject) {
     if (this == otherObject) {
       return true;
     }

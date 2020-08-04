@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.metrics;
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Atomically tracks the dirty-state of a metric.
@@ -93,7 +94,7 @@ public class DirtyState implements Serializable {
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (object instanceof DirtyState) {
       DirtyState dirtyState = (DirtyState) object;
       return Objects.equals(dirty.get(), dirtyState.dirty.get());

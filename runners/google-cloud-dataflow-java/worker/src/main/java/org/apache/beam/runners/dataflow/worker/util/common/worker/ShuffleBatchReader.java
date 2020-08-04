@@ -19,7 +19,7 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.io.IOException;
 import java.util.List;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * ShuffleBatchReader provides an interface for reading a batch of key/value entries from a shuffle
@@ -29,7 +29,7 @@ public interface ShuffleBatchReader {
   /** The result returned by #read. */
   public static class Batch {
     public final List<ShuffleEntry> entries;
-    @Nullable public final ShufflePosition nextStartPosition;
+    public final @Nullable ShufflePosition nextStartPosition;
 
     public Batch(List<ShuffleEntry> entries, @Nullable ShufflePosition nextStartPosition) {
       this.entries = entries;
