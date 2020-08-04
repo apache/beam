@@ -95,6 +95,8 @@ ISORT_EXCLUDED=(
   "taxi.py"
   "process_tfma.py"
   "doctests_test.py"
+  "runtime_type_check_off_test_py3.py"
+  "runtime_type_check_on_test_py3.py"
 )
 SKIP_PARAM=""
 for file in "${ISORT_EXCLUDED[@]}"; do
