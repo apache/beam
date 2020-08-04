@@ -68,6 +68,7 @@ from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal import util
 from apache_beam.portability import python_urns
+from apache_beam.pvalue import DoOutputsTuple
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.typehints import native_type_compatibility
@@ -429,6 +430,8 @@ class PTransform(WithTypeHints, HasDisplayData):
     root_hint = (
         arg_hints[0] if len(arg_hints) == 1 else arg_hints or kwarg_hints)
     for context, pvalue_, hint in _ZipPValues().visit(pvalueish, root_hint):
+      if isinstance(pvalue, DoOutputsTuple):
+        continue
       if pvalue_.element_type is None:
         # TODO(robertwb): It's a bug that we ever get here. (typecheck)
         continue
