@@ -53,9 +53,10 @@ class TestStreamServiceController(TestStreamServiceServicer):
 
   def start(self):
     # A server can only be started if never started and never stopped before.
-    if not self._server_started and not self._server_stopped:
-      self._server_started = True
-      self._server.start()
+    if self._server_started or self._server_stopped:
+      return
+    self._server_started = True
+    self._server.start()
 
   def stop(self):
     # A server can only be stopped if already started and never stopped before.
