@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.parquet;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -42,7 +41,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -79,16 +77,20 @@ public class ParquetIOTest implements Serializable {
   @Test
   public void testBlockTracker() throws Exception {
     OffsetRange range=new OffsetRange(0,1);
-    ParquetIO.ReadFiles.BlockTracker tracker=new ParquetIO.ReadFiles.BlockTracker(range,2,1);
-    assertTrue(Math.abs(tracker.getProgress().getWorkRemaining()-2)<0.01);
+    ParquetIO.ReadFiles.BlockTracker tracker=new ParquetIO.ReadFiles.BlockTracker(range,7,3);
+    assertTrue(Math.abs(tracker.getProgress().getWorkRemaining()-6)<0.01);
     assertTrue(Math.abs(tracker.getProgress().getWorkCompleted())<0.01);
     tracker.tryClaim((long)0);
     tracker.makeProgress();
-    assertTrue(Math.abs(tracker.getProgress().getWorkRemaining()-0)<0.01);
+    assertTrue(Math.abs(tracker.getProgress().getWorkRemaining()-4)<0.01);
     assertTrue(Math.abs(tracker.getProgress().getWorkCompleted()-2)<0.01);
+    tracker.makeProgress();
+    tracker.makeProgress();
+    assertTrue(Math.abs(tracker.getProgress().getWorkRemaining()-0)<0.01);
+    assertTrue(Math.abs(tracker.getProgress().getWorkCompleted()-6)<0.01);
     assertThrows("Making progress out of range",IOException.class,()->tracker.makeProgress());
   }
-  
+
   @Test
   public void testWriteAndRead() {
     List<GenericRecord> records = generateGenericRecords(1000);

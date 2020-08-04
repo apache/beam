@@ -321,7 +321,7 @@ public class ParquetIO {
         return Collections.unmodifiableMap(setMultiMap);
       }
 
-      private InputFile getInputFile(FileIO.ReadableFile file) throws IOException {
+      public InputFile getInputFile(FileIO.ReadableFile file) throws IOException {
         if (!file.getMetadata().isReadSeekEfficient()) {
           throw new RuntimeException(
               String.format("File has to be seekable: %s", file.getMetadata().resourceId()));
@@ -415,7 +415,7 @@ public class ParquetIO {
         }
       }
 
-      private Configuration setConf() throws Exception {
+      public Configuration setConf() throws Exception {
         Configuration conf = new Configuration();
         GenericData model = null;
         if (modelClass != null) {
