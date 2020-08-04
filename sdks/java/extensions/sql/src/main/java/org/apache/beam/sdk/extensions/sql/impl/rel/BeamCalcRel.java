@@ -457,13 +457,17 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           return value;
         } else if (SqlTypes.DATETIME.getIdentifier().equals(logicalId)) {
           Expression dateValue =
-              Expressions.call(value, "getValue", Expressions.constant(DateTime.DATE_FIELD));
+              Expressions.call(value, "getValue", Expressions.constant(DateTime.DATE_FIELD_NAME));
           Expression timeValue =
-              Expressions.call(value, "getValue", Expressions.constant(DateTime.TIME_FIELD));
+              Expressions.call(value, "getValue", Expressions.constant(DateTime.TIME_FIELD_NAME));
           Expression returnValue =
               Expressions.add(
-                  Expressions.multiply(dateValue, Expressions.constant(MILLIS_PER_DAY)),
-                  Expressions.divide(timeValue, Expressions.constant(NANOS_PER_MILLISECOND)));
+                  Expressions.multiply(
+                      Types.castIfNecessary(long.class, dateValue),
+                      Expressions.constant(MILLIS_PER_DAY)),
+                  Expressions.divide(
+                      Types.castIfNecessary(long.class, timeValue),
+                      Expressions.constant(NANOS_PER_MILLISECOND)));
           return returnValue;
         } else if (!CharType.IDENTIFIER.equals(logicalId)) {
           throw new UnsupportedOperationException(

@@ -369,7 +369,7 @@ public class BeamComplexTypeTest {
   }
 
   @Test
-  public void testNullDatetimeFields() {
+  public void testDatetimeFields() {
     Instant current = new Instant(1561671380000L); // Long value corresponds to 27/06/2019
 
     Schema dateTimeFieldSchema =
@@ -408,7 +408,7 @@ public class BeamComplexTypeTest {
   }
 
   @Test
-  public void testNullSqlLogicalTypeDateFields() {
+  public void testSqlLogicalTypeDateFields() {
     Schema dateTimeFieldSchema =
         Schema.builder()
             .addField("dateTypeField", FieldType.logicalType(SqlTypes.DATE))
@@ -448,7 +448,7 @@ public class BeamComplexTypeTest {
   }
 
   @Test
-  public void testNullSqlLogicalTypeTimeFields() {
+  public void testSqlLogicalTypeTimeFields() {
     Schema dateTimeFieldSchema =
         Schema.builder()
             .addField("timeTypeField", FieldType.logicalType(SqlTypes.TIME))

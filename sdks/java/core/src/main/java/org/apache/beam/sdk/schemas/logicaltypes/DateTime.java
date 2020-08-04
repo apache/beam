@@ -36,10 +36,10 @@ import org.apache.beam.sdk.values.Row;
  * nanoseconds.
  */
 public class DateTime implements Schema.LogicalType<LocalDateTime, Row> {
-  public static final String DATE_FIELD = "Date";
-  public static final String TIME_FIELD = "Time";
+  public static final String DATE_FIELD_NAME = "Date";
+  public static final String TIME_FIELD_NAME = "Time";
   public static final Schema DATETIME_SCHEMA =
-      Schema.builder().addInt64Field(DATE_FIELD).addInt64Field(TIME_FIELD).build();
+      Schema.builder().addInt64Field(DATE_FIELD_NAME).addInt64Field(TIME_FIELD_NAME).build();
 
   @Override
   public String getIdentifier() {
@@ -77,7 +77,7 @@ public class DateTime implements Schema.LogicalType<LocalDateTime, Row> {
     return base == null
         ? null
         : LocalDateTime.of(
-            LocalDate.ofEpochDay(base.getValue(DATE_FIELD)),
-            LocalTime.ofNanoOfDay(base.getValue(TIME_FIELD)));
+            LocalDate.ofEpochDay(base.getValue(DATE_FIELD_NAME)),
+            LocalTime.ofNanoOfDay(base.getValue(TIME_FIELD_NAME)));
   }
 }

@@ -47,7 +47,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * Utility methods for ZetaSQL <=> Calcite translation.
  *
  * <p>Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
- * TODO[BEAM-10238]: support ZetaSQL types: TIME, DATETIME, NUMERIC
  */
 @Internal
 public final class ZetaSqlCalciteTranslationUtils {

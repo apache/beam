@@ -52,7 +52,7 @@ public class BeamSqlRowCoderTest {
             .add("col_string_varchar", SqlTypeName.VARCHAR)
             .add("col_time", SqlTypeName.TIME)
             .add("col_date", SqlTypeName.DATE)
-            .add("col_datetime", SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+            .add("col_timestamp_with_local_time_zone", SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
             .add("col_timestamp", SqlTypeName.TIMESTAMP)
             .add("col_boolean", SqlTypeName.BOOLEAN)
             .build();

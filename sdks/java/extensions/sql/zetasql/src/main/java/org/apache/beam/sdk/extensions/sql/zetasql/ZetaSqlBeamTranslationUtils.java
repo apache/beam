@@ -47,7 +47,6 @@ import org.joda.time.Instant;
  * Utility methods for ZetaSQL <=> Beam translation.
  *
  * <p>Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
- * TODO[BEAM-10238]: support ZetaSQL types: TIME, DATETIME, NUMERIC
  */
 @Internal
 public final class ZetaSqlBeamTranslationUtils {
@@ -195,11 +194,12 @@ public final class ZetaSqlBeamTranslationUtils {
       if (object instanceof Row) { // base type
         datetime =
             LocalDateTime.of(
-                LocalDate.ofEpochDay(((Row) object).getValue(DateTime.DATE_FIELD)),
-                LocalTime.ofNanoOfDay(((Row) object).getValue(DateTime.TIME_FIELD)));
+                LocalDate.ofEpochDay(((Row) object).getValue(DateTime.DATE_FIELD_NAME)),
+                LocalTime.ofNanoOfDay(((Row) object).getValue(DateTime.TIME_FIELD_NAME)));
       } else { // input type
         datetime = (LocalDateTime) object;
       }
+      // TODO[BEAM-10611]: Create ZetaSQL Value.createDatetimeValue(LocalDateTime) function
       return Value.createDatetimeValue(
           CivilTimeEncoder.encodePacked64DatetimeSeconds(datetime), datetime.getNano());
     } else {
