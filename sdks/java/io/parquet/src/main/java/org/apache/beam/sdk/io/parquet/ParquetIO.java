@@ -59,6 +59,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.math3.exception.OutOfRangeException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.HadoopReadOptions;
 import org.apache.parquet.ParquetReadOptions;
@@ -503,32 +504,40 @@ public class ParquetIO {
         Configuration conf = setConf();
         ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
         ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
+        long start=0;
+        long end=0;
         if (restriction == null) {
-          return 0;
-        } else {
+          end=reader.getRowGroups().size();
+        }
+        else{
+          start=restriction.getFrom();
+          end=restriction.getTo();
+        }
           double size = 0;
-          for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
+          for (long i = start; i < end; i++) {
             size += reader.getRowGroups().get((int) i).getTotalByteSize();
           }
           return size;
-        }
       }
     }
 
-    private static class BlockTracker extends OffsetRangeTracker {
+    public static class BlockTracker extends OffsetRangeTracker {
       private long totalWork;
       private long progress;
-      private long recordSize;
+      private long approximateRecordSize;
 
-      public BlockTracker(OffsetRange range, long totalWork, long recordCount) {
+      public BlockTracker(OffsetRange range, long work, long recordCount) {
         super(range);
-        this.recordSize = totalWork / recordCount;
-        this.totalWork = recordSize * recordCount;
+        this.approximateRecordSize = work / recordCount;
+        this.totalWork = approximateRecordSize * recordCount;
         this.progress = 0;
       }
 
-      public void makeProgress() {
-        progress += recordSize;
+      public void makeProgress() throws Exception {
+        progress += approximateRecordSize;
+        if(progress>totalWork){
+          throw new IOException("Making progress out of range");
+        }
       }
 
       @Override
