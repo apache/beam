@@ -91,7 +91,7 @@ if __name__ == '__main__':
   flink_job_server_jar = (
       known_args.flink_job_server_jar or
       job_server.JavaJarJobServer.path_to_beam_jar(
-          'runners:flink:%s:job-server:shadowJar' %
+          ':runners:flink:%s:job-server:shadowJar' %
           FlinkRunnerOptions.PUBLISHED_FLINK_VERSIONS[-1]))
   streaming = known_args.streaming
   environment_type = known_args.environment_type.lower()
