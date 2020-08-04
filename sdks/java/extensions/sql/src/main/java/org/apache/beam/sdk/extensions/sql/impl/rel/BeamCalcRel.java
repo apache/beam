@@ -27,6 +27,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.AbstractList;
 import java.util.AbstractMap;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalTzType;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -91,6 +93,7 @@ import org.joda.time.ReadableInstant;
 public class BeamCalcRel extends AbstractBeamCalcRel {
 
   private static final long NANOS_PER_MILLISECOND = 1000000L;
+  private static final long MILLIS_PER_DAY = 86400000L;
 
   private static final ParameterExpression outputSchemaParam =
       Expressions.parameter(Schema.class, "outputSchema");
@@ -343,6 +346,17 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         valueDateTime = Expressions.unbox(valueDateTime);
       }
       valueDateTime = Expressions.call(LocalDate.class, "ofEpochDay", valueDateTime);
+    } else if (CalciteUtils.TIMESTAMP_WITH_LOCAL_TZ.typesEqual(toType)) {
+      // Convert TimeStamp_With_Local_TimeZone to LocalDateTime
+      Expression dateValue =
+          Expressions.divide(valueDateTime, Expressions.constant(MILLIS_PER_DAY));
+      Expression date = Expressions.call(LocalDate.class, "ofEpochDay", dateValue);
+      Expression timeValue =
+          Expressions.multiply(
+              Expressions.modulo(valueDateTime, Expressions.constant(MILLIS_PER_DAY)),
+              Expressions.constant(NANOS_PER_MILLISECOND));
+      Expression time = Expressions.call(LocalTime.class, "ofNanoOfDay", timeValue);
+      valueDateTime = Expressions.call(LocalDateTime.class, "of", date, time);
     } else {
       throw new UnsupportedOperationException("Unknown DateTime type " + toType);
     }
@@ -441,6 +455,16 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               value, Expressions.divide(value, Expressions.constant(NANOS_PER_MILLISECOND)));
         } else if (SqlTypes.DATE.getIdentifier().equals(logicalId)) {
           return value;
+        } else if (SqlTypes.DATETIME.getIdentifier().equals(logicalId)) {
+          Expression dateValue =
+              Expressions.call(value, "getValue", Expressions.constant(DateTime.DATE_FIELD));
+          Expression timeValue =
+              Expressions.call(value, "getValue", Expressions.constant(DateTime.TIME_FIELD));
+          Expression returnValue =
+              Expressions.add(
+                  Expressions.multiply(dateValue, Expressions.constant(MILLIS_PER_DAY)),
+                  Expressions.divide(timeValue, Expressions.constant(NANOS_PER_MILLISECOND)));
+          return returnValue;
         } else if (!CharType.IDENTIFIER.equals(logicalId)) {
           throw new UnsupportedOperationException(
               "Unknown LogicalType " + type.getLogicalType().getIdentifier());

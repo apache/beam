@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.Row;
 public class DateTime implements Schema.LogicalType<LocalDateTime, Row> {
   public static final String DATE_FIELD = "Date";
   public static final String TIME_FIELD = "Time";
-  private static final Schema DATETIME_SCHEMA =
+  public static final Schema DATETIME_SCHEMA =
       Schema.builder().addInt64Field(DATE_FIELD).addInt64Field(TIME_FIELD).build();
 
   @Override

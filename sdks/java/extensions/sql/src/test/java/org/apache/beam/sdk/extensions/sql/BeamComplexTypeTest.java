@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -375,16 +376,9 @@ public class BeamComplexTypeTest {
         Schema.builder()
             .addField("dateTimeField", FieldType.DATETIME)
             .addNullableField("nullableDateTimeField", FieldType.DATETIME)
-            .addField("timeTypeField", FieldType.logicalType(SqlTypes.TIME))
-            .addNullableField("nullableTimeTypeField", FieldType.logicalType(SqlTypes.TIME))
-            .addField("dateTypeField", FieldType.logicalType(SqlTypes.DATE))
-            .addNullableField("nullableDateTypeField", FieldType.logicalType(SqlTypes.DATE))
             .build();
 
-    Row dateTimeRow =
-        Row.withSchema(dateTimeFieldSchema)
-            .addValues(current, null, LocalTime.of(1, 0, 0), null, LocalDate.of(2019, 6, 27), null)
-            .build();
+    Row dateTimeRow = Row.withSchema(dateTimeFieldSchema).addValues(current, null).build();
 
     PCollection<Row> outputRow =
         pipeline
@@ -395,15 +389,7 @@ public class BeamComplexTypeTest {
                     "select EXTRACT(YEAR from dateTimeField) as yyyy, "
                         + " EXTRACT(YEAR from nullableDateTimeField) as year_with_null, "
                         + " EXTRACT(MONTH from dateTimeField) as mm, "
-                        + " EXTRACT(MONTH from nullableDateTimeField) as month_with_null, "
-                        + " timeTypeField + interval '1' hour as time_with_hour_added, "
-                        + " nullableTimeTypeField + interval '1' hour as hour_added_with_null, "
-                        + " timeTypeField - INTERVAL '60' SECOND as time_with_seconds_added, "
-                        + " nullableTimeTypeField - INTERVAL '60' SECOND as seconds_added_with_null, "
-                        + " EXTRACT(DAY from dateTypeField) as dd, "
-                        + " EXTRACT(DAY from nullableDateTypeField) as day_with_null, "
-                        + " dateTypeField + interval '1' day as date_with_day_added, "
-                        + " nullableDateTypeField + interval '1' day as day_added_with_null "
+                        + " EXTRACT(MONTH from nullableDateTimeField) as month_with_null "
                         + " from PCOLLECTION"));
 
     Schema outputRowSchema =
@@ -412,10 +398,40 @@ public class BeamComplexTypeTest {
             .addNullableField("year_with_null", FieldType.INT64)
             .addField("mm", FieldType.INT64)
             .addNullableField("month_with_null", FieldType.INT64)
-            .addField("time_with_hour_added", FieldType.logicalType(SqlTypes.TIME))
-            .addNullableField("hour_added_with_null", FieldType.logicalType(SqlTypes.TIME))
-            .addField("time_with_seconds_added", FieldType.logicalType(SqlTypes.TIME))
-            .addNullableField("seconds_added_with_null", FieldType.logicalType(SqlTypes.TIME))
+            .build();
+
+    PAssert.that(outputRow)
+        .containsInAnyOrder(
+            Row.withSchema(outputRowSchema).addValues(2019L, null, 06L, null).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testNullSqlLogicalTypeDateFields() {
+    Schema dateTimeFieldSchema =
+        Schema.builder()
+            .addField("dateTypeField", FieldType.logicalType(SqlTypes.DATE))
+            .addNullableField("nullableDateTypeField", FieldType.logicalType(SqlTypes.DATE))
+            .build();
+
+    Row dateRow =
+        Row.withSchema(dateTimeFieldSchema).addValues(LocalDate.of(2019, 6, 27), null).build();
+
+    PCollection<Row> outputRow =
+        pipeline
+            .apply(Create.of(dateRow))
+            .setRowSchema(dateTimeFieldSchema)
+            .apply(
+                SqlTransform.query(
+                    "select EXTRACT(DAY from dateTypeField) as dd, "
+                        + " EXTRACT(DAY from nullableDateTypeField) as day_with_null, "
+                        + " dateTypeField + interval '1' day as date_with_day_added, "
+                        + " nullableDateTypeField + interval '1' day as day_added_with_null "
+                        + " from PCOLLECTION"));
+
+    Schema outputRowSchema =
+        Schema.builder()
             .addField("dd", FieldType.INT64)
             .addNullableField("day_with_null", FieldType.INT64)
             .addField("date_with_day_added", FieldType.logicalType(SqlTypes.DATE))
@@ -425,19 +441,98 @@ public class BeamComplexTypeTest {
     PAssert.that(outputRow)
         .containsInAnyOrder(
             Row.withSchema(outputRowSchema)
+                .addValues(27L, null, LocalDate.of(2019, 6, 28), null)
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testNullSqlLogicalTypeTimeFields() {
+    Schema dateTimeFieldSchema =
+        Schema.builder()
+            .addField("timeTypeField", FieldType.logicalType(SqlTypes.TIME))
+            .addNullableField("nullableTimeTypeField", FieldType.logicalType(SqlTypes.TIME))
+            .build();
+
+    Row timeRow =
+        Row.withSchema(dateTimeFieldSchema).addValues(LocalTime.of(1, 0, 0), null).build();
+
+    PCollection<Row> outputRow =
+        pipeline
+            .apply(Create.of(timeRow))
+            .setRowSchema(dateTimeFieldSchema)
+            .apply(
+                SqlTransform.query(
+                    "select timeTypeField + interval '1' hour as time_with_hour_added, "
+                        + " nullableTimeTypeField + interval '1' hour as hour_added_with_null, "
+                        + " timeTypeField - INTERVAL '60' SECOND as time_with_seconds_added, "
+                        + " nullableTimeTypeField - INTERVAL '60' SECOND as seconds_added_with_null "
+                        + " from PCOLLECTION"));
+
+    Schema outputRowSchema =
+        Schema.builder()
+            .addField("time_with_hour_added", FieldType.logicalType(SqlTypes.TIME))
+            .addNullableField("hour_added_with_null", FieldType.logicalType(SqlTypes.TIME))
+            .addField("time_with_seconds_added", FieldType.logicalType(SqlTypes.TIME))
+            .addNullableField("seconds_added_with_null", FieldType.logicalType(SqlTypes.TIME))
+            .build();
+
+    PAssert.that(outputRow)
+        .containsInAnyOrder(
+            Row.withSchema(outputRowSchema)
+                .addValues(LocalTime.of(2, 0, 0), null, LocalTime.of(0, 59, 0), null)
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
+  @Test
+  public void testSqlLogicalTypeDatetimeFields() {
+    Schema dateTimeFieldSchema =
+        Schema.builder()
+            .addField("dateTimeField", FieldType.logicalType(SqlTypes.DATETIME))
+            .build();
+
+    Row dateTimeRow =
+        Row.withSchema(dateTimeFieldSchema)
+            .addValues(LocalDateTime.of(2008, 12, 25, 15, 30, 0))
+            .build();
+
+    PCollection<Row> outputRow =
+        pipeline
+            .apply(Create.of(dateTimeRow))
+            .setRowSchema(dateTimeFieldSchema)
+            .apply(
+                SqlTransform.query(
+                    "select EXTRACT(YEAR from dateTimeField) as yyyy, "
+                        + " EXTRACT(MONTH from dateTimeField) as mm, "
+                        + " dateTimeField + interval '1' hour as time_with_hour_added, "
+                        + " dateTimeField - INTERVAL '60' SECOND as time_with_seconds_added, "
+                        + " EXTRACT(DAY from dateTimeField) as dd, "
+                        + " dateTimeField + interval '1' day as date_with_day_added "
+                        + " from PCOLLECTION"));
+
+    Schema outputRowSchema =
+        Schema.builder()
+            .addField("yyyy", FieldType.INT64)
+            .addField("mm", FieldType.INT64)
+            .addField("time_with_hour_added", FieldType.logicalType(SqlTypes.DATETIME))
+            .addField("time_with_seconds_added", FieldType.logicalType(SqlTypes.DATETIME))
+            .addField("dd", FieldType.INT64)
+            .addField("date_with_day_added", FieldType.logicalType(SqlTypes.DATETIME))
+            .build();
+
+    PAssert.that(outputRow)
+        .containsInAnyOrder(
+            Row.withSchema(outputRowSchema)
                 .addValues(
-                    2019L,
-                    null,
-                    06L,
-                    null,
-                    LocalTime.of(2, 0, 0),
-                    null,
-                    LocalTime.of(0, 59, 0),
-                    null,
-                    27L,
-                    null,
-                    LocalDate.of(2019, 6, 28),
-                    null)
+                    2008L,
+                    12L,
+                    LocalDateTime.of(2008, 12, 25, 16, 30, 0),
+                    LocalDateTime.of(2008, 12, 25, 15, 29, 0),
+                    25L,
+                    LocalDateTime.of(2008, 12, 26, 15, 30, 0))
                 .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
