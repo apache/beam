@@ -77,7 +77,7 @@ public class DateTime implements Schema.LogicalType<LocalDateTime, Row> {
     return base == null
         ? null
         : LocalDateTime.of(
-            LocalDate.ofEpochDay(base.getValue(DATE_FIELD_NAME)),
-            LocalTime.ofNanoOfDay(base.getValue(TIME_FIELD_NAME)));
+            LocalDate.ofEpochDay(base.getInt64(DATE_FIELD_NAME)),
+            LocalTime.ofNanoOfDay(base.getInt64(TIME_FIELD_NAME)));
   }
 }

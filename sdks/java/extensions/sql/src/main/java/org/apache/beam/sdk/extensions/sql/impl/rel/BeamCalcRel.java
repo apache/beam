@@ -29,13 +29,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.AbstractList;
-import java.util.AbstractMap;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -346,7 +340,8 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         valueDateTime = Expressions.unbox(valueDateTime);
       }
       valueDateTime = Expressions.call(LocalDate.class, "ofEpochDay", valueDateTime);
-    } else if (CalciteUtils.TIMESTAMP_WITH_LOCAL_TZ.typesEqual(toType)) {
+    } else if (CalciteUtils.TIMESTAMP_WITH_LOCAL_TZ.typesEqual(toType)
+        || CalciteUtils.NULLABLE_TIMESTAMP_WITH_LOCAL_TZ.typesEqual(toType)) {
       // Convert TimeStamp_With_Local_TimeZone to LocalDateTime
       Expression dateValue =
           Expressions.divide(valueDateTime, Expressions.constant(MILLIS_PER_DAY));
@@ -457,18 +452,14 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           return value;
         } else if (SqlTypes.DATETIME.getIdentifier().equals(logicalId)) {
           Expression dateValue =
-              Expressions.call(value, "getValue", Expressions.constant(DateTime.DATE_FIELD_NAME));
+              Expressions.call(value, "getInt64", Expressions.constant(DateTime.DATE_FIELD_NAME));
           Expression timeValue =
-              Expressions.call(value, "getValue", Expressions.constant(DateTime.TIME_FIELD_NAME));
+              Expressions.call(value, "getInt64", Expressions.constant(DateTime.TIME_FIELD_NAME));
           Expression returnValue =
               Expressions.add(
-                  Expressions.multiply(
-                      Types.castIfNecessary(long.class, dateValue),
-                      Expressions.constant(MILLIS_PER_DAY)),
-                  Expressions.divide(
-                      Types.castIfNecessary(long.class, timeValue),
-                      Expressions.constant(NANOS_PER_MILLISECOND)));
-          return returnValue;
+                  Expressions.multiply(dateValue, Expressions.constant(MILLIS_PER_DAY)),
+                  Expressions.divide(timeValue, Expressions.constant(NANOS_PER_MILLISECOND)));
+          return nullOr(value, returnValue);
         } else if (!CharType.IDENTIFIER.equals(logicalId)) {
           throw new UnsupportedOperationException(
               "Unknown LogicalType " + type.getLogicalType().getIdentifier());
@@ -590,6 +581,8 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           || name.equals(DataContext.Variable.CURRENT_TIMESTAMP.camelName)
           || name.equals(DataContext.Variable.LOCAL_TIMESTAMP.camelName)) {
         return System.currentTimeMillis();
+      } else if (name.equals(Variable.TIME_ZONE.camelName)) {
+        return TimeZone.getDefault();
       }
       return null;
     }

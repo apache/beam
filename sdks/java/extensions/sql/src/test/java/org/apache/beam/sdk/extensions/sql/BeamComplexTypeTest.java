@@ -492,11 +492,12 @@ public class BeamComplexTypeTest {
     Schema dateTimeFieldSchema =
         Schema.builder()
             .addField("dateTimeField", FieldType.logicalType(SqlTypes.DATETIME))
+            .addNullableField("nullableDateTimeField", FieldType.logicalType(SqlTypes.DATETIME))
             .build();
 
     Row dateTimeRow =
         Row.withSchema(dateTimeFieldSchema)
-            .addValues(LocalDateTime.of(2008, 12, 25, 15, 30, 0))
+            .addValues(LocalDateTime.of(2008, 12, 25, 15, 30, 0), null)
             .build();
 
     PCollection<Row> outputRow =
@@ -506,21 +507,33 @@ public class BeamComplexTypeTest {
             .apply(
                 SqlTransform.query(
                     "select EXTRACT(YEAR from dateTimeField) as yyyy, "
+                        + " EXTRACT(YEAR from nullableDateTimeField) as year_with_null, "
                         + " EXTRACT(MONTH from dateTimeField) as mm, "
+                        + " EXTRACT(MONTH from nullableDateTimeField) as month_with_null, "
                         + " dateTimeField + interval '1' hour as time_with_hour_added, "
+                        + " nullableDateTimeField + interval '1' hour as hour_added_with_null, "
                         + " dateTimeField - INTERVAL '60' SECOND as time_with_seconds_added, "
+                        + " nullableDateTimeField - INTERVAL '60' SECOND as seconds_added_with_null, "
                         + " EXTRACT(DAY from dateTimeField) as dd, "
-                        + " dateTimeField + interval '1' day as date_with_day_added "
+                        + " EXTRACT(DAY from nullableDateTimeField) as day_with_null, "
+                        + " dateTimeField + interval '1' day as date_with_day_added, "
+                        + " nullableDateTimeField + interval '1' day as day_added_with_null "
                         + " from PCOLLECTION"));
 
     Schema outputRowSchema =
         Schema.builder()
             .addField("yyyy", FieldType.INT64)
+            .addNullableField("year_with_null", FieldType.INT64)
             .addField("mm", FieldType.INT64)
+            .addNullableField("month_with_null", FieldType.INT64)
             .addField("time_with_hour_added", FieldType.logicalType(SqlTypes.DATETIME))
+            .addNullableField("hour_added_with_null", FieldType.logicalType(SqlTypes.DATETIME))
             .addField("time_with_seconds_added", FieldType.logicalType(SqlTypes.DATETIME))
+            .addNullableField("seconds_added_with_null", FieldType.logicalType(SqlTypes.DATETIME))
             .addField("dd", FieldType.INT64)
+            .addNullableField("day_with_null", FieldType.INT64)
             .addField("date_with_day_added", FieldType.logicalType(SqlTypes.DATETIME))
+            .addNullableField("day_added_with_null", FieldType.logicalType(SqlTypes.DATETIME))
             .build();
 
     PAssert.that(outputRow)
@@ -528,11 +541,17 @@ public class BeamComplexTypeTest {
             Row.withSchema(outputRowSchema)
                 .addValues(
                     2008L,
+                    null,
                     12L,
+                    null,
                     LocalDateTime.of(2008, 12, 25, 16, 30, 0),
+                    null,
                     LocalDateTime.of(2008, 12, 25, 15, 29, 0),
+                    null,
                     25L,
-                    LocalDateTime.of(2008, 12, 26, 15, 30, 0))
+                    null,
+                    LocalDateTime.of(2008, 12, 26, 15, 30, 0),
+                    null)
                 .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
