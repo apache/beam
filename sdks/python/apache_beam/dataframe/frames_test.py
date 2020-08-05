@@ -16,6 +16,7 @@
 
 from __future__ import absolute_import
 
+import sys
 import unittest
 
 import numpy as np
@@ -81,13 +82,14 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.loc[lambda df: df.A > 10], df)
 
   def test_series_agg(self):
-    s = pd.Series(range(16))
+    s = pd.Series(list(range(16)))
     self._run_test(lambda s: s.agg('sum'), s)
     self._run_test(lambda s: s.agg(['sum']), s)
     self._run_test(lambda s: s.agg(['sum', 'mean']), s)
     self._run_test(lambda s: s.agg(['mean']), s)
     self._run_test(lambda s: s.agg('mean'), s)
 
+  @unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
   def test_dataframe_agg(self):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.agg('sum'), df)
