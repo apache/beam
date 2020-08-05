@@ -138,6 +138,10 @@ public class TestUtils {
     return (SnowflakeIO.UserDataMapper<String[]>) recordLine -> recordLine;
   }
 
+  public static SnowflakeIO.UserDataMapper<String> getStringCsvMapper() {
+    return (SnowflakeIO.UserDataMapper<String>) recordLine -> new String[] {recordLine};
+  }
+
   public static class ParseToKv extends DoFn<Long, KV<String, Long>> {
     @ProcessElement
     public void processElement(ProcessContext c) {
