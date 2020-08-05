@@ -55,13 +55,13 @@ def create_dicom_store(project_id, dataset_id, region, dicom_store_id):
       HEALTHCARE_BASE_URL, project_id, region)
 
   # base of dicomweb path.
-  dicomweb_path = "{}/datasets/{}/dicomStores".format(
-      api_endpoint, dataset_id)
+  dicomweb_path = "{}/datasets/{}/dicomStores".format(api_endpoint, dataset_id)
 
   response = session.post(
       dicomweb_path, params={"dicomStoreId": dicom_store_id})
   response.raise_for_status()
   return response.status_code
+
 
 def delete_dicom_store(project_id, dataset_id, region, dicom_store_id):
   # Delete an existing DICOM store
@@ -88,8 +88,7 @@ class DICOMIoIntegrationTest(unittest.TestCase):
 
     # create a temp Dicom store based on the time stamp
     self.temp_dicom_store = "DICOM_store_" + str(time.time())
-    create_dicom_store(
-        self.project, DATA_SET_ID, REGION, self.temp_dicom_store)
+    create_dicom_store(self.project, DATA_SET_ID, REGION, self.temp_dicom_store)
     client = storage.Client()
     bucket = client.get_bucket('temp-storage-for-dicom-io-tests')
     blob = bucket.blob('meta_data_json/Dicom_io_it_test_data.json')
@@ -98,8 +97,7 @@ class DICOMIoIntegrationTest(unittest.TestCase):
 
   def tearDown(self):
     # clean up the temp Dicom store
-    delete_dicom_store(
-        self.project, DATA_SET_ID, REGION, self.temp_dicom_store)
+    delete_dicom_store(self.project, DATA_SET_ID, REGION, self.temp_dicom_store)
 
   @attr('IT')
   def test_dicom_search(self):
