@@ -48,6 +48,7 @@ import apache_beam as beam
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
+from apache_beam.typehints import Any
 
 
 class BaseRunTimeTypeCheckTest(LoadTest):
@@ -68,13 +69,13 @@ class BaseRunTimeTypeCheckTest(LoadTest):
     def process(self, element, *args, **kwargs):
       yield element
 
-  @beam.typehints.with_input_types(Tuple[int, str, any, Iterable[int]])
+  @beam.typehints.with_input_types(Tuple[int, str, Any, Iterable[int]])
   class NestedInput(beam.DoFn):
     def process(self, element, *args, **kwargs):
       yield element
 
   @beam.typehints.with_output_types(
-      Iterable[Tuple[int, str, any, Iterable[int]]])
+      Iterable[Tuple[int, str, Any, Iterable[int]]])
   class NestedOutput(beam.DoFn):
     def process(self, element, *args, **kwargs):
       yield 1, 'a', element, [0]
