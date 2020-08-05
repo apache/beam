@@ -49,15 +49,16 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/python/aggregation/cogroupbykey">CoGroupByKey</a></td><td>Takes several keyed collections of elements and produces a collection where each element consists of a key and all values associated with that key.</td></tr>  
   <tr><td><a href="/documentation/transforms/python/aggregation/combineglobally">CombineGlobally</a></td><td>Transforms to combine elements.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/combineperkey">CombinePerKey</a></td><td>Transforms to combine elements for each key.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/combinevalues">CombineValues</a></td><td>Transforms to combine keyed iterables.</td></tr>
   <tr><td>CombineWithContext</td><td>Not available.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/count">Count</a></td><td>Counts the number of elements within each aggregation.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/distinct">Distinct</a></td><td>Produces a collection containing distinct elements from the input collection.</td></tr>  
   <tr><td><a href="/documentation/transforms/python/aggregation/groupbykey">GroupByKey</a></td><td>Takes a keyed collection of elements and produces a collection where each element consists of a key and all values associated with that key.</td></tr>
-  <tr><td>GroupIntoBatches</td><td>Not available. See <a href="https://issues.apache.org/jira/browse/BEAM-6696">BEAM-6696</a> for updates.</td></tr>
-  <tr><td>Latest</td><td>Not available. See <a href="https://issues.apache.org/jira/browse/BEAM-6695">BEAM-6695</a> for updates.</td></tr>
-  <tr><td>Max</td><td>Not available.</td></tr>  
+  <tr><td><a href="/documentation/transforms/python/aggregation/groupintobatches">GroupIntoBatches</a></td><td>Batches the input into desired batch size.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/latest">Latest</a></td><td>Gets the element with the latest timestamp.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/max">Max</a></td><td>Gets the element with the maximum value within each aggregation.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/mean">Mean</a></td><td>Computes the average within each aggregation.</td></tr>
-  <tr><td>Min</td><td>Not available.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/min">Min</a></td><td>Gets the element with the minimum value within each aggregation.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/sample">Sample</a></td><td>Randomly select some number of elements from each aggregation.</td></tr>
   <tr><td>Sum</td><td>Not available.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/top">Top</a></td><td>Compute the largest element(s) in each aggregation.</td></tr>

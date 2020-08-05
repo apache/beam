@@ -22,6 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
@@ -142,6 +143,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * Return {@code true} if the job succeeded or {@code false} if it terminated in any other manner.
    */
   @SuppressWarnings("FutureReturnValueIgnored") // Job status checked via job.waitUntilFinish
+  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
   private boolean waitForStreamingJobTermination(
       final DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
     // In streaming, there are infinite retries, so rather than timeout

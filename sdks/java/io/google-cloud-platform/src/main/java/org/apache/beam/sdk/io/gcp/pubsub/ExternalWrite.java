@@ -42,7 +42,7 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
   public static final String URN = "beam:external:java:pubsub:write:v1";
 
   @Override
-  public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+  public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
     return ImmutableMap.of(URN, WriteBuilder.class);
   }
 

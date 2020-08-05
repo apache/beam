@@ -143,7 +143,7 @@ categories:
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.aws.s3.S3FileSystemRegistrar
-            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hdfs/package-summary.html
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/s3/S3FileSystemRegistrar.html
       - transform: In-memory
         description: "`FileSystem` implementation in memory; useful for testing."
         implementations:
@@ -303,6 +303,12 @@ categories:
           - language: py
             name: apache_beam.io.gcp.datastore.v1new.datastoreio
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.datastore.v1new.datastoreio.html
+      - transform: SnowflakeIO
+        description: Experimental Transforms for reading from and writing to [Snowflake](https://www.snowflake.com/).
+        implementations:
+          - language: java
+            name: org.apache.beam.sdk.io.snowflake.SnowflakeIO
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/snowflake/SnowflakeIO.html
       - transform: SpannerIO
         description: Experimental Transforms for reading from and writing to [Google Cloud Spanner](https://cloud.google.com/spanner).
         implementations:

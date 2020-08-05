@@ -1273,7 +1273,7 @@ public class Schema implements Serializable {
   public int indexOf(String fieldName) {
     Integer index = fieldIndices.get(fieldName);
     Preconditions.checkArgument(
-        index != null, String.format("Cannot find field %s in schema %s", fieldName, this));
+        index != null, "Cannot find field %s in schema %s", fieldName, this);
     return index;
   }
 
@@ -1285,7 +1285,7 @@ public class Schema implements Serializable {
   /** Return the name of field by index. */
   public String nameOf(int fieldIndex) {
     String name = fieldIndices.inverse().get(fieldIndex);
-    Preconditions.checkArgument(name != null, String.format("Cannot find field %d", fieldIndex));
+    Preconditions.checkArgument(name != null, "Cannot find field %s", fieldIndex);
     return name;
   }
 

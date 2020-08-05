@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
@@ -35,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -112,10 +112,11 @@ class BigQueryQueryHelper {
 
     // Step 2: Create a temporary dataset in the query location only if the user has not specified a
     // temp dataset.
-    String jobIdToken = createJobIdToken(options.getJobName(), stepUuid);
+    String queryJobId =
+        BigQueryResourceNaming.createJobIdPrefix(options.getJobName(), stepUuid, JobType.QUERY);
     Optional<String> queryTempDatasetOpt = Optional.ofNullable(queryTempDatasetId);
     TableReference queryResultTable =
-        createTempTableReference(options.getProject(), jobIdToken, queryTempDatasetOpt);
+        createTempTableReference(options.getProject(), queryJobId, queryTempDatasetOpt);
 
     boolean beamToCreateTempDataset = !queryTempDatasetOpt.isPresent();
     // Create dataset only if it has not been set by the user
@@ -142,7 +143,6 @@ class BigQueryQueryHelper {
     // be retried after the temporary dataset and table have been deleted by a previous attempt --
     // in that case, we want to regenerate the temporary dataset and table, and we'll need a fresh
     // query ID to do that.
-    String queryJobId = jobIdToken + "-query-" + BigQueryHelpers.randomUUIDString();
     LOG.info(
         "Exporting query results into temporary table {} using job {}",
         queryResultTable,

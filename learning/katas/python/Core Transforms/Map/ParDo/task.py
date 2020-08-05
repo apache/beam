@@ -25,10 +25,9 @@ class MultiplyByTenDoFn(beam.DoFn):
         yield element * 10
 
 
-p = beam.Pipeline()
+with beam.Pipeline() as p:
 
-(p | beam.Create([1, 2, 3, 4, 5])
-   | beam.ParDo(MultiplyByTenDoFn())
-   | LogElements())
+  (p | beam.Create([1, 2, 3, 4, 5])
+     | beam.ParDo(MultiplyByTenDoFn())
+     | LogElements())
 
-p.run()

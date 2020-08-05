@@ -28,7 +28,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunct
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeUtils;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
@@ -317,7 +316,7 @@ public class TopPerKey<InputT, KeyT, ValueT, ScoreT extends Comparable<ScoreT>>
     }
 
     @Override
-    public PCollection<Triple<KeyT, ValueT, ScoreT>> output(OutputHint... outputHints) {
+    public PCollection<Triple<KeyT, ValueT, ScoreT>> output() {
       final TopPerKey<InputT, KeyT, ValueT, ScoreT> sbk =
           new TopPerKey<>(
               name,

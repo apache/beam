@@ -227,7 +227,7 @@ public class CassandraIOTest implements Serializable {
               CASSANDRA_KEYSPACE,
               CASSANDRA_TABLE));
     }
-    flushMemTables();
+    flushMemTablesAndRefreshSizeEstimates();
   }
 
   /**
@@ -241,7 +241,7 @@ public class CassandraIOTest implements Serializable {
    * /src/java/org/apache/cassandra/tools/nodetool/Flush.java
    */
   @SuppressWarnings("unused")
-  private static void flushMemTables() throws Exception {
+  private static void flushMemTablesAndRefreshSizeEstimates() throws Exception {
     JMXServiceURL url =
         new JMXServiceURL(
             String.format(
@@ -253,6 +253,7 @@ public class CassandraIOTest implements Serializable {
     StorageServiceMBean mBeanProxy =
         JMX.newMBeanProxy(mBeanServerConnection, objectName, StorageServiceMBean.class);
     mBeanProxy.forceKeyspaceFlush(CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
+    mBeanProxy.refreshSizeEstimates();
     jmxConnector.close();
     Thread.sleep(FLUSH_TIMEOUT);
   }
@@ -378,7 +379,8 @@ public class CassandraIOTest implements Serializable {
                 .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withEntity(ScientistWrite.class));
-    // table to write to is specified in the entity in @Table annotation (in that case scientist)
+    // table to write to is specified in the entity in @Table annotation (in that case
+    // scientist_write)
     pipeline.run();
 
     List<Row> results = getRows(CASSANDRA_TABLE_WRITE);

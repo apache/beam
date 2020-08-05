@@ -84,8 +84,11 @@ class BeamModulePlugin implements Plugin<Project> {
     /** Controls whether the spotbugs plugin is enabled and configured. */
     boolean enableSpotbugs = true
 
-    /** Conatrols whether the checker framework plugin is enabled and configured. */
+    /** Controls whether the checker framework plugin is enabled and configured. */
     boolean enableChecker = true
+
+    /** Controls whether legacy rawtype usage is allowed. */
+    boolean ignoreRawtypeErrors = false
 
     /** Controls whether the dependency analysis plugin is enabled. */
     boolean enableStrictDependencies = false
@@ -412,6 +415,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
     def spark_version = "2.4.6"
+    def spotbugs_version = "4.0.6"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -443,6 +447,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_auth                          : "software.amazon.awssdk:auth:$aws_java_sdk2_version",
         aws_java_sdk2_cloudwatch                    : "software.amazon.awssdk:cloudwatch:$aws_java_sdk2_version",
         aws_java_sdk2_dynamodb                      : "software.amazon.awssdk:dynamodb:$aws_java_sdk2_version",
+        aws_java_sdk2_kinesis                       : "software.amazon.awssdk:kinesis:$aws_java_sdk2_version",
         aws_java_sdk2_sdk_core                      : "software.amazon.awssdk:sdk-core:$aws_java_sdk2_version",
         aws_java_sdk2_sns                           : "software.amazon.awssdk:sns:$aws_java_sdk2_version",
         aws_java_sdk2_sqs                           : "software.amazon.awssdk:sqs:$aws_java_sdk2_version",
@@ -695,12 +700,15 @@ class BeamModulePlugin implements Plugin<Project> {
         'deprecation',
         'fallthrough',
         'processing',
-        'rawtypes',
         'serial',
         'try',
         'unchecked',
         'varargs',
       ]
+
+      if (configuration.ignoreRawtypeErrors) {
+        defaultLintSuppressions.add("rawtypes")
+      }
 
       project.tasks.withType(JavaCompile) {
         options.encoding = "UTF-8"
@@ -804,7 +812,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // sdks/java/core's FieldValueTypeInformation needs javax.annotations.Nullable at runtime.
         // Therefore, the java core module declares jsr305 dependency (BSD license) as "compile".
         // https://github.com/findbugsproject/findbugs/blob/master/findbugs/licenses/LICENSE-jsr305.txt
-        "com.github.spotbugs:spotbugs-annotations:3.1.12",
+        "com.github.spotbugs:spotbugs-annotations:$spotbugs_version",
         "net.jcip:jcip-annotations:1.0",
         // This explicitly adds javax.annotation.Generated (SOURCE retention)
         // as a compile time dependency since Java 9+ no longer includes common
@@ -897,7 +905,7 @@ class BeamModulePlugin implements Plugin<Project> {
       if (configuration.enableSpotbugs) {
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
-          spotbugs "com.github.spotbugs:spotbugs:3.1.12"
+          spotbugs "com.github.spotbugs:spotbugs:$spotbugs_version"
           spotbugs "com.google.auto.value:auto-value:1.7"
           compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
         }
@@ -1878,6 +1886,7 @@ class BeamModulePlugin implements Plugin<Project> {
         executable 'sh'
         args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
         dependsOn config.startJobServer
+        dependsOn ':sdks:java:container:docker'
         dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         dependsOn ':sdks:java:extensions:sql:expansion-service:shadowJar'
         dependsOn ":sdks:python:installGcpTest"

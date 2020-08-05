@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.NotSerializableException;
 import java.io.ObjectOutputStream;
@@ -115,6 +116,9 @@ public class CombineFnUtil {
   private static class NonSerializableBoundedCombineFn<InputT, AccumT, OutputT>
       extends CombineFn<InputT, AccumT, OutputT> {
     private final CombineFnWithContext<InputT, AccumT, OutputT> combineFn;
+
+    // The class is not meant to be serializable, writeObject() just throws an exception.
+    @SuppressFBWarnings("SE_BAD_FIELD")
     private final Context context;
 
     private NonSerializableBoundedCombineFn(

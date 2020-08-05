@@ -290,6 +290,20 @@ __all__ = [
 ]
 
 _LOGGER = logging.getLogger(__name__)
+"""
+Template for BigQuery jobs created by BigQueryIO. This template is:
+`"beam_bq_job_{job_type}_{job_id}_{step_id}_{random}"`, where:
+
+- `job_type` represents the BigQuery job type (e.g. extract / copy / load /
+    query).
+- `job_id` is the Beam job name.
+- `step_id` is a UUID representing the the Dataflow step that created the
+    BQ job.
+- `random` is a random string.
+
+NOTE: This job name template does not have backwards compatibility guarantees.
+"""
+BQ_JOB_NAME_TEMPLATE = "beam_bq_job_{job_type}_{job_id}_{step_id}{random}"
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
@@ -1474,9 +1488,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
   def _compute_method(self, experiments, is_streaming_pipeline):
     # If the new BQ sink is not activated for experiment flags, then we use
     # streaming inserts by default (it gets overridden in dataflow_runner.py).
-    if 'use_beam_bq_sink' not in experiments:
-      return self.Method.STREAMING_INSERTS
-    elif self.method == self.Method.DEFAULT and is_streaming_pipeline:
+    if self.method == self.Method.DEFAULT and is_streaming_pipeline:
       return self.Method.STREAMING_INSERTS
     elif self.method == self.Method.DEFAULT and not is_streaming_pipeline:
       return self.Method.FILE_LOADS

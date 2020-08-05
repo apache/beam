@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
+import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOPushDownRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIntersectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinAssociateRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinPushThroughJoinRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamMatchRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamMinusRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputLookupJoinRule;
@@ -163,19 +165,20 @@ public class BeamRuleSets {
           BeamUnnestRule.INSTANCE,
           BeamSideInputJoinRule.INSTANCE,
           BeamCoGBKJoinRule.INSTANCE,
-          BeamSideInputLookupJoinRule.INSTANCE);
+          BeamSideInputLookupJoinRule.INSTANCE,
+          BeamMatchRule.INSTANCE);
 
   private static final List<RelOptRule> BEAM_TO_ENUMERABLE =
       ImmutableList.of(BeamEnumerableConverterRule.INSTANCE);
 
-  public static RuleSet[] getRuleSets() {
-    return new RuleSet[] {
-      RuleSets.ofList(
-          ImmutableList.<RelOptRule>builder()
-              .addAll(BEAM_CONVERTERS)
-              .addAll(BEAM_TO_ENUMERABLE)
-              .addAll(LOGICAL_OPTIMIZATIONS)
-              .build())
-    };
+  public static Collection<RuleSet> getRuleSets() {
+
+    return ImmutableList.of(
+        RuleSets.ofList(
+            ImmutableList.<RelOptRule>builder()
+                .addAll(BEAM_CONVERTERS)
+                .addAll(BEAM_TO_ENUMERABLE)
+                .addAll(LOGICAL_OPTIMIZATIONS)
+                .build()));
   }
 }

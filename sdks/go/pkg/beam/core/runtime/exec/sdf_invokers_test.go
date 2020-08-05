@@ -16,9 +16,10 @@
 package exec
 
 import (
+	"testing"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/google/go-cmp/cmp"
-	"testing"
 )
 
 // TestInvokes runs tests on each SDF method invoker, using the SDFs defined

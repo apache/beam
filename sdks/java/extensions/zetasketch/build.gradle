@@ -19,7 +19,9 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.zetasketch')
+applyJavaNature(
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.sdk.extensions.zetasketch')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: ZetaSketch"
 

@@ -27,6 +27,8 @@ import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
+import com.google.spanner.v1.CommitRequest;
+import com.google.spanner.v1.CommitResponse;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
@@ -105,7 +107,7 @@ class SpannerAccessor implements AutoCloseable {
     if (commitDeadline != null && commitDeadline.get().getMillis() > 0) {
 
       // Set the GRPC deadline on the Commit API call.
-      UnaryCallSettings.Builder commitSettings =
+      UnaryCallSettings.Builder<CommitRequest, CommitResponse> commitSettings =
           builder.getSpannerStubSettingsBuilder().commitSettings();
       RetrySettings.Builder commitRetrySettings = commitSettings.getRetrySettings().toBuilder();
       commitSettings.setRetrySettings(

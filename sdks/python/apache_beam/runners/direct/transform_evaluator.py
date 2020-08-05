@@ -221,7 +221,10 @@ class _TestStreamRootBundleProvider(RootBundleProvider):
     # TestStreamService.
     if test_stream.endpoint:
       _TestStreamEvaluator.event_stream = _TestStream.events_from_rpc(
-          test_stream.endpoint, test_stream.output_tags, test_stream.coder)
+          test_stream.endpoint,
+          test_stream.output_tags,
+          test_stream.coder,
+          self._evaluation_context)
     else:
       _TestStreamEvaluator.event_stream = (
           _TestStream.events_from_script(test_stream._events))
