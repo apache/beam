@@ -196,7 +196,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
           project(":sdks:java:core").sourceSets.test.output.classesDirs,
           project(":runners:core-java").sourceSets.test.output.classesDirs,
   )
-  testClassesDirs += files(project.sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project.sourceSets.test.output.classesDirs) 
 
   // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
