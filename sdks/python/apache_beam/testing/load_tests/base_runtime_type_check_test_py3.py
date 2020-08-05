@@ -69,13 +69,13 @@ class BaseRunTimeTypeCheckTest(LoadTest):
     def process(self, element, *args, **kwargs):
       yield element
 
-  @beam.typehints.with_input_types(Tuple[int, str, Any, Iterable[int]])
+  @beam.typehints.with_input_types(Tuple[int, str, Tuple[Any], Iterable[int]])
   class NestedInput(beam.DoFn):
     def process(self, element, *args, **kwargs):
       yield element
 
   @beam.typehints.with_output_types(
-      Iterable[Tuple[int, str, Any, Iterable[int]]])
+      Iterable[Tuple[int, str, Tuple[Any], Iterable[int]]])
   class NestedOutput(beam.DoFn):
     def process(self, element, *args, **kwargs):
       yield 1, 'a', element, [0]
