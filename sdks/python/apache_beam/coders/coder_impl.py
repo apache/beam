@@ -551,8 +551,7 @@ class MapCoderImpl(StreamCoderImpl):
     self._value_coder = value_coder
 
   def encode_to_stream(self, dict_value, out, nested):
-    size = len(dict_value)
-    out.write_bigendian_int32(size)
+    out.write_bigendian_int32(len(dict_value))
     for key, value in dict_value.items():
       # Note this implementation always uses nested context when encoding keys
       # and values which differs from Java. See note in docstring.
