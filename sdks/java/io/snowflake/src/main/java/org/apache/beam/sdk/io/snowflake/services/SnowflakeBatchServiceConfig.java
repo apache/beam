@@ -26,19 +26,19 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /** Class for preparing configuration for batch write and read. */
 public class SnowflakeBatchServiceConfig extends ServiceConfig {
-  private SerializableFunction<Void, DataSource> dataSourceProviderFn;
+  private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
 
-  private String database;
-  private String schema;
-  private String table;
-  private String query;
-  private String storageIntegrationName;
+  private final String database;
+  private final String schema;
+  private final String table;
+  private final String query;
+  private final String storageIntegrationName;
   private List<String> filesList;
   private WriteDisposition writeDisposition;
   private CreateDisposition createDisposition;
   private SnowflakeTableSchema tableSchema;
-  private String stagingBucketDir;
-  private String quotationMark;
+  private final String stagingBucketDir;
+  private final String quotationMark;
 
   /** Creating a batch configuration for reading. */
   public SnowflakeBatchServiceConfig(

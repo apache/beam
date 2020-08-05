@@ -22,9 +22,9 @@ import net.snowflake.ingest.SimpleIngestManager;
 
 /** Class for preparing configuration for streaming write. */
 public class SnowflakeStreamingServiceConfig extends ServiceConfig {
-  private SimpleIngestManager ingestManager;
-  private List<String> filesList;
-  private String stagingBucketDir;
+  private final SimpleIngestManager ingestManager;
+  private final List<String> filesList;
+  private final String stagingBucketDir;
 
   /**
    * Constructor to create configuration for streaming write.
