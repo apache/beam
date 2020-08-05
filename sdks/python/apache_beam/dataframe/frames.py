@@ -184,9 +184,11 @@ class DeferredDataFrame(frame_base.DeferredFrame):
             requires_partition_by=partitionings.Singleton()))
     else:
       if not isinstance(func, dict):
-        func = {col: func for col in self._expr.proxy().columns}
+        col_names = list(self._expr.proxy().columns)
+        func = {col: func for col in col_names}
+      else:
+        col_names = list(func.keys())
       aggregated_cols = []
-      col_names = list(func.keys())  # Reify the order.
       for col in col_names:
         funcs = func[col]
         if not isinstance(funcs, list):
