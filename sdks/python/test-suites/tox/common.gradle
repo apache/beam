@@ -32,7 +32,7 @@ test.dependsOn "testPy38CloudCoverage"
 
 project.task("preCommitPy${pythonVersionSuffix}") {
       if (pythonVersionSuffix.equals('38')) {
-          dependsOn = ["testPy${pythonVersionSuffix}CloudCoverage", "testPy${pythonVersionSuffix}Cython"]
+          dependsOn = ["testPy38CloudCoverage", "testPy38Cython"]
       } else {
           dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPy${pythonVersionSuffix}Cython"]
       }
