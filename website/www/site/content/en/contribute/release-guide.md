@@ -496,6 +496,11 @@ The verify_release_build.sh script may include failing or flaky tests. For each 
 
 * Description: Description of failure
 
+#### Inform the mailing list
+
+The dev@beam.apache.org mailing list should be informed about the release branch being cut. Alongside with this note,
+a list of pending issues and to-be-trigated issues should be included. Afterwards, this list can be refined and updated
+by the release manager and the Beam community.
 
 **********
 
