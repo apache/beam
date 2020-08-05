@@ -20,6 +20,9 @@ package org.apache.beam.sdk.io.parquet;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -38,6 +41,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,12 +49,9 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-
-
 /** Test on the {@link ParquetIO}. */
 @RunWith(JUnit4.class)
 public class ParquetIOTest implements Serializable {
-
   @Rule public transient TestPipeline mainPipeline = TestPipeline.create();
 
   @Rule public transient TestPipeline readPipeline = TestPipeline.create();
@@ -74,21 +75,43 @@ public class ParquetIOTest implements Serializable {
         "Einstein", "Darwin", "Copernicus", "Pasteur", "Curie",
         "Faraday", "Newton", "Bohr", "Galilei", "Maxwell"
       };
+
   @Test
   public void testBlockTracker() throws Exception {
-    OffsetRange range=new OffsetRange(0,1);
-    ParquetIO.ReadFiles.BlockTracker tracker=new ParquetIO.ReadFiles.BlockTracker(range,7,3);
-    assertTrue(Math.abs(tracker.getProgress().getWorkRemaining()-6)<0.01);
-    assertTrue(Math.abs(tracker.getProgress().getWorkCompleted())<0.01);
-    tracker.tryClaim((long)0);
+    OffsetRange range = new OffsetRange(0, 1);
+    ParquetIO.ReadFiles.BlockTracker tracker = new ParquetIO.ReadFiles.BlockTracker(range, 7, 3);
+    assertTrue(Math.abs(tracker.getProgress().getWorkRemaining() - 6) < 0.01);
+    assertTrue(Math.abs(tracker.getProgress().getWorkCompleted()) < 0.01);
+    tracker.tryClaim((long) 0);
     tracker.makeProgress();
-    assertTrue(Math.abs(tracker.getProgress().getWorkRemaining()-4)<0.01);
-    assertTrue(Math.abs(tracker.getProgress().getWorkCompleted()-2)<0.01);
+    assertTrue(Math.abs(tracker.getProgress().getWorkRemaining() - 4) < 0.01);
+    assertTrue(Math.abs(tracker.getProgress().getWorkCompleted() - 2) < 0.01);
+    assertThrows(RuntimeException.class, () -> tracker.tryClaim((long) 0));
     tracker.makeProgress();
     tracker.makeProgress();
-    assertTrue(Math.abs(tracker.getProgress().getWorkRemaining()-0)<0.01);
-    assertTrue(Math.abs(tracker.getProgress().getWorkCompleted()-6)<0.01);
-    assertThrows("Making progress out of range",IOException.class,()->tracker.makeProgress());
+    assertTrue(Math.abs(tracker.getProgress().getWorkRemaining() - 0) < 0.01);
+    assertTrue(Math.abs(tracker.getProgress().getWorkCompleted() - 6) < 0.01);
+    assertThrows("Making progress out of range", IOException.class, () -> tracker.makeProgress());
+  }
+
+  @Test
+  public void testSplitBlockWithLimit() {
+    ParquetIO.ReadFiles.SplitReadFn testFn = new ParquetIO.ReadFiles.SplitReadFn(null);
+    ArrayList<BlockMetaData> blockList = new ArrayList<BlockMetaData>();
+    ArrayList<OffsetRange> rangeList;
+    BlockMetaData testBlock = mock(BlockMetaData.class);
+    when(testBlock.getTotalByteSize()).thenReturn((long) 60);
+    rangeList = testFn.splitBlockWithLimit(0, blockList.size(), blockList, 200);
+    assertTrue(rangeList.isEmpty());
+    for (int i = 0; i < 6; i++) {
+      blockList.add(testBlock);
+    }
+    rangeList = testFn.splitBlockWithLimit(1, blockList.size(), blockList, 200);
+    assertTrue(rangeList.get(0).getFrom() == (long) 1);
+    assertTrue(rangeList.get(0).getTo() == (long) 5);
+    assertTrue(rangeList.get(1).getFrom() == (long) 5);
+    assertTrue(rangeList.get(1).getTo() == (long) 6);
+    assertTrue(rangeList.size() == 2);
   }
 
   @Test

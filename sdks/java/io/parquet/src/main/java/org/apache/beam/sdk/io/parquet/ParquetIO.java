@@ -30,6 +30,7 @@ import java.math.MathContext;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,7 +60,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.commons.math3.exception.OutOfRangeException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.HadoopReadOptions;
 import org.apache.parquet.ParquetReadOptions;
@@ -335,6 +335,13 @@ public class ParquetIO {
           RestrictionTracker<OffsetRange, Long> tracker,
           OutputReceiver<GenericRecord> outputReceiver)
           throws Exception {
+        LOG.info(
+            "processing"
+                + tracker.currentRestriction().getFrom()
+                + " to "
+                + tracker.currentRestriction().getTo()
+                + "with size"
+                + getSize(file, tracker.currentRestriction()));
         ReadSupport<GenericRecord> readSupport;
         InputFile inputFile = getInputFile(file);
         Configuration conf = setConf();
@@ -389,11 +396,6 @@ public class ParquetIO {
                 LOG.debug("skipping a corrupt record");
                 continue;
               }
-              if (recordReader.shouldSkipCurrentRecord()) {
-                // this record is being filtered via the filter2 package
-                LOG.debug("skipping record");
-                continue;
-              }
               if (record == null) {
                 // only happens with FilteredRecordReader at end of block
                 LOG.debug("filtered record reader reached end of block");
@@ -401,6 +403,11 @@ public class ParquetIO {
               }
               if (tracker instanceof BlockTracker) {
                 ((BlockTracker) tracker).makeProgress();
+              }
+              if (recordReader.shouldSkipCurrentRecord()) {
+                // this record is being filtered via the filter2 package
+                LOG.debug("skipping record");
+                continue;
               }
               outputReceiver.output(record);
             } catch (RuntimeException e) {
@@ -445,26 +452,37 @@ public class ParquetIO {
           OutputReceiver<OffsetRange> out,
           @Element FileIO.ReadableFile file)
           throws Exception {
-        long start = restriction.getFrom();
-        long end = restriction.getFrom();
         InputFile inputFile = getInputFile(file);
         Configuration conf = setConf();
         ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
         ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
         List<BlockMetaData> rowGroups = reader.getRowGroups();
+        for (OffsetRange offsetRange :
+            splitBlockWithLimit(
+                restriction.getFrom(), restriction.getTo(), rowGroups, SPLIT_LIMIT)) {
+          out.output(offsetRange);
+        }
+      }
+
+      public ArrayList<OffsetRange> splitBlockWithLimit(
+          long start, long end, List<BlockMetaData> blockList, long limit) {
+        ArrayList<OffsetRange> offsetList = new ArrayList<OffsetRange>();
         long totalSize = 0;
-        for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
-          totalSize += rowGroups.get((int) i).getTotalByteSize();
-          end += 1;
-          if (totalSize > SPLIT_LIMIT) {
-            start = end;
+        long rangeStart = start;
+        long rangeEnd = start;
+        for (long i = start; i < end; i++) {
+          totalSize += blockList.get((int) i).getTotalByteSize();
+          rangeEnd += 1;
+          if (totalSize >= limit) {
+            offsetList.add(new OffsetRange(rangeStart, rangeEnd));
+            rangeStart = rangeEnd;
             totalSize = 0;
-            out.output(new OffsetRange(start, end));
           }
         }
         if (totalSize != 0) {
-          out.output(new OffsetRange(start, end));
+          offsetList.add(new OffsetRange(rangeStart, rangeEnd));
         }
+        return offsetList;
       }
 
       @NewTracker
@@ -487,15 +505,15 @@ public class ParquetIO {
         Configuration conf = setConf();
         ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
         ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
-        if (restriction == null) {
-          return 0;
-        } else {
-          long recordCount = 0;
-          for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
-            recordCount += reader.getRowGroups().get((int) i).getRowCount();
-          }
-          return recordCount;
+        long start = 0;
+        long end = 0;
+        start = restriction.getFrom();
+        end = restriction.getTo();
+        long recordCount = 0;
+        for (long i = start; i < end; i++) {
+          recordCount += reader.getRowGroups().get((int) i).getRowCount();
         }
+        return recordCount;
       }
 
       public double getSize(@Element FileIO.ReadableFile file, @Restriction OffsetRange restriction)
@@ -504,20 +522,11 @@ public class ParquetIO {
         Configuration conf = setConf();
         ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
         ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
-        long start=0;
-        long end=0;
-        if (restriction == null) {
-          end=reader.getRowGroups().size();
+        double size = 0;
+        for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
+          size += reader.getRowGroups().get((int) i).getTotalByteSize();
         }
-        else{
-          start=restriction.getFrom();
-          end=restriction.getTo();
-        }
-          double size = 0;
-          for (long i = start; i < end; i++) {
-            size += reader.getRowGroups().get((int) i).getTotalByteSize();
-          }
-          return size;
+        return size;
       }
     }
 
@@ -528,14 +537,16 @@ public class ParquetIO {
 
       public BlockTracker(OffsetRange range, long work, long recordCount) {
         super(range);
-        this.approximateRecordSize = work / recordCount;
-        this.totalWork = approximateRecordSize * recordCount;
-        this.progress = 0;
+        if (recordCount != 0) {
+          this.approximateRecordSize = work / recordCount;
+          this.totalWork = approximateRecordSize * recordCount;
+          this.progress = 0;
+        }
       }
 
       public void makeProgress() throws Exception {
         progress += approximateRecordSize;
-        if(progress>totalWork){
+        if (progress > totalWork) {
           throw new IOException("Making progress out of range");
         }
       }
