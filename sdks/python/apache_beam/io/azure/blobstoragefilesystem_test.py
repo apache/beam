@@ -93,11 +93,11 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     blobstoragefilesystem.blobstorageio.BlobStorageIO = lambda: blobstorageio_mock
     blobstorageio_mock.list_prefix.return_value = {
         'azfs://storageaccount/container/file1': 1,
-        'azfs://storageaccount/container/file2': 2
+        'azfs://storageaccount/container/file2': 2,
     }
     expected_results = set([
         FileMetadata('azfs://storageaccount/container/file1', 1),
-        FileMetadata('azfs://storageaccount/container/file2', 2)
+        FileMetadata('azfs://storageaccount/container/file2', 2),
     ])
     match_result = self.fs.match(['azfs://storageaccount/container/'])[0]
 
@@ -200,11 +200,11 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     blobstoragefilesystem.blobstorageio.BlobStorageIO = lambda: blobstorageio_mock
     sources = [
         'azfs://storageaccount/container/from1',
-        'azfs://storageaccount/container/from2'
+        'azfs://storageaccount/container/from2',
     ]
     destinations = [
         'azfs://storageaccount/container/to1',
-        'azfs://storageaccount/container/to2'
+        'azfs://storageaccount/container/to2',
     ]
 
     # Issue file copy
@@ -221,11 +221,11 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     sources = [
         'azfs://storageaccount/container/from1',
         'azfs://storageaccount/container/from2',
-        'azfs://storageaccount/container/from3'
+        'azfs://storageaccount/container/from3',
     ]
     destinations = [
         'azfs://storageaccount/container/to1',
-        'azfs://storageaccount/container/to2'
+        'azfs://storageaccount/container/to2',
     ]
 
     # Issue file copy
