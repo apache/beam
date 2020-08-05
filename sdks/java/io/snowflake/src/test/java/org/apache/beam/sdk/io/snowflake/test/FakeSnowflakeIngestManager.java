@@ -15,10 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.snowflake.services;
+package org.apache.beam.sdk.io.snowflake.test;
 
-/**
- * Configuration abstract class for {@link SnowflakeService} that gives parameters for write and
- * read (batch and streaming).
- */
-public abstract class ServiceConfig {}
+import java.util.List;
+
+public class FakeSnowflakeIngestManager {
+  // Only for testing purposes
+  private String table = "TEST_TABLE";
+
+  public FakeSnowflakeIngestManager() {}
+
+  public void ingestFiles(List<String> rows) {
+    FakeSnowflakeDatabase.createTableWithElements(this.table, rows);
+  }
+
+  public String getTable() {
+    return this.table;
+  }
+}

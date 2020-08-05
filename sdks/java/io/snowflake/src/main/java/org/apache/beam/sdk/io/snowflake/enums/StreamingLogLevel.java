@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.snowflake.services;
+package org.apache.beam.sdk.io.snowflake.enums;
 
-/**
- * Configuration abstract class for {@link SnowflakeService} that gives parameters for write and
- * read (batch and streaming).
- */
-public abstract class ServiceConfig {}
+public enum StreamingLogLevel {
+  INFO,
+  ERROR
+}
