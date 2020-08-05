@@ -745,16 +745,6 @@ def pack_combiners(stages, context):
     else:
       raise ValueError
 
-  def _try_merge_environments(env1, env2):
-    if env1 is None:
-      return env2
-    elif env2 is None:
-      return env1
-    else:
-      if env1 != env2:
-        raise ValueError
-      return env1
-
   # Group stages by parent, yielding ineligible stages.
   combine_stages_by_input_pcoll_id = collections.defaultdict(list)
   for stage in stages:
@@ -774,14 +764,23 @@ def pack_combiners(stages, context):
       continue
 
     transforms = [only_transform(stage.transforms) for stage in packable_stages]
+    combine_payloads = [
+        proto_utils.parse_Bytes(transform.spec.payload,
+                                beam_runner_api_pb2.CombinePayload)
+        for transform in transforms
+    ]
 
     # Yield stages and continue if they cannot be packed.
     try:
       # Fused stage is used as template and is not yielded.
       fused_stage = functools.reduce(_try_fuse_stages, packable_stages)
       merged_transform_environment_id = functools.reduce(
-          _try_merge_environments,
+          Stage._merge_environments,
           [transform.environment_id or None for transform in transforms])
+      # Combiner packing only supports Python CombineFns.
+      for combine_payload in combine_payloads:
+        if combine_payload.combine_fn.urn != python_urns.PICKLED_COMBINE_FN:
+          raise ValueError('Combiner packing only supports Python CombineFns')
     except ValueError:
       for stage in packable_stages:
         yield stage
@@ -789,11 +788,6 @@ def pack_combiners(stages, context):
 
     output_pcoll_ids = [
         only_element(transform.outputs.values()) for transform in transforms
-    ]
-    combine_payloads = [
-        proto_utils.parse_Bytes(transform.spec.payload,
-                                beam_runner_api_pb2.CombinePayload)
-        for transform in transforms
     ]
 
     # Build accumulator coder for (acc1, acc2, ...)
