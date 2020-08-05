@@ -258,8 +258,10 @@ All Runners which publish data should be checked for the following, in both *bat
 - [IO](http://metrics.beam.apache.org/d/bnlHKP3Wz/java-io-it-tests-dataflow): Runtime
 
 If regressions are found, the release branch can still be created, but the regressions should be investigated and fixed as part of the release process.
-JIRA issues should be created for each regression with the 'Fix Version' set to the to-be-released version.
-Next, the mailing list should be informed to allow fixing the regressions in the course of the release.
+The role of the release manager is to file JIRA issues for each regression with the 'Fix Version' set to the to-be-released version. The release manager
+oversees these just like any other JIRA issue marked with the 'Fix Version' of the release. 
+
+The mailing list should be informed to allow fixing the regressions in the course of the release.
 
 ## 4. Create a release branch in apache/beam repository
 
