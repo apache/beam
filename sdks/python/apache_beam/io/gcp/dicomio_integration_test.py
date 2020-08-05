@@ -22,9 +22,9 @@ Integration test for Google Cloud DICOM IO connector.
 
 from __future__ import absolute_import
 
+import json
 import time
 import unittest
-import json
 
 from google.auth import default
 from google.auth.transport import requests
