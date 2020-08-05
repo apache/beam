@@ -42,25 +42,24 @@ type ExternalTransform struct {
 }
 
 // CrossLanguage is the temporary API to execute external transforms
-// TODO(pskevin): Handle errors using the TryN and Must strategies instead one function handling multiple points of failure
 func CrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) []PCollection {
+	return MustN(TryCrossLanguage(s, p, e))
+}
+
+func TryCrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) ([]PCollection, error) {
 	if e.ExpansionAddr == "" { // TODO(pskevin): Better way to check if the value was ever set
 		// return Legacy External API
 	}
 
-	/*
-		Add ExternalTranform to the Graph
-	*/
+	// Add ExternalTransform to the Graph
+
 	// Validating scope and inputs
 	if !s.IsValid() {
-		// return nil, errors.New("invalid scope")
-		fmt.Println("invalid scope")
+		return nil, errors.New("invalid scope")
 	}
 	for i, col := range e.In {
 		if !col.IsValid() {
-			// return nil, errors.Errorf("invalid pcollection to external: index %v", i)
-			fmt.Printf("\ninvalid pcollection to external: index %v", i)
-
+			return nil, errors.Errorf("invalid pcollection to external: index %v", i)
 		}
 	}
 
@@ -82,13 +81,12 @@ func CrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) []PCollection {
 	}
 	p.ExpandedTransforms[fmt.Sprintf("e%v", edge.ID())] = e
 
-	/*
-		Build the ExpansionRequest
-	*/
+	// Build the ExpansionRequest
+
 	// Obtaining the components and transform proto representing this transform
 	pipeline, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{})
 	if err != nil {
-		panic(err)
+		return nil, errors.Wrapf(err, "unable to generate proto representation of %v", e)
 	}
 
 	// Adding fake impulses to each input as required for correct expansion
@@ -117,13 +115,12 @@ func CrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) []PCollection {
 		Namespace:  s.String(),
 	}
 
-	/*
-		Querying Expansion Service
-	*/
+	// Querying Expansion Service
+
 	// Setting grpc client
 	conn, err := grpc.Dial(e.ExpansionAddr, grpc.WithInsecure())
 	if err != nil {
-		panic(err)
+		return nil, errors.Wrapf(err, "unable to connect to expansion service at %v", e.ExpansionAddr)
 	}
 	defer conn.Close()
 	client := jobpb.NewExpansionServiceClient(conn)
@@ -131,23 +128,19 @@ func CrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) []PCollection {
 	// Handling ExpansionResponse
 	res, err := client.Expand(context.Background(), req)
 	if err != nil {
-		panic(err)
+		return nil, errors.Wrapf(err, "expansion failed")
 	}
 	e.Components = res.GetComponents()
 	e.ExpandedTransform = res.GetTransform()
 	e.Requirements = res.GetRequirements()
 
-	/*
-		Associating output PCollections of the expanded transform with correct internal outbound links and nodes
-	*/
+	// Associating output PCollections of the expanded transform with correct internal outbound links and nodes
+
 	// No information about the output types and bounded nature has been explicitly passed by the user
 	if len(e.Out) == 0 || cap(e.Out) == 0 {
 		// Infer output types from ExpansionResponse and update e.Out
-		if e.Out == nil {
-			// Use reverse schema encoding
-		} else {
-			// Use the coders list and map from coder id to internal FullType?
-		}
+
+		// TODO(lostluck): infer output types using reverse schema encoding
 	}
 
 	// Using information about the output types and bounded nature inferred or explicitly passed by the user
@@ -158,7 +151,7 @@ func CrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) []PCollection {
 		c.SetCoder(NewCoder(c.Type()))
 		ret = append(ret, c)
 	}
-	return ret
+	return ret, nil
 }
 
 // External defines a Beam external transform. The interpretation of this primitive is runner

@@ -1,3 +1,19 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// xlang_wordcount exemplifies using a cross language transform from Python to count words
 package main
 
 import (
@@ -48,7 +64,6 @@ func extractFn(ctx context.Context, line string, emit func(string)) {
 
 // formatFn is a DoFn that formats a word and its count as a string.
 func formatFn(w string, c int64) string {
-	fmt.Println(w, c)
 	return fmt.Sprintf("%s: %v", w, c)
 }
 
@@ -58,23 +73,17 @@ func init() {
 }
 
 func main() {
-	// If beamx or Go flags are used, flags must be parsed first.
 	flag.Parse()
-	// beam.Init() is an initialization hook that must be called on startup. On
-	// distributed runners, it is used to intercept control.
 	beam.Init()
 
-	// Input validation is done as usual. Note that it must be after Init().
 	if *output == "" {
 		log.Fatal("No output provided")
 	}
 
-	// Concepts #3 and #4: The pipeline uses the named transform and DoFn.
 	p := beam.NewPipeline()
 	s := p.Root()
 
 	lines := textio.Read(s, *input)
-	// Convert lines of text into individual words.
 	col := beam.ParDo(s, extractFn, lines)
 
 	// Using Cross-language Count from Python's test expansion service
@@ -92,8 +101,6 @@ func main() {
 	formatted := beam.ParDo(s, formatFn, counted[0])
 	textio.Write(s, *output, formatted)
 
-	// Concept #1: The beamx.Run convenience wrapper allows a number of
-	// pre-defined runners to be used via the --runner flag.
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
