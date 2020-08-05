@@ -30,6 +30,7 @@ import future.tests.base  # pylint: disable=unused-import
 import mock
 
 from apache_beam.io.filesystem import BeamIOError
+from apache_beam.io.azure import blobstorageio
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.options.pipeline_options import PipelineOptions
 
@@ -246,6 +247,36 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     # Issue batch delete operation.
     self.fs.delete(files)
     blobstorageio_mock.delete_paths.assert_called_once_with(files)
+
+  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
+  def test_delete_error(self, unused_mock_blobstorageio):
+    # Prepare mocks.
+    blobstorageio_mock = mock.MagicMock()
+    blobstoragefilesystem.blobstorageio.BlobStorageIO = lambda: blobstorageio_mock
+    nonexistent_directory = 'azfs://storageaccount/nonexistent-container/tree/'
+    exception = blobstorageio.BlobStorageError('Not found', 404)
+
+    blobstorageio_mock.delete_paths.return_value = {
+        nonexistent_directory: exception,
+        'azfs://storageaccount/container/blob1': 202,
+        'azfs://storageaccount/container/blob2': 202,
+    }
+
+    blobstorageio_mock.size.return_value = 0
+    files = [
+        nonexistent_directory,
+        'azfs://storageaccount/container/blob1',
+        'azfs://storageaccount/container/blob2',
+    ]
+    expected_results = {nonexistent_directory: exception}
+
+    # Issue batch delete.
+    with self.assertRaises(BeamIOError) as error:
+      self.fs.delete(files)
+
+    self.assertIn('Delete operation failed', str(error.exception))
+    self.assertEqual(error.exception.exception_details, expected_results)
+    blobstorageio_mock.delete_paths.assert_called()
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
