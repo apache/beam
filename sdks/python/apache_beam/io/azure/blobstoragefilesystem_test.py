@@ -232,6 +232,20 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     with self.assertRaises(BeamIOError):
       self.fs.copy(sources, destinations)
 
+  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
+  def test_delete(self, unused_mock_blobstorageio):
+    # Prepare mocks.
+    blobstorageio_mock = mock.MagicMock()
+    blobstoragefilesystem.blobstorageio.BlobStorageIO = lambda: blobstorageio_mock
+    blobstorageio_mock.size.return_value = 0
+    files = [
+        'azfs://storageaccount/container/from1',
+        'azfs://storageaccount/container/from2',
+        'azfs://storageaccount/container/from3',
+    ]
+    # Issue batch delete operation.
+    self.fs.delete(files)
+    blobstorageio_mock.delete_paths.assert_called_once_with(files)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

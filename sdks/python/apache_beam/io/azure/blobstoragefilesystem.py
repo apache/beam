@@ -284,9 +284,9 @@ class BlobStorageFileSystem(FileSystem):
     """
     results = blobstorageio.BlobStorageIO().delete_paths(paths)
     exceptions = {
-      path: error
-      for (path, error) in results.items() if error is not 202
+        path: error
+        for (path, error) in results.items() if error is not 202
     }
-    
+
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
