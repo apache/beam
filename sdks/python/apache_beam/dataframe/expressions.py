@@ -16,6 +16,9 @@
 
 from __future__ import absolute_import
 
+import contextlib
+import threading
+
 from typing import Any
 from typing import Callable
 from typing import Iterable
@@ -203,6 +206,11 @@ class ComputedExpression(Expression):
         be partitioned by index whenever all of its inputs are partitioned by
         index.
     """
+    if (not _get_allow_non_parallel() and
+        requires_partition_by == partitionings.Singleton()):
+      raise NonParallelOperation(
+          "Using non-parallel form of %s "
+          "outside of allow_non_parallel_operations block." % name)
     args = tuple(args)
     if proxy is None:
       proxy = func(*(arg.proxy() for arg in args))
@@ -236,3 +244,22 @@ def elementwise_expression(name, func, args):
       args,
       requires_partition_by=partitionings.Nothing(),
       preserves_partition_by=partitionings.Singleton())
+
+
+_ALLOW_NON_PARALLEL = threading.local()
+_ALLOW_NON_PARALLEL.value = False
+
+
+def _get_allow_non_parallel():
+  return _ALLOW_NON_PARALLEL.value
+
+
+@contextlib.contextmanager
+def allow_non_parallel_operations(allow=True):
+  old_value, _ALLOW_NON_PARALLEL.value = _ALLOW_NON_PARALLEL.value, allow
+  yield
+  _ALLOW_NON_PARALLEL.value = old_value
+
+
+class NonParallelOperation(Exception):
+  pass
