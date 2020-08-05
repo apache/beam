@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.snowflake.services;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.math.BigInteger;
+import java.nio.charset.Charset;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -35,23 +37,36 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Implemenation of {@link SnowflakeService} used in production. */
-public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceConfig> {
-  private static final Logger LOG = LoggerFactory.getLogger(SnowflakeServiceImpl.class);
+public class SnowflakeBatchServiceImpl implements SnowflakeService<SnowflakeBatchServiceConfig> {
+  private static final Logger LOG = LoggerFactory.getLogger(SnowflakeBatchServiceImpl.class);
   private static final String SNOWFLAKE_GCS_PREFIX = "gcs://";
   private static final String GCS_PREFIX = "gs://";
 
+  /** Writing data to Snowflake in batch mode. */
   @Override
-  public void write(SnowflakeServiceConfig config) throws Exception {
+  public void write(SnowflakeBatchServiceConfig config) throws Exception {
     copyToTable(config);
   }
 
+  /** Reading data from Snowflake tables in batch processing. */
   @Override
-  public String read(SnowflakeServiceConfig config) throws Exception {
+  public String read(SnowflakeBatchServiceConfig config) throws Exception {
     return copyIntoStage(config);
   }
 
-  public String copyIntoStage(SnowflakeServiceConfig config) throws SQLException {
+  /**
+   * Copies data from specified table to stage (bucket and directory). Uses Snowflake's <a
+   * href="https://docs.snowflake.com/en/sql-reference/sql/copy-into-location.html">COPY method</a>.
+   * All the details needed for COPY are inside passed configuration.
+   *
+   * @param config object with configuration to perform COPY query.
+   * @return destination where files were copied into
+   * @throws SQLException in case COPY query failed.
+   */
+  private String copyIntoStage(SnowflakeBatchServiceConfig config) throws SQLException {
     SerializableFunction<Void, DataSource> dataSourceProviderFn = config.getDataSourceProviderFn();
+    String database = config.getDatabase();
+    String schema = config.getSchema();
     String table = config.getTable();
     String query = config.getQuery();
     String storageIntegrationName = config.getStorageIntegrationName();
@@ -62,7 +77,7 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
       // Query must be surrounded with brackets
       source = String.format("(%s)", query);
     } else {
-      source = table;
+      source = getTablePath(database, schema, table);
     }
 
     String copyQuery =
@@ -71,17 +86,31 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
             getProperBucketDir(stagingBucketDir),
             source,
             storageIntegrationName,
-            CSV_QUOTE_CHAR_FOR_COPY);
+            getASCIICharRepresentation(config.getQuotationMark()));
 
     runStatement(copyQuery, getConnection(dataSourceProviderFn), null);
 
     return stagingBucketDir.concat("*");
   }
 
-  public void copyToTable(SnowflakeServiceConfig config) throws SQLException {
+  private String getASCIICharRepresentation(String input) {
+    return String.format("0x%x", new BigInteger(1, input.getBytes(Charset.defaultCharset())));
+  }
+
+  /**
+   * Copies staged data from bucket directory to table. Uses Snowflake's <a
+   * href="https://docs.snowflake.com/en/sql-reference/sql/copy-into-table.html">COPY method</a>.
+   * All the details needed for COPY are inside passed configuration.
+   *
+   * @param config object with configuration to perform COPY query.
+   * @throws SQLException
+   */
+  private void copyToTable(SnowflakeBatchServiceConfig config) throws SQLException {
 
     SerializableFunction<Void, DataSource> dataSourceProviderFn = config.getDataSourceProviderFn();
     List<String> filesList = config.getFilesList();
+    String database = config.getDatabase();
+    String schema = config.getSchema();
     String table = config.getTable();
     String query = config.getQuery();
     SnowflakeTableSchema tableSchema = config.getTableSchema();
@@ -110,28 +139,29 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
       query =
           String.format(
               "COPY INTO %s FROM %s FILES=(%s) FILE_FORMAT=(TYPE=CSV FIELD_OPTIONALLY_ENCLOSED_BY='%s' COMPRESSION=GZIP) STORAGE_INTEGRATION=%s;",
-              table,
+              getTablePath(database, schema, table),
               getProperBucketDir(source),
               files,
-              CSV_QUOTE_CHAR_FOR_COPY,
+              getASCIICharRepresentation(config.getQuotationMark()),
               storageIntegrationName);
     } else {
       query =
           String.format(
               "COPY INTO %s FROM %s FILES=(%s) FILE_FORMAT=(TYPE=CSV FIELD_OPTIONALLY_ENCLOSED_BY='%s' COMPRESSION=GZIP);",
-              table, source, files, CSV_QUOTE_CHAR_FOR_COPY);
+              table, source, files, getASCIICharRepresentation(config.getQuotationMark()));
     }
 
     runStatement(query, dataSource.getConnection(), null);
   }
 
-  private void truncateTable(DataSource dataSource, String table) throws SQLException {
-    String query = String.format("TRUNCATE %s;", table);
+  private void truncateTable(DataSource dataSource, String tablePath) throws SQLException {
+    String query = String.format("TRUNCATE %s;", tablePath);
     runConnectionWithStatement(dataSource, query, null);
   }
 
-  private static void checkIfTableIsEmpty(DataSource dataSource, String table) throws SQLException {
-    String selectQuery = String.format("SELECT count(*) FROM %s LIMIT 1;", table);
+  private static void checkIfTableIsEmpty(DataSource dataSource, String tablePath)
+      throws SQLException {
+    String selectQuery = String.format("SELECT count(*) FROM %s LIMIT 1;", tablePath);
     runConnectionWithStatement(
         dataSource,
         selectQuery,
@@ -274,5 +304,9 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
       return bucketDir.replace(GCS_PREFIX, SNOWFLAKE_GCS_PREFIX);
     }
     return bucketDir;
+  }
+
+  private String getTablePath(String database, String schema, String table) {
+    return String.format("%s.%s.%s", database, schema, table);
   }
 }

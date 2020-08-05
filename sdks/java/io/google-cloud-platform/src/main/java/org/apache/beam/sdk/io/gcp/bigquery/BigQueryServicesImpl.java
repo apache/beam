@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.http.HttpRequestInitializer;
@@ -91,6 +92,7 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -118,6 +120,9 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   private static final FluentBackoff DEFAULT_BACKOFF_FACTORY =
       FluentBackoff.DEFAULT.withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
+
+  // The error code for quota exceeded error (https://cloud.google.com/bigquery/docs/error-messages)
+  private static final String QUOTA_EXCEEDED = "quotaExceeded";
 
   @Override
   public JobService getJobService(BigQueryOptions options) {
@@ -813,6 +818,19 @@ class BigQueryServicesImpl implements BigQueryServices {
                         try {
                           return insert.execute().getInsertErrors();
                         } catch (IOException e) {
+                          GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
+                          if (errorInfo == null) {
+                            throw e;
+                          }
+                          /**
+                           * TODO(BEAM-10584): Check for QUOTA_EXCEEDED error will be replaced by
+                           * ApiErrorExtractor.INSTANCE.quotaExceeded(e) after the next release of
+                           * GoogleCloudDataproc/hadoop-connectors
+                           */
+                          if (!ApiErrorExtractor.INSTANCE.rateLimited(e)
+                              && !errorInfo.getReason().equals(QUOTA_EXCEEDED)) {
+                            throw e;
+                          }
                           LOG.info(
                               String.format(
                                   "BigQuery insertAll error, retrying: %s",
@@ -920,6 +938,15 @@ class BigQueryServicesImpl implements BigQueryServices {
           skipInvalidRows,
           ignoreUnknownValues,
           ignoreInsertIds);
+    }
+
+    protected GoogleJsonError.ErrorInfo getErrorInfo(IOException e) {
+      if (!(e instanceof GoogleJsonResponseException)) {
+        return null;
+      }
+      GoogleJsonError jsonError = ((GoogleJsonResponseException) e).getDetails();
+      GoogleJsonError.ErrorInfo errorInfo = Iterables.getFirst(jsonError.getErrors(), null);
+      return errorInfo;
     }
 
     @Override

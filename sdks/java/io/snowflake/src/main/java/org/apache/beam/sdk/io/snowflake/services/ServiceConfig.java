@@ -17,4 +17,8 @@
  */
 package org.apache.beam.sdk.io.snowflake.services;
 
+/**
+ * Configuration abstract class for {@link SnowflakeService} that gives parameters for write and
+ * read (batch and streaming).
+ */
 public abstract class ServiceConfig {}

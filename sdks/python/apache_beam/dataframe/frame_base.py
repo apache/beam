@@ -16,7 +16,9 @@
 
 from __future__ import absolute_import
 
+import functools
 import inspect
+import sys
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -28,6 +30,18 @@ import pandas as pd
 
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import partitionings
+
+# pylint: disable=deprecated-method
+if sys.version_info < (3, ):
+  _getargspec = inspect.getargspec
+
+  def _unwrap(func):
+    while hasattr(func, '__wrapped__'):
+      func = func.__wrapped__
+    return func
+else:
+  _getargspec = inspect.getfullargspec
+  _unwrap = inspect.unwrap
 
 
 class DeferredBase(object):
@@ -146,8 +160,7 @@ def _proxy_function(
         value = kwargs[key]
       else:
         try:
-          # pylint: disable=deprecated-method
-          ix = inspect.getargspec(func).args.index(key)
+          ix = _getargspec(func).args.index(key)
         except ValueError:
           # TODO: fix for delegation?
           continue
@@ -219,6 +232,68 @@ def copy_and_mutate(func):
     return copy
 
   return wrapper
+
+
+def maybe_inplace(func):
+  @functools.wraps(func)
+  def wrapper(self, inplace=False, **kwargs):
+    result = func(self, **kwargs)
+    if inplace:
+      self._expr = result._expr
+    else:
+      return result
+
+  return wrapper
+
+
+def args_to_kwargs(base_type):
+  def wrap(func):
+    arg_names = _getargspec(_unwrap(getattr(base_type, func.__name__))).args
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+      for name, value in zip(arg_names, args):
+        if name in kwargs:
+          raise TypeError(
+              "%s() got multiple values for argument '%s'" %
+              (func.__name__, name))
+        kwargs[name] = value
+      return func(**kwargs)
+
+    return wrapper
+
+  return wrap
+
+
+def populate_defaults(base_type):
+  def wrap(func):
+    base_argspec = _getargspec(_unwrap(getattr(base_type, func.__name__)))
+    if not base_argspec.defaults:
+      return func
+
+    arg_to_default = dict(
+        zip(
+            base_argspec.args[-len(base_argspec.defaults):],
+            base_argspec.defaults))
+
+    unwrapped_func = _unwrap(func)
+    # args that do not have defaults in func, but do have defaults in base
+    func_argspec = _getargspec(unwrapped_func)
+    num_non_defaults = len(func_argspec.args) - len(func_argspec.defaults or ())
+    defaults_to_populate = set(
+        func_argspec.args[:num_non_defaults]).intersection(
+            arg_to_default.keys())
+
+    @functools.wraps(func)
+    def wrapper(**kwargs):
+      for name in defaults_to_populate:
+        if name not in kwargs:
+          kwargs[name] = arg_to_default[name]
+      return func(**kwargs)
+
+    return wrapper
+
+  return wrap
 
 
 class WontImplementError(NotImplementedError):

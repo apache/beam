@@ -315,7 +315,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		if ds == nil {
 			return fail(ctx, instID, "failed to split: desired splits for root of %v was empty.", ref)
 		}
-		split, err := plan.Split(exec.SplitPoints{
+		sr, err := plan.Split(exec.SplitPoints{
 			Splits:  ds.GetAllowedSplitPoints(),
 			Frac:    ds.GetFractionOfRemainder(),
 			BufSize: ds.GetEstimatedInputElements(),
@@ -329,12 +329,22 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundleSplit{
 				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{
-					ChannelSplits: []*fnpb.ProcessBundleSplitResponse_ChannelSplit{
-						&fnpb.ProcessBundleSplitResponse_ChannelSplit{
-							LastPrimaryElement:   split - 1,
-							FirstResidualElement: split,
+					PrimaryRoots: []*fnpb.BundleApplication{{
+						TransformId: sr.TId,
+						InputId:     sr.InId,
+						Element:     sr.PS,
+					}},
+					ResidualRoots: []*fnpb.DelayedBundleApplication{{
+						Application: &fnpb.BundleApplication{
+							TransformId: sr.TId,
+							InputId:     sr.InId,
+							Element:     sr.RS,
 						},
-					},
+					}},
+					ChannelSplits: []*fnpb.ProcessBundleSplitResponse_ChannelSplit{{
+						LastPrimaryElement:   sr.PI,
+						FirstResidualElement: sr.RI,
+					}},
 				},
 			},
 		}

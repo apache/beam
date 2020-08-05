@@ -16,6 +16,7 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -25,7 +26,6 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
@@ -47,20 +47,24 @@ type DataSource struct {
 	splitIdx  int64
 	start     time.Time
 
-	// rt is non-nil if this DataSource feeds directly to a splittable unit,
-	// and receives the current restriction tracker being processed.
-	rt chan sdf.RTracker
+	// su is non-nil if this DataSource feeds directly to a splittable unit,
+	// and receives that splittable unit when it is available for splitting.
+	// While the splittable unit is received, it is blocked from processing
+	// new elements, so it must be sent back through the channel once the
+	// DataSource is finished using it.
+	su chan SplittableUnit
 
 	mu sync.Mutex
 }
 
-// Initializes the rt channel from the following unit when applicable.
+// InitSplittable initializes the SplittableUnit channel from the output unit,
+// if it provides one.
 func (n *DataSource) InitSplittable() {
 	if n.Out == nil {
 		return
 	}
 	if u, ok := n.Out.(*ProcessSizedElementsAndRestrictions); ok == true {
-		n.rt = u.Rt
+		n.su = u.SU
 	}
 }
 
@@ -284,16 +288,21 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 
 // Split takes a sorted set of potential split indices and a fraction of the
 // remainder to split at, selects and actuates a split on an appropriate split
-// index, and returns the selected split index if successful or an error when
-// unsuccessful.
+// index, and returns the selected split index in a SplitResult if successful or
+// an error when unsuccessful.
+//
+// If the following transform is splittable, and the split indices and fraction
+// allow for splitting on the currently processing element, then a sub-element
+// split is performed, and the appropriate information is returned in the
+// SplitResult.
 //
 // The bufSize param specifies the estimated number of elements that will be
 // sent to this DataSource, and is used to be able to perform accurate splits
 // even if the DataSource has not yet received all its elements. A bufSize of
 // 0 or less indicates that its unknown, and so uses the current known size.
-func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (int64, error) {
+func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitResult, error) {
 	if n == nil {
-		return 0, fmt.Errorf("failed to split at requested splits: {%v}, DataSource not initialized", splits)
+		return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, DataSource not initialized", splits)
 	}
 	if frac > 1.0 {
 		frac = 1.0
@@ -302,31 +311,83 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (int64, 
 	}
 
 	n.mu.Lock()
+	defer n.mu.Unlock()
+
 	var currProg float64 // Current element progress.
-	if n.index < 0 {     // Progress is at the end of the non-existant -1st element.
+	var su SplittableUnit
+	if n.index < 0 { // Progress is at the end of the non-existant -1st element.
 		currProg = 1.0
-	} else if n.rt == nil { // If this isn't sub-element splittable, estimate some progress.
+	} else if n.su == nil { // If this isn't sub-element splittable, estimate some progress.
 		currProg = 0.5
 	} else { // If this is sub-element splittable, get progress of the current element.
-		rt := <-n.rt
-		d, r := rt.GetProgress()
-		currProg = d / (d + r)
-		n.rt <- rt
+
+		select {
+		case su = <-n.su:
+			// If an element is processing, we'll get a splittable unit.
+			if su == nil {
+				return SplitResult{}, fmt.Errorf("failed to split: splittable unit was nil")
+			}
+			defer func() {
+				n.su <- su
+			}()
+			currProg = su.GetProgress()
+		case <-time.After(500 * time.Millisecond):
+			// Otherwise, the current element hasn't started processing yet
+			// or has already finished. By adding a short timeout, we avoid
+			// the first possibility, and can assume progress is at max.
+			currProg = 1.0
+		}
 	}
 	// Size to split within is the minimum of bufSize or splitIdx so we avoid
 	// including elements we already know won't be processed.
 	if bufSize <= 0 || n.splitIdx < bufSize {
 		bufSize = n.splitIdx
 	}
-	s, _, err := splitHelper(n.index, bufSize, currProg, splits, frac, false)
+	s, f, err := splitHelper(n.index, bufSize, currProg, splits, frac, su != nil)
 	if err != nil {
-		n.mu.Unlock()
-		return 0, err
+		return SplitResult{}, err
 	}
-	n.splitIdx = s
-	fs := n.splitIdx
-	n.mu.Unlock()
-	return fs, nil
+
+	// No fraction returned, perform channel split.
+	if f < 0 {
+		n.splitIdx = s
+		return SplitResult{PI: s - 1, RI: s}, nil
+	}
+	// Otherwise, perform a sub-element split.
+	fr := f / (1.0 - currProg)
+	p, r, err := su.Split(fr)
+	if err != nil {
+		return SplitResult{}, err
+	}
+
+	if p == nil || r == nil { // Unsuccessful split.
+		// Fallback to channel split, so split at next elm, not current.
+		n.splitIdx = s + 1
+		return SplitResult{PI: s, RI: s + 1}, nil
+	}
+
+	// TODO(BEAM-10579) Eventually encode elements with the splittable
+	// unit's input coder instead of the DataSource's coder.
+	wc := MakeWindowEncoder(n.Coder.Window)
+	ec := MakeElementEncoder(coder.SkipW(n.Coder))
+	pEnc, err := encodeElm(p, wc, ec)
+	if err != nil {
+		return SplitResult{}, err
+	}
+	rEnc, err := encodeElm(r, wc, ec)
+	if err != nil {
+		return SplitResult{}, err
+	}
+	n.splitIdx = s + 1 // In a sub-element split, s is currIdx.
+	res := SplitResult{
+		PI:   s - 1,
+		RI:   s + 1,
+		PS:   pEnc,
+		RS:   rEnc,
+		TId:  su.GetTransformId(),
+		InId: su.GetInputId(),
+	}
+	return res, nil
 }
 
 // splitHelper is a helper function that finds a split point in a range.
@@ -348,7 +409,8 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (int64, 
 // Returns the element index to split at (first element of residual), and the
 // fraction within that element to split, iff the split point is the current
 // element, the splittable param is set to true, and both the element being
-// split and the following element are valid split points.
+// split and the following element are valid split points. If there is no
+// fraction, returns -1.
 func splitHelper(
 	currIdx, endIdx int64,
 	currProg float64,
@@ -377,7 +439,7 @@ func splitHelper(
 		if splitIdx < safeStart {
 			splitIdx = safeStart
 		}
-		return splitIdx, 0.0, nil
+		return splitIdx, -1.0, nil
 	}
 
 	// Cases where we have to find a valid split point.
@@ -419,10 +481,21 @@ func splitHelper(
 		}
 	}
 	if bestS != -1 {
-		return bestS, 0.0, nil
+		return bestS, -1.0, nil
 	}
 
-	return -1, 0.0, fmt.Errorf("failed to split DataSource (at index: %v) at requested splits: {%v}", currIdx, splits)
+	return -1, -1.0, fmt.Errorf("failed to split DataSource (at index: %v) at requested splits: {%v}", currIdx, splits)
+}
+
+func encodeElm(elm *FullValue, wc WindowEncoder, ec ElementEncoder) ([]byte, error) {
+	var b bytes.Buffer
+	if err := EncodeWindowedValueHeader(wc, elm.Windows, elm.Timestamp, &b); err != nil {
+		return nil, err
+	}
+	if err := ec.Encode(elm, &b); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
 }
 
 type concatReStream struct {

@@ -328,8 +328,9 @@ public class DirectRunnerTest implements Serializable {
     // The pipeline should never complete;
     assertThat(result.getState(), is(State.RUNNING));
     // Must time out, otherwise this test will never complete
-    result.waitUntilFinish(Duration.millis(1L));
-    assertEquals(null, result.getState());
+    assertEquals(null, result.waitUntilFinish(Duration.millis(1L)));
+    // Ensure multiple calls complete
+    assertEquals(null, result.waitUntilFinish(Duration.millis(1L)));
   }
 
   private static final AtomicLong TEARDOWN_CALL = new AtomicLong(-1);
