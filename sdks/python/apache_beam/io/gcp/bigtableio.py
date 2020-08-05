@@ -39,13 +39,17 @@ those generated rows in the table.
 
 from __future__ import absolute_import
 
+import logging
 import apache_beam as beam
 from apache_beam.metrics import Metrics
 from apache_beam.transforms.display import DisplayDataItem
 
+_LOGGER = logging.getLogger(__name__)
+
 try:
   from google.cloud.bigtable import Client
 except ImportError:
+  _LOGGER.error('Error in: from google.cloud.bigtable import Client', exc_info=True)
   pass
 
 __all__ = ['WriteToBigTable']
