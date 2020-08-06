@@ -37,9 +37,8 @@ def loadTestConfigurations = { datasetName ->
         metrics_dataset      : datasetName,
         metrics_table        : 'python_dataflow_batch_runtime_type_check_1',
         influx_measurement   : 'python_batch_runtime_type_check_1',
-        input_options        : '\'{"num_records": 300,' +
-        '"key_size": 5,' +
-        '"value_size": 15}\'',
+        input_options        : '\'{"num_records": 0,"key_size": 0,"value_size": 0}\''
+        num_records          : 1000,
         fanout               : 300,
         num_workers          : 5,
         autoscaling_algorithm: "NONE",
@@ -59,9 +58,8 @@ def loadTestConfigurations = { datasetName ->
         metrics_dataset      : datasetName,
         metrics_table        : 'python_dataflow_batch_runtime_type_check_2',
         influx_measurement   : 'python_batch_runtime_type_check_2',
-        input_options        : '\'{"num_records": 300,' +
-        '"key_size": 5,' +
-        '"value_size": 15}\'',
+        input_options        : '\'{"num_records": 0,"key_size": 0,"value_size": 0}\''
+        num_records          : 1000,
         fanout               : 300,
         num_workers          : 5,
         autoscaling_algorithm: "NONE",
@@ -81,9 +79,8 @@ def loadTestConfigurations = { datasetName ->
         metrics_dataset      : datasetName,
         metrics_table        : 'python_dataflow_batch_runtime_type_check_3',
         influx_measurement   : 'python_batch_runtime_type_check_3',
-        input_options        : '\'{"num_records": 300,' +
-        '"key_size": 5,' +
-        '"value_size": 15}\'',
+        input_options        : '\'{"num_records": 0,"key_size": 0,"value_size": 0}\''
+        num_records          : 1000,
         fanout               : 300,
         num_workers          : 5,
         autoscaling_algorithm: "NONE",
@@ -103,9 +100,8 @@ def loadTestConfigurations = { datasetName ->
         metrics_dataset      : datasetName,
         metrics_table        : 'python_dataflow_batch_runtime_type_check_4',
         influx_measurement   : 'python_batch_runtime_type_check_4',
-        input_options        : '\'{"num_records": 300,' +
-        '"key_size": 5,' +
-        '"value_size": 15}\'',
+        input_options        : '\'{"num_records": 0,"key_size": 0,"value_size": 0}\''
+        num_records          : 1000,
         fanout               : 300,
         num_workers          : 5,
         autoscaling_algorithm: "NONE",
