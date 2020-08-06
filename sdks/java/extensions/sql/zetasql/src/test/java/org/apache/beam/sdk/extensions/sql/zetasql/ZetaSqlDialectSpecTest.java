@@ -252,7 +252,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("[BEAM-9182] NULL parameters do not work in BeamZetaSqlCalcRel")
   public void testEQ1() {
     String sql = "SELECT @p0 = @p1 AS ColA";
 
@@ -294,7 +293,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("[BEAM-9182] NULL parameters do not work in BeamZetaSqlCalcRel")
   public void testEQ3() {
     String sql = "SELECT @p0 = @p1 AS ColA";
 
@@ -523,7 +521,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("[BEAM-9182] NULL parameters do not work in BeamZetaSqlCalcRel")
   public void testNullIfCoercion() {
     String sql = "SELECT NULLIF(@p0, @p1) AS ColA";
     ImmutableMap<String, Value> params =
@@ -733,9 +730,8 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("[BEAM-9182] NULL parameters do not work in BeamZetaSqlCalcRel")
   public void testLikeNullPattern() {
-    String sql = "SELECT @p0 LIKE  @p1 AS ColA";
+    String sql = "SELECT @p0 LIKE @p1 AS ColA";
     ImmutableMap<String, Value> params =
         ImmutableMap.of(
             "p0",

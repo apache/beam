@@ -19,6 +19,8 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
 import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.SqlImplementor.POS;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.IntFunction;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.text.translate.CharSequenceTranslator;
@@ -28,9 +30,12 @@ import org.apache.beam.repackaged.core.org.apache.commons.lang3.text.translate.L
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexDynamicParam;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlDynamicParam;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
@@ -63,8 +68,14 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
           // Unicode (only 4 hex digits)
           .with(JavaUnicodeEscaper.outsideOf(32, 0x7f));
 
+  private Map<String, RelDataType> nullParams = new HashMap<>();
+
   public BeamSqlUnparseContext(IntFunction<SqlNode> field) {
     super(BeamBigQuerySqlDialect.DEFAULT, field);
+  }
+
+  public Map<String, RelDataType> getNullParams() {
+    return nullParams;
   }
 
   @Override
@@ -93,6 +104,12 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
           return new ReplaceLiteral(literal, POS, "ISOWEEK");
         }
       }
+    } else if (rex.getKind().equals(SqlKind.DYNAMIC_PARAM)) {
+      final RexDynamicParam param = (RexDynamicParam) rex;
+      final int index = param.getIndex();
+      final String name = "null_param_" + index;
+      nullParams.put(name, param.getType());
+      return new NamedDynamicParam(index, POS, name);
     }
 
     return super.toSql(program, rex);
@@ -186,6 +203,20 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
     @Override
     public int hashCode() {
       return super.hashCode();
+    }
+  }
+
+  private static class NamedDynamicParam extends SqlDynamicParam {
+    private final String newName;
+
+    NamedDynamicParam(int index, SqlParserPos pos, String newName) {
+      super(index, pos);
+      this.newName = newName;
+    }
+
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+      writer.literal("@" + newName);
     }
   }
 }
