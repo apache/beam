@@ -238,6 +238,7 @@ import decimal
 import itertools
 import json
 import logging
+import random
 import time
 import uuid
 from builtins import object
@@ -1289,7 +1290,6 @@ class _StreamToBigQuery(PTransform):
       self._row_count = 0
 
     def process(self, element):
-      import random
       key = element[0]
       value = element[1]
       key = (key, random.randint(0, self.shards))
