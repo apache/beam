@@ -208,22 +208,21 @@ class OperationCounters(object):
     self.current_size = None  # type: Optional[int]
     self._sample_counter = 0
     self._next_sample = 0
+
     self.producer_type_hints = []
     self.consumer_type_hints = []
 
-    attrs = ['_runtime_type_hints', '_full_label', '_runtime_parameter_name']
-    self_containers = [self.producer_type_hints, self.consumer_type_hints]
-    operations_containers = [[producer], consumers]
+    self.store_type_hints(self.producer_type_hints, [producer])
+    self.store_type_hints(self.consumer_type_hints, consumers)
 
-    for self_container, operation_container in \
-            zip(self_containers, operations_containers):
-      for operation in operation_container:
-        if operation and hasattr(operation, 'spec') and hasattr(operation.spec, 'serialized_fn'):
-          fns = pickler.loads(operation.spec.serialized_fn)
-          if fns and all(hasattr(fns[0], attr) for attr in attrs):
-            self_container.append((fns[0]._runtime_type_hints,
-                                   fns[0]._runtime_parameter_name,
-                                   fns[0]._full_label))
+  def store_type_hints(self, my_container, operations):
+    for operation in operations:
+      if (operation
+              and hasattr(operation, 'spec')
+              and hasattr(operation.spec, 'serialized_fn')):
+        fns = pickler.loads(operation.spec.serialized_fn)
+        if fns and hasattr(fns[0], 'perf_runtime_type_check'):
+          my_container.append(fns[0].perf_runtime_type_check)
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
@@ -249,23 +248,20 @@ class OperationCounters(object):
 
   def type_check(self, value):
     # type: (any, bool) -> None
-    type_hints_lists = [self.producer_type_hints, self.consumer_type_hints]
-    constraints = ['output_types', 'input_types']
+    type_hint_map = {
+      'output_types': self.producer_type_hints,
+      'input_types': self.consumer_type_hints
+    }
 
-    for type_hints_list, constraint in zip(type_hints_lists, constraints):
-      for type_hint_tuple in type_hints_list:
-        constraint = getattr(type_hint_tuple[0], constraint, None)
+    for constraint, type_hints in type_hint_map.items():
+      for type_hint in type_hints:
+        constraint = getattr(type_hint[0], constraint, None)
         if constraint is not None:
           try:
-            _check_instance_type(
-                constraint,
-                value,
-                type_hint_tuple[1],
-                verbose=True)
+            _check_instance_type(constraint, value, type_hint[1], verbose=True)
           except TypeCheckError as e:
-            error_msg = (
-                'Runtime type violation detected within %s: '
-                '%s' % (type_hint_tuple[2], e))
+            error_msg = ('Runtime type violation detected within %s: '
+                         '%s' % (type_hint[2], e))
             raise_with_traceback(TypeCheckError(error_msg))
 
   def do_sample(self, windowed_value):

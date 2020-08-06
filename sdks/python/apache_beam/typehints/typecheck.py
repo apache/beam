@@ -292,10 +292,12 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     transform = applied_transform.transform
     if isinstance(transform, core.ParDo):
       if not self._in_combine:
-        transform.fn._full_label = applied_transform.full_label
-        self.store_type_hints(transform)
+        parameter_name, type_hints = self.get_type_hints(transform)
+        transform.fn.perf_runtime_type_check = (type_hints,
+                                                parameter_name,
+                                                applied_transform.full_label)
 
-  def store_type_hints(self, transform):
+  def get_type_hints(self, transform):
     type_hints = transform.get_type_hints()
 
     input_types = None
@@ -316,14 +318,14 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
       if normal_hints:
         output_types = normal_hints
 
-    transform.fn._runtime_parameter_name = 'Unknown Parameter Name'
+    parameter_name = 'Unknown Parameter Name'
     try:
       argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
       if len(argspec.args):
         arg_index = 0
         if argspec.args[0] == 'self':
           arg_index = 1
-        transform.fn._runtime_parameter_name = argspec.args[arg_index]
+        parameter_name = argspec.args[arg_index]
         if isinstance(input_types, dict):
           input_types = (input_types[argspec.args[arg_index]], )
     except TypeError:
@@ -335,5 +337,6 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     if output_types and len(output_types):
       output_types = output_types[0]
 
-    transform.fn._runtime_type_hints = type_hints._replace(
-        input_types=input_types, output_types=output_types)
+    return parameter_name, type_hints._replace(input_types=input_types,
+                                               output_types=output_types)
+
