@@ -41,7 +41,7 @@ try:
   from google.auth import default
   from google.auth.transport import requests
 except ImportError:
-  default = None
+  DicomSearch = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 REGION = 'us-central1'
@@ -108,7 +108,7 @@ def get_gcs_file_http(file_name):
   return response.json()
 
 
-@unittest.skipIf(default is None, 'GCP dependencies are not installed')
+@unittest.skipIf(DicomSearch is None, 'GCP dependencies are not installed')
 class DICOMIoIntegrationTest(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
