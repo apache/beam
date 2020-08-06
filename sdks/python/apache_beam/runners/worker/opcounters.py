@@ -208,37 +208,22 @@ class OperationCounters(object):
     self.current_size = None  # type: Optional[int]
     self._sample_counter = 0
     self._next_sample = 0
-
-    self.producer_type_hints = None
-    self.producer_full_label = None
-    self.producer_parameter_name = None
-
-    if producer and hasattr(producer, 'spec') and hasattr(producer.spec,
-                                                          'serialized_fn'):
-      fns = pickler.loads(producer.spec.serialized_fn)
-      if fns:
-        if hasattr(fns[0], '_runtime_type_hints'):
-          self.producer_type_hints = fns[0]._runtime_type_hints
-        if hasattr(fns[0], '_full_label'):
-          self.producer_full_label = fns[0]._full_label
-        if hasattr(fns[0], '_runtime_parameter_name'):
-          self.producer_parameter_name = fns[0]._runtime_parameter_name
-
+    self.producer_type_hints = []
     self.consumer_type_hints = []
-    self.consumer_full_labels = []
-    self.consumer_parameter_names = []
 
-    if consumers:
-      for consumer in consumers:
-        if hasattr(consumer, 'spec') and hasattr(consumer.spec,
-                                                 'serialized_fn'):
-          fns = pickler.loads(consumer.spec.serialized_fn)
-          if fns and hasattr(fns[0], '_runtime_type_hints'):
-            self.consumer_type_hints.append(fns[0]._runtime_type_hints)
-            self.consumer_full_labels.append(
-                getattr(fns[0], '_full_label', 'No Label Found'))
-            self.consumer_parameter_names.append(
-                getattr(fns[0], '_runtime_parameter_name', 'Unknown Parameter'))
+    attrs = ['_runtime_type_hints', '_full_label', '_runtime_parameter_name']
+    self_containers = [self.producer_type_hints, self.consumer_type_hints]
+    operations_containers = [[producer], consumers]
+
+    for self_container, operation_container in \
+            zip(self_containers, operations_containers):
+      for operation in operation_container:
+        if operation and hasattr(operation, 'spec') and hasattr(operation.spec, 'serialized_fn'):
+          fns = pickler.loads(operation.spec.serialized_fn)
+          if fns and all(hasattr(fns[0], attr) for attr in attrs):
+            self_container.append((fns[0]._runtime_type_hints,
+                                   fns[0]._runtime_parameter_name,
+                                   fns[0]._full_label))
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
@@ -264,35 +249,24 @@ class OperationCounters(object):
 
   def type_check(self, value):
     # type: (any, bool) -> None
+    type_hints_lists = [self.producer_type_hints, self.consumer_type_hints]
+    constraints = ['output_types', 'input_types']
 
-    if self.producer_type_hints is not None:
-      output_constraint = self.producer_type_hints.output_types
-      if output_constraint is not None:
-        try:
-          _check_instance_type(
-              output_constraint,
-              value,
-              self.producer_parameter_name,
-              verbose=True)
-        except TypeCheckError as e:
-          error_msg = (
-              'Runtime type violation detected within %s: '
-              '%s' % (self.producer_full_label, e))
-          raise_with_traceback(TypeCheckError(error_msg))
-
-    for consumer_type_hint, consumer_full_label, consumer_parameter_name in \
-            zip(self.consumer_type_hints, self.consumer_full_labels,
-                self.consumer_parameter_names):
-      input_constraint = consumer_type_hint.input_types
-      if input_constraint is not None:
-        try:
-          _check_instance_type(
-              input_constraint, value, consumer_parameter_name, verbose=True)
-        except TypeCheckError as e:
-          error_msg = (
-              'Runtime type violation detected within ParDo(%s): '
-              '%s' % (consumer_full_label, e))
-          raise_with_traceback(TypeCheckError(error_msg))
+    for type_hints_list, constraint in zip(type_hints_lists, constraints):
+      for type_hint_tuple in type_hints_list:
+        constraint = getattr(type_hint_tuple[0], constraint, None)
+        if constraint is not None:
+          try:
+            _check_instance_type(
+                constraint,
+                value,
+                type_hint_tuple[1],
+                verbose=True)
+          except TypeCheckError as e:
+            error_msg = (
+                'Runtime type violation detected within %s: '
+                '%s' % (type_hint_tuple[2], e))
+            raise_with_traceback(TypeCheckError(error_msg))
 
   def do_sample(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None

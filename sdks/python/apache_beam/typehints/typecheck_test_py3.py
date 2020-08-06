@@ -224,7 +224,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     self.assertStartswith(
         e.exception.args[0],
         "Runtime type violation detected within "
-        "ParDo(ParDo(ToInt)): Type-hint for argument: "
+        "ParDo(ToInt): Type-hint for argument: "
         "'element' violated. Expected an instance of "
         "{}, instead found 1, "
         "an instance of {}.".format(int, str))
@@ -275,7 +275,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
 
     self.assertStartswith(
         e.exception.args[0],
-        "Runtime type violation detected within ParDo(ToStr): "
+        "Runtime type violation detected within ToStr: "
         "Type-hint for argument: 'x' violated. "
         "Expected an instance of {}, "
         "instead found some_string, an instance of {}.".format(int, str))

@@ -316,6 +316,7 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
       if normal_hints:
         output_types = normal_hints
 
+    transform.fn._runtime_parameter_name = 'Unknown Parameter Name'
     try:
       argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
       if len(argspec.args):
