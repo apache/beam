@@ -28,11 +28,11 @@ import collections
 import inspect
 import types
 
-from apache_beam.internal import pickler
 from future.utils import raise_with_traceback
 from past.builtins import unicode
 
 from apache_beam import pipeline
+from apache_beam.internal import pickler
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import core
 from apache_beam.transforms.core import DoFn
@@ -331,6 +331,9 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     except TypeError:
       pass
 
+    # TODO(saavan) store all input types, not just the first,
+    #  and all parameter names, not just the first, in order
+    #  to type-check side inputs in opcounters.py
     if input_types and len(input_types):
       input_types = input_types[0]
 

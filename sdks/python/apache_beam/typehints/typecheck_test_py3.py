@@ -243,7 +243,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         'FlatMap and ParDo must return an iterable. '
         '{} was returned instead.'.format(int))
 
-  def test_performance_runtime_type_check_satisfied(self):
+  def test_simple_type_satisfied(self):
     @with_input_types(int, int)
     @with_output_types(int)
     class AddWithNum(beam.DoFn):
@@ -258,7 +258,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     assert_that(results, equal_to([2, 3, 4]))
     self.p.run()
 
-  def test_run_time_type_checking_enabled_type_violation(self):
+  def test_simple_type_violation(self):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
     @with_output_types(str)
@@ -307,6 +307,44 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         "The type of element #0 in the passed tuple is incorrect. "
         "Expected an instance of type bool, "
         "instead received an instance of type int.")
+
+  def test_violation_with_side_inputs(self):
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
+
+    @with_output_types(int)
+    @with_input_types(a=int, b=int)
+    def add(a, b):
+      return a + b
+
+    with self.assertRaises(TypeCheckError) as e:
+      (self.p | beam.Create([1, 2, 3, 4]) | 'Add 1' >> beam.Map(add, 1.0))
+      self.p.run()
+
+    self.assertStartswith(
+        e.exception.args[0],
+        "Runtime type violation detected within Add 1: "
+        "Type-hint for argument: 'a' violated. "
+        "Expected an instance of {}, "
+        "instead found 2.0, an instance of {}.".format(int, float))
+
+  def test_pipeline_runtime_checking_violation_with_side_inputs_decorator(self):
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
+
+    @with_output_types(int)
+    @with_input_types(a=int, b=int)
+    def add(a, b):
+      return a + b
+
+    with self.assertRaises(TypeCheckError) as e:
+      (self.p | beam.Create([1, 2, 3, 4]) | 'Add 1' >> beam.Map(add, 1.0))
+      self.p.run()
+
+    self.assertStartswith(
+        e.exception.args[0],
+        "Runtime type violation detected within ParDo(Add 1): "
+        "Type-hint for argument: 'b' violated. "
+        "Expected an instance of {}, "
+        "instead found 1.0, an instance of {}.".format(int, float))
 
 
 if __name__ == '__main__':

@@ -34,7 +34,6 @@ from typing import Optional
 
 from future.utils import raise_with_traceback
 
-from apache_beam.internal import pickler
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.utils import counters

@@ -206,11 +206,16 @@ class SingletonConsumerSet(ConsumerSet):
                output_index,
                consumers,  # type: List[Operation]
                coder,
-               producer
-              ):
+               producer_type_hints
+               ):
     assert len(consumers) == 1
     super(SingletonConsumerSet, self).__init__(
-        counter_factory, step_name, output_index, consumers, coder, producer)
+        counter_factory,
+        step_name,
+        output_index,
+        consumers,
+        coder,
+        producer_type_hints)
     self.consumer = consumers[0]
 
   def receive(self, windowed_value):
@@ -627,7 +632,8 @@ class DoOperation(Operation):
           self.name_context.step_name,
           view_options['coder'],
           i,
-          suffix='side-input')
+          suffix='side-input',
+          producer_type_hints=get_perf_runtime_type_hints(self))
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter, element_counter=element_counter)
       yield apache_sideinputs.SideInputMap(
