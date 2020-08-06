@@ -32,4 +32,4 @@ check.dependsOn formatter
 apply from: "../common.gradle"
 
 // TODO(BEAM-8954): Remove this once tox uses isolated builds.
-testPy38Cython.mustRunAfter testPython38, python38CloudCoverage
+testPy38Cython.mustRunAfter testPython38, testPy38CloudCoverage
