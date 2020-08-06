@@ -16,8 +16,8 @@
 package test
 
 import (
-	"beam.apache.org/learning/katas/core_transforms/additional_parameters/additional_parameters/pkg/common"
-	"beam.apache.org/learning/katas/core_transforms/additional_parameters/additional_parameters/pkg/task"
+	"beam.apache.org/learning/katas/core_transforms/windowing/windowing/pkg/common"
+	"beam.apache.org/learning/katas/core_transforms/windowing/windowing/pkg/task"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"github.com/google/go-cmp/cmp"
