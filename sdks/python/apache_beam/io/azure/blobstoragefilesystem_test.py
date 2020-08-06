@@ -288,6 +288,29 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     self.assertEqual(error.exception.exception_details, expected_results)
     blobstorageio_mock.delete_paths.assert_called()
 
+  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
+  def test_rename(self, unused_mock_blobstorageio):
+    # Prepare mocks.
+    blobstorageio_mock = mock.MagicMock()
+    blobstoragefilesystem.blobstorageio.BlobStorageIO = \
+        lambda: blobstorageio_mock
+
+    sources = [
+        'azfs://storageaccount/container/original_blob1',
+        'azfs://storageaccount/container/original_blob2',
+    ]
+    destinations = [
+        'azfs://storageaccount/container/renamed_blob1',
+        'azfs://storageaccount/container/renamed_blob2',
+    ]
+
+    # Issue bath rename.
+    self.fs.rename(sources, destinations)
+
+    src_dest_pairs = list(zip(sources, destinations))
+    blobstorageio_mock.rename_files.assert_called_once_with(src_dest_pairs)
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
