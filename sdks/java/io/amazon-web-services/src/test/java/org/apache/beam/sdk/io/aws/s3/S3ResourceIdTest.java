@@ -83,7 +83,7 @@ public class S3ResourceIdTest {
       assertEquals(testCase.expectedResult, resolved.toString());
     }
 
-    // Tests for common gcs paths.
+    // Tests for common s3 paths.
     assertEquals(
         S3ResourceId.fromUri("s3://bucket/tmp/aa"),
         S3ResourceId.fromUri("s3://bucket/tmp/").resolve("aa", RESOLVE_FILE));
@@ -143,7 +143,7 @@ public class S3ResourceIdTest {
 
   @Test
   public void testGetCurrentDirectory() {
-    // Tests gcs paths.
+    // Tests s3 paths.
     assertEquals(
         S3ResourceId.fromUri("s3://my_bucket/tmp dir/"),
         S3ResourceId.fromUri("s3://my_bucket/tmp dir/").getCurrentDirectory());
@@ -186,7 +186,7 @@ public class S3ResourceIdTest {
 
   @Test
   public void testGetScheme() {
-    // Tests gcs paths.
+    // Tests s3 paths.
     assertEquals("s3", S3ResourceId.fromUri("s3://my_bucket/tmp dir/").getScheme());
 
     // Tests bucket with no ending '/'.
