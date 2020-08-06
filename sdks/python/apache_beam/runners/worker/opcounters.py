@@ -194,7 +194,6 @@ class OperationCounters(object):
       coder,
       index,
       suffix='out',
-      consumer_type_hints=None,
       producer_type_hints=None):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(
@@ -207,8 +206,7 @@ class OperationCounters(object):
     self.current_size = None  # type: Optional[int]
     self._sample_counter = 0
     self._next_sample = 0
-    self.producer_type_hints = producer_type_hints or []
-    self.consumer_type_hints = consumer_type_hints or []
+    self.output_type_constraints = producer_type_hints
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
@@ -234,22 +232,18 @@ class OperationCounters(object):
 
   def type_check(self, value):
     # type: (any, bool) -> None
-    type_hint_map = {
-        'output_types': self.producer_type_hints,
-        'input_types': self.consumer_type_hints
-    }
-
-    for constraint, type_hints in type_hint_map.items():
-      for type_hint in type_hints:
-        constraint = getattr(type_hint[0], constraint, None)
-        if constraint is not None:
-          try:
-            _check_instance_type(constraint, value, type_hint[1], verbose=True)
-          except TypeCheckError as e:
-            error_msg = (
-                'Runtime type violation detected within %s: '
-                '%s' % (type_hint[2], e))
-            raise_with_traceback(TypeCheckError(error_msg))
+    for transform_label, type_constraint_tuple in self.output_type_constraints.items():
+      parameter_name, constraint = type_constraint_tuple
+      if constraint is not None:
+        try:
+          _check_instance_type(constraint, value, parameter_name, verbose=True)
+        except TypeCheckError as e:
+          if not transform_label.startswith('ParDo'):
+            transform_label = 'ParDo(%s)' % transform_label
+          error_msg = (
+              'Runtime type violation detected within %s: '
+              '%s' % (transform_label, e))
+          raise_with_traceback(TypeCheckError(error_msg))
 
   def do_sample(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None

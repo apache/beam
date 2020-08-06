@@ -138,16 +138,11 @@ class ConsumerSet(Receiver):
                ):
     self.consumers = consumers
 
-    consumer_type_hints = []
-    for consumer in consumers:
-      consumer_type_hints.extend(get_perf_runtime_type_hints(consumer))
-
     self.opcounter = opcounters.OperationCounters(
         counter_factory,
         step_name,
         coder,
         output_index,
-        consumer_type_hints=consumer_type_hints,
         producer_type_hints=producer_type_hints)
     # Used in repr.
     self.step_name = step_name

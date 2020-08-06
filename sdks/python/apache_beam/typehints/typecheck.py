@@ -291,34 +291,33 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
 
   def visit_transform(self, applied_transform):
     transform = applied_transform.transform
-    if isinstance(transform, core.ParDo):
-      if not self._in_combine:
-        parameter_name, type_hints = self.get_type_hints(transform)
-        transform.fn.perf_runtime_type_check = (
-            type_hints, parameter_name, applied_transform.full_label)
+    if isinstance(transform, core.ParDo) and not self._in_combine:
+      # Store output type hints in current transform
+      transform.fn._runtime_output_constraints = {
+          applied_transform.full_label: self.get_output_type_hints(transform)
+      }
 
-  def get_type_hints(self, transform):
+      # Store input type hints in producer transform
+      producer = applied_transform.inputs[0].producer
+      if (hasattr(producer, 'transform') and
+          hasattr(producer.transform, 'fn') and
+          hasattr(producer.transform.fn, '_runtime_output_constraints')):
+        producer = producer.transform.fn
+        producer._runtime_output_constraints[applied_transform.full_label] \
+          = self.get_input_type_hints(transform)
+
+  def get_input_type_hints(self, transform):
     type_hints = transform.get_type_hints()
 
     input_types = None
     if type_hints.input_types:
       normal_hints, kwarg_hints = type_hints.input_types
-
       if kwarg_hints:
         input_types = kwarg_hints
       if normal_hints:
         input_types = normal_hints
 
-    output_types = None
-    if type_hints.output_types:
-      normal_hints, kwarg_hints = type_hints.output_types
-
-      if kwarg_hints:
-        output_types = kwarg_hints
-      if normal_hints:
-        output_types = normal_hints
-
-    parameter_name = 'Unknown Parameter Name'
+    parameter_name = 'Unknown Parameter'
     try:
       argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
       if len(argspec.args):
@@ -331,26 +330,34 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     except TypeError:
       pass
 
-    # TODO(saavan) store all input types, not just the first,
-    #  and all parameter names, not just the first, in order
-    #  to type-check side inputs in opcounters.py
     if input_types and len(input_types):
       input_types = input_types[0]
+
+    return parameter_name, input_types
+
+  def get_output_type_hints(self, transform):
+    type_hints = transform.get_type_hints()
+
+    output_types = None
+    if type_hints.output_types:
+      normal_hints, kwarg_hints = type_hints.output_types
+      if kwarg_hints:
+        output_types = kwarg_hints
+      if normal_hints:
+        output_types = normal_hints
 
     if output_types and len(output_types):
       output_types = output_types[0]
 
-    return parameter_name, type_hints._replace(input_types=input_types,
-                                               output_types=output_types)
+    return None, output_types
 
 
 def get_perf_runtime_type_hints(operation):
-  type_hints = []
   if hasattr(operation, 'spec') and hasattr(operation.spec, 'serialized_fn'):
     serialized_fn = operation.spec.serialized_fn
     if serialized_fn:
       fns = pickler.loads(serialized_fn)
-      if fns and hasattr(fns[0], 'perf_runtime_type_check'):
-        type_hints.append(fns[0].perf_runtime_type_check)
+      if fns and hasattr(fns[0], '_runtime_output_constraints'):
+        return fns[0]._runtime_output_constraints
 
-  return type_hints
+  return {}

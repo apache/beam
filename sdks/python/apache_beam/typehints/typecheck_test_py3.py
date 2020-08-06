@@ -275,7 +275,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
 
     self.assertStartswith(
         e.exception.args[0],
-        "Runtime type violation detected within ToStr: "
+        "Runtime type violation detected within ParDo(ToStr): "
         "Type-hint for argument: 'x' violated. "
         "Expected an instance of {}, "
         "instead found some_string, an instance of {}.".format(int, str))
@@ -292,7 +292,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
 
     (
         self.p
-        | 'Nums' >> beam.Create(range(5)).with_output_types(int)
+        | 'Nums' >> beam.Create(range(1)).with_output_types(int)
         | 'IsEven' >> beam.Map(is_even_as_key)
         | 'Parity' >> beam.GroupByKey())
 
@@ -301,50 +301,35 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
 
     self.assertStartswith(
         e.exception.args[0],
-        "Runtime type violation detected within IsEven: "
-        "Type-hint for argument: 'a' violated: "
+        "Runtime type violation detected within ParDo(IsEven): "
+        "Type-hint for return type violated: "
         "Tuple[bool, int] hint type-constraint violated. "
         "The type of element #0 in the passed tuple is incorrect. "
         "Expected an instance of type bool, "
-        "instead received an instance of type int.")
+        "instead received an instance of type int. ")
 
-  def test_violation_with_side_inputs(self):
+  def test_pipeline_runtime_checking_violation_composite_type_output(self):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
-    @with_output_types(int)
-    @with_input_types(a=int, b=int)
-    def add(a, b):
-      return a + b
-
+    # The type-hinted applied via the 'returns()' method indicates the ParDo
+    # should return an instance of type: Tuple[float, int]. However, an instance
+    # of 'int' will be generated instead.
     with self.assertRaises(TypeCheckError) as e:
-      (self.p | beam.Create([1, 2, 3, 4]) | 'Add 1' >> beam.Map(add, 1.0))
+      (
+          self.p
+          | beam.Create([(1, 3.0)])
+          | (
+              'Swap' >>
+              beam.FlatMap(lambda x_y1: [x_y1[0] + x_y1[1]]).with_input_types(
+                  Tuple[int, float]).with_output_types(int)))
       self.p.run()
 
     self.assertStartswith(
         e.exception.args[0],
-        "Runtime type violation detected within Add 1: "
-        "Type-hint for argument: 'a' violated. "
+        "Runtime type violation detected within ParDo(Swap): "
+        "Type-hint for return type violated. "
         "Expected an instance of {}, "
-        "instead found 2.0, an instance of {}.".format(int, float))
-
-  def test_pipeline_runtime_checking_violation_with_side_inputs_decorator(self):
-    self.p._options.view_as(TypeOptions).pipeline_type_check = False
-
-    @with_output_types(int)
-    @with_input_types(a=int, b=int)
-    def add(a, b):
-      return a + b
-
-    with self.assertRaises(TypeCheckError) as e:
-      (self.p | beam.Create([1, 2, 3, 4]) | 'Add 1' >> beam.Map(add, 1.0))
-      self.p.run()
-
-    self.assertStartswith(
-        e.exception.args[0],
-        "Runtime type violation detected within ParDo(Add 1): "
-        "Type-hint for argument: 'b' violated. "
-        "Expected an instance of {}, "
-        "instead found 1.0, an instance of {}.".format(int, float))
+        "instead found 4.0, an instance of {}.".format(int, float))
 
 
 if __name__ == '__main__':
