@@ -29,7 +29,7 @@ python -m apache_beam.testing.load_tests.runtime_type_check_on_test_py3 \
     --metrics_table=gbk
     --nested_typehint=0
     --fanout=200
-    --num_records=300
+    --num_records=1000
     --input_options='{
     \"num_records\": 0,
     \"key_size\": 0,

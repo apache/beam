@@ -57,7 +57,7 @@ class BaseRunTimeTypeCheckTest(LoadTest):
     super(BaseRunTimeTypeCheckTest,
           self).__init__(runtime_type_check=runtime_type_check)
     self.fanout = self.get_option_or_default('fanout', 1)
-    self.num_records = self.get_option_or_default('num_records', 300)
+    self.num_records = self.get_option_or_default('num_records', 1000)
     self.nested_typehint = self.get_option_or_default('nested_typehint', 0)
 
   @beam.typehints.with_input_types(Tuple[int, ...])
@@ -65,18 +65,19 @@ class BaseRunTimeTypeCheckTest(LoadTest):
     def process(self, element, *args, **kwargs):
       yield element
 
-  @beam.typehints.with_output_types(Iterable[Tuple[int, ...]])
+  @beam.typehints.with_output_types(Tuple[int, ...])
   class SimpleOutput(beam.DoFn):
     def process(self, element, *args, **kwargs):
       yield element
 
-  @beam.typehints.with_input_types(Tuple[int, str, Tuple[float], Iterable[int], Union[str, int]])
+  @beam.typehints.with_input_types(
+      Tuple[int, str, Tuple[float], Iterable[int], Union[str, int]])
   class NestedInput(beam.DoFn):
     def process(self, element, *args, **kwargs):
       yield element
 
   @beam.typehints.with_output_types(
-      Iterable[Tuple[int, str, Tuple[float], Iterable[int], Union[str, int]]])
+      Tuple[int, str, Tuple[float], Iterable[int], Union[str, int]])
   class NestedOutput(beam.DoFn):
     def process(self, element, *args, **kwargs):
       yield element
