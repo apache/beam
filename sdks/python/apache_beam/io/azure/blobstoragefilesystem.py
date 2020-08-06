@@ -151,14 +151,13 @@ class BlobStorageFileSystem(FileSystem):
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO):
     # type: (...) -> BinaryIO
-
     """Returns a write channel for the given file path.
-    
+
     Args:
       path: string path of the file object to be written to the system
       mime_type: MIME type to specify the type of content in the file object
       compression_type: Type of compression to be used for this object
-    
+
     Returns: file handle with a close function for the user to use
     """
     return self._path_open(path, 'wb', mime_type, compression_type)
@@ -169,25 +168,24 @@ class BlobStorageFileSystem(FileSystem):
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO):
     # type: (...) -> BinaryIO
-
     """Returns a read channel for the given file path.
-    
+
     Args:
       path: string path of the file object to be read
       mime_type: MIME type to specify the type of content in the file object
       compression_type: Type of compression to be used for this object
-    
+
     Returns: file handle with a close function for the user to use
     """
     return self._path_open(path, 'rb', mime_type, compression_type)
 
   def copy(self, source_file_names, destination_file_names):
     """Recursively copy the file tree from the source to the destination
-    
+
     Args:
       source_file_names: list of source file objects that needs to be copied
       destination_file_names: list of destination of the new object
-    
+
     Raises:
       ``BeamIOError``: if any of the copy operations fail
     """
@@ -200,11 +198,11 @@ class BlobStorageFileSystem(FileSystem):
   def rename(self, source_file_names, destination_file_names):
     """Rename the files at the source list to the destination list.
     Source and destination lists should be of the same size.
-    
+
     Args:
       source_file_names: List of file paths that need to be moved
       destination_file_names: List of destination_file_names for the files
-    
+
     Raises:
       ``BeamIOError``: if any of the rename operations fail
     """
@@ -221,10 +219,10 @@ class BlobStorageFileSystem(FileSystem):
 
   def exists(self, path):
     """Check if the provided path exists on the FileSystem.
-    
+
     Args:
       path: string path that needs to be checked.
-    
+
     Returns: boolean flag indicating if path exists
     """
     try:
@@ -234,12 +232,12 @@ class BlobStorageFileSystem(FileSystem):
 
   def size(self, path):
     """Get size in bytes of a file on the FileSystem.
-    
+
     Args:
       path: string filepath of file.
-    
+
     Returns: int size of file according to the FileSystem.
-    
+
     Raises:
       ``BeamIOError``: if path doesn't exist.
     """
@@ -250,12 +248,12 @@ class BlobStorageFileSystem(FileSystem):
 
   def last_updated(self, path):
     """Get UNIX Epoch time in seconds on the FileSystem.
-    
+
     Args:
       path: string path of file.
-    
+
     Returns: float UNIX Epoch time
-    
+
     Raises:
       ``BeamIOError``: if path doesn't exist.
     """

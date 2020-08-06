@@ -550,7 +550,7 @@ class BlobStorageIO(object):
     results = {}
 
     try:
-      response = container_client.delete_blobs(*blobs, \
+      response = container_client.delete_blobs(*blobs,
                                                raise_on_any_failure=False)
 
       for blob, error in zip(blobs, response):
