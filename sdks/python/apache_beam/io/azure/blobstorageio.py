@@ -310,7 +310,7 @@ class BlobStorageIO(object):
         results.append((src, dest, error))
       # If there was an error in the delete operation.
       elif delete_results_dict[src] is not None:
-        results.append(src, dest, delete_results_dict[src])
+        results.append((src, dest, delete_results_dict[src]))
       # If there was no error in the operations.
       else:
         results.append((src, dest, None))
