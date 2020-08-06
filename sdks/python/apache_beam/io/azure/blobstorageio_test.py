@@ -136,7 +136,7 @@ class TestBlobStorageIO(unittest.TestCase):
     with self.azfs.open(file_name, 'r') as f:
       assert f.mode == 'r'
 
-    # Clean up
+    # Clean up.
     self.azfs.delete(file_name)
 
   def test_full_file_read(self):
@@ -154,7 +154,7 @@ class TestBlobStorageIO(unittest.TestCase):
     test_file.seek(0)
     self.assertEqual(test_file.read(), contents)
 
-    # Clean up
+    # Clean up.
     self.azfs.delete(file_name)
 
   def test_file_write(self):
@@ -171,7 +171,7 @@ class TestBlobStorageIO(unittest.TestCase):
     test_file_contents = test_file.read()
     self.assertEqual(test_file_contents, contents)
 
-    # Clean up
+    # Clean up.
     self.azfs.delete(file_name)
 
   def test_copy(self):
@@ -205,7 +205,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertTrue(
         'The specified blob does not exist.' in err.exception.message)
     self.assertEqual(err.exception.code, 404)
-  
+
   def test_copy_tree(self):
     src_dir_name = self.TEST_DATA_PATH + 'mysource/'
     dest_dir_name = self.TEST_DATA_PATH + 'mydest/'
@@ -219,7 +219,7 @@ class TestBlobStorageIO(unittest.TestCase):
           src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
       self.assertFalse(
           dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
-      
+
     results = self.azfs.copy_tree(src_dir_name, dest_dir_name)
 
     for src_file_name, dest_file_name, err in results:
@@ -232,7 +232,7 @@ class TestBlobStorageIO(unittest.TestCase):
       self.assertTrue(
         dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
     
-    # Clean up
+    # Clean up.
     for path in paths:
       src_file_name = src_dir_name + path
       dest_file_name = dest_dir_name + path
@@ -264,7 +264,7 @@ class TestBlobStorageIO(unittest.TestCase):
     # Insert files.
     for i in range(num_files):
       self._insert_random_file(from_name_pattern % i, file_size)
-    
+
     # Check if files were inserte properly.
     for i in range(num_files):
       self.assertTrue(self.azfs.exists(from_name_pattern % i))
@@ -304,7 +304,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertTrue(
         dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
 
-    # Clean up
+    # Clean up.
     # TODO : Add delete_files functionality
     self.azfs.delete(src_file_name)
     self.azfs.delete(dest_file_name)
@@ -346,7 +346,7 @@ class TestBlobStorageIO(unittest.TestCase):
       self.assertFalse(self.azfs.exists(from_name_pattern % i))
       self.assertTrue(self.azfs.exists(to_name_pattern % i))
 
-    # Clean up
+    # Clean up.
     all_files = set().union(*[set(pair) for pair in src_dest_pairs])
     self.azfs.delete_files(all_files)
 
@@ -365,7 +365,7 @@ class TestBlobStorageIO(unittest.TestCase):
     with self.assertRaises(ValueError):
       self.azfs.rename_files([(file_name, self.TEST_DATA_PATH + 'dir_dest/')])
 
-    # Clean up
+    # Clean up.
     self.azfs.delete(file_name)
 
   def test_exists(self):
@@ -376,7 +376,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self._insert_random_file(file_name, file_size)
     self.assertTrue(self.azfs.exists(file_name))
 
-    # Clean up
+    # Clean up.
     self.azfs.delete(file_name)
     self.assertFalse(self.azfs.exists(file_name))
 
@@ -389,7 +389,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertEqual(self.azfs.size(file_name), file_size)
     self.assertNotEqual(self.azfs.size(file_name), 19)
 
-    # Clean up
+    # Clean up.
     self.azfs.delete(file_name)
     self.assertFalse(self.azfs.exists(file_name))
 
@@ -403,7 +403,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertAlmostEqual(
         self.azfs.last_updated(file_name), time.time(), delta=tolerance)
 
-    # Clean up
+    # Clean up.
     self.azfs.delete(file_name)
 
   def test_checksum(self):
@@ -421,7 +421,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
     self.assertNotEqual(original_etag, rewritten_etag)
 
-    # Clean up
+    # Clean up.
     self.azfs.delete(file_name)
 
   def test_delete(self):
@@ -507,7 +507,7 @@ class TestBlobStorageIO(unittest.TestCase):
     # Check files deleted properly.
     for i in range(num_files):
       self.assertFalse(self.azfs.exists(file_name_pattern % i))
-    
+
   def test_delete_files_with_errors(self):
     real_file = self.TEST_DATA_PATH + 'test_delete_files/file'
     fake_file = 'azfs://fake/fake-container/test_fake_file'
@@ -517,11 +517,11 @@ class TestBlobStorageIO(unittest.TestCase):
 
     result = self.azfs.delete_files(filenames)
 
-    # First is the file in the real bucket, which shouldn't throw an error
+    # First is the file in the real container, which shouldn't throw an error.
     self.assertEqual(result[0][0], filenames[0])
     self.assertEqual(result[0][1], 202)
 
-    # Second is the file in the fake bucket, which should throw a 404
+    # Second is the file in the fake container, which should throw a 404.
     self.assertEqual(result[1][0], filenames[1])
     self.assertEqual(result[1][1], 404)
 
@@ -564,7 +564,7 @@ class TestBlobStorageIO(unittest.TestCase):
           set(self.azfs.list_prefix(file_pattern).items()),
           set(expected_file_names))
 
-    # Clean up
+    # Clean up.
     for (blob_name, size) in blobs:
       self.azfs.delete(self.TEST_DATA_PATH + blob_name)
 

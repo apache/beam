@@ -243,7 +243,7 @@ class BlobStorageIO(object):
         except BlobStorageError as e:
           results.append((src_path, dest_path, e))
 
-      # Mismatched paths (one directory, one non-directory) get an error
+      # Mismatched paths (one directory, one non-directory) get an error.
       else:
         e = BlobStorageError(
             "Unable to copy mismatched paths" +
@@ -294,7 +294,7 @@ class BlobStorageIO(object):
     copy_results = self.copy_paths(src_dest_pairs)
     paths_to_delete = \
         [src for (src, _, error) in copy_results if error is None]
-    # Results from delete operation.        
+    # Results from delete operation.
     delete_results = self.delete_files(paths_to_delete)
 
     # Get rename file results (list of tuples).
@@ -332,10 +332,10 @@ class BlobStorageIO(object):
       return True
     except ResourceNotFoundError as e:
       if e.status_code == 404:
-        # HTTP 404 indicates that the file did not exist
+        # HTTP 404 indicates that the file did not exist.
         return False
       else:
-        # We re-raise all other exceptions
+        # We re-raise all other exceptions.
         raise
 
   @retry.with_exponential_backoff(
@@ -366,7 +366,7 @@ class BlobStorageIO(object):
     Azure Blob Storage blob.
 
     This method does not perform glob expansion. Hence the
-    given path must be for a single S3 object.
+    given path must be for a single Azure Blob Storage blob.
 
     Returns: last updated time of the Azure Blob Storage blob
     in seconds.
@@ -630,9 +630,9 @@ class BlobStorageDownloader(Downloader):
     return self._size
 
   def get_range(self, start, end):
-    # Download_blob first parameter is offset and second is length (exclusive)
+    # Download_blob first parameter is offset and second is length (exclusive).
     blob_data = self._blob_to_download.download_blob(start, end - start)
-    # Returns the content as bytes
+    # Returns the content as bytes.
     return blob_data.readall()
 
 
@@ -646,7 +646,7 @@ class BlobStorageUploader(Uploader):
     self._blob_to_upload = self._client.get_blob_client(
         self._container, self._blob)
 
-    # Temporary file
+    # Temporary file.
     self._temporary_file = tempfile.NamedTemporaryFile()
 
   def put(self, data):
@@ -654,7 +654,7 @@ class BlobStorageUploader(Uploader):
 
   def finish(self):
     self._temporary_file.seek(0)
-    # The temporary file is deleted immediately after the operation
+    # The temporary file is deleted immediately after the operation.
     with open(self._temporary_file.name, "rb") as f:
       self._blob_to_upload.upload_blob(
           f.read(), overwrite=True, content_settings=self._content_settings)
