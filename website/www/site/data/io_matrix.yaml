@@ -305,6 +305,7 @@ categories:
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.datastore.v1new.datastoreio.html
       - transform: SnowflakeIO
         description: Experimental Transforms for reading from and writing to [Snowflake](https://www.snowflake.com/).
+        docs: /documentation/io/built-in/snowflake
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.snowflake.SnowflakeIO
