@@ -350,6 +350,24 @@ class TestBlobStorageIO(unittest.TestCase):
     all_files = set().union(*[set(pair) for pair in src_dest_pairs])
     self.azfs.delete_files(all_files)
 
+  def test_rename_directory_error(self):
+    dir_name = self.TEST_DATA_PATH + 'rename_dir/'
+    file_name = dir_name + 'test_rename_file'
+    file_size = 1024
+
+    # Insert file.
+    self._insert_random_file(file_name, file_size)
+
+    # Check file inserted properly.
+    self.assertTrue(self.azfs.exists(file_name))
+
+    # Execute rename operation.
+    with self.assertRaises(ValueError):
+      self.azfs.rename_files([(file_name, self.TEST_DATA_PATH + 'dir_dest/')])
+
+    # Clean up
+    self.azfs.delete(file_name)
+
   def test_exists(self):
     file_name = self.TEST_DATA_PATH + 'test_exists'
     file_size = 1024
