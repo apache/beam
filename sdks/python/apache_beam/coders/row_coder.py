@@ -30,6 +30,8 @@ from apache_beam.coders.coders import Coder
 from apache_beam.coders.coders import FastCoder
 from apache_beam.coders.coders import FloatCoder
 from apache_beam.coders.coders import IterableCoder
+from apache_beam.coders.coders import MapCoder
+from apache_beam.coders.coders import NullableCoder
 from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.coders.coders import TupleCoder
 from apache_beam.coders.coders import VarIntCoder
@@ -58,8 +60,9 @@ class RowCoder(FastCoder):
         to encode/decode.
     """
     self.schema = schema
+    # Use non-null coders because null values are represented separately
     self.components = [
-        RowCoder.coder_from_type(field.type) for field in self.schema.fields
+        _nonnull_coder_from_type(field.type) for field in self.schema.fields
     ]
 
   def _create_impl(self):
@@ -102,32 +105,6 @@ class RowCoder(FastCoder):
     # type: (bytes) -> RowCoder
     return RowCoder(proto_utils.parse_Bytes(payload, schema_pb2.Schema))
 
-  @staticmethod
-  def coder_from_type(field_type):
-    type_info = field_type.WhichOneof("type_info")
-    if type_info == "atomic_type":
-      if field_type.atomic_type in (schema_pb2.INT32, schema_pb2.INT64):
-        return VarIntCoder()
-      elif field_type.atomic_type == schema_pb2.DOUBLE:
-        return FloatCoder()
-      elif field_type.atomic_type == schema_pb2.STRING:
-        return StrUtf8Coder()
-      elif field_type.atomic_type == schema_pb2.BOOLEAN:
-        return BooleanCoder()
-      elif field_type.atomic_type == schema_pb2.BYTES:
-        return BytesCoder()
-    elif type_info == "array_type":
-      return IterableCoder(
-          RowCoder.coder_from_type(field_type.array_type.element_type))
-    elif type_info == "row_type":
-      return RowCoder(field_type.row_type.schema)
-
-    # The Java SDK supports several more types, but the coders are not yet
-    # standard, and are not implemented in Python.
-    raise ValueError(
-        "Encountered a type that is not currently supported by RowCoder: %s" %
-        field_type)
-
   def __reduce__(self):
     # when pickling, use bytes representation of the schema. schema_pb2.Schema
     # objects cannot be pickled.
@@ -135,6 +112,43 @@ class RowCoder(FastCoder):
 
 
 typecoders.registry.register_coder(row_type.RowTypeConstraint, RowCoder)
+
+
+def _coder_from_type(field_type):
+  coder = _nonnull_coder_from_type(field_type)
+  if field_type.nullable:
+    return NullableCoder(coder)
+  else:
+    return coder
+
+
+def _nonnull_coder_from_type(field_type):
+  type_info = field_type.WhichOneof("type_info")
+  if type_info == "atomic_type":
+    if field_type.atomic_type in (schema_pb2.INT32, schema_pb2.INT64):
+      return VarIntCoder()
+    elif field_type.atomic_type == schema_pb2.DOUBLE:
+      return FloatCoder()
+    elif field_type.atomic_type == schema_pb2.STRING:
+      return StrUtf8Coder()
+    elif field_type.atomic_type == schema_pb2.BOOLEAN:
+      return BooleanCoder()
+    elif field_type.atomic_type == schema_pb2.BYTES:
+      return BytesCoder()
+  elif type_info == "array_type":
+    return IterableCoder(_coder_from_type(field_type.array_type.element_type))
+  elif type_info == "map_type":
+    return MapCoder(
+        _coder_from_type(field_type.map_type.key_type),
+        _coder_from_type(field_type.map_type.value_type))
+  elif type_info == "row_type":
+    return RowCoder(field_type.row_type.schema)
+
+  # The Java SDK supports several more types, but the coders are not yet
+  # standard, and are not implemented in Python.
+  raise ValueError(
+      "Encountered a type that is not currently supported by RowCoder: %s" %
+      field_type)
 
 
 class RowCoderImpl(StreamCoderImpl):
