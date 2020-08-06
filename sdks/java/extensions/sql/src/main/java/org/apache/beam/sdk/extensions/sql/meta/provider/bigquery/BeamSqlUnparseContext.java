@@ -30,7 +30,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.Sql
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.*;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlLiteral;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlWriter;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
@@ -96,13 +99,16 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
 
   private static class SqlDateTimeLiteral extends SqlLiteral {
 
+    private final TimestampString timestampString;
+
     SqlDateTimeLiteral(TimestampString timestampString, SqlParserPos pos) {
       super(timestampString, SqlTypeName.TIMESTAMP, pos);
+      this.timestampString = timestampString;
     }
 
     @Override
-    public String toString() {
-      return "DATETIME '" + super.toString() + "'";
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+      writer.literal("DATETIME '" + timestampString.toString() + "'");
     }
   }
 

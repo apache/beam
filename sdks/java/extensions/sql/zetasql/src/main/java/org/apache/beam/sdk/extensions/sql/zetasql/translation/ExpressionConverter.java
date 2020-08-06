@@ -849,29 +849,13 @@ public class ExpressionConverter {
         ret = rexBuilder().makeLiteral(convertTimeValueToTimeString(value), timeType, false);
         break;
       case TYPE_DATETIME:
-        // Cannot simply call makeTimestampWithLocalTimeZoneLiteral() for ZetaSQL DATETIME type
-        // because later it will be unparsed to the string representation of timestamp (e.g. "SELECT
-        // DATETIME '2008-12-25 15:30:00'" will be unparsed to "SELECT TIMESTAMP '2008-12-25
-        // 15:30:00:000000'"). So we create a wrapper function here such that we can later recognize
-        // it and customize its unparsing in BeamBigQuerySqlDialect.
-        //ret =
-        //    rexBuilder()
-        //        .makeCall(
-        //            SqlOperators.createZetaSqlFunction(
-        //                BeamBigQuerySqlDialect.DATETIME_LITERAL_FUNCTION,
-        //                ZetaSqlCalciteTranslationUtils.toCalciteTypeName(kind)),
-        //            rexBuilder()
-        //                .makeTimestampWithLocalTimeZoneLiteral(
-        //                    convertDateTimeValueToTimeStampString(value),
-        //                    typeFactory()
-        //                        .getTypeSystem()
-        //                        .getMaxPrecision(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)));
-        ret = rexBuilder()
-            .makeTimestampWithLocalTimeZoneLiteral(
-                convertDateTimeValueToTimeStampString(value),
-                typeFactory()
-                    .getTypeSystem()
-                    .getMaxPrecision(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE));
+        ret =
+            rexBuilder()
+                .makeTimestampWithLocalTimeZoneLiteral(
+                    convertDateTimeValueToTimeStampString(value),
+                    typeFactory()
+                        .getTypeSystem()
+                        .getMaxPrecision(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE));
         break;
       case TYPE_BYTES:
         ret = rexBuilder().makeBinaryLiteral(new ByteString(value.getBytesValue().toByteArray()));

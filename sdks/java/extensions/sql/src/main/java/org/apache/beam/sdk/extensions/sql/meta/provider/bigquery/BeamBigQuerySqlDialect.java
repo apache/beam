@@ -97,7 +97,6 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
           .put(DOUBLE_NAN_FUNCTION, "CAST('NaN' AS FLOAT64)")
           .build();
   public static final String NUMERIC_LITERAL_FUNCTION = "numeric_literal";
-  public static final String DATETIME_LITERAL_FUNCTION = "datetime_literal";
 
   public BeamBigQuerySqlDialect(Context context) {
     super(context);
@@ -167,12 +166,7 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
         break;
       case OTHER_FUNCTION:
         String funName = call.getOperator().getName();
-        if (DATETIME_LITERAL_FUNCTION.equals(funName)) {
-          // self-designed function dealing with the unparsing of ZetaSQL DATETIME literal, to
-          // differentiate it from ZetaSQL TIMESTAMP literal
-          unparseDateTimeLiteralWrapperFunction(writer, call, leftPrec, rightPrec);
-          break;
-        } else if (DOUBLE_FUNCTIONS.containsKey(funName)) {
+        if (DOUBLE_FUNCTIONS.containsKey(funName)) {
           // self-designed function dealing with the unparsing of ZetaSQL DOUBLE positive
           // infinity, negative infinity and NaN
           unparseDoubleWrapperFunction(writer, funName);
@@ -257,11 +251,6 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
       call.operand(1).unparse(writer, leftPrec, rightPrec);
     }
     writer.endFunCall(trimFrame);
-  }
-
-  private void unparseDateTimeLiteralWrapperFunction(
-      SqlWriter writer, SqlCall call, int leftPrec, int rightPrec) {
-    writer.literal(call.operand(0).toString().replace("TIMESTAMP", "DATETIME"));
   }
 
   /**
