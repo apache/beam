@@ -182,6 +182,10 @@ class DataInputOperation(RunnerIOOperation):
         windowed_coder,
         transform_id=transform_id,
         data_channel=data_channel)
+    producer_fn = None
+    if hasattr(self, 'spec') and hasattr(self.spec, 'serialized_fn'):
+      producer_fn = self.spec.serialized_fn
+
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet.create(
@@ -190,7 +194,7 @@ class DataInputOperation(RunnerIOOperation):
             0,
             next(iter(itervalues(consumers))),
             self.windowed_coder,
-            self)
+            producer_fn)
     ]
     self.splitting_lock = threading.Lock()
     self.index = -1

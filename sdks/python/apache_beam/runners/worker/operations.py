@@ -107,15 +107,15 @@ class ConsumerSet(Receiver):
              output_index,
              consumers,  # type: List[Operation]
              coder,
-             producer    # type: Operation
+             producer_fn
              ):
     # type: (...) -> ConsumerSet
     if len(consumers) == 1:
       return SingletonConsumerSet(
-          counter_factory, step_name, output_index, consumers, coder, producer)
+          counter_factory, step_name, output_index, consumers, coder, producer_fn)
     else:
       return ConsumerSet(
-          counter_factory, step_name, output_index, consumers, coder, producer)
+          counter_factory, step_name, output_index, consumers, coder, producer_fn)
 
   def __init__(self,
                counter_factory,
@@ -123,17 +123,25 @@ class ConsumerSet(Receiver):
                output_index,
                consumers,  # type: List[Operation]
                coder,
-               producer
+               producer_fn
                ):
-    self.producer = producer
     self.consumers = consumers
+    self.producer_fn = producer_fn
+
+    consumer_fns = []
+    for consumer in consumers:
+        if (consumer
+                and hasattr(consumer, 'spec')
+                and hasattr(consumer.spec, 'serialized_fn')):
+            consumer_fns.append(consumer.spec.serialized_fn)
+
     self.opcounter = opcounters.OperationCounters(
         counter_factory,
         step_name,
         coder,
         output_index,
-        consumers=consumers,
-        producer=producer)
+        consumer_fns=consumer_fns,
+        producer_fn=producer_fn)
     # Used in repr.
     self.step_name = step_name
     self.output_index = output_index
@@ -279,6 +287,9 @@ class Operation(object):
       # top-level operation, should have output_coders
       #TODO(pabloem): Define better what step name is used here.
       if getattr(self.spec, 'output_coders', None):
+        producer_fn = None
+        if hasattr(self, 'spec') and hasattr(self.spec, 'serialized_fn'):
+          producer_fn = self.spec.serialized_fn
         self.receivers = [
             ConsumerSet.create(
                 self.counter_factory,
@@ -286,7 +297,7 @@ class Operation(object):
                 i,
                 self.consumers[i],
                 coder,
-                self) for i,
+                producer_fn) for i,
             coder in enumerate(self.spec.output_coders)
         ]
     self.setup_done = True
@@ -489,6 +500,11 @@ class ImpulseReadOperation(Operation):
     super(ImpulseReadOperation,
           self).__init__(name_context, None, counter_factory, state_sampler)
     self.source = source
+
+    producer_fn = None
+    if hasattr(self, 'spec') and hasattr(self.spec, 'serialized_fn'):
+      producer_fn = self.spec.serialized_fn
+
     self.receivers = [
         ConsumerSet.create(
             self.counter_factory,
@@ -496,7 +512,7 @@ class ImpulseReadOperation(Operation):
             0,
             next(iter(consumers.values())),
             output_coder,
-            self)
+            producer_fn)
     ]
 
   def process(self, unused_impulse):
@@ -611,8 +627,7 @@ class DoOperation(Operation):
           self.name_context.step_name,
           view_options['coder'],
           i,
-          suffix='side-input',
-          producer=None)
+          suffix='side-input')
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter, element_counter=element_counter)
       yield apache_sideinputs.SideInputMap(
