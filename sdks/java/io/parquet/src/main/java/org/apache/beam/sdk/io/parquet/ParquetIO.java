@@ -235,12 +235,11 @@ public class ParquetIO {
                   "Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
               .apply(FileIO.matchAll())
               .apply(FileIO.readMatches());
-      if (!getSplit()) {
+      if (getSplit()) {
         return inputFiles.apply(
             readFiles(getSchema()).withSplit().withAvroDataModel(getAvroDataModel()));
-      } else {
-        return inputFiles.apply(readFiles(getSchema()).withAvroDataModel(getAvroDataModel()));
       }
+      return inputFiles.apply(readFiles(getSchema()).withAvroDataModel(getAvroDataModel()));
     }
 
     @Override
@@ -289,15 +288,14 @@ public class ParquetIO {
     @Override
     public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
-      if (!getSplit()) {
+      if (getSplit()) {
         return input
             .apply(ParDo.of(new SplitReadFn(getAvroDataModel())))
             .setCoder(AvroCoder.of(getSchema()));
-      } else {
-        return input
-            .apply(ParDo.of(new ReadFn(getAvroDataModel())))
-            .setCoder(AvroCoder.of(getSchema()));
       }
+      return input
+          .apply(ParDo.of(new ReadFn(getAvroDataModel())))
+          .setCoder(AvroCoder.of(getSchema()));
     }
 
     @DoFn.BoundedPerElement
@@ -335,13 +333,6 @@ public class ParquetIO {
           RestrictionTracker<OffsetRange, Long> tracker,
           OutputReceiver<GenericRecord> outputReceiver)
           throws Exception {
-        LOG.info(
-            "processing"
-                + tracker.currentRestriction().getFrom()
-                + " to "
-                + tracker.currentRestriction().getTo()
-                + "with size"
-                + getSize(file, tracker.currentRestriction()));
         ReadSupport<GenericRecord> readSupport;
         InputFile inputFile = getInputFile(file);
         Configuration conf = setConf();
@@ -354,9 +345,6 @@ public class ParquetIO {
         ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
         Filter filter = checkNotNull(options.getRecordFilter(), "filter");
         conf = ((HadoopReadOptions) options).getConf();
-        for (String property : options.getPropertyNames()) {
-          conf.set(property, options.getProperty(property));
-        }
         FileMetaData parquetFileMetadata = reader.getFooter().getFileMetaData();
         MessageType fileSchema = parquetFileMetadata.getSchema();
         Map<String, String> fileMetadata = parquetFileMetadata.getKeyValueMetaData();
@@ -376,8 +364,8 @@ public class ParquetIO {
         for (int i = 0; i < currentBlock; i++) {
           reader.skipNextRowGroup();
         }
-        while (tracker.tryClaim(currentBlock)) {
 
+        while ((tracker).tryClaim(currentBlock)) {
           LOG.info("reading block" + currentBlock);
           PageReadStore pages = reader.readNextRowGroup();
           currentBlock += 1;
@@ -411,6 +399,7 @@ public class ParquetIO {
               }
               outputReceiver.output(record);
             } catch (RuntimeException e) {
+
               throw new ParquetDecodingException(
                   format(
                       "Can not read value at %d in block %d in file %s",
@@ -459,7 +448,7 @@ public class ParquetIO {
         List<BlockMetaData> rowGroups = reader.getRowGroups();
         for (OffsetRange offsetRange :
             splitBlockWithLimit(
-                restriction.getFrom(), restriction.getTo(), rowGroups, SPLIT_LIMIT)) {
+                restriction.getFrom(), restriction.getTo(), rowGroups, SPLIT_LIMIT / 3)) {
           out.output(offsetRange);
         }
       }
@@ -531,6 +520,7 @@ public class ParquetIO {
     }
 
     public static class BlockTracker extends OffsetRangeTracker {
+      private static final Logger LOG = LoggerFactory.getLogger(BlockTracker.class);
       private long totalWork;
       private long progress;
       private long approximateRecordSize;
@@ -561,6 +551,7 @@ public class ParquetIO {
                   .subtract(BigDecimal.valueOf(this.progress), MathContext.DECIMAL128)
                   .max(BigDecimal.ZERO);
           BigDecimal work = BigDecimal.valueOf(this.totalWork);
+          LOG.info("total work: " + work + " work remaining: " + workRemaining);
           return Progress.from(
               work.subtract(workRemaining, MathContext.DECIMAL128).doubleValue(),
               workRemaining.doubleValue());
