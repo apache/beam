@@ -2942,7 +2942,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("BEAM-9515")
+  @Ignore("[BEAM-9515] ArrayScanToUncollectConverter Unnest does not support sub-queries")
   public void testUNNESTExpression() {
     String sql = "SELECT * FROM UNNEST(ARRAY(SELECT Value FROM KeyValue));";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);

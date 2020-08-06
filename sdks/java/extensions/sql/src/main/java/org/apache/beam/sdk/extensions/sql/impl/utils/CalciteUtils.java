@@ -53,15 +53,6 @@ public class CalciteUtils {
     }
   }
 
-  /** A LogicalType corresponding to TIMESTAMP_WITH_LOCAL_TIME_ZONE. */
-  public static class TimestampWithLocalTzType extends PassThroughLogicalType<Instant> {
-    public static final String IDENTIFIER = "SqlTimestampWithLocalTzType";
-
-    public TimestampWithLocalTzType() {
-      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
-    }
-  }
-
   /** A LogicalType corresponding to CHAR. */
   public static class CharType extends PassThroughLogicalType<String> {
     public static final String IDENTIFIER = "SqlCharType";
@@ -82,7 +73,7 @@ public class CalciteUtils {
       return logicalId.equals(SqlTypes.DATE.getIdentifier())
           || logicalId.equals(SqlTypes.TIME.getIdentifier())
           || logicalId.equals(TimeWithLocalTzType.IDENTIFIER)
-          || logicalId.equals(TimestampWithLocalTzType.IDENTIFIER);
+          || logicalId.equals(SqlTypes.DATETIME.getIdentifier());
     }
     return false;
   }
@@ -121,8 +112,9 @@ public class CalciteUtils {
       FieldType.logicalType(new TimeWithLocalTzType());
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
   public static final FieldType NULLABLE_TIMESTAMP = FieldType.DATETIME.withNullable(true);
-  public static final FieldType TIMESTAMP_WITH_LOCAL_TZ =
-      FieldType.logicalType(new TimestampWithLocalTzType());
+  public static final FieldType TIMESTAMP_WITH_LOCAL_TZ = FieldType.logicalType(SqlTypes.DATETIME);
+  public static final FieldType NULLABLE_TIMESTAMP_WITH_LOCAL_TZ =
+      FieldType.logicalType(SqlTypes.DATETIME).withNullable(true);
 
   private static final BiMap<FieldType, SqlTypeName> BEAM_TO_CALCITE_TYPE_MAPPING =
       ImmutableBiMap.<FieldType, SqlTypeName>builder()

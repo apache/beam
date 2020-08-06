@@ -28,6 +28,7 @@ import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema;
@@ -54,12 +55,12 @@ public class ZetaSqlBeamTranslationUtilsTest {
           .addField("f_string", FieldType.STRING)
           .addField("f_bytes", FieldType.BYTES)
           .addLogicalTypeField("f_date", SqlTypes.DATE)
-          // .addLogicalTypeField("f_datetime", SqlTypes.DATETIME)
+          .addLogicalTypeField("f_datetime", SqlTypes.DATETIME)
           .addLogicalTypeField("f_time", SqlTypes.TIME)
           .addField("f_timestamp", FieldType.DATETIME)
           .addArrayField("f_array", FieldType.DOUBLE)
           .addRowField("f_struct", TEST_INNER_SCHEMA)
-          // .addLogicalTypeField("f_numeric", SqlTypes.NUMERIC)
+          .addField("f_numeric", FieldType.DECIMAL)
           .addNullableField("f_null", FieldType.INT64)
           .build();
 
@@ -83,10 +84,12 @@ public class ZetaSqlBeamTranslationUtilsTest {
               new StructField("f_string", TypeFactory.createSimpleType(TypeKind.TYPE_STRING)),
               new StructField("f_bytes", TypeFactory.createSimpleType(TypeKind.TYPE_BYTES)),
               new StructField("f_date", TypeFactory.createSimpleType(TypeKind.TYPE_DATE)),
+              new StructField("f_datetime", TypeFactory.createSimpleType(TypeKind.TYPE_DATETIME)),
               new StructField("f_time", TypeFactory.createSimpleType(TypeKind.TYPE_TIME)),
               new StructField("f_timestamp", TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
               new StructField("f_array", TEST_INNER_ARRAY_TYPE),
               new StructField("f_struct", TEST_INNER_STRUCT_TYPE),
+              new StructField("f_numeric", TypeFactory.createSimpleType(TypeKind.TYPE_NUMERIC)),
               new StructField("f_null", TypeFactory.createSimpleType(TypeKind.TYPE_INT64))));
 
   private static final Row TEST_ROW =
@@ -97,10 +100,12 @@ public class ZetaSqlBeamTranslationUtilsTest {
           .addValue("Hello")
           .addValue(new byte[] {0x11, 0x22})
           .addValue(LocalDate.of(2020, 6, 4))
+          .addValue(LocalDateTime.of(2008, 12, 25, 15, 30, 0))
           .addValue(LocalTime.of(15, 30, 45))
           .addValue(Instant.ofEpochMilli(12345678L))
           .addArray(3.0, 6.5)
           .addValue(Row.withSchema(TEST_INNER_SCHEMA).addValues(0L, "world").build())
+          .addValue(ZetaSqlTypesUtils.bigDecimalAsNumeric("12346"))
           .addValue(null)
           .build();
 
@@ -114,6 +119,10 @@ public class ZetaSqlBeamTranslationUtilsTest {
               Value.createStringValue("Hello"),
               Value.createBytesValue(ByteString.copyFrom(new byte[] {0x11, 0x22})),
               Value.createDateValue((int) LocalDate.of(2020, 6, 4).toEpochDay()),
+              Value.createDatetimeValue(
+                  CivilTimeEncoder.encodePacked64DatetimeSeconds(
+                      LocalDateTime.of(2008, 12, 25, 15, 30, 0)),
+                  LocalDateTime.of(2008, 12, 25, 15, 30, 0).getNano()),
               Value.createTimeValue(
                   CivilTimeEncoder.encodePacked64TimeNanos(LocalTime.of(15, 30, 45))),
               Value.createTimestampValueFromUnixMicros(12345678000L),
@@ -123,6 +132,7 @@ public class ZetaSqlBeamTranslationUtilsTest {
               Value.createStructValue(
                   TEST_INNER_STRUCT_TYPE,
                   Arrays.asList(Value.createInt64Value(0L), Value.createStringValue("world"))),
+              Value.createNumericValue(ZetaSqlTypesUtils.bigDecimalAsNumeric("12346")),
               Value.createNullValue(TypeFactory.createSimpleType(TypeKind.TYPE_INT64))));
 
   @Test
