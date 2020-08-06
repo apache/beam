@@ -1091,7 +1091,7 @@ class BigQueryWriteFn(DoFn):
         'retry_strategy': self._retry_strategy,
         'create_disposition': str(self.create_disposition),
         'write_disposition': str(self.write_disposition),
-        'additional_bq_parameters': str(self.additional_bq_parameters)
+        'additional_bq_parameters': str(self.additional_bq_parameters),
         'with_insert_ids': str(self.with_insert_ids)
     }
 
