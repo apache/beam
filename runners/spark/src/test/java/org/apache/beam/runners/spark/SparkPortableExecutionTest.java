@@ -114,9 +114,10 @@ public class SparkPortableExecutionTest implements Serializable {
             pipelineProto,
             options.as(SparkPipelineOptions.class));
     jobInvocation.start();
-    while (jobInvocation.getState() != JobState.Enum.DONE) {
+    while (!JobInvocation.isTerminated(jobInvocation.getState())) {
       Thread.sleep(1000);
     }
+    Assert.assertEquals(JobState.Enum.DONE, jobInvocation.getState());
   }
 
   /**
@@ -156,13 +157,14 @@ public class SparkPortableExecutionTest implements Serializable {
             pipelineProto,
             options.as(SparkPipelineOptions.class));
     jobInvocation.start();
-    while (jobInvocation.getState() != JobState.Enum.DONE) {
+    while (!JobInvocation.isTerminated(jobInvocation.getState())) {
       Thread.sleep(1000);
     }
+    Assert.assertEquals(JobState.Enum.DONE, jobInvocation.getState());
   }
 
   /** A non-idempotent DoFn that cannot be run more than once without error. */
-  private class DoFnWithSideEffect<InputT> extends DoFn<InputT, KV<String, String>> {
+  private static class DoFnWithSideEffect<InputT> extends DoFn<InputT, KV<String, String>> {
 
     private final String name;
     private final File file;
