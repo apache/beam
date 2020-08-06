@@ -236,8 +236,8 @@ class OperationCounters(object):
   def type_check(self, value):
     # type: (any, bool) -> None
     type_hint_map = {
-      'output_types': self.producer_type_hints,
-      'input_types': self.consumer_type_hints
+        'output_types': self.producer_type_hints,
+        'input_types': self.consumer_type_hints
     }
 
     for constraint, type_hints in type_hint_map.items():
@@ -247,8 +247,9 @@ class OperationCounters(object):
           try:
             _check_instance_type(constraint, value, type_hint[1], verbose=True)
           except TypeCheckError as e:
-            error_msg = ('Runtime type violation detected within %s: '
-                         '%s' % (type_hint[2], e))
+            error_msg = (
+                'Runtime type violation detected within %s: '
+                '%s' % (type_hint[2], e))
             raise_with_traceback(TypeCheckError(error_msg))
 
   def do_sample(self, windowed_value):

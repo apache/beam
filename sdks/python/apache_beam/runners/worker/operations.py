@@ -113,10 +113,20 @@ class ConsumerSet(Receiver):
     # type: (...) -> ConsumerSet
     if len(consumers) == 1:
       return SingletonConsumerSet(
-          counter_factory, step_name, output_index, consumers, coder, producer_type_hints)
+          counter_factory,
+          step_name,
+          output_index,
+          consumers,
+          coder,
+          producer_type_hints)
     else:
       return ConsumerSet(
-          counter_factory, step_name, output_index, consumers, coder, producer_type_hints)
+          counter_factory,
+          step_name,
+          output_index,
+          consumers,
+          coder,
+          producer_type_hints)
 
   def __init__(self,
                counter_factory,
@@ -130,7 +140,7 @@ class ConsumerSet(Receiver):
 
     consumer_type_hints = []
     for consumer in consumers:
-        consumer_type_hints.extend(get_perf_runtime_type_hints(consumer))
+      consumer_type_hints.extend(get_perf_runtime_type_hints(consumer))
 
     self.opcounter = opcounters.OperationCounters(
         counter_factory,
@@ -292,7 +302,7 @@ class Operation(object):
                 self.consumers[i],
                 coder,
                 get_perf_runtime_type_hints(self)) for i,
-                                                       coder in enumerate(self.spec.output_coders)
+            coder in enumerate(self.spec.output_coders)
         ]
     self.setup_done = True
 

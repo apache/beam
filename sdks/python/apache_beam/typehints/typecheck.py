@@ -294,9 +294,8 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     if isinstance(transform, core.ParDo):
       if not self._in_combine:
         parameter_name, type_hints = self.get_type_hints(transform)
-        transform.fn.perf_runtime_type_check = (type_hints,
-                                                parameter_name,
-                                                applied_transform.full_label)
+        transform.fn.perf_runtime_type_check = (
+            type_hints, parameter_name, applied_transform.full_label)
 
   def get_type_hints(self, transform):
     type_hints = transform.get_type_hints()
