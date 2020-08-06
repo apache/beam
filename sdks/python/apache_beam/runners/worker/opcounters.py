@@ -195,8 +195,8 @@ class OperationCounters(object):
       coder,
       index,
       suffix='out',
-      consumer_fns=None,
-      producer_fn=None):
+      consumer_type_hints=None,
+      producer_type_hints=None):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(
         '%s-%s%s-ElementCount' % (step_name, suffix, index), Counter.SUM)
@@ -208,19 +208,8 @@ class OperationCounters(object):
     self.current_size = None  # type: Optional[int]
     self._sample_counter = 0
     self._next_sample = 0
-
-    self.producer_type_hints = []
-    self.consumer_type_hints = []
-
-    self.store_type_hints(self.producer_type_hints, [producer_fn])
-    self.store_type_hints(self.consumer_type_hints, consumer_fns or [])
-
-  def store_type_hints(self, my_container, serialized_fns):
-    for serialized_fn in serialized_fns:
-      if serialized_fn:
-        fns = pickler.loads(serialized_fn)
-        if fns and hasattr(fns[0], 'perf_runtime_type_check'):
-          my_container.append(fns[0].perf_runtime_type_check)
+    self.producer_type_hints = producer_type_hints or []
+    self.consumer_type_hints = consumer_type_hints or []
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None

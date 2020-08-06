@@ -182,9 +182,14 @@ class DataInputOperation(RunnerIOOperation):
         windowed_coder,
         transform_id=transform_id,
         data_channel=data_channel)
-    producer_fn = None
+
+    producer_type_hints = []
     if hasattr(self, 'spec') and hasattr(self.spec, 'serialized_fn'):
       producer_fn = self.spec.serialized_fn
+      if producer_fn:
+        fns = pickler.loads(producer_fn)
+        if fns and hasattr(fns[0], 'perf_runtime_type_check'):
+          producer_type_hints.append(fns[0].perf_runtime_type_check)
 
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
@@ -194,7 +199,7 @@ class DataInputOperation(RunnerIOOperation):
             0,
             next(iter(itervalues(consumers))),
             self.windowed_coder,
-            producer_fn)
+            producer_type_hints)
     ]
     self.splitting_lock = threading.Lock()
     self.index = -1

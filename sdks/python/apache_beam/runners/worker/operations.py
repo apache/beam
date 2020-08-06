@@ -107,15 +107,15 @@ class ConsumerSet(Receiver):
              output_index,
              consumers,  # type: List[Operation]
              coder,
-             producer_fn
+             producer_type_hints
              ):
     # type: (...) -> ConsumerSet
     if len(consumers) == 1:
       return SingletonConsumerSet(
-          counter_factory, step_name, output_index, consumers, coder, producer_fn)
+          counter_factory, step_name, output_index, consumers, coder, producer_type_hints)
     else:
       return ConsumerSet(
-          counter_factory, step_name, output_index, consumers, coder, producer_fn)
+          counter_factory, step_name, output_index, consumers, coder, producer_type_hints)
 
   def __init__(self,
                counter_factory,
@@ -123,25 +123,27 @@ class ConsumerSet(Receiver):
                output_index,
                consumers,  # type: List[Operation]
                coder,
-               producer_fn
+               producer_type_hints
                ):
     self.consumers = consumers
-    self.producer_fn = producer_fn
 
-    consumer_fns = []
+    consumer_type_hints = []
     for consumer in consumers:
         if (consumer
                 and hasattr(consumer, 'spec')
-                and hasattr(consumer.spec, 'serialized_fn')):
-            consumer_fns.append(consumer.spec.serialized_fn)
+                and hasattr(consumer.spec, 'serialized_fn')
+                and consumer.spec.serialized_fn is not None):
+          fns = pickler.loads(consumer.spec.serialized_fn)
+          if fns and hasattr(fns[0], 'perf_runtime_type_check'):
+            consumer_type_hints.append(fns[0].perf_runtime_type_check)
 
     self.opcounter = opcounters.OperationCounters(
         counter_factory,
         step_name,
         coder,
         output_index,
-        consumer_fns=consumer_fns,
-        producer_fn=producer_fn)
+        consumer_type_hints=consumer_type_hints,
+        producer_type_hints=producer_type_hints)
     # Used in repr.
     self.step_name = step_name
     self.output_index = output_index
@@ -287,9 +289,15 @@ class Operation(object):
       # top-level operation, should have output_coders
       #TODO(pabloem): Define better what step name is used here.
       if getattr(self.spec, 'output_coders', None):
-        producer_fn = None
+
+        producer_type_hints = []
         if hasattr(self, 'spec') and hasattr(self.spec, 'serialized_fn'):
           producer_fn = self.spec.serialized_fn
+          if producer_fn:
+            fns = pickler.loads(producer_fn)
+            if fns and hasattr(fns[0], 'perf_runtime_type_check'):
+              producer_type_hints.append(fns[0].perf_runtime_type_check)
+
         self.receivers = [
             ConsumerSet.create(
                 self.counter_factory,
@@ -297,7 +305,7 @@ class Operation(object):
                 i,
                 self.consumers[i],
                 coder,
-                producer_fn) for i,
+                producer_type_hints) for i,
             coder in enumerate(self.spec.output_coders)
         ]
     self.setup_done = True
@@ -501,9 +509,13 @@ class ImpulseReadOperation(Operation):
           self).__init__(name_context, None, counter_factory, state_sampler)
     self.source = source
 
-    producer_fn = None
+    producer_type_hints = []
     if hasattr(self, 'spec') and hasattr(self.spec, 'serialized_fn'):
       producer_fn = self.spec.serialized_fn
+      if producer_fn:
+        fns = pickler.loads(producer_fn)
+        if fns and hasattr(fns[0], 'perf_runtime_type_check'):
+          producer_type_hints.append(fns[0].perf_runtime_type_check)
 
     self.receivers = [
         ConsumerSet.create(
@@ -512,7 +524,7 @@ class ImpulseReadOperation(Operation):
             0,
             next(iter(consumers.values())),
             output_coder,
-            producer_fn)
+            producer_type_hints)
     ]
 
   def process(self, unused_impulse):
