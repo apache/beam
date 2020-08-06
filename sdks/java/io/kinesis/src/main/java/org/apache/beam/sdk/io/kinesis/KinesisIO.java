@@ -421,7 +421,7 @@ public final class KinesisIO {
      * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
      * the tests with Kinesis service emulator.
      *
-     * <p>The {@code veriftCertificate} disables or enables certificate verification. Never set it
+     * <p>The {@code verifyCertificate} disables or enables certificate verification. Never set it
      * to false in production.
      */
     public Read withAWSClientsProvider(
@@ -700,7 +700,7 @@ public final class KinesisIO {
      * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
      * the tests with Kinesis service emulator.
      *
-     * <p>The {@code veriftCertificate} disables or enables certificate verification. Never set it
+     * <p>The {@code verifyCertificate} disables or enables certificate verification. Never set it
      * to false in production.
      */
     public Write withAWSClientsProvider(

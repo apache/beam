@@ -29,7 +29,6 @@ import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionIn
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
-import java.util.UUID;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.TestRow;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -62,32 +62,31 @@ public class KinesisIOIT implements Serializable {
   @Rule public TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public TestPipeline pipelineRead = TestPipeline.create();
 
-  private static LocalStackContainer localstackContainer;
-  private static String streamName;
-  private static AmazonKinesis kinesisClient;
-
   private static KinesisTestOptions options;
+
+  private static AmazonKinesis kinesisClient;
+  private static LocalStackContainer localstackContainer;
+  private static Instant now = Instant.now();
 
   @BeforeClass
   public static void setup() throws Exception {
     PipelineOptionsFactory.register(KinesisTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(KinesisTestOptions.class);
-    if (doUseLocalstack()) {
+    if (options.getUseLocalstack()) {
       setupLocalstack();
+      kinesisClient = createKinesisClient();
+      createStream(options.getAwsKinesisStream());
     }
-    kinesisClient = createKinesisClient();
-    streamName = "beam_test_kinesis" + UUID.randomUUID();
-    createStream();
   }
 
   @AfterClass
   public static void teardown() {
-    if (doUseLocalstack()) {
+    if (options.getUseLocalstack()) {
+      kinesisClient.deleteStream(options.getAwsKinesisStream());
       System.clearProperty(SDKGlobalConfiguration.DISABLE_CERT_CHECKING_SYSTEM_PROPERTY);
       System.clearProperty(SDKGlobalConfiguration.AWS_CBOR_DISABLE_SYSTEM_PROPERTY);
       localstackContainer.stop();
     }
-    kinesisClient.deleteStream(streamName);
   }
 
   /** Test which write and then read data for a Kinesis stream. */
@@ -106,7 +105,7 @@ public class KinesisIOIT implements Serializable {
         .apply(
             "Write to Kinesis",
             KinesisIO.write()
-                .withStreamName(streamName)
+                .withStreamName(options.getAwsKinesisStream())
                 .withPartitioner(new RandomPartitioner())
                 .withAWSClientsProvider(
                     options.getAwsAccessKey(),
@@ -123,7 +122,7 @@ public class KinesisIOIT implements Serializable {
     PCollection<KinesisRecord> output =
         pipelineRead.apply(
             KinesisIO.read()
-                .withStreamName(streamName)
+                .withStreamName(options.getAwsKinesisStream())
                 .withAWSClientsProvider(
                     options.getAwsAccessKey(),
                     options.getAwsSecretKey(),
@@ -133,7 +132,8 @@ public class KinesisIOIT implements Serializable {
                 .withMaxNumRecords(options.getNumberOfRecords())
                 // to prevent endless running in case of error
                 .withMaxReadTime(Duration.standardMinutes(10L))
-                .withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON)
+                .withInitialPositionInStream(InitialPositionInStream.AT_TIMESTAMP)
+                .withInitialTimestampInStream(now)
                 .withRequestRecordsLimit(1000));
 
     PAssert.thatSingleton(output.apply("Count All", Count.globally()))
@@ -152,6 +152,9 @@ public class KinesisIOIT implements Serializable {
 
   /** Necessary setup for localstack environment. */
   private static void setupLocalstack() {
+    // For some unclear reason localstack requires a timestamp in seconds
+    now = Instant.ofEpochMilli(Long.divideUnsigned(now.getMillis(), 1000L));
+
     System.setProperty(SDKGlobalConfiguration.DISABLE_CERT_CHECKING_SYSTEM_PROPERTY, "true");
     System.setProperty(SDKGlobalConfiguration.AWS_CBOR_DISABLE_SYSTEM_PROPERTY, "true");
 
@@ -201,7 +204,7 @@ public class KinesisIOIT implements Serializable {
     return clientBuilder.build();
   }
 
-  private static void createStream() throws Exception {
+  private static void createStream(String streamName) throws Exception {
     kinesisClient.createStream(streamName, 1);
     int repeats = 10;
     for (int i = 0; i <= repeats; ++i) {
@@ -215,20 +218,6 @@ public class KinesisIOIT implements Serializable {
       }
       Thread.sleep(1000L);
     }
-  }
-
-  /** Check whether pipeline options were provided. If not, use localstack container. */
-  private static boolean doUseLocalstack() {
-    KinesisTestOptions defaults = PipelineOptionsFactory.fromArgs().as(KinesisTestOptions.class);
-    return defaults.getAwsAccessKey().equals(options.getAwsAccessKey())
-        && defaults.getAwsSecretKey().equals(options.getAwsSecretKey())
-        && defaults.getAwsKinesisStream().equals(options.getAwsKinesisStream())
-        && defaults.getAwsKinesisRegion().equals(options.getAwsKinesisRegion())
-        && defaults.getNumberOfShards().equals(options.getNumberOfShards())
-        && defaults.getNumberOfRecords().equals(options.getNumberOfRecords())
-        && (options.getAwsServiceEndpoint() == null
-            || options.getAwsServiceEndpoint().equals(defaults.getAwsServiceEndpoint()))
-        && defaults.getAwsVerifyCertificate().equals(options.getAwsVerifyCertificate());
   }
 
   /** Produces test rows. */

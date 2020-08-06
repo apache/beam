@@ -72,4 +72,10 @@ public interface KinesisTestOptions extends TestPipelineOptions {
   Integer getNumberOfRecords();
 
   void setNumberOfRecords(Integer count);
+
+  @Description("Use localstack. Disable to test with real Kinesis")
+  @Default.Boolean(true)
+  Boolean getUseLocalstack();
+
+  void setUseLocalstack(Boolean useLocalstack);
 }
