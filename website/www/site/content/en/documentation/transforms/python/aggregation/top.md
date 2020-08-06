@@ -152,6 +152,6 @@ Output:
 
 ## Related transforms
 
-* [Sample](/documentation/transforms/python/aggregation/sample) to combine elements. takes samples of the elements in a collection.
+* [Sample](/documentation/transforms/python/aggregation/sample) to combine elements. Takes samples of the elements in a collection.
 
 {{< button-pydoc path="apache_beam.transforms.combiners" class="Top" >}}
