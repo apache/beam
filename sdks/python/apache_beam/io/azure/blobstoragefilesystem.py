@@ -208,7 +208,16 @@ class BlobStorageFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if any of the rename operations fail
     """
-    raise NotImplementedError
+    if not len(source_file_names) == len(destination_file_names):
+      message = 'Unable to rename unequal number of sources and destinations.'
+      raise BeamIOError(message)
+    src_dest_pairs = list(zip(source_file_names, destination_file_names))
+    results = blobstorageio.BlobStorageIO().rename_files(src_dest_pairs)
+    # Retrieve exceptions.
+    exceptions = {(src, dest) : error
+                  for (src, dest, error) in results if error is not None}
+    if exceptions:
+      raise BeamIOError("Rename operation failed.", exceptions)
 
   def exists(self, path):
     """Check if the provided path exists on the FileSystem.
@@ -283,6 +292,7 @@ class BlobStorageFileSystem(FileSystem):
       ``BeamIOError``: if any of the delete operations fail
     """
     results = blobstorageio.BlobStorageIO().delete_paths(paths)
+    # Retrieve exceptions.
     exceptions = {
         path: error
         for (path, error) in results.items() if error is not 202
