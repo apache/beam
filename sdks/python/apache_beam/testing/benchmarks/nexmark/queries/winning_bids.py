@@ -15,6 +15,22 @@
 # limitations under the License.
 #
 
+"""
+A transform to find winning bids for each closed auction. In pseudo CQL syntax:
+
+SELECT Rstream(A.*, B.auction, B.bidder, MAX(B.price), B.dateTime)
+FROM Auction A [ROWS UNBOUNDED], Bid B [ROWS UNBOUNDED]
+WHERE A.id = B.auction AND B.datetime < A.expires AND A.expires < CURRENT_TIME
+GROUP BY A.id
+
+We will also check that the winning bid is above the auction reserve. Note that
+we ignore the auction opening bid value since it has no impact on which bid
+eventually wins, if any.
+
+Our implementation will use a custom windowing function in order to bring bids
+and auctions together without requiring global state.
+"""
+
 from __future__ import absolute_import
 
 import apache_beam as beam

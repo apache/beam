@@ -15,12 +15,11 @@
 # limitations under the License.
 #
 
-"""Nexmark Query 2: Select auctions by auction id.
+"""
+Query 2: Find bids with specific auction ids and show their bid price
 
-The Nexmark suite is a series of queries (streaming pipelines) performed
-on a simulation of auction events.
-
-This query selects auctions (items) that have a particular id.
+This query selects Bids that have a particular auctiuon id, and output their
+auction id with bid price.
 It illustrates a simple filter.
 """
 
