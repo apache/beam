@@ -1345,7 +1345,7 @@ class _StreamToBigQuery(PTransform):
           data_with_insert_ids | 'CommitInsertIds' >> ReshufflePerKey())
 
     return (
-        data_with_insert_ids |
+        data_with_insert_ids
         | 'DropShard' >> beam.Map(drop_shard)
         | 'StreamInsertRows' >> ParDo(
             bigquery_write_fn, *self.schema_side_inputs).with_outputs(
@@ -1544,7 +1544,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.additional_bq_parameters = additional_bq_parameters or {}
     self.table_side_inputs = table_side_inputs or ()
     self.schema_side_inputs = schema_side_inputs or ()
-    self._with_inser_ids = with_insert_ids
+    self._with_insert_ids = with_insert_ids
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
