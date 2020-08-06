@@ -247,7 +247,6 @@ task pythonFormatterPreCommit() {
 }
 
 task python2PostCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py2:crossLanguagePythonJavaKafkaIOFlink"
   dependsOn ":sdks:python:test-suites:portable:py2:crossLanguageTests"
   dependsOn ":sdks:python:test-suites:dataflow:py2:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py2:directRunnerIT"
@@ -275,7 +274,6 @@ task python37PostCommit() {
 }
 
 task python38PostCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py38:crossLanguagePythonJavaKafkaIOFlink"
   dependsOn ":sdks:python:test-suites:dataflow:py38:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py38:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py38:hdfsIntegrationTest"
