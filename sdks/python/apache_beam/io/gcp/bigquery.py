@@ -1075,6 +1075,7 @@ class BigQueryWriteFn(DoFn):
                                                      "batch_latency_ms")
     self.failed_rows_metric = Metrics.distribution(self.__class__,
                                                    "rows_failed_per_batch")
+    self.bigquery_wrapper = None
 
   def display_data(self):
     return {
@@ -1111,11 +1112,11 @@ class BigQueryWriteFn(DoFn):
       raise TypeError('Unexpected schema argument: %s.' % schema)
 
   def start_bundle(self):
-    logging.info('Starting a bundle')
     self._reset_rows_buffer()
 
-    self.bigquery_wrapper = bigquery_tools.BigQueryWrapper(
-        client=self.test_client)
+    if not self.bigquery_wrapper:
+      self.bigquery_wrapper = bigquery_tools.BigQueryWrapper(
+          client=self.test_client)
 
     self._backoff_calculator = iter(
         retry.FuzzedExponentialIntervals(
