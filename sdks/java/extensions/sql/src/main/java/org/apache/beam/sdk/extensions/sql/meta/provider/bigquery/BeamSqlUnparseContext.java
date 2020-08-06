@@ -30,14 +30,12 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.Sql
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlLiteral;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlWriter;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.*;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.BitString;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.TimestampString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
@@ -69,8 +67,12 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
   public SqlNode toSql(RexProgram program, RexNode rex) {
     if (rex.getKind().equals(SqlKind.LITERAL)) {
       final RexLiteral literal = (RexLiteral) rex;
-      SqlTypeFamily family = literal.getTypeName().getFamily();
-      if (SqlTypeFamily.BINARY.equals(family)) {
+      SqlTypeName name = literal.getTypeName();
+      SqlTypeFamily family = name.getFamily();
+      if (SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE.equals(name)) {
+        TimestampString timestampString = literal.getValueAs(TimestampString.class);
+        return new SqlDateTimeLiteral(timestampString, POS);
+      } else if (SqlTypeFamily.BINARY.equals(family)) {
         ByteString byteString = literal.getValueAs(ByteString.class);
         BitString bitString = BitString.createFromHexString(byteString.toString(16));
         return new SqlByteStringLiteral(bitString, POS);
@@ -90,6 +92,18 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
     }
 
     return super.toSql(program, rex);
+  }
+
+  private static class SqlDateTimeLiteral extends SqlLiteral {
+
+    SqlDateTimeLiteral(TimestampString timestampString, SqlParserPos pos) {
+      super(timestampString, SqlTypeName.TIMESTAMP, pos);
+    }
+
+    @Override
+    public String toString() {
+      return "DATETIME '" + super.toString() + "'";
+    }
   }
 
   private static class SqlByteStringLiteral extends SqlLiteral {

@@ -141,6 +141,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         String defaultTimezone,
         boolean verifyRowValues) {
       this.sql = sql;
+      System.out.println(sql);
       this.inputSchema = inputSchema;
       this.outputSchema = outputSchema;
       this.defaultTimezone = defaultTimezone;
