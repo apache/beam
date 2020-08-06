@@ -25,6 +25,7 @@ plugins {
 
 // Define the set of repositories required to fetch and enable plugins.
 repositories {
+  mavenLocal()
   jcenter()
   maven { url "https://plugins.gradle.org/m2/" }
   maven {
