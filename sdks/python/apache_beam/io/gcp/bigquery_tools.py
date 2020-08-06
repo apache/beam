@@ -1366,7 +1366,11 @@ class AppendDestinationsFn(DoFn):
   Experimental; no backwards compatibility guarantees.
   """
   def __init__(self, destination):
+    self._display_destination = destination
     self.destination = AppendDestinationsFn._get_table_fn(destination)
+
+  def display_data(self):
+    return {'destination': str(self._display_destination)}
 
   @staticmethod
   def _value_provider_or_static_val(elm):
