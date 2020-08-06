@@ -283,10 +283,8 @@ class TestBlobStorageIO(unittest.TestCase):
       self.assertEqual(exception, None)
 
     # Clean up.
-    # TODO : Add delete_files functionality
-    for i in range(num_files):
-      self.azfs.delete(from_name_pattern % i)
-      self.azfs.delete(to_name_pattern % i)
+    all_files = set().union(*[set(pair) for pair in src_dest_pairs])
+    self.azfs.delete_files(all_files)
 
   def test_rename(self):
     src_file_name = self.TEST_DATA_PATH + 'mysource'
