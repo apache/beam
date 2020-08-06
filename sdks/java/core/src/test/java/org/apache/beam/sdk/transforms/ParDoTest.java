@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static java.lang.Thread.sleep;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
@@ -50,11 +51,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -91,6 +95,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesBundleFinalizer;
 import org.apache.beam.sdk.testing.UsesKeyInParDo;
 import org.apache.beam.sdk.testing.UsesMapState;
 import org.apache.beam.sdk.testing.UsesOnWindowExpiration;
@@ -1496,6 +1501,146 @@ public class ParDoTest implements Serializable {
       DisplayData displayData = DisplayData.from(parDo);
       assertThat(displayData, includesDisplayDataFor("fn", fn));
       assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
+    }
+  }
+
+  @RunWith(JUnit4.class)
+  public static class BundleFinalizationTests extends SharedTestBase implements Serializable {
+    private abstract static class BundleFinalizingDoFn extends DoFn<KV<String, Long>, String> {
+      private static final long MAX_ATTEMPTS = 3000;
+      // We use the UUID to uniquely identify this DoFn in case this test is run with
+      // other tests in the same JVM.
+      private static final Map<UUID, AtomicBoolean> WAS_FINALIZED = new HashMap();
+      private final UUID uuid = UUID.randomUUID();
+
+      public void testFinalization(BundleFinalizer bundleFinalizer, OutputReceiver<String> output)
+          throws Exception {
+        if (WAS_FINALIZED.computeIfAbsent(uuid, (unused) -> new AtomicBoolean()).get()) {
+          output.output("bundle was finalized");
+          return;
+        }
+        bundleFinalizer.afterBundleCommit(
+            Instant.now().plus(Duration.standardSeconds(MAX_ATTEMPTS)),
+            () -> WAS_FINALIZED.computeIfAbsent(uuid, (unused) -> new AtomicBoolean()).set(true));
+        // We sleep here to give time for the runner to perform any prior callbacks.
+        sleep(100L);
+      }
+    }
+
+    private static class BasicBundleFinalizingDoFn extends BundleFinalizingDoFn {
+      @ProcessElement
+      public void processElement(BundleFinalizer bundleFinalizer, OutputReceiver<String> output)
+          throws Exception {
+        testFinalization(bundleFinalizer, output);
+      }
+    }
+
+    private static class BundleFinalizerOutputChecker
+        implements SerializableFunction<Iterable<String>, Void> {
+      @Override
+      public Void apply(Iterable<String> input) {
+        assertTrue(
+            "Expected to have received one callback enabling output to be produced but received none.",
+            input.iterator().hasNext());
+        return null;
+      }
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTestStream.class, UsesBundleFinalizer.class})
+    public void testBundleFinalization() {
+      TestStream.Builder<KV<String, Long>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
+      for (long i = 0; i < BundleFinalizingDoFn.MAX_ATTEMPTS; ++i) {
+        stream = stream.addElements(KV.of("key" + (i % 10), i));
+      }
+      PCollection<String> output =
+          pipeline
+              .apply(stream.advanceWatermarkToInfinity())
+              .apply(ParDo.of(new BasicBundleFinalizingDoFn()));
+      PAssert.that(output).satisfies(new BundleFinalizerOutputChecker());
+      pipeline.run();
+    }
+
+    public static class StatefulBundleFinalizingDoFn extends BundleFinalizingDoFn {
+      private static final String STATE_ID = "STATE_ID";
+
+      @StateId(STATE_ID)
+      private final StateSpec<ValueState<Integer>> intState = StateSpecs.value();
+
+      @ProcessElement
+      public void processElement(
+          BundleFinalizer bundleFinalizer,
+          OutputReceiver<String> output,
+          @StateId(STATE_ID) ValueState<Integer> state)
+          throws Exception {
+        testFinalization(bundleFinalizer, output);
+      }
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTestStream.class,
+      UsesBundleFinalizer.class,
+      UsesStatefulParDo.class,
+    })
+    public void testBundleFinalizationWithState() {
+      TestStream.Builder<KV<String, Long>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
+      for (long i = 0; i < BundleFinalizingDoFn.MAX_ATTEMPTS; ++i) {
+        stream = stream.addElements(KV.of("key" + (i % 10), i));
+      }
+      PCollection<String> output =
+          pipeline
+              .apply(stream.advanceWatermarkToInfinity())
+              .apply(ParDo.of(new StatefulBundleFinalizingDoFn()));
+      PAssert.that(output).satisfies(new BundleFinalizerOutputChecker());
+      pipeline.run();
+    }
+
+    public static class SideInputBundleFinalizingDoFn extends BundleFinalizingDoFn {
+      private final PCollectionView<String> view;
+
+      public SideInputBundleFinalizingDoFn(PCollectionView<String> view) {
+        this.view = view;
+      }
+
+      @ProcessElement
+      public void processElement(
+          ProcessContext context,
+          @Element KV<String, Long> element,
+          BundleFinalizer bundleFinalizer,
+          OutputReceiver<String> output)
+          throws Exception {
+        // Access the side input
+        context.sideInput(view);
+        testFinalization(bundleFinalizer, output);
+      }
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTestStream.class,
+      UsesBundleFinalizer.class,
+      UsesSideInputs.class,
+    })
+    public void testBundleFinalizationWithSideInputs() {
+      TestStream.Builder<KV<String, Long>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
+      for (long i = 0; i < BundleFinalizingDoFn.MAX_ATTEMPTS; ++i) {
+        stream = stream.addElements(KV.of("key" + (i % 10), i));
+      }
+      PCollectionView<String> sideInput =
+          pipeline.apply(Create.of("sideInput value")).apply(View.asSingleton());
+      PCollection<String> output =
+          pipeline
+              .apply(stream.advanceWatermarkToInfinity())
+              .apply(
+                  ParDo.of(new SideInputBundleFinalizingDoFn(sideInput)).withSideInputs(sideInput));
+      PAssert.that(output).satisfies(new BundleFinalizerOutputChecker());
+      pipeline.run();
     }
   }
 
