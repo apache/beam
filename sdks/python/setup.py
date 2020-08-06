@@ -243,6 +243,7 @@ AWS_REQUIREMENTS = [
 
 AZURE_REQUIREMENTS = [
     'azure-storage-blob >=12.3.2'
+    'azure-core >=1.7.0'
 ]
 
 
