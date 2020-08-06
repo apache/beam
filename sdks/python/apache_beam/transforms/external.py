@@ -28,23 +28,27 @@ import contextlib
 import copy
 import functools
 import threading
+from typing import ByteString
 from typing import Dict
 
 import grpc
+from past.builtins import unicode
 
 from apache_beam import pvalue
-from apache_beam.coders import registry
+from apache_beam.coders import RowCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import ptransform
-from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
+from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
+from apache_beam.typehints.schemas import named_fields_to_schema
+from apache_beam.typehints.schemas import named_tuple_from_schema
+from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import Union
 from apache_beam.typehints.typehints import UnionConstraint
@@ -79,18 +83,6 @@ class PayloadBuilder(object):
   """
   Abstract base class for building payloads to pass to ExternalTransform.
   """
-  @classmethod
-  def _config_value(cls, obj, typehint):
-    """
-    Helper to create a ConfigValue with an encoded value.
-    """
-    coder = registry.get_coder(typehint)
-    urns = list(iter_urns(coder))
-    if 'beam:coder:pickled_python:v1' in urns:
-      raise RuntimeError("Found non-portable coder for %s" % (typehint, ))
-    return ConfigValue(
-        coder_urn=urns, payload=coder.get_impl().encode_nested(obj))
-
   def build(self):
     """
     :return: ExternalConfigurationPayload
@@ -110,51 +102,15 @@ class SchemaBasedPayloadBuilder(PayloadBuilder):
   """
   Base class for building payloads based on a schema that provides
   type information for each configuration value to encode.
-
-  Note that if the schema defines a type as Optional, the corresponding value
-  will be omitted from the encoded payload, and thus the native transform
-  will determine the default.
   """
-  def __init__(self, values, schema):
-    """
-    :param values: mapping of config names to values
-    :param schema: mapping of config names to types
-    """
-    self._values = values
-    self._schema = schema
-
-  @classmethod
-  def _encode_config(cls, values, schema):
-    result = {}
-    for key, value in values.items():
-
-      try:
-        typehint = schema[key]
-      except KeyError:
-        raise RuntimeError("No typehint provided for key %r" % key)
-
-      typehint = convert_to_beam_type(typehint)
-
-      if value is None:
-        if not _is_optional_or_none(typehint):
-          raise RuntimeError(
-              "If value is None, typehint should be "
-              "optional. Got %r" % typehint)
-        # make it easy for user to filter None by default
-        continue
-      else:
-        # strip Optional from typehint so that pickled_python coder is not used
-        # for known types.
-        typehint = _strip_optional(typehint)
-      result[key] = cls._config_value(value, typehint)
-    return result
+  def _get_named_tuple_instance(self):
+    raise NotImplementedError()
 
   def build(self):
-    """
-    :return: ExternalConfigurationPayload
-    """
-    args = self._encode_config(self._values, self._schema)
-    return ExternalConfigurationPayload(configuration=args)
+    row = self._get_named_tuple_instance()
+    schema = named_tuple_to_schema(type(row))
+    return ExternalConfigurationPayload(
+        schema=schema, payload=RowCoder(schema).encode(row))
 
 
 class ImplicitSchemaPayloadBuilder(SchemaBasedPayloadBuilder):
@@ -162,8 +118,34 @@ class ImplicitSchemaPayloadBuilder(SchemaBasedPayloadBuilder):
   Build a payload that generates a schema from the provided values.
   """
   def __init__(self, values):
-    schema = {key: instance_to_type(value) for key, value in values.items()}
-    super(ImplicitSchemaPayloadBuilder, self).__init__(values, schema)
+    self._values = values
+
+  def _get_named_tuple_instance(self):
+    # omit fields with value=None since we can't infer their type
+    values = {
+        key: value
+        for key, value in self._values.items() if value is not None
+    }
+
+    # TODO(BEAM-7372): Remove coercion to ByteString
+    def coerce_str_to_bytes(typ):
+      if typ == str:
+        return ByteString
+
+      elif hasattr(typ, '__args__'):
+        typ.__args__ = tuple(map(coerce_str_to_bytes, typ.__args__))
+
+      return typ
+
+    if str == unicode:
+      coerce_str_to_bytes = lambda x: x
+
+    schema = named_fields_to_schema([(
+        key,
+        coerce_str_to_bytes(convert_to_typing_type(instance_to_type(value))))
+                                     for key,
+                                     value in values.items()])
+    return named_tuple_from_schema(schema)(**values)
 
 
 class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
@@ -174,8 +156,11 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
     """
     :param tuple_instance: an instance of a typing.NamedTuple
     """
-    super(NamedTupleBasedPayloadBuilder, self).__init__(
-        values=tuple_instance._asdict(), schema=tuple_instance._field_types)
+    super(NamedTupleBasedPayloadBuilder, self).__init__()
+    self._tuple_instance = tuple_instance
+
+  def _get_named_tuple_instance(self):
+    return self._tuple_instance
 
 
 class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
@@ -190,12 +175,16 @@ class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
                       be gathered from its __init__ method
     :param values: values to encode
     """
-    schema = {
-        k: v
-        for k,
-        v in transform.__init__.__annotations__.items() if k in values
-    }
-    super(AnnotationBasedPayloadBuilder, self).__init__(values, schema)
+    self._transform = transform
+    self._values = values
+
+  def _get_named_tuple_instance(self):
+    schema = named_fields_to_schema([
+        (k, convert_to_typing_type(v)) for k,
+        v in self._transform.__init__.__annotations__.items()
+        if k in self._values
+    ])
+    return named_tuple_from_schema(schema)(**self._values)
 
 
 class DataclassBasedPayloadBuilder(SchemaBasedPayloadBuilder):
@@ -209,10 +198,16 @@ class DataclassBasedPayloadBuilder(SchemaBasedPayloadBuilder):
     :param transform: a dataclass-decorated PTransform instance from which to
                       gather type annotations and values
     """
+    self._transform = transform
+
+  def _get_named_tuple_instance(self):
     import dataclasses
-    schema = {field.name: field.type for field in dataclasses.fields(transform)}
-    super(DataclassBasedPayloadBuilder,
-          self).__init__(dataclasses.asdict(transform), schema)
+    schema = named_fields_to_schema([
+        (field.name, convert_to_typing_type(field.type))
+        for field in dataclasses.fields(self._transform)
+    ])
+    return named_tuple_from_schema(schema)(
+        **dataclasses.asdict(self._transform))
 
 
 class ExternalTransform(ptransform.PTransform):
