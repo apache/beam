@@ -73,6 +73,7 @@ from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms import userstate
+from apache_beam.typehints.typecheck import get_perf_runtime_type_hints
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
@@ -182,15 +183,6 @@ class DataInputOperation(RunnerIOOperation):
         windowed_coder,
         transform_id=transform_id,
         data_channel=data_channel)
-
-    producer_type_hints = []
-    if hasattr(self, 'spec') and hasattr(self.spec, 'serialized_fn'):
-      producer_fn = self.spec.serialized_fn
-      if producer_fn:
-        fns = pickler.loads(producer_fn)
-        if fns and hasattr(fns[0], 'perf_runtime_type_check'):
-          producer_type_hints.append(fns[0].perf_runtime_type_check)
-
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet.create(
@@ -199,7 +191,7 @@ class DataInputOperation(RunnerIOOperation):
             0,
             next(iter(itervalues(consumers))),
             self.windowed_coder,
-            producer_type_hints)
+            get_perf_runtime_type_hints(self))
     ]
     self.splitting_lock = threading.Lock()
     self.index = -1

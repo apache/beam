@@ -64,6 +64,7 @@ from apache_beam.transforms import window
 from apache_beam.transforms.combiners import PhasedCombineFnExecutor
 from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.typehints.typecheck import get_perf_runtime_type_hints
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
@@ -129,13 +130,7 @@ class ConsumerSet(Receiver):
 
     consumer_type_hints = []
     for consumer in consumers:
-        if (consumer
-                and hasattr(consumer, 'spec')
-                and hasattr(consumer.spec, 'serialized_fn')
-                and consumer.spec.serialized_fn is not None):
-          fns = pickler.loads(consumer.spec.serialized_fn)
-          if fns and hasattr(fns[0], 'perf_runtime_type_check'):
-            consumer_type_hints.append(fns[0].perf_runtime_type_check)
+        consumer_type_hints.extend(get_perf_runtime_type_hints(consumer))
 
     self.opcounter = opcounters.OperationCounters(
         counter_factory,
@@ -289,15 +284,6 @@ class Operation(object):
       # top-level operation, should have output_coders
       #TODO(pabloem): Define better what step name is used here.
       if getattr(self.spec, 'output_coders', None):
-
-        producer_type_hints = []
-        if hasattr(self, 'spec') and hasattr(self.spec, 'serialized_fn'):
-          producer_fn = self.spec.serialized_fn
-          if producer_fn:
-            fns = pickler.loads(producer_fn)
-            if fns and hasattr(fns[0], 'perf_runtime_type_check'):
-              producer_type_hints.append(fns[0].perf_runtime_type_check)
-
         self.receivers = [
             ConsumerSet.create(
                 self.counter_factory,
@@ -305,8 +291,8 @@ class Operation(object):
                 i,
                 self.consumers[i],
                 coder,
-                producer_type_hints) for i,
-            coder in enumerate(self.spec.output_coders)
+                get_perf_runtime_type_hints(self)) for i,
+                                                       coder in enumerate(self.spec.output_coders)
         ]
     self.setup_done = True
 
@@ -509,14 +495,6 @@ class ImpulseReadOperation(Operation):
           self).__init__(name_context, None, counter_factory, state_sampler)
     self.source = source
 
-    producer_type_hints = []
-    if hasattr(self, 'spec') and hasattr(self.spec, 'serialized_fn'):
-      producer_fn = self.spec.serialized_fn
-      if producer_fn:
-        fns = pickler.loads(producer_fn)
-        if fns and hasattr(fns[0], 'perf_runtime_type_check'):
-          producer_type_hints.append(fns[0].perf_runtime_type_check)
-
     self.receivers = [
         ConsumerSet.create(
             self.counter_factory,
@@ -524,7 +502,7 @@ class ImpulseReadOperation(Operation):
             0,
             next(iter(consumers.values())),
             output_coder,
-            producer_type_hints)
+            get_perf_runtime_type_hints(self))
     ]
 
   def process(self, unused_impulse):

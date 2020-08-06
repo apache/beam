@@ -28,6 +28,7 @@ import collections
 import inspect
 import types
 
+from apache_beam.internal import pickler
 from future.utils import raise_with_traceback
 from past.builtins import unicode
 
@@ -340,3 +341,14 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     return parameter_name, type_hints._replace(input_types=input_types,
                                                output_types=output_types)
 
+
+def get_perf_runtime_type_hints(operation):
+  type_hints = []
+  if hasattr(operation, 'spec') and hasattr(operation.spec, 'serialized_fn'):
+    serialized_fn = operation.spec.serialized_fn
+    if serialized_fn:
+      fns = pickler.loads(serialized_fn)
+      if fns and hasattr(fns[0], 'perf_runtime_type_check'):
+        type_hints.append(fns[0].perf_runtime_type_check)
+
+  return type_hints
