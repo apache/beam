@@ -201,19 +201,20 @@ REQUIRED_TEST_PACKAGES = [
 GCP_REQUIREMENTS = [
     'cachetools>=3.1.0,<4',
     'google-apitools>=0.5.31,<0.5.32',
-    'google-cloud-datastore>=1.7.1,<1.8.0',
-    'google-cloud-pubsub>=0.39.0,<1.1.0',
+    'google-auth>=1.18.0,<2',
+    'google-cloud-datastore>=1.7.1,<2',
+    'google-cloud-pubsub>=0.39.0,<2',
     # GCP packages required by tests
-    'google-cloud-bigquery>=1.6.0,<=1.24.0',
+    'google-cloud-bigquery>=1.6.0,<2',
     'google-cloud-core>=0.28.1,<2',
-    'google-cloud-bigtable>=0.31.1,<1.1.0',
-    'google-cloud-spanner>=1.13.0,<1.14.0',
+    'google-cloud-bigtable>=0.31.1,<2',
+    'google-cloud-spanner>=1.13.0,<2',
     'grpcio-gcp>=0.2.2,<1',
     # GCP Packages required by ML functionality
-    'google-cloud-dlp>=0.12.0,<=0.13.0',
+    'google-cloud-dlp>=0.12.0,<2',
     'google-cloud-language>=1.3.0,<2',
-    'google-cloud-videointelligence>=1.8.0,<1.14.0',
-    'google-cloud-vision>=0.38.0,<0.43.0',
+    'google-cloud-videointelligence>=1.8.0,<2',
+    'google-cloud-vision>=0.38.0,<2',
 ]
 
 INTERACTIVE_BEAM = [

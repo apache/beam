@@ -530,6 +530,92 @@ class BooleanCoderImpl(CoderImpl):
     return 1
 
 
+class MapCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Note this implementation always uses nested context when encoding keys
+  and values. This differs from Java's MapCoder, which uses
+  nested=False if possible for the last value encoded.
+
+  This difference is acceptable because MapCoder is not standard. It is only
+  used in a standard context by RowCoder which always uses nested context for
+  attribute values.
+
+  A coder for typing.Mapping objects."""
+  def __init__(
+      self,
+      key_coder,  # type: CoderImpl
+      value_coder  # type: CoderImpl
+  ):
+    self._key_coder = key_coder
+    self._value_coder = value_coder
+
+  def encode_to_stream(self, dict_value, out, nested):
+    out.write_bigendian_int32(len(dict_value))
+    for key, value in dict_value.items():
+      # Note this implementation always uses nested context when encoding keys
+      # and values which differs from Java. See note in docstring.
+      self._key_coder.encode_to_stream(key, out, True)
+      self._value_coder.encode_to_stream(value, out, True)
+
+  def decode_from_stream(self, in_stream, nested):
+    size = in_stream.read_bigendian_int32()
+    result = {}
+    for _ in range(size):
+      # Note this implementation always uses nested context when encoding keys
+      # and values which differs from Java. See note in docstring.
+      key = self._key_coder.decode_from_stream(in_stream, True)
+      value = self._value_coder.decode_from_stream(in_stream, True)
+      result[key] = value
+
+    return result
+
+  def estimate_size(self, unused_value, nested=False):
+    estimate = 4  # 4 bytes for int32 size prefix
+    for key, value in unused_value.items():
+      estimate += self._key_coder.estimate_size(key, True)
+      estimate += self._value_coder.estimate_size(value, True)
+    return estimate
+
+
+class NullableCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for typing.Optional objects."""
+
+  ENCODE_NULL = 0
+  ENCODE_PRESENT = 1
+
+  def __init__(
+      self,
+      value_coder  # type: CoderImpl
+  ):
+    self._value_coder = value_coder
+
+  def encode_to_stream(self, value, out, nested):
+    if value is None:
+      out.write_byte(self.ENCODE_NULL)
+    else:
+      out.write_byte(self.ENCODE_PRESENT)
+      self._value_coder.encode_to_stream(value, out, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    null_indicator = in_stream.read_byte()
+    if null_indicator == self.ENCODE_NULL:
+      return None
+    elif null_indicator == self.ENCODE_PRESENT:
+      return self._value_coder.decode_from_stream(in_stream, nested)
+    else:
+      raise ValueError(
+          "Encountered unexpected value for null indicator: '%s'" %
+          null_indicator)
+
+  def estimate_size(self, unused_value, nested=False):
+    return 1 + (
+        self._value_coder.estimate_size(unused_value)
+        if unused_value is not None else 0)
+
+
 class FloatCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def encode_to_stream(self, value, out, nested):

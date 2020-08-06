@@ -418,7 +418,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					}
 					u = n
 					if urn == urnProcessSizedElementsAndRestrictions {
-						u = &ProcessSizedElementsAndRestrictions{PDo: n}
+						u = &ProcessSizedElementsAndRestrictions{PDo: n, TfId: id.to}
 					} else if dofn.IsSplittable() {
 						u = &SdfFallback{PDo: n}
 					}
@@ -580,7 +580,7 @@ func unmarshalKeyedValues(m map[string]string) []string {
 	var unordered []string
 
 	for key := range m {
-		if i, err := strconv.Atoi(strings.TrimPrefix(key, "i")); strings.HasPrefix(key, "i") && err == nil {
+		if i, err := inputIdToIndex(key); err == nil {
 			if i < len(m) {
 				ordered[i] = key
 				continue
@@ -603,6 +603,24 @@ func unmarshalKeyedValues(m map[string]string) []string {
 		}
 	}
 	return ret
+}
+
+// inputIdToIndex converts a local input ID for a transform into an index. Use
+// this to avoid relying on format details for input IDs.
+//
+// Currently, expects IDs in the format "iN" where N is the index. If the ID is
+// in an invalid form, returns an error.
+func inputIdToIndex(id string) (int, error) {
+	if !strings.HasPrefix(id, "i") {
+		return 0, errors.New("invalid input ID format")
+	}
+	return strconv.Atoi(strings.TrimPrefix(id, "i"))
+}
+
+// inputIdToIndex converts an index into a local input ID for a transform. Use
+// this to avoid relying on format details for input IDs.
+func indexToInputId(i int) string {
+	return "i" + strconv.Itoa(i)
 }
 
 func unmarshalPort(data []byte) (Port, string, error) {

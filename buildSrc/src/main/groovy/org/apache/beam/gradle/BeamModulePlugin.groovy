@@ -391,7 +391,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def gax_version = "1.54.0"
     def generated_grpc_ga_version = "1.85.1"
     def google_auth_version = "0.19.0"
-    def google_clients_version = "1.30.9"
+    def google_clients_version = "1.30.10"
     def google_cloud_bigdataoss_version = "2.1.3"
     def google_cloud_core_version = "1.92.2"
     def google_cloud_pubsublite_version = "0.1.6"
@@ -415,6 +415,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
     def spark_version = "2.4.6"
+    def spotbugs_version = "4.0.6"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -468,13 +469,13 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common:1.8.1",
-        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20191211-$google_clients_version",
-        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20200313-$google_clients_version",
-        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20200311-$google_clients_version",
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20200305-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1beta1-rev20200525-$google_clients_version",
-        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20200312-$google_clients_version",
-        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20200226-$google_clients_version",
+        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20200719-$google_clients_version",
+        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20200501-$google_clients_version",
+        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20200720-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20200713-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1beta1-rev20200713-$google_clients_version",
+        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20200713-$google_clients_version",
+        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20200611-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:1.108.0",
@@ -811,7 +812,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // sdks/java/core's FieldValueTypeInformation needs javax.annotations.Nullable at runtime.
         // Therefore, the java core module declares jsr305 dependency (BSD license) as "compile".
         // https://github.com/findbugsproject/findbugs/blob/master/findbugs/licenses/LICENSE-jsr305.txt
-        "com.github.spotbugs:spotbugs-annotations:3.1.12",
+        "com.github.spotbugs:spotbugs-annotations:$spotbugs_version",
         "net.jcip:jcip-annotations:1.0",
         // This explicitly adds javax.annotation.Generated (SOURCE retention)
         // as a compile time dependency since Java 9+ no longer includes common
@@ -904,7 +905,7 @@ class BeamModulePlugin implements Plugin<Project> {
       if (configuration.enableSpotbugs) {
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
-          spotbugs "com.github.spotbugs:spotbugs:3.1.12"
+          spotbugs "com.github.spotbugs:spotbugs:$spotbugs_version"
           spotbugs "com.google.auto.value:auto-value:1.7"
           compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
         }

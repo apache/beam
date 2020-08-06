@@ -101,38 +101,6 @@ task flinkTriggerTranscript() {
   }
 }
 
-task crossLanguagePythonJavaKafkaIOFlink {
-  dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.10:job-server:shadowJar'
-  dependsOn ":sdks:python:container:py${pythonVersionSuffix}:docker"
-  dependsOn ':sdks:java:container:docker'
-  dependsOn ':sdks:java:io:expansion-service:shadowJar'
-  dependsOn ':sdks:java:testing:kafka-service:buildTestKafkaServiceJar'
-
-  doLast {
-    def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
-    def options = [
-            "--runner=FlinkRunner",
-            "--parallelism=2",
-            "--environment_type=DOCKER",
-            "--environment_cache_millis=10000",
-            "--experiment=beam_fn_api",
-    ]
-    exec {
-      environment "LOCAL_KAFKA_JAR", kafkaJar
-      executable 'sh'
-      args '-c', """
-          . ${envdir}/bin/activate \\
-          && cd ${pythonRootDir} \\
-          && pip install -e .[test] \\
-          && python setup.py nosetests \\
-              --tests apache_beam.io.external.xlang_kafkaio_it_test:CrossLanguageKafkaIOTest \\
-              --test-pipeline-options='${options.join(' ')}'
-          """
-    }
-  }
-}
-
 task createProcessWorker {
   dependsOn ':sdks:python:container:build'
   dependsOn 'setupVirtualenv'
@@ -223,12 +191,14 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
           ':runners:flink:1.10:job-server:shadowJar',
           ':sdks:java:container:docker',
           ':sdks:java:io:expansion-service:shadowJar',
+          ':sdks:java:testing:kafka-service:buildTestKafkaServiceJar'
   ]
 
   doLast {
     def tests = [
             "apache_beam.io.gcp.bigquery_read_it_test",
             "apache_beam.io.external.xlang_jdbcio_it_test",
+            "apache_beam.io.external.xlang_kafkaio_it_test",
     ]
     def testOpts = ["--tests=${tests.join(',')}"]
     def cmdArgs = mapToArgString([
@@ -236,7 +206,9 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
             "suite": "postCommitIT-flink-py${pythonVersionSuffix}",
             "pipeline_opts": "--runner=FlinkRunner --project=apache-beam-testing --environment_type=LOOPBACK --temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
     ])
+    def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
     exec {
+      environment "LOCAL_KAFKA_JAR", kafkaJar
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && ${pythonRootDir}/scripts/run_integration_test.sh $cmdArgs"
     }

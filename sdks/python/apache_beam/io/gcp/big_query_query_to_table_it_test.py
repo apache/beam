@@ -174,7 +174,6 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'use_standard_sql': False,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
         'on_success_matcher': all_of(*pipeline_verifiers),
-        'experiments': 'use_beam_bq_sink',
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
@@ -198,7 +197,6 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'use_standard_sql': True,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
         'on_success_matcher': all_of(*pipeline_verifiers),
-        'experiments': 'use_beam_bq_sink',
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
@@ -227,6 +225,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'on_success_matcher': all_of(*pipeline_verifiers),
         'kms_key': kms_key,
         'native': True,
+        'experiments': 'use_legacy_bq_sink',
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
@@ -281,7 +280,6 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'use_standard_sql': False,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
         'on_success_matcher': all_of(*pipeline_verifiers),
-        'experiments': 'use_beam_bq_sink',
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
@@ -305,7 +303,8 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'use_standard_sql': False,
         'native': True,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
-        'on_success_matcher': all_of(*pipeline_verifiers)
+        'on_success_matcher': all_of(*pipeline_verifiers),
+        'experiments': 'use_legacy_bq_sink',
     }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)

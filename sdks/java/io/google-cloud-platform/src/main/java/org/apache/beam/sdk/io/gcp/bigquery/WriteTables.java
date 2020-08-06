@@ -192,7 +192,7 @@ class WriteTables<DestinationT>
       Integer partition = c.element().getKey().getShardNumber();
       List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
       String jobIdPrefix =
-          BigQueryHelpers.createJobId(
+          BigQueryResourceNaming.createJobIdWithDestination(
               c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
 
       if (tempTable) {

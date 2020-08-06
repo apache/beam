@@ -212,7 +212,7 @@ public class BigQueryHelpersTest {
     String projectId = "this-is-my-project";
     String jobUuid = "this-is-my-job";
     TableReference noDataset =
-        BigQueryHelpers.createTempTableReference(projectId, jobUuid, Optional.empty());
+        BigQueryResourceNaming.createTempTableReference(projectId, jobUuid, Optional.empty());
 
     assertEquals(noDataset.getProjectId(), projectId);
     assertEquals(noDataset.getDatasetId(), "temp_dataset_" + jobUuid);
@@ -220,7 +220,7 @@ public class BigQueryHelpersTest {
 
     Optional<String> dataset = Optional.ofNullable("my-tmp-dataset");
     TableReference tempTableReference =
-        BigQueryHelpers.createTempTableReference(projectId, jobUuid, dataset);
+        BigQueryResourceNaming.createTempTableReference(projectId, jobUuid, dataset);
 
     assertEquals(tempTableReference.getProjectId(), noDataset.getProjectId());
     assertEquals(tempTableReference.getDatasetId(), dataset.get());

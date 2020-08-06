@@ -78,16 +78,18 @@ func TestReflectionRowCoderGeneration(t *testing.T) {
 			V12 [0]int
 			V13 [2]int
 			V14 []int
-			// V15 map[string]int // not yet a standard coder (BEAM-7996)
+			V15 map[string]int
 			V16 float32
 			V17 float64
 			V18 []byte
+			V19 [2]*int
+			V20 map[*string]*int
 		}{},
 	}, {
 		want: struct {
 			V00 bool
-			V01 byte
-			V02 uint8
+			V01 byte  // unsupported by spec (same as uint8)
+			V02 uint8 // unsupported by spec
 			V03 int16
 			//	V04 uint16 // unsupported by spec
 			V05 int32
@@ -100,10 +102,13 @@ func TestReflectionRowCoderGeneration(t *testing.T) {
 			V12 [0]int
 			V13 [2]int
 			V14 []int
-			// V15 map[string]int // not yet a standard coder (BEAM-7996) (encoding unspecified)
+			V15 map[string]int
 			V16 float32
 			V17 float64
 			V18 []byte
+			V19 [2]*int
+			V20 map[string]*int
+			V21 []*int
 		}{
 			V00: true,
 			V01: 1,
@@ -117,9 +122,16 @@ func TestReflectionRowCoderGeneration(t *testing.T) {
 			V12: [0]int{},
 			V13: [2]int{72, 908},
 			V14: []int{12, 9326, 641346, 6},
+			V15: map[string]int{"pants": 42},
 			V16: 3.14169,
 			V17: 2.6e100,
 			V18: []byte{21, 17, 65, 255, 0, 16},
+			V19: [2]*int{nil, &num},
+			V20: map[string]*int{
+				"notnil": &num,
+				"nil":    nil,
+			},
+			V21: []*int{nil, &num, nil},
 		},
 		// TODO add custom types such as protocol buffers.
 	},

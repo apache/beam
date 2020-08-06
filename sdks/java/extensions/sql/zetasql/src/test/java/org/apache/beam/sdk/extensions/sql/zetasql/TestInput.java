@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTime
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
@@ -225,46 +226,58 @@ class TestInput {
   public static final TestBoundedTable TABLE_EMPTY =
       TestBoundedTable.of(Schema.builder().addInt64Field("ColId").addStringField("Value").build());
 
-  private static final Schema TABLE_WTH_MAP_SCHEMA =
+  private static final Schema TABLE_WITH_MAP_SCHEMA =
       Schema.builder()
           .addMapField("map_field", FieldType.STRING, FieldType.STRING)
           .addRowField("row_field", structSchema)
           .build();
   public static final TestBoundedTable TABLE_WITH_MAP =
-      TestBoundedTable.of(TABLE_WTH_MAP_SCHEMA)
+      TestBoundedTable.of(TABLE_WITH_MAP_SCHEMA)
           .addRows(
               ImmutableMap.of("MAP_KEY_1", "MAP_VALUE_1"),
               Row.withSchema(structSchema).addValues(1L, "data1").build());
 
-  private static final Schema TABLE_WTH_DATE_SCHEMA =
+  private static final Schema TABLE_WITH_DATE_SCHEMA =
       Schema.builder()
           .addLogicalTypeField("date_field", SqlTypes.DATE)
           .addStringField("str_field")
           .build();
 
   public static final TestBoundedTable TABLE_WITH_DATE =
-      TestBoundedTable.of(TABLE_WTH_DATE_SCHEMA)
+      TestBoundedTable.of(TABLE_WITH_DATE_SCHEMA)
           .addRows(LocalDate.of(2008, 12, 25), "s")
           .addRows(LocalDate.of(2020, 4, 7), "s");
 
-  private static final Schema TABLE_WTH_TIME_SCHEMA =
+  private static final Schema TABLE_WITH_TIME_SCHEMA =
       Schema.builder()
           .addLogicalTypeField("time_field", SqlTypes.TIME)
           .addStringField("str_field")
           .build();
 
   public static final TestBoundedTable TABLE_WITH_TIME =
-      TestBoundedTable.of(TABLE_WTH_TIME_SCHEMA)
+      TestBoundedTable.of(TABLE_WITH_TIME_SCHEMA)
           .addRows(LocalTime.of(15, 30, 0), "s")
           .addRows(LocalTime.of(23, 35, 59), "s");
 
-  private static final Schema TABLE_WTH_NUMERIC_SCHEMA =
+  private static final Schema TABLE_WITH_NUMERIC_SCHEMA =
       Schema.builder().addDecimalField("numeric_field").addStringField("str_field").build();
+
   public static final TestBoundedTable TABLE_WITH_NUMERIC =
-      TestBoundedTable.of(TABLE_WTH_NUMERIC_SCHEMA)
+      TestBoundedTable.of(TABLE_WITH_NUMERIC_SCHEMA)
           .addRows(ZetaSqlTypesUtils.bigDecimalAsNumeric("123.4567"), "str1")
           .addRows(ZetaSqlTypesUtils.bigDecimalAsNumeric("765.4321"), "str2")
           .addRows(ZetaSqlTypesUtils.bigDecimalAsNumeric("-555.5555"), "str3");
+
+  private static final Schema TABLE_WITH_DATETIME_SCHEMA =
+      Schema.builder()
+          .addLogicalTypeField("datetime_field", SqlTypes.DATETIME)
+          .addStringField("str_field")
+          .build();
+
+  public static final TestBoundedTable TABLE_WITH_DATETIME =
+      TestBoundedTable.of(TABLE_WITH_DATETIME_SCHEMA)
+          .addRows(LocalDateTime.of(2008, 12, 25, 15, 30, 0).withNano(123456000), "s")
+          .addRows(LocalDateTime.of(2012, 10, 6, 11, 45, 0).withNano(987654000), "s");
 
   private static byte[] stringToBytes(String s) {
     return s.getBytes(StandardCharsets.UTF_8);

@@ -129,7 +129,7 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
           .builder()
           .addInt32Field("appId")
           .addInt32Field("reviewerId")
-          .withFloatField("rating")
+          .addFloatField("rating")
           .addDateTimeField("rowtime")
           .build();
     

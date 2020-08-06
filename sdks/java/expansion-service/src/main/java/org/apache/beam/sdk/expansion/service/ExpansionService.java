@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -107,17 +106,21 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           ImmutableMap.builder();
       for (ExternalTransformRegistrar registrar :
           ServiceLoader.load(ExternalTransformRegistrar.class)) {
-        for (Map.Entry<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> entry :
-            registrar.knownBuilders().entrySet()) {
+        for (Map.Entry<String, ExternalTransformBuilder<?, ?, ?>> entry :
+            registrar.knownBuilderInstances().entrySet()) {
           String urn = entry.getKey();
-          Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass = entry.getValue();
+          ExternalTransformBuilder builderInstance = entry.getValue();
           builder.put(
               urn,
               spec -> {
                 try {
                   ExternalTransforms.ExternalConfigurationPayload payload =
                       ExternalTransforms.ExternalConfigurationPayload.parseFrom(spec.getPayload());
-                  return translate(payload, builderClass);
+                  return builderInstance.buildExternal(
+                      payloadToConfig(
+                          payload,
+                          (Class<? extends ExternalTransformBuilder<?, ?, ?>>)
+                              builderInstance.getClass()));
                 } catch (Exception e) {
                   throw new RuntimeException(
                       String.format("Failed to build transform %s from spec %s", urn, spec), e);
@@ -125,21 +128,17 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
               });
         }
       }
+
       return builder.build();
     }
 
-    private static PTransform<?, ?> translate(
+    Object payloadToConfig(
         ExternalTransforms.ExternalConfigurationPayload payload,
         Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass)
         throws Exception {
-      Preconditions.checkState(
-          ExternalTransformBuilder.class.isAssignableFrom(builderClass),
-          "Provided identifier %s is not an ExternalTransformBuilder.",
-          builderClass.getName());
-
       Object configObject = initConfiguration(builderClass);
       populateConfiguration(configObject, payload);
-      return buildTransform(builderClass, configObject);
+      return configObject;
     }
 
     private static Object initConfiguration(
@@ -238,28 +237,6 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       }
 
       return coderBuilder.build();
-    }
-
-    private static PTransform<?, ?> buildTransform(
-        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass, Object configObject)
-        throws Exception {
-      Constructor<? extends ExternalTransformBuilder<?, ?, ?>> constructor =
-          builderClass.getDeclaredConstructor();
-      constructor.setAccessible(true);
-      ExternalTransformBuilder<?, ?, ?> externalTransformBuilder = constructor.newInstance();
-      Method buildMethod = builderClass.getMethod("buildExternal", configObject.getClass());
-      buildMethod.setAccessible(true);
-
-      PTransform<?, ?> transform =
-          (PTransform<?, ?>)
-              checkArgumentNotNull(
-                  buildMethod.invoke(externalTransformBuilder, configObject),
-                  "Invoking %s.%s(%s) returned null, violating its type.",
-                  builderClass.getCanonicalName(),
-                  "buildExternal",
-                  configObject);
-
-      return transform;
     }
   }
 

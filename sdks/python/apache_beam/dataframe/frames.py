@@ -54,29 +54,20 @@ class DeferredSeries(frame_base.DeferredFrame):
       'order-sensitive')
   diff = frame_base.wont_implement_method('order-sensitive')
 
-  def replace(
-      self,
-      to_replace=None,
-      value=None,
-      inplace=False,
-      limit=None,
-      *args,
-      **kwargs):
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  @frame_base.maybe_inplace
+  def replace(self, limit, **kwargs):
     if limit is None:
       requires_partition_by = partitionings.Nothing()
     else:
       requires_partition_by = partitionings.Singleton()
-    result = frame_base.DeferredFrame.wrap(
+    return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'replace',
-            lambda df: df.replace(
-                to_replace, value, False, limit, *args, **kwargs), [self._expr],
+            lambda df: df.replace(limit=limit, **kwargs), [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
-    if inplace:
-      self._expr = result._expr
-    else:
-      return result
 
   def unstack(self, *args, **kwargs):
     raise frame_base.WontImplementError('non-deferred column values')
@@ -159,14 +150,15 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   def loc(self):
     return _DeferredLoc(self)
 
-  def aggregate(self, *args, **kwargs):
-    if 'axis' in kwargs and kwargs['axis'] is None:
-      return self.agg(*args, **dict(kwargs, axis=1)).agg(
-          *args, **dict(kwargs, axis=0))
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def aggregate(self, axis, **kwargs):
+    if axis is None:
+      return self.agg(axis=1, **kwargs).agg(axis=0, **kwargs)
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'aggregate',
-            lambda df: df.agg(*args, **kwargs),
+            lambda df: df.agg(axis=axis, **kwargs),
             [self._expr],
             # TODO(robertwb): Sub-aggregate when possible.
             requires_partition_by=partitionings.Singleton()))
@@ -188,32 +180,22 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   min = frame_base._associative_agg_method('min')
   mode = frame_base._agg_method('mode')
 
-  def dropna(
-      self,
-      axis=0,
-      how='any',
-      thresh=None,
-      subset=None,
-      inplace=False,
-      *args,
-      **kwargs):
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def dropna(self, axis, **kwargs):
     # TODO(robertwb): This is a common pattern. Generalize?
     if axis == 1 or axis == 'columns':
       requires_partition_by = partitionings.Singleton()
     else:
       requires_partition_by = partitionings.Nothing()
-    result = frame_base.DeferredFrame.wrap(
+    return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'dropna',
-            lambda df: df.dropna(
-                axis, how, thresh, subset, False, *args, **kwargs),
+            lambda df: df.dropna(axis=axis, **kwargs),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
-    if inplace:
-      self._expr = result._expr
-    else:
-      return result
 
   items = itertuples = iterrows = iteritems = frame_base.wont_implement_method(
       'non-lazy')
@@ -223,13 +205,15 @@ class DeferredDataFrame(frame_base.DeferredFrame):
 
   prod = product = frame_base._associative_agg_method('prod')
 
-  def quantile(self, q=0.5, axis=0, *args, **kwargs):
-    if axis != 0:
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def quantile(self, axis, **kwargs):
+    if axis == 1 or axis == 'columns':
       raise frame_base.WontImplementError('non-deferred column values')
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'quantile',
-            lambda df: df.quantile(q, axis, *args, **kwargs),
+            lambda df: df.quantile(axis=axis, **kwargs),
             [self._expr],
             #TODO(robertwb): Approximate quantiles?
             requires_partition_by=partitionings.Singleton(),
@@ -237,28 +221,26 @@ class DeferredDataFrame(frame_base.DeferredFrame):
 
   query = frame_base._elementwise_method('query')
 
-  def replace(self, to_replace=None,
-      value=None,
-      inplace=False,
-      limit=None, *args, **kwargs):
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def replace(self, limit, **kwargs):
     if limit is None:
       requires_partition_by = partitionings.Nothing()
     else:
       requires_partition_by = partitionings.Singleton()
-    result = frame_base.DeferredFrame.wrap(
+    return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'replace',
-            lambda df: df.replace(
-                to_replace, value, False, limit, *args, **kwargs),
+            lambda df: df.replace(limit=limit, **kwargs),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
-    if inplace:
-      self._expr = result._expr
-    else:
-      return result
 
-  def reset_index(self, level=None, drop=False, inplace=False, *args, **kwargs):
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def reset_index(self, level, **kwargs):
     if level is not None and not isinstance(level, (tuple, list)):
       level = [level]
     if level is None or len(level) == len(self._expr.proxy().index.levels):
@@ -266,22 +248,20 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       requires_partition_by = partitionings.Singleton()
     else:
       requires_partition_by = partitionings.Nothing()
-    result = frame_base.DeferredFrame.wrap(
+    return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'reset_index',
-            lambda df: df.reset_index(level, drop, False, *args, **kwargs),
+            lambda df: df.reset_index(level=level, **kwargs),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
-    if inplace:
-      self._expr = result._expr
-    else:
-      return result
 
   round = frame_base._elementwise_method('round')
   select_dtypes = frame_base._elementwise_method('select_dtypes')
 
-  def shift(self, periods=1, freq=None, axis=0, *args, **kwargs):
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def shift(self, axis, **kwargs):
     if axis == 1 or axis == 'columns':
       requires_partition_by = partitionings.Nothing()
     else:
@@ -289,7 +269,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'shift',
-            lambda df: df.shift(periods, freq, axis, *args, **kwargs),
+            lambda df: df.shift(axis=axis, **kwargs),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
@@ -298,24 +278,21 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   def shape(self):
     raise frame_base.WontImplementError('scalar value')
 
-  def sort_values(
-      self, by, axis=0, ascending=True, inplace=False, *args, **kwargs):
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def sort_values(self, axis, **kwargs):
     if axis == 1 or axis == 'columns':
       requires_partition_by = partitionings.Nothing()
     else:
       requires_partition_by = partitionings.Singleton()
-    result = frame_base.DeferredFrame.wrap(
+    return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'sort_values',
-            lambda df: df.sort_values(
-                by, axis, ascending, False, *args, **kwargs),
+            lambda df: df.sort_values(axis=axis, **kwargs),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
-    if inplace:
-      self._expr = result._expr
-    else:
-      return result
 
   stack = frame_base._elementwise_method('stack')
 

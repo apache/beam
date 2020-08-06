@@ -387,18 +387,20 @@ python -m apache_beam.examples.wordcount --input YOUR_INPUT_FILE --output counts
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
-Currently, running wordcount.py on Flink requires a full download of the Beam source code.
-See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
+python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+                                         --output /path/to/write/counts \
+                                         --runner FlinkRunner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-cluster" >}}
-Currently, running wordcount.py on Flink requires a full download of the Beam source code.
-See https://beam.apache.org/documentation/runners/flink/ for more information.
+# Running Beam Python on a distributed Flink cluster requires additional configuration.
+# See https://beam.apache.org/documentation/runners/flink/ for more information.
 {{< /highlight >}}
 
 {{< highlight class="runner-spark" >}}
-Currently, running wordcount.py on Spark requires a full download of the Beam source code.
-See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.
+python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+                                         --output /path/to/write/counts \
+                                         --runner SparkRunner
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}

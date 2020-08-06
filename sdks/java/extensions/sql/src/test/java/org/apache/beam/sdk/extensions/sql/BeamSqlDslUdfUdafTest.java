@@ -23,6 +23,7 @@ import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import com.google.auto.service.AutoService;
 import java.sql.Timestamp;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteTable;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -96,6 +98,29 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     PCollection<Row> result2 =
         boundedInput1.apply(
             "testTimeUdf", SqlTransform.query(sql2).registerUdf("PRE_DAY", PreviousDay.class));
+    PAssert.that(result2).containsInAnyOrder(row2);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testListUdf() throws Exception {
+    Schema resultType1 = Schema.builder().addArrayField("array_field", FieldType.INT64).build();
+    Row row1 = Row.withSchema(resultType1).addValue(Arrays.asList(1L)).build();
+    String sql1 = "SELECT test_array(1)";
+    PCollection<Row> result1 =
+        boundedInput1.apply(
+            "testArrayUdf",
+            SqlTransform.query(sql1).registerUdf("test_array", TestReturnTypeList.class));
+    PAssert.that(result1).containsInAnyOrder(row1);
+
+    Schema resultType2 = Schema.builder().addInt32Field("int_field").build();
+    Row row2 = Row.withSchema(resultType2).addValue(3).build();
+    String sql2 = "select array_length(ARRAY[1, 2, 3])";
+    PCollection<Row> result2 =
+        boundedInput1.apply(
+            "testArrayUdf2",
+            SqlTransform.query(sql2).registerUdf("array_length", TestListLength.class));
     PAssert.that(result2).containsInAnyOrder(row2);
 
     pipeline.run().waitUntilFinish();
@@ -344,6 +369,20 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   public static final class PreviousDay implements BeamSqlUdf {
     public static Timestamp eval(Timestamp time) {
       return new Timestamp(time.getTime() - 24 * 3600 * 1000L);
+    }
+  }
+
+  /** A UDF to test support of array as return type. */
+  public static final class TestReturnTypeList implements BeamSqlUdf {
+    public static java.util.List<Long> eval(Long i) {
+      return Arrays.asList(i);
+    }
+  }
+
+  /** A UDF to test support of array as argument type. */
+  public static final class TestListLength implements BeamSqlUdf {
+    public static Integer eval(java.util.List<Long> i) {
+      return i.size();
     }
   }
 
