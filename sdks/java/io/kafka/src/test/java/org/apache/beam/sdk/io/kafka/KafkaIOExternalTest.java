@@ -34,6 +34,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -67,6 +68,7 @@ public class KafkaIOExternalTest {
             .put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer)
             .put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer)
             .build();
+    Long startReadTime = 100L;
 
     ExternalTransforms.ExternalConfigurationPayload payload =
         ExternalTransforms.ExternalConfigurationPayload.newBuilder()
@@ -97,6 +99,12 @@ public class KafkaIOExternalTest {
                 ExternalTransforms.ConfigValue.newBuilder()
                     .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(valueDeserializer)))
+                    .build())
+            .putConfiguration(
+                "start_read_time",
+                ExternalTransforms.ConfigValue.newBuilder()
+                    .addCoderUrn("beam:coder:varint:v1")
+                    .setPayload(ByteString.copyFrom(encodeLong(startReadTime)))
                     .build())
             .build();
 
@@ -277,6 +285,12 @@ public class KafkaIOExternalTest {
   private static byte[] encodeString(String str) throws IOException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     StringUtf8Coder.of().encode(str, baos);
+    return baos.toByteArray();
+  }
+
+  private static byte[] encodeLong(Long str) throws IOException {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    VarLongCoder.of().encode(str, baos);
     return baos.toByteArray();
   }
 
