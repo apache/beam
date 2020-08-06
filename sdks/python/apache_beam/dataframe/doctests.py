@@ -362,6 +362,7 @@ def _run_patched(func, *args, **kwargs):
     doctest.DocTestRunner = lambda **kwargs: BeamDataframeDoctestRunner(
         env, use_beam=use_beam, skip=skip, **kwargs)
     with expressions.allow_non_parallel_operations():
-      return func(*args, extraglobs=extraglobs, optionflags=optionflags, **kwargs)
+      return func(
+          *args, extraglobs=extraglobs, optionflags=optionflags, **kwargs)
   finally:
     doctest.DocTestRunner = original_doc_test_runner
