@@ -577,6 +577,7 @@ public class BigQueryIO {
         .setBigQueryServices(new BigQueryServicesImpl())
         .setParseFn(parseFn)
         .setMethod(Method.DEFAULT)
+        .setUseAvroLogicalTypes(false)
         .build();
   }
 
@@ -794,6 +795,8 @@ public class BigQueryIO {
 
       @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setFromBeamRowFn(FromBeamRowFunction<T> fromRowFn);
+
+      abstract Builder<T> setUseAvroLogicalTypes(Boolean useAvroLogicalTypes);
     }
 
     abstract @Nullable ValueProvider<String> getJsonTableRef();
@@ -844,6 +847,8 @@ public class BigQueryIO {
     @Nullable
     @Experimental(Kind.SCHEMAS)
     abstract FromBeamRowFunction<T> getFromBeamRowFn();
+
+    abstract Boolean getUseAvroLogicalTypes();
 
     /**
      * An enumeration type for the priority of a query.
@@ -1076,7 +1081,8 @@ public class BigQueryIO {
         rows =
             p.apply(
                 org.apache.beam.sdk.io.Read.from(
-                    sourceDef.toSource(staticJobUuid, coder, getParseFn())));
+                    sourceDef.toSource(
+                        staticJobUuid, coder, getParseFn(), getUseAvroLogicalTypes())));
       } else {
         // Create a singleton job ID token at execution time.
         jobIdTokenCollection =
@@ -1103,7 +1109,8 @@ public class BigQueryIO {
                           public void processElement(ProcessContext c) throws Exception {
                             String jobUuid = c.element();
                             BigQuerySourceBase<T> source =
-                                sourceDef.toSource(jobUuid, coder, getParseFn());
+                                sourceDef.toSource(
+                                    jobUuid, coder, getParseFn(), getUseAvroLogicalTypes());
                             BigQueryOptions options =
                                 c.getPipelineOptions().as(BigQueryOptions.class);
                             ExtractResult res = source.extractFiles(options);
@@ -1135,7 +1142,8 @@ public class BigQueryIO {
                                         c.sideInput(schemaView), TableSchema.class);
                                 String jobUuid = c.sideInput(jobIdTokenView);
                                 BigQuerySourceBase<T> source =
-                                    sourceDef.toSource(jobUuid, coder, getParseFn());
+                                    sourceDef.toSource(
+                                        jobUuid, coder, getParseFn(), getUseAvroLogicalTypes());
                                 List<BoundedSource<T>> sources =
                                     source.createSources(
                                         ImmutableList.of(
@@ -1611,6 +1619,10 @@ public class BigQueryIO {
     @VisibleForTesting
     TypedRead<T> withTestServices(BigQueryServices testServices) {
       return toBuilder().setBigQueryServices(testServices).build();
+    }
+
+    public TypedRead<T> useAvroLogicalTypes() {
+      return toBuilder().setUseAvroLogicalTypes(true).build();
     }
   }
 
