@@ -25,7 +25,8 @@ It has two children:
 Besides of the standard input options there are additional options:
 * runtime_type_check (optional) - if it's enabled for the pipeline
 * nested_typehint (optional) - if the typehint on the DoFn is nested or simple
-* fanout (optional) - number of GBK operations to run in parallel
+* num_records (optional) - number of elements to process
+* fanout (optional) - number of operations to run in parallel
 * project (optional) - the gcp project in case of saving
 metrics in Big Query (in case of Dataflow Runner
 it is required to specify project of runner),
@@ -34,7 +35,7 @@ it is required to specify project of runner),
 will be stored,
 * metrics_table (optional) - name of BigQuery table where metrics
 will be stored,
-* input_options - options for Synthetic Sources.
+* input_options - these are not used, but must be specified to run the test
 """
 
 # pytype: skip-file
@@ -48,7 +49,6 @@ from typing import Union
 import apache_beam as beam
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-from apache_beam.typehints import Any
 
 
 class BaseRunTimeTypeCheckTest(LoadTest):
@@ -57,14 +57,15 @@ class BaseRunTimeTypeCheckTest(LoadTest):
     super(BaseRunTimeTypeCheckTest,
           self).__init__(runtime_type_check=runtime_type_check)
     self.fanout = self.get_option_or_default('fanout', 1)
+    self.num_records = self.get_option_or_default('num_records', 300)
     self.nested_typehint = self.get_option_or_default('nested_typehint', 0)
 
-  @beam.typehints.with_input_types(Tuple[int])
+  @beam.typehints.with_input_types(Tuple[int, ...])
   class SimpleInput(beam.DoFn):
     def process(self, element, *args, **kwargs):
       yield element
 
-  @beam.typehints.with_output_types(Iterable[Tuple[int]])
+  @beam.typehints.with_output_types(Iterable[Tuple[int, ...]])
   class SimpleOutput(beam.DoFn):
     def process(self, element, *args, **kwargs):
       yield element
@@ -75,7 +76,7 @@ class BaseRunTimeTypeCheckTest(LoadTest):
       yield element
 
   @beam.typehints.with_output_types(
-      Iterable[Tuple[int, str, Tuple[Any], Iterable[int], Union[str, int]]])
+      Iterable[Tuple[int, str, Tuple[float], Iterable[int], Union[str, int]]])
   class NestedOutput(beam.DoFn):
     def process(self, element, *args, **kwargs):
       yield element
@@ -84,11 +85,11 @@ class BaseRunTimeTypeCheckTest(LoadTest):
     if self.nested_typehint:
       input_transform = self.NestedInput
       output_transform = self.NestedOutput
-      records = [(1, '2', (3.0, ), [4], '5') for _ in range(300)]
+      records = [(1, '2', (3.0, ), [4], '5') for _ in range(self.num_records)]
     else:
       input_transform = self.SimpleInput
       output_transform = self.SimpleOutput
-      records = [(1, 2, 3, 4, 5) for _ in range(300)]
+      records = [(1, 2, 3, 4, 5) for _ in range(self.num_records)]
 
     pc = (
         self.pipeline

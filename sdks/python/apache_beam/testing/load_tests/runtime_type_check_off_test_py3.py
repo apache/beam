@@ -29,10 +29,11 @@ python -m apache_beam.testing.load_tests.runtime_type_check_off_test_py3 \
     --metrics_table=gbk
     --nested_typehint=0
     --fanout=200
+    --num_records=300
     --input_options='{
-    \"num_records\": 300,
-    \"key_size\": 5,
-    \"value_size\": 15
+    \"num_records\": 0,
+    \"key_size\": 0,
+    \"value_size\": 0
     }'"
 """
 
