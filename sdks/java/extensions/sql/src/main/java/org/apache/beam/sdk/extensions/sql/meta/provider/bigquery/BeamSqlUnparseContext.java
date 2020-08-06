@@ -38,6 +38,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.BitString;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.TimestampString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
@@ -69,8 +70,12 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
   public SqlNode toSql(RexProgram program, RexNode rex) {
     if (rex.getKind().equals(SqlKind.LITERAL)) {
       final RexLiteral literal = (RexLiteral) rex;
-      SqlTypeFamily family = literal.getTypeName().getFamily();
-      if (SqlTypeFamily.BINARY.equals(family)) {
+      SqlTypeName name = literal.getTypeName();
+      SqlTypeFamily family = name.getFamily();
+      if (SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE.equals(name)) {
+        TimestampString timestampString = literal.getValueAs(TimestampString.class);
+        return new SqlDateTimeLiteral(timestampString, POS);
+      } else if (SqlTypeFamily.BINARY.equals(family)) {
         ByteString byteString = literal.getValueAs(ByteString.class);
         BitString bitString = BitString.createFromHexString(byteString.toString(16));
         return new SqlByteStringLiteral(bitString, POS);
@@ -90,6 +95,21 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
     }
 
     return super.toSql(program, rex);
+  }
+
+  private static class SqlDateTimeLiteral extends SqlLiteral {
+
+    private final TimestampString timestampString;
+
+    SqlDateTimeLiteral(TimestampString timestampString, SqlParserPos pos) {
+      super(timestampString, SqlTypeName.TIMESTAMP, pos);
+      this.timestampString = timestampString;
+    }
+
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+      writer.literal("DATETIME '" + timestampString.toString() + "'");
+    }
   }
 
   private static class SqlByteStringLiteral extends SqlLiteral {
