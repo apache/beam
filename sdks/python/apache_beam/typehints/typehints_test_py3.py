@@ -246,8 +246,8 @@ class TestPTransformAnnotations(unittest.TestCase):
   def test_nested_typing_annotations_are_converted_to_beam_annotations(self):
     class MyPTransform(PTransform):
       def expand(self, pcoll:
-                 PCollection[typing.Union[int, typing.Any, typing.Dict[str, float]]]) \
-              -> PCollection[typing.Union[int, typing.Any, typing.Dict[str, float]]]:
+         PCollection[typing.Union[int, typing.Any, typing.Dict[str, float]]]) \
+      -> PCollection[typing.Union[int, typing.Any, typing.Dict[str, float]]]:
         return pcoll
 
     th = MyPTransform().get_type_hints()

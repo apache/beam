@@ -380,14 +380,13 @@ class MainInputTest(unittest.TestCase):
           yield beam.pvalue.TaggedOutput('even', 1)
 
     class MyPTransform(beam.PTransform):
-      def expand(
-          self,
-          pcoll: beam.pvalue.PCollection[int]):
+      def expand(self, pcoll: beam.pvalue.PCollection[int]):
         return pcoll | beam.ParDo(MyDoFn()).with_outputs('odd', 'even')
 
     # This test fails if you remove the following line from ptransform.py
     # if isinstance(pvalue_, DoOutputsTuple): continue
     _ = [1, 2, 3] | MyPTransform()
+
 
 class AnnotationsTest(unittest.TestCase):
   def test_pardo_dofn(self):
