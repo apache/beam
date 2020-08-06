@@ -452,9 +452,15 @@ public class KafkaIO {
         // Set required defaults
         setTopicPartitions(Collections.emptyList());
         setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN);
-        setMaxNumRecords(Long.MAX_VALUE);
+        if (config.maxReadTime != null) {
+          setMaxReadTime(Duration.standardSeconds(config.maxReadTime));
+        }
+        setMaxNumRecords(config.maxNumRecords == null ? Long.MAX_VALUE : config.maxNumRecords);
         setCommitOffsetsInFinalizeEnabled(false);
         setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime());
+        if (config.startReadTime != null) {
+          setStartReadTime(Instant.ofEpochMilli(config.startReadTime));
+        }
         // We do not include Metadata until we can encode KafkaRecords cross-language
         return build().withoutMetadata();
       }
@@ -507,6 +513,9 @@ public class KafkaIO {
         private Iterable<String> topics;
         private String keyDeserializer;
         private String valueDeserializer;
+        private Long startReadTime;
+        private Long maxNumRecords;
+        private Long maxReadTime;
 
         public void setConsumerConfig(Iterable<KV<String, String>> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -522,6 +531,18 @@ public class KafkaIO {
 
         public void setValueDeserializer(String valueDeserializer) {
           this.valueDeserializer = valueDeserializer;
+        }
+
+        public void setStartReadTime(Long startReadTime) {
+          this.startReadTime = startReadTime;
+        }
+
+        public void setMaxNumRecords(Long maxNumRecords) {
+          this.maxNumRecords = maxNumRecords;
+        }
+
+        public void setMaxReadTime(Long maxReadTime) {
+          this.maxReadTime = maxReadTime;
         }
       }
     }
