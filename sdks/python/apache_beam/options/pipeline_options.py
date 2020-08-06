@@ -473,8 +473,8 @@ class TypeOptions(PipelineOptions):
         default=False,
         action='store_true',
         help='Enable faster type checking via sampling at pipeline execution '
-        'time. NOTE: only supported with the '
-        'DirectRunner')
+        'time. NOTE: only supported with portable runners '
+        '(including the DirectRunner)')
 
 
 class DirectOptions(PipelineOptions):

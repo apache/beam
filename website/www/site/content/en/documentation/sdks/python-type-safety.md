@@ -228,13 +228,7 @@ You can enable faster, sampling-based runtime type checking by setting the pipel
 
 The is a Python 3 only feature that works by runtime type checking a small subset of values, called a sample, using optimized Cython code.
 
-Currently, this feature does not support runtime type checking for side inputs or combine operations. Specifically, this feature will not runtime type check the following transforms:
-- `CombineFn`,
-- `CombinePerKey`,
-- `CombineValuesDoFn`,
-- `CombineValues`,
-- `CombineGlobally`
-
+Currently, this feature does not support runtime type checking for side inputs or combining operations.
 These are planned to be supported in a future release of Beam.
 
 ## Use of Type Hints in Coders

@@ -247,7 +247,6 @@ class Operation(object):
     self.execution_context = None  # type: Optional[ExecutionContext]
     self.consumers = collections.defaultdict(
         list)  # type: DefaultDict[int, List[Operation]]
-    self.producer = None
 
     # These are overwritten in the legacy harness.
     self.metrics_container = MetricsContainer(self.name_context.metrics_name())
@@ -613,7 +612,7 @@ class DoOperation(Operation):
           view_options['coder'],
           i,
           suffix='side-input',
-          producer=self.producer)
+          producer=None)
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter, element_counter=element_counter)
       yield apache_sideinputs.SideInputMap(
