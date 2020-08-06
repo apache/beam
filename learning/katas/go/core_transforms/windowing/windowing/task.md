@@ -20,13 +20,13 @@
 
 This lesson introduces the concept of windowed PCollection elements.  A window is a view into a fixed beginning and 
 fixed end to a set of data.  In the beam model, windowing subdivides a PCollection according to the
-timestamps of its individual elements.
+timestamps of its individual elements.  An element can be a part of one or more windows.
 
-Beam can pass information about the window and timestamp to your elements in your DoFn.  All your previous
-lessons' DoFn had this information available, yet you never made use of it in your DoFn parameters.  In this 
-lesson you will.  The simple toy dataset has five git commit messages and their timestamps 
-from the [Apache Beam public repository](https://github.com/apache/beam).  Timestamps have been
-applied to this PCollection input according to the date and time of these messages.
+A DoFn can request timestamp and windowing information about the element it is processing.  All the previous lessons 
+had this information available as well.  This lesson makes use of these parameters.  The simple dataset 
+has five git commit messages and their timestamps from the 
+[Apache Beam public repository](https://github.com/apache/beam).  Timestamps have been applied to this PCollection
+input according to the date and time of these messages.
 
 **Kata:** This lesson challenges you to apply an hourly fixed window to a PCollection.  You are then to 
 apply a ParDo to that hourly fixed windowed PCollection to produce a PCollection of a Commit struct.  The
