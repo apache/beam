@@ -25,7 +25,7 @@ from __future__ import absolute_import
 import logging
 import unittest
 
-# patches unittest.TestCase to be python3 compatible
+# patches unittest.TestCase to be python3 compatible.
 import future.tests.base  # pylint: disable=unused-import
 import mock
 
@@ -34,13 +34,13 @@ from apache_beam.io.azure import blobstorageio
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.options.pipeline_options import PipelineOptions
 
-# Protect against environments where apitools library is not available.
-#pylint: disable=wrong-import-order, wrong-import-position
+# Protect against environments where azure library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apache_beam.io.azure import blobstoragefilesystem
 except ImportError:
   blobstoragefilesystem = None  # type: ignore
-#pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 @unittest.skipIf(
@@ -175,7 +175,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
         lambda: blobstorageio_mock
-    # Issue file copy
+    # Issue file copy.
     _ = self.fs.create(
         'azfs://storageaccount/container/file1', 'application/octet-stream')
 
@@ -190,7 +190,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     blobstorageio_mock = mock.MagicMock()
     blobstoragefilesystem.blobstorageio.BlobStorageIO = \
         lambda: blobstorageio_mock
-    # Issue file copy
+    # Issue file copy.
     _ = self.fs.open(
         'azfs://storageaccount/container/file1', 'application/octet-stream')
 
@@ -215,7 +215,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
         'azfs://storageaccount/container/to2',
     ]
 
-    # Issue file copy
+    # Issue file copy.
     self.fs.copy(sources, destinations)
 
     src_dest_pairs = list(zip(sources, destinations))
@@ -237,7 +237,7 @@ class BlobStorageFileSystemTest(unittest.TestCase):
         'azfs://storageaccount/container/to2',
     ]
 
-    # Issue file copy
+    # Issue file copy.
     with self.assertRaises(BeamIOError):
       self.fs.copy(sources, destinations)
 
