@@ -213,16 +213,9 @@ public class SamzaStateInternalsTest implements Serializable {
   /** A test store based on InMemoryKeyValueStore. */
   public static class TestStore extends InMemoryKeyValueStore {
     static List<TestKeyValueIteraor> iterators = Collections.synchronizedList(new ArrayList<>());
-    private final KeyValueStoreMetrics metrics;
 
     public TestStore(KeyValueStoreMetrics metrics) {
       super(metrics);
-      this.metrics = metrics;
-    }
-
-    @Override
-    public KeyValueStoreMetrics metrics() {
-      return metrics;
     }
 
     @Override
