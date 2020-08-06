@@ -17,6 +17,11 @@
 
 """
 Integration test for Google Cloud DICOM IO connector.
+This e2e test will first create a temporary empty DICOM storage and send 18
+DICOM files from gs://apache-beam-samples/healthcare/dicom/io_test_files to
+it. The test will compare the metadata of a persistent DICOM storage, which
+reprensets ground truths and has 18 files stored, to the temporary storage
+in order to check if the connectors are functioning correctly.
 """
 # pytype: skip-file
 
@@ -24,6 +29,7 @@ from __future__ import absolute_import
 
 import random
 import string
+import sys
 import unittest
 
 from nose.plugins.attrib import attr
@@ -36,6 +42,7 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  from apache_beam.io.gcp.dicomclient import DicomApiHttpClient
   from apache_beam.io.gcp.dicomio import DicomSearch
   from apache_beam.io.gcp.dicomio import UploadToDicomStore
   from google.auth import default
@@ -49,8 +56,10 @@ DATA_SET_ID = 'apache-beam-integration-testing'
 HEALTHCARE_BASE_URL = 'https://healthcare.googleapis.com/v1'
 GCS_BASE_URL = 'https://storage.googleapis.com/storage/v1'
 PERSISTENT_DICOM_STORE_NAME = "dicom_it_persistent_store"
-TEMP_BUCKET_NAME = 'temp-storage-for-dicom-io-tests'
-TEMP_FILES_PATH = 'gs://' + TEMP_BUCKET_NAME
+BUCKET_NAME = 'apache-beam-samples'
+DICOM_DIR_PATH = 'healthcare/dicom'
+DICOM_FILES_PATH = 'gs://' + BUCKET_NAME + '/' + DICOM_DIR_PATH
+METADATA_DIR_PATH = DICOM_DIR_PATH + '/io_test_metadata/'
 META_DATA_ALL_NAME = 'Dicom_io_it_test_data.json'
 META_DATA_REFINED_NAME = 'Dicom_io_it_test_refined_data.json'
 NUM_INSTANCE = 18
@@ -97,8 +106,9 @@ def delete_dicom_store(project_id, dataset_id, region, dicom_store_id):
 
 def get_gcs_file_http(file_name):
   # Get gcs file from REST Api
+  file_name = file_name.replace('/', '%2F')
   api_endpoint = "{}/b/{}/o/{}?alt=media".format(
-      GCS_BASE_URL, TEMP_BUCKET_NAME, file_name)
+      GCS_BASE_URL, BUCKET_NAME, file_name)
 
   credential, _ = default()
   session = requests.AuthorizedSession(credential)
@@ -113,9 +123,10 @@ class DICOMIoIntegrationTest(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.project = self.test_pipeline.get_option('project')
-    self.expected_output_all_metadata = get_gcs_file_http(META_DATA_ALL_NAME)
+    self.expected_output_all_metadata = get_gcs_file_http(
+        METADATA_DIR_PATH + META_DATA_ALL_NAME)
     self.expected_output_refined_metadata = get_gcs_file_http(
-        META_DATA_REFINED_NAME)
+        METADATA_DIR_PATH + META_DATA_REFINED_NAME)
 
     # create a temp Dicom store based on the time stamp
     self.temp_dicom_store = "DICOM_store_" + random_string_generator(RAND_LEN)
@@ -126,48 +137,54 @@ class DICOMIoIntegrationTest(unittest.TestCase):
     delete_dicom_store(self.project, DATA_SET_ID, REGION, self.temp_dicom_store)
 
   @attr('IT')
-  def test_dicom_search_all_instances(self):
+  def test_dicom_search_instances(self):
     # Search and compare the metadata of a persistent DICOM store.
-    input_dict = {}
-    input_dict['project_id'] = self.project
-    input_dict['region'] = REGION
-    input_dict['dataset_id'] = DATA_SET_ID
-    input_dict['dicom_store_id'] = PERSISTENT_DICOM_STORE_NAME
-    input_dict['search_type'] = "instances"
+    # Both refine and comprehensive search will be tested.
+    input_dict_all = {}
+    input_dict_all['project_id'] = self.project
+    input_dict_all['region'] = REGION
+    input_dict_all['dataset_id'] = DATA_SET_ID
+    input_dict_all['dicom_store_id'] = PERSISTENT_DICOM_STORE_NAME
+    input_dict_all['search_type'] = "instances"
 
-    expected_dict = {}
-    expected_dict['result'] = self.expected_output_all_metadata
-    expected_dict['status'] = 200
-    expected_dict['input'] = input_dict
-    expected_dict['success'] = True
-
-    with self.test_pipeline as p:
-      results = (p | beam.Create([input_dict]) | DicomSearch())
-      assert_that(results, equal_to([expected_dict]), label='all search assert')
-
-  @attr('IT')
-  def test_dicom_search_refined_instances(self):
-    # Refine search and compare the metadata of a persistent DICOM store.
-    input_dict = {}
-    input_dict['project_id'] = self.project
-    input_dict['region'] = REGION
-    input_dict['dataset_id'] = DATA_SET_ID
-    input_dict['dicom_store_id'] = PERSISTENT_DICOM_STORE_NAME
-    input_dict['search_type'] = "instances"
-    input_dict['params'] = {
+    input_dict_refine = {}
+    input_dict_refine['project_id'] = self.project
+    input_dict_refine['region'] = REGION
+    input_dict_refine['dataset_id'] = DATA_SET_ID
+    input_dict_refine['dicom_store_id'] = PERSISTENT_DICOM_STORE_NAME
+    input_dict_refine['search_type'] = "instances"
+    input_dict_refine['params'] = {
         'StudyInstanceUID': 'study_000000001', 'limit': 500, 'offset': 0
     }
 
-    expected_dict = {}
-    expected_dict['result'] = self.expected_output_refined_metadata
-    expected_dict['status'] = 200
-    expected_dict['input'] = input_dict
-    expected_dict['success'] = True
+    expected_dict_all = {}
+    expected_dict_all['result'] = self.expected_output_all_metadata
+    expected_dict_all['status'] = 200
+    expected_dict_all['input'] = input_dict_all
+    expected_dict_all['success'] = True
+
+    expected_dict_refine = {}
+    expected_dict_refine['result'] = self.expected_output_refined_metadata
+    expected_dict_refine['status'] = 200
+    expected_dict_refine['input'] = input_dict_refine
+    expected_dict_refine['success'] = True
 
     with self.test_pipeline as p:
-      results = (p | beam.Create([input_dict]) | DicomSearch())
+      results_all = (
+          p
+          | 'create all dict' >> beam.Create([input_dict_all])
+          | 'search all' >> DicomSearch())
+      results_refine = (
+          p
+          | 'create refine dict' >> beam.Create([input_dict_refine])
+          | 'search refine' >> DicomSearch())
+
       assert_that(
-          results, equal_to([expected_dict]), label='refine search assert')
+          results_all, equal_to([expected_dict_all]), label='all search assert')
+      assert_that(
+          results_refine,
+          equal_to([expected_dict_refine]),
+          label='refine search assert')
 
   @attr('IT')
   def test_dicom_store_instance_from_gcs(self):
@@ -182,7 +199,7 @@ class DICOMIoIntegrationTest(unittest.TestCase):
     expected_output = [True] * NUM_INSTANCE
 
     with self.test_pipeline as p:
-      gcs_path = TEMP_FILES_PATH + "/dicom_files/*"
+      gcs_path = DICOM_FILES_PATH + "/io_test_files/*"
       results = (
           p
           | fileio.MatchFiles(gcs_path)
@@ -192,23 +209,16 @@ class DICOMIoIntegrationTest(unittest.TestCase):
       assert_that(
           results, equal_to(expected_output), label='store first assert')
 
-    input_dict_search = {}
-    input_dict_search['project_id'] = self.project
-    input_dict_search['region'] = REGION
-    input_dict_search['dataset_id'] = DATA_SET_ID
-    input_dict_search['dicom_store_id'] = self.temp_dicom_store
-    input_dict_search['search_type'] = "instances"
+    # Check the metadata using client
+    result, status_code = DicomApiHttpClient().qido_search(
+      self.project, REGION, DATA_SET_ID, self.temp_dicom_store, 'instances'
+    )
 
-    expected_dict = {}
-    expected_dict['result'] = self.expected_output_all_metadata
-    expected_dict['status'] = 200
-    expected_dict['input'] = input_dict_search
-    expected_dict['success'] = True
-
-    with self.test_pipeline as p:
-      results = (p | beam.Create([input_dict_search]) | DicomSearch())
-      assert_that(
-          results, equal_to([expected_dict]), label='store second assert')
+    self.assertEqual(status_code, 200)
+    if sys.version_info.major == 3:
+      self.assertCountEqual(result, self.expected_output_all_metadata)
+    else:
+      self.assertItemsEqual(result, self.expected_output_all_metadata)
 
 
 if __name__ == '__main__':
