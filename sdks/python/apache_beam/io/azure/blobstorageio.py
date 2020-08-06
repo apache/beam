@@ -150,13 +150,13 @@ class BlobStorageIO(object):
       retry_filter=retry.retry_on_beam_io_error_filter)
   def copy(self, src, dest):
     """Copies a single Azure Blob Storage blob from src to dest.
-    
+
     Args:
       src: Blob Storage file path pattern in the form
            azfs://<storage-account>/<container>/[name].
       dest: Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
-    
+
     Raises:
       TimeoutError: on timeout.
     """
@@ -186,14 +186,14 @@ class BlobStorageIO(object):
            azfs://<storage-account>/<container>/[name].
       dest: Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
-      
+
     Returns:
       List of tuples of (src, dest, exception) where exception is None if the
       operation succeeded or the relevant exception if the operation failed.
     """
     assert src.endswith('/')
     assert dest.endswith('/')
-    
+
     results = []
     for entry in self.list_prefix(src):
       rel_path = entry[len(src):]
@@ -216,7 +216,7 @@ class BlobStorageIO(object):
       src_dest_pairs: List of (src, dest) tuples of
                       azfs://<storage-account>/<container>/[name] file paths
                       to copy from src to dest.
-    
+
     Returns:
       List of tuples of (src, dest, exception) in the same order as the
       src_dest_pairs argument, where exception is None if the operation
@@ -224,7 +224,7 @@ class BlobStorageIO(object):
     """
     if not src_dest_pairs:
       return []
-    
+
     results = []
 
     for src_path, dest_path in src_dest_pairs:
@@ -234,7 +234,7 @@ class BlobStorageIO(object):
           results += self.copy_tree(src_path, dest_path)
         except BlobStorageError as e:
           results.append((src_path, dest_path, e))
-      
+
       # Case 2. They are individual blobs.
       elif not src_path.endswith('/') and not dest_path.endswith('/'):
         try:
@@ -242,7 +242,7 @@ class BlobStorageIO(object):
           results.append((src_path, dest_path, None))
         except BlobStorageError as e:
           results.append((src_path, dest_path, e))
-      
+
       # Mismatched paths (one directory, one non-directory) get an error
       else:
         e = BlobStorageError(
@@ -250,7 +250,7 @@ class BlobStorageIO(object):
             "(directory, non-directory): %s, %s" % (src_path, dest_path),
             400)
         results.append((src_path, dest_path, e))
-        
+
     return results
 
   # We intentionally do not decorate this method with a retry, since the
@@ -267,18 +267,17 @@ class BlobStorageIO(object):
     """
     self.copy(src, dest)
     self.delete(src)
-  
 
   # We intentionally do not decorate this method with a retry, since the
   # underlying copy and delete operations are already idempotent operations
-  # protected by retry decorators.  
+  # protected by retry decorators.
   def rename_files(self, src_dest_pairs):
     """Renames the given Azure Blob Storage blobs from src to dest.
 
     Args:
       src_dest_pairs: List of (src, dest) tuples of
                       azfs://<storage-account>/<container>/[name] file paths
-                      to rename from src to dest.                    
+                      to rename from src to dest.                  
 
     Returns: List of tuples of (src, dest, exception) in the same order as the
              src_dest_pairs argument, where exception is None if the operation
@@ -290,7 +289,7 @@ class BlobStorageIO(object):
     for src, dest in src_dest_pairs:
       if src.endswith('/') or dest.endswith('/'):
         raise ValueError('Unable to rename a directory.')
-  
+
     # Results from copy operation.
     copy_results = self.copy_paths(src_dest_pairs)
     paths_to_delete = \
@@ -317,12 +316,11 @@ class BlobStorageIO(object):
 
     return results
 
-
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
   def exists(self, path):
     """Returns whether the given Azure Blob Storage blob exists.
-    
+
     Args:
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
@@ -358,7 +356,7 @@ class BlobStorageIO(object):
       message = e.reason
       code = e.status_code
       raise BlobStorageError(message, code)
-    
+
     return properties.size
 
   @retry.with_exponential_backoff(
@@ -381,7 +379,7 @@ class BlobStorageIO(object):
       message = e.reason
       code = e.status_code
       raise BlobStorageError(message, code)
-    
+
     datatime = properties.last_modified
     return (
         time.mktime(datatime.timetuple()) - time.timezone +
@@ -391,7 +389,7 @@ class BlobStorageIO(object):
       retry_filter=retry.retry_on_beam_io_error_filter)
   def checksum(self, path):
     """Looks up the checksum of an Azure Blob Storage blob.
-    
+
     Args:
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
@@ -404,14 +402,14 @@ class BlobStorageIO(object):
       message = e.reason
       code = e.status_code
       raise BlobStorageError(message, code)
-    
+
     return properties.etag
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
   def delete(self, path):
     """Deletes a single blob at the given Azure Blob Storage path.
-    
+
     Args:
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
@@ -486,9 +484,9 @@ class BlobStorageIO(object):
 
     # Get the blob under the root directory.
     paths_to_delete = self.list_prefix(root)
-    
+
     return self.delete_files(paths_to_delete)
-  
+
   # We intentionally do not decorate this method with a retry, since the
   # underlying copy and delete operations are already idempotent operations
   # protected by retry decorators.
