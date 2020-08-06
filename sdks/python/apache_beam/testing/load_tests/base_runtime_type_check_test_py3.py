@@ -43,11 +43,11 @@ from __future__ import absolute_import
 
 from typing import Iterable
 from typing import Tuple
+from typing import Union
 
 import apache_beam as beam
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-from apache_beam.testing.synthetic_pipeline import SyntheticSource
 from apache_beam.typehints import Any
 
 
@@ -59,40 +59,42 @@ class BaseRunTimeTypeCheckTest(LoadTest):
     self.fanout = self.get_option_or_default('fanout', 1)
     self.nested_typehint = self.get_option_or_default('nested_typehint', 0)
 
-  @beam.typehints.with_input_types(Tuple[bytes, ...])
+  @beam.typehints.with_input_types(Tuple[int])
   class SimpleInput(beam.DoFn):
     def process(self, element, *args, **kwargs):
       yield element
 
-  @beam.typehints.with_output_types(Iterable[Tuple[bytes, ...]])
+  @beam.typehints.with_output_types(Iterable[Tuple[int]])
   class SimpleOutput(beam.DoFn):
     def process(self, element, *args, **kwargs):
       yield element
 
-  @beam.typehints.with_input_types(Tuple[int, str, Tuple[Any], Iterable[int]])
+  @beam.typehints.with_input_types(Tuple[int, str, Tuple[float], Iterable[int], Union[str, int]])
   class NestedInput(beam.DoFn):
     def process(self, element, *args, **kwargs):
       yield element
 
   @beam.typehints.with_output_types(
-      Iterable[Tuple[int, str, Tuple[Any], Iterable[int]]])
+      Iterable[Tuple[int, str, Tuple[Any], Iterable[int], Union[str, int]]])
   class NestedOutput(beam.DoFn):
     def process(self, element, *args, **kwargs):
-      yield 1, 'a', element, [0]
+      yield element
 
   def test(self):
-    pc = (
-        self.pipeline
-        | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
-        | 'Measure time: Start' >> beam.ParDo(
-            MeasureTime(self.metrics_namespace)))
-
     if self.nested_typehint:
       input_transform = self.NestedInput
       output_transform = self.NestedOutput
+      records = [(1, '2', (3.0, ), [4], '5') for _ in range(300)]
     else:
       input_transform = self.SimpleInput
       output_transform = self.SimpleOutput
+      records = [(1, 2, 3, 4, 5) for _ in range(300)]
+
+    pc = (
+        self.pipeline
+        | beam.Create(records)
+        | 'Measure time: Start' >> beam.ParDo(
+            MeasureTime(self.metrics_namespace)))
 
     # Perform the output DoFn before input DoFn so the annotations are valid
     for branch in range(self.fanout):
