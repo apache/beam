@@ -24,12 +24,14 @@ import java.nio.channels.SeekableByteChannel;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -94,7 +96,13 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
 
   @Override
   public Coder<LineContext> getOutputCoder() {
-    return SerializableCoder.of(LineContext.class);
+    SchemaCoder<LineContext> coder = null;
+    try {
+      coder = SchemaRegistry.createDefault().getSchemaCoder(LineContext.class);
+    } catch (NoSuchSchemaException e) {
+      System.out.println("No Coder!");
+    }
+    return coder;
   }
 
   /**
@@ -308,8 +316,8 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
 
       /////////////////////////////////////////////
 
-//      Data of the Current Line
-//      dataToDecode.toStringUtf8();
+      //      Data of the Current Line
+      //      dataToDecode.toStringUtf8();
 
       // The line num is:
       Long lineUniqueLineNum = readerlineNum++;
@@ -319,12 +327,13 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
       // The single filename can be found as:
       // fileName.substring(fileName.lastIndexOf('/') + 1);
 
+      Range range =
+          Range.newBuilder().setRangeLineNum(lineUniqueLineNum).setRangeNum(startingOffset).build();
       // The Range is the starting Offset for this reader:
       currentValue =
           LineContext.newBuilder()
-              .setRangeLineNum(lineUniqueLineNum)
+              .setRange(range)
               .setLineNum(lineUniqueLineNum)
-              .setRangeNum(startingOffset)
               .setFile(fileName)
               .setLine(dataToDecode.toStringUtf8())
               .build();

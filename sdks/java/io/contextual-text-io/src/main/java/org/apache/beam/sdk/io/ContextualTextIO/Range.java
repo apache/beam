@@ -18,40 +18,25 @@
 package org.apache.beam.sdk.io.ContextualTextIO;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
-@Internal
-@Experimental(Experimental.Kind.SCHEMAS)
-@DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class LineContext {
-  public abstract Range getRange();
+public abstract class Range {
+  public abstract Long getRangeNum();
 
-  public abstract Long getLineNum();
-
-  public abstract String getLine();
+  public abstract Long getRangeLineNum();
 
   public abstract Builder toBuilder();
 
-  public abstract String getFile();
-
   public static Builder newBuilder() {
-    return new AutoValue_LineContext.Builder();
+    return new AutoValue_Range.Builder();
   }
 
   @AutoValue.Builder
   public abstract static class Builder {
-    public abstract Builder setRange(Range range);
+    public abstract Builder setRangeLineNum(Long rangeLineNum);
 
-    public abstract Builder setLineNum(Long lineNum);
+    public abstract Builder setRangeNum(Long rangeNum);
 
-    public abstract Builder setLine(String line);
-
-    public abstract Builder setFile(String file);
-
-    public abstract LineContext build();
+    public abstract Range build();
   }
 }

@@ -24,20 +24,30 @@ import avro.shaded.com.google.common.collect.Iterables;
 import com.google.auto.value.AutoValue;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.*;
+import org.apache.beam.sdk.io.CompressedSource;
+import org.apache.beam.sdk.io.Compression;
+import org.apache.beam.sdk.io.FileBasedSource;
+import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileIO.MatchConfiguration;
+import org.apache.beam.sdk.io.ReadAllViaFileBasedSource;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
@@ -45,28 +55,28 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.joda.time.Duration;
 
 /**
  * {@link PTransform}s for reading from text files with Context
- * 
+ *
  * <h2>Reading from text files</h2>
- * 
+ *
  * <p>To read a {@link PCollection} from one or more text files, use {@code ContextualTextIO.read()}
- * to instantiate a transform use {@link ContextualTextIO.Read#from(String)} to specify the path of the
- * file(s) to be read. Alternatively, if the filenames to be read are themselves in a {@link PCollection}
- * you can use {@link FileIO} to match them and {@link ContextualTextIO#readFiles()} to read them.
- * 
- * <p>{@link #read} returns a {@link PCollection} of {@link LineContext LineContext}, each corresponding
- * to one line of an inout UTF-8 text file (split into lines delimited by '\n', '\r', '\r\n', or specified 
- * delimiter see {@link ContextualTextIO.Read#withDelimiter})
+ * to instantiate a transform use {@link ContextualTextIO.Read#from(String)} to specify the path of
+ * the file(s) to be read. Alternatively, if the filenames to be read are themselves in a {@link
+ * PCollection} you can use {@link FileIO} to match them and {@link ContextualTextIO#readFiles()} to
+ * read them.
+ *
+ * <p>{@link #read} returns a {@link PCollection} of {@link LineContext LineContext}, each
+ * corresponding to one line of an inout UTF-8 text file (split into lines delimited by '\n', '\r',
+ * '\r\n', or specified delimiter see {@link ContextualTextIO.Read#withDelimiter})
  *
  * <h3>Filepattern expansion and watching</h3>
  *
- * <p>By default, the filepatterns are expanded only once. {@link ContextualTextIO.Read#watchForNewFiles} or the
- * combination of {@link FileIO.Match#continuously(Duration, TerminationCondition)} and {@link
- * #readFiles()} allow streaming of new files matching the filepattern(s).
+ * <p>By default, the filepatterns are expanded only once. The combination of {@link
+ * FileIO.Match#continuously(Duration, TerminationCondition)} and {@link #readFiles()} allow
+ * streaming of new files matching the filepattern(s).
  *
  * <p>By default, {@link #read} prohibits filepatterns that match no files, and {@link #readFiles()}
  * allows them in case the filepattern contains a glob wildcard character. Use {@link
@@ -80,7 +90,7 @@ import org.joda.time.Duration;
  * Pipeline p = ...;
  *
  * // A simple Read of a local file (only runs locally):
- * PCollection<String> lines = p.apply(ContextualTextIO.read().from("/local/path/to/file.txt"));
+ * PCollection<LineContext> lines = p.apply(ContextualTextIO.read().from("/local/path/to/file.txt"));
  * }</pre>
  *
  * <p>Example 2: reading a PCollection of filenames.
@@ -93,7 +103,7 @@ import org.joda.time.Duration;
  * PCollection<String> filenames = ...;
  *
  * // Read all files in the collection.
- * PCollection<String> lines =
+ * PCollection<LineContext> lines =
  *     filenames
  *         .apply(FileIO.matchAll())
  *         .apply(FileIO.readMatches())
@@ -105,7 +115,7 @@ import org.joda.time.Duration;
  * <pre>{@code
  * Pipeline p = ...;
  *
- * PCollection<String> lines = p.apply(ContextualTextIO.read()
+ * PCollection<LineContext> lines = p.apply(ContextualTextIO.read()
  *     .from("/local/path/to/files/*")
  *     .watchForNewFiles(
  *       // Check for new files every minute
@@ -119,20 +129,34 @@ import org.joda.time.Duration;
  * <pre>{@code
  * Pipeline p = ...;
  *
- * PCollection<String> lines = p.apply(ContextualTextIO.read()
+ * PCollection<LineContext> lines = p.apply(ContextualTextIO.read()
  *     .from("/local/path/to/files/*")
  *      .withHasRFC4180MultiLineColumn(true));
  * }</pre>
  *
- * NOTE: Using {@link ContextualTextIO.Read#withHasRFC4180MultiLineColumn(boolean)} introduces
- * a performance penalty, when using this option the files are not split and read on multiple workers.
+ * <p>Example 5: reading while watching for new files
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * PCollection<LineContext> lines = p.apply(FileIO.match()
+ *      .filepattern("filepattern")
+ *      .continuously(
+ *        Duration.millis(100),
+ *        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))))
+ *      .apply(FileIO.readMatches())
+ *      .apply(ContextualTextIO.readFiles());
+ * }</pre>
+ *
+ * NOTE: Using {@link ContextualTextIO.Read#withHasRFC4180MultiLineColumn(boolean)} introduces a
+ * performance penalty, when using this option the files are not split and read on multiple workers.
  *
  * <h3>Reading a very large number of files</h3>
  *
  * <p>If it is known that the filepattern will match a very large number of files (e.g. tens of
- * thousands or more), use {@link ContextualTextIO.Read#withHintMatchesManyFiles} for better performance and
- * scalability. Note that it may decrease performance if the filepattern matches only a small number
- * of files.
+ * thousands or more), use {@link ContextualTextIO.Read#withHintMatchesManyFiles} for better
+ * performance and scalability. Note that it may decrease performance if the filepattern matches
+ * only a small number of files.
  */
 public class ContextualTextIO {
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
@@ -152,8 +176,7 @@ public class ContextualTextIO {
 
   /**
    * Like {@link #read}, but reads each file in a {@link PCollection} of {@link
-   * org.apache.beam.sdk.io.FileIO.ReadableFile}, returned by {@link
-   * org.apache.beam.sdk.io.FileIO#readMatches}.
+   * FileIO.ReadableFile}, returned by {@link FileIO#readMatches}.
    */
   public static ReadFiles readFiles() {
     return new AutoValue_ContextualTextIO_ReadFiles.Builder()
@@ -247,18 +270,6 @@ public class ContextualTextIO {
     }
 
     /**
-     * See {@link MatchConfiguration#continuously}.
-     *
-     * <p>This works only in runners supporting {@link Kind#SPLITTABLE_DO_FN}.
-     */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
-    public Read watchForNewFiles(
-        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
-    }
-
-    /**
      * Hints that the filepattern specified in {@link #from(String)} matches a very large number of
      * files.
      *
@@ -300,8 +311,7 @@ public class ContextualTextIO {
 
     @Override
     public PCollection<LineContext> expand(PBegin input) {
-      checkNotNull(
-          getFilepattern(), "need to set the filepattern of a TextIO.Read transform");
+      checkNotNull(getFilepattern(), "need to set the filepattern of a TextIO.Read transform");
       PCollection<LineContext> output = null;
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
         output = input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
@@ -321,56 +331,84 @@ public class ContextualTextIO {
       }
 
       // Output Contains LineContext Objects Without Correct Line Numbers
-      // This Operation assign line numbers to all LineContext Objects
+      // The following operation assigns line numbers to all LineContext Objects
 
-      PCollection<KV<Long, Iterable<LineContext>>> groupedOutput =
+      PCollection<KV<KV<String, Long>, Iterable<LineContext>>> groupedOutput =
           output
               .apply(
-                  "Convert LineContext to KV<Range, LineContext>",
+                  "Convert LineContext to KV<KV<File,Range>, LineContext>",
                   ParDo.of(
-                      new DoFn<LineContext, KV<Long, LineContext>>() {
+                      new DoFn<LineContext, KV<KV<String, Long>, LineContext>>() {
                         @ProcessElement
                         public void processElement(
-                            @Element LineContext line, OutputReceiver<KV<Long, LineContext>> out) {
-                          out.output(KV.of(line.getRangeNum(), line));
+                            @Element LineContext line,
+                            OutputReceiver<KV<KV<String, Long>, LineContext>> out) {
+                          out.output(
+                              KV.of(KV.of(line.getFile(), line.getRange().getRangeNum()), line));
                         }
                       }))
-              .apply("Apply GBK to PColl<KV<Range, LineCtx>>", GroupByKey.create());
+              .apply("Apply GBK to PColl<KV<KV<File, Range>, LineCtx>>", GroupByKey.create());
 
-      PCollectionView<Map<Long, Long>> sizes =
+      PCollectionView<Map<KV<String, Long>, Long>> sizes =
           groupedOutput
               .apply(
-                  "KV<Range, Iter<LineCtx>> to KV<Range, Sizeof(Iter<LineCtx>)>",
+                  "KV<KV<File, Range>, Iter<LineCtx>> to KV<Range, Sizeof(Iter<LineCtx>)>",
                   ParDo.of(
-                      new DoFn<KV<Long, Iterable<LineContext>>, KV<Long, Long>>() {
+                      new DoFn<
+                          KV<KV<String, Long>, Iterable<LineContext>>,
+                          KV<KV<String, Long>, Long>>() {
                         @ProcessElement
                         public void processElement(
-                            @Element KV<Long, Iterable<LineContext>> elem,
-                            OutputReceiver<KV<Long, Long>> out) {
+                            @Element KV<KV<String, Long>, Iterable<LineContext>> elem,
+                            OutputReceiver<KV<KV<String, Long>, Long>> out) {
                           out.output(KV.of(elem.getKey(), (long) Iterables.size(elem.getValue())));
                         }
                       }))
               .apply("Convert Sizes to PCollView", View.asMap());
 
-      // Get Pipeline to create a dummy PCollection with one element to optimize prefix sums
+      // Get Pipeline to create a dummy PCollection with one element so that
+      // prefix sums can be computed in one pass
       PCollection<Integer> p =
           input.getPipeline().apply("Create Dummy Pcoll", Create.of(Arrays.asList(1)));
-      PCollectionView<Map<Long, Long>> sizesOrdered =
+      PCollectionView<Map<KV<String, Long>, Long>> sizesOrdered =
           p.apply(
                   "Create Map for Line Nums with prefix sums",
                   ParDo.of(
-                          new DoFn<Integer, KV<Long, Long>>() {
+                          new DoFn<Integer, KV<KV<String, Long>, Long>>() {
                             @ProcessElement
                             public void processElement(ProcessContext p) {
-                              Map<Long, Long> sizeMap = p.sideInput(sizes);
+                              Map<KV<String, Long>, Long> sizeMap = p.sideInput(sizes);
 
                               // Ensure sorting by Range
-                              SortedMap<Long, Long> sorted = new TreeMap<>(sizeMap);
-                              Long pastLines = 0L;
+                              SortedMap<KV<String, Long>, Long> sorted =
+                                  new TreeMap<>(
+                                      (a, b) -> {
+                                        // Add custom comparator as KV<K, V> is not comparable by
+                                        // default
+                                        if (a.getKey().compareTo(b.getKey()) == 0) {
+                                          return a.getValue().compareTo(b.getValue());
+                                        }
+                                        return a.getKey().compareTo(b.getKey());
+                                      });
+
+                              // Initialize sorted map
+                              for (Map.Entry<KV<String, Long>, Long> entry : sizeMap.entrySet()) {
+                                sorted.put(entry.getKey(), entry.getValue());
+                              }
+
+                              // tracks lines passed for each file
+                              Map<String, Long> pastLines = new HashMap<>();
+
                               for (Map.Entry entry : sorted.entrySet()) {
-                                Long lines = (long) entry.getValue(), range = (long) entry.getKey();
-                                p.output(KV.of(range, pastLines));
-                                pastLines += lines;
+                                Long lines = (long) entry.getValue();
+                                KV<String, Long> FileRange = (KV<String, Long>) entry.getKey();
+                                String file = FileRange.getKey();
+                                Long linesBefore = 0L;
+                                if (pastLines.containsKey(file)) {
+                                  linesBefore = pastLines.get(file);
+                                }
+                                p.output(KV.of(FileRange, linesBefore));
+                                pastLines.put(file, linesBefore + lines);
                               }
                             }
                           })
@@ -380,21 +418,23 @@ public class ContextualTextIO {
       return groupedOutput.apply(
           "Set Line Nums for all LineContext Objects",
           ParDo.of(
-                  new DoFn<KV<Long, Iterable<LineContext>>, LineContext>() {
+                  new DoFn<KV<KV<String, Long>, Iterable<LineContext>>, LineContext>() {
                     @ProcessElement
                     public void processElement(ProcessContext p) {
-                      Long Range = p.element().getKey();
+                      Long Range = p.element().getKey().getValue();
+                      String File = p.element().getKey().getKey();
                       Iterable<LineContext> lines = p.element().getValue();
-                      Long linesLessThanThisRange = p.sideInput(sizesOrdered).get(Range);
+                      Long linesLessThanThisRange =
+                          p.sideInput(sizesOrdered).get(KV.of(File, Range));
                       lines.forEach(
                           (LineContext line) -> {
                             LineContext newLine =
                                 LineContext.newBuilder()
                                     .setLine(line.getLine())
-                                    .setLineNum(line.getRangeLineNum() + linesLessThanThisRange)
+                                    .setLineNum(
+                                        line.getRange().getRangeLineNum() + linesLessThanThisRange)
                                     .setFile(line.getFile())
-                                    .setRangeLineNum(line.getRangeLineNum())
-                                    .setRangeNum(line.getRangeNum())
+                                    .setRange(line.getRange())
                                     .build();
                             p.output(newLine);
                           });
@@ -469,12 +509,18 @@ public class ContextualTextIO {
 
     @Override
     public PCollection<LineContext> expand(PCollection<FileIO.ReadableFile> input) {
+      SchemaCoder<LineContext> coder = null;
+      try {
+        coder = input.getPipeline().getSchemaRegistry().getSchemaCoder(LineContext.class);
+      } catch (NoSuchSchemaException e) {
+        System.out.println("No Coder!");
+      }
       return input.apply(
           "Read all via FileBasedSource",
           new ReadAllViaFileBasedSource<>(
               getDesiredBundleSizeBytes(),
               new CreateTextSourceFn(getDelimiter(), getHasRFC4180MultiLineColumn()),
-              SerializableCoder.of(LineContext.class)));
+              coder));
     }
 
     @Override

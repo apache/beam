@@ -28,8 +28,12 @@ dependencies {
     compile library.java.vendored_guava_26_0_jre
     compile library.java.protobuf_java
     compile project(path: ":sdks:java:core", configuration: "shadow")
+    testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
 
+    testCompile library.java.guava_testlib
     testCompile library.java.junit
     testCompile library.java.hamcrest_core
-    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testRuntimeOnly library.java.slf4j_jdk14
+    testCompile project(path: ":runners:direct-java", configuration: "shadow")
+
 }
