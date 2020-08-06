@@ -267,6 +267,56 @@ class BlobStorageIO(object):
     """
     self.copy(src, dest)
     self.delete(src)
+  
+
+  # We intentionally do not decorate this method with a retry, since the
+  # underlying copy and delete operations are already idempotent operations
+  # protected by retry decorators.  
+  def rename_files(self, src_dest_pairs):
+    """Renames the given Azure Blob Storage blobs from src to dest.
+
+    Args:
+      src_dest_pairs: List of (src, dest) tuples of
+                      azfs://<storage-account>/<container>/[name] file paths
+                      to rename from src to dest.                    
+
+    Returns: List of tuples of (src, dest, exception) in the same order as the
+             src_dest_pairs argument, where exception is None if the operation
+             succeeded or the relevant exception if the operation failed.
+    """
+    if not src_dest_pairs:
+      return []
+
+    for src, dest in src_dest_pairs:
+      if src.endswith('/') or dest.endswith('/'):
+        raise ValueError('Unable to rename a directory.')
+  
+    # Results from copy operation.
+    copy_results = self.copy_paths(src_dest_pairs)
+    paths_to_delete = \
+        [src for (src, _, error) in copy_results if error is None]
+    # Results from delete operation.        
+    delete_results = self.delete_files(paths_to_delete)
+
+    # Get rename file results (list of tuples).
+    results = []
+
+    # Using a dictionary will make the operation faster.
+    delete_results_dict = {src: error for (src, error) in delete_results}
+
+    for src, dest, error in copy_results:
+      # If there was an error in the copy operation.
+      if error is not None:
+        results.append((src, dest, error))
+      # If there was an error in the delete operation.
+      elif delete_results_dict[src] is not None:
+        results.append(src, dest, delete_results_dict[src])
+      # If there was no error in the operations.
+      else:
+        results.append((src, dest, None))
+
+    return results
+
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_beam_io_error_filter)
