@@ -138,9 +138,8 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
                     + "Waiting for consumer to be registered.",
                 key);
           }
-          boolean isLast = data.getIsLast() || data.getData().isEmpty();
-          consumer.get().accept(data.getData(), isLast);
-          if (isLast) {
+          consumer.get().accept(data.getData(), data.getIsLast());
+          if (data.getIsLast()) {
             consumers.remove(key);
           }
           /*
@@ -176,9 +175,8 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
                     + "Waiting for consumer to be registered.",
                 key);
           }
-          boolean isLast = timer.getIsLast() || timer.getTimers().isEmpty();
-          consumer.get().accept(timer.getTimers(), isLast);
-          if (isLast) {
+          consumer.get().accept(timer.getTimers(), timer.getIsLast());
+          if (timer.getIsLast()) {
             consumers.remove(key);
           }
           /*

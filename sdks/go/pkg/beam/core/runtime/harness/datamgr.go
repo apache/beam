@@ -281,8 +281,7 @@ func (c *DataChannel) read(ctx context.Context) {
 				cache[id] = r
 			}
 
-			// TODO(BEAM-9558): Cleanup once dataflow is updated.
-			if len(elm.GetData()) == 0 || elm.GetIsLast() {
+			if elm.GetIsLast() {
 				// If this reader hasn't closed yet, do so now.
 				if !r.completed {
 					// Sentinel EOF segment for stream. Close buffer to signal EOF.
