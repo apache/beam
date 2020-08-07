@@ -54,6 +54,11 @@ def to_dataframe(
   A proxy object must be given if the schema for the PCollection is not known.
   """
   if proxy is None:
+    if pcoll.element_type is None:
+      raise ValueError(
+          "Cannot infer a proxy because the input PCollection does not have a "
+          "schema defined. Please make sure a schema type is specified for "
+          "the input PCollection, or provide a proxy.")
     # If no proxy is given, assume this is an element-wise schema-aware
     # PCollection that needs to be batched.
     proxy = schemas.generate_proxy(pcoll.element_type)

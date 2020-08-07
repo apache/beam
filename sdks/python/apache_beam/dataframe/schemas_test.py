@@ -46,8 +46,11 @@ coders_registry.register_coder(Animal, RowCoder)
 
 def matches_df(expected):
   def check_df_pcoll_equal(actual):
-    sorted_actual = pd.concat(actual).sort_index()
-    sorted_expected = expected.sort_index()
+    actual = pd.concat(actual)
+    sorted_actual = actual.sort_values(by=list(actual.columns)).reset_index(
+        drop=True)
+    sorted_expected = expected.sort_values(
+        by=list(expected.columns)).reset_index(drop=True)
     if not sorted_actual.equals(sorted_expected):
       raise AssertionError(
           'Dataframes not equal: \n\nActual:\n%s\n\nExpected:\n%s' %
@@ -62,7 +65,7 @@ class SchemasTest(unittest.TestCase):
         'name': list(unicode(i) for i in range(5)),
         'id': list(range(5)),
         'height': list(float(i) for i in range(5))
-    })
+    }, columns=['name', 'id', 'height'])
 
     with TestPipeline() as p:
       res = (
