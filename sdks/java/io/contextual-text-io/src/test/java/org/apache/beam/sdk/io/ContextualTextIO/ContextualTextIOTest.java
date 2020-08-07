@@ -401,12 +401,6 @@ public class ContextualTextIOTest {
       runTestReadWithData(line.getBytes(UTF_8), expected);
     }
 
-    @Test
-    public void testSplittingSource() throws Exception {
-      ContextualTextIOSource source = prepareSource(line.getBytes(UTF_8), false);
-      SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
-    }
-
     private ContextualTextIOSource prepareSource(byte[] data, boolean hasRFC4180Multiline)
         throws IOException {
       return ContextualTextIOTest.prepareSource(tempFolder, data, null, hasRFC4180Multiline);

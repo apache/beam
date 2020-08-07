@@ -474,8 +474,7 @@ public class FileIO {
 
     public abstract EmptyMatchTreatment getEmptyMatchTreatment();
 
-    @Nullable
-    public abstract Duration getWatchInterval();
+    public abstract @Nullable Duration getWatchInterval();
 
     @Nullable
     abstract TerminationCondition<String, ?> getWatchTerminationCondition();

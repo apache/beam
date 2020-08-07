@@ -18,7 +18,8 @@
 package org.apache.beam.sdk.io.ContextualTextIO;
 
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.*;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import avro.shaded.com.google.common.collect.Iterables;
 import com.google.auto.value.AutoValue;
@@ -191,8 +192,7 @@ public class ContextualTextIO {
   /** Implementation of {@link #read}. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<LineContext>> {
-    @Nullable
-    abstract ValueProvider<String> getFilepattern();
+    abstract @Nullable ValueProvider<String> getFilepattern();
 
     abstract MatchConfiguration getMatchConfiguration();
 
@@ -200,12 +200,10 @@ public class ContextualTextIO {
 
     abstract Compression getCompression();
 
-    @Nullable
-    abstract Boolean getHasRFC4180MultiLineColumn();
+    abstract @Nullable Boolean getHasRFC4180MultiLineColumn();
 
     @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
-    @Nullable
-    abstract byte[] getDelimiter();
+    abstract @Nullable byte[] getDelimiter();
 
     abstract Builder toBuilder();
 
@@ -479,8 +477,7 @@ public class ContextualTextIO {
     abstract long getDesiredBundleSizeBytes();
 
     @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
-    @Nullable
-    abstract byte[] getDelimiter();
+    abstract @Nullable byte[] getDelimiter();
 
     abstract boolean getHasRFC4180MultiLineColumn();
 
