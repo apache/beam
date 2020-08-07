@@ -109,11 +109,13 @@ class CountLimiter(ElementLimiter):
       self._count += 1
 
   def is_triggered(self):
-    return self._count >= self._max_count
+    return self._count > self._max_count
 
 
 class ProcessingTimeLimiter(ElementLimiter):
   """Limits by how long the ProcessingTime passed in the element stream.
+
+  Reads all elements from the timespan [start, start + duration).
 
   This measures the duration from the first element in the stream. Each
   subsequent element has a delta "advance_duration" that moves the internal

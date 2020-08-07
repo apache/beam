@@ -136,9 +136,12 @@ public final class ZetaSqlCalciteTranslationUtils {
     // -1 cardinality means unlimited array size.
     // TODO: is unlimited array size right for general case?
     // TODO: whether isNullable should be ArrayType's nullablity (not its element type's?)
-    return rexBuilder
-        .getTypeFactory()
-        .createArrayType(toRelDataType(rexBuilder, arrayType.getElementType(), isNullable), -1);
+    return nullable(
+        rexBuilder,
+        rexBuilder
+            .getTypeFactory()
+            .createArrayType(toRelDataType(rexBuilder, arrayType.getElementType(), isNullable), -1),
+        isNullable);
   }
 
   private static List<String> toNameList(List<StructField> fields) {
