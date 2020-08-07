@@ -76,6 +76,7 @@
 
 from __future__ import absolute_import
 
+from typing import List
 from typing import NamedTuple
 from typing import Optional
 
@@ -88,6 +89,9 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
 __all__ = [
     'ReadFromSnowflake',
+    'WriteToSnowflake',
+    'WriteDisposition',
+    'CreateDisposition',
 ]
 
 
@@ -225,6 +229,239 @@ class ReadFromSnowflake(beam.PTransform):
         )
         | 'CSV to array mapper' >> beam.Map(lambda csv: csv.split(b','))
         | 'CSV mapper' >> beam.Map(self.csv_mapper))
+
+
+WriteToSnowflakeSchema = NamedTuple(
+    'WriteToSnowflakeSchema',
+    [
+        ('server_name', unicode),
+        ('schema', unicode),
+        ('database', unicode),
+        ('staging_bucket_name', unicode),
+        ('storage_integration_name', unicode),
+        ('create_disposition', unicode),
+        ('write_disposition', unicode),
+        ('table_schema', unicode),
+        ('username', Optional[unicode]),
+        ('password', Optional[unicode]),
+        ('private_key_path', Optional[unicode]),
+        ('private_key_passphrase', Optional[unicode]),
+        ('o_auth_token', Optional[unicode]),
+        ('table', Optional[unicode]),
+        ('query', Optional[unicode]),
+        ('role', Optional[unicode]),
+        ('warehouse', Optional[unicode]),
+    ],
+)
+
+
+class WriteToSnowflake(beam.PTransform):
+  """
+    An external PTransform which writes to Snowflake.
+  """
+
+  URN = 'beam:external:java:snowflake:write:v1'
+
+  def __init__(
+      self,
+      server_name,
+      schema,
+      database,
+      staging_bucket_name,
+      storage_integration_name,
+      create_disposition,
+      write_disposition,
+      table_schema,
+      user_data_mapper,
+      username=None,
+      password=None,
+      private_key_path=None,
+      private_key_passphrase=None,
+      o_auth_token=None,
+      table=None,
+      query=None,
+      role=None,
+      warehouse=None,
+      expansion_service=None,
+  ):
+    # pylint: disable=line-too-long
+
+    """
+    Initializes a write operation to Snowflake.
+
+    Required parameters:
+
+    :param server_name: full Snowflake server name with the following format
+        account.region.gcp.snowflakecomputing.com.
+    :param schema: name of the Snowflake schema in the database to use.
+    :param database: name of the Snowflake database to use.
+    :param staging_bucket_name: name of the Google Cloud Storage bucket.::
+        Bucket will be used as a temporary location for storing CSV files.
+    :param storage_integration_name: is the name of a Snowflake storage
+        integration object created according to Snowflake documentation for the
+        GCS bucket.
+    :param user_data_mapper: specifies a function which  maps data from
+        a PCollection to an array of String values before the write operation
+        saves the data to temporary .csv files.
+        Example:
+        def user_data_mapper(user):
+          return [user.name, str(user.age)]
+    :param table or query: specifies a Snowflake table name or custom SQL query
+    :param role: specifies a Snowflake role.
+    :param warehouse: specifies a Snowflake warehouse name.
+    :param expansion_service: specifies URL of expansion service.
+
+    Authentication parameters:
+
+    :param username: specifies username for
+        username/password authentication method.
+    :param password: specifies password for
+        username/password authentication method.
+    :param private_key_path: specifies a private key file for
+        key/ pair authentication method.
+    :param private_key_passphrase: specifies password for
+        key/ pair authentication method.
+    :param o_auth_token: specifies access token for
+        OAuth authentication method.
+
+    Additional parameters:
+    :param create_disposition: Defines the behaviour of the write operation if
+        the target table does not exist. The following values are supported:
+        CREATE_IF_NEEDED - default behaviour. The write operation checks whether
+        the specified target table exists; if it does not, the write operation
+        attempts to create the table Specify the schema for the target table
+        using the table_schema parameter.
+        CREATE_NEVER -  The write operation fails if the target table does not
+        exist.
+    :param write_disposition: Defines the write behaviour based on the table
+        where data will be written to. The following values are supported:
+        APPEND - Default behaviour. Written data is added to the existing rows
+        in the table,
+        EMPTY - The target table must be empty;  otherwise, the write operation
+        fails,
+        TRUNCATE - The write operation deletes all rows from the target table
+        before writing to it.
+    :param table_schema: When the create_disposition parameter is set to
+        CREATE_IF_NEEDED, the table_schema  parameter  enables specifying the
+        schema for the created target table. A table schema is as JSON with the
+        following structure:
+        {"schema":[
+        {
+          "dataType":{"type":"<COLUMN DATA TYPE>"},
+          "name":"<COLUMN  NAME> ",
+          "nullable": <NULLABLE>
+        },
+        ]}
+        All supported data types:
+        {"schema":[
+            {"dataType":{"type":"date"},"name":"","nullable":false},
+            {"dataType":{"type":"datetime"},"name":"","nullable":false},
+            {"dataType":{"type":"time"},"name":"","nullable":false},
+            {"dataType":{"type":"timestamp"},"name":"","nullable":false},
+            {"dataType":{"type":"timestamp_ltz"},"name":"","nullable":false},
+            {"dataType":{"type":"timestamp_ntz"},"name":"","nullable":false},
+            {"dataType":{"type":"timestamp_tz"},"name":"","nullable":false},
+            {"dataType":{"type":"boolean"},"name":"","nullable":false},
+            {"dataType":{"type":"decimal","precision":38,"scale":1},"name":"","nullable":true},
+            {"dataType":{"type":"double"},"name":"","nullable":false},
+            {"dataType":{"type":"float"},"name":"","nullable":false},
+            {"dataType":{"type":"integer","precision":38,"scale":0},"name":"","nullable":false},
+            {"dataType":{"type":"number","precision":38,"scale":1},"name":"","nullable":false},
+            {"dataType":{"type":"numeric","precision":38,"scale":2},"name":"","nullable":false},
+            {"dataType":{"type":"real"},"name":"","nullable":false},
+            {"dataType":{"type":"array"},"name":"","nullable":false},
+            {"dataType":{"type":"object"},"name":"","nullable":false},
+            {"dataType":{"type":"variant"},"name":"","nullable":true},
+            {"dataType":{"type":"binary","size":null},"name":"","nullable":false},
+            {"dataType":{"type":"char","length":1},"name":"","nullable":false},
+            {"dataType":{"type":"string","length":null},"name":"","nullable":false},
+            {"dataType":{"type":"text","length":null},"name":"","nullable":false},
+            {"dataType":{"type":"varbinary","size":null},"name":"","nullable":false},
+            {"dataType":{"type":"varchar","length":100},"name":"","nullable":false}]
+        }
+    """
+    verify_credentials(
+        username,
+        password,
+        private_key_path,
+        private_key_passphrase,
+        o_auth_token,
+    )
+    WriteDisposition.VerifyIfContains(write_disposition)
+    CreateDisposition.VerifyIfContains(create_disposition)
+
+    self.params = WriteToSnowflakeSchema(
+        server_name=server_name,
+        schema=schema,
+        database=database,
+        staging_bucket_name=staging_bucket_name,
+        storage_integration_name=storage_integration_name,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        table_schema=table_schema,
+        username=username,
+        password=password,
+        private_key_path=private_key_path,
+        private_key_passphrase=private_key_passphrase,
+        o_auth_token=o_auth_token,
+        table=table,
+        query=query,
+        role=role,
+        warehouse=warehouse,
+    )
+    self.user_data_mapper = user_data_mapper
+    self.expansion_service = expansion_service or default_io_expansion_service()
+
+  def expand(self, pbegin):
+    return (
+        pbegin
+        | 'User data mapper' >> beam.Map(
+            self.user_data_mapper).with_output_types(List[bytes])
+        | ExternalTransform(
+            self.URN,
+            NamedTupleBasedPayloadBuilder(self.params),
+            self.expansion_service))
+
+
+class CreateDisposition:
+  """
+  Enum class for possible values of create dispositions.
+  CREATE_IF_NEEDED - default behaviour. The write operation checks whether
+      the specified target table exists; if it does not, the write operation
+      attempts to create the table Specify the schema for the target table
+      using the table_schema parameter.
+  CREATE_NEVER -  The write operation fails if the target table does not exist.
+  """
+  CREATE_IF_NEEDED = 'CREATE_IF_NEEDED'
+  CREATE_NEVER = 'CREATE_NEVER'
+
+  @staticmethod
+  def VerifyIfContains(field):
+    if field and not hasattr(CreateDisposition, field):
+      raise RuntimeError(
+          'Create disposition has to be one of the following values:'
+          'CREATE_IF_NEEDED, CREATE_NEVER. Got: {}'.format(field))
+
+
+class WriteDisposition:
+  """
+  Enum class for possible values of write dispositions.
+  APPEND: Default behaviour. Written data is added to the existing rows
+      in the table,
+  EMPTY: The target table must be empty;  otherwise, the write operation fails,
+  TRUNCATE: The write operation deletes all rows from the target table
+      before writing to it.
+  """
+  APPEND = 'APPEND'
+  EMPTY = 'EMPTY'
+  TRUNCATE = 'TRUNCATE'
+
+  @staticmethod
+  def VerifyIfContains(field):
+    if field and not hasattr(WriteDisposition, field):
+      raise RuntimeError(
+          'Write disposition has to be one of the following values:'
+          'APPEND, EMPTY, TRUNCATE. Got: {}'.format(field))
 
 
 def verify_credentials(
