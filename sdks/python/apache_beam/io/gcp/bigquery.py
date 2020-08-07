@@ -257,6 +257,7 @@ from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
+from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.iobase import BoundedSource
 from apache_beam.io.iobase import RangeTracker
@@ -274,10 +275,10 @@ from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
-from apache_beam.transforms.util import ReshufflePerKey
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.transforms.sideinputs import get_sideinput_index
+from apache_beam.transforms.util import ReshufflePerKey
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
@@ -307,6 +308,8 @@ Template for BigQuery jobs created by BigQueryIO. This template is:
 NOTE: This job name template does not have backwards compatibility guarantees.
 """
 BQ_JOB_NAME_TEMPLATE = "beam_bq_job_{job_type}_{job_id}_{step_id}{random}"
+"""The number of shards per destination when writing via streaming inserts."""
+DEFAULT_SHARDS_PER_DESTINATION = 500
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
@@ -1076,12 +1079,11 @@ class BigQueryWriteFn(DoFn):
 
     self.additional_bq_parameters = additional_bq_parameters or {}
 
-    self.batch_size_metric = Metrics.distribution(self.__class__,
-                                                  "batch_size")
-    self.batch_latency_metric = Metrics.distribution(self.__class__,
-                                                     "batch_latency_ms")
-    self.failed_rows_metric = Metrics.distribution(self.__class__,
-                                                   "rows_failed_per_batch")
+    self.batch_size_metric = Metrics.distribution(self.__class__, "batch_size")
+    self.batch_latency_metric = Metrics.distribution(
+        self.__class__, "batch_latency_ms")
+    self.failed_rows_metric = Metrics.distribution(
+        self.__class__, "rows_failed_per_batch")
     self.bigquery_wrapper = None
 
   def display_data(self):
@@ -1296,7 +1298,7 @@ class _StreamToBigQuery(PTransform):
     self.with_insert_ids = with_insert_ids
 
   class InsertIdPrefixFn(DoFn):
-    def __init__(self, shards=500):
+    def __init__(self, shards=DEFAULT_SHARDS_PER_DESTINATION):
       self.shards = shards
 
     def start_bundle(self):
@@ -1323,8 +1325,6 @@ class _StreamToBigQuery(PTransform):
         test_client=self.test_client,
         additional_bq_parameters=self.additional_bq_parameters,
         with_insert_ids=self.with_insert_ids)
-
-    KEYS_PER_DEST = 500
 
     def drop_shard(elms):
       key_and_shard = elms[0]
@@ -1472,13 +1472,13 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         Other retry strategy settings will produce a deadletter PCollection
         as output. Appropriate values are:
 
-        * :attr:`bigquery_tools.RetryStrategy.RETRY_ALWAYS`: retry all rows if
+        * `RetryStrategy.RETRY_ALWAYS`: retry all rows if
           there are any kind of errors. Note that this will hold your pipeline
           back if there are errors until you cancel or update it.
-        * :attr:`bigquery_tools.RetryStrategy.RETRY_NEVER`: rows with errors
+        * `RetryStrategy.RETRY_NEVER`: rows with errors
           will not be retried. Instead they will be output to a dead letter
           queue under the `'FailedRows'` tag.
-        * :attr:`bigquery_tools.RetryStrategy.RETRY_ON_TRANSIENT_ERROR`: retry
+        * `RetryStrategy.RETRY_ON_TRANSIENT_ERROR`: retry
           rows with transient errors (e.g. timeouts). Rows with permanent errors
           will be output to dead letter queue under `'FailedRows'` tag.
 
