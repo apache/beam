@@ -193,6 +193,7 @@ public class ExpressionConverter {
 
   private final RelOptCluster cluster;
   private final QueryParameters queryParams;
+  private int nullParamCount = 0;
   private final Map<String, ResolvedCreateFunctionStmt> userDefinedFunctions;
 
   public ExpressionConverter(
@@ -1217,7 +1218,17 @@ public class ExpressionConverter {
         throw new IllegalArgumentException("Found unexpected parameter " + parameter);
     }
     Preconditions.checkState(parameter.getType().equals(value.getType()));
-    return convertValueToRexNode(value.getType(), value);
+    if (value.isNull()) {
+      // In some cases NULL parameter cannot be substituted with NULL literal
+      // Therefore we create a dynamic parameter placeholder here for each NULL parameter
+      return rexBuilder()
+          .makeDynamicParam(
+              ZetaSqlCalciteTranslationUtils.toRelDataType(rexBuilder(), value.getType(), true),
+              nullParamCount++);
+    } else {
+      // Substitute non-NULL parameter with literal
+      return convertValueToRexNode(value.getType(), value);
+    }
   }
 
   private RexNode convertResolvedArgumentRef(
