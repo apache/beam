@@ -194,7 +194,7 @@ class EvaluationContext {
       try {
         finalization.getCallback().onBundleSuccess();
       } catch (Exception e) {
-        LOG.warn("Failed to finalize requested bundle {}", finalization, e);
+        LOG.warn("Failed to finalize {} for completed bundle {}", finalization, completedBundle, e);
       }
     }
     return committedResult;
