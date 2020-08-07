@@ -116,7 +116,9 @@ class DoctestTest(unittest.TestCase):
 
   def test_wont_implement(self):
     doctests.teststring(
-        ERROR_RAISING_TESTS, optionflags=doctest.ELLIPSIS, wont_implement_ok=True)
+        ERROR_RAISING_TESTS,
+        optionflags=doctest.ELLIPSIS,
+        wont_implement_ok=True)
     doctests.teststring(
         ERROR_RAISING_TESTS,
         optionflags=doctest.IGNORE_EXCEPTION_DETAIL,

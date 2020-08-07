@@ -383,7 +383,7 @@ def teststring(text, report=True, **runner_kwargs):
   runner = BeamDataframeDoctestRunner(
       TestEnvironment(),
       optionflags=optionflags,
-      wont_implement_ok ={'<string>': ['*']} if wont_implement_ok else None,
+      wont_implement_ok={'<string>': ['*']} if wont_implement_ok else None,
       **runner_kwargs)
   test = parser.get_doctest(
       text, {
