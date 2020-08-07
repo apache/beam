@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.core;
 
-import avro.shaded.com.google.common.collect.ImmutableList;
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 
 /** An in-memory {@link BundleFinalizer} that keeps track of any pending finalization requests. */
