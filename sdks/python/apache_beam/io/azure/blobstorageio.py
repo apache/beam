@@ -45,8 +45,6 @@ try:
   # pylint: disable=ungrouped-imports
   from azure.storage.blob import (
       BlobServiceClient,
-      BlobClient,
-      ContainerClient,
       ContentSettings,
   )
 except ImportError:
@@ -66,14 +64,16 @@ def parse_azfs_path(azfs_path, blob_optional=False, get_account=False):
       '[a-z0-9-]{1,61}[a-z0-9])/(.*)$',
       azfs_path)
   if match is None or (match.group(3) == '' and not blob_optional):
-    raise ValueError('Azure Blob Storage path must be in the form '
-                     'azfs://<storage-account>/<container>/<path>.')
+    raise ValueError(
+        'Azure Blob Storage path must be in the form '
+        'azfs://<storage-account>/<container>/<path>.')
   result = None
   if get_account:
     result = match.group(1), match.group(2), match.group(3)
   else:
     result = match.group(2), match.group(3)
   return result
+
 
 def get_azfs_url(storage_account, container, blob=''):
   """Returns the url in the form of
@@ -277,7 +277,7 @@ class BlobStorageIO(object):
     Args:
       src_dest_pairs: List of (src, dest) tuples of
                       azfs://<storage-account>/<container>/[name] file paths
-                      to rename from src to dest.                  
+                      to rename from src to dest.               
 
     Returns: List of tuples of (src, dest, exception) in the same order as the
              src_dest_pairs argument, where exception is None if the operation
@@ -548,8 +548,8 @@ class BlobStorageIO(object):
     results = {}
 
     try:
-      response = container_client.delete_blobs(*blobs,
-                                               raise_on_any_failure=False)
+      response = container_client.delete_blobs(
+          *blobs, raise_on_any_failure=False)
 
       for blob, error in zip(blobs, response):
         results[(container, blob)] = error.status_code

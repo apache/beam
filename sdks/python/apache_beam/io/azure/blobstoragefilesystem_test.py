@@ -199,7 +199,6 @@ class BlobStorageFileSystemTest(unittest.TestCase):
         'rb',
         mime_type='application/octet-stream')
 
-
   @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
   def test_copy_file(self, unused_mock_blobstorageio):
     # Prepare mocks.

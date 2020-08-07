@@ -113,19 +113,17 @@ class BlobStorageFileSystem(FileSystem):
   def _list(self, dir_or_prefix):
     """List files in a location.
     Listing is non-recursive (for filesystems that support directories).
-    
     Args:
       dir_or_prefix: (string) A directory or location prefix (for filesystems
         that don't have directories).
-    
     Returns:
       Generator of ``FileMetadata`` objects.
-    
     Raises:
       ``BeamIOError``: if listing fails, but not if no files were found.
     """
     try:
-      for path, size in iteritems(blobstorageio.BlobStorageIO().list_prefix(dir_or_prefix)):
+      for path, size in \
+          iteritems(blobstorageio.BlobStorageIO().list_prefix(dir_or_prefix)):
         yield FileMetadata(path, size)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
@@ -140,7 +138,8 @@ class BlobStorageFileSystem(FileSystem):
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
     mime_type = CompressionTypes.mime_type(compression_type, mime_type)
-    raw_file = blobstorageio.BlobStorageIO().open(path, mode, mime_type=mime_type)
+    raw_file = blobstorageio.BlobStorageIO().open(
+        path, mode, mime_type=mime_type)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
     return CompressedFile(raw_file, compression_type=compression_type)
@@ -151,6 +150,7 @@ class BlobStorageFileSystem(FileSystem):
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO):
     # type: (...) -> BinaryIO
+
     """Returns a write channel for the given file path.
 
     Args:
@@ -168,6 +168,7 @@ class BlobStorageFileSystem(FileSystem):
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO):
     # type: (...) -> BinaryIO
+
     """Returns a read channel for the given file path.
 
     Args:
@@ -212,7 +213,7 @@ class BlobStorageFileSystem(FileSystem):
     src_dest_pairs = list(zip(source_file_names, destination_file_names))
     results = blobstorageio.BlobStorageIO().rename_files(src_dest_pairs)
     # Retrieve exceptions.
-    exceptions = {(src, dest) : error
+    exceptions = {(src, dest): error
                   for (src, dest, error) in results if error is not None}
     if exceptions:
       raise BeamIOError("Rename operation failed.", exceptions)
@@ -293,6 +294,7 @@ class BlobStorageFileSystem(FileSystem):
     # Retrieve exceptions.
     exceptions = {
         path: error
+        # pylint: disable=literal-comparison
         for (path, error) in results.items() if error is not 202
     }
 
