@@ -65,7 +65,8 @@ class SchemasTest(unittest.TestCase):
         'name': list(unicode(i) for i in range(5)),
         'id': list(range(5)),
         'height': list(float(i) for i in range(5))
-    }, columns=['name', 'id', 'height'])
+    },
+                            columns=['name', 'id', 'height'])
 
     with TestPipeline() as p:
       res = (
