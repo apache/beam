@@ -1540,7 +1540,7 @@ public class ParDoTest implements Serializable {
       @Override
       public Void apply(Iterable<String> input) {
         assertTrue(
-            "Expected to have received one callback enabling output to be produced but received none.",
+            "Expected to have received at least one callback enabling output to be produced but received none.",
             input.iterator().hasNext());
         return null;
       }
