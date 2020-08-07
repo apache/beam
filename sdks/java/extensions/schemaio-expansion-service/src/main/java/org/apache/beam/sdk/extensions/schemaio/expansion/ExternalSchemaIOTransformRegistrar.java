@@ -22,6 +22,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.Map;
 import java.util.ServiceLoader;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -40,7 +41,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 @Experimental(Experimental.Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
 public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegistrar {
-  private static final String URN = "beam:external:java:schemaio:v1";
 
   @Override
   public Map<String, ExternalTransformBuilder<?, ?, ?>> knownBuilderInstances() {
@@ -61,9 +61,9 @@ public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegi
   }
 
   public static class Configuration {
-    String location;
-    byte[] config;
-    byte[] dataSchema;
+    String location = "";
+    byte[] config = new byte[0];
+    @Nullable byte[] dataSchema = null;
 
     public void setLocation(String location) {
       this.location = location;
@@ -78,7 +78,8 @@ public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegi
     }
   }
 
-  private static Schema translateSchema(byte[] schemaBytes) throws Exception {
+  @Nullable
+  private static Schema translateSchema(@Nullable byte[] schemaBytes) throws Exception {
     if (schemaBytes == null) {
       return null;
     }

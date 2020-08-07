@@ -102,7 +102,15 @@ def default_io_expansion_service():
         ':sdks:java:extensions:schemaio-expansion-service:shadowJar')
 
 
-WriteConfig = typing.NamedTuple(
+ReadFromWriteToJdbcSchema = typing.NamedTuple(
+    'ReadFromWriteToJdbcSchema',
+    [
+        ('location', unicode),
+        ('config', bytes)
+    ],
+)
+
+Config = typing.NamedTuple(
     'Config',
     [
         ('driver_class_name', unicode),
@@ -111,15 +119,10 @@ WriteConfig = typing.NamedTuple(
         ('password', unicode),
         ('connection_properties', typing.Optional[unicode]),
         ('connection_init_sqls', typing.Optional[typing.List[unicode]]),
-        ('statement', unicode),
-    ],
-)
-
-WriteToJdbcSchema = typing.NamedTuple(
-    'WriteToJdbcSchema',
-    [
-        ('location', unicode),
-        ('config', bytes)
+        ('statement', typing.Optional[unicode]),
+        ('query', typing.Optional[unicode]),
+        ('fetch_size', typing.Optional[int]),
+        ('output_parallelization', typing.Optional[bool]),
     ],
 )
 
@@ -182,47 +185,26 @@ class WriteToJdbc(ExternalTransform):
         super(WriteToJdbc, self).__init__(
             self.URN,
             NamedTupleBasedPayloadBuilder(
-                WriteToJdbcSchema(
+                ReadFromWriteToJdbcSchema(
                     location=jdbc_url,
-                    config=RowCoder(typing_to_runner_api(WriteConfig).row_type.schema).encode(
-                        WriteConfig(
+                    config=RowCoder(typing_to_runner_api(Config).row_type.schema).encode(
+                        Config(
                             driver_class_name=driver_class_name,
                             jdbc_url=jdbc_url,
                             username=username,
                             password=password,
-                            statement=statement,
                             connection_properties=connection_properties,
                             connection_init_sqls=connection_init_sqls,
+                            statement=statement,
+                            query=None,
+                            fetch_size=None,
+                            output_parallelization=None,
                         )
                     )
                 ),
             ),
             expansion_service or default_io_expansion_service(),
         )
-
-
-ReadConfig = typing.NamedTuple(
-    'Config',
-    [
-        ('driver_class_name', unicode),
-        ('jdbc_url', unicode),
-        ('username', unicode),
-        ('password', unicode),
-        ('connection_properties', typing.Optional[unicode]),
-        ('connection_init_sqls', typing.Optional[typing.List[unicode]]),
-        ('query', unicode),
-        ('fetch_size', typing.Optional[int]),
-        ('output_parallelization', typing.Optional[bool]), #int]),
-    ],
-)
-
-ReadFromJdbcSchema = typing.NamedTuple(
-    'ReadFromJdbcSchema',
-    [
-        ('location', unicode),
-        ('config', bytes),
-    ],
-)
 
 
 class ReadFromJdbc(ExternalTransform):
@@ -284,18 +266,19 @@ class ReadFromJdbc(ExternalTransform):
         super(ReadFromJdbc, self).__init__(
             self.URN,
             NamedTupleBasedPayloadBuilder(
-                ReadFromJdbcSchema(
+                ReadFromWriteToJdbcSchema(
                     location=jdbc_url,
-                    config=RowCoder(typing_to_runner_api(ReadConfig).row_type.schema).encode(
-                        ReadConfig(driver_class_name=driver_class_name,
+                    config=RowCoder(typing_to_runner_api(Config).row_type.schema).encode(
+                        Config(driver_class_name=driver_class_name,
                                    jdbc_url=jdbc_url,
                                    username=username,
                                    password=password,
-                                   query=query,
-                                   output_parallelization=output_parallelization,
-                                   fetch_size=fetch_size,
                                    connection_properties=connection_properties,
                                    connection_init_sqls=connection_init_sqls,
+                                   statement=None,
+                                   query=query,
+                                   fetch_size=fetch_size,
+                                   output_parallelization=output_parallelization,
                                    )
                     )
                 ),

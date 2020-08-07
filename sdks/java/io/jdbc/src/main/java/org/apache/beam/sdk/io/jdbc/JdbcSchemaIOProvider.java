@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -61,6 +62,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         .addNullableField("connectionProperties", FieldType.STRING)
         .addNullableField("connectionInitSqls", FieldType.iterable(FieldType.STRING))
         .addNullableField("query", FieldType.STRING)
+        .addNullableField("statement", FieldType.STRING)
         .addNullableField("fetchSize", FieldType.INT16)
         .addNullableField("outputParallelization", FieldType.BOOLEAN)
         .build();
@@ -107,7 +109,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
       JdbcIO.ReadRows readRows =
           JdbcIO.readRows()
               .withDataSourceConfiguration(dataSourceConfiguration)
-              .withQuery(config.getString("query"));
+              .withQuery(config.getString("statement"));
 
       if (config.getInt16("fetchSize") != null) {
         readRows = readRows.withFetchSize(config.getInt16("fetchSize"));
@@ -130,7 +132,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
     }
 
     protected JdbcIO.DataSourceConfiguration getDataSourceConfiguration() {
-      Iterable<String> connectionInitSqls = config.getIterable("connectionInitSqls");
+      @Nullable Iterable<String> connectionInitSqls = config.getIterable("connectionInitSqls");
 
       JdbcIO.DataSourceConfiguration dataSourceConfiguration =
           JdbcIO.DataSourceConfiguration.create(

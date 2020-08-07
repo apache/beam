@@ -215,8 +215,8 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
           'installGcpTest',
           ':runners:flink:1.10:job-server:shadowJar',
           ':sdks:java:container:docker',
-          ':sdks:java:io:expansion-service:shadowJar',
-          ':sdks:java:testing:kafka-service:buildTestKafkaServiceJar'
+          ':sdks:java:testing:kafka-service:buildTestKafkaServiceJar',
+          ':sdks:java:extensions:schemaio-expansion-service:shadowJar',
   ]
 
   doLast {
