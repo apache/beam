@@ -669,5 +669,4 @@ public class TpcdsSchemas {
                     .addNullableField("web_gmt_offset", Schema.FieldType.DOUBLE)
                     .addNullableField("web_tax_percentage", Schema.FieldType.DOUBLE)
                     .build();
-
 }
