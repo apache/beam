@@ -1073,8 +1073,7 @@ class BigQueryWriteFn(DoFn):
     self._max_batch_size = batch_size or BigQueryWriteFn.DEFAULT_MAX_BATCH_SIZE
     self._max_buffered_rows = (
         max_buffered_rows or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS)
-    self._retry_strategy = (
-        retry_strategy or bigquery_tools.RetryStrategy.RETRY_ALWAYS)
+    self._retry_strategy =retry_strategy or RetryStrategy.RETRY_ALWAYS
     self.with_insert_ids = with_insert_ids
 
     self.additional_bq_parameters = additional_bq_parameters or {}
@@ -1236,7 +1235,7 @@ class BigQueryWriteFn(DoFn):
 
       failed_rows = [rows[entry.index] for entry in errors]
       should_retry = any(
-          bigquery_tools.RetryStrategy.should_retry(
+          RetryStrategy.should_retry(
               self._retry_strategy, entry.errors[0].reason) for entry in errors)
       if not passed:
         self.failed_rows_metric.update(len(failed_rows))
