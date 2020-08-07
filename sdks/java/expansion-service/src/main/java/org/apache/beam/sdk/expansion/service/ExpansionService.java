@@ -242,7 +242,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       if (!payloadRow.getSchema().assignableTo(configSchema)) {
         throw new IllegalArgumentException(
             String.format(
-                "Schema in expansion request payload is not assignable to the schema for the configuration object.\n\nPayload Schema: %s\n\nConfiguration Schema: %s",
+                "Schema in expansion request payload is not assignable to the schema for the "
+                    + "configuration object.%n%nPayload Schema: %s%n%nConfiguration Schema: %s",
                 payloadRow.getSchema(), configSchema));
       }
 
