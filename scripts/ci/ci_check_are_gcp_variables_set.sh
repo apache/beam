@@ -19,7 +19,7 @@
 set -e
 
 echo "This script checks of presence of variables required to perform operations on Google Cloud Platform. They should be stored as secrets."
-echo "More detailed information can be found in CI.md"
+echo "More detailed information about Google Cloud Platform Credentials can be found in CI.md"
 
 function check_vars() {
   ret=true
