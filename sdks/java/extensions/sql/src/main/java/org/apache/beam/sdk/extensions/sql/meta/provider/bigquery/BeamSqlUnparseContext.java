@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
 import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.SqlImplementor.POS;
 
+import java.util.Objects;
 import java.util.function.IntFunction;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.text.translate.CharSequenceTranslator;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.text.translate.EntityArrays;
@@ -109,6 +110,26 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
       writer.literal("DATETIME '" + timestampString.toString() + "'");
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      if (!super.equals(o)) {
+        return false;
+      }
+      SqlDateTimeLiteral that = (SqlDateTimeLiteral) o;
+      return Objects.equals(timestampString, that.timestampString);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(super.hashCode(), timestampString);
     }
   }
 
