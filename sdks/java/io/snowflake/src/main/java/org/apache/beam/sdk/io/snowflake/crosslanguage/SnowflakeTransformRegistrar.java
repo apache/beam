@@ -25,14 +25,18 @@ import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
-/** Exposes {@link SnowflakeIO.Read}as an external transform for cross-language usage. */
+/**
+ * Exposes {@link SnowflakeIO.Read} and {@link SnowflakeIO.Write} as an external transform for
+ * cross-language usage.
+ */
 @Experimental(Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
 public final class SnowflakeTransformRegistrar implements ExternalTransformRegistrar {
   public static final String READ_URN = "beam:external:java:snowflake:read:v1";
+  public static final String WRITE_URN = "beam:external:java:snowflake:write:v1";
 
   @Override
   public Map<String, ExternalTransformBuilder<?, ?, ?>> knownBuilderInstances() {
-    return ImmutableMap.of(READ_URN, new ReadBuilder());
+    return ImmutableMap.of(READ_URN, new ReadBuilder(), WRITE_URN, new WriteBuilder());
   }
 }
