@@ -20,23 +20,16 @@ package org.apache.beam.sdk.io.parquet;
 import static java.lang.String.format;
 import static org.apache.parquet.Preconditions.checkNotNull;
 import static org.apache.parquet.hadoop.ParquetFileWriter.Mode.OVERWRITE;
-import static org.apache.parquet.hadoop.ParquetInputFormat.STRICT_TYPE_CHECKING;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.math.BigDecimal;
-import java.math.MathContext;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -60,6 +53,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.HadoopReadOptions;
 import org.apache.parquet.ParquetReadOptions;
@@ -166,7 +161,7 @@ public class ParquetIO {
    * pattern).
    */
   public static Read read(Schema schema) {
-    return new AutoValue_ParquetIO_Read.Builder().setSchema(schema).setSplit(false).build();
+    return new AutoValue_ParquetIO_Read.Builder().setSchema(schema).setSplittable(false).build();
   }
 
   /**
@@ -174,7 +169,10 @@ public class ParquetIO {
    * org.apache.beam.sdk.io.FileIO.ReadableFile}, which allows more flexible usage.
    */
   public static ReadFiles readFiles(Schema schema) {
-    return new AutoValue_ParquetIO_ReadFiles.Builder().setSchema(schema).setSplit(false).build();
+    return new AutoValue_ParquetIO_ReadFiles.Builder()
+        .setSchema(schema)
+        .setSplittable(false)
+        .build();
   }
 
   /** Implementation of {@link #read(Schema)}. */
@@ -187,14 +185,14 @@ public class ParquetIO {
 
     abstract @Nullable GenericData getAvroDataModel();
 
-    abstract boolean getSplit();
+    abstract boolean getSplittable();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
 
-      abstract Builder setSplit(boolean split);
+      abstract Builder setSplittable(boolean split);
 
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
 
@@ -216,7 +214,7 @@ public class ParquetIO {
     }
 
     public Read withSplit() {
-      return toBuilder().setSplit(true).build();
+      return toBuilder().setSplittable(true).build();
     }
 
     /**
@@ -235,7 +233,7 @@ public class ParquetIO {
                   "Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
               .apply(FileIO.matchAll())
               .apply(FileIO.readMatches());
-      if (getSplit()) {
+      if (getSplittable()) {
         return inputFiles.apply(
             readFiles(getSchema()).withSplit().withAvroDataModel(getAvroDataModel()));
       }
@@ -259,7 +257,7 @@ public class ParquetIO {
 
     abstract @Nullable GenericData getAvroDataModel();
 
-    abstract boolean getSplit();
+    abstract boolean getSplittable();
 
     abstract Builder toBuilder();
 
@@ -269,7 +267,7 @@ public class ParquetIO {
 
       abstract Builder setAvroDataModel(GenericData model);
 
-      abstract Builder setSplit(boolean split);
+      abstract Builder setSplittable(boolean split);
 
       abstract ReadFiles build();
     }
@@ -282,13 +280,13 @@ public class ParquetIO {
     }
 
     public ReadFiles withSplit() {
-      return toBuilder().setSplit(true).build();
+      return toBuilder().setSplittable(true).build();
     }
 
     @Override
     public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
-      if (getSplit()) {
+      if (getSplittable()) {
         return input
             .apply(ParDo.of(new SplitReadFn(getAvroDataModel())))
             .setCoder(AvroCoder.of(getSchema()));
@@ -302,29 +300,17 @@ public class ParquetIO {
     static class SplitReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
       private Class<? extends GenericData> modelClass;
       private static final Logger LOG = LoggerFactory.getLogger(SplitReadFn.class);
+      // Default initial splitting the file into blocks of 64MB. Unit of SPLIT_LIMIT is byte.
       private static final long SPLIT_LIMIT = 64000000;
-      ReadSupport<GenericRecord> readSupport;
 
       SplitReadFn(GenericData model) {
+
         this.modelClass = model != null ? model.getClass() : null;
       }
 
-      private static <K, V> Map<K, Set<V>> toSetMultiMap(Map<K, V> map) {
-        Map<K, Set<V>> setMultiMap = new HashMap<K, Set<V>>();
-        for (Map.Entry<K, V> entry : map.entrySet()) {
-          Set<V> set = new HashSet<V>();
-          set.add(entry.getValue());
-          setMultiMap.put(entry.getKey(), Collections.unmodifiableSet(set));
-        }
-        return Collections.unmodifiableMap(setMultiMap);
-      }
-
-      public InputFile getInputFile(FileIO.ReadableFile file) throws IOException {
-        if (!file.getMetadata().isReadSeekEfficient()) {
-          throw new RuntimeException(
-              String.format("File has to be seekable: %s", file.getMetadata().resourceId()));
-        }
-        return new BeamParquetInputFile(file.openSeekable());
+      ParquetFileReader getParquetFileReader(FileIO.ReadableFile file) throws Exception {
+        ParquetReadOptions options = HadoopReadOptions.builder(getConfWithModelClass()).build();
+        return ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options);
       }
 
       @ProcessElement
@@ -333,45 +319,43 @@ public class ParquetIO {
           RestrictionTracker<OffsetRange, Long> tracker,
           OutputReceiver<GenericRecord> outputReceiver)
           throws Exception {
-        ReadSupport<GenericRecord> readSupport;
-        InputFile inputFile = getInputFile(file);
-        Configuration conf = setConf();
+        Configuration conf = getConfWithModelClass();
+        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
+        ParquetFileReader reader = getParquetFileReader(file);
         GenericData model = null;
         if (modelClass != null) {
           model = (GenericData) modelClass.getMethod("get").invoke(null);
         }
-        readSupport = new AvroReadSupport<GenericRecord>(model);
-        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
-        ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
+        ReadSupport<GenericRecord> readSupport = new AvroReadSupport<GenericRecord>(model);
+
         Filter filter = checkNotNull(options.getRecordFilter(), "filter");
-        conf = ((HadoopReadOptions) options).getConf();
+        Configuration hadoopConf = ((HadoopReadOptions) options).getConf();
         FileMetaData parquetFileMetadata = reader.getFooter().getFileMetaData();
         MessageType fileSchema = parquetFileMetadata.getSchema();
         Map<String, String> fileMetadata = parquetFileMetadata.getKeyValueMetaData();
 
         ReadSupport.ReadContext readContext =
-            readSupport.init(new InitContext(conf, toSetMultiMap(fileMetadata), fileSchema));
+            readSupport.init(
+                new InitContext(
+                    hadoopConf, Maps.transformValues(fileMetadata, ImmutableSet::of), fileSchema));
         ColumnIOFactory columnIOFactory = new ColumnIOFactory(parquetFileMetadata.getCreatedBy());
         MessageType requestedSchema = readContext.getRequestedSchema();
         RecordMaterializer<GenericRecord> recordConverter =
-            readSupport.prepareForRead(conf, fileMetadata, fileSchema, readContext);
-        boolean strictTypeChecking = options.isEnabled(STRICT_TYPE_CHECKING, true);
-        boolean filterRecords = options.useRecordFilter();
+            readSupport.prepareForRead(hadoopConf, fileMetadata, fileSchema, readContext);
         reader.setRequestedSchema(requestedSchema);
-        MessageColumnIO columnIO =
-            columnIOFactory.getColumnIO(requestedSchema, fileSchema, strictTypeChecking);
+        MessageColumnIO columnIO = columnIOFactory.getColumnIO(requestedSchema, fileSchema, true);
         long currentBlock = tracker.currentRestriction().getFrom();
         for (int i = 0; i < currentBlock; i++) {
           reader.skipNextRowGroup();
         }
 
         while ((tracker).tryClaim(currentBlock)) {
-          LOG.info("reading block" + currentBlock);
           PageReadStore pages = reader.readNextRowGroup();
+          LOG.info("block {} read in memory. row count = {}", currentBlock, pages.getRowCount());
           currentBlock += 1;
           RecordReader<GenericRecord> recordReader =
               columnIO.getRecordReader(
-                  pages, recordConverter, filterRecords ? filter : FilterCompat.NOOP);
+                  pages, recordConverter, options.useRecordFilter() ? filter : FilterCompat.NOOP);
           long currentRow = 0;
           long totalRows = pages.getRowCount();
           while (currentRow < totalRows) {
@@ -407,11 +391,11 @@ public class ParquetIO {
                   e);
             }
           }
-          LOG.info("finish read " + currentRow + " rows");
+          LOG.info("Finish processing " + currentRow + " rows from block " + (currentBlock - 1));
         }
       }
 
-      public Configuration setConf() throws Exception {
+      public Configuration getConfWithModelClass() throws Exception {
         Configuration conf = new Configuration();
         GenericData model = null;
         if (modelClass != null) {
@@ -428,10 +412,7 @@ public class ParquetIO {
 
       @GetInitialRestriction
       public OffsetRange getInitialRestriction(@Element FileIO.ReadableFile file) throws Exception {
-        InputFile inputFile = getInputFile(file);
-        Configuration conf = setConf();
-        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
-        ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
+        ParquetFileReader reader = getParquetFileReader(file);
         return new OffsetRange(0, reader.getRowGroups().size());
       }
 
@@ -441,14 +422,11 @@ public class ParquetIO {
           OutputReceiver<OffsetRange> out,
           @Element FileIO.ReadableFile file)
           throws Exception {
-        InputFile inputFile = getInputFile(file);
-        Configuration conf = setConf();
-        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
-        ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
+        ParquetFileReader reader = getParquetFileReader(file);
         List<BlockMetaData> rowGroups = reader.getRowGroups();
         for (OffsetRange offsetRange :
             splitBlockWithLimit(
-                restriction.getFrom(), restriction.getTo(), rowGroups, SPLIT_LIMIT / 3)) {
+                restriction.getFrom(), restriction.getTo(), rowGroups, SPLIT_LIMIT)) {
           out.output(offsetRange);
         }
       }
@@ -478,8 +456,8 @@ public class ParquetIO {
       public RestrictionTracker<OffsetRange, Long> newTracker(
           @Restriction OffsetRange restriction, @Element FileIO.ReadableFile file)
           throws Exception {
-        return new BlockTracker(
-            restriction, (long) getSize(file, restriction), getRecordCount(file, restriction));
+        List<Long> recordCountAndSize = getRecordCountAndSize(file, restriction);
+        return new BlockTracker(restriction, recordCountAndSize.get(1), recordCountAndSize.get(0));
       }
 
       @GetRestrictionCoder
@@ -487,48 +465,33 @@ public class ParquetIO {
         return new OffsetRange.Coder();
       }
 
-      public long getRecordCount(
+      public List<Long> getRecordCountAndSize(
           @Element FileIO.ReadableFile file, @Restriction OffsetRange restriction)
           throws Exception {
-        InputFile inputFile = getInputFile(file);
-        Configuration conf = setConf();
-        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
-        ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
-        long start = 0;
-        long end = 0;
-        start = restriction.getFrom();
-        end = restriction.getTo();
+        ParquetFileReader reader = getParquetFileReader(file);
+        long size = 0;
         long recordCount = 0;
-        for (long i = start; i < end; i++) {
-          recordCount += reader.getRowGroups().get((int) i).getRowCount();
-        }
-        return recordCount;
-      }
-
-      public double getSize(@Element FileIO.ReadableFile file, @Restriction OffsetRange restriction)
-          throws Exception {
-        InputFile inputFile = getInputFile(file);
-        Configuration conf = setConf();
-        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
-        ParquetFileReader reader = ParquetFileReader.open(inputFile, options);
-        double size = 0;
         for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
-          size += reader.getRowGroups().get((int) i).getTotalByteSize();
+          BlockMetaData block = reader.getRowGroups().get((int) i);
+          recordCount += block.getRowCount();
+          size += block.getTotalByteSize();
         }
-        return size;
+        List<Long> countAndSize = new ArrayList<Long>();
+        countAndSize.add(recordCount);
+        countAndSize.add(size);
+        return countAndSize;
       }
     }
 
     public static class BlockTracker extends OffsetRangeTracker {
-      private static final Logger LOG = LoggerFactory.getLogger(BlockTracker.class);
       private long totalWork;
       private long progress;
       private long approximateRecordSize;
 
-      public BlockTracker(OffsetRange range, long work, long recordCount) {
+      public BlockTracker(OffsetRange range, long totalByteSize, long recordCount) {
         super(range);
         if (recordCount != 0) {
-          this.approximateRecordSize = work / recordCount;
+          this.approximateRecordSize = totalByteSize / recordCount;
           this.totalWork = approximateRecordSize * recordCount;
           this.progress = 0;
         }
@@ -544,17 +507,9 @@ public class ParquetIO {
       @Override
       public Progress getProgress() {
         if (this.lastAttemptedOffset == null) {
-          return Progress.from(0.0D, BigDecimal.valueOf(this.totalWork).doubleValue());
+          return Progress.from(0.0D, this.totalWork);
         } else {
-          BigDecimal workRemaining =
-              BigDecimal.valueOf(this.totalWork)
-                  .subtract(BigDecimal.valueOf(this.progress), MathContext.DECIMAL128)
-                  .max(BigDecimal.ZERO);
-          BigDecimal work = BigDecimal.valueOf(this.totalWork);
-          LOG.info("total work: " + work + " work remaining: " + workRemaining);
-          return Progress.from(
-              work.subtract(workRemaining, MathContext.DECIMAL128).doubleValue(),
-              workRemaining.doubleValue());
+          return Progress.from(progress, totalWork - progress);
         }
       }
     }
