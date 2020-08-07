@@ -36,6 +36,21 @@ env:
 
 jobs:
 
+  check_gcp_variables:
+    timeout-minutes: 5
+    name: "Check are GCP variables set"
+    runs-on: ubuntu-latest
+    outputs:
+      run-tests: ${{ steps.check_gcp_variables.outputs.are-gcp-variables-set }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: "Check are GCP variables set"
+        run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
+        id: check_gcp_variables
+        env:
+          GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+
   build_source:
     runs-on: ubuntu-latest
     name: Build python source distribution
@@ -78,9 +93,11 @@ jobs:
 
   prepare_gcs:
     name: Prepare GCS
-    needs: build_source
+    needs:
+      - build_source
+      - check_gcp_variables
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'apache' && github.event_name != 'pull_request'
+    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
       - name: Authenticate on GCP
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -92,9 +109,11 @@ jobs:
 
   upload_source_to_gcs:
     name: Upload python source distribution to GCS bucket
-    needs: prepare_gcs
+    needs:
+      - prepare_gcs
+      - check_gcp_variables
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'apache'
+    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
         uses: actions/download-artifact@v2
@@ -156,10 +175,12 @@ jobs:
         path: apache-beam-source/wheelhouse/
 
   upload_wheels_to_gcs:
-    name: Upload python wheels to GCS bucket
-    needs: build_wheels
+    name: Upload wheels to GCS bucket
+    needs:
+      - build_wheels
+      - check_gcp_variables
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'apache' && github.event_name != 'pull_request'
+    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
         os : [ubuntu-latest, macos-latest, windows-latest]
@@ -199,9 +220,11 @@ jobs:
 
   list_files_on_gcs:
     name: List files on Google Cloud Storage Bucket
-    needs: upload_wheels_to_gcs
+    needs:
+     - upload_wheels_to_gcs
+     - check_gcp_variables
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'apache' && github.event_name != 'pull_request'
+    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Authenticate on GCP
       uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
