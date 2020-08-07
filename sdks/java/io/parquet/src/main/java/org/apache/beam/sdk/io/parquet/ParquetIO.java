@@ -185,7 +185,7 @@ public class ParquetIO {
 
     abstract @Nullable GenericData getAvroDataModel();
 
-    abstract boolean getSplittable();
+    abstract boolean isSplittable();
 
     abstract Builder toBuilder();
 
@@ -233,7 +233,7 @@ public class ParquetIO {
                   "Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
               .apply(FileIO.matchAll())
               .apply(FileIO.readMatches());
-      if (getSplittable()) {
+      if (isSplittable()) {
         return inputFiles.apply(
             readFiles(getSchema()).withSplit().withAvroDataModel(getAvroDataModel()));
       }
@@ -257,7 +257,7 @@ public class ParquetIO {
 
     abstract @Nullable GenericData getAvroDataModel();
 
-    abstract boolean getSplittable();
+    abstract boolean isSplittable();
 
     abstract Builder toBuilder();
 
@@ -286,7 +286,7 @@ public class ParquetIO {
     @Override
     public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
-      if (getSplittable()) {
+      if (isSplittable()) {
         return input
             .apply(ParDo.of(new SplitReadFn(getAvroDataModel())))
             .setCoder(AvroCoder.of(getSchema()));
@@ -319,9 +319,9 @@ public class ParquetIO {
           RestrictionTracker<OffsetRange, Long> tracker,
           OutputReceiver<GenericRecord> outputReceiver)
           throws Exception {
-        Configuration conf = getConfWithModelClass();
-        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
-        ParquetFileReader reader = getParquetFileReader(file);
+        ParquetReadOptions options = HadoopReadOptions.builder(getConfWithModelClass()).build();
+        ParquetFileReader reader =
+            ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options);
         GenericData model = null;
         if (modelClass != null) {
           model = (GenericData) modelClass.getMethod("get").invoke(null);
