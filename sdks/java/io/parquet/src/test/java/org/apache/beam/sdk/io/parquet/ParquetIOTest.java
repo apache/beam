@@ -225,6 +225,29 @@ public class ParquetIOTest implements Serializable {
     readPipeline.run().waitUntilFinish();
   }
 
+  @Test(expected = org.apache.beam.sdk.Pipeline.PipelineExecutionException.class)
+  public void testWriteAndReadWithSplitUsingReflectDataSchemaWithoutDataModelThrowsException() {
+    Schema testRecordSchema = ReflectData.get().getSchema(TestRecord.class);
+
+    List<GenericRecord> records = generateGenericRecords(1000);
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(testRecordSchema)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(testRecordSchema))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(testRecordSchema)
+                .withSplit()
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
+
+    PAssert.that(readBack).containsInAnyOrder(records);
+    readPipeline.run().waitUntilFinish();
+  }
+
   @Test
   public void testWriteAndReadUsingReflectDataSchemaWithDataModel() {
     Schema testRecordSchema = ReflectData.get().getSchema(TestRecord.class);
@@ -241,6 +264,30 @@ public class ParquetIOTest implements Serializable {
     PCollection<GenericRecord> readBack =
         readPipeline.apply(
             ParquetIO.read(testRecordSchema)
+                .withAvroDataModel(GenericData.get())
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
+
+    PAssert.that(readBack).containsInAnyOrder(records);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteAndReadwithSplitUsingReflectDataSchemaWithDataModel() {
+    Schema testRecordSchema = ReflectData.get().getSchema(TestRecord.class);
+
+    List<GenericRecord> records = generateGenericRecords(1000);
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(testRecordSchema)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(testRecordSchema))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(testRecordSchema)
+                .withSplit()
                 .withAvroDataModel(GenericData.get())
                 .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
 
