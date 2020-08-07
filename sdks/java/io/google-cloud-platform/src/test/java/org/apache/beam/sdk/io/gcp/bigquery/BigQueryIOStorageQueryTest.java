@@ -36,17 +36,14 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.bigquery.storage.v1beta1.AvroProto.AvroRows;
-import com.google.cloud.bigquery.storage.v1beta1.AvroProto.AvroSchema;
-import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionRequest;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ShardingStrategy;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamPosition;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamStatus;
+import com.google.cloud.bigquery.storage.v1.AvroRows;
+import com.google.cloud.bigquery.storage.v1.AvroSchema;
+import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1.DataFormat;
+import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
+import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
+import com.google.cloud.bigquery.storage.v1.ReadSession;
+import com.google.cloud.bigquery.storage.v1.ReadStream;
 import com.google.protobuf.ByteString;
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
@@ -229,18 +226,6 @@ public class BigQueryIOStorageQueryTest {
   }
 
   @Test
-  public void testBuildQueryBasedSourceWithReadOptions() throws Exception {
-    TableReadOptions readOptions = TableReadOptions.newBuilder().setRowRestriction("a > 5").build();
-    TypedRead<TableRow> typedRead = getDefaultTypedRead().withReadOptions(readOptions);
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Invalid BigQueryIO.Read: Specifies table read options, "
-            + "which only applies when reading from a table");
-    p.apply(typedRead);
-    p.run();
-  }
-
-  @Test
   public void testBuildQueryBasedSourceWithSelectedFields() throws Exception {
     TypedRead<TableRow> typedRead =
         getDefaultTypedRead().withSelectedFields(Lists.newArrayList("a"));
@@ -379,9 +364,11 @@ public class BigQueryIOStorageQueryTest {
     CreateReadSessionRequest expectedRequest =
         CreateReadSessionRequest.newBuilder()
             .setParent("projects/" + options.getProject())
-            .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
-            .setRequestedStreams(requestedStreamCount)
-            .setShardingStrategy(ShardingStrategy.BALANCED)
+            .setReadSession(
+                ReadSession.newBuilder()
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
+                    .setDataFormat(DataFormat.AVRO))
+            .setMaxStreamCount(requestedStreamCount)
             .build();
 
     Schema sessionSchema =
@@ -403,7 +390,7 @@ public class BigQueryIOStorageQueryTest {
         ReadSession.newBuilder()
             .setAvroSchema(AvroSchema.newBuilder().setSchema(sessionSchema.toString()));
     for (int i = 0; i < expectedStreamCount; i++) {
-      builder.addStreams(Stream.newBuilder().setName("stream-" + i));
+      builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
     }
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
@@ -470,9 +457,11 @@ public class BigQueryIOStorageQueryTest {
     CreateReadSessionRequest expectedRequest =
         CreateReadSessionRequest.newBuilder()
             .setParent("projects/" + options.getProject())
-            .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
-            .setRequestedStreams(1024)
-            .setShardingStrategy(ShardingStrategy.BALANCED)
+            .setReadSession(
+                ReadSession.newBuilder()
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
+                    .setDataFormat(DataFormat.AVRO))
+            .setMaxStreamCount(1024)
             .build();
 
     Schema sessionSchema =
@@ -494,7 +483,7 @@ public class BigQueryIOStorageQueryTest {
         ReadSession.newBuilder()
             .setAvroSchema(AvroSchema.newBuilder().setSchema(sessionSchema.toString()));
     for (int i = 0; i < 1024; i++) {
-      builder.addStreams(Stream.newBuilder().setName("stream-" + i));
+      builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
     }
 
     StorageClient fakeStorageClient = mock(StorageClient.class);
@@ -566,7 +555,8 @@ public class BigQueryIOStorageQueryTest {
             AvroRows.newBuilder()
                 .setSerializedBinaryRows(ByteString.copyFrom(outputStream.toByteArray()))
                 .setRowCount(genericRecords.size()))
-        .setStatus(StreamStatus.newBuilder().setFractionConsumed((float) fractionConsumed))
+        // TODO(kmj): Make this work.
+        // .setStatus(StreamStatus.newBuilder().setFractionConsumed((float) fractionConsumed))
         .build();
   }
 
@@ -618,9 +608,11 @@ public class BigQueryIOStorageQueryTest {
     CreateReadSessionRequest expectedRequest =
         CreateReadSessionRequest.newBuilder()
             .setParent("projects/" + options.getProject())
-            .setTableReference(BigQueryHelpers.toTableRefProto(tempTableReference))
-            .setRequestedStreams(10)
-            .setShardingStrategy(ShardingStrategy.BALANCED)
+            .setReadSession(
+                ReadSession.newBuilder()
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
+                    .setDataFormat(DataFormat.AVRO))
+            .setMaxStreamCount(10)
             .build();
 
     ReadSession emptyReadSession = ReadSession.newBuilder().build();
@@ -710,14 +702,11 @@ public class BigQueryIOStorageQueryTest {
         ReadSession.newBuilder()
             .setName("readSessionName")
             .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
-            .addStreams(Stream.newBuilder().setName("streamName"))
+            .addStreams(ReadStream.newBuilder().setName("streamName"))
             .build();
 
     ReadRowsRequest expectedReadRowsRequest =
-        ReadRowsRequest.newBuilder()
-            .setReadPosition(
-                StreamPosition.newBuilder().setStream(Stream.newBuilder().setName("streamName")))
-            .build();
+        ReadRowsRequest.newBuilder().setReadStream("streamName").build();
 
     List<GenericRecord> records =
         Lists.newArrayList(

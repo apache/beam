@@ -29,7 +29,6 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
-import com.google.cloud.bigquery.storage.v1beta1.TableReferenceProto;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -348,23 +347,36 @@ public class BigQueryHelpers {
     UNKNOWN,
   }
 
-  @VisibleForTesting
-  static TableReferenceProto.TableReference toTableRefProto(TableReference ref) {
-    TableReferenceProto.TableReference.Builder builder =
-        TableReferenceProto.TableReference.newBuilder();
-    if (ref.getProjectId() != null) {
-      builder.setProjectId(ref.getProjectId());
-    }
-    return builder.setDatasetId(ref.getDatasetId()).setTableId(ref.getTableId()).build();
+  static String toProjectResourceName(String projectName) {
+    return "projects/" + projectName;
   }
 
-  @VisibleForTesting
-  static TableReference toTableRef(TableReferenceProto.TableReference ref) {
-    return new TableReference()
-        .setProjectId(ref.getProjectId())
-        .setDatasetId(ref.getDatasetId())
-        .setTableId(ref.getTableId());
+  static String toTableResourceName(TableReference tableReference) {
+    return "projects/"
+        + tableReference.getProjectId()
+        + "/datasets/"
+        + tableReference.getDatasetId()
+        + "/tables/"
+        + tableReference.getTableId();
   }
+
+  // @VisibleForTesting
+  // static TableReferenceProto.TableReference toTableRefProto(TableReference ref) {
+  //   TableReferenceProto.TableReference.Builder builder =
+  //       TableReferenceProto.TableReference.newBuilder();
+  //   if (ref.getProjectId() != null) {
+  //     builder.setProjectId(ref.getProjectId());
+  //   }
+  //   return builder.setDatasetId(ref.getDatasetId()).setTableId(ref.getTableId()).build();
+  // }
+  //
+  // @VisibleForTesting
+  // static TableReference toTableRef(TableReferenceProto.TableReference ref) {
+  //   return new TableReference()
+  //       .setProjectId(ref.getProjectId())
+  //       .setDatasetId(ref.getDatasetId())
+  //       .setTableId(ref.getTableId());
+  // }
 
   /** Return a displayable string representation for a {@link TableReference}. */
   static @Nullable ValueProvider<String> displayTable(
@@ -387,26 +399,27 @@ public class BigQueryHelpers {
     return sb.toString();
   }
 
-  static @Nullable ValueProvider<String> displayTableRefProto(
-      @Nullable ValueProvider<TableReferenceProto.TableReference> table) {
-    if (table == null) {
-      return null;
-    }
-
-    return NestedValueProvider.of(table, new TableRefProtoToTableSpec());
-  }
-
-  /** Returns a canonical string representation of a {@link TableReferenceProto.TableReference}. */
-  public static String toTableSpec(TableReferenceProto.TableReference ref) {
-    StringBuilder sb = new StringBuilder();
-    if (ref.getProjectId() != null) {
-      sb.append(ref.getProjectId());
-      sb.append(":");
-    }
-
-    sb.append(ref.getDatasetId()).append('.').append(ref.getTableId());
-    return sb.toString();
-  }
+  // static @Nullable ValueProvider<String> displayTableRefProto(
+  //     @Nullable ValueProvider<TableReferenceProto.TableReference> table) {
+  //   if (table == null) {
+  //     return null;
+  //   }
+  //
+  //   return NestedValueProvider.of(table, new TableRefProtoToTableSpec());
+  // }
+  //
+  // /** Returns a canonical string representation of a {@link TableReferenceProto.TableReference}.
+  // */
+  // public static String toTableSpec(TableReferenceProto.TableReference ref) {
+  //   StringBuilder sb = new StringBuilder();
+  //   if (ref.getProjectId() != null) {
+  //     sb.append(ref.getProjectId());
+  //     sb.append(":");
+  //   }
+  //
+  //   sb.append(ref.getDatasetId()).append('.').append(ref.getTableId());
+  //   return sb.toString();
+  // }
 
   static <K, V> List<V> getOrCreateMapListValue(Map<K, List<V>> map, K key) {
     return map.computeIfAbsent(key, k -> new ArrayList<>());
@@ -627,13 +640,13 @@ public class BigQueryHelpers {
     }
   }
 
-  static class TableRefToTableRefProto
-      implements SerializableFunction<TableReference, TableReferenceProto.TableReference> {
-    @Override
-    public TableReferenceProto.TableReference apply(TableReference from) {
-      return toTableRefProto(from);
-    }
-  }
+  // static class TableRefToTableRefProto
+  //     implements SerializableFunction<TableReference, TableReferenceProto.TableReference> {
+  //   @Override
+  //   public TableReferenceProto.TableReference apply(TableReference from) {
+  //     return toTableRefProto(from);
+  //   }
+  // }
 
   static class TableRefToTableSpec implements SerializableFunction<TableReference, String> {
     @Override
@@ -642,13 +655,13 @@ public class BigQueryHelpers {
     }
   }
 
-  static class TableRefProtoToTableSpec
-      implements SerializableFunction<TableReferenceProto.TableReference, String> {
-    @Override
-    public String apply(TableReferenceProto.TableReference from) {
-      return toTableSpec(from);
-    }
-  }
+  // static class TableRefProtoToTableSpec
+  //     implements SerializableFunction<TableReferenceProto.TableReference, String> {
+  //   @Override
+  //   public String apply(TableReferenceProto.TableReference from) {
+  //     return toTableSpec(from);
+  //   }
+  // }
 
   @VisibleForTesting
   static class TableSpecToTableRef implements SerializableFunction<String, TableReference> {
