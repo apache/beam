@@ -18,11 +18,8 @@
 
 set -e
 
-echo "This script checks of presence of veriables required to perform operations on Google Cloud Platform. They should be stored as secrets."
-echo "\"GCP_SA_EMAIL\" - Service account email address. This is usually of the format <name>@<project-id>.iam.gserviceaccount.com"
-echo "\"GCP_SA_KEY\" - Service account key. This key should be created and encoded as a Base64 string (eg. cat my-key.json | base64 on macOS)"
-echo "Service Account shall have following permissions:"
-echo " - Storage Object Admin (roles/storage.objectAdmin)"
+echo "This script checks of presence of variables required to perform operations on Google Cloud Platform. They should be stored as secrets."
+echo "More detailed information can be found in CI.md"
 
 function check_vars() {
   ret=true
