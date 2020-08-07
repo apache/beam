@@ -87,22 +87,23 @@ def setup_coder():
 
 
 class ParseEventFn(beam.DoFn):
-  """Parses the raw event info into a Python objects.
+  """
+  Original parser for parsing raw events info into a Python objects.
 
   Each event line has the following format:
 
     person: <id starting with 'p'>,name,email,credit_card,city, \
-                          state,timestamp,extra
+            state,timestamp,extra
     auction: <id starting with 'a'>,item_name, description,initial_bid, \
-                          reserve_price,timestamp,expires,seller,category,extra
+             reserve_price,timestamp,expires,seller,category,extra
     bid: <auction starting with 'b'>,bidder,price,timestamp,extra
 
   For example:
 
     'p12345,maria,maria@maria.com,1234-5678-9012-3456, \
-                                        sunnyvale,CA,1528098831536'
+     sunnyvale,CA,1528098831536'
     'a12345,car67,2012 hyundai elantra,15000,20000, \
-                                        1528098831536,20180630,maria,vehicle'
+     1528098831536,20180630,maria,vehicle'
     'b12345,maria,20000,1528098831536'
   """
   def process(self, elem):
@@ -126,24 +127,24 @@ class ParseJsonEvnetFn(beam.DoFn):
 
   Each event line has the following format:
 
-    person: {id,name,email,credit_card,city, \
-                          state,timestamp,extra}
+    person:  {id,name,email,credit_card,city, \
+              state,timestamp,extra}
     auction: {id,item_name, description,initial_bid, \
-                          reserve_price,timestamp,expires,seller,category,extra}
-    bid: {auction,bidder,price,timestamp,extra}
+              reserve_price,timestamp,expires,seller,category,extra}
+    bid:     {auction,bidder,price,timestamp,extra}
 
   For example:
 
     {"id":1000,"name":"Peter Jones","emailAddress":"nhd@xcat.com",\
-        "creditCard":"7241 7320 9143 4888","city":"Portland","state":"WY",\
-        "dateTime":1528098831026,\"extra":"WN_HS_bnpVQ\\[["}
+     "creditCard":"7241 7320 9143 4888","city":"Portland","state":"WY",\
+     "dateTime":1528098831026,\"extra":"WN_HS_bnpVQ\\[["}
 
     {"id":1000,"itemName":"wkx mgee","description":"eszpqxtdxrvwmmywkmogoahf",\
-        "initialBid":28873,"reserve":29448,"dateTime":1528098831036,\
-        "expires":1528098840451,"seller":1000,"category":13,"extra":"zcuupiz"}
+     "initialBid":28873,"reserve":29448,"dateTime":1528098831036,\
+     "expires":1528098840451,"seller":1000,"category":13,"extra":"zcuupiz"}
 
     {"auction":1000,"bidder":1001,"price":32530001,"dateTime":1528098831066,\
-        "extra":"fdiysaV^]NLVsbolvyqwgticfdrwdyiyofWPYTOuwogvszlxjrcNOORM"}
+     "extra":"fdiysaV^]NLVsbolvyqwgticfdrwdyiyofWPYTOuwogvszlxjrcNOORM"}
   """
   def process(self, elem):
     json_dict = json.loads(elem)
