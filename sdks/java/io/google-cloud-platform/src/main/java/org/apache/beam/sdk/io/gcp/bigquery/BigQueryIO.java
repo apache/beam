@@ -1401,12 +1401,6 @@ public class BigQueryIO {
           getJsonTableRef() == null && getQuery() == null, "from() or fromQuery() already called");
     }
 
-    private void ensureReadOptionsFieldsNotSet() {
-      checkState(
-          getSelectedFields() == null && getRowRestriction() == null,
-          "setSelectedFields() or setRowRestriction already called");
-    }
-
     /** See {@link Read#getTableProvider()}. */
     public @Nullable ValueProvider<TableReference> getTableProvider() {
       return getJsonTableRef() == null
