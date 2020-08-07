@@ -81,8 +81,9 @@ class TransformTest(unittest.TestCase):
         'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
         'Speed': [380., 370., 24., 26.]
     })
-    self.run_scenario(df, lambda df: df.groupby('Animal').sum())
-    self.run_scenario(df, lambda df: df.groupby('Animal').mean())
+    with expressions.allow_non_parallel_operations():
+      self.run_scenario(df, lambda df: df.groupby('Animal').sum())
+      self.run_scenario(df, lambda df: df.groupby('Animal').mean())
 
   def test_filter(self):
     df = pd.DataFrame({
@@ -95,19 +96,21 @@ class TransformTest(unittest.TestCase):
         df, lambda df: df.set_index('Animal').filter(regex='F.*', axis='index'))
 
   def test_aggregate(self):
-    a = pd.DataFrame({'col': [1, 2, 3]})
-    self.run_scenario(a, lambda a: a.agg(sum))
-    self.run_scenario(a, lambda a: a.agg(['mean', 'min', 'max']))
+    with expressions.allow_non_parallel_operations():
+      a = pd.DataFrame({'col': [1, 2, 3]})
+      self.run_scenario(a, lambda a: a.agg(sum))
+      self.run_scenario(a, lambda a: a.agg(['mean', 'min', 'max']))
 
   def test_scalar(self):
-    a = pd.Series([1, 2, 6])
-    self.run_scenario(a, lambda a: a.agg(sum))
-    self.run_scenario(a, lambda a: a / a.agg(sum))
+    with expressions.allow_non_parallel_operations():
+      a = pd.Series([1, 2, 6])
+      self.run_scenario(a, lambda a: a.agg(sum))
+      self.run_scenario(a, lambda a: a / a.agg(sum))
 
-    # Tests scalar being used as an input to a downstream stage.
-    df = pd.DataFrame({'key': ['a', 'a', 'b'], 'val': [1, 2, 6]})
-    self.run_scenario(
-        df, lambda df: df.groupby('key').sum().val / df.val.agg(sum))
+      # Tests scalar being used as an input to a downstream stage.
+      df = pd.DataFrame({'key': ['a', 'a', 'b'], 'val': [1, 2, 6]})
+      self.run_scenario(
+          df, lambda df: df.groupby('key').sum().val / df.val.agg(sum))
 
   def test_input_output_polymorphism(self):
     one_series = pd.Series([1])

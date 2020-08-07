@@ -20,11 +20,13 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 import com.google.zetasql.CivilTimeEncoder;
 import com.google.zetasql.Value;
 import io.grpc.Status;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.DateString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.TimeString;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.TimestampString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -161,10 +163,17 @@ public class DateTimeUtils {
     }
   }
 
-  public static TimeString convertTimeValueToTimeString(Value value) {
-    LocalTime localTime = CivilTimeEncoder.decodePacked64TimeNanosAsJavaTime(value.getTimeValue());
-    return new TimeString(localTime.getHour(), localTime.getMinute(), localTime.getSecond())
-        .withNanos(localTime.getNano());
+  public static TimestampString convertDateTimeValueToTimeStampString(Value value) {
+    LocalDateTime dateTime =
+        CivilTimeEncoder.decodePacked96DatetimeNanosAsJavaTime(value.getDatetimeValue());
+    return new TimestampString(
+            dateTime.getYear(),
+            dateTime.getMonthValue(),
+            dateTime.getDayOfMonth(),
+            dateTime.getHour(),
+            dateTime.getMinute(),
+            dateTime.getSecond())
+        .withNanos(dateTime.getNano());
   }
 
   // dates are represented as an int32 value, indicating the offset
@@ -172,6 +181,12 @@ public class DateTimeUtils {
   // and do not correspond to any particular 24 hour period.
   public static DateString convertDateValueToDateString(Value value) {
     return DateString.fromDaysSinceEpoch(value.getDateValue());
+  }
+
+  public static TimeString convertTimeValueToTimeString(Value value) {
+    LocalTime localTime = CivilTimeEncoder.decodePacked64TimeNanosAsJavaTime(value.getTimeValue());
+    return new TimeString(localTime.getHour(), localTime.getMinute(), localTime.getSecond())
+        .withNanos(localTime.getNano());
   }
 
   public static Value parseDateToValue(String dateString) {

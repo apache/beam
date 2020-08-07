@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BOOL;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BYTES;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DATE;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DATETIME;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DOUBLE;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_INT64;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_NUMERIC;
@@ -46,7 +47,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * Utility methods for ZetaSQL <=> Calcite translation.
  *
  * <p>Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
- * TODO[BEAM-10238]: support ZetaSQL types: TIME, DATETIME, NUMERIC
  */
 @Internal
 public final class ZetaSqlCalciteTranslationUtils {
@@ -72,6 +72,8 @@ public final class ZetaSqlCalciteTranslationUtils {
         return TypeFactory.createSimpleType(TYPE_DATE);
       case TIME:
         return TypeFactory.createSimpleType(TYPE_TIME);
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+        return TypeFactory.createSimpleType(TYPE_DATETIME);
       case TIMESTAMP:
         return TypeFactory.createSimpleType(TYPE_TIMESTAMP);
       case ARRAY:
@@ -107,6 +109,8 @@ public final class ZetaSqlCalciteTranslationUtils {
         return SqlTypeName.DATE;
       case TYPE_TIME:
         return SqlTypeName.TIME;
+      case TYPE_DATETIME:
+        return SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
       case TYPE_TIMESTAMP:
         // TODO: handle timestamp with time zone.
         return SqlTypeName.TIMESTAMP;
