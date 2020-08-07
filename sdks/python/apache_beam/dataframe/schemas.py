@@ -18,6 +18,10 @@
 """Utilities for relating schema-aware PCollections and dataframe transforms.
 """
 
+# pytype: skip-file
+
+from __future__ import absolute_import
+
 from typing import NamedTuple
 from typing import TypeVar
 

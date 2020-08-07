@@ -17,6 +17,10 @@
 
 """Tests for schemas."""
 
+# pytype: skip-file
+
+from __future__ import absolute_import
+
 import unittest
 from typing import NamedTuple
 
@@ -55,9 +59,9 @@ def matches_df(expected):
 class SchemasTest(unittest.TestCase):
   def test_simple_df(self):
     expected = pd.DataFrame({
-        'name': list(map(unicode, range(5))),
+        'name': list(unicode(i) for i in range(5)),
         'id': list(range(5)),
-        'height': list(map(float, range(5)))
+        'height': list(float(i) for i in range(5))
     })
 
     with TestPipeline() as p:

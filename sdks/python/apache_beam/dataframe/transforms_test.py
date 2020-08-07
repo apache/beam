@@ -17,10 +17,11 @@
 from __future__ import absolute_import
 from __future__ import division
 
-import unittest
 import typing
+import unittest
 
 import pandas as pd
+from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import coders
@@ -28,8 +29,6 @@ from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import transforms
 from apache_beam.testing.util import assert_that
-
-from past.builtins import unicode
 
 
 def sort_by_value_and_drop_index(df):
