@@ -57,7 +57,52 @@ limitations under the License.
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Write adjacency list&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;adjancency_list.txt&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">//&lt;/span> &lt;span class="n">Java&lt;/span> &lt;span class="n">examples&lt;/span> &lt;span class="n">will&lt;/span> &lt;span class="n">be&lt;/span> &lt;span class="n">available&lt;/span> &lt;span class="n">on&lt;/span> &lt;span class="n">Beam&lt;/span> &lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">23&lt;/span> &lt;span class="n">release&lt;/span>&lt;span class="o">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">AnnotateTextRequest&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Features&lt;/span> &lt;span class="n">features&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">AnnotateTextRequest&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Features&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">newBuilder&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setExtractEntities&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="kc">true&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setExtractDocumentSentiment&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="kc">true&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setExtractEntitySentiment&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="kc">true&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setExtractSyntax&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="kc">true&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="n">AnnotateText&lt;/span> &lt;span class="n">annotateText&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">AnnotateText&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">newBuilder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setFeatures&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">features&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">AnnotateTextResponse&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">responses&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">Create&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;My experience so far has been fantastic, &amp;#34;&lt;/span>
+&lt;span class="o">+&lt;/span> &lt;span class="s">&amp;#34;I\&amp;#39;d really recommend this product.&amp;#34;&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">MapElements&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TypeDescriptor&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Document&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">via&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="o">(&lt;/span>&lt;span class="n">SerializableFunction&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Document&lt;/span>&lt;span class="o">&amp;gt;)&lt;/span>
+&lt;span class="n">input&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span>
+&lt;span class="n">Document&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">newBuilder&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setContent&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">input&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Document&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Type&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">PLAIN_TEXT&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">()))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">annotateText&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">responses&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MapElements&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TypeDescriptor&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TextSentiments&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)).&lt;/span>&lt;span class="na">via&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">extractSentiments&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">MapElements&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TypeDescriptors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">strings&lt;/span>&lt;span class="o">())&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">via&lt;/span>&lt;span class="o">((&lt;/span>&lt;span class="n">SerializableFunction&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">TextSentiments&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;)&lt;/span> &lt;span class="n">TextSentiments&lt;/span>&lt;span class="o">::&lt;/span>&lt;span class="n">toJson&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TextIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">write&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;sentiments.txt&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="n">responses&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">MapElements&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">TypeDescriptors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">maps&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TypeDescriptors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">strings&lt;/span>&lt;span class="o">(),&lt;/span> &lt;span class="n">TypeDescriptors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">strings&lt;/span>&lt;span class="o">()))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">via&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">extractEntities&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MapElements&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TypeDescriptors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">strings&lt;/span>&lt;span class="o">()).&lt;/span>&lt;span class="na">via&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mapEntitiesToJson&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TextIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">write&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;entities.txt&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="n">responses&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">MapElements&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">TypeDescriptors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">lists&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">TypeDescriptors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">maps&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">TypeDescriptors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">strings&lt;/span>&lt;span class="o">(),&lt;/span>
+&lt;span class="n">TypeDescriptors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">lists&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TypeDescriptors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">strings&lt;/span>&lt;span class="o">()))))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">via&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">analyzeDependencyTree&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MapElements&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TypeDescriptors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">strings&lt;/span>&lt;span class="o">()).&lt;/span>&lt;span class="na">via&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mapDependencyTreesToJson&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TextIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">write&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;adjacency_list.txt&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;h3 id="extracting-sentiments">Extracting sentiments&lt;/h3>
 &lt;p>This is a part of response object returned from the API. Sentence-level sentiments can be found in &lt;code>sentences&lt;/code> attribute. &lt;code>sentences&lt;/code> behaves like a standard Python sequence, therefore all core language features (like iteration or slicing) will work. Overall sentiment can be found in &lt;code>document_sentiment&lt;/code> attribute.&lt;/p>
@@ -95,7 +140,21 @@ score: 0.8999999761581421
 &lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">//&lt;/span> &lt;span class="n">Java&lt;/span> &lt;span class="n">examples&lt;/span> &lt;span class="n">will&lt;/span> &lt;span class="n">be&lt;/span> &lt;span class="n">available&lt;/span> &lt;span class="n">on&lt;/span> &lt;span class="n">Beam&lt;/span> &lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">23&lt;/span> &lt;span class="n">release&lt;/span>&lt;span class="o">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">extractSentiments&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="o">(&lt;/span>&lt;span class="n">SerializableFunction&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">AnnotateTextResponse&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">TextSentiments&lt;/span>&lt;span class="o">&amp;gt;)&lt;/span>
+&lt;span class="n">annotateTextResponse&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="n">TextSentiments&lt;/span> &lt;span class="n">sentiments&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">TextSentiments&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="n">sentiments&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">setDocumentSentiment&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">annotateTextResponse&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getDocumentSentiment&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getMagnitude&lt;/span>&lt;span class="o">());&lt;/span>
+&lt;span class="n">Map&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Float&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">sentenceSentimentsMap&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">annotateTextResponse&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getSentencesList&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">stream&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">collect&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">Collectors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">toMap&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="o">(&lt;/span>&lt;span class="n">Sentence&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getText&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getContent&lt;/span>&lt;span class="o">(),&lt;/span>
+&lt;span class="o">(&lt;/span>&lt;span class="n">Sentence&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getSentiment&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getMagnitude&lt;/span>&lt;span class="o">()));&lt;/span>
+&lt;span class="n">sentiments&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">setSentenceSentiments&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">sentenceSentimentsMap&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">sentiments&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">};&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;p>The snippet loops over &lt;code>sentences&lt;/code> and, for each sentence, extracts the sentiment score.&lt;/p>
 &lt;p>The output is:&lt;/p>
@@ -109,7 +168,12 @@ score: 0.8999999761581421
 &lt;span class="p">}&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">entity&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">entities&lt;/span>&lt;span class="p">]&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">//&lt;/span> &lt;span class="n">Java&lt;/span> &lt;span class="n">examples&lt;/span> &lt;span class="n">will&lt;/span> &lt;span class="n">be&lt;/span> &lt;span class="n">available&lt;/span> &lt;span class="n">on&lt;/span> &lt;span class="n">Beam&lt;/span> &lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">23&lt;/span> &lt;span class="n">release&lt;/span>&lt;span class="o">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">extractEntities&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="o">(&lt;/span>&lt;span class="n">SerializableFunction&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">AnnotateTextResponse&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Map&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;)&lt;/span>
+&lt;span class="n">annotateTextResponse&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span>
+&lt;span class="n">annotateTextResponse&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getEntitiesList&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">stream&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">collect&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">Collectors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">toMap&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Entity&lt;/span>&lt;span class="o">::&lt;/span>&lt;span class="n">getName&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">Entity&lt;/span> &lt;span class="n">e&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">e&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getType&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">toString&lt;/span>&lt;span class="o">()));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;p>Entities can be found in &lt;code>entities&lt;/code> attribute. Just like before, &lt;code>entities&lt;/code> is a sequence, that&amp;rsquo;s why list comprehension is a viable choice. The most tricky part is interpreting the types of entities. Natural Language API defines entity types as enum. In a response object, entity types are returned as integers. That&amp;rsquo;s why a user has to instantiate &lt;code>naturallanguageml.enums.Entity.Type&lt;/code> to access a human-readable name.&lt;/p>
 &lt;p>The output is:&lt;/p>
@@ -134,7 +198,31 @@ score: 0.8999999761581421
 &lt;span class="n">adjacency_lists&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">append&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">adjacency_list&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">//&lt;/span> &lt;span class="n">Java&lt;/span> &lt;span class="n">examples&lt;/span> &lt;span class="n">will&lt;/span> &lt;span class="n">be&lt;/span> &lt;span class="n">available&lt;/span> &lt;span class="n">on&lt;/span> &lt;span class="n">Beam&lt;/span> &lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">23&lt;/span> &lt;span class="n">release&lt;/span>&lt;span class="o">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">analyzeDependencyTree&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="o">(&lt;/span>&lt;span class="n">SerializableFunction&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">AnnotateTextResponse&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">List&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">List&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&amp;gt;&amp;gt;)&lt;/span>
+&lt;span class="n">response&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="n">List&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">List&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">adjacencyLists&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">ArrayList&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;();&lt;/span>
+&lt;span class="kt">int&lt;/span> &lt;span class="n">index&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">0&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="k">for&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">Sentence&lt;/span> &lt;span class="n">s&lt;/span> &lt;span class="o">:&lt;/span> &lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getSentencesList&lt;/span>&lt;span class="o">())&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="n">Map&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">List&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">adjacencyMap&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">HashMap&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;();&lt;/span>
+&lt;span class="kt">int&lt;/span> &lt;span class="n">sentenceBegin&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getText&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getBeginOffset&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="kt">int&lt;/span> &lt;span class="n">sentenceEnd&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sentenceBegin&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getText&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getContent&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">length&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">1&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="k">while&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">index&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getTokensCount&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getTokens&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">index&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">getText&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getBeginOffset&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">&amp;lt;=&lt;/span> &lt;span class="n">sentenceEnd&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="n">Token&lt;/span> &lt;span class="n">token&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getTokensList&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">get&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">index&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="kt">int&lt;/span> &lt;span class="n">headTokenIndex&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">token&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getDependencyEdge&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getHeadTokenIndex&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="n">String&lt;/span> &lt;span class="n">headTokenContent&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getTokens&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">headTokenIndex&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">getText&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getContent&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="n">List&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">adjacencyList&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">adjacencyMap&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getOrDefault&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">headTokenContent&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">ArrayList&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;());&lt;/span>
+&lt;span class="n">adjacencyList&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">add&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">token&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getText&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">getContent&lt;/span>&lt;span class="o">());&lt;/span>
+&lt;span class="n">adjacencyMap&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">put&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">headTokenContent&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">adjacencyList&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">index&lt;/span>&lt;span class="o">++;&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="n">adjacencyLists&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">add&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">adjacencyMap&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">adjacencyLists&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">};&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;p>The output is below. For better readability, indexes are replaced by text which they refer to:&lt;/p>
 &lt;pre>&lt;code>[
@@ -1421,7 +1509,381 @@ The Parquet files that are consumed or generated by this Beam connector should r
 &lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">executions&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
 &lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">plugin&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;p class="language-java">This technique has been tested to work on Spark 2.2.3, Spark 2.3.3 and Spark 2.4.3 (although it is optional for Spark 2.4+).&lt;/p></description></item><item><title>Documentation: ApproximateQuantiles</title><link>/documentation/transforms/java/aggregation/approximatequantiles/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/approximatequantiles/</guid><description>
+&lt;p class="language-java">This technique has been tested to work on Spark 2.2.3, Spark 2.3.3 and Spark 2.4.3 (although it is optional for Spark 2.4+).&lt;/p></description></item><item><title>Documentation: Apache Snowflake I/O connector</title><link>/documentation/io/built-in/snowflake/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/io/built-in/snowflake/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>&lt;a href="/documentation/io/built-in/">Built-in I/O Transforms&lt;/a>&lt;/p>
+&lt;h1 id="snowflake-io">Snowflake I/O&lt;/h1>
+&lt;p>Pipeline options and general information about using and running Snowflake IO.&lt;/p>
+&lt;h2 id="authentication">Authentication&lt;/h2>
+&lt;p>All authentication methods available for the Snowflake JDBC Driver are possible to use with the IO transforms:&lt;/p>
+&lt;ul>
+&lt;li>Username and password&lt;/li>
+&lt;li>Key pair&lt;/li>
+&lt;li>OAuth token&lt;/li>
+&lt;/ul>
+&lt;p>Passing credentials is done via Pipeline options.&lt;/p>
+&lt;p>Passing credentials is done via Pipeline options used to instantiate &lt;code>SnowflakeIO.DataSourceConfiguration&lt;/code>:
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">SnowflakePipelineOptions&lt;/span> &lt;span class="n">options&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">PipelineOptionsFactory&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">fromArgs&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">args&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withValidation&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">as&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">SnowflakePipelineOptions&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">SnowflakeCredentials&lt;/span> &lt;span class="n">credentials&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">SnowflakeCredentialsFactory&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">DataSourceConfiguration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">create&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">credentials&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.(&lt;/span>&lt;span class="n">other&lt;/span> &lt;span class="n">DataSourceConfiguration&lt;/span> &lt;span class="n">options&lt;/span>&lt;span class="o">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h3 id="username-and-password">Username and password&lt;/h3>
+&lt;p>To use username/password authentication in SnowflakeIO, invoke your pipeline with the following Pipeline options:
+&lt;pre>&lt;code>--username=&amp;lt;USERNAME&amp;gt; --password=&amp;lt;PASSWORD&amp;gt;&lt;/code>&lt;/pre>
+&lt;/p>
+&lt;h3 id="key-pair">Key pair&lt;/h3>
+&lt;p>To use this authentication method, you must first generate a key pair and associate the public key with the Snowflake user that will connect using the IO transform. For instructions, see the &lt;a href="https://docs.snowflake.com/en/user-guide/jdbc-configure.html">Snowflake documentation&lt;/a>.&lt;/p>
+&lt;p>To use key pair authentication with SnowflakeIO, invoke your pipeline with following Pipeline options:
+&lt;pre>&lt;code>--username=&amp;lt;USERNAME&amp;gt; --privateKeyPath=&amp;lt;PATH_TO_P8_FILE&amp;gt; --privateKeyPassphrase=&amp;lt;PASSWORD_FOR_KEY&amp;gt;&lt;/code>&lt;/pre>
+&lt;/p>
+&lt;h3 id="oauth-token">OAuth token&lt;/h3>
+&lt;p>SnowflakeIO also supports OAuth token.&lt;/p>
+&lt;p>&lt;strong>IMPORTANT&lt;/strong>: SnowflakeIO requires a valid OAuth access token. It will neither be able to refresh the token nor obtain it using a web-based flow. For information on configuring an OAuth integration and obtaining the token, see the &lt;a href="https://docs.snowflake.com/en/user-guide/oauth-intro.html">Snowflake documentation&lt;/a>.&lt;/p>
+&lt;p>Once you have the token, invoke your pipeline with following Pipeline Options:
+&lt;pre>&lt;code>--oauthToken=&amp;lt;TOKEN&amp;gt;&lt;/code>&lt;/pre>
+&lt;/p>
+&lt;h2 id="datasource-configuration">DataSource Configuration&lt;/h2>
+&lt;p>DataSource configuration is required in both read and write object for configuring Snowflake connection properties for IO purposes.&lt;/p>
+&lt;h3 id="general-usage">General usage&lt;/h3>
+&lt;p>Create the DataSource configuration:
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">DataSourceConfiguration&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">create&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">SnowflakeCredentialsFactory&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withUrl&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getUrl&lt;/span>&lt;span class="o">())&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withServerName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getServerName&lt;/span>&lt;span class="o">())&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withDatabase&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getDatabase&lt;/span>&lt;span class="o">())&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withWarehouse&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getWarehouse&lt;/span>&lt;span class="o">())&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withSchema&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getSchema&lt;/span>&lt;span class="o">());&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+Where parameters can be:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code> .withUrl(...)&lt;/code>
+&lt;ul>
+&lt;li>JDBC-like URL for your Snowflake account, including account name and region, without any parameters.&lt;/li>
+&lt;li>Example: &lt;code>.withUrl(&amp;quot;jdbc:snowflake://account.snowflakecomputing.com&amp;quot;)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;code>.withServerName(...)&lt;/code>
+&lt;ul>
+&lt;li>Server Name - full server name with account, zone and domain.&lt;/li>
+&lt;li>Example: &lt;code>.withServerName(&amp;quot;account.snowflakecomputing.com&amp;quot;)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;code>.withDatabase(...)&lt;/code>
+&lt;ul>
+&lt;li>Name of the Snowflake database to use.&lt;/li>
+&lt;li>Example: &lt;code>.withDatabase(&amp;quot;MY_DATABASE&amp;quot;)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;code>.withWarehouse(...)&lt;/code>
+&lt;ul>
+&lt;li>Name of the Snowflake warehouse to use. This parameter is optional. If no warehouse name is specified, the default warehouse for the user is used.&lt;/li>
+&lt;li>Example: &lt;code>.withWarehouse(&amp;quot;MY_WAREHOUSE&amp;quot;)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;code>.withSchema(...)&lt;/code>
+&lt;ul>
+&lt;li>Name of the schema in the database to use. This parameter is optional.&lt;/li>
+&lt;li>Example: &lt;code>.withSchema(&amp;quot;PUBLIC&amp;quot;)&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Note&lt;/strong> - either &lt;code>.withUrl(...)&lt;/code> or &lt;code>.withServerName(...)&lt;/code> &lt;strong>is required&lt;/strong>.&lt;/p>
+&lt;h2 id="pipeline-options">Pipeline options&lt;/h2>
+&lt;p>Use Beam’s &lt;a href="https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/options/PipelineOptions.html">Pipeline options&lt;/a> to set options via the command line.&lt;/p>
+&lt;h3 id="snowflake-pipeline-options">Snowflake Pipeline options&lt;/h3>
+&lt;p>Snowflake IO library supports following options that can be passed via the &lt;a href="https://beam.apache.org/documentation/io/built-in/snowflake/#running-main-command-with-pipeline-options">command line&lt;/a> by default when a Pipeline uses them:&lt;/p>
+&lt;p>&lt;code>--url&lt;/code> Snowflake&amp;rsquo;s JDBC-like url including account name and region without any parameters.&lt;/p>
+&lt;p>&lt;code>--serverName&lt;/code> Full server name with account, zone and domain.&lt;/p>
+&lt;p>&lt;code>--username&lt;/code> Required for username/password and Private Key authentication.&lt;/p>
+&lt;p>&lt;code>--oauthToken&lt;/code> Required for OAuth authentication only.&lt;/p>
+&lt;p>&lt;code>--password&lt;/code> Required for username/password authentication only.&lt;/p>
+&lt;p>&lt;code>--privateKeyPath&lt;/code> Path to Private Key file. Required for Private Key authentication only.&lt;/p>
+&lt;p>&lt;code>--privateKeyPassphrase&lt;/code> Private Key&amp;rsquo;s passphrase. Required for Private Key authentication only.&lt;/p>
+&lt;p>&lt;code>--stagingBucketName&lt;/code> External bucket path ending with &lt;code>/&lt;/code>. I.e. &lt;code>gs://bucket/&lt;/code>. Sub-directories are allowed.&lt;/p>
+&lt;p>&lt;code>--storageIntegrationName&lt;/code> Storage integration name&lt;/p>
+&lt;p>&lt;code>--warehouse&lt;/code> Warehouse to use. Optional.&lt;/p>
+&lt;p>&lt;code>--database&lt;/code> Database name to connect to. Optional.&lt;/p>
+&lt;p>&lt;code>--schema&lt;/code> Schema to use. Optional.&lt;/p>
+&lt;p>&lt;code>--table&lt;/code> Table to use. Optional.&lt;/p>
+&lt;p>&lt;code>--query&lt;/code> Query to use. Optional.&lt;/p>
+&lt;p>&lt;code>--role&lt;/code> Role to use. Optional.&lt;/p>
+&lt;p>&lt;code>--authenticator&lt;/code> Authenticator to use. Optional.&lt;/p>
+&lt;p>&lt;code>--portNumber&lt;/code> Port number. Optional.&lt;/p>
+&lt;p>&lt;code>--loginTimeout&lt;/code> Login timeout. Optional.&lt;/p>
+&lt;h2 id="running-pipelines-on-dataflow">Running pipelines on Dataflow&lt;/h2>
+&lt;p>By default, pipelines are run on &lt;a href="https://beam.apache.org/documentation/runners/direct/">Direct Runner&lt;/a> on your local machine. To run a pipeline on &lt;a href="https://cloud.google.com/dataflow/">Google Dataflow&lt;/a>, you must provide the following Pipeline options:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>--runner=DataflowRunner&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>The Dataflow’s specific runner.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--project=&amp;lt;GCS PROJECT&amp;gt;&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Name of the Google Cloud Platform project.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--stagingBucketName=&amp;lt;GCS BUCKET NAME&amp;gt;&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Google Cloud Services bucket where the Beam files will be staged.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--maxNumWorkers=5&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>(optional) Maximum number of workers.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>--appName=&amp;lt;JOB NAME&amp;gt;&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>(optional) Prefix for the job name in the Dataflow Dashboard.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>More pipeline options for Dataflow can be found &lt;a href="https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/runners/dataflow/options/DataflowPipelineOptions.html">here&lt;/a>.&lt;/p>
+&lt;p>&lt;strong>Note&lt;/strong>: To properly authenticate with Google Cloud, please use &lt;a href="https://cloud.google.com/sdk/gcloud/">gcloud&lt;/a> or follow the &lt;a href="https://cloud.google.com/docs/authentication/">Google Cloud documentation&lt;/a>.&lt;/p>
+&lt;p>&lt;strong>Important&lt;/strong>: Please acknowledge [Google Dataflow pricing](Important: Please acknowledge Google Dataflow pricing).&lt;/p>
+&lt;h2 id="writing-to-snowflake-tables">Writing to Snowflake tables&lt;/h2>
+&lt;p>One of the functions of SnowflakeIO is writing to Snowflake tables. This transformation enables you to finish the Beam pipeline with an output operation that sends the user&amp;rsquo;s &lt;a href="https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/values/PCollection.html">PCollection&lt;/a> to your Snowflake database.&lt;/p>
+&lt;h3 id="batch-write-from-a-bounded-source">Batch write (from a bounded source)&lt;/h3>
+&lt;p>The basic .&lt;code>write()&lt;/code> operation usage is as follows:
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">type&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withDataSourceConfiguration&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">dc&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withStagingBucketName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;BUCKET NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withStorageIntegrationName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STORAGE INTEGRATION NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withUserDataMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mapper&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+Replace type with the data type of the PCollection object to write; for example, SnowflakeIO.&lt;String> for an input PCollection of Strings.&lt;/p>
+&lt;p>All the below parameters are required:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>.withDataSourceConfiguration()&lt;/code> Accepts a DatasourceConfiguration object.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.to()&lt;/code> Accepts the target Snowflake table name.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.withStagingBucketName()&lt;/code> Accepts a cloud bucket path ended with slash.
+-Example: &lt;code>.withStagingBucketName(&amp;quot;gs://mybucket/my/dir/&amp;quot;)&lt;/code>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.withStorageIntegrationName()&lt;/code> Accepts a name of a Snowflake storage integration object created according to Snowflake documentationt. Example:
+&lt;pre>&lt;code>CREATE OR REPLACE STORAGE INTEGRATION test_integration
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = GCS
+ENABLED = TRUE
+STORAGE_ALLOWED_LOCATIONS = (&amp;#39;gcs://bucket/&amp;#39;);&lt;/code>&lt;/pre>
+Then:
+&lt;pre>&lt;code>.withStorageIntegrationName(test_integration)&lt;/code>&lt;/pre>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.withUserDataMapper()&lt;/code> Accepts the UserDataMapper function that will map a user&amp;rsquo;s PCollection to an array of String values &lt;code>(String[])&lt;/code>.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Note&lt;/strong>:
+SnowflakeIO uses COPY statements behind the scenes to write (using &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html">COPY to table&lt;/a>). StagingBucketName will be used to save CSV files which will end up in Snowflake. Those CSV files will be saved under the “stagingBucketName” path.&lt;/p>
+&lt;h3 id="userdatamapper-function">UserDataMapper function&lt;/h3>
+&lt;p>The UserDataMapper function is required to map data from a PCollection to an array of String values before the &lt;code>write()&lt;/code> operation saves the data to temporary .csv files. For example:
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">UserDataMapper&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Long&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">getCsvMapper&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">UserDataMapper&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Long&lt;/span>&lt;span class="o">&amp;gt;)&lt;/span> &lt;span class="n">recordLine&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">[]&lt;/span> &lt;span class="o">{&lt;/span>&lt;span class="n">recordLine&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">toString&lt;/span>&lt;span class="o">()};&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h3 id="additional-write-options">Additional write options&lt;/h3>
+&lt;h4 id="transformation-query">Transformation query&lt;/h4>
+&lt;p>The &lt;code>.withQueryTransformation()&lt;/code> option for the &lt;code>write()&lt;/code> operation accepts a SQL query as a String value, which will be performed while transfering data staged in CSV files directly to the target Snowflake table. For information about the transformation SQL syntax, see the &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html#transformation-parameters">Snowflake Documentation&lt;/a>.&lt;/p>
+&lt;p>Usage:
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">String&lt;/span> &lt;span class="n">query&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s">&amp;#34;SELECT t.$1 from YOUR_TABLE;&amp;#34;&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="n">data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&amp;lt;~&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withDataSourceConfiguration&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">dc&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withStagingBucketName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;BUCKET NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withStorageIntegrationName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STORAGE INTEGRATION NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withUserDataMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mapper&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withQueryTransformation&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">query&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h4 id="write-disposition">Write disposition&lt;/h4>
+&lt;p>Define the write behaviour based on the table where data will be written to by specifying the &lt;code>.withWriteDisposition(...)&lt;/code> option for the &lt;code>write()&lt;/code> operation. The following values are supported:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>APPEND - Default behaviour. Written data is added to the existing rows in the table,&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>EMPTY - The target table must be empty; otherwise, the write operation fails,&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>TRUNCATE - The write operation deletes all rows from the target table before writing to it.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>Example of usage:
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&amp;lt;~&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withDataSourceConfiguration&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">dc&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withStagingBucketName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;BUCKET NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withStorageIntegrationName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STORAGE INTEGRATION NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withUserDataMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mapper&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withWriteDisposition&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TRUNCATE&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h4 id="create-disposition">Create disposition&lt;/h4>
+&lt;p>The &lt;code>.withCreateDisposition()&lt;/code> option defines the behavior of the write operation if the target table does not exist . The following values are supported:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>CREATE_IF_NEEDED - default behaviour. The write operation checks whether the specified target table exists; if it does not, the write operation attempts to create the table Specify the schema for the target table using the &lt;code>.withTableSchema()&lt;/code> option.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>CREATE_NEVER - The write operation fails if the target table does not exist.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>Usage:
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&amp;lt;~&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withDataSourceConfiguration&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">dc&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withStagingBucketName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;BUCKET NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withStorageIntegrationName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STORAGE INTEGRATION NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withUserDataMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mapper&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCreateDisposition&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">CREATE_NEVER&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h4 id="table-schema-disposition">Table schema disposition&lt;/h4>
+&lt;p>When the &lt;code>.withCreateDisposition()&lt;/code> .option is set to &lt;code>CREATE_IF_NEEDED&lt;/code>, the &lt;code>.withTableSchema()&lt;/code> option enables specifying the schema for the created target table.
+A table schema is a list of &lt;code>SFColumn&lt;/code> objects with name and type corresponding to column type for each column in the table.&lt;/p>
+&lt;p>Usage:
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">SFTableSchema&lt;/span> &lt;span class="n">tableSchema&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">SFTableSchema&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">SFColumn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;my_date&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">SFDate&lt;/span>&lt;span class="o">(),&lt;/span> &lt;span class="kc">true&lt;/span>&lt;span class="o">),&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">SFColumn&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;id&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">SFNumber&lt;/span>&lt;span class="o">()),&lt;/span>
+&lt;span class="n">SFColumn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;name&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">SFText&lt;/span>&lt;span class="o">(),&lt;/span> &lt;span class="kc">true&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="n">data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&amp;lt;~&amp;gt;&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withDataSourceConfiguration&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">dc&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withStagingBucketName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;BUCKET NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withStorageIntegrationName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STORAGE INTEGRATION NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withUserDataMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mapper&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withTableSchema&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">tableSchema&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h2 id="reading-from-snowflake">Reading from Snowflake&lt;/h2>
+&lt;p>One of the functions of SnowflakeIO is reading Snowflake tables - either full tables via table name or custom data via query. Output of the read transform is a &lt;a href="https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/values/PCollection.html">PCollection&lt;/a> of user-defined data type.&lt;/p>
+&lt;h3 id="general-usage-1">General usage&lt;/h3>
+&lt;p>The basic &lt;code>.read()&lt;/code> operation usage:
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">USER_DATA_TYPE&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">items&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">USER_DATA_TYPE&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withDataSourceConfiguration&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">dc&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">fromTable&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;MY_TABLE&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="c1">// or .fromQuery(&amp;#34;QUERY&amp;#34;)
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">withStagingBucketName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;BUCKET NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withStorageIntegrationName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STORAGE INTEGRATION NAME&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCsvMapper&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">mapper&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withCoder&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">coder&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="o">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+Where all below parameters are required:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>.withDataSourceConfiguration(...)&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Accepts a DataSourceConfiguration object.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.fromTable(...) or .fromQuery(...)&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Specifies a Snowflake table name or custom SQL query.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.withStagingBucketName()&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Accepts a cloud bucket name.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.withStorageIntegrationName()&lt;/code>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Accepts a name of a Snowflake storage integration object created according to Snowflake documentation. Example:
+&lt;pre>&lt;code>CREATE OR REPLACE STORAGE INTEGRATION test_integration
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = GCS
+ENABLED = TRUE
+STORAGE_ALLOWED_LOCATIONS = (&amp;#39;gcs://bucket/&amp;#39;);&lt;/code>&lt;/pre>
+Then:
+&lt;pre>&lt;code>.withStorageIntegrationName(test_integration)&lt;/code>&lt;/pre>
+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.withCsvMapper(mapper)&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Accepts a &lt;a href="https://beam.apache.org/documentation/io/built-in/snowflake/#csvmapper">CSVMapper&lt;/a> instance for mapping String[] to USER_DATA_TYPE.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>.withCoder(coder)&lt;/code>&lt;/p>
+&lt;ul>
+&lt;li>Accepts the &lt;a href="https://beam.apache.org/releases/javadoc/2.0.0/org/apache/beam/sdk/coders/Coder.html">Coder&lt;/a> for USER_DATA_TYPE.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Note&lt;/strong>:
+SnowflakeIO uses COPY statements behind the scenes to read (using &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html">COPY to location&lt;/a>) files staged in cloud storage.StagingBucketName will be used as a temporary location for storing CSV files. Those temporary directories will be named &lt;code>sf_copy_csv_DATE_TIME_RANDOMSUFFIX&lt;/code> and they will be removed automatically once Read operation finishes.&lt;/p>
+&lt;h3 id="csvmapper">CSVMapper&lt;/h3>
+&lt;p>SnowflakeIO uses a &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html">COPY INTO &lt;location>&lt;/a> statement to move data from a Snowflake table to Google Cloud Storage as CSV files. These files are then downloaded via &lt;a href="https://beam.apache.org/releases/javadoc/2.3.0/index.html?org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> and processed line by line. Each line is split into an array of Strings using the &lt;a href="http://opencsv.sourceforge.net/">OpenCSV&lt;/a> library.&lt;/p>
+&lt;p>The CSVMapper’s job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom POJO.&lt;/p>
+&lt;p>Example implementation of CsvMapper for GenericRecord:
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">static&lt;/span> &lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">CsvMapper&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">GenericRecord&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">getCsvMapper&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">SnowflakeIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">CsvMapper&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">GenericRecord&lt;/span>&lt;span class="o">&amp;gt;)&lt;/span>
+&lt;span class="n">parts&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">GenericRecordBuilder&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">PARQUET_SCHEMA&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;ID&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Long&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">valueOf&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">parts&lt;/span>&lt;span class="o">[&lt;/span>&lt;span class="n">0&lt;/span>&lt;span class="o">]))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;NAME&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">parts&lt;/span>&lt;span class="o">[&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">])&lt;/span>
+&lt;span class="o">[...]&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="o">};&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/p></description></item><item><title>Documentation: ApproximateQuantiles</title><link>/documentation/transforms/java/aggregation/approximatequantiles/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/approximatequantiles/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -6502,6 +6964,7 @@ DatastoreIO
 &lt;tr class="language-java">
 &lt;td>
 SnowflakeIO
+&lt;a href="/documentation/io/built-in/snowflake"> (guide)&lt;/a>
 &lt;/td>
 &lt;td>Experimental Transforms for reading from and writing to &lt;a href="https://www.snowflake.com/">Snowflake&lt;/a>.&lt;/td>
 &lt;td style="word-break: break-all;">
@@ -11637,96 +12100,4 @@ Javadoc
 &lt;li>&lt;a href="/documentation/transforms/java/elementwise/kvswap">KvSwap&lt;/a> swaps key-value pair values.&lt;/li>
 &lt;li>&lt;a href="/documentation/transforms/java/elementwise/values">Values&lt;/a> for extracting the value of each element.&lt;/li>
 &lt;li>&lt;a href="/documentation/transforms/java/elementwise/withkeys">WithKeys&lt;/a> for adding a key to each element.&lt;/li>
-&lt;/ul></description></item><item><title>Documentation: Keys</title><link>/documentation/transforms/python/elementwise/keys/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/elementwise/keys/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="keys">Keys&lt;/h1>
-&lt;script type="text/javascript">
-localStorage.setItem("language", "language-py")
-&lt;/script>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Keys"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
-&lt;p>Takes a collection of key-value pairs and returns the key of each element.&lt;/p>
-&lt;h2 id="example">Example&lt;/h2>
-&lt;p>In the following example, we create a pipeline with a &lt;code>PCollection&lt;/code> of key-value pairs.
-Then, we apply &lt;code>Keys&lt;/code> to extract the keys and discard the values.&lt;/p>
-&lt;div class=language-py>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
-&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;span class="n">icons&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;span class="n">pipeline&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Garden plants&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;🍓&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;Strawberry&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;Carrot&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;Eggplant&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;Tomato&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;🥔&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;Potato&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
-&lt;span class="p">])&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Keys&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Keys&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;p class="notebook-skip">Output:&lt;/p>
-&lt;div class=notebook-skip>
-&lt;pre>&lt;code>🍓
-🥕
-🍆
-🍅
-🥔&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
-&lt;td>
-&lt;a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/keys-py.ipynb">&lt;img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now&lt;/a>
-&lt;/td>
-&lt;/table>
-&lt;table align="left" style="margin-right:1em" class=".language-py" >
-&lt;td>
-&lt;a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/keys.py">&lt;img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code&lt;/a>
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/transforms/python/elementwise/kvswap">KvSwap&lt;/a> swaps the key and value of each element.&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/python/elementwise/values">Values&lt;/a> for extracting the value of each element.&lt;/li>
-&lt;/ul>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Keys"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item></channel></rss>
+&lt;/ul></description></item></channel></rss>
