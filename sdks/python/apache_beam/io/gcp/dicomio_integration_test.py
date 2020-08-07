@@ -215,6 +215,8 @@ class DICOMIoIntegrationTest(unittest.TestCase):
     )
 
     self.assertEqual(status_code, 200)
+
+    # List comparison based on different version of python
     if sys.version_info.major == 3:
       self.assertCountEqual(result, self.expected_output_all_metadata)
     else:
