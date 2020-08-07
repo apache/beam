@@ -276,7 +276,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
   by beam.
   """
   def __init__(
-      self, env, use_beam=True, wont_implement=None, skip=None, **kwargs):
+      self, env, use_beam=True, wont_implement_ok=None, skip=None, **kwargs):
     self._test_env = env
 
     def to_callable(cond):
@@ -285,10 +285,10 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
       else:
         return lambda example: example.source.strip() == cond
 
-    self._wont_implement = {
+    self._wont_implement_ok = {
         test: [to_callable(cond) for cond in examples]
         for test,
-        examples in (wont_implement or {}).items()
+        examples in (wont_implement_ok or {}).items()
     }
     self._skip = {
         test: [to_callable(cond) for cond in examples]
@@ -315,7 +315,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         self.skipped += 1
       elif example.exc_msg is None and any(
           wont_implement(example)
-          for wont_implement in self._wont_implement.get(test.name, [])):
+          for wont_implement in self._wont_implement_ok.get(test.name, [])):
         # Don't fail doctests that raise this error.
         example.exc_msg = (
             'apache_beam.dataframe.frame_base.WontImplementError: ...')
@@ -422,7 +422,7 @@ def _run_patched(func, *args, **kwargs):
     env = TestEnvironment()
     use_beam = kwargs.pop('use_beam', True)
     skip = kwargs.pop('skip', {})
-    wont_implement = kwargs.pop('wont_implement', {})
+    wont_implement_ok = kwargs.pop('wont_implement_ok', {})
     extraglobs = dict(kwargs.pop('extraglobs', {}))
     extraglobs['pd'] = env.fake_pandas_module()
     # Unfortunately the runner is not injectable.
@@ -430,7 +430,7 @@ def _run_patched(func, *args, **kwargs):
     doctest.DocTestRunner = lambda **kwargs: BeamDataframeDoctestRunner(
         env,
         use_beam=use_beam,
-        wont_implement=wont_implement,
+        wont_implement_ok=wont_implement_ok,
         skip=skip,
         **kwargs)
     with expressions.allow_non_parallel_operations():

@@ -32,7 +32,7 @@ class DoctestTest(unittest.TestCase):
         pd.core.frame,
         use_beam=False,
         report=True,
-        wont_implement={
+        wont_implement_ok={
             'pandas.core.frame.DataFrame.T': ['*'],
             'pandas.core.frame.DataFrame.cummax': ['*'],
             'pandas.core.frame.DataFrame.cummin': ['*'],
@@ -114,7 +114,7 @@ class DoctestTest(unittest.TestCase):
         pd.core.series,
         use_beam=False,
         report=True,
-        wont_implement={
+        wont_implement_ok={
             'pandas.core.series.Series.__array__': ['*'],
             'pandas.core.series.Series.cummax': ['*'],
             'pandas.core.series.Series.cummin': ['*'],
