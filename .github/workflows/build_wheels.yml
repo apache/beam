@@ -41,7 +41,7 @@ jobs:
     name: "Check are GCP variables set"
     runs-on: ubuntu-latest
     outputs:
-      run-tests: ${{ steps.check_gcp_variables.outputs.are-gcp-variables-set }}
+      are-gcp-variables-set: ${{ steps.check_gcp_variables.outputs.are-gcp-variables-set }}
     steps:
       - uses: actions/checkout@v2
       - name: "Check are GCP variables set"
