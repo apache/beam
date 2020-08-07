@@ -20,7 +20,6 @@ package org.apache.beam.examples.kotlin.cookbook
 import com.google.api.services.bigquery.model.TableFieldSchema
 import com.google.api.services.bigquery.model.TableRow
 import com.google.api.services.bigquery.model.TableSchema
-import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions
 import org.apache.beam.sdk.Pipeline
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method
