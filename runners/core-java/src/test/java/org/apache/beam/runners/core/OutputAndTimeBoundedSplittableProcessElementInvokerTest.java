@@ -104,7 +104,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
 
   private SplittableProcessElementInvoker<Void, String, OffsetRange, Long, Void>.Result runTest(
       DoFn<Void, String> fn, OffsetRange initialRestriction) throws Exception {
-    InMemoryBundleFinalizer bundleFinalizer = new InMemoryBundleFinalizer();
     SplittableProcessElementInvoker<Void, String, OffsetRange, Long, Void> invoker =
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             fn,
@@ -129,7 +128,9 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
             Executors.newSingleThreadScheduledExecutor(),
             1000,
             Duration.standardSeconds(3),
-            () -> bundleFinalizer);
+            () -> {
+              throw new UnsupportedOperationException("BundleFinalizer not configured for test.");
+            });
 
     SplittableProcessElementInvoker.Result rval =
         invoker.invokeProcessElement(
@@ -147,10 +148,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
                 return null;
               }
             });
-    for (InMemoryBundleFinalizer.Finalization finalization :
-        bundleFinalizer.getAndClearFinalizations()) {
-      finalization.getCallback().onBundleSuccess();
-    }
     return rval;
   }
 
