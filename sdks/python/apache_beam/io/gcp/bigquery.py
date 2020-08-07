@@ -309,6 +309,10 @@ NOTE: This job name template does not have backwards compatibility guarantees.
 BQ_JOB_NAME_TEMPLATE = "beam_bq_job_{job_type}_{job_id}_{step_id}{random}"
 
 
+"""The number of shards per destination when writing via streaming inserts."""
+DEFAULT_SHARDS_PER_DESTINATION = 500
+
+
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
 def _parse_table_reference(table, dataset=None, project=None):
   return bigquery_tools.parse_table_reference(table, dataset, project)
@@ -1069,12 +1073,11 @@ class BigQueryWriteFn(DoFn):
 
     self.additional_bq_parameters = additional_bq_parameters or {}
 
-    self.batch_size_metric = Metrics.distribution(self.__class__,
-                                                  "batch_size")
-    self.batch_latency_metric = Metrics.distribution(self.__class__,
-                                                     "batch_latency_ms")
-    self.failed_rows_metric = Metrics.distribution(self.__class__,
-                                                   "rows_failed_per_batch")
+    self.batch_size_metric = Metrics.distribution(self.__class__, "batch_size")
+    self.batch_latency_metric = Metrics.distribution(
+        self.__class__, "batch_latency_ms")
+    self.failed_rows_metric = Metrics.distribution(
+        self.__class__, "rows_failed_per_batch")
     self.bigquery_wrapper = None
 
   def display_data(self):
@@ -1283,7 +1286,7 @@ class _StreamToBigQuery(PTransform):
     self.additional_bq_parameters = additional_bq_parameters
 
   class InsertIdPrefixFn(DoFn):
-    def __init__(self, shards=500):
+    def __init__(self, shards=DEFAULT_SHARDS_PER_DESTINATION):
       self.shards = shards
 
     def start_bundle(self):
@@ -1309,8 +1312,6 @@ class _StreamToBigQuery(PTransform):
         retry_strategy=self.retry_strategy,
         test_client=self.test_client,
         additional_bq_parameters=self.additional_bq_parameters)
-
-    KEYS_PER_DEST = 500
 
     def drop_shard(elms):
       key_and_shard = elms[0]
