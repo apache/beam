@@ -325,26 +325,33 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(ctx, instID, "unable to split %v: %v", ref, err)
 		}
 
+		var pRoots []*fnpb.BundleApplication
+		var rRoots []*fnpb.DelayedBundleApplication
+		if sr.PS != nil && sr.RS != nil {
+			pRoots = []*fnpb.BundleApplication{{
+				TransformId: sr.TId,
+				InputId:     sr.InId,
+				Element:     sr.PS,
+			}}
+			rRoots = []*fnpb.DelayedBundleApplication{{
+				Application: &fnpb.BundleApplication{
+					TransformId: sr.TId,
+					InputId:     sr.InId,
+					Element:     sr.RS,
+				},
+			}}
+		}
+
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundleSplit{
 				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{
-					PrimaryRoots: []*fnpb.BundleApplication{{
-						TransformId: sr.TId,
-						InputId:     sr.InId,
-						Element:     sr.PS,
-					}},
-					ResidualRoots: []*fnpb.DelayedBundleApplication{{
-						Application: &fnpb.BundleApplication{
-							TransformId: sr.TId,
-							InputId:     sr.InId,
-							Element:     sr.RS,
-						},
-					}},
 					ChannelSplits: []*fnpb.ProcessBundleSplitResponse_ChannelSplit{{
 						LastPrimaryElement:   sr.PI,
 						FirstResidualElement: sr.RI,
 					}},
+					PrimaryRoots:  pRoots,
+					ResidualRoots: rRoots,
 				},
 			},
 		}
