@@ -19,7 +19,6 @@
 from __future__ import absolute_import
 
 import logging
-import sys
 import unittest
 from collections import OrderedDict
 
@@ -55,7 +54,7 @@ TEST_DATA = [
                 ("a", 1),
                 ("b", 0.12345),
                 ("c", u"Hello World!!"),
-                ("d", np.array([1, 2, 3])),
+                ("d", np.array([1, 2, 3], dtype=np.int64)),
                 ("e", b"some bytes"),
             ]),
             OrderedDict([
@@ -66,7 +65,7 @@ TEST_DATA = [
             OrderedDict([
                 ("a", 100000),
                 ("c", u"XoXoX"),
-                ("d", np.array([4, 5, 6])),
+                ("d", np.array([4, 5, 6], dtype=np.int64)),
                 ("e", b""),
             ]),
         ],
@@ -175,7 +174,6 @@ class DatatypeInferenceTest(unittest.TestCase):
   @parameterized.expand([(d["name"], d["data"], d["pyarrow_schema"])
                          for d in TEST_DATA])
   @unittest.skipIf(pa is None, "PyArrow is not installed")
-  @unittest.skipIf(sys.platform == "win32", "[BEAM-10624]")
   def test_infer_pyarrow_schema(self, _, data, schema):
     pyarrow_schema = datatype_inference.infer_pyarrow_schema(data)
     self.assertEqual(pyarrow_schema, schema)
