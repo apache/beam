@@ -30,6 +30,20 @@ package org.apache.beam.sdk.tpcds;
  *         --runner=DataflowRunner \
  *         --region=us-west1 \
  *         --maxNumWorkers=10"
+ *
+ *
+ * To run query using ZetaSQL planner (currently query96 can be run using ZetaSQL), set the plannerName as below. If not specified, the default planner is Calcite.
+ *
+ * ./gradlew :sdks:java:testing:tpcds:run -Ptpcds.args="--dataSize=1G \
+ *         --queries=96 \
+ *         --tpcParallel=2 \
+ *         --plannerName=org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner \
+ *         --project=apache-beam-testing \
+ *         --stagingLocation=gs://beamsql_tpcds_1/staging \
+ *         --tempLocation=gs://beamsql_tpcds_2/temp \
+ *         --runner=DataflowRunner \
+ *         --region=us-west1 \
+ *         --maxNumWorkers=10"
  */
 public class BeamTpcds {
     /**
