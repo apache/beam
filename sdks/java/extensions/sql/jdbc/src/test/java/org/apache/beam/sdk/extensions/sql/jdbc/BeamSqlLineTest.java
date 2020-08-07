@@ -22,8 +22,10 @@ import static org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLineTestingUtils.to
 import static org.hamcrest.CoreMatchers.everyItem;
 import static org.junit.Assert.assertThat;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
 import org.hamcrest.collection.IsIn;
@@ -88,8 +90,8 @@ public class BeamSqlLineTest {
   public void testSqlLine_select() throws Exception {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     String[] args = buildArgs("SELECT 3, 'hello', DATE '2018-05-28';");
-
-    BeamSqlLine.runSqlLine(args, null, byteArrayOutputStream, null);
+    InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+    BeamSqlLine.runSqlLine(args, inputStream, byteArrayOutputStream, null);
 
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
@@ -106,8 +108,8 @@ public class BeamSqlLineTest {
                 + "col_c VARCHAR, col_x TINYINT, col_y INT, col_z BIGINT) TYPE 'test';",
             "INSERT INTO table_test VALUES ('a', 'b', 'c', 1, 2, 3);",
             "SELECT * FROM table_test;");
-
-    BeamSqlLine.runSqlLine(args, null, byteArrayOutputStream, null);
+    InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+    BeamSqlLine.runSqlLine(args, inputStream, byteArrayOutputStream, null);
 
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
@@ -125,8 +127,8 @@ public class BeamSqlLineTest {
             "CREATE EXTERNAL TABLE table_test (col_a VARCHAR, col_b VARCHAR) TYPE 'test';",
             "INSERT INTO table_test SELECT '3', 'hello';",
             "SELECT * FROM table_test;");
-
-    BeamSqlLine.runSqlLine(args, null, byteArrayOutputStream, null);
+    InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+    BeamSqlLine.runSqlLine(args, inputStream, byteArrayOutputStream, null);
 
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
@@ -144,7 +146,8 @@ public class BeamSqlLineTest {
             "INSERT INTO table_test SELECT '4', 'foo';",
             "SELECT col_a, count(*) FROM table_test GROUP BY col_a;");
 
-    BeamSqlLine.runSqlLine(args, null, byteArrayOutputStream, null);
+    InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+    BeamSqlLine.runSqlLine(args, inputStream, byteArrayOutputStream, null);
 
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
@@ -163,7 +166,8 @@ public class BeamSqlLineTest {
             "SELECT TUMBLE_START(col_b, INTERVAL '1' SECOND), count(*) FROM table_test "
                 + "GROUP BY TUMBLE(col_b, INTERVAL '1' SECOND);");
 
-    BeamSqlLine.runSqlLine(args, null, byteArrayOutputStream, null);
+    InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+    BeamSqlLine.runSqlLine(args, inputStream, byteArrayOutputStream, null);
 
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
@@ -185,7 +189,8 @@ public class BeamSqlLineTest {
             "SELECT HOP_END(col_b, INTERVAL '1' SECOND, INTERVAL '2' SECOND), count(*) FROM "
                 + "table_test GROUP BY HOP(col_b, INTERVAL '1' SECOND, INTERVAL '2' SECOND);");
 
-    BeamSqlLine.runSqlLine(args, null, byteArrayOutputStream, null);
+    InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+    BeamSqlLine.runSqlLine(args, inputStream, byteArrayOutputStream, null);
 
     List<List<String>> lines = toLines(byteArrayOutputStream);
     assertThat(
