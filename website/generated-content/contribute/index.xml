@@ -216,11 +216,14 @@ limitations under the License.
 &lt;li>&lt;a href="#introduction">Introduction&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#overview">Overview&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#decide-to-release">Decide to release&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#1-decide-to-release">1. Decide to release&lt;/a>
+&lt;ul>
 &lt;li>&lt;a href="#checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#1-prepare-for-the-release">1. Prepare for the release&lt;/a>
+&lt;li>&lt;a href="#2-prepare-for-the-release">2. Prepare for the release&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#accounts">Accounts&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#one-time-setup-instructions">One-time setup instructions&lt;/a>
@@ -236,7 +239,8 @@ limitations under the License.
 &lt;li>&lt;a href="#create-a-new-version-in-jira">Create a new version in JIRA&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#2-create-a-release-branch-in-apachebeam-repository">2. Create a release branch in apache/beam repository&lt;/a>
+&lt;li>&lt;a href="#3-investigate-performance-regressions">3. Investigate performance regressions&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#4-create-a-release-branch-in-apachebeam-repository">4. Create a release branch in apache/beam repository&lt;/a>
 &lt;ul>
 &lt;li>
 &lt;ul>
@@ -252,7 +256,7 @@ limitations under the License.
 &lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#3-verify-release-branch">3. Verify release branch&lt;/a>
+&lt;li>&lt;a href="#5-verify-release-branch">5. Verify release branch&lt;/a>
 &lt;ul>
 &lt;li>
 &lt;ul>
@@ -260,16 +264,17 @@ limitations under the License.
 &lt;li>&lt;a href="#verify-the-build-succeeds">Verify the build succeeds&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#alternative-run-release-build-manually-locally">(Alternative) Run release build manually (locally)&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#create-release-blocking-issues-in-jira">Create release-blocking issues in JIRA&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#inform-the-mailing-list">Inform the mailing list&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#4-triage-release-blocking-issues-in-jira">4. Triage release-blocking issues in JIRA&lt;/a>
+&lt;li>&lt;a href="#6-triage-release-blocking-issues-in-jira">6. Triage release-blocking issues in JIRA&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#review-cherry-picks">Review cherry-picks&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#5-build-a-release-candidate">5. Build a release candidate&lt;/a>
+&lt;li>&lt;a href="#7-build-a-release-candidate">7. Build a release candidate&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#checklist-before-proceeding">Checklist before proceeding&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#run-build_release_candidatesh-to-create-a-release-candidate">Run build_release_candidate.sh to create a release candidate&lt;/a>
@@ -279,7 +284,7 @@ limitations under the License.
 &lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#6-prepare-documents">6. Prepare documents&lt;/a>
+&lt;li>&lt;a href="#8-prepare-documents">8. Prepare documents&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#update-and-verify-javadoc">Update and Verify Javadoc&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#build-the-pydoc-api-reference">Build the Pydoc API reference&lt;/a>&lt;/li>
@@ -291,7 +296,7 @@ limitations under the License.
 &lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#7-vote-and-validate-release-candidate">7. Vote and validate release candidate&lt;/a>
+&lt;li>&lt;a href="#9-vote-and-validate-release-candidate">9. Vote and validate release candidate&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#run-validation-tests">Run validation tests&lt;/a>
 &lt;ul>
@@ -303,7 +308,7 @@ limitations under the License.
 &lt;li>&lt;a href="#checklist-to-proceed-to-the-next-step-2">Checklist to proceed to the next step&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#8-finalize-the-release">8. Finalize the release&lt;/a>
+&lt;li>&lt;a href="#10-finalize-the-release">10. Finalize the release&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#deploy-python-artifacts-to-pypi">Deploy Python artifacts to PyPI&lt;/a>&lt;/li>
@@ -320,7 +325,7 @@ limitations under the License.
 &lt;li>&lt;a href="#checklist-to-proceed-to-the-next-step-3">Checklist to proceed to the next step&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>&lt;a href="#9-promote-the-release">9. Promote the release&lt;/a>
+&lt;li>&lt;a href="#11-promote-the-release">11. Promote the release&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#apache-mailing-lists">Apache mailing lists&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#social-media">Social media&lt;/a>&lt;/li>
@@ -341,6 +346,9 @@ limitations under the License.
 &lt;ol>
 &lt;li>Decide to release&lt;/li>
 &lt;li>Prepare for the release&lt;/li>
+&lt;li>Investigate performance regressions&lt;/li>
+&lt;li>Create a release branch&lt;/li>
+&lt;li>Verify release branch&lt;/li>
 &lt;li>Build a release candidate&lt;/li>
 &lt;li>Vote on the release candidate&lt;/li>
 &lt;li>During vote process, run validation tests&lt;/li>
@@ -348,7 +356,7 @@ limitations under the License.
 &lt;li>Finalize the release&lt;/li>
 &lt;li>Promote the release&lt;/li>
 &lt;/ol>
-&lt;h3 id="decide-to-release">Decide to release&lt;/h3>
+&lt;h2 id="1-decide-to-release">1. Decide to release&lt;/h2>
 &lt;p>Deciding to release and selecting a Release Manager is the first step of the release process. This is a consensus-based decision of the entire community.&lt;/p>
 &lt;p>Anybody can propose a release on the dev@ mailing list, giving a solid argument and nominating a committer as the Release Manager (including themselves). There’s no formal process, no vote requirements, and no timing requirements. Any objections should be resolved by consensus before starting the release.&lt;/p>
 &lt;p>In general, the community prefers to have a rotating set of 3-5 Release Managers. Keeping a small core set of managers allows enough people to build expertise in this area and improve processes over time, without Release Managers needing to re-learn the processes for each release. That said, if you are a committer interested in serving the community in this way, please reach out to the community on the dev@ mailing list.&lt;/p>
@@ -358,7 +366,7 @@ limitations under the License.
 &lt;li>Community selects a Release Manager&lt;/li>
 &lt;/ol>
 &lt;hr>
-&lt;h2 id="1-prepare-for-the-release">1. Prepare for the release&lt;/h2>
+&lt;h2 id="2-prepare-for-the-release">2. Prepare for the release&lt;/h2>
 &lt;p>Before your first release, you should perform one-time configuration steps. This will set up your security keys for signing the release and access to various release repositories.&lt;/p>
 &lt;p>To prepare for each release, you should audit the project status in the JIRA issue tracker, and do necessary bookkeeping. Finally, you should create a release branch from which individual release candidates will be built.&lt;/p>
 &lt;p>&lt;strong>NOTE&lt;/strong>: If you are using &lt;a href="https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/">GitHub two-factor authentication&lt;/a> and haven&amp;rsquo;t configure HTTPS access,
@@ -530,7 +538,19 @@ Release Manager
 &lt;li>At the end of the release, go to the same page and mark the recently released version as released. Use the &lt;code>...&lt;/code> menu and choose &lt;code>Release&lt;/code>.&lt;/li>
 &lt;/ol>
 &lt;hr>
-&lt;h2 id="2-create-a-release-branch-in-apachebeam-repository">2. Create a release branch in apache/beam repository&lt;/h2>
+&lt;h2 id="3-investigate-performance-regressions">3. Investigate performance regressions&lt;/h2>
+&lt;p>Check the Beam load tests for possible performance regressions. Measurements are available on &lt;a href="http://metrics.beam.apache.org">metrics.beam.apache.org&lt;/a>.&lt;/p>
+&lt;p>All Runners which publish data should be checked for the following, in both &lt;em>batch&lt;/em> and &lt;em>streaming&lt;/em> mode:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="http://metrics.beam.apache.org/d/MOi-kf3Zk/pardo-load-tests">ParDo&lt;/a> and &lt;a href="http://metrics.beam.apache.org/d/UYZ-oJ3Zk/gbk-load-test">GBK&lt;/a>: Runtime, latency, checkpoint duration&lt;/li>
+&lt;li>&lt;a href="http://metrics.beam.apache.org/d/ahuaA_zGz/nexmark">Nexmark&lt;/a>: Query runtime for all queries&lt;/li>
+&lt;li>&lt;a href="http://metrics.beam.apache.org/d/bnlHKP3Wz/java-io-it-tests-dataflow">IO&lt;/a>: Runtime&lt;/li>
+&lt;/ul>
+&lt;p>If regressions are found, the release branch can still be created, but the regressions should be investigated and fixed as part of the release process.
+The role of the release manager is to file JIRA issues for each regression with the &amp;lsquo;Fix Version&amp;rsquo; set to the to-be-released version. The release manager
+oversees these just like any other JIRA issue marked with the &amp;lsquo;Fix Version&amp;rsquo; of the release.&lt;/p>
+&lt;p>The mailing list should be informed to allow fixing the regressions in the course of the release.&lt;/p>
+&lt;h2 id="4-create-a-release-branch-in-apachebeam-repository">4. Create a release branch in apache/beam repository&lt;/h2>
 &lt;p>Attention: Only committer has permission to create release branch in apache/beam.&lt;/p>
 &lt;p>Release candidates are built from a release branch. As a final step in preparation for the release, you should create the release branch, push it to the Apache code repository, and update version information on the original branch.&lt;/p>
 &lt;p>There are 2 ways to cut a release branch: either running automation script(recommended), or running all commands manually.&lt;/p>
@@ -662,7 +682,7 @@ so builds will be broken until a new snapshot is available.&lt;/p>
 &lt;li>Verify that build succeeds.&lt;/li>
 &lt;/ul>
 &lt;hr>
-&lt;h2 id="3-verify-release-branch">3. Verify release branch&lt;/h2>
+&lt;h2 id="5-verify-release-branch">5. Verify release branch&lt;/h2>
 &lt;p>After the release branch is cut you need to make sure it builds and has no significant issues that would block the creation of the release candidate.
 There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.&lt;/p>
 &lt;p>! Dataflow tests will fail if Dataflow worker container is not created and published by this time. (Should be done by Google)&lt;/p>
@@ -781,8 +801,12 @@ to find environment issues this way without having to wait until the full build 
 &lt;p>Description: Description of failure&lt;/p>
 &lt;/li>
 &lt;/ul>
+&lt;h4 id="inform-the-mailing-list">Inform the mailing list&lt;/h4>
+&lt;p>The &lt;a href="mailto:dev@beam.apache.org">dev@beam.apache.org&lt;/a> mailing list should be informed about the release branch being cut. Alongside with this note,
+a list of pending issues and to-be-trigated issues should be included. Afterwards, this list can be refined and updated
+by the release manager and the Beam community.&lt;/p>
 &lt;hr>
-&lt;h2 id="4-triage-release-blocking-issues-in-jira">4. Triage release-blocking issues in JIRA&lt;/h2>
+&lt;h2 id="6-triage-release-blocking-issues-in-jira">6. Triage release-blocking issues in JIRA&lt;/h2>
 &lt;p>There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate. We track them by assigning a specific &lt;code>Fix version&lt;/code> field even before the issue resolved.&lt;/p>
 &lt;p>The list of release-blocking issues is available at the &lt;a href="https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel">version status page&lt;/a>. Triage each unresolved issue with one of the following resolutions:&lt;/p>
 &lt;p>The release manager should triage what does and does not block a release. An issue should not block the release if the problem exists in the current released version or is a bug in new functionality that does not exist in the current released version. It should be a blocker if the bug is a regression between the currently released version and the release in progress and has no easy workaround.&lt;/p>
@@ -820,7 +844,7 @@ Make sure they have blocker JIRAs attached and are OK to get into the release by
 &lt;p>It is important to accept major/blocking fixes to isolated issues to make a higher quality release. However, beyond that each cherry pick will increase the time required for the release and add more last minute code to the release branch. Neither late releases nor not fully tested code will provide positive user value.&lt;/p>
 &lt;p>&lt;em>Tip&lt;/em>: Another tool in your toolbox is the known issues section of the release blog. Consider adding known issues there for minor issues instead of accepting cherry picks to the release branch.&lt;/p>
 &lt;hr>
-&lt;h2 id="5-build-a-release-candidate">5. Build a release candidate&lt;/h2>
+&lt;h2 id="7-build-a-release-candidate">7. Build a release candidate&lt;/h2>
 &lt;h3 id="checklist-before-proceeding">Checklist before proceeding&lt;/h3>
 &lt;ul>
 &lt;li>Release Manager’s GPG key is published to &lt;code>dist.apache.org&lt;/code>;&lt;/li>
@@ -905,7 +929,7 @@ ls -al /opt/apache/beam/third_party_licenses/ | wc -l
 &lt;/li>
 &lt;/ol>
 &lt;hr>
-&lt;h2 id="6-prepare-documents">6. Prepare documents&lt;/h2>
+&lt;h2 id="8-prepare-documents">8. Prepare documents&lt;/h2>
 &lt;h3 id="update-and-verify-javadoc">Update and Verify Javadoc&lt;/h3>
 &lt;p>The build with &lt;code>-PisRelease&lt;/code> creates the combined Javadoc for the release in &lt;code>sdks/java/javadoc&lt;/code>.&lt;/p>
 &lt;p>The file &lt;code>sdks/java/javadoc/build.gradle&lt;/code> contains a list of modules to include
@@ -1014,7 +1038,7 @@ ${CONTRIBUTORS}
 &lt;pre>&lt;code>docker pull {image_name}
 docker pull apache/beam_python3.5_sdk:2.16.0_rc1
 &lt;/code>&lt;/pre>&lt;hr>
-&lt;h2 id="7-vote-and-validate-release-candidate">7. Vote and validate release candidate&lt;/h2>
+&lt;h2 id="9-vote-and-validate-release-candidate">9. Vote and validate release candidate&lt;/h2>
 &lt;p>Once you have built and individually reviewed the release candidate, please share it for the community-wide review. Please review foundation-wide &lt;a href="http://www.apache.org/foundation/voting.html">voting guidelines&lt;/a> for more information.&lt;/p>
 &lt;p>Start the review-and-vote thread on the dev@ mailing list. Here’s an email template; please adjust as you see fit.&lt;/p>
 &lt;pre>&lt;code>From: Release Manager
@@ -1328,7 +1352,7 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.in
 &lt;li>Community votes to release the proposed candidate, with at least three approving PMC votes&lt;/li>
 &lt;/ol>
 &lt;hr>
-&lt;h2 id="8-finalize-the-release">8. Finalize the release&lt;/h2>
+&lt;h2 id="10-finalize-the-release">10. Finalize the release&lt;/h2>
 &lt;p>Once the release candidate has been reviewed and approved by the community, the release should be finalized. This involves the final deployment of the release candidate to the release repositories, merging of the website changes, etc.&lt;/p>
 &lt;h3 id="deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository&lt;/h3>
 &lt;p>Use the &lt;a href="https://repository.apache.org/#stagingRepositories">Apache Nexus repository manager&lt;/a> to release the staged binary artifacts to the Maven Central repository. In the &lt;code>Staging Repositories&lt;/code> section, find the relevant release candidate &lt;code>orgapachebeam-XXX&lt;/code> entry and click &lt;code>Release&lt;/code>. Drop all other release candidates that are not being released.
@@ -1395,7 +1419,7 @@ git push https://github.com/apache/beam &amp;quot;$VERSION_TAG&amp;quot;
 &lt;li>Release version is listed at reporter.apache.org&lt;/li>
 &lt;/ul>
 &lt;hr>
-&lt;h2 id="9-promote-the-release">9. Promote the release&lt;/h2>
+&lt;h2 id="11-promote-the-release">11. Promote the release&lt;/h2>
 &lt;p>Once the release has been finalized, the last step of the process is to promote the release within the project and beyond.&lt;/p>
 &lt;h3 id="apache-mailing-lists">Apache mailing lists&lt;/h3>
 &lt;p>Announce on the dev@ mailing list that the release has been finished.&lt;/p>
