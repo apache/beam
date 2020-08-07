@@ -377,13 +377,13 @@ def teststring(text, report=True, **runner_kwargs):
   optionflags |= (
       doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
 
-  wont_implement = runner_kwargs.pop('wont_implement', False)
+  wont_implement_ok = runner_kwargs.pop('wont_implement_ok', False)
 
   parser = doctest.DocTestParser()
   runner = BeamDataframeDoctestRunner(
       TestEnvironment(),
       optionflags=optionflags,
-      wont_implement={'<string>': ['*']} if wont_implement else None,
+      wont_implement_ok ={'<string>': ['*']} if wont_implement_ok else None,
       **runner_kwargs)
   test = parser.get_doctest(
       text, {
