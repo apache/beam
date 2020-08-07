@@ -153,13 +153,23 @@ class StreamingCacheSource:
       cache_dir,
       labels,
       is_cache_complete=None,
-      coder=SafeFastPrimitivesCoder()):
+      coder=None,
+      limiters=None):
+    if not coder:
+      coder = SafeFastPrimitivesCoder()
+
+    if not is_cache_complete:
+      is_cache_complete = lambda _: True
+
+    if not limiters:
+      limiters = []
+
     self._cache_dir = cache_dir
     self._coder = coder
     self._labels = labels
     self._path = os.path.join(self._cache_dir, *self._labels)
-    self._is_cache_complete = (
-        is_cache_complete if is_cache_complete else lambda _: True)
+    self._is_cache_complete = is_cache_complete
+    self._limiters = limiters
 
     from apache_beam.runners.interactive.pipeline_instrument import CacheKey
     self._pipeline_id = CacheKey.from_str(labels[-1]).pipeline_id
@@ -193,7 +203,8 @@ class StreamingCacheSource:
 
       # Check if we are at EOF or if we have an incomplete line.
       if not line or (line and line[-1] != b'\n'[0]):
-        if not tail:
+        # Read at least the first line to get the header.
+        if not tail and pos != 0:
           break
 
         # Complete reading only when the cache is complete.
@@ -210,9 +221,15 @@ class StreamingCacheSource:
         proto_cls = TestStreamFileHeader if pos == 0 else TestStreamFileRecord
         msg = self._try_parse_as(proto_cls, to_decode)
         if msg:
-          yield msg
+          for l in self._limiters:
+            l.update(msg)
+
+          if any(l.is_triggered() for l in self._limiters):
+            break
         else:
           break
+
+        yield msg
 
   def _try_parse_as(self, proto_cls, to_decode):
     try:
@@ -285,7 +302,7 @@ class StreamingCache(CacheManager):
     return os.path.exists(path)
 
   # TODO(srohde): Modify this to return the correct version.
-  def read(self, *labels):
+  def read(self, *labels, **args):
     """Returns a generator to read all records from file.
 
     Does not tail.
@@ -293,8 +310,12 @@ class StreamingCache(CacheManager):
     if not self.exists(*labels):
       return iter([]), -1
 
+    limiters = args.pop('limiters', [])
+    tail = args.pop('tail', False)
+
     reader = StreamingCacheSource(
-        self._cache_dir, labels, self._is_cache_complete).read(tail=False)
+        self._cache_dir, labels, self._is_cache_complete,
+        limiters=limiters).read(tail=tail)
 
     # Return an empty iterator if there is nothing in the file yet. This can
     # only happen when tail is False.
@@ -304,7 +325,7 @@ class StreamingCache(CacheManager):
       return iter([]), -1
     return StreamingCache.Reader([header], [reader]).read(), 1
 
-  def read_multiple(self, labels):
+  def read_multiple(self, labels, limiters=None, tail=True):
     """Returns a generator to read all records from file.
 
     Does tail until the cache is complete. This is because it is used in the
@@ -312,9 +333,9 @@ class StreamingCache(CacheManager):
     pipeline runtime which needs to block.
     """
     readers = [
-        StreamingCacheSource(self._cache_dir, l,
-                             self._is_cache_complete).read(tail=True)
-        for l in labels
+        StreamingCacheSource(
+            self._cache_dir, l, self._is_cache_complete,
+            limiters=limiters).read(tail=tail) for l in labels
     ]
     headers = [next(r) for r in readers]
     return StreamingCache.Reader(headers, readers).read()
@@ -333,6 +354,14 @@ class StreamingCache(CacheManager):
         else:
           val = v
         f.write(self._default_pcoder.encode(val) + b'\n')
+
+  def clear(self, *labels):
+    directory = os.path.join(self._cache_dir, *labels[:-1])
+    filepath = os.path.join(directory, labels[-1])
+    if os.path.exists(filepath):
+      os.remove(filepath)
+      return True
+    return False
 
   def source(self, *labels):
     """Returns the StreamingCacheManager source.
