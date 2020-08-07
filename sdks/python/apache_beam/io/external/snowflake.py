@@ -44,7 +44,7 @@
   In this option, Python SDK will either download (for released Beam version) or
   build (when running from a Beam Git clone) a expansion service jar and use
   that to expand transforms. Currently Snowflake transforms use the
-  'beam-sdks-java-io-expansion-service' jar for this purpose.
+  'beam-sdks-java-io-snowflake-expansion-service' jar for this purpose.
 
   *Option 2: specify a custom expansion service*
 
@@ -76,7 +76,8 @@
 
 from __future__ import absolute_import
 
-import typing
+from typing import NamedTuple
+from typing import Optional
 
 from past.builtins import unicode
 
@@ -85,7 +86,17 @@ from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
-ReadFromSnowflakeSchema = typing.NamedTuple(
+__all__ = [
+    'ReadFromSnowflake',
+]
+
+
+def default_io_expansion_service():
+  return BeamJarExpansionService(
+      'sdks:java:io:snowflake:expansion-service:shadowJar')
+
+
+ReadFromSnowflakeSchema = NamedTuple(
     'ReadFromSnowflakeSchema',
     [
         ('server_name', unicode),
@@ -93,19 +104,16 @@ ReadFromSnowflakeSchema = typing.NamedTuple(
         ('database', unicode),
         ('staging_bucket_name', unicode),
         ('storage_integration_name', unicode),
-        ('username', typing.Optional[unicode]),
-        ('password', typing.Optional[unicode]),
-        ('private_key_path', typing.Optional[unicode]),
-        ('private_key_passphrase', typing.Optional[unicode]),
-        ('o_auth_token', typing.Optional[unicode]),
-        ('table', typing.Optional[unicode]),
-        ('query', typing.Optional[unicode]),
+        ('username', Optional[unicode]),
+        ('password', Optional[unicode]),
+        ('private_key_path', Optional[unicode]),
+        ('private_key_passphrase', Optional[unicode]),
+        ('o_auth_token', Optional[unicode]),
+        ('table', Optional[unicode]),
+        ('query', Optional[unicode]),
+        ('role', Optional[unicode]),
+        ('warehouse', Optional[unicode]),
     ])
-
-
-def default_io_expansion_service():
-  return BeamJarExpansionService(
-      'sdks:java:io:snowflake:expansion-service:shadowJar')
 
 
 class ReadFromSnowflake(beam.PTransform):
@@ -130,6 +138,8 @@ class ReadFromSnowflake(beam.PTransform):
       o_auth_token=None,
       table=None,
       query=None,
+      role=None,
+      warehouse=None,
       expansion_service=None):
     """
     Initializes a read operation from Snowflake.
@@ -161,6 +171,8 @@ class ReadFromSnowflake(beam.PTransform):
         return User(strings_array[0], int(strings_array[1])))
     :param table: specifies a Snowflake table name.
     :param query: specifies a Snowflake custom SQL query.
+    :param role: specifies a Snowflake role.
+    :param warehouse: specifies a Snowflake warehouse name.
     :param expansion_service: specifies URL of expansion service.
 
     Authentication parameters:
@@ -176,6 +188,14 @@ class ReadFromSnowflake(beam.PTransform):
     :param o_auth_token: specifies access token for
         OAuth authentication method.
     """
+    verify_credentials(
+        username,
+        password,
+        private_key_path,
+        private_key_passphrase,
+        o_auth_token,
+    )
+
     self.params = ReadFromSnowflakeSchema(
         server_name=server_name,
         schema=schema,
@@ -188,7 +208,10 @@ class ReadFromSnowflake(beam.PTransform):
         private_key_passphrase=private_key_passphrase,
         o_auth_token=o_auth_token,
         table=table,
-        query=query)
+        query=query,
+        role=role,
+        warehouse=warehouse,
+    )
     self.csv_mapper = csv_mapper
     self.expansion_service = expansion_service or default_io_expansion_service()
 
@@ -202,3 +225,10 @@ class ReadFromSnowflake(beam.PTransform):
         )
         | 'CSV to array mapper' >> beam.Map(lambda csv: csv.split(b','))
         | 'CSV mapper' >> beam.Map(self.csv_mapper))
+
+
+def verify_credentials(
+    username, password, private_key_path, private_key_passphrase, o_auth_token):
+  if not (o_auth_token or (username and password) or
+          (username and private_key_path and private_key_passphrase)):
+    raise RuntimeError('Snowflake credentials are not set correctly.')
