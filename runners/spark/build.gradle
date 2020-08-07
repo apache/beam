@@ -143,6 +143,7 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
