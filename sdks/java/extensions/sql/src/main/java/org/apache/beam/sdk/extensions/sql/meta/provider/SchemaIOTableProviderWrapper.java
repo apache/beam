@@ -117,7 +117,7 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
 
     @Override
     public POutput buildIOWriter(PCollection<Row> input) {
-      PTransform<PCollection<Row>, POutput> writerTransform = schemaIO.buildWriter();
+      PTransform<PCollection<Row>, ? extends POutput> writerTransform = schemaIO.buildWriter();
       return input.apply(writerTransform);
     }
 

@@ -47,5 +47,5 @@ public interface SchemaIO {
   PTransform<PBegin, PCollection<Row>> buildReader();
 
   /** Returns a schema aware writer. */
-  PTransform<PCollection<Row>, POutput> buildWriter();
+  PTransform<PCollection<Row>, ? extends POutput> buildWriter();
 }
