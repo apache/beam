@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
@@ -169,6 +170,13 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
               Coder<KeyT> mapKeyCoder,
               Coder<ValueT> mapValueCoder) {
             return new SamzaMapStateImpl<>(namespace, address, mapKeyCoder, mapValueCoder);
+          }
+
+          @Override
+          public <T> OrderedListState<T> bindOrderedList(
+              StateTag<OrderedListState<T>> spec, Coder<T> elemCoder) {
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", OrderedListState.class.getSimpleName()));
           }
 
           @Override

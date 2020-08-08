@@ -235,6 +235,13 @@ public class StateSpecs {
     return new MapStateSpec<>(keyCoder, valueCoder);
   }
 
+  public static <T> StateSpec<OrderedListState<T>> orderedList(Coder<T> elemCoder) {
+    return new OrderedListStateSpec<>(elemCoder);
+  }
+
+  public static StateSpec<OrderedListState<Row>> rowOrderedList(Schema valueSchema) {
+    return new OrderedListStateSpec<>(RowCoder.of(valueSchema));
+  }
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
@@ -573,6 +580,63 @@ public class StateSpecs {
       }
 
       BagStateSpec<?> that = (BagStateSpec<?>) obj;
+      return Objects.equals(this.elemCoder, that.elemCoder);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getClass(), elemCoder);
+    }
+  }
+
+  private static class OrderedListStateSpec<T> implements StateSpec<OrderedListState<T>> {
+
+    @Nullable private Coder<T> elemCoder;
+
+    private OrderedListStateSpec(@Nullable Coder<T> elemCoder) {
+      this.elemCoder = elemCoder;
+    }
+
+    @Override
+    public OrderedListState<T> bind(String id, StateBinder visitor) {
+      return visitor.bindOrderedList(id, this, elemCoder);
+    }
+
+    @Override
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      return cases.dispatchOrderedList(elemCoder);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public void offerCoders(Coder[] coders) {
+      if (this.elemCoder == null && coders[0] != null) {
+        this.elemCoder = (Coder<T>) coders[0];
+      }
+    }
+
+    @Override
+    public void finishSpecifying() {
+      if (elemCoder == null) {
+        throw new IllegalStateException(
+            "Unable to infer a coder for OrderedListState and no Coder"
+                + " was specified. Please set a coder by either invoking"
+                + " StateSpecs.orderedListState(Coder<K> elemCoder), specifying a schema,  or by registering the"
+                + " coder in the Pipeline's CoderRegistry.");
+      }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == this) {
+        return true;
+      }
+
+      if (!(obj instanceof OrderedListStateSpec)) {
+        return false;
+      }
+
+      OrderedListStateSpec<?> that = (OrderedListStateSpec<?>) obj;
       return Objects.equals(this.elemCoder, that.elemCoder);
     }
 

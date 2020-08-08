@@ -25,6 +25,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateBinder;
@@ -84,6 +85,12 @@ public class StateTags {
           Coder<KeyT> mapKeyCoder,
           Coder<ValueT> mapValueCoder) {
         return binder.bindMap(tagForSpec(id, spec), mapKeyCoder, mapValueCoder);
+      }
+
+      @Override
+      public <T> OrderedListState<T> bindOrderedList(
+          String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
+        return binder.bindOrderedList(tagForSpec(id, spec), elemCoder);
       }
 
       @Override
@@ -194,6 +201,10 @@ public class StateTags {
   public static <K, V> StateTag<MapState<K, V>> map(
       String id, Coder<K> keyCoder, Coder<V> valueCoder) {
     return new SimpleStateTag<>(new StructuredId(id), StateSpecs.map(keyCoder, valueCoder));
+  }
+
+  public static <T> StateTag<OrderedListState<T>> orderedList(String id, Coder<T> elemCoder) {
+    return new SimpleStateTag<>(new StructuredId(id), StateSpecs.orderedList(elemCoder));
   }
 
   /** Create a state tag for holding the watermark. */

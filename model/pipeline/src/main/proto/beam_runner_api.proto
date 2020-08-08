@@ -489,6 +489,7 @@ message StateSpec {
     CombiningStateSpec combining_spec = 3;
     MapStateSpec map_spec = 4;
     SetStateSpec set_spec = 5;
+    OrderedListStateSpec ordered_list_spec = 6;
   }
 }
 
@@ -497,6 +498,10 @@ message ReadModifyWriteStateSpec {
 }
 
 message BagStateSpec {
+  string element_coder_id = 1;
+}
+
+message OrderedListStateSpec {
   string element_coder_id = 1;
 }
 
