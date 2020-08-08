@@ -196,6 +196,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
           .addOutput(outputBundles)
           .withTimerUpdate(stepContext.getTimerUpdate())
           .addUnprocessedElements(unprocessedElements.build())
+          .withBundleFinalizations(stepContext.getAndClearFinalizations())
           .build();
     }
 

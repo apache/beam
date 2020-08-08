@@ -28,7 +28,10 @@ import static org.junit.Assert.assertTrue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -818,8 +821,11 @@ public class SplittableDoFnTest implements Serializable {
    * callback has been invoked, the DoFn will output the element and stop.
    */
   public static class BundleFinalizingSplittableDoFn extends DoFn<String, String> {
-    private static final long MAX_ATTEMPTS = 300;
-    private static final AtomicBoolean wasFinalized = new AtomicBoolean();
+    private static final long MAX_ATTEMPTS = 3000;
+    // We use the UUID to uniquely identify this DoFn in case this test is run with
+    // other tests in the same JVM.
+    private static final Map<UUID, AtomicBoolean> WAS_FINALIZED = new HashMap();
+    private final UUID uuid = UUID.randomUUID();
 
     @NewTracker
     public RestrictionTracker<OffsetRange, Long> newTracker(@Restriction OffsetRange restriction) {
@@ -839,19 +845,20 @@ public class SplittableDoFnTest implements Serializable {
         RestrictionTracker<OffsetRange, Long> tracker,
         BundleFinalizer bundleFinalizer)
         throws InterruptedException {
-      if (wasFinalized.get()) {
+      if (WAS_FINALIZED.computeIfAbsent(uuid, (unused) -> new AtomicBoolean()).get()) {
+        tracker.tryClaim(tracker.currentRestriction().getFrom() + 1);
+        receiver.output(element);
         // Claim beyond the end now that we know we have been finalized.
         tracker.tryClaim(Long.MAX_VALUE);
-        receiver.output(element);
         return stop();
       }
       if (tracker.tryClaim(tracker.currentRestriction().getFrom() + 1)) {
         bundleFinalizer.afterBundleCommit(
             Instant.now().plus(Duration.standardSeconds(MAX_ATTEMPTS)),
-            () -> wasFinalized.set(true));
+            () -> WAS_FINALIZED.computeIfAbsent(uuid, (unused) -> new AtomicBoolean()).set(true));
         // We sleep here instead of setting a resume time since the resume time doesn't need to
         // be honored.
-        sleep(1000L); // 1 second
+        sleep(100L);
         return resume();
       }
       return stop();

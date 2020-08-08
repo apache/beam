@@ -235,7 +235,8 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
               .withTimerUpdate(timerUpdate)
               .withState(state)
               .withMetricUpdates(delegateResult.getLogicalMetricUpdates())
-              .addOutput(Lists.newArrayList(delegateResult.getOutputBundles()));
+              .addOutput(Lists.newArrayList(delegateResult.getOutputBundles()))
+              .withBundleFinalizations(delegateResult.getBundleFinalizations());
 
       // The delegate may have pushed back unprocessed elements across multiple keys and windows.
       // Since processing is single-threaded per key and window, we don't need to regroup the
