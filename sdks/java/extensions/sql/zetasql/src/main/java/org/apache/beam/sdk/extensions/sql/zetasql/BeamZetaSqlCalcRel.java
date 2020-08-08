@@ -127,7 +127,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     for (Map.Entry<String, RelDataType> entry : input.entrySet()) {
       result.put(
           entry.getKey(),
-          Value.createNullValue(ZetaSqlCalciteTranslationUtils.toZetaType(entry.getValue())));
+          Value.createNullValue(ZetaSqlCalciteTranslationUtils.toZetaSqlType(entry.getValue())));
     }
     return result;
   }
