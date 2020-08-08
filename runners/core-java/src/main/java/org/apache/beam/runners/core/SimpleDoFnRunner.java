@@ -610,8 +610,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public BundleFinalizer bundleFinalizer() {
-      throw new UnsupportedOperationException(
-          "Bundle finalization is not supported in non-portable pipelines.");
+      return stepContext.bundleFinalizer();
     }
   }
 

@@ -279,6 +279,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         .addOutput(outputManager.bundles.values())
         .withTimerUpdate(stepContext.getTimerUpdate())
         .addUnprocessedElements(unprocessedElements.build())
+        .withBundleFinalizations(stepContext.getAndClearFinalizations())
         .build();
   }
 
