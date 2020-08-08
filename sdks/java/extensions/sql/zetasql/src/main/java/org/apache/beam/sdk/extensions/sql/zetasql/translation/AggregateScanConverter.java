@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CAST;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_COLUMN_REF;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_GET_STRUCT_FIELD;
-import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils.toSimpleRelDataType;
 
 import com.google.zetasql.FunctionSignature;
 import com.google.zetasql.ZetaSQLType.TypeKind;
@@ -34,6 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollations;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.AggregateCall;
@@ -224,8 +224,8 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
     }
 
     RelDataType returnType =
-        toSimpleRelDataType(
-            computedColumn.getColumn().getType().getKind(), getCluster().getRexBuilder(), nullable);
+        ZetaSqlCalciteTranslationUtils.toCalciteType(
+            computedColumn.getColumn().getType(), nullable, getCluster().getRexBuilder());
 
     String aggName = getTrait().resolveAlias(computedColumn.getColumn());
     return AggregateCall.create(
