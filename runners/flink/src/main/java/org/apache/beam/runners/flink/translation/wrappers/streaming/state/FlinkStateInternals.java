@@ -36,6 +36,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
@@ -147,6 +148,13 @@ public class FlinkStateInternals<K> implements StateInternals {
         Coder<KeyT> mapKeyCoder,
         Coder<ValueT> mapValueCoder) {
       return new FlinkMapState<>(flinkStateBackend, id, namespace, mapKeyCoder, mapValueCoder);
+    }
+
+    @Override
+    public <T> OrderedListState<T> bindOrderedList(
+        String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
     }
 
     @Override
@@ -1284,6 +1292,13 @@ public class FlinkStateInternals<K> implements StateInternals {
         throw new RuntimeException(e);
       }
       return null;
+    }
+
+    @Override
+    public <T> OrderedListState<T> bindOrderedList(
+        String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
     }
 
     @Override
