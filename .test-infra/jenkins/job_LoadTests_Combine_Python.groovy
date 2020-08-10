@@ -95,7 +95,13 @@ def loadTestConfigurations = { datasetName, jobType ->
     ],
   ]
   .each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
-  .each{ test -> (jobType!='streaming') ?: test.pipelineOptions << [streaming: null] }
+  .each{ test -> (jobType!='streaming') ?: addStreamingOptions(test) }
+}
+
+def addStreamingOptions(test){
+  test.pipelineOptions << [streaming: null,
+                           experiments: "use_runner_v2"
+  ]
 }
 
 def loadTestJob = { scope, triggeringContext, jobType ->
