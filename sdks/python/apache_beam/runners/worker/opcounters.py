@@ -234,16 +234,15 @@ class OperationCounters(object):
     # type: (any, bool) -> None
     for transform_label, type_constraint_tuple in self.output_type_constraints.items():
       parameter_name, constraint = type_constraint_tuple
-      if constraint is not None:
-        try:
-          _check_instance_type(constraint, value, parameter_name, verbose=True)
-        except TypeCheckError as e:
-          if not transform_label.startswith('ParDo'):
-            transform_label = 'ParDo(%s)' % transform_label
-          error_msg = (
-              'Runtime type violation detected within %s: '
-              '%s' % (transform_label, e))
-          raise_with_traceback(TypeCheckError(error_msg))
+      try:
+        _check_instance_type(constraint, value, parameter_name, verbose=True)
+      except TypeCheckError as e:
+        if not transform_label.startswith('ParDo'):
+          transform_label = 'ParDo(%s)' % transform_label
+        error_msg = (
+            'Runtime type violation detected within %s: '
+            '%s' % (transform_label, e))
+        raise_with_traceback(TypeCheckError(error_msg))
 
   def do_sample(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
