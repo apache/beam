@@ -116,6 +116,15 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 | Python Wordcount Direct Runner   | Runs python WordCount example with Direct Runner.                                                                     | Yes              | Yes                   | Yes           | -                        |
 | Python Wordcount Dataflow        | Runs python WordCount example with DataFlow Runner.                                                                   | -                | Yes                   | Yes           | Yes                      |
 
+#### Java tests - [java_tests.yml](.github/workflows/java_tests.yml)
+
+| Job                          | Description                                                                                   | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|------------------------------|-----------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Check GCP variables          | Checks that GCP variables are set. Jobs which required them depend on the output of this job. | Yes              | Yes                   | Yes           | Yes/No                   |
+| Java Unit Tests              | Runs Java unit tests.                                                                         | Yes              | Yes                   | Yes           | -                        |
+| Java Wordcount Direct Runner | Runs Java WordCount example with Direct Runner.                                               | Yes              | Yes                   | Yes           | -                        |
+| Java Wordcount Dataflow      | Runs Java WordCount example with DataFlow Runner.                                             | -                | Yes                   | Yes           | Yes                      |
+
 ### GitHub Action Tips
 
 * If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request. 
