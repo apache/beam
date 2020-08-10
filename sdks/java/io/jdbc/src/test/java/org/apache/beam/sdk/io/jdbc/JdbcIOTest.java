@@ -53,6 +53,7 @@ import java.util.List;
 import java.util.TimeZone;
 import java.util.logging.LogRecord;
 import javax.sql.DataSource;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -861,8 +862,8 @@ public class JdbcIOTest implements Serializable {
                       statement.setString(2, element.getValue());
                     }));
 
-    // starting a thread to perform the commit later, while the pipeline is running into the
-
+    // Start a thread to perform the commit in 10s, after the pipeline has already retried twice and
+    // failed.
     Thread commitThread =
         new Thread(
             () -> {
@@ -871,38 +872,45 @@ public class JdbcIOTest implements Serializable {
                 connection.commit();
               } catch (Exception e) {
                 // nothing to do
+                LOG.info("Caught exception in commitThread", e);
               }
             });
 
-    try {
-      commitThread.start();
-      pipeline.run();
-      commitThread.join();
-    } catch (Exception e) {
+    commitThread.start();
 
-      expectedLogs.verifyLogRecords(
-          new TypeSafeMatcher<Iterable<LogRecord>>() {
-            @Override
-            public void describeTo(Description description) {}
+    PipelineExecutionException exception =
+        assertThrows(
+            PipelineExecutionException.class,
+            () -> {
+              pipeline.run().waitUntilFinish();
+            });
 
-            @Override
-            protected boolean matchesSafely(Iterable<LogRecord> logRecords) {
-              int count = 0;
-              for (LogRecord logRecord : logRecords) {
-                if (logRecord.getMessage().contains("Deadlock detected, retrying")) {
-                  count += 1;
-                }
+    // Wait for commitThread to complete since it can interfere with other assertions.
+    commitThread.join();
+
+    assertThat(
+        exception.getMessage(),
+        containsString(
+            "java.sql.BatchUpdateException: A lock could not be obtained within the time requested"));
+
+    // Assert that pipeline errored due to deadlock three times.
+    expectedLogs.verifyLogRecords(
+        new TypeSafeMatcher<Iterable<LogRecord>>() {
+          @Override
+          public void describeTo(Description description) {}
+
+          @Override
+          protected boolean matchesSafely(Iterable<LogRecord> logRecords) {
+            int count = 0;
+            for (LogRecord logRecord : logRecords) {
+              if (logRecord.getMessage().contains("Deadlock detected, retrying")) {
+                count += 1;
               }
-              // Max retries will be 2 + the original deadlock error.
-              return count == 3;
             }
-          });
-
-      assertThat(
-          e.getMessage(),
-          containsString(
-              "java.sql.BatchUpdateException: A lock could not be obtained within the time requested"));
-    }
+            // Max retries will be 2 + the original deadlock error.
+            return count == 3;
+          }
+        });
 
     // since, we got an error we will only have one row and the second one wouldn't go through.
     assertRowCount(tableName, 1);
