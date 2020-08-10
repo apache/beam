@@ -476,7 +476,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
-  def reset_index(self, level, **kwargs):
+  def reset_index(self, level=None, **kwargs):
     if level is not None and not isinstance(level, (tuple, list)):
       level = [level]
     if level is None or len(level) == len(self._expr.proxy().index.levels):
