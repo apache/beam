@@ -36,6 +36,7 @@ dependencies {
     compile project(path: ":runners:google-cloud-dataflow-java")
     compile project(":sdks:java:io:google-cloud-platform")
     compile project(":sdks:java:extensions:sql")
+    compile project(":sdks:java:extensions:sql:zetasql")
     compile group: 'com.google.auto.service', name: 'auto-service', version: '1.0-rc1'
     testCompile group: 'junit', name: 'junit', version: '4.12'
 }
