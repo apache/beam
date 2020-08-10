@@ -390,8 +390,8 @@ class WriteToSnowflake(beam.PTransform):
         private_key_passphrase,
         o_auth_token,
     )
-    WriteDisposition.VerifyIfContains(write_disposition)
-    CreateDisposition.VerifyIfContains(create_disposition)
+    WriteDisposition.VerifyParam(write_disposition)
+    CreateDisposition.VerifyParam(create_disposition)
 
     self.params = WriteToSnowflakeSchema(
         server_name=server_name,
@@ -439,7 +439,7 @@ class CreateDisposition:
   CREATE_NEVER = 'CREATE_NEVER'
 
   @staticmethod
-  def VerifyIfContains(field):
+  def VerifyParam(field):
     if field and not hasattr(CreateDisposition, field):
       raise RuntimeError(
           'Create disposition has to be one of the following values:'
@@ -460,7 +460,7 @@ class WriteDisposition:
   TRUNCATE = 'TRUNCATE'
 
   @staticmethod
-  def VerifyIfContains(field):
+  def VerifyParam(field):
     if field and not hasattr(WriteDisposition, field):
       raise RuntimeError(
           'Write disposition has to be one of the following values:'
