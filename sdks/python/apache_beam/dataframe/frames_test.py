@@ -78,19 +78,23 @@ class DeferredFrameTest(unittest.TestCase):
     df2 = pd.DataFrame({
         'rkey': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
     })
-    self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, left_on='lkey', right_on='rkey').rename(
-            index=lambda x: '*').sort_values(['value_x', 'value_y']),
-        df1,
-        df2)
-    self._run_test(
-        lambda df1,
-        df2: df1.merge(
-            df2, left_on='lkey', right_on='rkey', suffixes=('_left', '_right')).
-        rename(index=lambda x: '*').sort_values(['value_left', 'value_right']),
-        df1,
-        df2)
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, left_on='lkey', right_on='rkey').rename(
+              index=lambda x: '*').sort_values(['value_x', 'value_y']),
+          df1,
+          df2)
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(
+              df2,
+              left_on='lkey',
+              right_on='rkey',
+              suffixes=('_left', '_right')).rename(index=lambda x: '*').
+          sort_values(['value_left', 'value_right']),
+          df1,
+          df2)
 
   def test_loc(self):
     dates = pd.date_range('1/1/2000', periods=8)
