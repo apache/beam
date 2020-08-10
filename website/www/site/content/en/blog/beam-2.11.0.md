@@ -58,9 +58,9 @@ For more information on changes in 2.11.0, check out the
 * Java: grpc_protobuf_lite: 1.17.1
 * Java: grpc_netty: 1.17.1
 * Java: grpc_stub: 1.17.1
-* Java: netty_handler: 4.1.30.Final
-* Java: netty_tcnative_boringssl_static: 2.0.17.Final
-* Java: netty_transport_native_epoll: 4.1.30.Final
+* Java: netty_handler: 4.1.51.Final
+* Java: netty_tcnative_boringssl_static: 2.0.33.Final
+* Java: netty_transport_native_epoll: 4.1.51.Final
 * Java: proto_google_cloud_spanner_admin_database_v1: 1.6.0
 * Java: zstd_jni: 1.3.8-3
 * Python: futures>=3.2.0,<4.0.0; python_version < "3.0"
