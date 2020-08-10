@@ -237,7 +237,6 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       'non-lazy')
 
   def _cols_as_temporary_index(self, cols, suffix=''):
-    proxy  = self._expr.proxy()
     original_index_names = list(self._expr.proxy().index.names)
     new_index_names = [
         '__apache_beam_temp_%d_%s' % (ix, suffix)
@@ -282,12 +281,12 @@ class DeferredDataFrame(frame_base.DeferredFrame):
         for df in other]
     def fill_placeholders(values):
       values = iter(values)
-      filled = [next(values) if df is placeholder else df for df in const_others]
+      filled = [
+          next(values) if df is placeholder else df for df in const_others]
       if other_is_list:
         return filled
       else:
         return filled[0]
-    import logging
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'join',
@@ -313,7 +312,8 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       **kwargs):
     self_proxy = self._expr.proxy()
     right_proxy = right._expr.proxy()
-    proxy = self_proxy.merge(
+    # Validate with a pandas call.
+    _ = self_proxy.merge(
         right_proxy,
         on=on,
         left_on=left_on,
