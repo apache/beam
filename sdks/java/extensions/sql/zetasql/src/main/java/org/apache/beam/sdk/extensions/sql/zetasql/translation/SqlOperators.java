@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
@@ -60,7 +61,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * A separate SqlOperators table for those functions that do not exist or not compatible with
  * Calcite. Most of functions within this class is copied from Calcite.
  */
-class SqlOperators {
+@Internal
+public class SqlOperators {
   public static final SqlOperator ZETASQL_TIMESTAMP_ADD =
       createZetaSqlFunction("timestamp_add", SqlTypeName.TIMESTAMP);
 
