@@ -31,6 +31,7 @@ toxTask "testPy38CloudCoverage", "py38-cloudcoverage"
 test.dependsOn "testPy38CloudCoverage"
 
 project.task("preCommitPy${pythonVersionSuffix}") {
+      // Generates coverage reports only once, in Py38, to remove duplicated work
       if (pythonVersionSuffix.equals('38')) {
           dependsOn = ["testPy38CloudCoverage", "testPy38Cython"]
       } else {
