@@ -83,6 +83,7 @@ These variables are:
  * `GCP_PROJECT_ID` - ID of the Google Cloud project. For example: `apache-beam-testing`.
  * `GCP_REGION` - Region of the bucket and dataflow jobs. For example: `us-central1`.
  * `GCP_TESTING_BUCKET` - Name of the bucket where temporary files for Dataflow tests will be stored. For example: `beam-github-actions-tests`.
+ * `GCP_PYTHON_WHEELS_BUCKET` - Name of the bucket where python source distribution and wheels will be stored. For example: `beam-wheels-staging`.
  * `GCP_SA_EMAIL` - Service account email address. This is usually of the format `<name>@<project-id>.iam.gserviceaccount.com`.
  * `GCP_SA_KEY` - Service account key. This key should be created and encoded as a Base64 string (eg. `cat my-key.json | base64` on macOS).
 
