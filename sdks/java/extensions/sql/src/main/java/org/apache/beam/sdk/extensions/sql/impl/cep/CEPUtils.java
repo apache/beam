@@ -34,7 +34,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator
  * Some utility methods for transforming Calcite's constructs into our own Beam constructs (for
  * serialization purpose).
  */
-public class CEPUtil {
+public class CEPUtils {
 
   private static Quantifier getQuantifier(int start, int end, boolean isReluctant) {
     Quantifier quantToAdd;
@@ -209,41 +209,5 @@ public class CEPUtil {
     } else {
       throw new UnsupportedOperationException("the function in Measures is not recognized.");
     }
-  }
-
-  public static Schema decideSchema(
-      List<CEPMeasure> measures,
-      boolean allRows,
-      List<CEPFieldRef> parKeys,
-      Schema upstreamSchema) {
-    // if the measures clause does not present
-    // then output the schema from the pattern and the partition columns
-    if (measures.isEmpty() && !allRows) {
-      throw new UnsupportedOperationException(
-          "The Measures clause cannot be empty for ONE ROW PER MATCH");
-    }
-
-    // TODO: implement ALL ROWS PER MATCH
-    // for now, return all rows as they were (return the origin schema)
-    if (allRows) {
-      return upstreamSchema;
-    }
-
-    Schema.Builder outTableSchemaBuilder = new Schema.Builder();
-
-    // take the partition keys first
-    for (CEPFieldRef i : parKeys) {
-      outTableSchemaBuilder.addField(upstreamSchema.getField(i.getIndex()));
-    }
-
-    // add the fields in the Measures clause
-    for (CEPMeasure i : measures) {
-      Schema.Field fieldToAdd = Schema.Field.of(i.getName(), i.getType());
-      outTableSchemaBuilder.addField(fieldToAdd);
-    }
-
-    // TODO: add any columns left for ALL ROWS PER MATCH
-
-    return outTableSchemaBuilder.build();
   }
 }

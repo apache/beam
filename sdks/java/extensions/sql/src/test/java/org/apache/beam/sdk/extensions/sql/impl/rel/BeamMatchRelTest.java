@@ -148,7 +148,8 @@ public class BeamMatchRelTest {
             + "A AS name = 'a', "
             + "B AS name = 'b', "
             + "C AS name = 'c' "
-            + ") AS T";
+            + ") AS T " +
+        "WHERE T.id > 0";
 
     PCollection<Row> result = compilePipeline(sql, pipeline);
 
