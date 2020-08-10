@@ -841,7 +841,6 @@ public class JdbcIOTest implements Serializable {
     insertStatement.setString(2, "TEST");
     insertStatement.execute();
 
-    // try to write to this table
     pipeline
         .apply(Create.of(Collections.singletonList(KV.of(1, "TEST"))))
         .apply(
@@ -862,22 +861,6 @@ public class JdbcIOTest implements Serializable {
                       statement.setString(2, element.getValue());
                     }));
 
-    // Start a thread to perform the commit in 10s, after the pipeline has already retried twice and
-    // failed.
-    Thread commitThread =
-        new Thread(
-            () -> {
-              try {
-                Thread.sleep(10000);
-                connection.commit();
-              } catch (Exception e) {
-                // nothing to do
-                LOG.info("Caught exception in commitThread", e);
-              }
-            });
-
-    commitThread.start();
-
     PipelineExecutionException exception =
         assertThrows(
             PipelineExecutionException.class,
@@ -885,15 +868,15 @@ public class JdbcIOTest implements Serializable {
               pipeline.run().waitUntilFinish();
             });
 
-    // Wait for commitThread to complete since it can interfere with other assertions.
-    commitThread.join();
+    // Finally commit the original connection, now that the pipeline has failed due to deadlock.
+    connection.commit();
 
     assertThat(
         exception.getMessage(),
         containsString(
             "java.sql.BatchUpdateException: A lock could not be obtained within the time requested"));
 
-    // Assert that pipeline errored due to deadlock three times.
+    // Verify that pipeline retried the write twice, but encountered a deadlock every time.
     expectedLogs.verifyLogRecords(
         new TypeSafeMatcher<Iterable<LogRecord>>() {
           @Override
@@ -912,7 +895,7 @@ public class JdbcIOTest implements Serializable {
           }
         });
 
-    // since, we got an error we will only have one row and the second one wouldn't go through.
+    // Since the pipeline was unable to write, only the row from insertStatement was written.
     assertRowCount(tableName, 1);
   }
 }
