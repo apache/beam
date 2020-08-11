@@ -29,7 +29,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Direct',
 
       // Publish all test results to Jenkins
       publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
+        commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
       }
 
       // Gradle goals for this job.
