@@ -79,8 +79,12 @@ import warnings
 
 if sys.version_info.major == 2 and sys.version_info.minor == 7:
   warnings.warn(
-      'You are using Apache Beam with Python 2. '
-      'New releases of Apache Beam will soon support Python 3 only.')
+      'You are using the final Apache Beam release with Python 2 support. '
+      'New releases of Apache Beam will require Python 3.6 or newer version.')
+elif sys.version_info.major == 3 and sys.version_info.minor == 5:
+  warnings.warn(
+      'You are using the final Apache Beam release with Python 3.5 support. '
+      'New releases of Apache Beam will require Python 3.6 or newer version.')
 elif sys.version_info.major == 3:
   if sys.version_info.minor >= 9:
     warnings.warn(

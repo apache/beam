@@ -263,8 +263,13 @@ python_requires = '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
 
 if sys.version_info.major == 2:
   warnings.warn(
-      'You are using Apache Beam with Python 2. '
-      'New releases of Apache Beam will soon support Python 3 only.')
+      'You are using the final Apache Beam release with Python 2 support. '
+      'New releases of Apache Beam will require Python 3.6 or newer version.')
+
+if sys.version_info.major == 3 and sys.version_info.minor == 5:
+  warnings.warn(
+      'You are using the final Apache Beam release with Python 3.5 support. '
+      'New releases of Apache Beam will require Python 3.6 or newer version.')
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 9:
   warnings.warn(

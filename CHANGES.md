@@ -51,8 +51,8 @@
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* Apache Beam 2.24.0 is the last release with Python 2 and Python 3.5
+  support.
 
 ## I/Os
 
