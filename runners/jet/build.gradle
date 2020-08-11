@@ -78,6 +78,22 @@ task validatesRunnerBatch(type: Test) {
         exclude '**/SplittableDoFnTest.class' //Splittable DoFn functionality not yet in the runner
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     }
+    filter {
+        //Jet Runner doesn't current support @RequiresTimeSortedInput annotation.
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.*TimeSortedInput*'
+
+        //Event type not supported in TestStream: class org.apache.beam.sdk.testing.AutoValue_TestStream_ProcessingTimeEvent
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampWithProcessingTime'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testProcessingTimeTimerCanBeReset'
+
+        //unbounded streams created from bounded sources not supported by Jet Runner
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInputUnbounded'
+
+        //timer output timestamps not supported by Jet Runner
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
+
+        excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testAssertionSiteIsCaptured*'
+    }
 
     maxHeapSize = '4g'
 }
