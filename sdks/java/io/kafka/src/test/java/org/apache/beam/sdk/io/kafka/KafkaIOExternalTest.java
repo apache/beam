@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExternalConfigurationPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -33,12 +34,17 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -70,42 +76,21 @@ public class KafkaIOExternalTest {
     Long startReadTime = 100L;
 
     ExternalTransforms.ExternalConfigurationPayload payload =
-        ExternalTransforms.ExternalConfigurationPayload.newBuilder()
-            .putConfiguration(
-                "topics",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:iterable:v1")
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(listAsBytes(topics)))
-                    .build())
-            .putConfiguration(
-                "consumer_config",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:iterable:v1")
-                    .addCoderUrn("beam:coder:kv:v1")
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(mapAsBytes(consumerConfig)))
-                    .build())
-            .putConfiguration(
-                "key_deserializer",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(encodeString(keyDeserializer)))
-                    .build())
-            .putConfiguration(
-                "value_deserializer",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(encodeString(valueDeserializer)))
-                    .build())
-            .putConfiguration(
-                "start_read_time",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:varint:v1")
-                    .setPayload(ByteString.copyFrom(encodeLong(startReadTime)))
-                    .build())
-            .build();
+        encodeRow(
+            Row.withSchema(
+                    Schema.of(
+                        Field.of("topics", FieldType.array(FieldType.STRING)),
+                        Field.of(
+                            "consumer_config", FieldType.map(FieldType.STRING, FieldType.STRING)),
+                        Field.of("key_deserializer", FieldType.STRING),
+                        Field.of("value_deserializer", FieldType.STRING),
+                        Field.of("start_read_time", FieldType.INT64)))
+                .withFieldValue("topics", topics)
+                .withFieldValue("consumer_config", consumerConfig)
+                .withFieldValue("key_deserializer", keyDeserializer)
+                .withFieldValue("value_deserializer", valueDeserializer)
+                .withFieldValue("start_read_time", startReadTime)
+                .build());
 
     RunnerApi.Components defaultInstance = RunnerApi.Components.getDefaultInstance();
     ExpansionApi.ExpansionRequest request =
@@ -207,35 +192,19 @@ public class KafkaIOExternalTest {
             .build();
 
     ExternalTransforms.ExternalConfigurationPayload payload =
-        ExternalTransforms.ExternalConfigurationPayload.newBuilder()
-            .putConfiguration(
-                "topic",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(encodeString(topic)))
-                    .build())
-            .putConfiguration(
-                "producer_config",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:iterable:v1")
-                    .addCoderUrn("beam:coder:kv:v1")
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(mapAsBytes(producerConfig)))
-                    .build())
-            .putConfiguration(
-                "key_serializer",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(encodeString(keySerializer)))
-                    .build())
-            .putConfiguration(
-                "value_serializer",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(encodeString(valueSerializer)))
-                    .build())
-            .build();
+        encodeRow(
+            Row.withSchema(
+                    Schema.of(
+                        Field.of("topic", FieldType.STRING),
+                        Field.of(
+                            "producer_config", FieldType.map(FieldType.STRING, FieldType.STRING)),
+                        Field.of("key_serializer", FieldType.STRING),
+                        Field.of("value_serializer", FieldType.STRING)))
+                .withFieldValue("topic", topic)
+                .withFieldValue("producer_config", producerConfig)
+                .withFieldValue("key_serializer", keySerializer)
+                .withFieldValue("value_serializer", valueSerializer)
+                .build());
 
     Pipeline p = Pipeline.create();
     p.apply(Impulse.create()).apply(WithKeys.of("key"));
@@ -322,10 +291,18 @@ public class KafkaIOExternalTest {
     return baos.toByteArray();
   }
 
-  private static byte[] encodeLong(Long str) throws IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    VarLongCoder.of().encode(str, baos);
-    return baos.toByteArray();
+  private static ExternalConfigurationPayload encodeRow(Row row) {
+    ByteString.Output outputStream = ByteString.newOutput();
+    try {
+      SchemaCoder.of(row.getSchema()).encode(row, outputStream);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    return ExternalConfigurationPayload.newBuilder()
+        .setSchema(SchemaTranslation.schemaToProto(row.getSchema(), true))
+        .setPayload(outputStream.toByteString())
+        .build();
   }
 
   private static class TestStreamObserver<T> implements StreamObserver<T> {

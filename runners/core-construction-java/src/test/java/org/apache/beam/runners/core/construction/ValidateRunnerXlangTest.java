@@ -26,8 +26,13 @@ import java.io.Serializable;
 import java.util.Arrays;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesCrossLanguageTransforms;
@@ -39,6 +44,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ConnectivityState;
@@ -312,14 +318,21 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   private byte[] toStringPayloadBytes(String data) throws IOException {
+    Row configRow =
+        Row.withSchema(Schema.of(Field.of("data", FieldType.STRING)))
+            .withFieldValue("data", data)
+            .build();
+
+    ByteString.Output outputStream = ByteString.newOutput();
+    try {
+      RowCoder.of(configRow.getSchema()).encode(configRow, outputStream);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
     ExternalTransforms.ExternalConfigurationPayload payload =
         ExternalTransforms.ExternalConfigurationPayload.newBuilder()
-            .putConfiguration(
-                "data",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(encodeString(data)))
-                    .build())
+            .setSchema(SchemaTranslation.schemaToProto(configRow.getSchema(), false))
+            .setPayload(outputStream.toByteString())
             .build();
     return payload.toByteArray();
   }

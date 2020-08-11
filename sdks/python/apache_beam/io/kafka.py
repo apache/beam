@@ -93,7 +93,7 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 ReadFromKafkaSchema = typing.NamedTuple(
     'ReadFromKafkaSchema',
     [
-        ('consumer_config', typing.List[typing.Tuple[unicode, unicode]]),
+        ('consumer_config', typing.Mapping[unicode, unicode]),
         ('topics', typing.List[unicode]),
         ('key_deserializer', unicode),
         ('value_deserializer', unicode),
@@ -158,7 +158,7 @@ class ReadFromKafka(ExternalTransform):
         self.URN,
         NamedTupleBasedPayloadBuilder(
             ReadFromKafkaSchema(
-                consumer_config=list(consumer_config.items()),
+                consumer_config=consumer_config,
                 topics=topics,
                 key_deserializer=key_deserializer,
                 value_deserializer=value_deserializer,
@@ -172,7 +172,7 @@ class ReadFromKafka(ExternalTransform):
 WriteToKafkaSchema = typing.NamedTuple(
     'WriteToKafkaSchema',
     [
-        ('producer_config', typing.List[typing.Tuple[unicode, unicode]]),
+        ('producer_config', typing.Mapping[unicode, unicode]),
         ('topic', unicode),
         ('key_serializer', unicode),
         ('value_serializer', unicode),
@@ -220,7 +220,7 @@ class WriteToKafka(ExternalTransform):
         self.URN,
         NamedTupleBasedPayloadBuilder(
             WriteToKafkaSchema(
-                producer_config=list(producer_config.items()),
+                producer_config=producer_config,
                 topic=topic,
                 key_serializer=key_serializer,
                 value_serializer=value_serializer,
