@@ -81,6 +81,7 @@
 
 from __future__ import absolute_import
 
+import logging
 import time
 from typing import List
 from typing import NamedTuple
@@ -288,8 +289,8 @@ class ReadDataFromKinesis(ExternalTransform):
     if request_records_limit:
       assert 0 < request_records_limit <= 10000
 
-    if initial_timestamp_in_stream:
-      assert initial_timestamp_in_stream < time.time()
+    if initial_timestamp_in_stream and initial_position_in_stream < time.time():
+      logging.warning('Provided timestamp emplaced not in the past.')
 
     super(ReadDataFromKinesis, self).__init__(
         self.URN,
