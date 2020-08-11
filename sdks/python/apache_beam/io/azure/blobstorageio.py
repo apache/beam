@@ -25,18 +25,18 @@ from __future__ import absolute_import
 import errno
 import io
 import logging
-import re
-import time
 import os
+import re
 import tempfile
+import time
 from builtins import object
 
-from azure.core.exceptions import ResourceNotFoundError
 from apache_beam.io.filesystemio import Downloader
 from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.utils import retry
+from azure.core.exceptions import ResourceNotFoundError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -276,9 +276,8 @@ class BlobStorageIO(object):
 
     Args:
       src_dest_pairs: List of (src, dest) tuples of
-                      azfs://<storage-account>/<container>/[name] file paths
-                      to rename from src to dest.               
-
+                      azfs://<storage-account>/<container>/[name]
+                      file paths to rename from src to dest.
     Returns: List of tuples of (src, dest, exception) in the same order as the
              src_dest_pairs argument, where exception is None if the operation
              succeeded or the relevant exception if the operation failed.

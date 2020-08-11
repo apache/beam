@@ -29,8 +29,8 @@ import unittest
 import future.tests.base  # pylint: disable=unused-import
 import mock
 
-from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.azure import blobstorageio
+from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.options.pipeline_options import PipelineOptions
 
