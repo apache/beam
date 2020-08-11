@@ -81,7 +81,7 @@ private void createPythonPerformanceTestJob(Map testConfig) {
         )
 
     publishers {
-      archiveJunit('**/nosetests*.xml')
+      commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/nosetests*.xml')
     }
 
     steps {
