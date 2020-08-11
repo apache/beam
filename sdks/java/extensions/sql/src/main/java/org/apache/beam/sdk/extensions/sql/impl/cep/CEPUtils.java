@@ -100,7 +100,7 @@ public class CEPUtils {
       SqlOperator operator = patCall.getOperator();
       List<RexNode> operands = patCall.getOperands();
 
-      // check if if the node has quantifier
+      // check if the node has quantifier
       if (operator.getKind() == SqlKind.PATTERN_QUANTIFIER) {
         String p = ((RexLiteral) operands.get(0)).getValueAs(String.class);
         RexNode pd = patternDefs.get(p);

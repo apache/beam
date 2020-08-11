@@ -62,6 +62,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.codehaus.janino.ScriptEvaluator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@code BeamRelNode} to replace a {@code Match} node.
@@ -71,6 +75,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * <p>For now, the underline implementation is based on java.util.regex.
  */
 public class BeamMatchRel extends Match implements BeamRelNode {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BeamMatchRel.class);
 
   public BeamMatchRel(
       RelOptCluster cluster,
@@ -213,6 +219,9 @@ public class BeamMatchRel extends Match implements BeamRelNode {
         cepMeasures.add(new CEPMeasure(upstreamSchema, outTableName, measureOperation));
       }
 
+      // apply the ParDo for the match process and measures clause
+      // for now, support FINAL only
+      // TODO: add support for FINAL/RUNNING
       List<CEPFieldRef> cepParKeys = CEPUtils.getCEPFieldRefFromParKeys(parKeys);
       PCollection<Row> outStream =
           orderedUpstream
@@ -227,12 +236,6 @@ public class BeamMatchRel extends Match implements BeamRelNode {
                           allRows,
                           outSchema)))
               .setRowSchema(outSchema);
-
-      // apply the ParDo for the measures clause
-      // for now, output all rows of each pattern matched (for testing purpose)
-      // for now, support FINAL only
-      // TODO: add ONE ROW PER MATCH and MEASURES implementation.
-      // TODO: add support for FINAL/RUNNING
 
       return outStream;
     }
@@ -362,6 +365,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
             List<Row> patternRows = patternMappedRows.get(patternVar);
 
             // implement CEPOperation as functions
+            // TODO: change this part to Calcite MatchImplementor
             CEPOperation opr = i.getOperation();
             if (opr.getClass() == CEPCall.class) {
               CEPCall call = (CEPCall) opr;

@@ -29,9 +29,6 @@ public class Quantifier implements Serializable {
   public static final Quantifier PLUS = new Quantifier("+");
   public static final Quantifier QMARK = new Quantifier("?");
   public static final Quantifier ASTERISK = new Quantifier("*");
-  public static final Quantifier PLUS_RELUCTANT = new Quantifier("+?");
-  public static final Quantifier ASTERISK_RELUCTANT = new Quantifier("*?");
-  public static final Quantifier QMARK_RELUCTANT = new Quantifier("??");
 
   private final String repr;
 

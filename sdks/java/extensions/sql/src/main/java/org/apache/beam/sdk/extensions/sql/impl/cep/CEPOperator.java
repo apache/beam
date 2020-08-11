@@ -39,6 +39,7 @@ public class CEPOperator implements Serializable {
           .put(SqlKind.PREV, CEPKind.PREV)
           .put(SqlKind.NEXT, CEPKind.NEXT)
           .put(SqlKind.EQUALS, CEPKind.EQUALS)
+          .put(SqlKind.NOT_EQUALS, CEPKind.NOT_EQUALS)
           .put(SqlKind.GREATER_THAN, CEPKind.GREATER_THAN)
           .put(SqlKind.GREATER_THAN_OR_EQUAL, CEPKind.GREATER_THAN_OR_EQUAL)
           .put(SqlKind.LESS_THAN, CEPKind.LESS_THAN)
