@@ -71,19 +71,30 @@ NOW = time.time()
 RECORD = b'record' + str(uuid.uuid4()).encode()
 
 
-@unittest.skipIf(DockerContainer is None, 'testcontainers is not installed.')
-@unittest.skipIf(boto3 is None, 'boto3 is not installed.')
-@unittest.skipIf(
-    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-    None,
-    'Do not run this test on precommit suites.',
-)
+@unittest.skipUnless(DockerContainer, 'testcontainers is not installed.')
+@unittest.skipUnless(boto3, 'boto3 is not installed.')
+@unittest.skipUnless(
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner,
+    'Do not run this test on precommit suites.')
 class CrossLanguageKinesisIOTest(unittest.TestCase):
-  def test_kinesis_io(self):
+  @unittest.skipUnless(
+      TestPipeline().get_option('aws_kinesis_stream'),
+      'Cannot test on real aws without pipeline options provided')
+  def test_kinesis_io_roundtrip(self):
+    # TODO: enable this test for localstack once BEAM-10664 is resolved
     self.run_kinesis_write()
-    # TODO: remove once BEAM-10664 is resolved
-    if not self.use_localstack:
-      self.run_kinesis_read_data()
+    self.run_kinesis_read()
+
+  @unittest.skipIf(
+      TestPipeline().get_option('aws_kinesis_stream'),
+      'Do not test on localstack when pipeline options were provided')
+  def test_kinesis_write(self):
+    # TODO: remove this test once BEAM-10664 is resolved
+    self.run_kinesis_write()
+    records = self.kinesis_helper.read_from_stream(self.aws_kinesis_stream)
+    self.assertEqual(
+        sorted(records),
+        sorted([RECORD + str(i).encode() for i in range(NUM_RECORDS)]))
 
   def run_kinesis_write(self):
     with TestPipeline(options=PipelineOptions(self.pipeline_args)) as p:
@@ -104,14 +115,7 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
               partition_key='1',
           ))
 
-    # TODO: Remove once BEAM-10664 is resolved
-    if self.use_localstack:
-      records = self.kinesis_helper.read_from_stream(self.aws_kinesis_stream)
-      self.assertEqual(
-          sorted(records),
-          sorted([RECORD + str(i).encode() for i in range(NUM_RECORDS)]))
-
-  def run_kinesis_read_data(self):
+  def run_kinesis_read(self):
     records = [RECORD + str(i).encode() for i in range(NUM_RECORDS)]
 
     with TestPipeline(options=PipelineOptions(self.pipeline_args)) as p:
