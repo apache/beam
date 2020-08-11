@@ -25,11 +25,12 @@ import logging
 import unittest
 
 # Protect against environments where azure library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apache_beam.io.azure import blobstorageio
 except ImportError:
   blobstorageio = None  # type: ignore[assignment]
-
+# pylint: enable=wrong-import-order, wrong-import-position
 
 @unittest.skipIf(blobstorageio is None, 'Azure dependencies are not installed')
 class TestAZFSPathParser(unittest.TestCase):
