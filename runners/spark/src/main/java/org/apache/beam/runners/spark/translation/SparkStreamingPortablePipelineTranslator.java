@@ -105,9 +105,9 @@ public class SparkStreamingPortablePipelineTranslator
     translatorMap.put(
         PTransformTranslation.FLATTEN_TRANSFORM_URN,
         SparkStreamingPortablePipelineTranslator::translateFlatten);
-    //    translatorMap.put(
-    //        PTransformTranslation.RESHUFFLE_URN,
-    //        SparkStreamingPortablePipelineTranslator::translateReshuffle);
+    translatorMap.put(
+        PTransformTranslation.RESHUFFLE_URN,
+        SparkStreamingPortablePipelineTranslator::translateReshuffle);
     this.urnToTransformTranslator = translatorMap.build();
   }
 
@@ -328,6 +328,23 @@ public class SparkStreamingPortablePipelineTranslator
         SparkCompat.joinStreams(context.getStreamingContext(), dStreams);
     context.pushDataset(
         getOutputId(transformNode), new UnboundedDataset<>(unifiedStreams, streamingSources));
+  }
+
+  private static <T> void translateReshuffle(
+      PTransformNode transformNode,
+      RunnerApi.Pipeline pipeline,
+      SparkStreamingTranslationContext context) {
+    String inputId = getInputId(transformNode);
+    UnboundedDataset<T> inputDataset =
+        (UnboundedDataset<T>) context.popDataset(inputId);
+    List<Integer> streamSources = inputDataset.getStreamSources();
+    JavaDStream<WindowedValue<T>> dStream = inputDataset.getDStream();
+    WindowedValue.WindowedValueCoder<T> coder = getWindowedValueCoder(inputId, pipeline.getComponents());
+
+    JavaDStream<WindowedValue<T>> reshuffledStream =
+        dStream.transform(rdd -> GroupCombineFunctions.reshuffle(rdd, coder));
+
+    context.pushDataset(getOutputId(transformNode), new UnboundedDataset<>(reshuffledStream, streamSources));
   }
 
   private static String getInputId(PTransformNode transformNode) {
