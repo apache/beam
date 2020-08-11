@@ -44,7 +44,7 @@ except ImportError:
 
 
 @unittest.skipIf(
-    blobstoragefilesystem is None , 'Azure dependencies are not installed')
+    blobstoragefilesystem is None, 'Azure dependencies are not installed')
 class BlobStorageFileSystemTest(unittest.TestCase):
   def setUp(self):
     pipeline_options = PipelineOptions()
