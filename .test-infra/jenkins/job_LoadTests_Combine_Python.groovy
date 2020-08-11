@@ -134,8 +134,8 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Dataflow_Batch', 'H 15 * *
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Python_Combine_Dataflow_Streaming',
-    'Run Python Load Tests Combine Dataflow Batch',
-    'Load Tests Python Combine Dataflow Batch suite',
+    'Run Python Load Tests Combine Dataflow Streaming',
+    'Load Tests Python Combine Dataflow Streaming suite',
     this
     ) {
       additionalPipelineArgs = [:]
