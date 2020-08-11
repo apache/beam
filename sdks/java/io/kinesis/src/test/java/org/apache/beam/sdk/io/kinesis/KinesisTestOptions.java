@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.kinesis;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options for Kinesis integration tests. */
 public interface KinesisTestOptions extends TestPipelineOptions {
@@ -48,6 +49,18 @@ public interface KinesisTestOptions extends TestPipelineOptions {
 
   void setAwsAccessKey(String value);
 
+  @Description("Aws service endpoint")
+  @Nullable
+  String getAwsServiceEndpoint();
+
+  void setAwsServiceEndpoint(String awsServiceEndpoint);
+
+  @Description("Flag for certificate verification")
+  @Default.Boolean(true)
+  Boolean getAwsVerifyCertificate();
+
+  void setAwsVerifyCertificate(Boolean awsVerifyCertificate);
+
   @Description("Number of shards of stream")
   @Default.Integer(2)
   Integer getNumberOfShards();
@@ -59,4 +72,10 @@ public interface KinesisTestOptions extends TestPipelineOptions {
   Integer getNumberOfRecords();
 
   void setNumberOfRecords(Integer count);
+
+  @Description("Use localstack. Disable to test with real Kinesis")
+  @Default.Boolean(true)
+  Boolean getUseLocalstack();
+
+  void setUseLocalstack(Boolean useLocalstack);
 }

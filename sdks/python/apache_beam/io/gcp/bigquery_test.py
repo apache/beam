@@ -563,8 +563,7 @@ class TestWriteToBigQuery(unittest.TestCase):
     self.assertEqual(expected_dict_schema, dict_schema)
 
   def test_schema_autodetect_not_allowed_with_avro_file_loads(self):
-    with TestPipeline(
-        additional_pipeline_args=["--experiments=use_beam_bq_sink"]) as p:
+    with TestPipeline() as p:
       pc = p | beam.Impulse()
 
       with self.assertRaisesRegex(ValueError, '^A schema must be provided'):
@@ -593,8 +592,7 @@ class TestWriteToBigQuery(unittest.TestCase):
     """
     FULL_OUTPUT_TABLE = 'test_project:output_table'
 
-    p = TestPipeline(
-        additional_pipeline_args=["--experiments=use_beam_bq_sink"])
+    p = TestPipeline()
 
     # Used for testing side input parameters.
     table_record_pcv = beam.pvalue.AsDict(
@@ -887,8 +885,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     ]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=hc.all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink')
+        on_success_matcher=hc.all_of(*pipeline_verifiers))
 
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create([row for row in _ELEMENTS if 'language' in row])
@@ -968,8 +965,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
       ]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=hc.all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink')
+        on_success_matcher=hc.all_of(*pipeline_verifiers))
 
     with beam.Pipeline(argv=args) as p:
       if streaming:
@@ -1084,7 +1080,6 @@ class PubSubBigQueryIT(unittest.TestCase):
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*matchers),
         wait_until_finish_duration=self.WAIT_UNTIL_FINISH_DURATION,
-        experiments='use_beam_bq_sink',
         streaming=True)
 
     def add_schema_info(element):
@@ -1183,7 +1178,6 @@ class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
 
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink',
     )
 
     with beam.Pipeline(argv=args) as p:

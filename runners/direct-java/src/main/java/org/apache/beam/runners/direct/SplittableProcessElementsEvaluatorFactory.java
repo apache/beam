@@ -175,7 +175,8 @@ class SplittableProcessElementsEvaluatorFactory<
             // Setting small values here to stimulate frequent checkpointing and better exercise
             // splittable DoFn's in that respect.
             100,
-            Duration.standardSeconds(1)));
+            Duration.standardSeconds(1),
+            stepContext::bundleFinalizer));
 
     return evaluator;
   }

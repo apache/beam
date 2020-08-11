@@ -45,14 +45,15 @@ Person = typing.NamedTuple(
         ("aliases", typing.List[unicode]),
         ("knows_javascript", bool),
         # TODO(BEAM-7372): Use bytes instead of ByteString
-        ("payload", typing.Optional[typing.ByteString])
+        ("payload", typing.Optional[typing.ByteString]),
+        ("custom_metadata", typing.Mapping[unicode, int])
     ])
 
 coders_registry.register_coder(Person, RowCoder)
 
 
 class RowCoderTest(unittest.TestCase):
-  JON_SNOW = Person("Jon Snow", 23, None, ["crow", "wildling"], False, None)
+  JON_SNOW = Person("Jon Snow", 23, None, ["crow", "wildling"], False, None, {})
   PEOPLE = [
       JON_SNOW,
       Person(
@@ -60,8 +61,9 @@ class RowCoderTest(unittest.TestCase):
           25,
           "Westeros", ["Mother of Dragons"],
           False,
-          None),
-      Person("Michael Bluth", 30, None, [], True, b"I've made a huge mistake")
+          None, {"dragons": 3}),
+      Person(
+          "Michael Bluth", 30, None, [], True, b"I've made a huge mistake", {})
   ]
 
   def test_create_row_coder_from_named_tuple(self):
@@ -102,6 +104,15 @@ class RowCoderTest(unittest.TestCase):
                 name="payload",
                 type=schema_pb2.FieldType(
                     atomic_type=schema_pb2.BYTES, nullable=True)),
+            schema_pb2.Field(
+                name="custom_metadata",
+                type=schema_pb2.FieldType(
+                    map_type=schema_pb2.MapType(
+                        key_type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.STRING),
+                        value_type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.INT64),
+                    ))),
         ])
     coder = RowCoder(schema)
 

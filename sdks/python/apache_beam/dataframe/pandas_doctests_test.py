@@ -31,8 +31,31 @@ class DoctestTest(unittest.TestCase):
     result = doctests.testmod(
         pd.core.frame,
         use_beam=False,
-        skip={
+        report=True,
+        wont_implement_ok={
             'pandas.core.frame.DataFrame.T': ['*'],
+            'pandas.core.frame.DataFrame.cummax': ['*'],
+            'pandas.core.frame.DataFrame.cummin': ['*'],
+            'pandas.core.frame.DataFrame.cumsum': ['*'],
+            'pandas.core.frame.DataFrame.cumprod': ['*'],
+            'pandas.core.frame.DataFrame.diff': ['*'],
+            'pandas.core.frame.DataFrame.items': ['*'],
+            'pandas.core.frame.DataFrame.itertuples': ['*'],
+            'pandas.core.frame.DataFrame.iterrows': ['*'],
+            'pandas.core.frame.DataFrame.iteritems': ['*'],
+            'pandas.core.frame.DataFrame.to_records': ['*'],
+            'pandas.core.frame.DataFrame.to_dict': ['*'],
+            'pandas.core.frame.DataFrame.to_numpy': ['*'],
+            'pandas.core.frame.DataFrame.to_string': ['*'],
+            'pandas.core.frame.DataFrame.transpose': ['*'],
+            'pandas.core.frame.DataFrame.shape': ['*'],
+            'pandas.core.frame.DataFrame.unstack': ['*'],
+            'pandas.core.frame.DataFrame.memory_usage': ['*'],
+        },
+        skip={
+            'pandas.core.frame.DataFrame.T': [
+                'df1_transposed.dtypes', 'df2_transposed.dtypes'
+            ],
             'pandas.core.frame.DataFrame.agg': ['*'],
             'pandas.core.frame.DataFrame.aggregate': ['*'],
             'pandas.core.frame.DataFrame.append': ['*'],
@@ -90,6 +113,16 @@ class DoctestTest(unittest.TestCase):
     result = doctests.testmod(
         pd.core.series,
         use_beam=False,
+        report=True,
+        wont_implement_ok={
+            'pandas.core.series.Series.__array__': ['*'],
+            'pandas.core.series.Series.cummax': ['*'],
+            'pandas.core.series.Series.cummin': ['*'],
+            'pandas.core.series.Series.cumsum': ['*'],
+            'pandas.core.series.Series.cumprod': ['*'],
+            'pandas.core.series.Series.diff': ['*'],
+            'pandas.core.series.Series.unstack': ['*'],
+        },
         skip={
             'pandas.core.series.Series.append': ['*'],
             'pandas.core.series.Series.argmax': ['*'],

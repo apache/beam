@@ -27,7 +27,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_Java1
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
       publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
+        commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
       }
 
       steps {

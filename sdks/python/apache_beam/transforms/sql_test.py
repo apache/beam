@@ -43,6 +43,10 @@ coders.registry.register_coder(SimpleRow, coders.RowCoder)
 Enrich = typing.NamedTuple("Enrich", [("id", int), ("metadata", unicode)])
 coders.registry.register_coder(Enrich, coders.RowCoder)
 
+Shopper = typing.NamedTuple(
+    "Shopper", [("shopper", unicode), ("cart", typing.Mapping[unicode, int])])
+coders.registry.register_coder(Shopper, coders.RowCoder)
+
 
 @attr('UsesSqlExpansionService')
 @unittest.skipIf(
@@ -171,6 +175,21 @@ class SqlTransformTest(unittest.TestCase):
               beam.window.FixedWindows(10)).with_output_types(SimpleRow)
           | SqlTransform("SELECT COUNT(*) as `count` FROM PCOLLECTION"))
       assert_that(out, equal_to([(1, ), (1, ), (1, )]))
+
+  def test_map(self):
+    with TestPipeline() as p:
+      out = (
+          p
+          | beam.Create([
+              Shopper('bob', {
+                  'bananas': 6, 'cherries': 3
+              }),
+              Shopper('alice', {
+                  'apples': 2, 'bananas': 3
+              })
+          ]).with_output_types(Shopper)
+          | SqlTransform("SELECT * FROM PCOLLECTION WHERE shopper = 'alice'"))
+      assert_that(out, equal_to([('alice', {'apples': 2, 'bananas': 3})]))
 
 
 if __name__ == "__main__":

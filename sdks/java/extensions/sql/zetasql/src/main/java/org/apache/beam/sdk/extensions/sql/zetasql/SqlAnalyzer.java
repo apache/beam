@@ -21,7 +21,6 @@ import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLV
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_TABLE_FUNCTION_STMT;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils.toZetaType;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -340,7 +339,10 @@ public class SqlAnalyzer {
 
   private void addFieldsToTable(SimpleTableWithPath tableWithPath, RelDataType rowType) {
     for (RelDataTypeField field : rowType.getFieldList()) {
-      tableWithPath.getTable().addSimpleColumn(field.getName(), toZetaType(field.getType()));
+      tableWithPath
+          .getTable()
+          .addSimpleColumn(
+              field.getName(), ZetaSqlCalciteTranslationUtils.toZetaSqlType(field.getType()));
     }
   }
 

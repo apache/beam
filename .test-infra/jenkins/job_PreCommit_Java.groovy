@@ -17,6 +17,7 @@
  */
 
 import PrecommitJobBuilder
+import CommonJobProperties as common
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
@@ -39,7 +40,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     )
 builder.build {
   publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
+    common.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
     recordIssues {
       tools {
         errorProne()

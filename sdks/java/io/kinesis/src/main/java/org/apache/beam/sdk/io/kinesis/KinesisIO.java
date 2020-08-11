@@ -413,6 +413,28 @@ public final class KinesisIO {
           new BasicKinesisProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
     }
 
+    /**
+     * Specify credential details and region to be used to read from Kinesis. If you need more
+     * sophisticated credential protocol, then you should look at {@link
+     * Read#withAWSClientsProvider(AWSClientsProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with Kinesis service emulator.
+     *
+     * <p>The {@code verifyCertificate} disables or enables certificate verification. Never set it
+     * to false in production.
+     */
+    public Read withAWSClientsProvider(
+        String awsAccessKey,
+        String awsSecretKey,
+        Regions region,
+        String serviceEndpoint,
+        boolean verifyCertificate) {
+      return withAWSClientsProvider(
+          new BasicKinesisProvider(
+              awsAccessKey, awsSecretKey, region, serviceEndpoint, verifyCertificate));
+    }
+
     /** Specifies to read at most a given number of records. */
     public Read withMaxNumRecords(long maxNumRecords) {
       checkArgument(
@@ -668,6 +690,28 @@ public final class KinesisIO {
         String awsAccessKey, String awsSecretKey, Regions region, String serviceEndpoint) {
       return withAWSClientsProvider(
           new BasicKinesisProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
+    }
+
+    /**
+     * Specify credential details and region to be used to write to Kinesis. If you need more
+     * sophisticated credential protocol, then you should look at {@link
+     * Write#withAWSClientsProvider(AWSClientsProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with Kinesis service emulator.
+     *
+     * <p>The {@code verifyCertificate} disables or enables certificate verification. Never set it
+     * to false in production.
+     */
+    public Write withAWSClientsProvider(
+        String awsAccessKey,
+        String awsSecretKey,
+        Regions region,
+        String serviceEndpoint,
+        boolean verifyCertificate) {
+      return withAWSClientsProvider(
+          new BasicKinesisProvider(
+              awsAccessKey, awsSecretKey, region, serviceEndpoint, verifyCertificate));
     }
 
     /**

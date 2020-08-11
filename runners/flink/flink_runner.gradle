@@ -209,6 +209,8 @@ def createValidatesRunnerTask(Map m) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
       if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'

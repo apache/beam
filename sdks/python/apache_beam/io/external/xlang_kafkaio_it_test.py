@@ -28,12 +28,17 @@ import sys
 import time
 import typing
 import unittest
+import uuid
 
 import apache_beam as beam
 from apache_beam.io.kafka import ReadFromKafka
 from apache_beam.io.kafka import WriteToKafka
 from apache_beam.metrics import Metrics
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+NUM_RECORDS = 1000
 
 
 class CrossLanguageKafkaIO(object):
@@ -47,7 +52,7 @@ class CrossLanguageKafkaIO(object):
     _ = (
         pipeline
         | 'Impulse' >> beam.Impulse()
-        | 'Generate' >> beam.FlatMap(lambda x: range(1000))  # pylint: disable=range-builtin-not-iterating
+        | 'Generate' >> beam.FlatMap(lambda x: range(NUM_RECORDS))  # pylint: disable=range-builtin-not-iterating
         | 'Reshuffle' >> beam.Reshuffle()
         | 'MakeKV' >> beam.Map(lambda x:
                                (b'', str(x).encode())).with_output_types(
@@ -57,8 +62,8 @@ class CrossLanguageKafkaIO(object):
             topic=self.topic,
             expansion_service=self.expansion_service))
 
-  def build_read_pipeline(self, pipeline):
-    _ = (
+  def build_read_pipeline(self, pipeline, max_num_records=None):
+    kafka_records = (
         pipeline
         | 'ReadFromKafka' >> ReadFromKafka(
             consumer_config={
@@ -66,7 +71,14 @@ class CrossLanguageKafkaIO(object):
                 'auto.offset.reset': 'earliest'
             },
             topics=[self.topic],
-            expansion_service=self.expansion_service)
+            max_num_records=max_num_records,
+            expansion_service=self.expansion_service))
+
+    if max_num_records:
+      return kafka_records
+
+    return (
+        kafka_records
         | 'Windowing' >> beam.WindowInto(
             beam.window.FixedWindows(300),
             trigger=beam.transforms.trigger.AfterProcessingTime(60),
@@ -82,10 +94,35 @@ class CrossLanguageKafkaIO(object):
     pipeline.run(False)
 
 
+@unittest.skip('BEAM-10663')
 @unittest.skipUnless(
     os.environ.get('LOCAL_KAFKA_JAR'),
     "LOCAL_KAFKA_JAR environment var is not provided.")
 class CrossLanguageKafkaIOTest(unittest.TestCase):
+  def test_kafkaio(self):
+    kafka_topic = 'xlang_kafkaio_test_{}'.format(uuid.uuid4())
+    local_kafka_jar = os.environ.get('LOCAL_KAFKA_JAR')
+    with self.local_kafka_service(local_kafka_jar) as kafka_port:
+      bootstrap_servers = '{}:{}'.format(
+          self.get_platform_localhost(), kafka_port)
+      pipeline_creator = CrossLanguageKafkaIO(bootstrap_servers, kafka_topic)
+
+      self.run_kafka_write(pipeline_creator)
+      self.run_kafka_read(pipeline_creator)
+
+  def run_kafka_write(self, pipeline_creator):
+    with TestPipeline() as pipeline:
+      pipeline.not_use_test_runner_api = True
+      pipeline_creator.build_write_pipeline(pipeline)
+
+  def run_kafka_read(self, pipeline_creator):
+    with TestPipeline() as pipeline:
+      pipeline.not_use_test_runner_api = True
+      result = pipeline_creator.build_read_pipeline(pipeline, NUM_RECORDS)
+      assert_that(
+          result,
+          equal_to([(b'', str(i).encode()) for i in range(NUM_RECORDS)]))
+
   def get_platform_localhost(self):
     if sys.platform == 'darwin':
       return 'host.docker.internal'
@@ -118,18 +155,6 @@ class CrossLanguageKafkaIOTest(unittest.TestCase):
     finally:
       if kafka_server:
         kafka_server.kill()
-
-  def test_kafkaio_write(self):
-    local_kafka_jar = os.environ.get('LOCAL_KAFKA_JAR')
-    with self.local_kafka_service(local_kafka_jar) as kafka_port:
-      p = TestPipeline()
-      p.not_use_test_runner_api = True
-      xlang_kafkaio = CrossLanguageKafkaIO(
-          '%s:%s' % (self.get_platform_localhost(), kafka_port),
-          'xlang_kafkaio_test')
-      xlang_kafkaio.build_write_pipeline(p)
-      job = p.run()
-      job.wait_until_finish()
 
 
 if __name__ == '__main__':

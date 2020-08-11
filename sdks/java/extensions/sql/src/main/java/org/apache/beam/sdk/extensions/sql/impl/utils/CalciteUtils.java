@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.Map;
@@ -53,15 +54,6 @@ public class CalciteUtils {
     }
   }
 
-  /** A LogicalType corresponding to TIMESTAMP_WITH_LOCAL_TIME_ZONE. */
-  public static class TimestampWithLocalTzType extends PassThroughLogicalType<Instant> {
-    public static final String IDENTIFIER = "SqlTimestampWithLocalTzType";
-
-    public TimestampWithLocalTzType() {
-      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
-    }
-  }
-
   /** A LogicalType corresponding to CHAR. */
   public static class CharType extends PassThroughLogicalType<String> {
     public static final String IDENTIFIER = "SqlCharType";
@@ -82,7 +74,7 @@ public class CalciteUtils {
       return logicalId.equals(SqlTypes.DATE.getIdentifier())
           || logicalId.equals(SqlTypes.TIME.getIdentifier())
           || logicalId.equals(TimeWithLocalTzType.IDENTIFIER)
-          || logicalId.equals(TimestampWithLocalTzType.IDENTIFIER);
+          || logicalId.equals(SqlTypes.DATETIME.getIdentifier());
     }
     return false;
   }
@@ -121,8 +113,9 @@ public class CalciteUtils {
       FieldType.logicalType(new TimeWithLocalTzType());
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
   public static final FieldType NULLABLE_TIMESTAMP = FieldType.DATETIME.withNullable(true);
-  public static final FieldType TIMESTAMP_WITH_LOCAL_TZ =
-      FieldType.logicalType(new TimestampWithLocalTzType());
+  public static final FieldType TIMESTAMP_WITH_LOCAL_TZ = FieldType.logicalType(SqlTypes.DATETIME);
+  public static final FieldType NULLABLE_TIMESTAMP_WITH_LOCAL_TZ =
+      FieldType.logicalType(SqlTypes.DATETIME).withNullable(true);
 
   private static final BiMap<FieldType, SqlTypeName> BEAM_TO_CALCITE_TYPE_MAPPING =
       ImmutableBiMap.<FieldType, SqlTypeName>builder()
@@ -283,18 +276,26 @@ public class CalciteUtils {
 
   /**
    * SQL-Java type mapping, with specified Beam rules: <br>
-   * 1. redirect {@link AbstractInstant} to {@link Date} so Calcite can recognize it.
+   * 1. redirect {@link AbstractInstant} to {@link Date} so Calcite can recognize it. <br>
+   * 2. For a list, the component type is needed to create a Sql array type.
    *
-   * @param rawType
-   * @return
+   * @param type
+   * @return Calcite RelDataType
    */
-  public static RelDataType sqlTypeWithAutoCast(RelDataTypeFactory typeFactory, Type rawType) {
+  public static RelDataType sqlTypeWithAutoCast(RelDataTypeFactory typeFactory, Type type) {
     // For Joda time types, return SQL type for java.util.Date.
-    if (rawType instanceof Class && AbstractInstant.class.isAssignableFrom((Class<?>) rawType)) {
+    if (type instanceof Class && AbstractInstant.class.isAssignableFrom((Class<?>) type)) {
       return typeFactory.createJavaType(Date.class);
-    } else if (rawType instanceof Class && ByteString.class.isAssignableFrom((Class<?>) rawType)) {
+    } else if (type instanceof Class && ByteString.class.isAssignableFrom((Class<?>) type)) {
       return typeFactory.createJavaType(byte[].class);
+    } else if (type instanceof ParameterizedType
+        && java.util.List.class.isAssignableFrom(
+            (Class<?>) ((ParameterizedType) type).getRawType())) {
+      ParameterizedType parameterizedType = (ParameterizedType) type;
+      Class<?> genericType = (Class<?>) parameterizedType.getActualTypeArguments()[0];
+      RelDataType collectionElementType = typeFactory.createJavaType(genericType);
+      return typeFactory.createArrayType(collectionElementType, UNLIMITED_ARRAY_SIZE);
     }
-    return typeFactory.createJavaType((Class) rawType);
+    return typeFactory.createJavaType((Class) type);
   }
 }
