@@ -30,8 +30,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test for the {@link Distinct} operator. */
+@RunWith(JUnit4.class)
 public class DistinctTest extends AbstractOperatorTest {
 
   /** Test simple duplicates. */
