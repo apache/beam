@@ -100,7 +100,7 @@ def loadTestConfigurations = { datasetName, jobType ->
 
 def addStreamingOptions(test){
   test.pipelineOptions << [streaming: null,
-                           experiments: "use_runner_v2"
+    experiments: "use_runner_v2"
   ]
 }
 
@@ -133,19 +133,19 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Dataflow_Batch', 'H 15 * *
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_LoadTests_Python_Combine_Dataflow_Streaming',
-        'Run Python Load Tests Combine Dataflow Batch',
-        'Load Tests Python Combine Dataflow Batch suite',
-        this
-) {
-  additionalPipelineArgs = [:]
-  loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, "streaming")
-}
+    'beam_LoadTests_Python_Combine_Dataflow_Streaming',
+    'Run Python Load Tests Combine Dataflow Batch',
+    'Load Tests Python Combine Dataflow Batch suite',
+    this
+    ) {
+      additionalPipelineArgs = [:]
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, "streaming")
+    }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Dataflow_Streaming', 'H 15 * * *', this) {
   additionalPipelineArgs = [
-          influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-          influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+    influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
   ]
   loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, "streaming")
 }
