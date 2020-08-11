@@ -61,8 +61,8 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         .addStringField("password")
         .addNullableField("connectionProperties", FieldType.STRING)
         .addNullableField("connectionInitSqls", FieldType.iterable(FieldType.STRING))
-        .addNullableField("query", FieldType.STRING)
-        .addNullableField("statement", FieldType.STRING)
+        .addNullableField("readQuery", FieldType.STRING)
+        .addNullableField("writeStatement", FieldType.STRING)
         .addNullableField("fetchSize", FieldType.INT16)
         .addNullableField("outputParallelization", FieldType.BOOLEAN)
         .build();
@@ -104,12 +104,19 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
 
     @Override
     public PTransform<PBegin, PCollection<Row>> buildReader() {
+      String readQuery;
+      if (config.getString("readQuery") != null) {
+        readQuery = config.getString("readQuery");
+      } else {
+        readQuery = String.format("SELECT f_int FROM %s", location);
+      }
+
       JdbcIO.DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
 
       JdbcIO.ReadRows readRows =
           JdbcIO.readRows()
               .withDataSourceConfiguration(dataSourceConfiguration)
-              .withQuery(config.getString("statement"));
+              .withQuery(readQuery);
 
       if (config.getInt16("fetchSize") != null) {
         readRows = readRows.withFetchSize(config.getInt16("fetchSize"));
@@ -122,12 +129,19 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
 
     @Override
     public PTransform<PCollection<Row>, PDone> buildWriter() {
+      String writeStatement;
+      if (config.getString("writeStatement") != null) {
+        writeStatement = config.getString("writeStatement");
+      } else {
+        writeStatement = String.format("INSERT INTO %s VALUES(?, ?, ?)", location);
+      }
+
       JdbcIO.DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
 
       // TODO: BEAM-10396 use writeRows() when it's available
       return JdbcIO.<Row>write()
           .withDataSourceConfiguration(dataSourceConfiguration)
-          .withStatement(config.getString("query"))
+          .withStatement(writeStatement)
           .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter());
     }
 

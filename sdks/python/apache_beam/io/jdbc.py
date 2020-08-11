@@ -119,8 +119,8 @@ Config = typing.NamedTuple(
         ('password', unicode),
         ('connection_properties', typing.Optional[unicode]),
         ('connection_init_sqls', typing.Optional[typing.List[unicode]]),
-        ('statement', typing.Optional[unicode]),
-        ('query', typing.Optional[unicode]),
+        ('write_statement', typing.Optional[unicode]),
+        ('read_query', typing.Optional[unicode]),
         ('fetch_size', typing.Optional[int]),
         ('output_parallelization', typing.Optional[bool]),
     ],
@@ -153,15 +153,16 @@ class WriteToJdbc(ExternalTransform):
   Experimental; no backwards compatibility guarantees.
   """
 
-    URN = 'beam:external:java:jdbc:write:v1'
+    URN = 'beam:external:java:schemaio:jdbc:write:v1'
 
     def __init__(
             self,
+            table_name,
             driver_class_name,
             jdbc_url,
             username,
             password,
-            statement,
+            statement=None,
             connection_properties=None,
             connection_init_sqls=None,
             expansion_service=None,
@@ -186,7 +187,7 @@ class WriteToJdbc(ExternalTransform):
             self.URN,
             NamedTupleBasedPayloadBuilder(
                 ReadFromWriteToJdbcSchema(
-                    location=jdbc_url,
+                    location=table_name,
                     config=RowCoder(typing_to_runner_api(Config).row_type.schema).encode(
                         Config(
                             driver_class_name=driver_class_name,
@@ -195,8 +196,8 @@ class WriteToJdbc(ExternalTransform):
                             password=password,
                             connection_properties=connection_properties,
                             connection_init_sqls=connection_init_sqls,
-                            statement=statement,
-                            query=None,
+                            write_statement=statement,
+                            read_query=None,
                             fetch_size=None,
                             output_parallelization=None,
                         )
@@ -231,15 +232,16 @@ class ReadFromJdbc(ExternalTransform):
   Experimental; no backwards compatibility guarantees.
   """
 
-    URN = 'beam:external:java:jdbc:read:v1'
+    URN = 'beam:external:java:schemaio:jdbc:read:v1'
 
     def __init__(
             self,
+            table_name,
             driver_class_name,
             jdbc_url,
             username,
             password,
-            query,
+            query=None,
             output_parallelization=None,
             fetch_size=None,
             connection_properties=None,
@@ -267,7 +269,7 @@ class ReadFromJdbc(ExternalTransform):
             self.URN,
             NamedTupleBasedPayloadBuilder(
                 ReadFromWriteToJdbcSchema(
-                    location=jdbc_url,
+                    location=table_name,
                     config=RowCoder(typing_to_runner_api(Config).row_type.schema).encode(
                         Config(driver_class_name=driver_class_name,
                                    jdbc_url=jdbc_url,
@@ -275,8 +277,8 @@ class ReadFromJdbc(ExternalTransform):
                                    password=password,
                                    connection_properties=connection_properties,
                                    connection_init_sqls=connection_init_sqls,
-                                   statement=None,
-                                   query=query,
+                                   write_statement=None,
+                                   read_query=query,
                                    fetch_size=fetch_size,
                                    output_parallelization=output_parallelization,
                                    )

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.schemaio.expansion;
 
 import com.google.auto.service.AutoService;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 @Experimental(Experimental.Kind.PORTABILITY)
@@ -48,10 +50,10 @@ public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegi
     try {
       for (SchemaIOProvider schemaIOProvider : ServiceLoader.load(SchemaIOProvider.class)) {
         builder.put(
-            "beam:external:java:" + schemaIOProvider.identifier() + ":read:v1",
+            "beam:external:java:schemaio:" + schemaIOProvider.identifier() + ":read:v1",
             new ReaderBuilder(schemaIOProvider));
         builder.put(
-            "beam:external:java:" + schemaIOProvider.identifier() + ":write:v1",
+            "beam:external:java:schemaio:" + schemaIOProvider.identifier() + ":write:v1",
             new WriterBuilder(schemaIOProvider));
       }
     } catch (Exception e) {
@@ -79,18 +81,29 @@ public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegi
   }
 
   @Nullable
-  private static Schema translateSchema(@Nullable byte[] schemaBytes) throws Exception {
+  private static Schema translateSchema(@Nullable byte[] schemaBytes) {
     if (schemaBytes == null) {
       return null;
     }
-    SchemaApi.Schema protoSchema = SchemaApi.Schema.parseFrom(schemaBytes);
-    return SchemaTranslation.schemaFromProto(protoSchema);
+
+    try {
+      SchemaApi.Schema protoSchema = SchemaApi.Schema.parseFrom(schemaBytes);
+      return SchemaTranslation.schemaFromProto(protoSchema);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Unable to infer data schema from configuration proto.", e);
+    }
   }
 
-  private static Row translateRow(byte[] rowBytes, Schema configSchema) throws Exception {
+  private static Row translateRow(byte[] rowBytes, Schema configSchema) {
     RowCoder rowCoder = RowCoder.of(configSchema);
     InputStream stream = new ByteArrayInputStream(rowBytes);
-    return rowCoder.decode(stream);
+
+    try {
+      return rowCoder.decode(stream);
+    } catch (IOException e) {
+      throw new RuntimeException(
+          "Unable to infer configuration row from configuration proto and schema.", e);
+    }
   }
 
   private static class ReaderBuilder
@@ -103,16 +116,12 @@ public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegi
 
     @Override
     public PTransform<PBegin, PCollection<Row>> buildExternal(Configuration configuration) {
-      try {
-        return schemaIOProvider
-            .from(
-                configuration.location,
-                translateRow(configuration.config, schemaIOProvider.configurationSchema()),
-                translateSchema(configuration.dataSchema))
-            .buildReader();
-      } catch (Exception e) {
-        throw new RuntimeException("Could not convert configuration proto to row or schema.");
-      }
+      return schemaIOProvider
+          .from(
+              configuration.location,
+              translateRow(configuration.config, schemaIOProvider.configurationSchema()),
+              translateSchema(configuration.dataSchema))
+          .buildReader();
     }
   }
 
@@ -126,17 +135,13 @@ public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegi
 
     @Override
     public PTransform<PCollection<Row>, PDone> buildExternal(Configuration configuration) {
-      try {
-        return (PTransform<PCollection<Row>, PDone>)
-            schemaIOProvider
-                .from(
-                    configuration.location,
-                    translateRow(configuration.config, schemaIOProvider.configurationSchema()),
-                    translateSchema(configuration.dataSchema))
-                .buildWriter();
-      } catch (Exception e) {
-        throw new RuntimeException("Could not convert configuration proto to row or schema.");
-      }
+      return (PTransform<PCollection<Row>, PDone>)
+          schemaIOProvider
+              .from(
+                  configuration.location,
+                  translateRow(configuration.config, schemaIOProvider.configurationSchema()),
+                  translateSchema(configuration.dataSchema))
+              .buildWriter();
     }
   }
 }

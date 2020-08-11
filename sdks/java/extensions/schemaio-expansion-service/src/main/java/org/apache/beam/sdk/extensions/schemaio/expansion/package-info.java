@@ -17,4 +17,8 @@
  */
 
 /** External Transform Registration for SchemaIOs. */
+@DefaultQualifier(NonNull.class)
 package org.apache.beam.sdk.extensions.schemaio.expansion;
+
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.framework.qual.DefaultQualifier;
