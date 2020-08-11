@@ -28,11 +28,10 @@ import unittest
 try:
   from apache_beam.io.azure import blobstorageio
 except ImportError:
-  blobstorageio = None # type: ignore[assignment]
+  blobstorageio = None  # type: ignore[assignment]
 
 
-@unittest.skipIf(
-    blobstorageio is None, 'Azure dependencies are not installed')
+@unittest.skipIf(blobstorageio is None, 'Azure dependencies are not installed')
 class TestAZFSPathParser(unittest.TestCase):
 
   BAD_AZFS_PATHS = [
