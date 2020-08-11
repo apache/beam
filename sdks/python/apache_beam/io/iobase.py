@@ -1367,6 +1367,7 @@ class RestrictionProgress(object):
 class _SDFBoundedSourceRestriction(object):
   """ A restriction wraps SourceBundle and RangeTracker. """
   def __init__(self, source_bundle, range_tracker=None):
+    _LOGGER.error("migryz>>>> source_bundle: %s, range_tracker: %s", source_bundle, range_tracker)
     self._source_bundle = source_bundle
     self._range_tracker = range_tracker
 
@@ -1377,7 +1378,8 @@ class _SDFBoundedSourceRestriction(object):
   def range_tracker(self):
     if not self._range_tracker:
       self._range_tracker = self._source_bundle.source.get_range_tracker(
-          self._source_bundle.start_position, self._source_bundle.stop_position)
+          self._source_bundle.start_position,
+          self._source_bundle.stop_position)
     return self._range_tracker
 
   def weight(self):
@@ -1473,6 +1475,7 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
     self._desired_chunk_size = desired_chunk_size
 
   def _check_source(self, src):
+    _LOGGER.error("migryz>>>> _check_source: %s, type: %s", src, type(src))
     if src is not None and not isinstance(src, BoundedSource):
       raise RuntimeError(
           'SDFBoundedSourceRestrictionProvider can only utilize BoundedSource')

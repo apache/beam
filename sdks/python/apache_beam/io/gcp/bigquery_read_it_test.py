@@ -392,7 +392,7 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
               beam.io.ReadAllFromBigQueryRequest(query=self.query2),
               beam.io.ReadAllFromBigQueryRequest(query=self.query3)
           ])
-          # | beam.io.ReadAllFromBigQuery(project=self.project)
+          | beam.io.ReadAllFromBigQuery(project=self.project)
       )
       assert_that(
           result,
