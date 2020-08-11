@@ -562,10 +562,7 @@ public class KafkaIO {
         setValueDeserializerProvider(LocalDeserializerProvider.of(valueDeserializer));
         setValueCoder(resolveCoder(valueDeserializer));
 
-        Map<String, Object> consumerConfig = new HashMap<>();
-        for (KV<String, String> kv : config.consumerConfig) {
-          consumerConfig.put(kv.getKey(), kv.getValue());
-        }
+        Map<String, Object> consumerConfig = new HashMap<>(config.consumerConfig);
         // Key and Value Deserializers always have to be in the config.
         consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer.getName());
         consumerConfig.put(
@@ -633,20 +630,19 @@ public class KafkaIO {
       /** Parameters class to expose the Read transform to an external SDK. */
       public static class Configuration {
 
-        // All byte arrays are UTF-8 encoded strings
-        private Iterable<KV<String, String>> consumerConfig;
-        private Iterable<String> topics;
+        private Map<String, String> consumerConfig;
+        private List<String> topics;
         private String keyDeserializer;
         private String valueDeserializer;
         private Long startReadTime;
         private Long maxNumRecords;
         private Long maxReadTime;
 
-        public void setConsumerConfig(Iterable<KV<String, String>> consumerConfig) {
+        public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
         }
 
-        public void setTopics(Iterable<String> topics) {
+        public void setTopics(List<String> topics) {
           this.topics = topics;
         }
 
@@ -2011,10 +2007,7 @@ public class KafkaIO {
           External.Configuration configuration) {
         setTopic(configuration.topic);
 
-        Map<String, Object> producerConfig = new HashMap<>();
-        for (KV<String, String> kv : configuration.producerConfig) {
-          producerConfig.put(kv.getKey(), kv.getValue());
-        }
+        Map<String, Object> producerConfig = new HashMap<>(configuration.producerConfig);
         Class keySerializer = resolveClass(configuration.keySerializer);
         Class valSerializer = resolveClass(configuration.valueSerializer);
 
@@ -2047,13 +2040,12 @@ public class KafkaIO {
       /** Parameters class to expose the Write transform to an external SDK. */
       public static class Configuration {
 
-        // All byte arrays are UTF-8 encoded strings
-        private Iterable<KV<String, String>> producerConfig;
+        private Map<String, String> producerConfig;
         private String topic;
         private String keySerializer;
         private String valueSerializer;
 
-        public void setProducerConfig(Iterable<KV<String, String>> producerConfig) {
+        public void setProducerConfig(Map<String, String> producerConfig) {
           this.producerConfig = producerConfig;
         }
 
