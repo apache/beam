@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import com.google.zetasql.CivilTimeEncoder;
 import com.google.zetasql.StructType;
 import com.google.zetasql.StructType.StructField;
 import com.google.zetasql.Type;
@@ -184,7 +183,7 @@ public final class ZetaSqlCalciteTranslationUtils {
     for (int i = 0; i < fields.size(); i++) {
       String name = fields.get(i).getName();
       if ("".equals(name)) {
-        name = "$col" + i; // empty field name is not allowed, generate an index-based name for it
+        name = "$col" + i; // avoid empty field names because Beam does not allow duplicate names
       }
       b.add(name);
     }
@@ -318,14 +317,13 @@ public final class ZetaSqlCalciteTranslationUtils {
   }
 
   private static TimeString timeValueToTimeString(Value value) {
-    LocalTime localTime = CivilTimeEncoder.decodePacked64TimeNanosAsJavaTime(value.getTimeValue());
+    LocalTime localTime = value.getLocalTimeValue();
     return new TimeString(localTime.getHour(), localTime.getMinute(), localTime.getSecond())
         .withNanos(localTime.getNano());
   }
 
   private static TimestampString datetimeValueToTimestampString(Value value) {
-    LocalDateTime dateTime =
-        CivilTimeEncoder.decodePacked96DatetimeNanosAsJavaTime(value.getDatetimeValue());
+    LocalDateTime dateTime = value.getLocalDateTimeValue();
     return new TimestampString(
             dateTime.getYear(),
             dateTime.getMonthValue(),
