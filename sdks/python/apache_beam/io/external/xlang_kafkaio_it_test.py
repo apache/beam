@@ -48,9 +48,11 @@ class CollectingFn(beam.DoFn):
   BUFFER_STATE = BagStateSpec('buffer', VarIntCoder())
   COUNT_STATE = CombiningValueStateSpec('count', VarIntCoder(), sum)
 
-  def process(self, element,
-              buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
-              count_state=beam.DoFn.StateParam(COUNT_STATE)):
+  def process(
+      self,
+      element,
+      buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
+      count_state=beam.DoFn.StateParam(COUNT_STATE)):
     value = int(element[1].decode())
     buffer_state.add(value)
 
