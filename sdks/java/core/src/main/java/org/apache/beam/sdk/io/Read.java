@@ -412,8 +412,12 @@ public class Read {
         if (currentReader == null) {
           return null;
         }
-        double consumedFraction = currentReader.getFractionConsumed();
-        double fraction = consumedFraction + (1 - consumedFraction) * fractionOfRemainder;
+        Double consumedFraction = currentReader.getFractionConsumed();
+        double fraction = fractionOfRemainder;
+        if (consumedFraction != null) {
+          fraction = consumedFraction + (1 - consumedFraction) * fractionOfRemainder;
+        }
+
         BoundedSource<T> residual = currentReader.splitAtFraction(fraction);
         if (residual == null) {
           return null;
