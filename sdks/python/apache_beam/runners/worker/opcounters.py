@@ -232,7 +232,8 @@ class OperationCounters(object):
 
   def type_check(self, value):
     # type: (any, bool) -> None
-    for transform_label, type_constraint_tuple in self.output_type_constraints.items():
+    for transform_label, type_constraint_tuple in (
+            self.output_type_constraints.items()):
       parameter_name, constraint = type_constraint_tuple
       try:
         _check_instance_type(constraint, value, parameter_name, verbose=True)
