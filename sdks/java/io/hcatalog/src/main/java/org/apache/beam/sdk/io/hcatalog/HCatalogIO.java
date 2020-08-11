@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.hcatalog;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -158,7 +160,15 @@ public class HCatalogIO {
 
     abstract @Nullable String getFilter();
 
-    abstract @Nullable ReaderContext getContext();
+    @Nullable
+    ReaderContext getContext() {
+      if (getContextHolder() == null) {
+        return null;
+      }
+      return getContextHolder().get();
+    }
+
+    abstract @Nullable ReaderContextHolder getContextHolder();
 
     abstract @Nullable Integer getSplitId();
 
@@ -182,7 +192,11 @@ public class HCatalogIO {
 
       abstract Builder setSplitId(Integer splitId);
 
-      abstract Builder setContext(ReaderContext context);
+      abstract Builder setContextHolder(ReaderContextHolder context);
+
+      Builder setContext(ReaderContext context) {
+        return this.setContextHolder(new ReaderContextHolder(context));
+      }
 
       abstract Builder setPollingInterval(Duration pollingInterval);
 
@@ -275,6 +289,32 @@ public class HCatalogIO {
       builder.add(DisplayData.item("table", getTable()));
       builder.addIfNotNull(DisplayData.item("database", getDatabase()));
       builder.addIfNotNull(DisplayData.item("filter", getFilter()));
+    }
+
+    /**
+     * We specifically use a holder which replaces the implementation of what is being serialized to
+     * cache the serialized version instead of re-serializing the ReaderContext. See BEAM-10694 for
+     * additional details.
+     */
+    static class ReaderContextHolder implements Serializable {
+
+      private final byte[] serializedReaderContext;
+      private transient ReaderContext readerContext;
+
+      public ReaderContextHolder(ReaderContext readerContext) {
+        this.serializedReaderContext = SerializableUtils.serializeToByteArray(readerContext);
+        this.readerContext = readerContext;
+      }
+
+      private synchronized ReaderContext get() {
+        if (readerContext == null) {
+          readerContext =
+              (ReaderContext)
+                  SerializableUtils.deserializeFromByteArray(
+                      serializedReaderContext, "ReaderContext");
+        }
+        return readerContext;
+      }
     }
   }
 
