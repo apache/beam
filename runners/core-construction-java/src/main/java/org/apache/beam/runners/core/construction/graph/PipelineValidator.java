@@ -273,6 +273,7 @@ public class PipelineValidator {
     checkArgument(
         components.containsCoders(payload.getAccumulatorCoderId()),
         "Transform %s uses unknown accumulator coder id %s",
+        id,
         payload.getAccumulatorCoderId());
   }
 
