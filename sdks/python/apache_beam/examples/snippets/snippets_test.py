@@ -779,9 +779,9 @@ class SnippetsTest(unittest.TestCase):
     # Test basic execution.
     input_topic = 'projects/fake-beam-test-project/topic/intopic'
     input_values = [
-        TimestampedValue(b'a a b', 1),
-        TimestampedValue(u'🤷 ¯\\_(ツ)_/¯ b b '.encode('utf-8'), 12),
-        TimestampedValue(b'a b c c c', 20)
+        TimestampedValue(['a', 'a', 'b'], 1),
+        TimestampedValue(['🤷', '¯\\_(ツ)_/¯', 'b', 'b'], 12),
+        TimestampedValue(['a', 'b', 'c', 'c', 'c'], 20)
     ]
     output_topic = 'projects/fake-beam-test-project/topic/outtopic'
     output_values = ['a: 1', 'a: 2', 'b: 1', 'b: 3', 'c: 3']
