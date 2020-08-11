@@ -630,7 +630,6 @@ public class KafkaIO {
       /** Parameters class to expose the Read transform to an external SDK. */
       public static class Configuration {
 
-        // All byte arrays are UTF-8 encoded strings
         private Map<String, String> consumerConfig;
         private List<String> topics;
         private String keyDeserializer;
@@ -2041,7 +2040,6 @@ public class KafkaIO {
       /** Parameters class to expose the Write transform to an external SDK. */
       public static class Configuration {
 
-        // All byte arrays are UTF-8 encoded strings
         private Map<String, String> producerConfig;
         private String topic;
         private String keySerializer;
