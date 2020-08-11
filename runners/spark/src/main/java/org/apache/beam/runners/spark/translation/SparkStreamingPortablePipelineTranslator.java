@@ -21,7 +21,14 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
 
 import java.io.IOException;
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -178,7 +185,7 @@ public class SparkStreamingPortablePipelineTranslator
     if (firstTimestamp == null) firstTimestamp = new Instant();
     GlobalWatermarkHolder.SparkWatermarks sparkWatermark =
         new GlobalWatermarkHolder.SparkWatermarks(
-            BoundedWindow.TIMESTAMP_MAX_VALUE,
+            GlobalWindow.INSTANCE.maxTimestamp(),
             BoundedWindow.TIMESTAMP_MAX_VALUE,
             firstTimestamp);
     GlobalWatermarkHolder.add(output.getStreamSources().get(0), sparkWatermark);
