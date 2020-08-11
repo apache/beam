@@ -153,8 +153,8 @@ class WriteToKinesis(ExternalTransform):
         Never set to False on production. True by default.
     :param partition_key: Specify default partition key.
     :param producer_properties: Specify the configuration properties for Kinesis
-        Producer Library (KPL) as List[KV[string, string]].
-        Example: [('CollectionMaxCount', '1000'), ('ConnectTimeout', '10000')]
+        Producer Library (KPL) as dictionary.
+        Example: {'CollectionMaxCount': '1000', 'ConnectTimeout': '10000'}
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
     super(WriteToKinesis, self).__init__(
@@ -168,7 +168,7 @@ class WriteToKinesis(ExternalTransform):
                 partition_key=partition_key,
                 service_endpoint=service_endpoint,
                 verify_certificate=verify_certificate,
-                producer_properties=producer_properties,
+                producer_properties=list(producer_properties.items()),
             )),
         expansion_service or default_io_expansion_service(),
     )
