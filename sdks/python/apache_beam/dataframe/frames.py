@@ -59,7 +59,7 @@ class DeferredSeries(frame_base.DeferredFrame):
     if 'keep' in kwargs and kwargs['keep'] != 'all':
       raise frame_base.WontImplementError('order-sensitive')
     per_partition = expressions.ComputedExpression(
-        'nlargest',
+        'nlargest-per-partition',
         lambda df: df.nlargest(**kwargs), [self._expr],
         preserves_partition_by=partitionings.Singleton(),
         requires_partition_by=partitionings.Nothing())
@@ -76,7 +76,7 @@ class DeferredSeries(frame_base.DeferredFrame):
     if 'keep' in kwargs and kwargs['keep'] != 'all':
       raise frame_base.WontImplementError('order-sensitive')
     per_partition = expressions.ComputedExpression(
-        'nsmallest',
+        'nsmallest-per-partition',
         lambda df: df.nsmallest(**kwargs), [self._expr],
         preserves_partition_by=partitionings.Singleton(),
         requires_partition_by=partitionings.Nothing())
@@ -361,7 +361,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
     if 'keep' in kwargs and kwargs['keep'] != 'all':
       raise frame_base.WontImplementError('order-sensitive')
     per_partition = expressions.ComputedExpression(
-            'nlargest',
+            'nlargest-per-partition',
             lambda df: df.nlargest(**kwargs),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
@@ -380,7 +380,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
     if 'keep' in kwargs and kwargs['keep'] != 'all':
       raise frame_base.WontImplementError('order-sensitive')
     per_partition = expressions.ComputedExpression(
-            'nsmallest',
+            'nsmallest-per-partition',
             lambda df: df.nsmallest(**kwargs),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
@@ -402,7 +402,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       requires_partition_by = partitionings.Singleton()
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
-            'nlargest',
+            'nunique',
             lambda df: df.nunique(**kwargs),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
