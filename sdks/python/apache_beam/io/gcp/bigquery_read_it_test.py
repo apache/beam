@@ -392,36 +392,38 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
               beam.io.ReadAllFromBigQueryRequest(query=self.query2),
               beam.io.ReadAllFromBigQueryRequest(query=self.query3)
           ])
-          | beam.io.ReadAllFromBigQuery(project=self.project))
+          # | beam.io.ReadAllFromBigQuery(project=self.project)
+      )
       assert_that(
           result,
           equal_to(self.TABLE_DATA_1 + self.TABLE_DATA_2 + self.TABLE_DATA_3))
 
-  @skip(['PortableRunner', 'FlinkRunner'])
-  @attr('IT')
-  def test_read_tables(self):
-    def table_name_of(project, dataset, table):
-      return "{}:{}.{}".format(project, dataset, table)
-
-    args = self.args + ["--experiments=beam_fn_api"]
-    with beam.Pipeline(argv=args) as p:
-      result = (
-          p
-          | beam.Create([
-              beam.io.ReadAllFromBigQueryRequest(
-                  table=table_name_of(
-                      self.project, self.dataset_id, self.table_name1)),
-              beam.io.ReadAllFromBigQueryRequest(
-                  table=table_name_of(
-                      self.project, self.dataset_id, self.table_name2)),
-              beam.io.ReadAllFromBigQueryRequest(
-                  table=table_name_of(
-                      self.project, self.dataset_id, self.table_name3)),
-          ])
-          | beam.io.ReadAllFromBigQuery(project=self.project))
-      assert_that(
-          result,
-          equal_to(self.TABLE_DATA_1 + self.TABLE_DATA_2 + self.TABLE_DATA_3))
+  # @skip(['PortableRunner', 'FlinkRunner'])
+  # @attr('IT')
+  # def test_read_tables(self):
+  #   def table_name_of(project, dataset, table):
+  #     return "{}:{}.{}".format(project, dataset, table)
+  #
+  #   args = self.args + ["--experiments=beam_fn_api"]
+  #   with beam.Pipeline(argv=args) as p:
+  #     result = (
+  #         p
+  #         | beam.Create([
+  #             beam.io.ReadAllFromBigQueryRequest(
+  #                 table=table_name_of(
+  #                     self.project, self.dataset_id, self.table_name1)),
+  #             beam.io.ReadAllFromBigQueryRequest(
+  #                 table=table_name_of(
+  #                     self.project, self.dataset_id, self.table_name2)),
+  #             beam.io.ReadAllFromBigQueryRequest(
+  #                 table=table_name_of(
+  #                     self.project, self.dataset_id, self.table_name3)),
+  #         ])
+  #         # | beam.io.ReadAllFromBigQuery(project=self.project)
+  #     )
+  #     assert_that(
+  #         result,
+  #         equal_to(self.TABLE_DATA_1 + self.TABLE_DATA_2 + self.TABLE_DATA_3))
 
 
 if __name__ == '__main__':

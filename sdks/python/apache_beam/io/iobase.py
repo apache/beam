@@ -1424,7 +1424,7 @@ class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
   Delegated RangeTracker guarantees synchronization safety.
   """
   def __init__(self, restriction):
-    _LOGGER.error("restriction: %s, type: %s", restriction, type(restriction))
+    _LOGGER.error("migryz>>>> restriction: %s, type: %s", restriction, type(restriction))
     if not isinstance(restriction, _SDFBoundedSourceRestriction):
       raise ValueError(
           'Initializing SDFBoundedSourceRestrictionTracker'
@@ -1454,6 +1454,9 @@ class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
 
   def check_done(self):
     return self.restriction.range_tracker().fraction_consumed() >= 1.0
+
+  def is_bounded(self):
+    return True
 
 
 class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
