@@ -306,13 +306,10 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
 
       # Store input type hints in producer transform
       producer = applied_transform.inputs[0].producer
-      if (hasattr(producer, 'transform') and
-          isinstance(producer.transform, core.ParDo)):
-        producer = producer.transform.fn
-        producer_output_constraints = getattr(
-            producer, '_runtime_output_constraints', {})
-        producer_output_constraints[full_label] = (
-            self.get_input_type_hints(transform))
+      input_type_hints = self.get_input_type_hints(transform)
+      if input_type_hints:
+        producer.transform._add_type_constraint_from_consumer(
+            full_label, input_type_hints)
 
   def get_input_type_hints(self, transform):
     type_hints = transform.get_type_hints()

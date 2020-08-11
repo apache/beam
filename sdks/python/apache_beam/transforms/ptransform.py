@@ -715,6 +715,13 @@ class PTransform(WithTypeHints, HasDisplayData):
   def runner_api_requires_keyed_input(self):
     return False
 
+  def _add_type_constraint_from_consumer(self, full_label, input_type_hints):
+    """Adds a consumer transform's input type hints to our output type constraints.
+
+    This is only overridden by ParDo's.
+    """
+    pass
+
 
 @PTransform.register_urn(python_urns.GENERIC_COMPOSITE_TRANSFORM, None)
 def _create_transform(unused_ptransform, payload, unused_context):

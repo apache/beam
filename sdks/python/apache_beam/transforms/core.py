@@ -1474,6 +1474,11 @@ class ParDo(PTransformWithSideInputs):
     from apache_beam.runners.common import DoFnSignature
     return DoFnSignature(self.fn).get_restriction_coder()
 
+  def _add_type_constraint_from_consumer(self, full_label, input_type_hints):
+    output_constraints = getattr(self.fn, '_runtime_output_constraints', {})
+    output_constraints[full_label] = input_type_hints
+    self.fn._runtime_output_constraints = output_constraints
+
 
 class _MultiParDo(PTransform):
   def __init__(self, do_transform, tags, main_tag):
