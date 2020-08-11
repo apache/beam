@@ -1020,7 +1020,7 @@ class BigQueryWriteFn(DoFn):
       max_buffered_rows=None,
       retry_strategy=None,
       additional_bq_parameters=None,
-      with_insert_ids=True):
+      ignore_insert_ids=False):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1055,11 +1055,12 @@ class BigQueryWriteFn(DoFn):
         to be passed when creating a BigQuery table. These are passed when
         triggering a load job for FILE_LOADS, and when creating a new table for
         STREAMING_INSERTS.
-      with_insert_ids: When using the STREAMING_INSERTS method to write data to
-        BigQuery, `insert_ids` are a feature of BigQuery that support
+      ignore_insert_ids: When using the STREAMING_INSERTS method to write data
+        to BigQuery, `insert_ids` are a feature of BigQuery that support
         deduplication of events. If your use case is not sensitive to
-        duplication of data inserted to BigQuery, you can set `with_insert_ids`
-        to false to increase the throughput for BQ writing.
+        duplication of data inserted to BigQuery, set `ignore_insert_ids`
+        to True to increase the throughput for BQ writing. See:
+        https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication
     """
     self.schema = schema
     self.test_client = test_client
@@ -1074,7 +1075,7 @@ class BigQueryWriteFn(DoFn):
     self._max_buffered_rows = (
         max_buffered_rows or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS)
     self._retry_strategy = retry_strategy or RetryStrategy.RETRY_ALWAYS
-    self.with_insert_ids = with_insert_ids
+    self.ignore_insert_ids = ignore_insert_ids
 
     self.additional_bq_parameters = additional_bq_parameters or {}
 
@@ -1093,7 +1094,7 @@ class BigQueryWriteFn(DoFn):
         'create_disposition': str(self.create_disposition),
         'write_disposition': str(self.write_disposition),
         'additional_bq_parameters': str(self.additional_bq_parameters),
-        'with_insert_ids': str(self.with_insert_ids)
+        'ignore_insert_ids': str(self.ignore_insert_ids)
     }
 
   def _reset_rows_buffer(self):
@@ -1217,7 +1218,7 @@ class BigQueryWriteFn(DoFn):
     self.batch_size_metric.update(len(rows_and_insert_ids))
 
     rows = [r[0] for r in rows_and_insert_ids]
-    if self.with_insert_ids:
+    if self.ignore_insert_ids:
       insert_ids = [r[1] for r in rows_and_insert_ids]
     else:
       insert_ids = None
@@ -1281,7 +1282,7 @@ class _StreamToBigQuery(PTransform):
       kms_key,
       retry_strategy,
       additional_bq_parameters,
-      with_insert_ids,
+      ignore_insert_ids,
       test_client=None):
     self.table_reference = table_reference
     self.table_side_inputs = table_side_inputs
@@ -1294,7 +1295,7 @@ class _StreamToBigQuery(PTransform):
     self.retry_strategy = retry_strategy
     self.test_client = test_client
     self.additional_bq_parameters = additional_bq_parameters
-    self.with_insert_ids = with_insert_ids
+    self.ignore_insert_ids = ignore_insert_ids
 
   class InsertIdPrefixFn(DoFn):
     def __init__(self, shards=DEFAULT_SHARDS_PER_DESTINATION):
@@ -1323,7 +1324,7 @@ class _StreamToBigQuery(PTransform):
         retry_strategy=self.retry_strategy,
         test_client=self.test_client,
         additional_bq_parameters=self.additional_bq_parameters,
-        with_insert_ids=self.with_insert_ids)
+        ignore_insert_ids=self.ignore_insert_ids)
 
     def drop_shard(elms):
       key_and_shard = elms[0]
@@ -1331,7 +1332,7 @@ class _StreamToBigQuery(PTransform):
       value = elms[1]
       return (key, value)
 
-    data_with_insert_ids = (
+    sharded_data = (
         input
         | 'AppendDestination' >> beam.ParDo(
             bigquery_tools.AppendDestinationsFn(self.table_reference),
@@ -1339,12 +1340,11 @@ class _StreamToBigQuery(PTransform):
         | 'AddInsertIdsWithRandomKeys' >> beam.ParDo(
             _StreamToBigQuery.InsertIdPrefixFn()))
 
-    if self.with_insert_ids:
-      data_with_insert_ids = (
-          data_with_insert_ids | 'CommitInsertIds' >> ReshufflePerKey())
+    if not self.ignore_insert_ids:
+      sharded_data = (sharded_data | 'CommitInsertIds' >> ReshufflePerKey())
 
     return (
-        data_with_insert_ids
+        sharded_data
         | 'DropShard' >> beam.Map(drop_shard)
         | 'StreamInsertRows' >> ParDo(
             bigquery_write_fn, *self.schema_side_inputs).with_outputs(
@@ -1389,7 +1389,7 @@ class WriteToBigQuery(PTransform):
       triggering_frequency=None,
       validate=True,
       temp_file_format=None,
-      with_insert_ids=True):
+      ignore_insert_ids=False):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1507,11 +1507,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro
         and
         https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json.
-      with_insert_ids: When using the STREAMING_INSERTS method to write data to
-        BigQuery, `insert_ids` are a feature of BigQuery that support
+      ignore_insert_ids: When using the STREAMING_INSERTS method to write data
+        to BigQuery, `insert_ids` are a feature of BigQuery that support
         deduplication of events. If your use case is not sensitive to
-        duplication of data inserted to BigQuery, you can set `with_insert_ids`
-        to false to increase the throughput for BQ writing.
+        duplication of data inserted to BigQuery, set `ignore_insert_ids`
+        to True to increase the throughput for BQ writing. See:
+        https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication
     """
     self._table = table
     self._dataset = dataset
@@ -1543,7 +1544,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.additional_bq_parameters = additional_bq_parameters or {}
     self.table_side_inputs = table_side_inputs or ()
     self.schema_side_inputs = schema_side_inputs or ()
-    self._with_insert_ids = with_insert_ids
+    self._ignore_insert_ids = ignore_insert_ids
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -1600,7 +1601,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           self.kms_key,
           self.insert_retry_strategy,
           self.additional_bq_parameters,
-          self._with_insert_ids,
+          self._ignore_insert_ids,
           test_client=self.test_client)
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
