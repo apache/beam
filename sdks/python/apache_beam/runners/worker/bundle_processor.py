@@ -647,7 +647,7 @@ class OutputTimer(object):
         windows=(self._window, ),
         clear_bit=False,
         fire_timestamp=ts,
-        hold_timestamp=self._input_timestamp,
+        hold_timestamp=ts,
         paneinfo=self._paneinfo)
     self._timer_coder_impl.encode_to_stream(timer, self._output_stream, True)
     self._output_stream.maybe_flush()
