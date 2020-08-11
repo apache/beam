@@ -54,9 +54,9 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.junit
+  testCompile library.java.testcontainers_localstack
   testCompile "org.assertj:assertj-core:3.11.1"
   testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
-  testCompile 'org.testcontainers:localstack:1.11.2'
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
