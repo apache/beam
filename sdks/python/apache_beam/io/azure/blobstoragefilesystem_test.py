@@ -39,7 +39,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 try:
   from apache_beam.io.azure import blobstoragefilesystem
 except ImportError:
-  blobstoragefilesystem = None  # type: ignore
+  blobstoragefilesystem = None  # type: ignore[assignment]
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
