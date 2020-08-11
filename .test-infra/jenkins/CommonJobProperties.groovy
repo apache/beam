@@ -201,6 +201,14 @@ class CommonJobProperties {
     }
   }
 
+  static void setArchiveJunitWithStabilityHistory(context, String glob) {
+    context.archiveJunit(glob) {
+      testDataPublishers {
+        publishTestStabilityData()
+      }
+    }
+  }
+
   // Sets common config for jobs which run on a schedule; optionally on push
   static void setAutoJob(context,
       String buildSchedule = '0 */6 * * *',
