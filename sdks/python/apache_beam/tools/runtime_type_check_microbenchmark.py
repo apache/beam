@@ -35,7 +35,6 @@ import logging
 from builtins import range
 from collections import defaultdict
 from time import time
-
 from typing import Iterable
 from typing import Tuple
 from typing import Union
@@ -94,7 +93,7 @@ def run_benchmark(num_dofns=100, num_runs=10, num_elements_step=1000):
     for option_name, options in options_map.items():
       # Run a Pipeline using DoFn's with simple typehints
       start = time()
-      with beam.Pipeline() as p:
+      with beam.Pipeline(options=options) as p:
         pc = p | beam.Create(simple_elements)
         for ix in range(num_dofns):
           pc = (
@@ -115,9 +114,9 @@ def run_benchmark(num_dofns=100, num_runs=10, num_elements_step=1000):
     for num_elements, element_type_map in timings.items():
       print("%d Element%s" % (num_elements, " " if num_elements == 1 else "s"))
       for element_type, option_name_map in element_type_map.items():
-        print(f"-- %s" % element_type)
+        print("-- %s" % element_type)
         for option_name, time_elapsed in option_name_map.items():
-          print(f"---- %.2f sec (%s)" % (time_elapsed, option_name))
+          print("---- %.2f sec (%s)" % (time_elapsed, option_name))
     print('\n')
 
 
