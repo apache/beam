@@ -29,7 +29,6 @@ import unittest
 import future.tests.base  # pylint: disable=unused-import
 import mock
 
-from apache_beam.io.azure import blobstorageio
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -37,6 +36,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 # Protect against environments where azure library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  from apache_beam.io.azure import blobstorageio
   from apache_beam.io.azure import blobstoragefilesystem
 except ImportError:
   blobstoragefilesystem = None  # type: ignore[assignment]

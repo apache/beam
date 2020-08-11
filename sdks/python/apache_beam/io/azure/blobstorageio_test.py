@@ -24,9 +24,15 @@ from __future__ import absolute_import
 import logging
 import unittest
 
-from apache_beam.io.azure import blobstorageio
+# Protect against environments where azure library is not available.
+try:
+  from apache_beam.io.azure import blobstorageio
+except ImportError:
+  blobstorageio = None # type: ignore[assignment]
 
 
+@unittest.skipIf(
+    blobstorageio is None, 'Azure dependencies are not installed')
 class TestAZFSPathParser(unittest.TestCase):
 
   BAD_AZFS_PATHS = [
