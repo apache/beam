@@ -14,7 +14,7 @@ import * as React from 'react';
 
 export interface IHtmlProvider {
   readonly html: string;
-  readonly script: Array<string>;
+  readonly script: string[];
 }
 
 interface IHtmlViewProps {
@@ -23,7 +23,7 @@ interface IHtmlViewProps {
 
 interface IHtmlViewState {
   innerHtml: string;
-  script: Array<string>;
+  script: string[];
 }
 
 /**
@@ -102,7 +102,7 @@ export class HtmlView extends React.Component<IHtmlViewProps, IHtmlViewState> {
  * Note everything is appended to head and if there are duplicated HTML
  * imports, only the first one will take effect.
  */
-export function importHtml(hrefs: Array<string>): void {
+export function importHtml(hrefs: string[]): void {
   const webcomponentScript = document.createElement('script');
   webcomponentScript.src =
     'https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js';
