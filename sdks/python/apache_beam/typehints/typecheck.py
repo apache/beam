@@ -32,7 +32,6 @@ from future.utils import raise_with_traceback
 from past.builtins import unicode
 
 from apache_beam import pipeline
-from apache_beam.internal import pickler
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import core
 from apache_beam.transforms.core import DoFn
