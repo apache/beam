@@ -68,10 +68,11 @@ class UtilTest(unittest.TestCase):
         '--temp_location',
         'gs://any-location/temp'
     ])
-    env = apiclient.Environment([],
-                                pipeline_options,
-                                '2.0.0', # any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],
+        pipeline_options,
+        '2.0.0',  # any environment version
+        FAKE_PIPELINE_URL)
 
     recovered_options = None
     for additionalProperty in env.proto.sdkPipelineOptions.additionalProperties:
@@ -99,10 +100,11 @@ class UtilTest(unittest.TestCase):
         '--temp_location',
         'gs://any-location/temp'
     ])
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.workerPools[0].network, 'anetworkname')
 
   def test_set_subnetwork(self):
@@ -113,10 +115,11 @@ class UtilTest(unittest.TestCase):
         'gs://any-location/temp'
     ])
 
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     self.assertEqual(
         env.proto.workerPools[0].subnetwork,
         '/regions/MY/subnetworks/SUBNETWORK')
@@ -125,10 +128,11 @@ class UtilTest(unittest.TestCase):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
 
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.flexResourceSchedulingGoal, None)
 
   def test_flexrs_cost(self):
@@ -139,10 +143,11 @@ class UtilTest(unittest.TestCase):
         'gs://any-location/temp'
     ])
 
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     self.assertEqual(
         env.proto.flexResourceSchedulingGoal,
         (
@@ -157,10 +162,11 @@ class UtilTest(unittest.TestCase):
         'gs://any-location/temp'
     ])
 
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     self.assertEqual(
         env.proto.flexResourceSchedulingGoal,
         (
@@ -197,13 +203,15 @@ class UtilTest(unittest.TestCase):
     proto_pipeline.components.transforms['dummy_transform_id'].CopyFrom(
         dummy_transform)
 
-    env = apiclient.Environment([],  # packages
-                                pipeline_options,
-                                '2.0.0',  # any environment version
-                                FAKE_PIPELINE_URL, proto_pipeline,
-                                _sdk_image_overrides={
-                                    '.*dummy.*':'dummy_image',
-                                  '.*test.*': 'test_default_image'})
+    env = apiclient.Environment(
+        [],  # packages
+        pipeline_options,
+        '2.0.0',  # any environment version
+        FAKE_PIPELINE_URL,
+        proto_pipeline,
+        _sdk_image_overrides={
+            '.*dummy.*': 'dummy_image', '.*test.*': 'test_default_image'
+        })
     worker_pool = env.proto.workerPools[0]
 
     # For the test, a third environment get added since actual default
@@ -406,10 +414,11 @@ class UtilTest(unittest.TestCase):
         names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
         '/harness:2.2.0'
     ])
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     self.assertIn(override, env.proto.experiments)
 
   @mock.patch(
@@ -443,10 +452,11 @@ class UtilTest(unittest.TestCase):
         '--streaming',
         '--experiments=runner_harness_container_image=fake_image'
     ])
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     self.assertEqual(
         1,
         len([
@@ -468,10 +478,11 @@ class UtilTest(unittest.TestCase):
         '--experiments=runner_harness_container_image=fake_image',
         '--experiments=use_runner_v2',
     ])
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     self.assertEqual(
         1,
         len([
@@ -493,10 +504,11 @@ class UtilTest(unittest.TestCase):
         names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
         '/harness:2.2.0'
     ])
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     self.assertIn(override, env.proto.experiments)
 
   @mock.patch(
@@ -506,10 +518,11 @@ class UtilTest(unittest.TestCase):
   def test_harness_override_absent_in_unreleased_sdk(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     if env.proto.experiments:
       for experiment in env.proto.experiments:
         self.assertNotIn('runner_harness_container_image=', experiment)
@@ -522,10 +535,11 @@ class UtilTest(unittest.TestCase):
     # streaming, fnapi pipeline.
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     if sys.version_info[0] == 2:
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
@@ -551,10 +565,11 @@ class UtilTest(unittest.TestCase):
     # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     if sys.version_info[0] == 2:
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
@@ -584,10 +599,11 @@ class UtilTest(unittest.TestCase):
     # streaming, fnapi pipeline.
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     if sys.version_info[0] == 2:
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
@@ -607,10 +623,11 @@ class UtilTest(unittest.TestCase):
     # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     if sys.version_info[0] == 2:
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
@@ -634,10 +651,11 @@ class UtilTest(unittest.TestCase):
     # streaming, fnapi pipeline.
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     if sys.version_info[0] == 2:
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
@@ -657,10 +675,11 @@ class UtilTest(unittest.TestCase):
     # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     if sys.version_info[0] == 2:
       self.assertEqual(
           env.proto.workerPools[0].workerHarnessContainerImage,
@@ -684,10 +703,11 @@ class UtilTest(unittest.TestCase):
         '--streaming',
         '--worker_harness_container_image=some:image'
     ])
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage, 'some:image')
     # batch, legacy pipeline.
@@ -696,10 +716,11 @@ class UtilTest(unittest.TestCase):
         'gs://any-location/temp',
         '--worker_harness_container_image=some:image'
     ])
-    env = apiclient.Environment([], #packages
-                                pipeline_options,
-                                '2.0.0', #any environment version
-                                FAKE_PIPELINE_URL)
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage, 'some:image')
 

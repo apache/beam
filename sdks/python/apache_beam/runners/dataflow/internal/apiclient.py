@@ -922,10 +922,9 @@ class DataflowApplicationClient(object):
           pageToken=token)
       response = self._client.projects_locations_jobs.List(request)
       for job in response.jobs:
-        if (job.name == job_name and job.currentState in [
-            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING,
-            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_DRAINING
-        ]):
+        if (job.name == job_name and job.currentState
+            in [dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING,
+                dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_DRAINING]):
           return job.id
       token = response.nextPageToken
       if token is None:
@@ -1133,9 +1132,8 @@ def get_response_encoding():
 
 
 def _verify_interpreter_version_is_supported(pipeline_options):
-  if ('%s.%s' %
-      (sys.version_info[0],
-       sys.version_info[1]) in _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW):
+  if ('%s.%s' % (sys.version_info[0], sys.version_info[1])
+      in _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW):
     return
 
   if 'dev' in beam_version.__version__:
