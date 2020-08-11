@@ -627,8 +627,7 @@ class DoOperation(Operation):
           self.name_context.step_name,
           view_options['coder'],
           i,
-          suffix='side-input',
-          producer_type_hints=get_perf_runtime_type_hints(self))
+          suffix='side-input')
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter, element_counter=element_counter)
       yield apache_sideinputs.SideInputMap(
