@@ -1219,9 +1219,9 @@ class BigQueryWriteFn(DoFn):
 
     rows = [r[0] for r in rows_and_insert_ids]
     if self.ignore_insert_ids:
-      insert_ids = [r[1] for r in rows_and_insert_ids]
-    else:
       insert_ids = None
+    else:
+      insert_ids = [r[1] for r in rows_and_insert_ids]
 
     while True:
       start = time.time()
