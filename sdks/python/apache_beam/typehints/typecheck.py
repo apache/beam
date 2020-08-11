@@ -355,14 +355,3 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
       output_types = output_types[0]
 
     return None, output_types
-
-
-def get_perf_runtime_type_hints(operation):
-  if hasattr(operation, 'spec') and hasattr(operation.spec, 'serialized_fn'):
-    serialized_fn = operation.spec.serialized_fn
-    if serialized_fn:
-      fns = pickler.loads(serialized_fn)
-      if fns and hasattr(fns[0], '_runtime_output_constraints'):
-        return fns[0]._runtime_output_constraints
-
-  return {}

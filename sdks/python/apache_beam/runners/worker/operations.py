@@ -64,7 +64,6 @@ from apache_beam.transforms import window
 from apache_beam.transforms.combiners import PhasedCombineFnExecutor
 from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.window import GlobalWindows
-from apache_beam.typehints.typecheck import get_perf_runtime_type_hints
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
@@ -301,7 +300,7 @@ class Operation(object):
                 i,
                 self.consumers[i],
                 coder,
-                get_perf_runtime_type_hints(self)) for i,
+                self._get_runtime_performance_hints()) for i,
             coder in enumerate(self.spec.output_coders)
         ]
     self.setup_done = True
@@ -477,6 +476,14 @@ class Operation(object):
 
     return '<%s %s>' % (printable_name, ', '.join(printable_fields))
 
+  def _get_runtime_performance_hints(self):
+    """Returns any type hints required for performance runtime type-checking.
+    These type hints are stored in the operation's spec's serialized_fn.
+
+    This is only overridden by DoOperation's.
+    """
+    return None
+
 
 class ReadOperation(Operation):
   def start(self):
@@ -512,7 +519,7 @@ class ImpulseReadOperation(Operation):
             0,
             next(iter(consumers.values())),
             output_coder,
-            get_perf_runtime_type_hints(self))
+            self._get_runtime_performance_hints())
     ]
 
   def process(self, unused_impulse):
@@ -768,6 +775,13 @@ class DoOperation(Operation):
             pcollection=pcollection_id)
         infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
     return infos
+
+  def _get_runtime_performance_hints(self):
+    fns = pickler.loads(self.spec.serialized_fn)
+    if fns and hasattr(fns[0], '_runtime_output_constraints'):
+      return fns[0]._runtime_output_constraints
+
+    return {}
 
 
 class SdfTruncateSizedRestrictions(DoOperation):

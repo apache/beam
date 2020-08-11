@@ -206,7 +206,7 @@ class OperationCounters(object):
     self.current_size = None  # type: Optional[int]
     self._sample_counter = 0
     self._next_sample = 0
-    self.output_type_constraints = producer_type_hints
+    self.output_type_constraints = producer_type_hints or {}
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None

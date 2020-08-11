@@ -73,7 +73,6 @@ from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms import userstate
-from apache_beam.typehints.typecheck import get_perf_runtime_type_hints
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
@@ -191,7 +190,7 @@ class DataInputOperation(RunnerIOOperation):
             0,
             next(iter(itervalues(consumers))),
             self.windowed_coder,
-            get_perf_runtime_type_hints(self))
+            self._get_runtime_performance_hints())
     ]
     self.splitting_lock = threading.Lock()
     self.index = -1
