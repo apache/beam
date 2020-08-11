@@ -39,6 +39,7 @@ import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
+import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -61,6 +62,7 @@ import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -71,6 +73,8 @@ public class SparkStreamingPortablePipelineTranslator
 
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkStreamingPortablePipelineTranslator.class);
+
+  private static Instant firstTimestamp;
 
   private final ImmutableMap<String, PTransformTranslator> urnToTransformTranslator;
 
@@ -138,11 +142,6 @@ public class SparkStreamingPortablePipelineTranslator
       RunnerApi.Pipeline pipeline,
       SparkStreamingTranslationContext context) {
 
-    // create windowed RDD from empty byte array
-//    Iterable<byte[]> values = Collections.singletonList(new byte[0]);
-//    Iterable<WindowedValue<byte[]>> windowedValues =
-//        Iterables.transform(values, WindowedValue::valueInGlobalWindow);
-
     TimestampedValue<byte[]> tsValue = TimestampedValue.atMinimumTimestamp(new byte[0]);
     Iterable<TimestampedValue<byte[]>> timestampedValues = Collections.singletonList(tsValue);
     Iterable<WindowedValue<byte[]>> windowedValues =
@@ -171,9 +170,19 @@ public class SparkStreamingPortablePipelineTranslator
     queueRDD.offer(emptyRDD);
     JavaInputDStream<WindowedValue<byte[]>> emptyStream =
         context.getStreamingContext().queueStream(queueRDD, true);
+
     UnboundedDataset<byte[]> output =
         new UnboundedDataset<>(
             emptyStream, Collections.singletonList(emptyStream.inputDStream().id()));
+
+    if (firstTimestamp == null) firstTimestamp = new Instant();
+    GlobalWatermarkHolder.SparkWatermarks sparkWatermark =
+        new GlobalWatermarkHolder.SparkWatermarks(
+            BoundedWindow.TIMESTAMP_MAX_VALUE,
+            BoundedWindow.TIMESTAMP_MAX_VALUE,
+            firstTimestamp);
+    GlobalWatermarkHolder.add(output.getStreamSources().get(0), sparkWatermark);
+
     context.pushDataset(getOutputId(transformNode), output);
   }
 
