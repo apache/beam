@@ -30,7 +30,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Flink',
 
       // Publish all test results to Jenkins
       publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
+        commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
       }
 
       // Gradle goals for this job.
