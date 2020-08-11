@@ -25,6 +25,7 @@ import com.google.auto.value.AutoValue;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Objects;
+import java.util.function.Supplier;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -246,7 +247,7 @@ public class SchemaCoderTest {
     public SchemaCoder coder;
 
     @Parameterized.Parameter(1)
-    public ImmutableList<Object> testValues;
+    public ImmutableList<Supplier<Object>> testValues;
 
     @Parameterized.Parameter(2)
     public boolean expectDeterministic;
@@ -256,62 +257,96 @@ public class SchemaCoderTest {
       return ImmutableList.of(
           new Object[] {
             SchemaCoder.of(INT32_SCHEMA),
-            ImmutableList.of(
-                Row.withSchema(INT32_SCHEMA).addValues(9001, 9002).build(),
-                Row.withSchema(INT32_SCHEMA).addValues(3, 4).build()),
+            ImmutableList.<Supplier<Object>>of(
+                () -> Row.withSchema(INT32_SCHEMA).addValues(9001, 9002).build(),
+                () -> Row.withSchema(INT32_SCHEMA).addValues(3, 4).build()),
             true
           },
           new Object[] {
             coderFrom(TypeDescriptor.of(SimpleAutoValue.class)),
-            ImmutableList.of(
-                SimpleAutoValue.of(
-                    "foo", 9001, 0L, new DateTime().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
-                SimpleAutoValue.of(
-                    "bar", 9002, 1L, new DateTime().withDate(1989, 3, 14).withTime(10, 30, 0, 0))),
+            ImmutableList.<Supplier<Object>>of(
+                () ->
+                    SimpleAutoValue.of(
+                        "foo",
+                        9001,
+                        0L,
+                        new DateTime().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
+                () ->
+                    SimpleAutoValue.of(
+                        "bar",
+                        9002,
+                        1L,
+                        new DateTime().withDate(1989, 3, 14).withTime(10, 30, 0, 0))),
             true
           },
           new Object[] {
             coderFrom(TypeDescriptor.of(SimpleBean.class)),
-            ImmutableList.of(
-                new SimpleBean(
-                    "foo", 9001, 0L, new DateTime().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
-                new SimpleBean(
-                    "bar", 9002, 1L, new DateTime().withDate(1989, 3, 14).withTime(10, 30, 0, 0))),
+            ImmutableList.<Supplier<Object>>of(
+                () ->
+                    new SimpleBean(
+                        "foo",
+                        9001,
+                        0L,
+                        new DateTime().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
+                () ->
+                    new SimpleBean(
+                        "bar",
+                        9002,
+                        1L,
+                        new DateTime().withDate(1989, 3, 14).withTime(10, 30, 0, 0))),
             true
           },
           new Object[] {
             coderFrom(TypeDescriptor.of(SimplePojo.class)),
-            ImmutableList.of(
-                new SimplePojo(
-                    "foo", 9001, 0L, new DateTime().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
-                new SimplePojo(
-                    "bar", 9002, 1L, new DateTime().withDate(1989, 3, 14).withTime(10, 30, 0, 0))),
+            ImmutableList.<Supplier<Object>>of(
+                () ->
+                    new SimplePojo(
+                        "foo",
+                        9001,
+                        0L,
+                        new DateTime().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
+                () ->
+                    new SimplePojo(
+                        "bar",
+                        9002,
+                        1L,
+                        new DateTime().withDate(1989, 3, 14).withTime(10, 30, 0, 0))),
             true
           },
           new Object[] {
             coderFrom(TypeDescriptor.of(SimpleAvro.class)),
-            ImmutableList.of(
-                new SimpleAvro(
-                    "foo", 9001, 0L, new DateTime().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
-                new SimpleAvro(
-                    "bar", 9002, 1L, new DateTime().withDate(1989, 3, 14).withTime(10, 30, 0, 0))),
+            ImmutableList.<Supplier<Object>>of(
+                () ->
+                    new SimpleAvro(
+                        "foo",
+                        9001,
+                        0L,
+                        new DateTime().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
+                () ->
+                    new SimpleAvro(
+                        "bar",
+                        9002,
+                        1L,
+                        new DateTime().withDate(1989, 3, 14).withTime(10, 30, 0, 0))),
             true
           },
           new Object[] {
             RowCoder.of(LOGICAL_NANOS_SCHEMA),
-            ImmutableList.of(
-                Row.withSchema(LOGICAL_NANOS_SCHEMA)
-                    .withFieldValue("logicalNanos", Instant.ofEpochMilli(9001))
-                    .build()),
+            ImmutableList.<Supplier<Object>>of(
+                () ->
+                    Row.withSchema(LOGICAL_NANOS_SCHEMA)
+                        .withFieldValue("logicalNanos", Instant.ofEpochMilli(9001))
+                        .build()),
             true
           },
           new Object[] {
             RowCoder.of(FLOATING_POINT_SCHEMA),
-            ImmutableList.of(
-                Row.withSchema(FLOATING_POINT_SCHEMA)
-                    .withFieldValue("float", (float) 1.0)
-                    .withFieldValue("double", 2.0)
-                    .build()),
+            ImmutableList.<Supplier<Object>>of(
+                () ->
+                    Row.withSchema(FLOATING_POINT_SCHEMA)
+                        .withFieldValue("float", (float) 1.0)
+                        .withFieldValue("double", 2.0)
+                        .build()),
             false
           });
     }
@@ -323,9 +358,9 @@ public class SchemaCoderTest {
 
     @Test
     public void coderConsistentWithEquals() throws Exception {
-      for (Object testValueA : testValues) {
-        for (Object testValueB : testValues) {
-          CoderProperties.coderConsistentWithEquals(coder, testValueA, testValueB);
+      for (Supplier<Object> testValueA : testValues) {
+        for (Supplier<Object> testValueB : testValues) {
+          CoderProperties.coderConsistentWithEquals(coder, testValueA.get(), testValueB.get());
         }
       }
     }
@@ -333,18 +368,12 @@ public class SchemaCoderTest {
     @Test
     public void verifyDeterministic() throws Exception {
       if (expectDeterministic) {
-        assertDeterministic(coder);
+        for (Supplier<Object> testValue : testValues) {
+          CoderProperties.coderDeterministic(coder, testValue.get(), testValue.get());
+        }
       } else {
         assertNonDeterministic(coder);
       }
-    }
-  }
-
-  private static void assertDeterministic(SchemaCoder coder) {
-    try {
-      coder.verifyDeterministic();
-    } catch (NonDeterministicException e) {
-      fail("Expected " + coder + " to be deterministic, but got:\n" + e);
     }
   }
 
