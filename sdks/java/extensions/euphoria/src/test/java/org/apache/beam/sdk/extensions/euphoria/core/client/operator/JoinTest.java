@@ -39,8 +39,11 @@ import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test operator Join. */
+@RunWith(JUnit4.class)
 public class JoinTest {
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
