@@ -47,8 +47,8 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
   public static final String READ_DATA_URN = "beam:external:java:kinesis:read_data:v1";
 
   @Override
-  public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
-    return ImmutableMap.of(WRITE_URN, WriteBuilder.class, READ_DATA_URN, ReadDataBuilder.class);
+  public Map<String, ExternalTransformBuilder<?, ?, ?>> knownBuilderInstances() {
+    return ImmutableMap.of(WRITE_URN, new WriteBuilder(), READ_DATA_URN, new ReadDataBuilder());
   }
 
   private abstract static class CrossLanguageConfiguration {
