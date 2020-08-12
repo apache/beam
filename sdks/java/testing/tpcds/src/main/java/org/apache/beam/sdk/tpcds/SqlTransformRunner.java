@@ -83,7 +83,8 @@ public class SqlTransformRunner {
     }
 
     /**
-     * This is the default method in BeamTpcds.main method. Run job using SqlTranform.query() method.
+     * This is the default method in BeamTpcds.main method. Run job using SqlTransform.query()
+     * method.
      * @param args Command line arguments
      * @throws Exception
      */
