@@ -80,7 +80,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
     }
 
     public void setVerifyCertificate(@Nullable Boolean verifyCertificate) {
-      this.verifyCertificate = verifyCertificate == null ? true : verifyCertificate;
+      this.verifyCertificate = verifyCertificate == null || verifyCertificate;
     }
   }
 
