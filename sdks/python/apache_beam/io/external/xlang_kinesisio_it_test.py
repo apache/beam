@@ -45,6 +45,7 @@ import uuid
 
 import apache_beam as beam
 from apache_beam.io.kinesis import InitialPositionInStream
+from apache_beam.io.kinesis import WatermarkPolicy
 from apache_beam.io.kinesis import ReadDataFromKinesis
 from apache_beam.io.kinesis import WriteToKinesis
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -133,7 +134,10 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
               service_endpoint=self.aws_service_endpoint,
               verify_certificate=not self.use_localstack,
               max_num_records=NUM_RECORDS,
-              max_read_time=300,  # 5min
+              max_read_time=MAX_READ_TIME,
+              request_records_limit=REQUEST_RECORDS_LIMIT,
+              watermark_policy=WatermarkPolicy.ARRIVAL_TIME,
+              watermark_idle_duration_threshold=MAX_READ_TIME,
               initial_position_in_stream=InitialPositionInStream.AT_TIMESTAMP,
               initial_timestamp_in_stream=NOW_MILLIS,
           ).with_output_types(bytes))
