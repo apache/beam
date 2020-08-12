@@ -39,7 +39,6 @@ import sys
 import time
 import uuid
 from builtins import object
-from json.decoder import JSONDecodeError
 
 import fastavro
 from future.utils import iteritems
@@ -67,6 +66,12 @@ try:
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
 except ImportError:
   pass
+
+try:
+  # TODO(pabloem): Remove this workaround after Python 2.7 support ends.
+  from json.decoder import JSONDecodeError
+except ImportError:
+  JSONDecodeError = ValueError
 
 # pylint: enable=wrong-import-order, wrong-import-position
 
