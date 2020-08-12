@@ -88,7 +88,7 @@ public class BigQueryIOPushDownIT {
   private static final String SELECT_STATEMENT =
       "SELECT `by` as author, type, title, score from HACKER_NEWS where (type='story' or type='job') and score>2";
 
-//  https://github.com/typetools/checker-framework/issues/1525
+  //  https://github.com/typetools/checker-framework/issues/1525
   @SuppressWarnings("initialization.static.fields.uninitialized")
   private static SQLBigQueryPerfTestOptions options;
 
