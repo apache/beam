@@ -90,6 +90,7 @@ class CommonJobProperties {
         env('SPARK_LOCAL_IP', '127.0.0.1')
       }
       credentialsBinding {
+        string("CODECOV_TOKEN", "beam-codecov-token")
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
         string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
       }
