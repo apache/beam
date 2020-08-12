@@ -83,10 +83,9 @@ from __future__ import absolute_import
 
 import logging
 import time
-from typing import List
+from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
-from typing import Tuple
 
 from past.builtins import unicode
 
@@ -117,7 +116,7 @@ WriteToKinesisSchema = NamedTuple(
         ('partition_key', unicode),
         ('service_endpoint', Optional[unicode]),
         ('verify_certificate', Optional[bool]),
-        ('producer_properties', Optional[List[Tuple[unicode, unicode]]]),
+        ('producer_properties', Optional[Mapping[unicode, unicode]]),
     ],
 )
 
@@ -169,7 +168,7 @@ class WriteToKinesis(ExternalTransform):
                 partition_key=partition_key,
                 service_endpoint=service_endpoint,
                 verify_certificate=verify_certificate,
-                producer_properties=list(producer_properties.items()),
+                producer_properties=producer_properties,
             )),
         expansion_service or default_io_expansion_service(),
     )

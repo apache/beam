@@ -91,10 +91,10 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
       private Properties producerProperties;
       private String partitionKey;
 
-      public void setProducerProperties(Iterable<KV<String, String>> producerProperties) {
+      public void setProducerProperties(Map<String, String> producerProperties) {
         if (producerProperties != null) {
           Properties properties = new Properties();
-          producerProperties.forEach(kv -> properties.setProperty(kv.getKey(), kv.getValue()));
+          producerProperties.forEach(properties::setProperty);
           this.producerProperties = properties;
         }
       }
