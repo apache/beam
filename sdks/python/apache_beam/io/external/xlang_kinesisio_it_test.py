@@ -45,8 +45,8 @@ import uuid
 
 import apache_beam as beam
 from apache_beam.io.kinesis import InitialPositionInStream
-from apache_beam.io.kinesis import WatermarkPolicy
 from apache_beam.io.kinesis import ReadDataFromKinesis
+from apache_beam.io.kinesis import WatermarkPolicy
 from apache_beam.io.kinesis import WriteToKinesis
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
