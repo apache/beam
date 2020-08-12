@@ -32,7 +32,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.PriorityQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
@@ -705,6 +704,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     long potentialOutputWatermark =
         applyOutputWatermarkHold(
             currentOutputWatermark, computeOutputWatermark(inputWatermarkHold));
+
     maybeEmitWatermark(potentialOutputWatermark);
   }
 
@@ -734,10 +734,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     if (keyCoder == null) {
       potentialOutputWatermark = inputWatermarkHold;
     } else {
-      long combinedWatermarkHold =
-          Math.min(keyedStateInternals.minWatermarkHoldMs(), inputWatermarkHold);
       potentialOutputWatermark =
-          Math.min(combinedWatermarkHold, timerInternals.getMinOutputTimestampMs());
+          Math.min(keyedStateInternals.minWatermarkHoldMs(), inputWatermarkHold);
     }
     return potentialOutputWatermark;
   }
@@ -1221,13 +1219,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
      */
     @VisibleForTesting final MapState<String, TimerData> pendingTimersById;
 
-    /**
-     * Sorted cache of the output timestamps for timers which have an earlier output time than the
-     * fire time of the timer. Used for calculating the output watermark hold. This avoids fetching
-     * timer data from the state backend which is expensive if done for each timer.
-     */
-    private final PriorityQueue<Long> outputTimestampQueue;
-
     private FlinkTimerInternals() {
       MapStateDescriptor<String, TimerData> pendingTimersByIdStateDescriptor =
           new MapStateDescriptor<>(
@@ -1235,17 +1226,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
               new StringSerializer(),
               new CoderTypeSerializer<>(timerCoder));
       this.pendingTimersById = getKeyedStateStore().getMapState(pendingTimersByIdStateDescriptor);
-      this.outputTimestampQueue = new PriorityQueue<>();
       populateOutputTimestampQueue();
-    }
-
-    /** Gets the current minimum output timestamp across all registered timers. */
-    long getMinOutputTimestampMs() {
-      if (outputTimestampQueue.isEmpty()) {
-        return Long.MAX_VALUE;
-      } else {
-        return outputTimestampQueue.peek();
-      }
     }
 
     /**
@@ -1277,7 +1258,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
           "Timer with id %s is not an event time timer!",
           newTimer.getTimerId());
       if (timerUsesOutputTimestamp(newTimer)) {
-        outputTimestampQueue.add(newTimer.getOutputTimestamp().getMillis());
+        keyedStateInternals.addWatermarkHoldUsage(newTimer.getOutputTimestamp());
       }
     }
 
@@ -1289,14 +1270,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       // Remove the first occurrence of the output timestamp, if cached
       // Note: There may be duplicate timestamps from other timers, that's ok.
       if (timerUsesOutputTimestamp(removedTimer)) {
-        outputTimestampQueue.remove(removedTimer.getOutputTimestamp().getMillis());
+        keyedStateInternals.removeWatermarkHoldUsage(removedTimer.getOutputTimestamp());
       }
     }
 
     private void populateOutputTimestampQueue() {
-      Preconditions.checkState(
-          outputTimestampQueue.isEmpty(),
-          "Output timestamp queue should be empty when recomputing the minimum output timestamp across all timers.");
       final KeyedStateBackend<Object> keyedStateBackend = getKeyedStateBackend();
       final Object currentKey = keyedStateBackend.getCurrentKey();
       try (Stream<Object> keys =
@@ -1307,9 +1285,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
               try {
                 for (TimerData timerData : pendingTimersById.values()) {
                   if (timerData.getDomain() == TimeDomain.EVENT_TIME) {
-                    long outputTimeStampMs = timerData.getOutputTimestamp().getMillis();
                     if (timerUsesOutputTimestamp(timerData)) {
-                      outputTimestampQueue.add(outputTimeStampMs);
+                      keyedStateInternals.addWatermarkHoldUsage(timerData.getOutputTimestamp());
                     }
                   }
                 }
