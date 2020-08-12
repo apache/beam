@@ -1388,8 +1388,8 @@ public class KafkaIO {
 
     /**
      * Updates configuration for the main consumer. This method merges updates from the provided map
-     * with with any prior updates using {@link KafkaIOUtils#DEFAULT_CONSUMER_PROPERTIES} as the
-     * starting configuration.
+     * with any prior updates using {@link KafkaIOUtils#DEFAULT_CONSUMER_PROPERTIES} as the starting
+     * configuration.
      *
      * <p>In {@link ReadFromKafkaDoFn}, there're two consumers running in the backend:
      *
