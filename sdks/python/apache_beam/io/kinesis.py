@@ -265,15 +265,11 @@ class ReadDataFromKinesis(ExternalTransform):
         default there is no rate limit.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    if watermark_policy:
-      assert watermark_policy == WatermarkPolicy.ARRIVAL_TIME or\
-             watermark_policy == WatermarkPolicy.PROCESSING_TYPE
+    WatermarkPolicy.validate_param(watermark_policy)
+    InitialPositionInStream.validate_param(initial_position_in_stream)
 
-    if initial_position_in_stream:
-      i = initial_position_in_stream
-      assert i == InitialPositionInStream.AT_TIMESTAMP or \
-             i == InitialPositionInStream.LATEST or \
-             i == InitialPositionInStream.TRIM_HORIZON
+    if watermark_idle_duration_threshold:
+      assert WatermarkPolicy.ARRIVAL_TIME == watermark_policy
 
     if request_records_limit:
       assert 0 < request_records_limit <= 10000
