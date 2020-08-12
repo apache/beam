@@ -239,18 +239,18 @@ class ApproximateUniqueCombineFn(CombineFn):
 
 
 class ApproximateQuantiles(object):
-  """
+  r"""
   PTransform for getting the idea of data distribution using approximate N-tile
   (e.g. quartiles, percentiles etc.) either globally or per-key.
 
-  Examples
+  Examples:
 
-    in - list(range(101)), num_quantiles=5
-    out - [0, 25, 50, 75, 100]
+    in: list(range(101)), num_quantiles=5
+    out: [0, 25, 50, 75, 100]
 
-    in - [(i, 1 if i<10 else 1e-5) for i in range(101)], num_quantiles=5,
+    in: [(i, 1 if i<10 else 1e-5) for i in range(101)], num_quantiles=5,
       weighted=True
-    out - [0, 2, 5, 7, 100]
+    out: [0, 2, 5, 7, 100]
   """
   @staticmethod
   def _display_data(num_quantiles, key, reverse, weighted):
