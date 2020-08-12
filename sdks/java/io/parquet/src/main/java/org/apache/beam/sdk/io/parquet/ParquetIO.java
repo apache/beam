@@ -351,7 +351,7 @@ public class ParquetIO {
 
         while ((tracker).tryClaim(currentBlock)) {
           PageReadStore pages = reader.readNextRowGroup();
-          LOG.info("block {} read in memory. row count = {}", currentBlock, pages.getRowCount());
+          LOG.debug("block {} read in memory. row count = {}", currentBlock, pages.getRowCount());
           currentBlock += 1;
           RecordReader<GenericRecord> recordReader =
               columnIO.getRecordReader(
@@ -391,7 +391,7 @@ public class ParquetIO {
                   e);
             }
           }
-          LOG.info("Finish processing " + currentRow + " rows from block " + (currentBlock - 1));
+          LOG.debug("Finish processing " + currentRow + " rows from block " + (currentBlock - 1));
         }
       }
 
