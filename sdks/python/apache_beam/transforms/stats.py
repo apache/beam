@@ -248,7 +248,8 @@ class ApproximateQuantiles(object):
     in: list(range(101)), num_quantiles=5
     out: [0, 25, 50, 75, 100]
 
-    in: [(i, 1 if i<10 else 1e-5) for i in range(101)], num_quantiles=5, weighted=True
+    in: [(i, 1 if i<10 else 1e-5) for i in range(101)], num_quantiles=5,
+      weighted=True
     out: [0, 2, 5, 7, 100]
   """
   @staticmethod
