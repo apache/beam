@@ -56,13 +56,13 @@ class FnApiUserStateContextTest(unittest.TestCase):
     event_timer = ctx.get_timer(timer_spec1, 'key', GlobalWindow, 23, None)
     event_timer.set(42)
     # Output timestamp should be equal to the fire timestamp
-    self.assertEquals(coder.timer.hold_timestamp, 42)
+    self.assertEqual(coder.timer.hold_timestamp, 42)
 
     # Set processing time timer
     proc_timer = ctx.get_timer(timer_spec2, 'key', GlobalWindow, 23, None)
     proc_timer.set(42)
     # Output timestamp should be equal to the input timestamp
-    self.assertEquals(coder.timer.hold_timestamp, 23)
+    self.assertEqual(coder.timer.hold_timestamp, 23)
 
 
 class SplitTest(unittest.TestCase):
