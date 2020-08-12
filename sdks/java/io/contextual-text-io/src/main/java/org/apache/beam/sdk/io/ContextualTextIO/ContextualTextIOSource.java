@@ -217,69 +217,69 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
      * }</pre>
      */
     private void findDelimiterBounds() throws IOException {
-      int bytePoistionInBuffer = 0;
-      boolean doubleBracketClosed = true;
-      boolean bracketEnded = true;
+      int bytePositionInBuffer = 0;
+      boolean doubleQuoteClosed = true;
+      boolean insideOpenQuote = true;
 
       while (true) {
-        if (!tryToEnsureNumberOfBytesInBuffer(bytePoistionInBuffer + 1)) {
-          startOfDelimiterInBuffer = endOfDelimiterInBuffer = bytePoistionInBuffer;
+        if (!tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + 1)) {
+          startOfDelimiterInBuffer = endOfDelimiterInBuffer = bytePositionInBuffer;
           break;
         }
 
-        byte currentByte = buffer.byteAt(bytePoistionInBuffer);
+        byte currentByte = buffer.byteAt(bytePositionInBuffer);
         if (hasRFC4180MultiLineColumn) {
-          // Check if we are inside an open bracket
+          // Check if we are inside an open Quote
           if (currentByte == '"') {
-            doubleBracketClosed = !doubleBracketClosed;
-            bracketEnded = doubleBracketClosed;
+            doubleQuoteClosed = !doubleQuoteClosed;
+            insideOpenQuote = doubleQuoteClosed;
           }
         } else {
-          bracketEnded = true;
+          insideOpenQuote = true;
         }
 
         if (delimiter == null) {
           // default delimiter
           if (currentByte == '\n') {
-            startOfDelimiterInBuffer = bytePoistionInBuffer;
+            startOfDelimiterInBuffer = bytePositionInBuffer;
             endOfDelimiterInBuffer = startOfDelimiterInBuffer + 1;
-            if (bracketEnded) {
+            if (insideOpenQuote) {
               break;
             }
           } else if (currentByte == '\r') {
-            startOfDelimiterInBuffer = bytePoistionInBuffer;
+            startOfDelimiterInBuffer = bytePositionInBuffer;
             endOfDelimiterInBuffer = startOfDelimiterInBuffer + 1;
-            if (tryToEnsureNumberOfBytesInBuffer(bytePoistionInBuffer + 2)) {
-              currentByte = buffer.byteAt(bytePoistionInBuffer + 1);
+            if (tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + 2)) {
+              currentByte = buffer.byteAt(bytePositionInBuffer + 1);
               if (currentByte == '\n') {
                 endOfDelimiterInBuffer += 1;
               }
             }
-            if (bracketEnded) {
+            if (insideOpenQuote) {
               break;
             }
           }
         } else {
           // when the user defines a delimiter
           int i = 0;
-          startOfDelimiterInBuffer = endOfDelimiterInBuffer = bytePoistionInBuffer;
+          startOfDelimiterInBuffer = endOfDelimiterInBuffer = bytePositionInBuffer;
           while ((i < delimiter.length) && (currentByte == delimiter[i])) {
             // read next byte;
             i++;
-            if (tryToEnsureNumberOfBytesInBuffer(bytePoistionInBuffer + i + 1)) {
-              currentByte = buffer.byteAt(bytePoistionInBuffer + i);
+            if (tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + i + 1)) {
+              currentByte = buffer.byteAt(bytePositionInBuffer + i);
             } else {
               // corner case: delimiter truncate at the end of file
-              startOfDelimiterInBuffer = endOfDelimiterInBuffer = bytePoistionInBuffer;
+              startOfDelimiterInBuffer = endOfDelimiterInBuffer = bytePositionInBuffer;
               break;
             }
           }
           if (i == delimiter.length) {
-            endOfDelimiterInBuffer = bytePoistionInBuffer + i;
-            if (bracketEnded) break;
+            endOfDelimiterInBuffer = bytePositionInBuffer + i;
+            if (insideOpenQuote) break;
           }
         }
-        bytePoistionInBuffer += 1;
+        bytePositionInBuffer += 1;
       }
     }
 

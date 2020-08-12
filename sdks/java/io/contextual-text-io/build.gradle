@@ -21,7 +21,7 @@ applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.contextual-text-io')
 
 description = "Apache Beam :: SDKs :: Java :: Contextual-Text-IO"
-ext.summary = "Context aware Text IO."
+ext.summary = "Context-aware Text IO."
 
 dependencies {
 
