@@ -294,8 +294,14 @@ public class Read {
         OutputReceiver<BoundedSource<T>> receiver,
         PipelineOptions pipelineOptions)
         throws Exception {
-      for (BoundedSource<T> split :
-          restriction.split(DEFAULT_DESIRED_BUNDLE_SIZE_BYTES, pipelineOptions)) {
+      long estimatedSize = restriction.getEstimatedSizeBytes(pipelineOptions);
+      // Split into pieces as close to the default desired bundle size but if that would cause too
+      // few splits then prefer to split up to the default desired number of splits.
+      long splitBundleSize =
+          Math.min(
+              DEFAULT_DESIRED_BUNDLE_SIZE_BYTES,
+              Math.max(1L, estimatedSize / DEFAULT_DESIRED_NUM_SPLITS));
+      for (BoundedSource<T> split : restriction.split(splitBundleSize, pipelineOptions)) {
         receiver.output(split);
       }
     }
@@ -454,7 +460,6 @@ public class Read {
       extends DoFn<UnboundedSource<OutputT, CheckpointT>, ValueWithRecordId<OutputT>> {
 
     private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceAsSDFWrapperFn.class);
-    private static final int DEFAULT_DESIRED_NUM_SPLITS = 20;
     private static final int DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS = 10;
     private final Coder<CheckpointT> checkpointCoder;
 
@@ -912,4 +917,6 @@ public class Read {
       }
     }
   }
+
+  private static final int DEFAULT_DESIRED_NUM_SPLITS = 20;
 }
