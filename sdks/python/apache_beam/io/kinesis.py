@@ -198,17 +198,6 @@ ReadFromKinesisSchema = NamedTuple(
 )
 
 
-class InitialPositionInStream:
-  LATEST = 'LATEST'
-  TRIM_HORIZON = 'TRIM_HORIZON'
-  AT_TIMESTAMP = 'AT_TIMESTAMP'
-
-
-class WatermarkPolicy:
-  PROCESSING_TYPE = 'PROCESSING_TYPE'
-  ARRIVAL_TIME = 'ARRIVAL_TIME'
-
-
 class ReadDataFromKinesis(ExternalTransform):
   """
     An external PTransform which reads byte array stream from Amazon Kinesis.
@@ -316,3 +305,24 @@ class ReadDataFromKinesis(ExternalTransform):
             )),
         expansion_service or default_io_expansion_service(),
     )
+
+
+class InitialPositionInStream:
+  LATEST = 'LATEST'
+  TRIM_HORIZON = 'TRIM_HORIZON'
+  AT_TIMESTAMP = 'AT_TIMESTAMP'
+
+  @staticmethod
+  def validate_param(param):
+    if param and not hasattr(InitialPositionInStream, param):
+      raise RuntimeError('Invalid initial position in stream: {}'.format(param))
+
+
+class WatermarkPolicy:
+  PROCESSING_TYPE = 'PROCESSING_TYPE'
+  ARRIVAL_TIME = 'ARRIVAL_TIME'
+
+  @staticmethod
+  def validate_param(param):
+    if param and not hasattr(WatermarkPolicy, param):
+      raise RuntimeError('Invalid watermark policy: {}'.format(param))
