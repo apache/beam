@@ -24,6 +24,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/xlang"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
@@ -145,13 +146,14 @@ type MultiEdge struct {
 	parent *Scope
 
 	Op               Opcode
-	DoFn             *DoFn        // ParDo
-	RestrictionCoder *coder.Coder // SplittableParDo
-	CombineFn        *CombineFn   // Combine
-	AccumCoder       *coder.Coder // Combine
-	Value            []byte       // Impulse
-	Payload          *Payload     // External
-	WindowFn         *window.Fn   // WindowInto
+	DoFn             *DoFn                    // ParDo
+	RestrictionCoder *coder.Coder             // SplittableParDo
+	CombineFn        *CombineFn               // Combine
+	AccumCoder       *coder.Coder             // Combine
+	Value            []byte                   // Impulse
+	External         *xlang.ExternalTransform // Current External Transforms API
+	Payload          *Payload                 // Legacy External Transforms API
+	WindowFn         *window.Fn               // WindowInto
 
 	Input  []*Inbound
 	Output []*Outbound
@@ -282,14 +284,14 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 }
 
 // NewCrossLanguage inserts a Cross-langugae External transform.
-func NewCrossLanguage(g *Graph, s *Scope, in []*Node, payload *Payload) *MultiEdge {
+func NewCrossLanguage(g *Graph, s *Scope, e *xlang.ExternalTransform) *MultiEdge {
 	edge := g.NewEdge(s)
 	edge.Op = External
 
 	// Payload can be decoupled completely from MultiEdge after current API is implemented
-	edge.Payload = payload
+	edge.External = e
 
-	for _, n := range in {
+	for _, n := range e.inputs {
 		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: n, Type: n.Type()})
 	}
 	return edge
