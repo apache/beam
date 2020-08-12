@@ -70,7 +70,8 @@ class NestedOutput(beam.DoFn):
     yield element
 
 
-def run_benchmark(num_dofns=100, num_runs=10, num_elements_step=1000):
+def run_benchmark(
+    num_dofns=100, num_runs=10, num_elements_step=2000, num_for_averaging=4):
   options_map = {
       'No Type Check': PipelineOptions(),
       'Runtime Type Check': PipelineOptions(runtime_type_check=True),
@@ -90,33 +91,37 @@ def run_benchmark(num_dofns=100, num_runs=10, num_elements_step=1000):
         '5') for _ in range(num_elements)]
     timings = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
 
-    for option_name, options in options_map.items():
-      # Run a Pipeline using DoFn's with simple typehints
-      start = time()
-      with beam.Pipeline(options=options) as p:
-        pc = p | beam.Create(simple_elements)
-        for ix in range(num_dofns):
-          pc = (
-              pc | 'SimpleOutput %i' % ix >> beam.ParDo(SimpleOutput())
-              | 'SimpleInput %i' % ix >> beam.ParDo(SimpleInput()))
-      timings[num_elements]['Simple Types'][option_name] = time() - start
+    # Do each run num_for_averaging times to get an average with reduced noise
+    for _ in range(num_for_averaging):
+      for option_name, options in options_map.items():
+        # Run a Pipeline using DoFn's with simple typehints
+        start = time()
+        with beam.Pipeline(options=options) as p:
+          pc = p | beam.Create(simple_elements)
+          for ix in range(num_dofns):
+            pc = (
+                pc | 'SimpleOutput %i' % ix >> beam.ParDo(SimpleOutput())
+                | 'SimpleInput %i' % ix >> beam.ParDo(SimpleInput()))
+        timings[num_elements]['Simple Types'][option_name] += time() - start
 
-      # Run a pipeline using DoFn's with nested typehints
-      start = time()
-      with beam.Pipeline(options=options) as p:
-        pc = p | beam.Create(nested_elements)
-        for ix in range(num_dofns):
-          pc = (
-              pc | 'NestedOutput %i' % ix >> beam.ParDo(NestedOutput())
-              | 'NestedInput %i' % ix >> beam.ParDo(NestedInput()))
-      timings[num_elements]['Nested Types'][option_name] = time() - start
+        # Run a pipeline using DoFn's with nested typehints
+        start = time()
+        with beam.Pipeline(options=options) as p:
+          pc = p | beam.Create(nested_elements)
+          for ix in range(num_dofns):
+            pc = (
+                pc | 'NestedOutput %i' % ix >> beam.ParDo(NestedOutput())
+                | 'NestedInput %i' % ix >> beam.ParDo(NestedInput()))
+        timings[num_elements]['Nested Types'][option_name] += time() - start
 
     for num_elements, element_type_map in timings.items():
       print("%d Element%s" % (num_elements, " " if num_elements == 1 else "s"))
       for element_type, option_name_map in element_type_map.items():
         print("-- %s" % element_type)
         for option_name, time_elapsed in option_name_map.items():
-          print("---- %.2f sec (%s)" % (time_elapsed, option_name))
+          print(
+              "---- %.2f sec (%s)" %
+              (time_elapsed / num_for_averaging, option_name))
     print('\n')
 
 
