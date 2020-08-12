@@ -525,7 +525,7 @@ public class Read {
           tracker.currentRestriction();
 
       UnboundedSourceValue<OutputT>[] out = new UnboundedSourceValue[1];
-      while (tracker.tryClaim(out)) {
+      while (tracker.tryClaim(out) && out[0] != null) {
         receiver.outputWithTimestamp(
             new ValueWithRecordId<>(out[0].getValue(), out[0].getId()), out[0].getTimestamp());
       }
@@ -796,13 +796,18 @@ public class Read {
                     .getSource()
                     .createReader(pipelineOptions, initialRestriction.getCheckpoint());
           }
+          if (currentReader instanceof EmptyUnboundedSource.EmptyUnboundedReader) {
+            return false;
+          }
           if (!readerHasBeenStarted) {
             readerHasBeenStarted = true;
             if (!currentReader.start()) {
-              return false;
+              position[0] = null;
+              return true;
             }
           } else if (!currentReader.advance()) {
-            return false;
+            position[0] = null;
+            return true;
           }
           position[0] =
               UnboundedSourceValue.create(
