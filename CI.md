@@ -77,6 +77,7 @@ Those jobs often have matrix run strategy which runs several different variation
 
 | Job                                             | Description                                                                                                                                                                                                                                                        | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
 |-------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Check GCP variables                             | Checks that GCP variables are set. Jobs which required them depend on the output of this job.                                                                                                                                                                      | Yes              | Yes                   | Yes           | Yes/No                   |
 | Build python source distribution                | Builds python source distribution and uploads it to artifacts. Artifacts from release branch are used in release process ([`build_release_candidate.sh`](release/src/main/scripts/build_release_candidate.sh))                                                     | Yes              | Yes                   | Yes           | -                        |
 | Prepare GCS                                     | Clears target path on GCS if already exists.                                                                                                                                                                                                                       | -                | Yes                   | Yes           | Yes                      |
 | Upload python source distribution to GCS bucket | Uploads python source distribution to GCS bucket for path unique for specific workflow run.                                                                                                                                                                        | -                | Yes                   | Yes           | Yes                      |
@@ -87,7 +88,7 @@ Those jobs often have matrix run strategy which runs several different variation
 
 ### Google Cloud Platform Credentials
 
-Some of the jobs require variables stored as a [GitHub Secrets](https://docs.github.com/en/actions/configuring-and-managing-workflows/creating-and-storing-encrypted-secrets)
+Some of the jobs require variables stored as [GitHub Secrets](https://docs.github.com/en/actions/configuring-and-managing-workflows/creating-and-storing-encrypted-secrets)
 to perform operations on Google Cloud Platform. Currently these jobs are limited to Apache repository only.
 These variables are:
  * `GCP_SA_EMAIL` - Service account email address. This is usually of the format `<name>@<project-id>.iam.gserviceaccount.com`.
