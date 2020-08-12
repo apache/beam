@@ -805,6 +805,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               None,
               None,
               None, [],
+              ignore_insert_ids=False,
               test_client=client))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
