@@ -431,7 +431,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
     CoderTypeInformation<KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>>
         typeInformation = (CoderTypeInformation) new CoderTypeInformation<>(checkpointCoder);
     stateForCheckpoint =
-        stateStore.getOperatorState(
+        stateStore.getListState(
             new ListStateDescriptor<>(
                 DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME,
                 typeInformation.createSerializer(new ExecutionConfig())));
