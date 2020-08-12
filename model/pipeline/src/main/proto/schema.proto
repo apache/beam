@@ -32,16 +32,27 @@ option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "SchemaApi";
 
 message Schema {
+  // List of fields for this schema. Two fields may not share a name.
   repeated Field fields = 1;
+  // REQUIRED. An RFC 4122 UUID.
   string id = 2;
   repeated Option options = 3;
 }
 
 message Field {
+  // REQUIRED. Name of this field within the schema.
   string name = 1;
+  // OPTIONAL. Human readable description of this field, such as the query that generated it.
   string description = 2;
   FieldType type = 3;
+  
   int32 id = 4;
+   // OPTIONAL. The position of this field's data in the encoding.
+   // Either no fields in a given row are have encoding position populated,
+   // or all of them are. Used to support backwards compatibility with schema
+   // changes.
+   // Two schemas, one with encoding positions and one without, are equal
+   // if the fields when sorted by encoding position would otherwise be equal.
   int32 encoding_position = 5;
   repeated Option options = 6;
 }
@@ -97,7 +108,11 @@ message LogicalType {
 }
 
 message Option {
+  // REQUIRED. Identifier for the option.
   string name = 1;
+  // Optional type specifer for the structure of value.
+  // If not present, assumes no additional configuration is needed
+  // for this option.
   FieldType type = 2;
   FieldValue value = 3;
 }
