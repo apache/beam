@@ -39,6 +39,7 @@ import sys
 import time
 import uuid
 from builtins import object
+from json.decoder import JSONDecodeError
 
 import fastavro
 from future.utils import iteritems
@@ -134,7 +135,11 @@ def parse_table_schema_from_json(schema_string):
   Returns:
     A TableSchema of the BigQuery export from either the Query or the Table.
   """
-  json_schema = json.loads(schema_string)
+  try:
+    json_schema = json.loads(schema_string)
+  except JSONDecodeError as e:
+    raise ValueError('Unable to parse JSON schema: %s - %r'
+        % (schema_string, e))
 
   def _parse_schema_field(field):
     """Parse a single schema field from dictionary.
