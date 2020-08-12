@@ -173,7 +173,7 @@ shows the correct format for data types used when reading from and writing to
 BigQuery:
 
 {{< highlight java >}}
-{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryDataTypes >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryTableRowCreate.java" bigquery_table_row_create >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
@@ -276,7 +276,7 @@ The following code reads an entire table that contains weather station data and
 then extracts the `max_temperature` column.
 
 {{< highlight java >}}
-{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadTable >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryReadFromTable.java" bigquery_read_from_table >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
@@ -288,8 +288,7 @@ then extracts the `max_temperature` column.
 
 {{< paragraph class="language-java" >}}
 If you don't want to read an entire table, you can supply a query string with
-the `fromQuery` method. This example uses
-`read(SerializableFunction)`.
+the `fromQuery` method.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
@@ -297,10 +296,12 @@ If you don't want to read an entire table, you can supply a query string to
 `BigQuerySource` by specifying the `query` parameter.
 {{< /paragraph >}}
 
+{{< paragraph class="language-py" >}}
 The following code uses a SQL query to only read the `max_temperature` column.
+{{< /paragraph >}}
 
 {{< highlight java >}}
-{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadQuery >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryReadFromQuery.java" bigquery_read_from_query >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
@@ -352,12 +353,7 @@ data from a BigQuery table. You can view the [full source code on
 GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java).
 
 {{< highlight java >}}
-   rowsFromBigQuery =
-       p.apply(
-            BigQueryIO.readTableRows()
-               .from(options.getInput())
-               .withMethod(Method.DIRECT_READ)
-               .withSelectedFields(Lists.newArrayList("month", "tornado"));
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryReadFromTableWithBigQueryStorageAPI.java" bigquery_read_from_table_with_bigquery_storage_api >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
@@ -546,7 +542,7 @@ The following example code shows how to create a `TableSchema` for a table with
 two fields (source and quote) of type string.
 
 {{< highlight java >}}
-{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQuerySchemaObject >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQuerySchemaCreate.java" bigquery_schema_create >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
@@ -677,25 +673,27 @@ another transform, such as `ParDo`, to format your output data into a
 collection.
 {{< /paragraph >}}
 
+{{< paragraph class="language-py" >}}
 The following examples use this `PCollection` that contains quotes.
+{{< /paragraph >}}
+
+{{< paragraph class="language-java" >}}
+The `writeTableRows` method writes a `PCollection` of BigQuery `TableRow`
+objects to a BigQuery table. Each element in the `PCollection` represents a
+single row in the table. This example uses `writeTableRows` to write elements to a
+`PCollection<TableRow>`.  The write operation creates a table if needed; if the
+table already exists, it will be replaced.
+{{< /paragraph >}}
 
 {{< highlight java >}}
-{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteInput >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryWriteToTable.java" bigquery_write_to_table >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_input >}}
 {{< /highlight >}}
 
-<!-- writeTableRows and WriteToBigQuery -->
-
-{{< paragraph class="language-java" >}}
-The `writeTableRows` method writes a `PCollection` of BigQuery `TableRow`
-objects to a BigQuery table. Each element in the `PCollection` represents a
-single row in the table. This example uses `writeTableRows` to write quotes to a
-`PCollection<TableRow>`.  The write operation creates a table if needed; if the
-table already exists, it will be replaced.
-{{< /paragraph >}}
+<!-- WriteToBigQuery (python-only) -->
 
 {{< paragraph class="language-py" >}}
 The following example code shows how to apply a `WriteToBigQuery` transform to
@@ -703,15 +701,11 @@ write a `PCollection` of dictionaries to a BigQuery table. The write operation
 creates a table if needed; if the table already exists, it will be replaced.
 {{< /paragraph >}}
 
-{{< highlight java >}}
-{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteTable >}}
-{{< /highlight >}}
-
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write >}}
 {{< /highlight >}}
 
-<!-- write -->
+<!-- write (java-only) -->
 
 {{< paragraph class="language-java" >}}
 The `write` transform writes a `PCollection` of custom typed objects to a BigQuery
