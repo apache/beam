@@ -104,8 +104,8 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -129,7 +129,8 @@ import org.slf4j.LoggerFactory;
  */
 // We use Flink's lifecycle methods to initialize transient fields
 @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
-public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<WindowedValue<OutputT>>
+public class DoFnOperator<InputT, OutputT>
+    extends AbstractStreamOperatorCompat<WindowedValue<OutputT>>
     implements OneInputStreamOperator<WindowedValue<InputT>, WindowedValue<OutputT>>,
         TwoInputStreamOperator<WindowedValue<InputT>, RawUnionValue, WindowedValue<OutputT>>,
         Triggerable<ByteBuffer, TimerData> {
@@ -192,6 +193,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   private final boolean finishBundleBeforeCheckpointing;
 
   protected transient InternalTimerService<TimerData> timerService;
+  private transient InternalTimeServiceManager<?> timeServiceManagerCompat;
 
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
 
@@ -404,6 +406,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       }
 
       timerInternals = new FlinkTimerInternals();
+      timeServiceManagerCompat = getTimeServiceManagerCompat();
     }
 
     outputManager =
@@ -699,7 +702,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     long inputWatermarkHold = applyInputWatermarkHold(getEffectiveInputWatermark());
     if (keyCoder != null) {
-      timeServiceManager.advanceWatermark(new Watermark(inputWatermarkHold));
+      timeServiceManagerCompat.advanceWatermark(new Watermark(inputWatermarkHold));
     }
 
     long potentialOutputWatermark =
