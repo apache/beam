@@ -46,7 +46,7 @@ NUM_RECORDS = 1000
 
 class CollectingFn(beam.DoFn):
   BUFFER_STATE = BagStateSpec('buffer', VarIntCoder())
-  COUNT_STATE = CombiningValueStateSpec('count', VarIntCoder(), sum)
+  COUNT_STATE = CombiningValueStateSpec('count', sum)
 
   def process(
       self,
