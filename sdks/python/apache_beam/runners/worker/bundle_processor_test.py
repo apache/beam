@@ -23,16 +23,46 @@ from __future__ import absolute_import
 import unittest
 
 from apache_beam.runners.worker.bundle_processor import DataInputOperation
+from apache_beam.runners.worker.bundle_processor import FnApiUserStateContext
+from apache_beam.runners.worker.bundle_processor import TimerInfo
+from apache_beam.runners.worker.data_plane import SizeBasedBufferingClosableOutputStream
+from apache_beam.transforms import userstate
+from apache_beam.transforms.window import GlobalWindow
 
 
-def simple_split(first_residual_index):
-  return first_residual_index - 1, [], [], first_residual_index
+class FnApiUserStateContextTest(unittest.TestCase):
+  def testOutputTimerTimestamp(self):
+    class Coder(object):
+      """Dummy coder to capture the timer result befor encoding."""
+      def encode_to_stream(self, timer, *args, **kwargs):
+        self.timer = timer
 
+    coder = Coder()
 
-def element_split(frac, index):
-  return (
-      index - 1, ['Primary(%0.1f)' % frac], ['Residual(%0.1f)' % (1 - frac)],
-      index + 1)
+    ctx = FnApiUserStateContext(None, 'transform_id', None, None)
+    ctx.add_timer_info(
+        'ts-event-timer',
+        TimerInfo(coder, SizeBasedBufferingClosableOutputStream()))
+    ctx.add_timer_info(
+        'ts-proc-timer',
+        TimerInfo(coder, SizeBasedBufferingClosableOutputStream()))
+
+    timer_spec1 = userstate.TimerSpec(
+        'event-timer', userstate.TimeDomain.WATERMARK)
+    timer_spec2 = userstate.TimerSpec(
+        'proc-timer', userstate.TimeDomain.REAL_TIME)
+
+    # Set event time timer
+    event_timer = ctx.get_timer(timer_spec1, 'key', GlobalWindow, 23, None)
+    event_timer.set(42)
+    # Output timestamp should be equal to the fire timestamp
+    self.assertEquals(coder.timer.hold_timestamp, 42)
+
+    # Set processing time timer
+    proc_timer = ctx.get_timer(timer_spec2, 'key', GlobalWindow, 23, None)
+    proc_timer.set(42)
+    # Output timestamp should be equal to the input timestamp
+    self.assertEquals(coder.timer.hold_timestamp, 23)
 
 
 class SplitTest(unittest.TestCase):
@@ -137,6 +167,16 @@ class SplitTest(unittest.TestCase):
     # We can't split element at index 2, because 2 is not a split point.
     self.assertEqual(
         self.sdf_split(2, 0, 0.2, 5, allowed=(1, 3, 4, 5)), simple_split(3))
+
+
+def simple_split(first_residual_index):
+  return first_residual_index - 1, [], [], first_residual_index
+
+
+def element_split(frac, index):
+  return (
+      index - 1, ['Primary(%0.1f)' % frac], ['Residual(%0.1f)' % (1 - frac)],
+      index + 1)
 
 
 if __name__ == '__main__':
