@@ -294,8 +294,7 @@ class BlobStorageFileSystem(FileSystem):
     # Retrieve exceptions.
     exceptions = {
         path: error
-        # pylint: disable=literal-comparison
-        for (path, error) in results.items() if error is not 202
+        for (path, error) in results.items() if error != 202
     }
 
     if exceptions:
