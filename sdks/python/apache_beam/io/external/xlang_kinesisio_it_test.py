@@ -67,7 +67,10 @@ except ImportError:
 
 LOCALSTACK_VERSION = '0.11.3'
 NUM_RECORDS = 10
-NOW = time.time()
+MAX_READ_TIME = 5 * 60 * 1000  # 5min
+NOW_SECONDS = time.time()
+NOW_MILLIS = NOW_SECONDS * 1000
+REQUEST_RECORDS_LIMIT = 1000
 RECORD = b'record' + str(uuid.uuid4()).encode()
 
 
@@ -132,7 +135,7 @@ class CrossLanguageKinesisIOTest(unittest.TestCase):
               max_num_records=NUM_RECORDS,
               max_read_time=300,  # 5min
               initial_position_in_stream=InitialPositionInStream.AT_TIMESTAMP,
-              initial_timestamp_in_stream=int(NOW),
+              initial_timestamp_in_stream=NOW_MILLIS,
           ).with_output_types(bytes))
       assert_that(result, equal_to(records))
 
@@ -297,7 +300,7 @@ class KinesisHelper:
         StreamName=stream_name,
         ShardId=shard_id,
         ShardIteratorType=InitialPositionInStream.AT_TIMESTAMP,
-        Timestamp=str(NOW),
+        Timestamp=str(NOW_SECONDS),
     )
 
     result = self.kinesis_client.get_records(

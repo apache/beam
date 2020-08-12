@@ -237,9 +237,9 @@ class ReadDataFromKinesis(ExternalTransform):
         Never set to False on production. True by default.
     :param max_num_records: Specifies to read at most a given number of records.
         Must be greater than 0.
-    :param max_read_time: Specifies to read records during x seconds.
+    :param max_read_time: Specifies to read records during x milliseconds.
     :param initial_timestamp_in_stream: Specify reading beginning at the given
-        timestamp in seconds. Must be in the past.
+        timestamp in milliseconds. Must be in the past.
     :param initial_position_in_stream: Specify reading from some initial
         position in stream. Possible values:
         LATEST - Start after the most recent data record (fetch new data).
@@ -251,16 +251,17 @@ class ReadDataFromKinesis(ExternalTransform):
         records. If should be adjusted according to average size of data record
         to prevent shard overloading. More at:
         docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html
-    :param up_to_date_threshold: Specifies how late in seconds records consumed
-        by this source can be to still be considered on time. Defaults to zero.
+    :param up_to_date_threshold: Specifies how late in milliseconds records
+        consumed by this source can be to still be considered on time. Defaults
+        to zero.
     :param max_capacity_per_shard: Specifies the maximum number of messages per
         one shard. Defaults to 10'000.
     :param watermark_policy: Specifies the watermark policy. Possible values:
         PROCESSING_TYPE, ARRIVAL_TIME. Defaults to ARRIVAL_TIME.
     :param watermark_idle_duration_threshold: Use only when watermark policy is
         ARRIVAL_TIME. Denotes the duration for which the watermark can be idle.
-        Passed in seconds.
-    :param rate_limit: Sets fixed rate policy for given seconds value. By
+        Passed in milliseconds.
+    :param rate_limit: Sets fixed rate policy for given milliseconds value. By
         default there is no rate limit.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
@@ -277,7 +278,11 @@ class ReadDataFromKinesis(ExternalTransform):
     if request_records_limit:
       assert 0 < request_records_limit <= 10000
 
-    if initial_timestamp_in_stream and initial_position_in_stream < time.time():
+    initial_timestamp_in_stream = int(
+        initial_timestamp_in_stream) if initial_timestamp_in_stream else None
+
+    if initial_timestamp_in_stream and initial_timestamp_in_stream < time.time(
+    ):
       logging.warning('Provided timestamp emplaced not in the past.')
 
     super(ReadDataFromKinesis, self).__init__(

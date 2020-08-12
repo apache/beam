@@ -147,7 +147,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
 
       public void setMaxReadTime(@Nullable Long maxReadTime) {
         if (maxReadTime != null) {
-          this.maxReadTime = Duration.standardSeconds(maxReadTime);
+          this.maxReadTime = Duration.millis(maxReadTime);
         }
       }
 
@@ -159,7 +159,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
 
       public void setInitialTimestampInStream(@Nullable Long initialTimestampInStream) {
         if (initialTimestampInStream != null) {
-          this.initialTimestampInStream = Instant.ofEpochSecond(initialTimestampInStream);
+          this.initialTimestampInStream = Instant.ofEpochMilli(initialTimestampInStream);
         }
       }
 
@@ -171,7 +171,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
 
       public void setUpToDateThreshold(@Nullable Long upToDateThreshold) {
         if (upToDateThreshold != null) {
-          this.upToDateThreshold = Duration.standardSeconds(upToDateThreshold);
+          this.upToDateThreshold = Duration.millis(upToDateThreshold);
         }
       }
 
@@ -188,13 +188,13 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
       public void setWatermarkIdleDurationThreshold(@Nullable Long watermarkIdleDurationThreshold) {
         if (watermarkIdleDurationThreshold != null) {
           this.watermarkIdleDurationThreshold =
-              Duration.standardSeconds(watermarkIdleDurationThreshold);
+              Duration.millis(watermarkIdleDurationThreshold);
         }
       }
 
       public void setRateLimit(@Nullable Long rateLimit) {
         if (rateLimit != null) {
-          this.rateLimit = Duration.standardSeconds(rateLimit);
+          this.rateLimit = Duration.millis(rateLimit);
         }
       }
     }
