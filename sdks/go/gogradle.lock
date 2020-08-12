@@ -52,13 +52,6 @@ dependencies:
       vcs: "git"
     vendorPath: "vendor/github.com/coreos/bbolt"
     transitive: false
-  - urls:
-    - "https://github.com/etcd-io/etcd.git"
-    - "git@github.com:etcd-io/etcd.git"
-    vcs: "git"
-    name: "github.com/etcd-io/etcd"
-    commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
-    transitive: false
   - name: "github.com/coreos/go-semver"
     host:
       name: "github.com/etcd-io/etcd"
@@ -143,6 +136,13 @@ dependencies:
     vcs: "git"
     name: "github.com/eapache/queue"
     commit: "44cc805cf13205b55f69e14bcb69867d1ae92f98"
+    transitive: false
+  - urls:
+    - "https://github.com/etcd-io/etcd.git"
+    - "git@github.com:etcd-io/etcd.git"
+    vcs: "git"
+    name: "github.com/etcd-io/etcd"
+    commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
     transitive: false
   - urls:
     - "https://github.com/fsnotify/fsnotify.git"
@@ -701,4 +701,21 @@ dependencies:
       vcs: "git"
     vendorPath: "vendor/gopkg.in/yaml.v2"
     transitive: false
-  test: []
+  test:
+  - urls:
+    - "https://github.com/google/go-cmp.git"
+    - "git@github.com:google/go-cmp.git"
+    vcs: "git"
+    name: "github.com/google/go-cmp"
+    commit: "db9de4321f4e5db7c6f996d170ebce7953f22f8e"
+    transitive: false
+  - vcs: "git"
+    name: "golang.org/x/xerrors"
+    commit: "5ec99f83aff198f5fbd629d6c8d8eb38a04218ca"
+    url: "https://go.googlesource.com/xerrors"
+    transitive: false
+  - vcs: "git"
+    name: "google.golang.org/protobuf"
+    commit: "1a3946737f2cd954c76cd035fa6968468f568b6a"
+    url: "https://go.googlesource.com/protobuf"
+    transitive: false
