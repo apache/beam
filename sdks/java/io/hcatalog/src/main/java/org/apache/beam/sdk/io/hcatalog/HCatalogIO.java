@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.hcatalog;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -182,6 +183,7 @@ public class HCatalogIO {
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setConfigProperties(Map<String, String> configProperties);
 
       abstract Builder setDatabase(String database);
@@ -306,14 +308,17 @@ public class HCatalogIO {
         this.readerContext = readerContext;
       }
 
-      private synchronized ReaderContext get() {
-        if (readerContext == null) {
-          readerContext =
-              (ReaderContext)
-                  SerializableUtils.deserializeFromByteArray(
-                      serializedReaderContext, "ReaderContext");
-        }
+      private ReaderContext get() {
         return readerContext;
+      }
+
+      private void readObject(java.io.ObjectInputStream in)
+          throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        readerContext =
+            (ReaderContext)
+                SerializableUtils.deserializeFromByteArray(
+                    serializedReaderContext, "ReaderContext");
       }
     }
   }
