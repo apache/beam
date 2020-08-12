@@ -27,7 +27,9 @@ import com.google.zetasql.functions.ZetaSQLDateTime.DateTimestampPart;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
@@ -180,12 +182,19 @@ public final class ZetaSqlCalciteTranslationUtils {
 
   private static List<String> getFieldNameList(List<StructField> fields) {
     ImmutableList.Builder<String> b = ImmutableList.builder();
+    Set<String> usedName = new HashSet<>();
     for (int i = 0; i < fields.size(); i++) {
       String name = fields.get(i).getName();
-      if ("".equals(name)) {
-        name = "$col" + i; // avoid empty field names because Beam does not allow duplicate names
+      // Follow the same way that BigQuery handles unspecified or duplicate field name
+      if ("".equals(name) || usedName.contains(name)) {
+        name = "_field_" + (i + 1); // BigQuery uses 1-based default field name
+        if (usedName.contains(name)) {
+          throw new UnsupportedOperationException(
+              name + " is not a valid field name. Please use another name for the field.");
+        }
       }
       b.add(name);
+      usedName.add(name);
     }
     return b.build();
   }
