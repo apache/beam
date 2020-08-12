@@ -200,7 +200,7 @@ dependencies:
     - "git@github.com:golang/protobuf.git"
     vcs: "git"
     name: "github.com/golang/protobuf"
-    commit: "ed6926b37a637426117ccab59282c3839528a700"
+    commit: "d04d7b157bb510b1e0c10132224b616ac0e26b17"
     transitive: false
   - urls:
     - "https://github.com/golang/snappy.git"
@@ -224,7 +224,7 @@ dependencies:
     - "git@github.com:google/go-cmp.git"
     vcs: "git"
     name: "github.com/google/go-cmp"
-    commit: "3af367b6b30c263d47e8895973edcca9a49cf029"
+    commit: "9680bfaf28748393e28e00238d94070fb9972fd8"
     transitive: false
   - urls:
     - "https://github.com/google/pprof.git"
@@ -707,7 +707,7 @@ dependencies:
     - "git@github.com:google/go-cmp.git"
     vcs: "git"
     name: "github.com/google/go-cmp"
-    commit: "db9de4321f4e5db7c6f996d170ebce7953f22f8e"
+    commit: "9680bfaf28748393e28e00238d94070fb9972fd8"
     transitive: false
   - vcs: "git"
     name: "golang.org/x/xerrors"
@@ -716,6 +716,6 @@ dependencies:
     transitive: false
   - vcs: "git"
     name: "google.golang.org/protobuf"
-    commit: "1a3946737f2cd954c76cd035fa6968468f568b6a"
+    commit: "d165be301fb1e13390ad453281ded24385fd8ebc"
     url: "https://go.googlesource.com/protobuf"
     transitive: false
