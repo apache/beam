@@ -47,9 +47,10 @@ public class BeamRelDataTypeSystem extends RelDataTypeSystemImpl {
   public int getMaxPrecision(SqlTypeName typeName) {
     switch (typeName) {
       case TIME:
-        return 6; // support microsecond time precision
+      case TIMESTAMP:
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-        return 6; // support microsecond datetime precision
+        // support microsecond precision for Beam logical type Time/Datetime/Timestamp
+        return 6;
       default:
         return super.getMaxPrecision(typeName);
     }

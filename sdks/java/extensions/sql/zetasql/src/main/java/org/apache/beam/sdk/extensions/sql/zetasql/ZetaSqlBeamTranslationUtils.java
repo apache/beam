@@ -26,6 +26,7 @@ import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -38,9 +39,8 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
-import org.joda.time.Instant;
 
 /**
  * Utility methods for ZetaSQL <=> Beam translation.
@@ -50,7 +50,8 @@ import org.joda.time.Instant;
 @Internal
 public final class ZetaSqlBeamTranslationUtils {
 
-  private static final long MICROS_PER_MILLI = 1000L;
+  private static final long MICROS_PER_SECOND = 1000000L;
+  private static final long NANOS_PER_MICRO = 1000L;
 
   private ZetaSqlBeamTranslationUtils() {}
 
@@ -69,9 +70,6 @@ public final class ZetaSqlBeamTranslationUtils {
         return TypeFactory.createSimpleType(TypeKind.TYPE_BYTES);
       case DECIMAL:
         return TypeFactory.createSimpleType(TypeKind.TYPE_NUMERIC);
-      case DATETIME:
-        // TODO[BEAM-10238]: Mapping TIMESTAMP to a Beam LogicalType instead?
-        return TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP);
       case LOGICAL_TYPE:
         String identifier = fieldType.getLogicalType().getIdentifier();
         if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
@@ -80,6 +78,8 @@ public final class ZetaSqlBeamTranslationUtils {
           return TypeFactory.createSimpleType(TypeKind.TYPE_TIME);
         } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
           return TypeFactory.createSimpleType(TypeKind.TYPE_DATETIME);
+        } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(identifier)) {
+          return TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP);
         } else {
           throw new UnsupportedOperationException("Unknown Beam logical type: " + identifier);
         }
@@ -122,9 +122,6 @@ public final class ZetaSqlBeamTranslationUtils {
         return Value.createBytesValue(ByteString.copyFrom((byte[]) object));
       case DECIMAL:
         return Value.createNumericValue((BigDecimal) object);
-      case DATETIME:
-        return Value.createTimestampValueFromUnixMicros(
-            LongMath.checkedMultiply(((Instant) object).getMillis(), MICROS_PER_MILLI));
       case LOGICAL_TYPE:
         String identifier = fieldType.getLogicalType().getIdentifier();
         if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
@@ -152,6 +149,16 @@ public final class ZetaSqlBeamTranslationUtils {
             datetime = (LocalDateTime) object;
           }
           return Value.createDatetimeValue(datetime);
+        } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(identifier)) {
+          if (object instanceof Row) { // base type
+            return Value.createTimestampValueFromUnixMicros(
+                ((Row) object).getInt64(Timestamp.EPOCH_SECOND_FIELD_NAME) * MICROS_PER_SECOND
+                    + ((Row) object).getInt32(Timestamp.NANO_FIELD_NAME) / NANOS_PER_MICRO);
+          } else { // input type
+            return Value.createTimestampValueFromUnixMicros(
+                ((Instant) object).getEpochSecond() * MICROS_PER_SECOND
+                    + ((Instant) object).getNano() / NANOS_PER_MICRO);
+          }
         } else {
           throw new UnsupportedOperationException("Unknown Beam logical type: " + identifier);
         }
@@ -204,7 +211,7 @@ public final class ZetaSqlBeamTranslationUtils {
       case TYPE_DATETIME:
         return FieldType.logicalType(SqlTypes.DATETIME).withNullable(true);
       case TYPE_TIMESTAMP:
-        return FieldType.DATETIME.withNullable(true);
+        return FieldType.logicalType(SqlTypes.TIMESTAMP).withNullable(true);
       case TYPE_ARRAY:
         return FieldType.array(toBeamType(type.asArray().getElementType())).withNullable(true);
       case TYPE_STRUCT:
@@ -246,8 +253,6 @@ public final class ZetaSqlBeamTranslationUtils {
         return value.getBytesValue().toByteArray();
       case DECIMAL:
         return value.getNumericValue();
-      case DATETIME:
-        return Instant.ofEpochMilli(value.getTimestampUnixMicros() / MICROS_PER_MILLI);
       case LOGICAL_TYPE:
         String identifier = fieldType.getLogicalType().getIdentifier();
         if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
@@ -256,6 +261,10 @@ public final class ZetaSqlBeamTranslationUtils {
           return value.getLocalTimeValue();
         } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
           return value.getLocalDateTimeValue();
+        } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(identifier)) {
+          return Instant.ofEpochSecond(
+              value.getTimestampUnixMicros() / MICROS_PER_SECOND,
+              (value.getTimestampUnixMicros() % MICROS_PER_SECOND) * NANOS_PER_MICRO);
         } else {
           throw new UnsupportedOperationException("Unknown Beam logical type: " + identifier);
         }

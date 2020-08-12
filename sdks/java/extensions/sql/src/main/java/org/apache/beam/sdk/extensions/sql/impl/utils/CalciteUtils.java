@@ -65,18 +65,16 @@ public class CalciteUtils {
 
   /** Returns true if the type is any of the various date time types. */
   public static boolean isDateTimeType(FieldType fieldType) {
-    if (fieldType.getTypeName() == TypeName.DATETIME) {
-      return true;
+    if (!fieldType.getTypeName().isLogicalType()) {
+      return false;
     }
 
-    if (fieldType.getTypeName().isLogicalType()) {
-      String logicalId = fieldType.getLogicalType().getIdentifier();
-      return logicalId.equals(SqlTypes.DATE.getIdentifier())
-          || logicalId.equals(SqlTypes.TIME.getIdentifier())
-          || logicalId.equals(TimeWithLocalTzType.IDENTIFIER)
-          || logicalId.equals(SqlTypes.DATETIME.getIdentifier());
-    }
-    return false;
+    String logicalId = fieldType.getLogicalType().getIdentifier();
+    return logicalId.equals(SqlTypes.DATE.getIdentifier())
+        || logicalId.equals(SqlTypes.TIME.getIdentifier())
+        || logicalId.equals(SqlTypes.TIMESTAMP.getIdentifier())
+        || logicalId.equals(SqlTypes.DATETIME.getIdentifier())
+        || logicalId.equals(TimeWithLocalTzType.IDENTIFIER);
   }
 
   public static boolean isStringType(FieldType fieldType) {
@@ -111,8 +109,9 @@ public class CalciteUtils {
       FieldType.logicalType(SqlTypes.TIME).withNullable(true);
   public static final FieldType TIME_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimeWithLocalTzType());
-  public static final FieldType TIMESTAMP = FieldType.DATETIME;
-  public static final FieldType NULLABLE_TIMESTAMP = FieldType.DATETIME.withNullable(true);
+  public static final FieldType TIMESTAMP = FieldType.logicalType(SqlTypes.TIMESTAMP);
+  public static final FieldType NULLABLE_TIMESTAMP =
+      FieldType.logicalType(SqlTypes.TIMESTAMP).withNullable(true);
   public static final FieldType TIMESTAMP_WITH_LOCAL_TZ = FieldType.logicalType(SqlTypes.DATETIME);
   public static final FieldType NULLABLE_TIMESTAMP_WITH_LOCAL_TZ =
       FieldType.logicalType(SqlTypes.DATETIME).withNullable(true);

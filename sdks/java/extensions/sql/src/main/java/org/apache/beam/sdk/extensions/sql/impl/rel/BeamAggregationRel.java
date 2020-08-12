@@ -62,6 +62,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.ImmutableB
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /** {@link BeamRelNode} to replace a {@link Aggregate} node. */
 public class BeamAggregationRel extends Aggregate implements BeamRelNode {
@@ -296,7 +297,11 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
           upstream
               .apply(
                   "assignEventTimestamp",
-                  WithTimestamps.<Row>of(row -> row.getDateTime(windowFieldIndex).toInstant())
+                  WithTimestamps.<Row>of(
+                          row ->
+                              Instant.ofEpochMilli(
+                                  row.getLogicalTypeValue(windowFieldIndex, java.time.Instant.class)
+                                      .toEpochMilli()))
                       .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
               .setCoder(upstream.getCoder())
               .apply(Window.into(windowFn));
@@ -346,7 +351,9 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
           }
 
           if (windowStartFieldIndex != -1) {
-            fieldValues.add(windowStartFieldIndex, ((IntervalWindow) window).start());
+            fieldValues.add(
+                windowStartFieldIndex,
+                java.time.Instant.ofEpochMilli(((IntervalWindow) window).start().getMillis()));
           }
 
           Row row =

@@ -28,6 +28,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * TVFSlidingWindowFn assigns window based on input row's "window_start" and "window_end"
@@ -52,8 +53,14 @@ public abstract class TVFSlidingWindowFn extends NonMergingWindowFn<Object, Inte
     // thus we can assign a window directly based on window's start and end metadata.
     return Arrays.asList(
         new IntervalWindow(
-            curRow.getDateTime(TVFStreamingUtils.WINDOW_START).toInstant(),
-            curRow.getDateTime(TVFStreamingUtils.WINDOW_END).toInstant()));
+            Instant.ofEpochMilli(
+                curRow
+                    .getLogicalTypeValue(TVFStreamingUtils.WINDOW_START, java.time.Instant.class)
+                    .toEpochMilli()),
+            Instant.ofEpochMilli(
+                curRow
+                    .getLogicalTypeValue(TVFStreamingUtils.WINDOW_END, java.time.Instant.class)
+                    .toEpochMilli())));
   }
 
   @Override

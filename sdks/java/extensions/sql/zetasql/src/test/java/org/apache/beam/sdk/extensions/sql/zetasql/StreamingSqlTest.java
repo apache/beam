@@ -17,20 +17,19 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithUTCTimeZone;
+import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimeStampWithoutTimeZone;
 
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.joda.time.DateTime;
 import org.joda.time.Duration;
-import org.joda.time.chrono.ISOChronology;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -67,40 +66,40 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
     final Schema schema =
         Schema.builder()
             .addInt64Field("count_star")
-            .addDateTimeField("field1")
-            .addDateTimeField("field2")
+            .addLogicalTypeField("field1", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("field2", SqlTypes.TIMESTAMP)
             .build();
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
                 .addValues(
                     2L,
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 9, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:09Z"))
                 .build(),
             Row.withSchema(schema)
                 .addValues(
                     1L,
-                    new DateTime(2018, 7, 1, 21, 26, 5, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:05Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"))
                 .build(),
             Row.withSchema(schema)
                 .addValues(
                     2L,
-                    new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 8, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:08Z"))
                 .build(),
             Row.withSchema(schema)
                 .addValues(
                     2L,
-                    new DateTime(2018, 7, 1, 21, 26, 8, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 10, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:08Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:10Z"))
                 .build(),
             Row.withSchema(schema)
                 .addValues(
                     1L,
-                    new DateTime(2018, 7, 1, 21, 26, 9, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 11, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:09Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:11Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -122,22 +121,22 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
     final Schema schema =
         Schema.builder()
             .addInt64Field("count_star")
-            .addDateTimeField("field1")
-            .addDateTimeField("field2")
+            .addLogicalTypeField("field1", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("field2", SqlTypes.TIMESTAMP)
             .build();
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
                 .addValues(
                     2L,
-                    new DateTime(2018, 7, 1, 21, 26, 12, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 12, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:12Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:12Z"))
                 .build(),
             Row.withSchema(schema)
                 .addValues(
                     2L,
-                    new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -158,12 +157,12 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
             Row.withSchema(
                     Schema.builder()
                         .addStringField("value")
-                        .addDateTimeField("min_v")
+                        .addLogicalTypeField("min_v", SqlTypes.TIMESTAMP)
                         .addStringField("period_start")
                         .build())
                 .addValues(
                     "KeyValue235",
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"),
                     "BigTable235")
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
@@ -186,22 +185,22 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
     final Schema schema =
         Schema.builder()
             .addInt64Field("count_start")
-            .addDateTimeField("field1")
-            .addDateTimeField("field2")
+            .addLogicalTypeField("field1", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("field2", SqlTypes.TIMESTAMP)
             .build();
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
                 .addValues(
                     1L,
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 8, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:08Z"))
                 .build(),
             Row.withSchema(schema)
                 .addValues(
                     1L,
-                    new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -219,14 +218,17 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema =
-        Schema.builder().addInt64Field("field_count").addDateTimeField("window_start").build();
+        Schema.builder()
+            .addInt64Field("field_count")
+            .addLogicalTypeField("window_start", SqlTypes.TIMESTAMP)
+            .build();
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
-                .addValues(1L, new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
+                .addValues(1L, parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"))
                 .build(),
             Row.withSchema(schema)
-                .addValues(1L, new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()))
+                .addValues(1L, parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -246,40 +248,40 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
     final Schema schema =
         Schema.builder()
             .addInt64Field("field_count")
-            .addDateTimeField("field1")
-            .addDateTimeField("field2")
+            .addLogicalTypeField("field1", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("field2", SqlTypes.TIMESTAMP)
             .build();
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
                 .addValues(
                     2L,
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 9, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:09Z"))
                 .build(),
             Row.withSchema(schema)
                 .addValues(
                     1L,
-                    new DateTime(2018, 7, 1, 21, 26, 5, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:05Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"))
                 .build(),
             Row.withSchema(schema)
                 .addValues(
                     2L,
-                    new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 8, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:08Z"))
                 .build(),
             Row.withSchema(schema)
                 .addValues(
                     2L,
-                    new DateTime(2018, 7, 1, 21, 26, 8, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 10, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:08Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:10Z"))
                 .build(),
             Row.withSchema(schema)
                 .addValues(
                     1L,
-                    new DateTime(2018, 7, 1, 21, 26, 9, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 11, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:09Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:11Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -300,8 +302,8 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
         Schema.builder()
             .addInt64Field("f_long")
             .addInt64Field("size")
-            .addDateTimeField("window_start")
-            .addDateTimeField("window_end")
+            .addLogicalTypeField("window_start", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("window_end", SqlTypes.TIMESTAMP)
             .build();
 
     List<Row> expectedRows =
@@ -310,15 +312,15 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
                 .addValues(
                     1000L,
                     3L,
-                    parseTimestampWithUTCTimeZone("2017-01-01 01:00:00"),
-                    parseTimestampWithUTCTimeZone("2017-01-01 02:00:00"))
+                    parseTimeStampWithoutTimeZone("2017-01-01T01:00:00Z"),
+                    parseTimeStampWithoutTimeZone("2017-01-01T02:00:00Z"))
                 .build(),
             Row.withSchema(resultType)
                 .addValues(
                     4000L,
                     1L,
-                    parseTimestampWithUTCTimeZone("2017-01-01 02:00:00"),
-                    parseTimestampWithUTCTimeZone("2017-01-01 03:00:00"))
+                    parseTimeStampWithoutTimeZone("2017-01-01T02:00:00Z"),
+                    parseTimeStampWithoutTimeZone("2017-01-01T03:00:00Z"))
                 .build());
 
     PAssert.that(stream).containsInAnyOrder(expectedRows);
@@ -342,8 +344,8 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
         Schema.builder()
             .addInt64Field("f_long")
             .addInt64Field("size")
-            .addDateTimeField("window_start")
-            .addDateTimeField("window_end")
+            .addLogicalTypeField("window_start", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("window_end", SqlTypes.TIMESTAMP)
             .build();
 
     List<Row> expectedRows =
@@ -352,22 +354,22 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
                 .addValues(
                     1000L,
                     1L,
-                    parseTimestampWithUTCTimeZone("2016-12-08 00:00:00"),
-                    parseTimestampWithUTCTimeZone("2017-01-08 00:00:00"))
+                    parseTimeStampWithoutTimeZone("2016-12-08T00:00:00Z"),
+                    parseTimeStampWithoutTimeZone("2017-01-08T00:00:00Z"))
                 .build(),
             Row.withSchema(resultType)
                 .addValues(
                     2000L,
                     1L,
-                    parseTimestampWithUTCTimeZone("2017-01-08 00:00:00"),
-                    parseTimestampWithUTCTimeZone("2017-02-08 00:00:00"))
+                    parseTimeStampWithoutTimeZone("2017-01-08T00:00:00Z"),
+                    parseTimeStampWithoutTimeZone("2017-02-08T00:00:00Z"))
                 .build(),
             Row.withSchema(resultType)
                 .addValues(
                     3000L,
                     1L,
-                    parseTimestampWithUTCTimeZone("2017-02-08 00:00:00"),
-                    parseTimestampWithUTCTimeZone("2017-03-11 00:00:00"))
+                    parseTimeStampWithoutTimeZone("2017-02-08T00:00:00Z"),
+                    parseTimeStampWithoutTimeZone("2017-03-11T00:00:00Z"))
                 .build());
 
     PAssert.that(stream).containsInAnyOrder(expectedRows);
@@ -392,8 +394,8 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
         Schema.builder()
             .addInt64Field("f_long")
             .addInt64Field("size")
-            .addDateTimeField("window_start")
-            .addDateTimeField("window_end")
+            .addLogicalTypeField("window_start", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("window_end", SqlTypes.TIMESTAMP)
             .build();
 
     List<Row> expectedRows =
@@ -402,29 +404,29 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
                 .addValues(
                     1000L,
                     3L,
-                    parseTimestampWithUTCTimeZone("2017-01-01 00:30:00"),
-                    parseTimestampWithUTCTimeZone("2017-01-01 01:30:00"))
+                    parseTimeStampWithoutTimeZone("2017-01-01T00:30:00Z"),
+                    parseTimeStampWithoutTimeZone("2017-01-01T01:30:00Z"))
                 .build(),
             Row.withSchema(resultType)
                 .addValues(
                     1000L,
                     3L,
-                    parseTimestampWithUTCTimeZone("2017-01-01 01:00:00"),
-                    parseTimestampWithUTCTimeZone("2017-01-01 02:00:00"))
+                    parseTimeStampWithoutTimeZone("2017-01-01T01:00:00Z"),
+                    parseTimeStampWithoutTimeZone("2017-01-01T02:00:00Z"))
                 .build(),
             Row.withSchema(resultType)
                 .addValues(
                     4000L,
                     1L,
-                    parseTimestampWithUTCTimeZone("2017-01-01 01:30:00"),
-                    parseTimestampWithUTCTimeZone("2017-01-01 02:30:00"))
+                    parseTimeStampWithoutTimeZone("2017-01-01T01:30:00Z"),
+                    parseTimeStampWithoutTimeZone("2017-01-01T02:30:00Z"))
                 .build(),
             Row.withSchema(resultType)
                 .addValues(
                     4000L,
                     1L,
-                    parseTimestampWithUTCTimeZone("2017-01-01 02:00:00"),
-                    parseTimestampWithUTCTimeZone("2017-01-01 03:00:00"))
+                    parseTimeStampWithoutTimeZone("2017-01-01T02:00:00Z"),
+                    parseTimeStampWithoutTimeZone("2017-01-01T03:00:00Z"))
                 .build());
 
     PAssert.that(stream).containsInAnyOrder(expectedRows);
@@ -449,8 +451,8 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
         Schema.builder()
             .addInt64Field("f_long")
             .addInt64Field("size")
-            .addDateTimeField("window_start")
-            .addDateTimeField("window_end")
+            .addLogicalTypeField("window_start", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("window_end", SqlTypes.TIMESTAMP)
             .build();
 
     List<Row> expectedRows =
@@ -459,15 +461,15 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
                 .addValues(
                     1000L,
                     3L,
-                    parseTimestampWithUTCTimeZone("2017-01-01 01:01:03"),
-                    parseTimestampWithUTCTimeZone("2017-01-01 01:11:03"))
+                    parseTimeStampWithoutTimeZone("2017-01-01T01:01:03Z"),
+                    parseTimeStampWithoutTimeZone("2017-01-01T01:11:03Z"))
                 .build(),
             Row.withSchema(resultType)
                 .addValues(
                     4000L,
                     1L,
-                    parseTimestampWithUTCTimeZone("2017-01-01 02:04:03"),
-                    parseTimestampWithUTCTimeZone("2017-01-01 02:09:03"))
+                    parseTimeStampWithoutTimeZone("2017-01-01T02:04:03Z"),
+                    parseTimeStampWithoutTimeZone("2017-01-01T02:09:03Z"))
                 .build());
 
     PAssert.that(stream).containsInAnyOrder(expectedRows);
@@ -492,8 +494,8 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
             .addInt64Field("f_long")
             .addStringField("f_string")
             .addInt64Field("size")
-            .addDateTimeField("window_start")
-            .addDateTimeField("window_end")
+            .addLogicalTypeField("window_start", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("window_end", SqlTypes.TIMESTAMP)
             .build();
 
     List<Row> expectedRows =
@@ -503,24 +505,24 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
                     1000L,
                     "string_row1",
                     2L,
-                    parseTimestampWithUTCTimeZone("2017-01-01 01:01:03"),
-                    parseTimestampWithUTCTimeZone("2017-01-01 01:07:03"))
+                    parseTimeStampWithoutTimeZone("2017-01-01T01:01:03Z"),
+                    parseTimeStampWithoutTimeZone("2017-01-01T01:07:03Z"))
                 .build(),
             Row.withSchema(resultType)
                 .addValues(
                     1000L,
                     "string_row3",
                     1L,
-                    parseTimestampWithUTCTimeZone("2017-01-01 01:06:03"),
-                    parseTimestampWithUTCTimeZone("2017-01-01 01:11:03"))
+                    parseTimeStampWithoutTimeZone("2017-01-01T01:06:03Z"),
+                    parseTimeStampWithoutTimeZone("2017-01-01T01:11:03Z"))
                 .build(),
             Row.withSchema(resultType)
                 .addValues(
                     4000L,
                     "第四行",
                     1L,
-                    parseTimestampWithUTCTimeZone("2017-01-01 02:04:03"),
-                    parseTimestampWithUTCTimeZone("2017-01-01 02:09:03"))
+                    parseTimeStampWithoutTimeZone("2017-01-01T02:04:03Z"),
+                    parseTimeStampWithoutTimeZone("2017-01-01T02:09:03Z"))
                 .build());
 
     PAssert.that(stream).containsInAnyOrder(expectedRows);
@@ -538,11 +540,11 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-    final Schema schema = Schema.builder().addDateTimeField("field").build();
+    final Schema schema = Schema.builder().addLogicalTypeField("field", SqlTypes.TIMESTAMP).build();
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
-                .addValue(parseTimestampWithUTCTimeZone("2019-01-15 13:21:00"))
+                .addValue(parseTimeStampWithoutTimeZone("2019-01-15T13:21:00Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

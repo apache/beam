@@ -18,10 +18,9 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseDateToValue;
+import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimeStampWithoutTimeZone;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimeToValue;
-import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithTZToValue;
-import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithTimeZone;
-import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithUTCTimeZone;
+import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampStringToValue;
 
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
@@ -1204,25 +1203,6 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
   /////////////////////////////////////////////////////////////////////////////
 
   @Test
-  public void testTimestampMicrosecondUnsupported() {
-    String sql =
-        "WITH Timestamps AS (\n"
-            + "  SELECT TIMESTAMP '2000-01-01 00:11:22.345678+00' as timestamp\n"
-            + ")\n"
-            + "SELECT\n"
-            + "  timestamp,\n"
-            + "  EXTRACT(ISOYEAR FROM timestamp) AS isoyear,\n"
-            + "  EXTRACT(YEAR FROM timestamp) AS year,\n"
-            + "  EXTRACT(ISOWEEK FROM timestamp) AS week,\n"
-            + "  EXTRACT(MINUTE FROM timestamp) AS minute\n"
-            + "FROM Timestamps\n";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(UnsupportedOperationException.class);
-    zetaSQLQueryPlanner.convertToBeamRel(sql);
-  }
-
-  @Test
   public void testTimestampLiteralWithoutTimeZone() {
     String sql = "SELECT TIMESTAMP '2016-12-25 05:30:00'";
 
@@ -1232,15 +1212,33 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDateTimeField("field1").build())
-                .addValues(parseTimestampWithUTCTimeZone("2016-12-25 05:30:00"))
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP).build())
+                .addValues(parseTimeStampWithoutTimeZone("2016-12-25T05:30:00Z"))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimestampMicrosecondLiteralWithoutTimeZone() {
+    String sql = "SELECT TIMESTAMP '2016-12-25 05:30:00.123456'";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP).build())
+                .addValues(parseTimeStampWithoutTimeZone("2016-12-25T05:30:00.123456Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testTimestampLiteralWithUTCTimeZone() {
-    String sql = "SELECT TIMESTAMP '2016-12-25 05:30:00+00'";
+    String sql = "SELECT TIMESTAMP '2016-12-25 05:30:00.123456+00'";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1248,15 +1246,16 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDateTimeField("field1").build())
-                .addValues(parseTimestampWithUTCTimeZone("2016-12-25 05:30:00"))
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP).build())
+                .addValues(parseTimeStampWithoutTimeZone("2016-12-25T05:30:00.123456Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testTimestampLiteralWithNonUTCTimeZone() {
-    String sql = "SELECT TIMESTAMP '2018-12-10 10:38:59-10:00'";
+    String sql = "SELECT TIMESTAMP '2018-12-10 10:38:59.123456-10:00'";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1264,8 +1263,11 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDateTimeField("f_timestamp_with_time_zone").build())
-                .addValues(parseTimestampWithTimeZone("2018-12-10 10:38:59-1000"))
+            Row.withSchema(
+                    Schema.builder()
+                        .addLogicalTypeField("f_timestamp_with_time_zone", SqlTypes.TIMESTAMP)
+                        .build())
+                .addValues(parseTimeStampWithoutTimeZone("2018-12-10T20:38:59.123456Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1276,7 +1278,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
   public void testExtractFromTimestamp() {
     String sql =
         "WITH Timestamps AS (\n"
-            + "  SELECT TIMESTAMP '2007-12-31 12:34:56.789' AS timestamp UNION ALL\n"
+            + "  SELECT TIMESTAMP '2007-12-31 12:34:56.789123' AS timestamp UNION ALL\n"
             + "  SELECT TIMESTAMP '2009-12-31'\n"
             + ")\n"
             + "SELECT\n"
@@ -1294,7 +1296,8 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
             + "  EXTRACT(HOUR FROM timestamp) AS hour,\n"
             + "  EXTRACT(MINUTE FROM timestamp) AS minute,\n"
             + "  EXTRACT(SECOND FROM timestamp) AS second,\n"
-            + "  EXTRACT(MILLISECOND FROM timestamp) AS millisecond\n"
+            + "  EXTRACT(MILLISECOND FROM timestamp) AS millisecond,\n"
+            + "  EXTRACT(MICROSECOND FROM timestamp) AS microsecond\n"
             + "FROM Timestamps";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -1316,15 +1319,30 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
             .addInt64Field("minute")
             .addInt64Field("second")
             .addInt64Field("millisecond")
+            .addInt64Field("microsecond")
             .build();
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
                 .addValues(
-                    2008L, 2007L, 1L /* , 53L */, 12L, 4L, 31L, 365L, 2L, 12L, 34L, 56L, 789L)
+                    2008L,
+                    2007L,
+                    1L,
+                    // 53L,
+                    12L,
+                    4L,
+                    31L,
+                    365L,
+                    2L,
+                    12L,
+                    34L,
+                    56L,
+                    789L,
+                    789123L)
                 .build(),
             Row.withSchema(schema)
-                .addValues(2009L, 2009L, 53L /* , 52L */, 12L, 4L, 31L, 365L, 5L, 0L, 0L, 0L, 0L)
+                .addValues(
+                    2009L, 2009L, 53L /* , 52L */, 12L, 4L, 31L, 365L, 5L, 0L, 0L, 0L, 0L, 0L)
                 .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
@@ -1332,7 +1350,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
   @Test
   public void testExtractDateFromTimestamp() {
-    String sql = "SELECT EXTRACT(DATE FROM TIMESTAMP '2017-05-26 12:34:56')";
+    String sql = "SELECT EXTRACT(DATE FROM TIMESTAMP '2017-05-26 12:34:56.987654')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1348,7 +1366,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
   @Test
   public void testExtractTimeFromTimestamp() {
-    String sql = "SELECT EXTRACT(TIME FROM TIMESTAMP '2017-05-26 12:34:56')";
+    String sql = "SELECT EXTRACT(TIME FROM TIMESTAMP '2017-05-26 12:34:56.987654')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1357,14 +1375,14 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addLogicalTypeField("time", SqlTypes.TIME).build())
-                .addValues(LocalTime.of(12, 34, 56))
+                .addValues(LocalTime.of(12, 34, 56, 987654000))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testExtractDateTimeFromTimestamp() {
-    String sql = "SELECT EXTRACT(DATETIME FROM TIMESTAMP '2017-05-26 12:34:56')";
+    String sql = "SELECT EXTRACT(DATETIME FROM TIMESTAMP '2017-05-26 12:34:56.987654')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1374,7 +1392,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(
                     Schema.builder().addLogicalTypeField("datetime", SqlTypes.DATETIME).build())
-                .addValues(LocalDateTime.of(2017, 5, 26, 12, 34, 56))
+                .addValues(LocalDateTime.of(2017, 5, 26, 12, 34, 56).withNano(987654000))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1383,7 +1401,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
   public void testExtractFromTimestampAtTimeZone() {
     String sql =
         "WITH Timestamps AS (\n"
-            + "  SELECT TIMESTAMP '2007-12-31 12:34:56.789' AS timestamp\n"
+            + "  SELECT TIMESTAMP '2007-12-31 12:34:56.789123' AS timestamp\n"
             + ")\n"
             + "SELECT\n"
             + "  EXTRACT(DAY FROM timestamp AT TIME ZONE 'America/Vancouver') AS day,\n"
@@ -1404,7 +1422,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
-                .addValues(31L, LocalDate.of(2007, 12, 31), LocalTime.of(20, 34, 56, 789000000))
+                .addValues(31L, LocalDate.of(2007, 12, 31), LocalTime.of(20, 34, 56, 789123000))
                 .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
@@ -1412,7 +1430,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
   @Test
   public void testStringFromTimestamp() {
-    String sql = "SELECT STRING(TIMESTAMP '2008-12-25 15:30:00', 'America/Los_Angeles')";
+    String sql = "SELECT STRING(TIMESTAMP '2008-12-25 15:30:00.123456', 'America/Los_Angeles')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1421,14 +1439,14 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addStringField("f_timestamp_string").build())
-                .addValues("2008-12-25 07:30:00-08")
+                .addValues("2008-12-25 07:30:00.123456-08")
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testTimestampFromString() {
-    String sql = "SELECT TIMESTAMP('2008-12-25 15:30:00', 'America/Los_Angeles')";
+    String sql = "SELECT TIMESTAMP('2008-12-25 15:30:00.123456', 'America/Los_Angeles')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1436,8 +1454,9 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDateTimeField("f_timestamp").build())
-                .addValues(parseTimestampWithTimeZone("2008-12-25 15:30:00-08"))
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP).build())
+                .addValues(parseTimeStampWithoutTimeZone("2008-12-25T23:30:00.123456Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1452,8 +1471,9 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDateTimeField("f_timestamp").build())
-                .addValues(parseTimestampWithTimeZone("2014-01-31 00:00:00+00"))
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP).build())
+                .addValues(parseTimeStampWithoutTimeZone("2014-01-31T00:00:00Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1475,15 +1495,16 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDateTimeField("f_timestamp").build())
-                .addValues(parseTimestampWithTimeZone("2014-01-31 00:00:00+08"))
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP).build())
+                .addValues(parseTimeStampWithoutTimeZone("2014-01-30T16:00:00Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testTimestampFromDateTime() {
-    String sql = "SELECT TIMESTAMP(DATETIME '2008-12-25 15:30:00')";
+    String sql = "SELECT TIMESTAMP(DATETIME '2008-12-25 15:30:00.123456')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1491,8 +1512,9 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDateTimeField("f_timestamp").build())
-                .addValues(parseTimestampWithTimeZone("2008-12-25 15:30:00+00"))
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP).build())
+                .addValues(parseTimeStampWithoutTimeZone("2008-12-25T15:30:00.123456Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1500,7 +1522,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
   @Test
   // test default timezone works properly in query execution stage
   public void testTimestampFromDateTimeWithDefaultTimezoneSet() {
-    String sql = "SELECT TIMESTAMP(DATETIME '2008-12-25 15:30:00')";
+    String sql = "SELECT TIMESTAMP(DATETIME '2008-12-25 15:30:00.123456')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     zetaSQLQueryPlanner.setDefaultTimezone("Asia/Shanghai");
@@ -1514,8 +1536,9 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDateTimeField("f_timestamp").build())
-                .addValues(parseTimestampWithTimeZone("2008-12-25 15:30:00+08"))
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP).build())
+                .addValues(parseTimeStampWithoutTimeZone("2008-12-25T07:30:00.123456Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1524,8 +1547,9 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
   public void testTimestampAdd() {
     String sql =
         "SELECT "
-            + "TIMESTAMP_ADD(TIMESTAMP '2008-12-25 15:30:00 UTC', INTERVAL 5+5 MINUTE), "
-            + "TIMESTAMP_ADD(TIMESTAMP '2008-12-25 15:30:00+07:30', INTERVAL 10 MINUTE)";
+            + "TIMESTAMP_ADD(TIMESTAMP '2008-12-25 15:30:00.123456 UTC', INTERVAL 5+5 MINUTE), "
+            + "TIMESTAMP_ADD(TIMESTAMP '2008-12-25 15:30:00.654321+07:30', INTERVAL 10 MINUTE), "
+            + "TIMESTAMP_ADD(TIMESTAMP '2008-12-25 15:30:00.654321 UTC', INTERVAL 10 MICROSECOND)";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1535,12 +1559,14 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(
                     Schema.builder()
-                        .addDateTimeField("f_timestamp_add")
-                        .addDateTimeField("f_timestamp_with_time_zone_add")
+                        .addLogicalTypeField("f_timestamp_add", SqlTypes.TIMESTAMP)
+                        .addLogicalTypeField("f_timestamp_with_time_zone_add", SqlTypes.TIMESTAMP)
+                        .addLogicalTypeField("f_timestamp_microsecond_add", SqlTypes.TIMESTAMP)
                         .build())
                 .addValues(
-                    DateTimeUtils.parseTimestampWithUTCTimeZone("2008-12-25 15:40:00"),
-                    parseTimestampWithTimeZone("2008-12-25 15:40:00+0730"))
+                    parseTimeStampWithoutTimeZone("2008-12-25T15:40:00.123456Z"),
+                    parseTimeStampWithoutTimeZone("2008-12-25T08:10:00.654321Z"),
+                    parseTimeStampWithoutTimeZone("2008-12-25T15:30:00.654331Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1550,18 +1576,19 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     String sql = "SELECT TIMESTAMP_ADD(@p0, INTERVAL @p1 MILLISECOND)";
     ImmutableMap<String, Value> params =
         ImmutableMap.of(
-            "p0", parseTimestampWithTZToValue("2001-01-01 00:00:00+00"),
+            "p0", parseTimestampStringToValue("2001-01-01T00:00:00.123456Z"),
             "p1", Value.createInt64Value(1L));
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    final Schema schema = Schema.builder().addDateTimeField("field1").build();
+    final Schema schema =
+        Schema.builder().addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP).build();
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
-                .addValues(parseTimestampWithTimeZone("2001-01-01 00:00:00.001+00"))
+                .addValues(parseTimeStampWithoutTimeZone("2001-01-01T00:00:00.124456Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1571,18 +1598,19 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     String sql = "SELECT TIMESTAMP_ADD(@p0, INTERVAL @p1 MINUTE)";
     ImmutableMap<String, Value> params =
         ImmutableMap.of(
-            "p0", parseTimestampWithTZToValue("2008-12-25 15:30:00+07:30"),
+            "p0", parseTimestampStringToValue("2008-12-25T08:00:00.123456Z"),
             "p1", Value.createInt64Value(10L));
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    final Schema schema = Schema.builder().addDateTimeField("field1").build();
+    final Schema schema =
+        Schema.builder().addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP).build();
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
-                .addValues(parseTimestampWithTimeZone("2008-12-25 15:40:00+07:30"))
+                .addValues(parseTimeStampWithoutTimeZone("2008-12-25T08:10:00.123456Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1591,8 +1619,9 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
   public void testTimestampSub() {
     String sql =
         "SELECT "
-            + "TIMESTAMP_SUB(TIMESTAMP '2008-12-25 15:30:00 UTC', INTERVAL 5+5 MINUTE), "
-            + "TIMESTAMP_SUB(TIMESTAMP '2008-12-25 15:30:00+07:30', INTERVAL 10 MINUTE)";
+            + "TIMESTAMP_SUB(TIMESTAMP '2008-12-25 15:30:00.123456 UTC', INTERVAL 5+5 MINUTE), "
+            + "TIMESTAMP_SUB(TIMESTAMP '2008-12-25 15:30:00.654321+07:30', INTERVAL 10 MINUTE), "
+            + "TIMESTAMP_SUB(TIMESTAMP '2008-12-25 15:30:00.654321 UTC', INTERVAL 10 MICROSECOND)";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1602,12 +1631,14 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(
                     Schema.builder()
-                        .addDateTimeField("f_timestamp_sub")
-                        .addDateTimeField("f_timestamp_with_time_zone_sub")
+                        .addLogicalTypeField("f_timestamp_sub", SqlTypes.TIMESTAMP)
+                        .addLogicalTypeField("f_timestamp_with_time_zone_sub", SqlTypes.TIMESTAMP)
+                        .addLogicalTypeField("f_timestamp_microsecond_sub", SqlTypes.TIMESTAMP)
                         .build())
                 .addValues(
-                    DateTimeUtils.parseTimestampWithUTCTimeZone("2008-12-25 15:20:00"),
-                    parseTimestampWithTimeZone("2008-12-25 15:20:00+0730"))
+                    parseTimeStampWithoutTimeZone("2008-12-25T15:20:00.123456Z"),
+                    parseTimeStampWithoutTimeZone("2008-12-25T07:50:00.654321Z"),
+                    parseTimeStampWithoutTimeZone("2008-12-25T15:30:00.654311Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1616,9 +1647,9 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
   public void testTimestampDiff() {
     String sql =
         "SELECT TIMESTAMP_DIFF("
-            + "TIMESTAMP '2018-10-14 15:30:00.000 UTC', "
-            + "TIMESTAMP '2018-08-14 15:05:00.001 UTC', "
-            + "MILLISECOND)";
+            + "TIMESTAMP '2018-10-14 15:30:00.777777 UTC', "
+            + "TIMESTAMP '2018-08-14 15:05:00.123456 UTC', "
+            + "MICROSECOND)";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1627,7 +1658,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addInt64Field("f_timestamp_diff").build())
-                .addValues((61L * 24 * 60 + 25) * 60 * 1000 - 1)
+                .addValues((61L * 24 * 60 + 25) * 60 * 1000000 + 654321)
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1658,15 +1689,17 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDateTimeField("f_timestamp_trunc").build())
-                .addValues(DateTimeUtils.parseTimestampWithUTCTimeZone("2017-10-30 00:00:00"))
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP).build())
+                .addValues(parseTimeStampWithoutTimeZone("2017-10-30T00:00:00Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testFormatTimestamp() {
-    String sql = "SELECT FORMAT_TIMESTAMP('%D %T', TIMESTAMP '2018-10-14 15:30:00.123+00', 'UTC')";
+    String sql =
+        "SELECT FORMAT_TIMESTAMP('%D %T %E6S', TIMESTAMP '2018-10-14 15:30:00.123456+00', 'UTC')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1675,14 +1708,14 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addStringField("f_timestamp_str").build())
-                .addValues("10/14/18 15:30:00")
+                .addValues("10/14/18 15:30:00 00.123456")
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testParseTimestamp() {
-    String sql = "SELECT PARSE_TIMESTAMP('%m-%d-%y %T', '10-14-18 15:30:00', 'UTC')";
+    String sql = "SELECT PARSE_TIMESTAMP('%m-%d-%y %T %E6S', '10-14-18 15:30:00 00.123456', 'UTC')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1690,15 +1723,17 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDateTimeField("f_timestamp").build())
-                .addValues(DateTimeUtils.parseTimestampWithUTCTimeZone("2018-10-14 15:30:00"))
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP).build())
+                .addValues(parseTimeStampWithoutTimeZone("2018-10-14T15:30:00.123456Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
   public void testTimestampFromInt64() {
-    String sql = "SELECT TIMESTAMP_SECONDS(1230219000), TIMESTAMP_MILLIS(1230219000123) ";
+    String sql =
+        "SELECT TIMESTAMP_SECONDS(1230219000), TIMESTAMP_MILLIS(1230219000123), TIMESTAMP_MICROS(1230219000123456)";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1708,12 +1743,14 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(
                     Schema.builder()
-                        .addDateTimeField("f_timestamp_seconds")
-                        .addDateTimeField("f_timestamp_millis")
+                        .addLogicalTypeField("f_timestamp_seconds", SqlTypes.TIMESTAMP)
+                        .addLogicalTypeField("f_timestamp_millis", SqlTypes.TIMESTAMP)
+                        .addLogicalTypeField("f_timestamp_micros", SqlTypes.TIMESTAMP)
                         .build())
                 .addValues(
-                    DateTimeUtils.parseTimestampWithUTCTimeZone("2008-12-25 15:30:00"),
-                    DateTimeUtils.parseTimestampWithUTCTimeZone("2008-12-25 15:30:00.123"))
+                    parseTimeStampWithoutTimeZone("2008-12-25T15:30:00Z"),
+                    parseTimeStampWithoutTimeZone("2008-12-25T15:30:00.123Z"),
+                    parseTimeStampWithoutTimeZone("2008-12-25T15:30:00.123456Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1723,7 +1760,8 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     String sql =
         "SELECT "
             + "UNIX_SECONDS(TIMESTAMP '2008-12-25 15:30:00 UTC'), "
-            + "UNIX_MILLIS(TIMESTAMP '2008-12-25 15:30:00.123 UTC')";
+            + "UNIX_MILLIS(TIMESTAMP '2008-12-25 15:30:00.123 UTC'), "
+            + "UNIX_MICROS(TIMESTAMP '2008-12-25 15:30:00.123456 UTC')";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1735,8 +1773,9 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
                     Schema.builder()
                         .addInt64Field("f_unix_seconds")
                         .addInt64Field("f_unix_millis")
+                        .addInt64Field("f_unix_micros")
                         .build())
-                .addValues(1230219000L, 1230219000123L)
+                .addValues(1230219000L, 1230219000123L, 1230219000123456L)
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1746,7 +1785,8 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
     String sql =
         "SELECT "
             + "TIMESTAMP_FROM_UNIX_SECONDS(1230219000), "
-            + "TIMESTAMP_FROM_UNIX_MILLIS(1230219000123) ";
+            + "TIMESTAMP_FROM_UNIX_MILLIS(1230219000123), "
+            + "TIMESTAMP_FROM_UNIX_MICROS(1230219000123456) ";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -1756,12 +1796,14 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(
                     Schema.builder()
-                        .addDateTimeField("f_timestamp_seconds")
-                        .addDateTimeField("f_timestamp_millis")
+                        .addLogicalTypeField("f_timestamp_seconds", SqlTypes.TIMESTAMP)
+                        .addLogicalTypeField("f_timestamp_millis", SqlTypes.TIMESTAMP)
+                        .addLogicalTypeField("f_timestamp_micros", SqlTypes.TIMESTAMP)
                         .build())
                 .addValues(
-                    DateTimeUtils.parseTimestampWithUTCTimeZone("2008-12-25 15:30:00"),
-                    DateTimeUtils.parseTimestampWithUTCTimeZone("2008-12-25 15:30:00.123"))
+                    parseTimeStampWithoutTimeZone("2008-12-25T15:30:00Z"),
+                    parseTimeStampWithoutTimeZone("2008-12-25T15:30:00.123Z"),
+                    parseTimeStampWithoutTimeZone("2008-12-25T15:30:00.123456Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

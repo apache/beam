@@ -219,20 +219,20 @@ class SupportedZetaSqlBuiltinFunctions {
           FunctionSignatureId.FN_DATE_FROM_UNIX_DATE, // date_from_unix_date
           FunctionSignatureId.FN_TIMESTAMP_FROM_INT64_SECONDS, // timestamp_seconds
           FunctionSignatureId.FN_TIMESTAMP_FROM_INT64_MILLIS, // timestamp_millis
-          // FunctionSignatureId.FN_TIMESTAMP_FROM_INT64_MICROS, // timestamp_micros
+          FunctionSignatureId.FN_TIMESTAMP_FROM_INT64_MICROS, // timestamp_micros
           FunctionSignatureId.FN_TIMESTAMP_FROM_UNIX_SECONDS_INT64, // timestamp_from_unix_seconds
           // timestamp_from_unix_seconds
           // FunctionSignatureId.FN_TIMESTAMP_FROM_UNIX_SECONDS_TIMESTAMP,
           FunctionSignatureId.FN_TIMESTAMP_FROM_UNIX_MILLIS_INT64, // timestamp_from_unix_millis
           // timestamp_from_unix_millis
           // FunctionSignatureId.FN_TIMESTAMP_FROM_UNIX_MILLIS_TIMESTAMP,
-          // FunctionSignatureId.FN_TIMESTAMP_FROM_UNIX_MICROS_INT64, // timestamp_from_unix_micros
+          FunctionSignatureId.FN_TIMESTAMP_FROM_UNIX_MICROS_INT64, // timestamp_from_unix_micros
           // timestamp_from_unix_micros
           // FunctionSignatureId.FN_TIMESTAMP_FROM_UNIX_MICROS_TIMESTAMP,
           FunctionSignatureId.FN_UNIX_DATE, // unix_date
           FunctionSignatureId.FN_UNIX_SECONDS_FROM_TIMESTAMP,
           FunctionSignatureId.FN_UNIX_MILLIS_FROM_TIMESTAMP,
-          // FunctionSignatureId.FN_UNIX_MICROS_FROM_TIMESTAMP,
+          FunctionSignatureId.FN_UNIX_MICROS_FROM_TIMESTAMP,
           FunctionSignatureId.FN_DATE_FROM_TIMESTAMP, // date
           FunctionSignatureId.FN_DATE_FROM_DATETIME, // date
           FunctionSignatureId.FN_DATE_FROM_YEAR_MONTH_DAY, // date

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithUTCTimeZone;
-import static org.apache.beam.sdk.schemas.Schema.FieldType.DATETIME;
+import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimeStampWithoutTimeZone;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.logicalType;
 import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
@@ -52,9 +52,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.joda.time.DateTime;
 import org.joda.time.Duration;
-import org.joda.time.chrono.ISOChronology;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -89,17 +87,14 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema =
         Schema.builder()
             .addInt64Field("field1")
-            .addDateTimeField("field2")
+            .addLogicalTypeField("field2", SqlTypes.TIMESTAMP)
             .addStringField("field3")
             .build();
 
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
-                .addValues(
-                    1243L,
-                    new DateTime(2018, 9, 15, 12, 59, 59, ISOChronology.getInstanceUTC()),
-                    "string")
+                .addValues(1243L, parseTimeStampWithoutTimeZone("2018-09-15T12:59:59Z"), "string")
                 .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
@@ -118,17 +113,14 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema =
         Schema.builder()
             .addInt64Field("field1")
-            .addDateTimeField("field2")
+            .addLogicalTypeField("field2", SqlTypes.TIMESTAMP)
             .addStringField("field3")
             .build();
 
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
-                .addValues(
-                    1243L,
-                    new DateTime(2018, 9, 15, 12, 59, 59, ISOChronology.getInstanceUTC()),
-                    "string")
+                .addValues(1243L, parseTimeStampWithoutTimeZone("2018-09-15T12:59:59Z"), "string")
                 .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
@@ -151,17 +143,14 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema =
         Schema.builder()
             .addInt64Field("field1")
-            .addDateTimeField("field2")
+            .addLogicalTypeField("field2", SqlTypes.TIMESTAMP)
             .addStringField("field3")
             .build();
 
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
-                .addValues(
-                    1243L,
-                    new DateTime(2018, 9, 15, 12, 59, 59, ISOChronology.getInstanceUTC()),
-                    "string")
+                .addValues(1243L, parseTimeStampWithoutTimeZone("2018-09-15T12:59:59Z"), "string")
                 .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
@@ -573,17 +562,20 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Value.createTimestampValueFromUnixMicros(0),
             "p2",
             Value.createTimestampValueFromUnixMicros(
-                DateTime.parse("2019-01-01T00:00:00Z").getMillis() * 1000));
+                parseTimeStampWithoutTimeZone("2019-01-01T00:00:00Z").getEpochSecond() * 1000000L));
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    final Schema schema = Schema.builder().addNullableField("field1", DATETIME).build();
+    final Schema schema =
+        Schema.builder().addNullableField("field1", logicalType(SqlTypes.TIMESTAMP)).build();
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(schema).addValues(DateTime.parse("2019-01-01T00:00:00Z")).build());
+            Row.withSchema(schema)
+                .addValues(parseTimeStampWithoutTimeZone("2019-01-01T00:00:00Z"))
+                .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -835,23 +827,17 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema =
         Schema.builder()
             .addInt64Field("field1")
-            .addDateTimeField("field2")
+            .addLogicalTypeField("field2", SqlTypes.TIMESTAMP)
             .addStringField("field3")
             .build();
 
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
-                .addValues(
-                    1243L,
-                    new DateTime(2018, 9, 15, 12, 59, 59, ISOChronology.getInstanceUTC()),
-                    "string")
+                .addValues(1243L, parseTimeStampWithoutTimeZone("2018-09-15T12:59:59Z"), "string")
                 .build(),
             Row.withSchema(schema)
-                .addValues(
-                    1243L,
-                    new DateTime(2018, 9, 15, 12, 59, 59, ISOChronology.getInstanceUTC()),
-                    "string")
+                .addValues(1243L, parseTimeStampWithoutTimeZone("2018-09-15T12:59:59Z"), "string")
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -891,17 +877,14 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema =
         Schema.builder()
             .addInt64Field("field1")
-            .addDateTimeField("field2")
+            .addLogicalTypeField("field2", SqlTypes.TIMESTAMP)
             .addStringField("field3")
             .build();
 
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
-                .addValues(
-                    1243L,
-                    new DateTime(2018, 9, 15, 12, 59, 59, ISOChronology.getInstanceUTC()),
-                    "string")
+                .addValues(1243L, parseTimeStampWithoutTimeZone("2018-09-15T12:59:59Z"), "string")
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -983,20 +966,20 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         Schema.builder()
             .addInt64Field("field1")
             .addStringField("field2")
-            .addDateTimeField("field3")
+            .addLogicalTypeField("field3", SqlTypes.TIMESTAMP)
             .addNullableField("field4", FieldType.INT64)
             .addNullableField("field5", FieldType.STRING)
-            .addNullableField("field6", DATETIME)
+            .addNullableField("field6", logicalType(SqlTypes.TIMESTAMP))
             .build();
 
     final Schema schemaTwo =
         Schema.builder()
             .addInt64Field("field1")
             .addStringField("field2")
-            .addDateTimeField("field3")
+            .addLogicalTypeField("field3", SqlTypes.TIMESTAMP)
             .addInt64Field("field4")
             .addStringField("field5")
-            .addDateTimeField("field6")
+            .addLogicalTypeField("field6", SqlTypes.TIMESTAMP)
             .build();
 
     PAssert.that(stream)
@@ -1005,7 +988,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValues(
                     14L,
                     "KeyValue234",
-                    new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"),
                     null,
                     null,
                     null)
@@ -1014,10 +997,10 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValues(
                     15L,
                     "KeyValue235",
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"),
                     15L,
                     "BigTable235",
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1039,20 +1022,20 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         Schema.builder()
             .addNullableField("field1", FieldType.INT64)
             .addNullableField("field2", FieldType.STRING)
-            .addNullableField("field3", DATETIME)
+            .addNullableField("field3", logicalType(SqlTypes.TIMESTAMP))
             .addInt64Field("field4")
             .addStringField("field5")
-            .addDateTimeField("field6")
+            .addLogicalTypeField("field6", SqlTypes.TIMESTAMP)
             .build();
 
     final Schema schemaTwo =
         Schema.builder()
             .addInt64Field("field1")
             .addStringField("field2")
-            .addDateTimeField("field3")
+            .addLogicalTypeField("field3", SqlTypes.TIMESTAMP)
             .addInt64Field("field4")
             .addStringField("field5")
-            .addDateTimeField("field6")
+            .addLogicalTypeField("field6", SqlTypes.TIMESTAMP)
             .build();
 
     PAssert.that(stream)
@@ -1064,16 +1047,16 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     null,
                     16L,
                     "BigTable236",
-                    new DateTime(2018, 7, 1, 21, 26, 8, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:08Z"))
                 .build(),
             Row.withSchema(schemaTwo)
                 .addValues(
                     15L,
                     "KeyValue235",
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"),
                     15L,
                     "BigTable235",
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1095,30 +1078,30 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         Schema.builder()
             .addNullableField("field1", FieldType.INT64)
             .addNullableField("field2", FieldType.STRING)
-            .addNullableField("field3", DATETIME)
+            .addNullableField("field3", logicalType(SqlTypes.TIMESTAMP))
             .addInt64Field("field4")
             .addStringField("field5")
-            .addDateTimeField("field6")
+            .addLogicalTypeField("field6", SqlTypes.TIMESTAMP)
             .build();
 
     final Schema schemaTwo =
         Schema.builder()
             .addInt64Field("field1")
             .addStringField("field2")
-            .addDateTimeField("field3")
+            .addLogicalTypeField("field3", SqlTypes.TIMESTAMP)
             .addInt64Field("field4")
             .addStringField("field5")
-            .addDateTimeField("field6")
+            .addLogicalTypeField("field6", SqlTypes.TIMESTAMP)
             .build();
 
     final Schema schemaThree =
         Schema.builder()
             .addInt64Field("field1")
             .addStringField("field2")
-            .addDateTimeField("field3")
+            .addLogicalTypeField("field3", SqlTypes.TIMESTAMP)
             .addNullableField("field4", FieldType.INT64)
             .addNullableField("field5", FieldType.STRING)
-            .addNullableField("field6", DATETIME)
+            .addNullableField("field6", logicalType(SqlTypes.TIMESTAMP))
             .build();
 
     PAssert.that(stream)
@@ -1130,22 +1113,22 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     null,
                     16L,
                     "BigTable236",
-                    new DateTime(2018, 7, 1, 21, 26, 8, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:08Z"))
                 .build(),
             Row.withSchema(schemaTwo)
                 .addValues(
                     15L,
                     "KeyValue235",
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"),
                     15L,
                     "BigTable235",
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"))
                 .build(),
             Row.withSchema(schemaThree)
                 .addValues(
                     14L,
                     "KeyValue234",
-                    new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"),
                     null,
                     null,
                     null)
@@ -1432,11 +1415,11 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-    final Schema schema = Schema.builder().addDateTimeField("field").build();
+    final Schema schema = Schema.builder().addLogicalTypeField("field", SqlTypes.TIMESTAMP).build();
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
-                .addValue(parseTimestampWithUTCTimeZone("2019-01-15 13:21:03"))
+                .addValue(parseTimeStampWithoutTimeZone("2019-01-15T13:21:03Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -1597,22 +1580,18 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         Schema.builder()
             .addInt64Field("field1")
             .addStringField("field2")
-            .addDateTimeField("field3")
+            .addLogicalTypeField("field3", SqlTypes.TIMESTAMP)
             .build();
 
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
                 .addValues(
-                    15L,
-                    "BigTable235",
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
+                    15L, "BigTable235", parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"))
                 .build(),
             Row.withSchema(schema)
                 .addValues(
-                    16L,
-                    "BigTable236",
-                    new DateTime(2018, 7, 1, 21, 26, 8, ISOChronology.getInstanceUTC()))
+                    16L, "BigTable236", parseTimeStampWithoutTimeZone("2018-07-01T21:26:08Z"))
                 .build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
@@ -2042,22 +2021,22 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema =
         Schema.builder()
             .addInt64Field("count_start")
-            .addDateTimeField("field1")
-            .addDateTimeField("field2")
+            .addLogicalTypeField("field1", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("field2", SqlTypes.TIMESTAMP)
             .build();
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
                 .addValues(
                     1L,
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 8, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:08Z"))
                 .build(),
             Row.withSchema(schema)
                 .addValues(
                     1L,
-                    new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -2130,18 +2109,18 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     Schema.builder()
                         .addInt64Field("Key")
                         .addStringField("Value")
-                        .addDateTimeField("ts")
+                        .addLogicalTypeField("ts", SqlTypes.TIMESTAMP)
                         .addInt64Field("RowKey")
                         .addStringField("Value2")
-                        .addDateTimeField("ts2")
+                        .addLogicalTypeField("ts2", SqlTypes.TIMESTAMP)
                         .build())
                 .addValues(
                     15L,
                     "KeyValue235",
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"),
                     15L,
                     "BigTable235",
-                    new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -2880,22 +2859,22 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema =
         Schema.builder()
             .addInt64Field("count_star")
-            .addDateTimeField("field1")
-            .addDateTimeField("field2")
+            .addLogicalTypeField("field1", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("field2", SqlTypes.TIMESTAMP)
             .build();
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
                 .addValues(
                     2L,
-                    new DateTime(2018, 7, 1, 21, 26, 12, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 12, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:12Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:12Z"))
                 .build(),
             Row.withSchema(schema)
                 .addValues(
                     2L,
-                    new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()),
-                    new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -3956,12 +3935,13 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    final Schema schema = Schema.builder().addDateTimeField("field_1").build();
+    final Schema schema =
+        Schema.builder().addLogicalTypeField("field_1", SqlTypes.TIMESTAMP).build();
 
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
-                .addValues(parseTimestampWithUTCTimeZone("2019-01-15 13:21:03"))
+                .addValues(parseTimeStampWithoutTimeZone("2019-01-15T13:21:03Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -3983,8 +3963,9 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDateTimeField("field_1").build())
-                .addValues(parseTimestampWithUTCTimeZone("2014-12-01 05:04:56"))
+            Row.withSchema(
+                    Schema.builder().addLogicalTypeField("field_1", SqlTypes.TIMESTAMP).build())
+                .addValues(parseTimeStampWithoutTimeZone("2014-12-01T05:04:56Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -4331,9 +4312,9 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         Schema.builder()
             .addInt64Field("Key")
             .addStringField("Value")
-            .addDateTimeField("ts")
-            .addDateTimeField("window_start")
-            .addDateTimeField("window_end")
+            .addLogicalTypeField("ts", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("window_start", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("window_end", SqlTypes.TIMESTAMP)
             .build();
     PAssert.that(stream)
         .containsInAnyOrder(
@@ -4341,17 +4322,17 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValues(
                     14L,
                     "KeyValue234",
-                    DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
-                    DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
-                    DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"))
                 .build(),
             Row.withSchema(schema)
                 .addValues(
                     15L,
                     "KeyValue235",
-                    DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
-                    DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
-                    DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01T21:26:08"))
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"),
+                    parseTimeStampWithoutTimeZone("2018-07-01T21:26:08Z"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

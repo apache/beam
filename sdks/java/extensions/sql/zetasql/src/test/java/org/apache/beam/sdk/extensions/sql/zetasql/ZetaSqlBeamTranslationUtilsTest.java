@@ -26,6 +26,7 @@ import com.google.zetasql.StructType.StructField;
 import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -34,7 +35,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
-import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -56,7 +56,7 @@ public class ZetaSqlBeamTranslationUtilsTest {
           .addLogicalTypeField("f_date", SqlTypes.DATE)
           .addLogicalTypeField("f_datetime", SqlTypes.DATETIME)
           .addLogicalTypeField("f_time", SqlTypes.TIME)
-          .addField("f_timestamp", FieldType.DATETIME)
+          .addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP)
           .addArrayField("f_array", FieldType.DOUBLE)
           .addRowField("f_struct", TEST_INNER_SCHEMA)
           .addField("f_numeric", FieldType.DECIMAL)

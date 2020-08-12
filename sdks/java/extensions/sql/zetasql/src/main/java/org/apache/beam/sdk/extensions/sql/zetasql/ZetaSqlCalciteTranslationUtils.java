@@ -54,6 +54,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 @Internal
 public final class ZetaSqlCalciteTranslationUtils {
 
+  private static final Long MICROS_PER_MILLI = 1000L;
+  private static final int MICROS_PER_SECOND = 1000000;
+  private static final int NANOS_PER_MICRO = 1000;
+
   private ZetaSqlCalciteTranslationUtils() {}
 
   // TODO[BEAM-9178]: support DateTimestampPart.WEEK and "WEEK with weekday"s
@@ -335,13 +339,7 @@ public final class ZetaSqlCalciteTranslationUtils {
   }
 
   private static TimestampString timestampValueToTimestampString(Value value) {
-    long micros = value.getTimestampUnixMicros();
-    if (micros % 1000L != 0) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s has sub-millisecond precision, which Beam ZetaSQL does not currently support.",
-              micros));
-    }
-    return TimestampString.fromMillisSinceEpoch(micros / 1000L);
+    return TimestampString.fromMillisSinceEpoch(value.getTimestampUnixMicros() / MICROS_PER_MILLI)
+        .withNanos((int) (value.getTimestampUnixMicros() % MICROS_PER_SECOND) * NANOS_PER_MICRO);
   }
 }

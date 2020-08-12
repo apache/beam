@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithUTCTimeZone;
+import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimeStampWithoutTimeZone;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -40,30 +40,30 @@ class TestInput {
               Schema.builder()
                   .addInt64Field("Key")
                   .addStringField("Value")
-                  .addDateTimeField("ts")
+                  .addLogicalTypeField("ts", SqlTypes.TIMESTAMP)
                   .build())
           .addRows(
               14L,
               "KeyValue234",
-              parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
+              parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"),
               15L,
               "KeyValue235",
-              parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"));
+              parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"));
 
   public static final TestBoundedTable BASIC_TABLE_TWO =
       TestBoundedTable.of(
               Schema.builder()
                   .addInt64Field("RowKey")
                   .addStringField("Value")
-                  .addDateTimeField("ts")
+                  .addLogicalTypeField("ts", SqlTypes.TIMESTAMP)
                   .build())
           .addRows(
               15L,
               "BigTable235",
-              parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
+              parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"),
               16L,
               "BigTable236",
-              parseTimestampWithUTCTimeZone("2018-07-01 21:26:08"));
+              parseTimeStampWithoutTimeZone("2018-07-01T21:26:08Z"));
 
   public static final TestBoundedTable BASIC_TABLE_THREE =
       TestBoundedTable.of(Schema.builder().addInt64Field("ColId").addStringField("Value").build())
@@ -134,27 +134,35 @@ class TestInput {
           .addRows(10L, false, -10L, 0.5d, "10", stringToBytes("10"));
 
   public static final TestBoundedTable TIMESTAMP_TABLE_ONE =
-      TestBoundedTable.of(Schema.builder().addDateTimeField("ts").addInt64Field("value").build())
+      TestBoundedTable.of(
+              Schema.builder()
+                  .addLogicalTypeField("ts", SqlTypes.TIMESTAMP)
+                  .addInt64Field("value")
+                  .build())
           .addRows(
-              parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
+              parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"),
               3L,
-              parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
+              parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"),
               4L,
-              parseTimestampWithUTCTimeZone("2018-07-01 21:26:08"),
+              parseTimeStampWithoutTimeZone("2018-07-01T21:26:08Z"),
               6L,
-              parseTimestampWithUTCTimeZone("2018-07-01 21:26:09"),
+              parseTimeStampWithoutTimeZone("2018-07-01T21:26:09Z"),
               7L);
 
   public static final TestBoundedTable TIMESTAMP_TABLE_TWO =
-      TestBoundedTable.of(Schema.builder().addDateTimeField("ts").addInt64Field("value").build())
+      TestBoundedTable.of(
+              Schema.builder()
+                  .addLogicalTypeField("ts", SqlTypes.TIMESTAMP)
+                  .addInt64Field("value")
+                  .build())
           .addRows(
-              parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
+              parseTimeStampWithoutTimeZone("2018-07-01T21:26:06Z"),
               3L,
-              parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
+              parseTimeStampWithoutTimeZone("2018-07-01T21:26:07Z"),
               4L,
-              parseTimestampWithUTCTimeZone("2018-07-01 21:26:12"),
+              parseTimeStampWithoutTimeZone("2018-07-01T21:26:12Z"),
               6L,
-              parseTimestampWithUTCTimeZone("2018-07-01 21:26:13"),
+              parseTimeStampWithoutTimeZone("2018-07-01T21:26:13Z"),
               7L);
 
   public static final TestBoundedTable TABLE_ALL_NULL =
@@ -289,12 +297,15 @@ class TestInput {
                   .addInt64Field("f_long")
                   .addDoubleField("f_double")
                   .addStringField("f_string")
-                  .addDateTimeField("f_timestamp")
+                  .addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP)
                   .build())
-          .addRows(1000L, 1.0d, "string_row1", parseTimestampWithUTCTimeZone("2017-01-01 01:01:03"))
-          .addRows(1000L, 2.0d, "string_row1", parseTimestampWithUTCTimeZone("2017-01-01 01:02:03"))
-          .addRows(1000L, 3.0d, "string_row3", parseTimestampWithUTCTimeZone("2017-01-01 01:06:03"))
-          .addRows(4000L, 4.0d, "第四行", parseTimestampWithUTCTimeZone("2017-01-01 02:04:03"));
+          .addRows(
+              1000L, 1.0d, "string_row1", parseTimeStampWithoutTimeZone("2017-01-01T01:01:03Z"))
+          .addRows(
+              1000L, 2.0d, "string_row1", parseTimeStampWithoutTimeZone("2017-01-01T01:02:03Z"))
+          .addRows(
+              1000L, 3.0d, "string_row3", parseTimeStampWithoutTimeZone("2017-01-01T01:06:03Z"))
+          .addRows(4000L, 4.0d, "第四行", parseTimeStampWithoutTimeZone("2017-01-01T02:04:03Z"));
 
   public static final TestBoundedTable STREAMING_SQL_TABLE_B =
       TestBoundedTable.of(
@@ -302,10 +313,12 @@ class TestInput {
                   .addInt64Field("f_long")
                   .addDoubleField("f_double")
                   .addStringField("f_string")
-                  .addDateTimeField("f_timestamp")
+                  .addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP)
                   .build())
-          .addRows(1000L, 1.0d, "string_row1", parseTimestampWithUTCTimeZone("2017-01-01 01:01:03"))
-          .addRows(2000L, 2.0d, "string_row2", parseTimestampWithUTCTimeZone("2017-02-01 01:02:03"))
           .addRows(
-              3000L, 3.0d, "string_row3", parseTimestampWithUTCTimeZone("2017-03-01 01:06:03"));
+              1000L, 1.0d, "string_row1", parseTimeStampWithoutTimeZone("2017-01-01T01:01:03Z"))
+          .addRows(
+              2000L, 2.0d, "string_row2", parseTimeStampWithoutTimeZone("2017-02-01T01:02:03Z"))
+          .addRows(
+              3000L, 3.0d, "string_row3", parseTimeStampWithoutTimeZone("2017-03-01T01:06:03Z"));
 }

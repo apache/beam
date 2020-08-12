@@ -65,6 +65,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * BeamRelNode to replace {@code TableFunctionScan}. Currently this class limits to support
@@ -232,7 +233,11 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
           upstream
               .apply(
                   "assignEventTimestamp",
-                  WithTimestamps.<Row>of(row -> row.getDateTime(windowFieldIndex).toInstant())
+                  WithTimestamps.<Row>of(
+                          row ->
+                              Instant.ofEpochMilli(
+                                  row.getLogicalTypeValue(windowFieldIndex, java.time.Instant.class)
+                                      .toEpochMilli()))
                       .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
               .setCoder(upstream.getCoder())
               .apply(Window.into(windowFn));
@@ -287,11 +292,15 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
     @ProcessElement
     public void processElement(ProcessContext c) {
       Row row = c.element();
-      IntervalWindow window = windowFn.assignWindow(row.getDateTime(windowFieldIndex).toInstant());
+      IntervalWindow window =
+          windowFn.assignWindow(
+              Instant.ofEpochMilli(
+                  row.getLogicalTypeValue(windowFieldIndex, java.time.Instant.class)
+                      .toEpochMilli()));
       Row.Builder builder = Row.withSchema(outputSchema);
       builder.addValues(row.getValues());
-      builder.addValue(window.start());
-      builder.addValue(window.end());
+      builder.addValue(java.time.Instant.ofEpochMilli(window.start().getMillis()));
+      builder.addValue(java.time.Instant.ofEpochMilli(window.end().getMillis()));
       c.output(builder.build());
     }
   }
@@ -311,12 +320,15 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
     public void processElement(ProcessContext c) {
       Row row = c.element();
       Collection<IntervalWindow> windows =
-          windowFn.assignWindows(row.getDateTime(windowFieldIndex).toInstant());
+          windowFn.assignWindows(
+              Instant.ofEpochMilli(
+                  row.getLogicalTypeValue(windowFieldIndex, java.time.Instant.class)
+                      .toEpochMilli()));
       for (IntervalWindow window : windows) {
         Row.Builder builder = Row.withSchema(outputSchema);
         builder.addValues(row.getValues());
-        builder.addValue(window.start());
-        builder.addValue(window.end());
+        builder.addValue(java.time.Instant.ofEpochMilli(window.start().getMillis()));
+        builder.addValue(java.time.Instant.ofEpochMilli(window.end().getMillis()));
         c.output(builder.build());
       }
     }
@@ -337,8 +349,8 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
         Row.Builder builder =
             Row.withSchema(outputSchema)
                 .addValues(cur.getValues())
-                .addValue(intervalWindow.start())
-                .addValue(intervalWindow.end());
+                .addValue(java.time.Instant.ofEpochMilli(intervalWindow.start().getMillis()))
+                .addValue(java.time.Instant.ofEpochMilli(intervalWindow.end().getMillis()));
         out.output(builder.build());
       }
     }

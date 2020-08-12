@@ -19,13 +19,13 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.Value;
 import io.grpc.Status;
+import java.time.Instant;
 import java.time.LocalTime;
 import java.util.List;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -34,8 +34,10 @@ import org.joda.time.format.DateTimeFormatter;
 
 /** DateTimeUtils. */
 public class DateTimeUtils {
+
   public static final Long MILLIS_PER_DAY = 86400000L;
-  private static final Long MICROS_PER_MILLI = 1000L;
+  private static final int MICROS_PER_SECOND = 1000000;
+  private static final int NANOS_PER_MICRO = 1000;
 
   @SuppressWarnings("unchecked")
   private enum TimestampPatterns {
@@ -101,6 +103,10 @@ public class DateTimeUtils {
   @SuppressWarnings("GoodTime")
   public static final Long MAX_UNIX_MILLIS = 253402300799999L;
 
+  public static Instant parseTimeStampWithoutTimeZone(String str) {
+    return Instant.parse(str);
+  }
+
   public static DateTime parseTimestampWithUTCTimeZone(String str) {
     return findDateTimePattern(str).withZoneUTC().parseDateTime(str);
   }
@@ -108,6 +114,12 @@ public class DateTimeUtils {
   @SuppressWarnings("unused")
   public static DateTime parseTimestampWithLocalTimeZone(String str) {
     return findDateTimePattern(str).withZone(DateTimeZone.getDefault()).parseDateTime(str);
+  }
+
+  public static Value parseTimestampStringToValue(String timestampString) {
+    Instant instant = Instant.parse(timestampString);
+    return Value.createTimestampValueFromUnixMicros(
+        instant.getEpochSecond() * MICROS_PER_SECOND + instant.getNano() / NANOS_PER_MICRO);
   }
 
   public static DateTime parseTimestampWithTimeZone(String str) {
@@ -166,14 +178,6 @@ public class DateTimeUtils {
   public static Value parseTimeToValue(String timeString) {
     LocalTime localTime = LocalTime.parse(timeString);
     return Value.createTimeValue(localTime);
-  }
-
-  public static Value parseTimestampWithTZToValue(String timestampString) {
-    DateTime dateTime = parseTimestampWithTimeZone(timestampString);
-    // convert from micros.
-    // TODO: how to handle overflow.
-    return Value.createTimestampValueFromUnixMicros(
-        LongMath.checkedMultiply(dateTime.getMillis(), MICROS_PER_MILLI));
   }
 
   /**
