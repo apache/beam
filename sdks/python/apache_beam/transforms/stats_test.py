@@ -574,7 +574,7 @@ class ApproximateQuantilesTest(unittest.TestCase):
                            beam.ApproximateQuantiles.Globally(5, weighted=True)
       reversed_weighted_quantiles = (
           pc | 'Quantiles globally weighted reversed' >>
-          beam.ApproximateQuantiles.Globally(5, weighted=True, reverse=True))
+          beam.ApproximateQuantiles.Globally(5, reverse=True, weighted=True))
 
       assert_that(
           weighted_quantiles,
@@ -613,7 +613,7 @@ class ApproximateQuantilesTest(unittest.TestCase):
                 beam.ApproximateQuantiles.PerKey(2, weighted=True)
       per_key_reversed = pc | 'Weighted Quantiles PerKey Reversed' >> \
                          beam.ApproximateQuantiles.PerKey(
-                           2, weighted=True, reverse=True)
+                           2, reverse=True, weighted=True)
 
       assert_that(
           per_key,
