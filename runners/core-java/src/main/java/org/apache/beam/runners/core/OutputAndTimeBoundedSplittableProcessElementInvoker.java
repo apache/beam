@@ -211,6 +211,10 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     KV<RestrictionT, KV<Instant, WatermarkEstimatorStateT>> residual =
         processContext.getTakenCheckpoint();
     if (cont.shouldResume()) {
+      checkState(
+          !processContext.hasClaimFailed,
+          "After tryClaim() returned false, @ProcessElement must return stop(), "
+              + "but returned resume()");
       if (residual == null) {
         // No checkpoint had been taken by the runner while the ProcessElement call ran, however
         // the call says that not the whole restriction has been processed. So we need to take
