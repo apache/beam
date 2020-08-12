@@ -27,7 +27,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -187,8 +186,7 @@ public class KinesisTransformRegistrar implements ExternalTransformRegistrar {
 
       public void setWatermarkIdleDurationThreshold(@Nullable Long watermarkIdleDurationThreshold) {
         if (watermarkIdleDurationThreshold != null) {
-          this.watermarkIdleDurationThreshold =
-              Duration.millis(watermarkIdleDurationThreshold);
+          this.watermarkIdleDurationThreshold = Duration.millis(watermarkIdleDurationThreshold);
         }
       }
 
