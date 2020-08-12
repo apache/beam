@@ -186,12 +186,8 @@ public final class ZetaSqlCalciteTranslationUtils {
     for (int i = 0; i < fields.size(); i++) {
       String name = fields.get(i).getName();
       // Follow the same way that BigQuery handles unspecified or duplicate field name
-      if ("".equals(name) || usedName.contains(name)) {
+      if ("".equals(name) || name.startsWith("_field_") || usedName.contains(name)) {
         name = "_field_" + (i + 1); // BigQuery uses 1-based default field name
-        if (usedName.contains(name)) {
-          throw new UnsupportedOperationException(
-              name + " is not a valid field name. Please use another name for the field.");
-        }
       }
       b.add(name);
       usedName.add(name);
