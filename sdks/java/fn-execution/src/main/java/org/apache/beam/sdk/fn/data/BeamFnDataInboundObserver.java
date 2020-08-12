@@ -63,8 +63,7 @@ public class BeamFnDataInboundObserver<T>
       return;
     }
     try {
-      // TODO(BEAM-9558): Cleanup once dataflow is updated.
-      if (payload.isEmpty() || isLast) {
+      if (isLast) {
         LOG.debug(
             "Closing stream for {} having consumed {} values {} bytes",
             endpoint,
