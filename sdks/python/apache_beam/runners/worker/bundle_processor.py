@@ -70,6 +70,7 @@ from apache_beam.runners import pipeline_context
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
+from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms import userstate
 from apache_beam.utils import counters
@@ -627,6 +628,7 @@ class OutputTimer(object):
                window,  # type: windowed_value.BoundedWindow
                timestamp,  # type: timestamp.Timestamp
                paneinfo,  # type: windowed_value.PaneInfo
+               time_domain, # type: str
                timer_family_id,  # type: str
                timer_coder_impl,  # type: coder_impl.TimerCoderImpl
                output_stream  # type: data_plane.ClosableOutputStream
@@ -635,6 +637,7 @@ class OutputTimer(object):
     self._window = window
     self._input_timestamp = timestamp
     self._paneinfo = paneinfo
+    self._time_domain = time_domain
     self._timer_family_id = timer_family_id
     self._output_stream = output_stream
     self._timer_coder_impl = timer_coder_impl
@@ -647,7 +650,8 @@ class OutputTimer(object):
         windows=(self._window, ),
         clear_bit=False,
         fire_timestamp=ts,
-        hold_timestamp=self._input_timestamp,
+        hold_timestamp=ts if TimeDomain.is_event_time(self._time_domain) else
+        self._input_timestamp,
         paneinfo=self._paneinfo)
     self._timer_coder_impl.encode_to_stream(timer, self._output_stream, True)
     self._output_stream.maybe_flush()
@@ -719,6 +723,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
         window,
         timestamp,
         pane,
+        timer_spec.time_domain,
         timer_spec.name,
         self._timers_info[timer_spec.name].timer_coder_impl,
         self._timers_info[timer_spec.name].output_stream)
