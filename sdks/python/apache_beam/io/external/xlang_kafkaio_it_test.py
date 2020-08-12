@@ -75,9 +75,7 @@ class CrossLanguageKafkaIO(object):
   def build_write_pipeline(self, pipeline):
     _ = (
         pipeline
-        | 'Impulse' >> beam.Impulse()
-        | 'Generate' >> beam.FlatMap(lambda x: range(NUM_RECORDS))  # pylint: disable=range-builtin-not-iterating
-        | 'Reshuffle' >> beam.Reshuffle()
+        | 'Generate' >> beam.Create(range(NUM_RECORDS))  # pylint: disable=range-builtin-not-iterating
         | 'MakeKV' >> beam.Map(lambda x:
                                (b'', str(x).encode())).with_output_types(
                                    typing.Tuple[bytes, bytes])
@@ -103,7 +101,6 @@ class CrossLanguageKafkaIO(object):
 
     return (
         kafka_records
-        | 'Windowing' >> beam.WindowInto(beam.window.FixedWindows(300))
         | 'CalculateSum' >> beam.ParDo(CollectingFn())
         | 'SetSumCounter' >> beam.Map(self.sum_counter.inc))
 
