@@ -56,7 +56,7 @@ class DeferredSeries(frame_base.DeferredFrame):
   @frame_base.maybe_inplace
   def fillna(self, value, method):
     if method is not None:
-        raise WontImplementError('order-sensitive')
+      raise frame_base.WontImplementError('order-sensitive')
     if isinstance(value, frame_base.DeferredBase):
       value_expr = value._expr
     else:
@@ -64,9 +64,8 @@ class DeferredSeries(frame_base.DeferredFrame):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'fillna',
-            lambda df, value: df.fillna(
-                value, method=method, **kwargs),
-            [self._expr, value_expr],
+            lambda df,
+            value: df.fillna(value, method=method), [self._expr, value_expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=partitionings.Nothing()))
 
@@ -126,8 +125,7 @@ class DeferredSeries(frame_base.DeferredFrame):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'unique',
-            lambda df: pd.Series(df.unique()),
-            [self._expr],
+            lambda df: pd.Series(df.unique()), [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=partitionings.Singleton()))
 
@@ -281,7 +279,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   @frame_base.maybe_inplace
   def fillna(self, value, method, axis, **kwargs):
     if method is not None and axis in (0, 'index'):
-      raise WontImplementError('order-sensitive')
+      raise frame_base.WontImplementError('order-sensitive')
     if isinstance(value, frame_base.DeferredBase):
       value_expr = value._expr
     else:
