@@ -101,7 +101,7 @@ public class GroupIntoBatches<K, InputT>
   }
 
   @VisibleForTesting
-  static class GroupIntoBatchesDoFn<K, InputT>
+  private static class GroupIntoBatchesDoFn<K, InputT>
       extends DoFn<KV<K, InputT>, KV<K, Iterable<InputT>>> {
 
     private static final Logger LOG = LoggerFactory.getLogger(GroupIntoBatchesDoFn.class);
