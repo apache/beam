@@ -49,7 +49,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -129,7 +128,6 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -171,7 +169,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Utf8;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -193,6 +190,7 @@ import org.slf4j.LoggerFactory;
  * Dataflow Security and Permissions</a> for more details.
  */
 public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
+
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunner.class);
 
   /** Provided configuration options. */
@@ -227,6 +225,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   private final Set<PCollection<?>> pcollectionsRequiringIndexedFormat;
+
+  private final Set<PCollection<?>> pcollectionsRequiringAutoSharding;
 
   /**
    * Project IDs must contain lowercase letters, digits, or dashes. IDs must start with a letter and
@@ -435,6 +435,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     this.dataflowClient = DataflowClient.create(options);
     this.translator = DataflowPipelineTranslator.fromOptions(options);
     this.pcollectionsRequiringIndexedFormat = new HashSet<>();
+    this.pcollectionsRequiringAutoSharding = new HashSet<>();
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
   }
 
@@ -489,6 +490,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           PTransformOverride.of(
               PTransformMatchers.writeWithRunnerDeterminedSharding(),
               new StreamingShardedWriteFactory(options)));
+
+      overridesBuilder.add(
+          PTransformOverride.of(
+              PTransformMatchers.groupWithShardableStates(),
+              new GroupIntoBatchesOverride.StreamingGroupIntoBatchesOverrideFactory(this)));
+
       if (!fnApiEnabled
           || ExperimentalOptions.hasExperiment(options, "beam_fn_api_use_deprecated_read")) {
         overridesBuilder
@@ -519,7 +526,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .add(
           PTransformOverride.of(
               PTransformMatchers.classEqualTo(GroupIntoBatches.class),
-              new BatchGroupIntoBatchesOverrideFactory()));
+              new GroupIntoBatchesOverride.BatchGroupIntoBatchesOverrideFactory()));
 
       overridesBuilder
           // State and timer pardos are implemented by expansion to GBK-then-ParDo
@@ -716,6 +723,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           InputT, OutputT, TransformT extends PTransform<PCollection<InputT>, PCollection<OutputT>>>
       extends SingleInputOutputOverrideFactory<
           PCollection<InputT>, PCollection<OutputT>, TransformT> {
+
     private final Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement;
     private final DataflowRunner runner;
 
@@ -1174,6 +1182,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private boolean containsUnboundedPCollection(Pipeline p) {
     class BoundednessVisitor extends PipelineVisitor.Defaults {
+
       IsBounded boundedness = IsBounded.BOUNDED;
 
       @Override
@@ -1269,6 +1278,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     pcollectionsRequiringIndexedFormat.add(pcol);
   }
 
+  void maybeRecordPCollectionWithAutoSharding(PCollection<?> pcol) {
+    if (hasExperiment(options, "enable_streaming_auto_sharding")
+        && !hasExperiment(options, "beam_fn_api")) {
+      pcollectionsRequiringAutoSharding.add(pcol);
+    }
+  }
+
+  boolean doesPCollectionRequireAutoSharding(PCollection<?> pcol) {
+    return pcollectionsRequiringAutoSharding.contains(pcol);
+  }
+
   /** A set of {@link View}s with non-deterministic key coders. */
   private Set<PTransform<?, ?>> ptransformViewsWithNonDeterministicKeyCoders;
 
@@ -1284,6 +1304,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static class StreamingPubsubIOReadOverrideFactory
       implements PTransformOverrideFactory<
           PBegin, PCollection<PubsubMessage>, PubsubUnboundedSource> {
+
     @Override
     public PTransformReplacement<PBegin, PCollection<PubsubMessage>> getReplacementTransform(
         AppliedPTransform<PBegin, PCollection<PubsubMessage>, PubsubUnboundedSource> transform) {
@@ -1304,6 +1325,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   private static class StreamingPubsubIORead
       extends PTransform<PBegin, PCollection<PubsubMessage>> {
+
     private final PubsubUnboundedSource transform;
 
     public StreamingPubsubIORead(PubsubUnboundedSource transform) {
@@ -1338,6 +1360,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /** Rewrite {@link StreamingPubsubIORead} to the appropriate internal node. */
   private static class StreamingPubsubIOReadTranslator
       implements TransformTranslator<StreamingPubsubIORead> {
+
     @Override
     public void translate(StreamingPubsubIORead transform, TranslationContext context) {
       checkArgument(
@@ -1390,6 +1413,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private static class IdentityMessageFn extends SimpleFunction<PubsubMessage, PubsubMessage> {
+
     @Override
     public PubsubMessage apply(PubsubMessage input) {
       return input;
@@ -1402,6 +1426,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   private static class StreamingPubsubIOWrite
       extends PTransform<PCollection<PubsubMessage>, PDone> {
+
     private final PubsubUnboundedSink transform;
 
     /** Builds an instance of this class from the overridden transform. */
@@ -1498,6 +1523,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * Create.Values} for the Dataflow runner in streaming mode over the Fn API.
    */
   private static class StreamingFnApiCreate<T> extends PTransform<PBegin, PCollection<T>> {
+
     private final Create.Values<T> transform;
     private final transient PCollection<T> originalOutput;
 
@@ -1529,6 +1555,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      * <p>TODO: BEAM-2422 - Make this a SplittableDoFn.
      */
     private static class DecodeAndEmitDoFn<T> extends DoFn<byte[], T> {
+
       public static <T> DecodeAndEmitDoFn<T> fromIterable(Iterable<T> elements, Coder<T> elemCoder)
           throws IOException {
         ImmutableList.Builder<byte[]> allElementsBytes = ImmutableList.builder();
@@ -1572,6 +1599,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private static class ImpulseTranslator implements TransformTranslator<Impulse> {
+
     @Override
     public void translate(Impulse transform, TranslationContext context) {
       if (context.getPipelineOptions().isStreaming()
@@ -1602,63 +1630,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     DataflowPipelineTranslator.registerTransformTranslator(Impulse.class, new ImpulseTranslator());
   }
 
-  private static class BatchGroupIntoBatchesOverrideFactory<K, V>
-      implements PTransformOverrideFactory<
-          PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupIntoBatches<K, V>> {
-
-    @Override
-    public PTransformReplacement<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>>
-        getReplacementTransform(
-            AppliedPTransform<
-                    PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupIntoBatches<K, V>>
-                transform) {
-      return PTransformReplacement.of(
-          PTransformReplacements.getSingletonMainInput(transform),
-          new BatchGroupIntoBatches(transform.getTransform().getBatchSize()));
-    }
-
-    @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<KV<K, Iterable<V>>> newOutput) {
-      return ReplacementOutputs.singleton(outputs, newOutput);
-    }
-  }
-
-  /** Specialized implementation of {@link GroupIntoBatches} for bounded Dataflow pipelines. */
-  static class BatchGroupIntoBatches<K, V>
-      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
-    private final long batchSize;
-
-    private BatchGroupIntoBatches(long batchSize) {
-      this.batchSize = batchSize;
-    }
-
-    @Override
-    public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
-      return input
-          .apply("GroupAll", GroupByKey.create())
-          .apply(
-              "SplitIntoBatches",
-              ParDo.of(
-                  new DoFn<KV<K, Iterable<V>>, KV<K, Iterable<V>>>() {
-                    @ProcessElement
-                    public void process(ProcessContext c) {
-                      // Iterators.partition lazily creates the partitions as they are accessed
-                      // allowing it to partition very large iterators.
-                      Iterator<List<V>> iterator =
-                          Iterators.partition(c.element().getValue().iterator(), (int) batchSize);
-
-                      // Note that GroupIntoBatches only outputs when the batch is non-empty.
-                      while (iterator.hasNext()) {
-                        c.output(KV.of(c.element().getKey(), iterator.next()));
-                      }
-                    }
-                  }));
-    }
-  }
-
   private static class StreamingUnboundedReadOverrideFactory<T>
       implements PTransformOverrideFactory<PBegin, PCollection<T>, Read.Unbounded<T>> {
+
     @Override
     public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
         AppliedPTransform<PBegin, PCollection<T>, Read.Unbounded<T>> transform) {
@@ -1681,6 +1655,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * are leveraged to do the deduplication.
    */
   private static class StreamingUnboundedRead<T> extends PTransform<PBegin, PCollection<T>> {
+
     private final UnboundedSource<T, ?> source;
 
     public StreamingUnboundedRead(Read.Unbounded<T> transform) {
@@ -1705,6 +1680,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      */
     private static class ReadWithIds<T>
         extends PTransform<PInput, PCollection<ValueWithRecordId<T>>> {
+
       private final UnboundedSource<T, ?> source;
 
       private ReadWithIds(UnboundedSource<T, ?> source) {
@@ -1741,6 +1717,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     private static class ReadWithIdsTranslator implements TransformTranslator<ReadWithIds<?>> {
+
       @Override
       public void translate(ReadWithIds<?> transform, TranslationContext context) {
         ReadTranslator.translateReadHelper(transform.getSource(), transform, context);
@@ -1782,6 +1759,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static class StreamingBoundedReadOverrideFactory<T>
       implements PTransformOverrideFactory<PBegin, PCollection<T>, Read.Bounded<T>> {
+
     @Override
     public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
         AppliedPTransform<PBegin, PCollection<T>, Read.Bounded<T>> transform) {
@@ -1801,6 +1779,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * Dataflow runner in streaming mode.
    */
   private static class StreamingBoundedRead<T> extends PTransform<PBegin, PCollection<T>> {
+
     private final BoundedSource<T> source;
 
     public StreamingBoundedRead(Read.Bounded<T> transform) {
@@ -1821,6 +1800,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * PCollectionView} backend implementation.
    */
   public static class StreamingPCollectionViewWriterFn<T> extends DoFn<Iterable<T>, T> {
+
     private final PCollectionView<?> view;
     private final Coder<T> dataCoder;
 
@@ -1884,6 +1864,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   static class CombineGroupedValues<K, InputT, OutputT>
       extends PTransform<PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>> {
+
     private final Combine.GroupedValues<K, InputT, OutputT> original;
     private final Coder<KV<K, OutputT>> outputCoder;
 
@@ -1909,6 +1890,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           PCollection<KV<K, Iterable<InputT>>>,
           PCollection<KV<K, OutputT>>,
           Combine.GroupedValues<K, InputT, OutputT>> {
+
     @Override
     public PTransformReplacement<PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>>
         getReplacementTransform(
@@ -1933,6 +1915,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static class StreamingPubsubIOWriteOverrideFactory
       implements PTransformOverrideFactory<PCollection<PubsubMessage>, PDone, PubsubUnboundedSink> {
+
     private final DataflowRunner runner;
 
     private StreamingPubsubIOWriteOverrideFactory(DataflowRunner runner) {
@@ -1960,6 +1943,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           PCollection<UserT>,
           WriteFilesResult<DestinationT>,
           WriteFiles<UserT, DestinationT, OutputT>> {
+
     // We pick 10 as a a default, as it works well with the default number of workers started
     // by Dataflow.
     static final int DEFAULT_NUM_SHARDS = 10;
