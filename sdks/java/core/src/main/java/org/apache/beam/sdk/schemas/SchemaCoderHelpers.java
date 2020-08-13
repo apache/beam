@@ -30,9 +30,9 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.DelegateCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.FloatCoder;
-import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
@@ -46,6 +46,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
 class SchemaCoderHelpers {
@@ -61,7 +62,12 @@ class SchemaCoderHelpers {
           .put(TypeName.FLOAT, FloatCoder.of())
           .put(TypeName.DOUBLE, DoubleCoder.of())
           .put(TypeName.STRING, StringUtf8Coder.of())
-          .put(TypeName.DATETIME, InstantCoder.of())
+          // DATETIME is an alias for logical millis_instant, encoded as an INT64 millis since
+          // epoch.
+          .put(
+              TypeName.DATETIME,
+              DelegateCoder.<Instant, Long>of(
+                  VarLongCoder.of(), Instant::getMillis, Instant::ofEpochMilli))
           .put(TypeName.BOOLEAN, BooleanCoder.of())
           .build();
 

@@ -46,7 +46,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 @Experimental(Kind.SCHEMAS)
 public class SchemaTranslation {
 
-  private static final String URN_BEAM_LOGICAL_DATETIME = "beam:logical_type:datetime:v1";
+  private static final String URN_BEAM_LOGICAL_DATETIME = "beam:logical_type:millis_instant:v1";
   private static final String URN_BEAM_LOGICAL_DECIMAL = "beam:logical_type:decimal:v1";
   private static final String URN_BEAM_LOGICAL_JAVASDK = "beam:logical_type:javasdk:v1";
 
