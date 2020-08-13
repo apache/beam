@@ -115,7 +115,7 @@ class BlobStorageIO(object):
     else:
       self.client = client
     if not AZURE_DEPS_INSTALLED:
-      raise RuntimeError('Azure dependencies not installed. Cannot run.')
+      raise RuntimeError('Azure dependencies not installed. Unable to run.')
 
   def open(
       self,
