@@ -108,7 +108,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
-/** Tests for {@link ContextualTextIO.Read} */
+/** Tests for {@link ContextualTextIO.Read}. */
 public class ContextualTextIOTest {
   private static final int NUM_LINES_FOR_LARGE = 1024;
 
@@ -217,7 +217,7 @@ public class ContextualTextIOTest {
     PAssert.that(
             p.apply(
                     "Read_" + file + "_" + compression.toString() + "_withRFC4180",
-                    read.withHasRFC4180MultiLineColumn(true))
+                    read.withRFC4180MultiLineColumn(true))
                 .apply(
                     "ConvertLineContextToString" + "_withRFC4180",
                     ParDo.of(new convertLineContextToString())))
@@ -472,7 +472,7 @@ public class ContextualTextIOTest {
     }
   }
 
-  /** Tests Specific for checking functionality of ContextualTextIO */
+  /** Tests Specific for checking functionality of ContextualTextIO. */
   @RunWith(JUnit4.class)
   public static class ContextualTextIOSpecificTests {
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -483,7 +483,7 @@ public class ContextualTextIOTest {
 
     public static final String CRLF = "" + CR + LF;
 
-    public String createFiles(List<String> input) throws Exception {
+    public String createFileFromList(List<String> input) throws Exception {
 
       File tmpFile = tempFolder.newFile();
       String filename = tmpFile.getPath();
@@ -520,9 +520,7 @@ public class ContextualTextIOTest {
           }
         }
       }
-      String filePath = files.get(0).getPath();
-      filePath = filePath.substring(0, filePath.lastIndexOf('/') + 1);
-      filePath += '*';
+      String filePath = tempFolder.getRoot().toPath() + "/*";
       p.apply(ContextualTextIO.read().from(filePath))
           .apply(
               MapElements.into(strings())
@@ -581,7 +579,7 @@ public class ContextualTextIOTest {
     public void runBasicReadTest() throws Exception {
 
       List<String> input = ImmutableList.of("1", "2");
-      ContextualTextIO.Read read = ContextualTextIO.read().from(createFiles(input));
+      ContextualTextIO.Read read = ContextualTextIO.read().from(createFileFromList(input));
       PCollection<LineContext> output = p.apply(read);
 
       PCollection<String> result =
@@ -599,7 +597,7 @@ public class ContextualTextIOTest {
       List<String> input = ImmutableList.of("1", "2");
 
       ContextualTextIO.Read read =
-          ContextualTextIO.read().from(createFiles(input)).withHasRFC4180MultiLineColumn(true);
+          ContextualTextIO.read().from(createFileFromList(input)).withRFC4180MultiLineColumn(true);
       PCollection<LineContext> output = p.apply(read);
 
       PCollection<String> result =
@@ -622,7 +620,7 @@ public class ContextualTextIOTest {
               .collect(Collectors.toList());
 
       ContextualTextIO.Read read =
-          ContextualTextIO.read().from(createFiles(input)).withRFC4180MultiLineColumn(true);
+          ContextualTextIO.read().from(createFileFromList(input)).withRFC4180MultiLineColumn(true);
       PCollection<LineContext> output = p.apply(read);
 
       PCollection<String> result =
@@ -650,7 +648,7 @@ public class ContextualTextIOTest {
               .collect(Collectors.toList());
 
       ContextualTextIO.Read read =
-          ContextualTextIO.read().from(createFiles(input)).withRFC4180MultiLineColumn(true);
+          ContextualTextIO.read().from(createFileFromList(input)).withRFC4180MultiLineColumn(true);
       PCollection<LineContext> output = p.apply(read);
 
       PCollection<String> result =
@@ -678,7 +676,7 @@ public class ContextualTextIOTest {
               .collect(Collectors.toList());
 
       ContextualTextIO.Read read =
-          ContextualTextIO.read().from(createFiles(input)).withHasRFC4180MultiLineColumn(true);
+          ContextualTextIO.read().from(createFileFromList(input)).withRFC4180MultiLineColumn(true);
       PCollection<LineContext> output = p.apply(read);
 
       PCollection<String> result =
@@ -702,7 +700,7 @@ public class ContextualTextIOTest {
               .collect(Collectors.toList());
 
       ContextualTextIO.Read read =
-          ContextualTextIO.read().from(createFiles(input)).withHasRFC4180MultiLineColumn(true);
+          ContextualTextIO.read().from(createFileFromList(input)).withRFC4180MultiLineColumn(true);
       PCollection<LineContext> output = p.apply(read);
 
       PCollection<String> result =
@@ -724,7 +722,7 @@ public class ContextualTextIOTest {
               .collect(Collectors.toList());
 
       ContextualTextIO.Read read =
-          ContextualTextIO.read().from(createFiles(input)).withHasRFC4180MultiLineColumn(true);
+          ContextualTextIO.read().from(createFileFromList(input)).withRFC4180MultiLineColumn(true);
       PCollection<LineContext> output = p.apply(read);
 
       PCollection<String> result =

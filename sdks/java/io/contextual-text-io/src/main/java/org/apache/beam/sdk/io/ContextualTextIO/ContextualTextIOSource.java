@@ -219,7 +219,6 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
     private void findDelimiterBounds() throws IOException {
       int bytePositionInBuffer = 0;
       boolean doubleQuoteClosed = true;
-      boolean insideOpenQuote = true;
 
       while (true) {
         if (!tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + 1)) {
@@ -232,10 +231,9 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
           // Check if we are inside an open Quote
           if (currentByte == '"') {
             doubleQuoteClosed = !doubleQuoteClosed;
-            insideOpenQuote = doubleQuoteClosed;
           }
         } else {
-          insideOpenQuote = true;
+          doubleQuoteClosed = true;
         }
 
         if (delimiter == null) {
@@ -243,7 +241,7 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
           if (currentByte == '\n') {
             startOfDelimiterInBuffer = bytePositionInBuffer;
             endOfDelimiterInBuffer = startOfDelimiterInBuffer + 1;
-            if (insideOpenQuote) {
+            if (doubleQuoteClosed) {
               break;
             }
           } else if (currentByte == '\r') {
@@ -255,7 +253,7 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
                 endOfDelimiterInBuffer += 1;
               }
             }
-            if (insideOpenQuote) {
+            if (doubleQuoteClosed) {
               break;
             }
           }
@@ -276,7 +274,7 @@ class ContextualTextIOSource extends FileBasedSource<LineContext> {
           }
           if (i == delimiter.length) {
             endOfDelimiterInBuffer = bytePositionInBuffer + i;
-            if (insideOpenQuote) break;
+            if (doubleQuoteClosed) break;
           }
         }
         bytePositionInBuffer += 1;

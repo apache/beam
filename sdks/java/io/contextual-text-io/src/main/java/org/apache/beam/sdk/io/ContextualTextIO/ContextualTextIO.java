@@ -91,7 +91,7 @@ import org.joda.time.Duration;
  * <pre>{@code
  * Pipeline p = ...;
  *
- * // A simple Read of a local file (only runs locally when the filepath is on system):
+ * // A simple Read of a file:
  * PCollection<LineContext> lines = p.apply(ContextualTextIO.read().from("/local/path/to/file.txt"));
  * }</pre>
  *
@@ -151,7 +151,7 @@ import org.joda.time.Duration;
  *      .apply(ContextualTextIO.readFiles());
  * }</pre>
  *
- * NOTE: Using {@link ContextualTextIO.Read#withHasRFC4180MultiLineColumn(boolean)} introduces a
+ * NOTE: Using {@link ContextualTextIO.Read#withRFC4180MultiLineColumn(Boolean)} introduces a
  * performance penalty: when this option is enabled, the input cannot be split and read in parallel.
  *
  * <h3>Reading a very large number of files</h3>
@@ -297,11 +297,6 @@ public class ContextualTextIO {
       return toBuilder().setDelimiter(delimiter).build();
     }
 
-    /** Set the custom delimiter to be used in place of the default ones ('\r', '\n' or '\r\n'). */
-    public Read withHasRFC4180MultiLineColumn(boolean hasRFC4180MultiLineColumn) {
-      return toBuilder().setHasRFC4180MultiLineColumn(hasRFC4180MultiLineColumn).build();
-    }
-
     static boolean isSelfOverlapping(byte[] s) {
       // s self-overlaps if v exists such as s = vu = wv with u and w non empty
       for (int i = 1; i < s.length - 1; ++i) {
@@ -343,36 +338,38 @@ public class ContextualTextIO {
       // The following operations will assigns line numbers to all LineContext Objects
 
       PCollection<KV<KV<String, Long>, LineContext>> linesGroupedByFileAndRange =
-          lines.apply("addFileNameAndRange", ParDo.of(new addFileNameAndRange()));
+          lines.apply("AddFileNameAndRange", ParDo.of(new AddFileNameAndRange()));
 
-      PCollectionView<Map<KV<String, Long>, Long>> sizes =
+      PCollectionView<Map<KV<String, Long>, Long>> rangeSizes =
           linesGroupedByFileAndRange
-              .apply("countLinesForEachFileRange", Count.perKey())
-              .apply("sizesAsView", View.asMap());
+              .apply("CountLinesForEachFileRange", Count.perKey())
+              .apply("SizesAsView", View.asMap());
 
-      // Get Pipeline to create a dummy PCollection with one element so that
-      PCollection<Integer> dummyPcoll =
-          input.getPipeline().apply("CreateDummyPcoll", Create.of(Arrays.asList(1)));
+      // Get Pipeline to create a dummy PCollection with one element to help compute the lines
+      // before each Range
+      PCollection<Integer> singletonPcoll =
+          input.getPipeline().apply("CreateSingletonPcoll", Create.of(Arrays.asList(1)));
 
-      // For each (File, Range) pair, calculate the number of lines occurring before the Range for
+      // For each (File, Offset) pair, calculate the number of lines occurring before the Range for
       // each File
 
       // After computing the number of lines before each range, we can find the line number in
       // original file as numLiesBeforeOffset + lineNumInCurrentOffset
-      PCollectionView<Map<KV<String, Long>, Long>> sizesOrdered =
-          dummyPcoll
+      PCollectionView<Map<KV<String, Long>, Long>> numLinesBeforeEachRange =
+          singletonPcoll
               .apply(
-                  "computeLinesBeforeRange",
-                  ParDo.of(new computeLinesBeforeEachRange(sizes)).withSideInputs(sizes))
-              .apply("", View.asMap());
+                  "ComputeLinesBeforeRange",
+                  ParDo.of(new ComputeLinesBeforeEachRange(rangeSizes)).withSideInputs(rangeSizes))
+              .apply("NumLinesBeforeEachRangeAsView", View.asMap());
 
       return linesGroupedByFileAndRange.apply(
-          "assignLineNums",
-          ParDo.of(new assignLineNums(sizesOrdered)).withSideInputs(sizesOrdered));
+          "AssignLineNums",
+          ParDo.of(new AssignLineNums(numLinesBeforeEachRange))
+              .withSideInputs(numLinesBeforeEachRange));
     }
 
-    protected static class addFileNameAndRange
-        extends DoFn<LineContext, KV<KV<String, Long>, LineContext>> {
+    @VisibleForTesting
+    static class AddFileNameAndRange extends DoFn<LineContext, KV<KV<String, Long>, LineContext>> {
       @ProcessElement
       public void processElement(
           @Element LineContext line, OutputReceiver<KV<KV<String, Long>, LineContext>> out) {
@@ -380,13 +377,16 @@ public class ContextualTextIO {
       }
     }
 
-    /** Helper class for computing Number of Lines preceding each Pair of (File, Range) */
-    protected static class computeLinesBeforeEachRange
-        extends DoFn<Integer, KV<KV<String, Long>, Long>> {
-      private final PCollectionView<Map<KV<String, Long>, Long>> sizes;
+    /**
+     * Helper class for computing number of lines in the File preceding the beginning of the Range
+     * in this file.
+     */
+    @VisibleForTesting
+    static class ComputeLinesBeforeEachRange extends DoFn<Integer, KV<KV<String, Long>, Long>> {
+      private final PCollectionView<Map<KV<String, Long>, Long>> rangeSizes;
 
-      public computeLinesBeforeEachRange(PCollectionView<Map<KV<String, Long>, Long>> sizes) {
-        this.sizes = sizes;
+      public ComputeLinesBeforeEachRange(PCollectionView<Map<KV<String, Long>, Long>> rangeSizes) {
+        this.rangeSizes = rangeSizes;
       }
 
       // Add custom comparator as KV<K, V> is not comparable by default
@@ -404,13 +404,13 @@ public class ContextualTextIO {
       @ProcessElement
       public void processElement(ProcessContext p) {
         // Get the Map Containing the size from side-input
-        Map<KV<String, Long>, Long> sizeMap = p.sideInput(sizes);
+        Map<KV<String, Long>, Long> rangeSizesMap = p.sideInput(rangeSizes);
 
         // The FileRange Pair must be sorted
         SortedMap<KV<String, Long>, Long> sorted = new TreeMap<>(new FileRangeComparator<>());
 
         // Initialize sorted map with values
-        for (Map.Entry<KV<String, Long>, Long> entry : sizeMap.entrySet()) {
+        for (Map.Entry<KV<String, Long>, Long> entry : rangeSizesMap.entrySet()) {
           sorted.put(entry.getKey(), entry.getValue());
         }
 
@@ -432,20 +432,19 @@ public class ContextualTextIO {
       }
     }
 
-    protected static class assignLineNums
-        extends DoFn<KV<KV<String, Long>, LineContext>, LineContext> {
-      PCollectionView<Map<KV<String, Long>, Long>> sizesOrdered;
+    static class AssignLineNums extends DoFn<KV<KV<String, Long>, LineContext>, LineContext> {
+      PCollectionView<Map<KV<String, Long>, Long>> numLinesBeforeEachRange;
 
-      public assignLineNums(PCollectionView<Map<KV<String, Long>, Long>> sizesOrdered) {
-        this.sizesOrdered = sizesOrdered;
+      public AssignLineNums(PCollectionView<Map<KV<String, Long>, Long>> numLinesBeforeEachRange) {
+        this.numLinesBeforeEachRange = numLinesBeforeEachRange;
       }
 
       @ProcessElement
       public void processElement(ProcessContext p) {
-        Long Range = p.element().getKey().getValue();
-        String File = p.element().getKey().getKey();
+        Long range = p.element().getKey().getValue();
+        String file = p.element().getKey().getKey();
         LineContext line = p.element().getValue();
-        Long linesLessThanThisRange = p.sideInput(sizesOrdered).get(KV.of(File, Range));
+        Long linesLessThanThisRange = p.sideInput(numLinesBeforeEachRange).get(KV.of(file, range));
         LineContext newLine =
             LineContext.newBuilder()
                 .setLine(line.getLine())
