@@ -136,7 +136,9 @@ public class Utils {
       Map<TupleTag<?>, PValue> pCollections,
       Function<Map.Entry<TupleTag<?>, PValue>, T> tupleTagExtractor) {
     return pCollections.entrySet().stream()
-        .collect(Collectors.toMap(tupleTagExtractor, e -> getCoder((PCollection) e.getValue()), (v1, v2) -> v1));
+        .collect(
+            Collectors.toMap(
+                tupleTagExtractor, e -> getCoder((PCollection) e.getValue()), (v1, v2) -> v1));
   }
 
   static Map<TupleTag<?>, Coder<?>> getOutputValueCoders(

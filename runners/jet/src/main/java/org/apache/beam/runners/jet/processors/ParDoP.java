@@ -18,7 +18,6 @@
 package org.apache.beam.runners.jet.processors;
 
 import com.hazelcast.jet.core.Processor;
-
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;

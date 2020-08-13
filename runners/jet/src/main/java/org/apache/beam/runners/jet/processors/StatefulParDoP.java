@@ -19,6 +19,12 @@ package org.apache.beam.runners.jet.processors;
 
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.core.Watermark;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
@@ -41,13 +47,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
-
-import javax.annotation.Nonnull;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Jet {@link com.hazelcast.jet.core.Processor} implementation for Beam's stateful ParDo primitive.
@@ -92,8 +91,7 @@ public class StatefulParDoP<OutputT>
   }
 
   private static void fireTimer(
-      Object key,
-      TimerInternals.TimerData timer, DoFnRunner<KV<?, ?>, ?> doFnRunner) {
+      Object key, TimerInternals.TimerData timer, DoFnRunner<KV<?, ?>, ?> doFnRunner) {
     StateNamespace namespace = timer.getNamespace();
     BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
     doFnRunner.onTimer(
@@ -316,40 +314,42 @@ public class StatefulParDoP<OutputT>
 
     public void advanceProcessingTimes() {
       Instant now = Instant.now();
-      keyedTimerInternals.values()
-          .forEach(timerInternals -> {
-            try {
-              timerInternals.advanceProcessingTime(now);
-              timerInternals.advanceSynchronizedProcessingTime(now);
-            } catch (Exception e) {
-              throw new RuntimeException("Failed advancing time!");
-            }
-          });
+      keyedTimerInternals
+          .values()
+          .forEach(
+              timerInternals -> {
+                try {
+                  timerInternals.advanceProcessingTime(now);
+                  timerInternals.advanceSynchronizedProcessingTime(now);
+                } catch (Exception e) {
+                  throw new RuntimeException("Failed advancing time!");
+                }
+              });
     }
 
     public void flushTimers(long watermark) {
       Instant watermarkInstant = new Instant(watermark);
-      keyedTimerInternals.entrySet().forEach(
-          (entry) -> {
-            InMemoryTimerInternals timerInternals = entry.getValue();
-            if (timerInternals.currentInputWatermarkTime().isBefore(watermark)) {
-              try {
-                timerInternals.advanceInputWatermark(watermarkInstant);
-                if (watermarkInstant.equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-                  timerInternals.advanceProcessingTime(watermarkInstant);
-                  timerInternals.advanceSynchronizedProcessingTime(watermarkInstant);
+      keyedTimerInternals
+          .entrySet()
+          .forEach(
+              (entry) -> {
+                InMemoryTimerInternals timerInternals = entry.getValue();
+                if (timerInternals.currentInputWatermarkTime().isBefore(watermark)) {
+                  try {
+                    timerInternals.advanceInputWatermark(watermarkInstant);
+                    if (watermarkInstant.equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+                      timerInternals.advanceProcessingTime(watermarkInstant);
+                      timerInternals.advanceSynchronizedProcessingTime(watermarkInstant);
+                    }
+                    Object key = entry.getKey();
+                    setKey(key);
+                    fireEligibleTimers(key, timerInternals);
+                    clearKey();
+                  } catch (Exception e) {
+                    throw new RuntimeException("Failed advancing processing time", e);
+                  }
                 }
-                Object key = entry.getKey();
-                setKey(key);
-                fireEligibleTimers(key, timerInternals);
-                clearKey();
-              } catch (Exception e) {
-                throw new RuntimeException("Failed advancing processing time", e);
-              }
-            }
-          }
-      );
+              });
     }
   }
-
 }
