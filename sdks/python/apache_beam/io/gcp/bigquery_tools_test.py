@@ -39,7 +39,6 @@ from future.utils import iteritems
 import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
-from apache_beam.io.gcp.bigquery_test import HttpError
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
 from apache_beam.io.gcp.bigquery_tools import BigQueryJobTypes
@@ -49,6 +48,15 @@ from apache_beam.io.gcp.bigquery_tools import generate_bq_job_name
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import PipelineOptions
+
+# Protect against environments where bigquery library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py.exceptions import HttpError, HttpForbiddenError
+except ImportError:
+  HttpError = None
+  HttpForbiddenError = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -266,6 +274,37 @@ class TestBigQueryWrapper(unittest.TestCase):
     self.assertEqual(
         'The maximum number of retries has been reached',
         str(context.exception))
+
+  def test_get_query_location(self):
+    client = mock.Mock()
+    query = """
+        SELECT
+            av.column1, table.column1
+        FROM `dataset.authorized_view` as av
+        JOIN `dataset.table` as table ON av.column2 = table.column2
+    """
+    job = mock.MagicMock(spec=bigquery.Job)
+    job.statistics.query.referencedTables = [
+        bigquery.TableReference(
+            projectId="first_project_id",
+            datasetId="first_dataset",
+            tableId="table_used_by_authorized_view"),
+        bigquery.TableReference(
+            projectId="second_project_id",
+            datasetId="second_dataset",
+            tableId="table"),
+    ]
+    client.jobs.Insert.return_value = job
+
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    wrapper.get_table_location = mock.Mock(
+        side_effect=[
+            HttpForbiddenError(response={'status': '404'}, url='', content=''),
+            "US"
+        ])
+    location = wrapper.get_query_location(
+        project_id="second_project_id", query=query, use_legacy_sql=False)
+    self.assertEqual("US", location)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

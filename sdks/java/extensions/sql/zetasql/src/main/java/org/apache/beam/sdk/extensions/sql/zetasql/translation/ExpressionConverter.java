@@ -24,6 +24,7 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DOUBLE;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_INT64;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
+import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertDateTimeValueToTimeStampString;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertDateValueToDateString;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertTimeValueToTimeString;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.safeMicrosToMillis;
@@ -192,6 +193,7 @@ public class ExpressionConverter {
 
   private final RelOptCluster cluster;
   private final QueryParameters queryParams;
+  private int nullParamCount = 0;
   private final Map<String, ResolvedCreateFunctionStmt> userDefinedFunctions;
 
   public ExpressionConverter(
@@ -545,7 +547,7 @@ public class ExpressionConverter {
       case TYPE_TIMESTAMP:
       case TYPE_DATE:
       case TYPE_TIME:
-        // case TYPE_DATETIME:
+      case TYPE_DATETIME:
       case TYPE_BYTES:
       case TYPE_ARRAY:
       case TYPE_STRUCT:
@@ -709,7 +711,7 @@ public class ExpressionConverter {
       case TYPE_TIMESTAMP:
       case TYPE_DATE:
       case TYPE_TIME:
-        // case TYPE_DATETIME:
+      case TYPE_DATETIME:
       case TYPE_BYTES:
         ret = convertSimpleValueToRexNode(type.getKind(), value);
         break;
@@ -792,9 +794,7 @@ public class ExpressionConverter {
               rexBuilder()
                   .makeCall(
                       SqlOperators.createZetaSqlFunction(wrapperFun, returnType.getSqlTypeName()),
-                      ImmutableList.of(
-                          rexBuilder()
-                              .makeApproxLiteral(new BigDecimal(Math.random()), returnType)));
+                      rexBuilder().makeApproxLiteral(new BigDecimal(Math.random()), returnType));
           ;
         } else {
           ret =
@@ -823,12 +823,11 @@ public class ExpressionConverter {
                     SqlOperators.createZetaSqlFunction(
                         BeamBigQuerySqlDialect.NUMERIC_LITERAL_FUNCTION,
                         ZetaSqlCalciteTranslationUtils.toCalciteTypeName(kind)),
-                    ImmutableList.of(
-                        rexBuilder()
-                            .makeExactLiteral(
-                                value.getNumericValue(),
-                                ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(
-                                    kind, rexBuilder()))));
+                    rexBuilder()
+                        .makeExactLiteral(
+                            value.getNumericValue(),
+                            ZetaSqlCalciteTranslationUtils.toSimpleRelDataType(
+                                kind, rexBuilder())));
         break;
       case TYPE_TIMESTAMP:
         ret =
@@ -849,6 +848,15 @@ public class ExpressionConverter {
                     typeFactory().getTypeSystem().getMaxPrecision(SqlTypeName.TIME));
         // TODO: Doing micro to mills truncation, need to throw exception.
         ret = rexBuilder().makeLiteral(convertTimeValueToTimeString(value), timeType, false);
+        break;
+      case TYPE_DATETIME:
+        ret =
+            rexBuilder()
+                .makeTimestampWithLocalTimeZoneLiteral(
+                    convertDateTimeValueToTimeStampString(value),
+                    typeFactory()
+                        .getTypeSystem()
+                        .getMaxPrecision(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE));
         break;
       case TYPE_BYTES:
         ret = rexBuilder().makeBinaryLiteral(new ByteString(value.getBytesValue().toByteArray()));
@@ -1210,7 +1218,17 @@ public class ExpressionConverter {
         throw new IllegalArgumentException("Found unexpected parameter " + parameter);
     }
     Preconditions.checkState(parameter.getType().equals(value.getType()));
-    return convertValueToRexNode(value.getType(), value);
+    if (value.isNull()) {
+      // In some cases NULL parameter cannot be substituted with NULL literal
+      // Therefore we create a dynamic parameter placeholder here for each NULL parameter
+      return rexBuilder()
+          .makeDynamicParam(
+              ZetaSqlCalciteTranslationUtils.toRelDataType(rexBuilder(), value.getType(), true),
+              nullParamCount++);
+    } else {
+      // Substitute non-NULL parameter with literal
+      return convertValueToRexNode(value.getType(), value);
+    }
   }
 
   private RexNode convertResolvedArgumentRef(

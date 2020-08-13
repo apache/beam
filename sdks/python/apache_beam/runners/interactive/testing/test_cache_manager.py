@@ -45,11 +45,23 @@ class InMemoryCache(CacheManager):
   def _latest_version(self, *labels):
     return True
 
-  def read(self, *labels):
+  def read(self, *labels, **args):
     if not self.exists(*labels):
       return itertools.chain([]), -1
-    ret = itertools.chain(self._cached[self._key(*labels)])
-    return ret, None
+
+    limiters = args.pop('limiters', [])
+
+    def limit_reader(r):
+      for e in r:
+        for l in limiters:
+          l.update(e)
+
+        if any(l.is_triggered() for l in limiters):
+          break
+
+        yield e
+
+    return limit_reader(itertools.chain(self._cached[self._key(*labels)])), None
 
   def write(self, value, *labels):
     if not self.exists(*labels):

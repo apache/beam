@@ -36,6 +36,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
@@ -331,6 +332,13 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       Coder<KeyT> mapKeyCoder,
       Coder<ValueT> mapValueCoder) {
     throw new UnsupportedOperationException("TODO: Add support for a map state to the Fn API.");
+  }
+
+  @Override
+  public <T> OrderedListState<T> bindOrderedList(
+      String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
+    throw new UnsupportedOperationException(
+        "TODO: Add support for a sorted-list state to the Fn API.");
   }
 
   @Override

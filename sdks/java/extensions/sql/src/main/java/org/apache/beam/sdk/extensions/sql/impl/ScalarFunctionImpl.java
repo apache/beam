@@ -124,7 +124,7 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
 
   @Override
   public RelDataType getReturnType(RelDataTypeFactory typeFactory) {
-    return CalciteUtils.sqlTypeWithAutoCast(typeFactory, method.getReturnType());
+    return CalciteUtils.sqlTypeWithAutoCast(typeFactory, method.getGenericReturnType());
   }
 
   @Override

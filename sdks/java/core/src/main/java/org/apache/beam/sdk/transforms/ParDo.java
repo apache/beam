@@ -1031,6 +1031,11 @@ public class ParDo {
           }
 
           @Override
+          public String dispatchOrderedList(Coder<?> elementCoder) {
+            return "OrderedListState<" + elementCoder + ">";
+          }
+
+          @Override
           public String dispatchCombining(
               Combine.CombineFn<?, ?, ?> combineFn, Coder<?> accumCoder) {
             return "CombiningState<" + accumCoder + ">";

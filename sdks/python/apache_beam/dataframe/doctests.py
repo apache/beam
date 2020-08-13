@@ -38,6 +38,8 @@ The (novel) sequence of events when running a doctest is as follows.
 """
 
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import collections
 import contextlib
@@ -273,7 +275,8 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
   """A Doctest runner suitable for replacing the `pd` module with one backed
   by beam.
   """
-  def __init__(self, env, use_beam=True, skip=None, **kwargs):
+  def __init__(
+      self, env, use_beam=True, wont_implement_ok=None, skip=None, **kwargs):
     self._test_env = env
 
     def to_callable(cond):
@@ -282,6 +285,11 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
       else:
         return lambda example: example.source.strip() == cond
 
+    self._wont_implement_ok = {
+        test: [to_callable(cond) for cond in examples]
+        for test,
+        examples in (wont_implement_ok or {}).items()
+    }
     self._skip = {
         test: [to_callable(cond) for cond in examples]
         for test,
@@ -290,24 +298,78 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
     super(BeamDataframeDoctestRunner, self).__init__(
         checker=_DeferrredDataframeOutputChecker(self._test_env, use_beam),
         **kwargs)
+    self.success = 0
+    self.skipped = 0
+    self.wont_implement = 0
+    self._wont_implement_reasons = []
+    self._skipped_set = set()
 
   def run(self, test, **kwargs):
     self._checker.reset()
-    if test.name in self._skip:
-      for example in test.examples:
-        if any(should_skip(example) for should_skip in self._skip[test.name]):
-          example.source = 'pass'
-          example.want = ''
     for example in test.examples:
-      if example.exc_msg is None:
+      if any(should_skip(example)
+             for should_skip in self._skip.get(test.name, [])):
+        self._skipped_set.add(example)
+        example.source = 'pass'
+        example.want = ''
+        self.skipped += 1
+      elif example.exc_msg is None and any(
+          wont_implement(example)
+          for wont_implement in self._wont_implement_ok.get(test.name, [])):
         # Don't fail doctests that raise this error.
         example.exc_msg = (
             'apache_beam.dataframe.frame_base.WontImplementError: ...')
+        self.wont_implement += 1
     with self._test_env.context():
-      return super(BeamDataframeDoctestRunner, self).run(test, **kwargs)
+      result = super(BeamDataframeDoctestRunner, self).run(test, **kwargs)
+      return result
+
+  def report_success(self, out, test, example, got):
+    def extract_concise_reason(got):
+      m = re.search(r"(WontImplementError:.*)\n$", got)
+      if m:
+        return m.group(1)
+      elif "NameError" in got:
+        return "NameError"
+      elif re.match(r"DeferredBase\[\d+\]\n", got):
+        return "DeferredBase[*]"
+      else:
+        return got.replace("\n", "\\n")
+
+    if example.exc_msg == (
+        'apache_beam.dataframe.frame_base.WontImplementError: ...'):
+      self._wont_implement_reasons.append(extract_concise_reason(got))
+
+    return super(BeamDataframeDoctestRunner,
+                 self).report_success(out, test, example, got)
 
   def fake_pandas_module(self):
     return self._test_env.fake_pandas_module()
+
+  def summarize(self):
+    super(BeamDataframeDoctestRunner, self).summarize()
+    if self.failures:
+      return
+
+    def print_partition(indent, desc, n, total):
+      print("%s%d %s (%.1f%%)" % ("  " * indent, n, desc, n / total * 100))
+
+    print()
+    print("%d total test cases:" % self.tries)
+    print_partition(1, "skipped", self.skipped, self.tries)
+    print_partition(1, "won't implement", self.wont_implement, self.tries)
+    reason_counts = sorted(
+        collections.Counter(self._wont_implement_reasons).items(),
+        key=lambda x: x[1],
+        reverse=True)
+    for desc, count in reason_counts:
+      print_partition(2, desc, count, self.wont_implement)
+    print_partition(
+        1,
+        "passed",
+        self.tries - self.skipped - self.wont_implement - self.failures,
+        self.tries)
+    print()
 
 
 def teststring(text, report=True, **runner_kwargs):
@@ -315,9 +377,14 @@ def teststring(text, report=True, **runner_kwargs):
   optionflags |= (
       doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
 
+  wont_implement_ok = runner_kwargs.pop('wont_implement_ok', False)
+
   parser = doctest.DocTestParser()
   runner = BeamDataframeDoctestRunner(
-      TestEnvironment(), optionflags=optionflags, **runner_kwargs)
+      TestEnvironment(),
+      optionflags=optionflags,
+      wont_implement_ok={'<string>': ['*']} if wont_implement_ok else None,
+      **runner_kwargs)
   test = parser.get_doctest(
       text, {
           'pd': runner.fake_pandas_module(), 'np': np
@@ -355,12 +422,19 @@ def _run_patched(func, *args, **kwargs):
     env = TestEnvironment()
     use_beam = kwargs.pop('use_beam', True)
     skip = kwargs.pop('skip', {})
+    wont_implement_ok = kwargs.pop('wont_implement_ok', {})
     extraglobs = dict(kwargs.pop('extraglobs', {}))
     extraglobs['pd'] = env.fake_pandas_module()
     # Unfortunately the runner is not injectable.
     original_doc_test_runner = doctest.DocTestRunner
     doctest.DocTestRunner = lambda **kwargs: BeamDataframeDoctestRunner(
-        env, use_beam=use_beam, skip=skip, **kwargs)
-    return func(*args, extraglobs=extraglobs, optionflags=optionflags, **kwargs)
+        env,
+        use_beam=use_beam,
+        wont_implement_ok=wont_implement_ok,
+        skip=skip,
+        **kwargs)
+    with expressions.allow_non_parallel_operations():
+      return func(
+          *args, extraglobs=extraglobs, optionflags=optionflags, **kwargs)
   finally:
     doctest.DocTestRunner = original_doc_test_runner

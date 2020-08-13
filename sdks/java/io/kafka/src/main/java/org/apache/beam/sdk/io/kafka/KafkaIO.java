@@ -47,20 +47,28 @@ import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.WallTime;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -72,6 +80,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -86,6 +95,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * An unbounded source and a sink for <a href="http://kafka.apache.org/">Kafka</a> topics.
+ *
+ * <h2>Read from Kafka as {@link UnboundedSource}</h2>
  *
  * <h3>Reading from Kafka topics</h3>
  *
@@ -153,7 +164,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>When the pipeline starts for the first time, or without any checkpoint, the source starts
  * consuming from the <em>latest</em> offsets. You can override this behavior to consume from the
- * beginning by setting appropriate appropriate properties in {@link ConsumerConfig}, through {@link
+ * beginning by setting properties appropriately in {@link ConsumerConfig}, through {@link
  * Read#withConsumerConfigUpdates(Map)}. You can also enable offset auto_commit in Kafka to resume
  * from last committed.
  *
@@ -196,6 +207,107 @@ import org.slf4j.LoggerFactory;
  *      .withValueDeserializer(
  *          ConfluentSchemaRegistryDeserializerProvider.of("http://localhost:8081", "my_topic-value"))
  *    ...
+ * }</pre>
+ *
+ * <h2>Read from Kafka as a {@link DoFn}</h2>
+ *
+ * {@link ReadSourceDescriptors} is the {@link PTransform} that takes a PCollection of {@link
+ * KafkaSourceDescriptor} as input and outputs a PCollection of {@link KafkaRecord}. The core
+ * implementation is based on {@code SplittableDoFn}. For more details about the concept of {@code
+ * SplittableDoFn}, please refer to the <a
+ * href="https://beam.apache.org/blog/splittable-do-fn/">blog post</a> and <a
+ * href="https://s.apache.org/beam-fn-api">design doc</a>. The major difference from {@link
+ * KafkaIO.Read} is, {@link ReadSourceDescriptors} doesn't require source descriptions(e.g., {@link
+ * KafkaIO.Read#getTopicPartitions()}, {@link KafkaIO.Read#getTopics()}, {@link
+ * KafkaIO.Read#getStartReadTime()}, etc.) during the pipeline construction time. Instead, the
+ * pipeline can populate these source descriptions during runtime. For example, the pipeline can
+ * query Kafka topics from a BigQuery table and read these topics via {@link ReadSourceDescriptors}.
+ *
+ * <h3>Common Kafka Consumer Configurations</h3>
+ *
+ * <p>Most Kafka consumer configurations are similar to {@link KafkaIO.Read}:
+ *
+ * <ul>
+ *   <li>{@link ReadSourceDescriptors#getConsumerConfig()} is the same as {@link
+ *       KafkaIO.Read#getConsumerConfig()}.
+ *   <li>{@link ReadSourceDescriptors#getConsumerFactoryFn()} is the same as {@link
+ *       KafkaIO.Read#getConsumerFactoryFn()}.
+ *   <li>{@link ReadSourceDescriptors#getOffsetConsumerConfig()} is the same as {@link
+ *       KafkaIO.Read#getOffsetConsumerConfig()}.
+ *   <li>{@link ReadSourceDescriptors#getKeyCoder()} is the same as {@link
+ *       KafkaIO.Read#getKeyCoder()}.
+ *   <li>{@link ReadSourceDescriptors#getValueCoder()} is the same as {@link
+ *       KafkaIO.Read#getValueCoder()}.
+ *   <li>{@link ReadSourceDescriptors#getKeyDeserializerProvider()} is the same as {@link
+ *       KafkaIO.Read#getKeyDeserializerProvider()}.
+ *   <li>{@link ReadSourceDescriptors#getValueDeserializerProvider()} is the same as {@link
+ *       KafkaIO.Read#getValueDeserializerProvider()}.
+ *   <li>{@link ReadSourceDescriptors#isCommitOffsetEnabled()} has the same meaning as {@link
+ *       KafkaIO.Read#isCommitOffsetsInFinalizeEnabled()}.
+ * </ul>
+ *
+ * <p>For example, to create a basic {@link ReadSourceDescriptors} transform:
+ *
+ * <pre>{@code
+ * pipeline
+ *  .apply(Create.of(KafkaSourceDescriptor.of(new TopicPartition("topic", 1)))
+ *  .apply(KafkaIO.readAll()
+ *          .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *          .withKeyDeserializer(LongDeserializer.class).
+ *          .withValueDeserializer(StringDeserializer.class));
+ * }</pre>
+ *
+ * Note that the {@code bootstrapServers} can also be populated from the {@link
+ * KafkaSourceDescriptor}:
+ *
+ * <pre>{@code
+ * pipeline
+ *  .apply(Create.of(
+ *    KafkaSourceDescriptor.of(
+ *      new TopicPartition("topic", 1),
+ *      null,
+ *      null,
+ *      ImmutableList.of("broker_1:9092", "broker_2:9092"))
+ *  .apply(KafkaIO.readAll()
+ *         .withKeyDeserializer(LongDeserializer.class).
+ *         .withValueDeserializer(StringDeserializer.class));
+ * }</pre>
+ *
+ * <h3>Configurations of {@link ReadSourceDescriptors}</h3>
+ *
+ * <p>Except configurations of Kafka Consumer, there are some other configurations which are related
+ * to processing records.
+ *
+ * <p>{@link ReadSourceDescriptors#commitOffsets()} enables committing offset after processing the
+ * record. Note that if the {@code isolation.level} is set to "read_committed" or {@link
+ * ConsumerConfig#ENABLE_AUTO_COMMIT_CONFIG} is set in the consumer config, the {@link
+ * ReadSourceDescriptors#commitOffsets()} will be ignored.
+ *
+ * <p>{@link ReadSourceDescriptors#withExtractOutputTimestampFn(SerializableFunction)} is used to
+ * compute the {@code output timestamp} for a given {@link KafkaRecord} and controls the watermark
+ * advancement. There are three built-in types:
+ *
+ * <ul>
+ *   <li>{@link ReadSourceDescriptors#withProcessingTime()}
+ *   <li>{@link ReadSourceDescriptors#withCreateTime()}
+ *   <li>{@link ReadSourceDescriptors#withLogAppendTime()}
+ * </ul>
+ *
+ * <p>For example, to create a {@link ReadSourceDescriptors} with this additional configuration:
+ *
+ * <pre>{@code
+ * pipeline
+ * .apply(Create.of(
+ *    KafkaSourceDescriptor.of(
+ *      new TopicPartition("topic", 1),
+ *      null,
+ *      null,
+ *      ImmutableList.of("broker_1:9092", "broker_2:9092"))
+ * .apply(KafkaIO.readAll()
+ *          .withKeyDeserializer(LongDeserializer.class).
+ *          .withValueDeserializer(StringDeserializer.class)
+ *          .withProcessingTime()
+ *          .commitOffsets());
  * }</pre>
  *
  * <h3>Writing to Kafka</h3>
@@ -295,19 +407,30 @@ public class KafkaIO {
   /**
    * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka configuration
    * should set with {@link Read#withBootstrapServers(String)} and {@link Read#withTopics(List)}.
-   * Other optional settings include key and value {@link Deserializer}s, custom timestamp and
+   * Other optional settings include key and value {@link Deserializer}s, custom timestamp,
    * watermark functions.
    */
   public static <K, V> Read<K, V> read() {
     return new AutoValue_KafkaIO_Read.Builder<K, V>()
         .setTopics(new ArrayList<>())
         .setTopicPartitions(new ArrayList<>())
-        .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
-        .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
+        .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
+        .setConsumerConfig(KafkaIOUtils.DEFAULT_CONSUMER_PROPERTIES)
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCommitOffsetsInFinalizeEnabled(false)
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
         .build();
+  }
+
+  /**
+   * Creates an uninitialized {@link ReadSourceDescriptors} {@link PTransform}. Different from
+   * {@link Read}, setting up {@code topics} and {@code bootstrapServers} is not required during
+   * construction time. But the {@code bootstrapServers} still can be configured {@link
+   * ReadSourceDescriptors#withBootstrapServers(String)}. Please refer to {@link
+   * ReadSourceDescriptors} for more details.
+   */
+  public static <K, V> ReadSourceDescriptors<K, V> readSourceDescriptors() {
+    return ReadSourceDescriptors.<K, V>read();
   }
 
   /**
@@ -322,7 +445,7 @@ public class KafkaIO {
                 .setProducerConfig(WriteRecords.DEFAULT_PRODUCER_PROPERTIES)
                 .setEOS(false)
                 .setNumShards(0)
-                .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
+                .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
                 .build())
         .build();
   }
@@ -337,7 +460,7 @@ public class KafkaIO {
         .setProducerConfig(WriteRecords.DEFAULT_PRODUCER_PROPERTIES)
         .setEOS(false)
         .setNumShards(0)
-        .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
+        .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
         .build();
   }
 
@@ -451,10 +574,18 @@ public class KafkaIO {
 
         // Set required defaults
         setTopicPartitions(Collections.emptyList());
-        setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN);
+        setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN);
         setMaxNumRecords(Long.MAX_VALUE);
+        setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN);
+        if (config.maxReadTime != null) {
+          setMaxReadTime(Duration.standardSeconds(config.maxReadTime));
+        }
+        setMaxNumRecords(config.maxNumRecords == null ? Long.MAX_VALUE : config.maxNumRecords);
         setCommitOffsetsInFinalizeEnabled(false);
         setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime());
+        if (config.startReadTime != null) {
+          setStartReadTime(Instant.ofEpochMilli(config.startReadTime));
+        }
         // We do not include Metadata until we can encode KafkaRecords cross-language
         return build().withoutMetadata();
       }
@@ -507,6 +638,9 @@ public class KafkaIO {
         private Iterable<String> topics;
         private String keyDeserializer;
         private String valueDeserializer;
+        private Long startReadTime;
+        private Long maxNumRecords;
+        private Long maxReadTime;
 
         public void setConsumerConfig(Iterable<KV<String, String>> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -522,6 +656,18 @@ public class KafkaIO {
 
         public void setValueDeserializer(String valueDeserializer) {
           this.valueDeserializer = valueDeserializer;
+        }
+
+        public void setStartReadTime(Long startReadTime) {
+          this.startReadTime = startReadTime;
+        }
+
+        public void setMaxNumRecords(Long maxNumRecords) {
+          this.maxNumRecords = maxNumRecords;
+        }
+
+        public void setMaxReadTime(Long maxReadTime) {
+          this.maxReadTime = maxReadTime;
         }
       }
     }
@@ -639,7 +785,7 @@ public class KafkaIO {
     @Deprecated
     public Read<K, V> updateConsumerProperties(Map<String, Object> configUpdates) {
       Map<String, Object> config =
-          updateKafkaProperties(getConsumerConfig(), IGNORED_CONSUMER_PROPERTIES, configUpdates);
+          KafkaIOUtils.updateKafkaProperties(getConsumerConfig(), configUpdates);
       return toBuilder().setConsumerConfig(config).build();
     }
 
@@ -840,11 +986,11 @@ public class KafkaIO {
      * offset;<br>
      *
      * <p>By default, main consumer uses the configuration from {@link
-     * #DEFAULT_CONSUMER_PROPERTIES}.
+     * KafkaIOUtils#DEFAULT_CONSUMER_PROPERTIES}.
      */
     public Read<K, V> withConsumerConfigUpdates(Map<String, Object> configUpdates) {
       Map<String, Object> config =
-          updateKafkaProperties(getConsumerConfig(), IGNORED_CONSUMER_PROPERTIES, configUpdates);
+          KafkaIOUtils.updateKafkaProperties(getConsumerConfig(), configUpdates);
       return toBuilder().setConsumerConfig(config).build();
     }
 
@@ -901,19 +1047,86 @@ public class KafkaIO {
       Coder<K> keyCoder = getKeyCoder(coderRegistry);
       Coder<V> valueCoder = getValueCoder(coderRegistry);
 
-      // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
-      Unbounded<KafkaRecord<K, V>> unbounded =
-          org.apache.beam.sdk.io.Read.from(
-              toBuilder().setKeyCoder(keyCoder).setValueCoder(valueCoder).build().makeSource());
+      // The Read will be expanded into SDF transform when "beam_fn_api" is enabled and
+      // "beam_fn_api_use_deprecated_read" is not enabled.
+      if (!ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
+          || ExperimentalOptions.hasExperiment(
+              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
+        // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
+        Unbounded<KafkaRecord<K, V>> unbounded =
+            org.apache.beam.sdk.io.Read.from(
+                toBuilder().setKeyCoder(keyCoder).setValueCoder(valueCoder).build().makeSource());
 
-      PTransform<PBegin, PCollection<KafkaRecord<K, V>>> transform = unbounded;
+        PTransform<PBegin, PCollection<KafkaRecord<K, V>>> transform = unbounded;
 
-      if (getMaxNumRecords() < Long.MAX_VALUE || getMaxReadTime() != null) {
-        transform =
-            unbounded.withMaxReadTime(getMaxReadTime()).withMaxNumRecords(getMaxNumRecords());
+        if (getMaxNumRecords() < Long.MAX_VALUE || getMaxReadTime() != null) {
+          transform =
+              unbounded.withMaxReadTime(getMaxReadTime()).withMaxNumRecords(getMaxNumRecords());
+        }
+
+        return input.getPipeline().apply(transform);
+      }
+      ReadSourceDescriptors<K, V> readTransform =
+          ReadSourceDescriptors.<K, V>read()
+              .withConsumerConfigOverrides(getConsumerConfig())
+              .withOffsetConsumerConfigOverrides(getOffsetConsumerConfig())
+              .withConsumerFactoryFn(getConsumerFactoryFn())
+              .withKeyDeserializerProvider(getKeyDeserializerProvider())
+              .withValueDeserializerProvider(getValueDeserializerProvider())
+              .withManualWatermarkEstimator()
+              .withTimestampPolicyFactory(getTimestampPolicyFactory());
+      if (isCommitOffsetsInFinalizeEnabled()) {
+        readTransform = readTransform.commitOffsets();
+      }
+      PCollection<KafkaSourceDescriptor> output =
+          input
+              .getPipeline()
+              .apply(Impulse.create())
+              .apply(ParDo.of(new GenerateKafkaSourceDescriptor(this)));
+      return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
+    }
+
+    /**
+     * A DoFn which generates {@link KafkaSourceDescriptor} based on the configuration of {@link
+     * Read}.
+     */
+    @VisibleForTesting
+    static class GenerateKafkaSourceDescriptor extends DoFn<byte[], KafkaSourceDescriptor> {
+      GenerateKafkaSourceDescriptor(Read read) {
+        this.consumerConfig = read.getConsumerConfig();
+        this.consumerFactoryFn = read.getConsumerFactoryFn();
+        this.topics = read.getTopics();
+        this.topicPartitions = read.getTopicPartitions();
+        this.startReadTime = read.getStartReadTime();
       }
 
-      return input.getPipeline().apply(transform);
+      private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
+          consumerFactoryFn;
+
+      private final List<TopicPartition> topicPartitions;
+
+      private final Instant startReadTime;
+
+      @VisibleForTesting final Map<String, Object> consumerConfig;
+
+      @VisibleForTesting final List<String> topics;
+
+      @ProcessElement
+      public void processElement(OutputReceiver<KafkaSourceDescriptor> receiver) {
+        List<TopicPartition> partitions = new ArrayList<>(topicPartitions);
+        if (partitions.isEmpty()) {
+          try (Consumer<?, ?> consumer = consumerFactoryFn.apply(consumerConfig)) {
+            for (String topic : topics) {
+              for (PartitionInfo p : consumer.partitionsFor(topic)) {
+                partitions.add(new TopicPartition(p.topic(), p.partition()));
+              }
+            }
+          }
+        }
+        for (TopicPartition topicPartition : partitions) {
+          receiver.output(KafkaSourceDescriptor.of(topicPartition, null, startReadTime, null));
+        }
+      }
     }
 
     private Coder<K> getKeyCoder(CoderRegistry coderRegistry) {
@@ -944,45 +1157,6 @@ public class KafkaIO {
             final SerializableFunction<KV<KeyT, ValueT>, OutT> fn) {
       return record -> fn.apply(record.getKV());
     }
-    ///////////////////////////////////////////////////////////////////////////////////////
-
-    /** A set of properties that are not required or don't make sense for our consumer. */
-    private static final Map<String, String> IGNORED_CONSUMER_PROPERTIES =
-        ImmutableMap.of(
-            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "Set keyDeserializer instead",
-            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "Set valueDeserializer instead"
-            // "group.id", "enable.auto.commit", "auto.commit.interval.ms" :
-            //     lets allow these, applications can have better resume point for restarts.
-            );
-
-    // set config defaults
-    private static final Map<String, Object> DEFAULT_CONSUMER_PROPERTIES =
-        ImmutableMap.of(
-            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-            ByteArrayDeserializer.class.getName(),
-            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-            ByteArrayDeserializer.class.getName(),
-
-            // Use large receive buffer. Once KAFKA-3135 is fixed, this _may_ not be required.
-            // with default value of of 32K, It takes multiple seconds between successful polls.
-            // All the consumer work is done inside poll(), with smaller send buffer size, it
-            // takes many polls before a 1MB chunk from the server is fully read. In my testing
-            // about half of the time select() inside kafka consumer waited for 20-30ms, though
-            // the server had lots of data in tcp send buffers on its side. Compared to default,
-            // this setting increased throughput by many fold (3-4x).
-            ConsumerConfig.RECEIVE_BUFFER_CONFIG,
-            512 * 1024,
-
-            // default to latest offset when we are not resuming.
-            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
-            "latest",
-            // disable auto commit of offsets. we don't require group_id. could be enabled by user.
-            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
-            false);
-
-    // default Kafka 0.9 Consumer supplier.
-    private static final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
-        KAFKA_CONSUMER_FACTORY_FN = KafkaConsumer::new;
 
     @SuppressWarnings("unchecked")
     @Override
@@ -997,10 +1171,11 @@ public class KafkaIO {
             DisplayData.item("topicPartitions", Joiner.on(",").join(topicPartitions))
                 .withLabel("Topic Partition/s"));
       }
-      Set<String> ignoredConsumerPropertiesKeys = IGNORED_CONSUMER_PROPERTIES.keySet();
+      Set<String> disallowedConsumerPropertiesKeys =
+          KafkaIOUtils.DISALLOWED_CONSUMER_PROPERTIES.keySet();
       for (Map.Entry<String, Object> conf : getConsumerConfig().entrySet()) {
         String key = conf.getKey();
-        if (!ignoredConsumerPropertiesKeys.contains(key)) {
+        if (!disallowedConsumerPropertiesKeys.contains(key)) {
           Object value =
               DisplayData.inferType(conf.getValue()) != null
                   ? conf.getValue()
@@ -1046,32 +1221,474 @@ public class KafkaIO {
     }
   }
 
+  /**
+   * A {@link PTransform} to read from {@link KafkaSourceDescriptor}. See {@link KafkaIO} for more
+   * information on usage and configuration. See {@link ReadFromKafkaDoFn} for more implementation
+   * details.
+   */
+  @Experimental(Kind.PORTABILITY)
+  @AutoValue
+  public abstract static class ReadSourceDescriptors<K, V>
+      extends PTransform<PCollection<KafkaSourceDescriptor>, PCollection<KafkaRecord<K, V>>> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ReadSourceDescriptors.class);
+
+    abstract Map<String, Object> getConsumerConfig();
+
+    @Nullable
+    abstract Map<String, Object> getOffsetConsumerConfig();
+
+    @Nullable
+    abstract DeserializerProvider getKeyDeserializerProvider();
+
+    @Nullable
+    abstract DeserializerProvider getValueDeserializerProvider();
+
+    @Nullable
+    abstract Coder<K> getKeyCoder();
+
+    @Nullable
+    abstract Coder<V> getValueCoder();
+
+    abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
+        getConsumerFactoryFn();
+
+    @Nullable
+    abstract SerializableFunction<KafkaRecord<K, V>, Instant> getExtractOutputTimestampFn();
+
+    @Nullable
+    abstract SerializableFunction<Instant, WatermarkEstimator<Instant>>
+        getCreateWatermarkEstimatorFn();
+
+    abstract boolean isCommitOffsetEnabled();
+
+    @Nullable
+    abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
+
+    abstract ReadSourceDescriptors.Builder<K, V> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<K, V> {
+      abstract ReadSourceDescriptors.Builder<K, V> setConsumerConfig(Map<String, Object> config);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setOffsetConsumerConfig(
+          Map<String, Object> offsetConsumerConfig);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setConsumerFactoryFn(
+          SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setKeyDeserializerProvider(
+          DeserializerProvider deserializerProvider);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setValueDeserializerProvider(
+          DeserializerProvider deserializerProvider);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setKeyCoder(Coder<K> keyCoder);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setValueCoder(Coder<V> valueCoder);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setExtractOutputTimestampFn(
+          SerializableFunction<KafkaRecord<K, V>, Instant> fn);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setCreateWatermarkEstimatorFn(
+          SerializableFunction<Instant, WatermarkEstimator<Instant>> fn);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setCommitOffsetEnabled(
+          boolean commitOffsetEnabled);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setTimestampPolicyFactory(
+          TimestampPolicyFactory<K, V> policy);
+
+      abstract ReadSourceDescriptors<K, V> build();
+    }
+
+    public static <K, V> ReadSourceDescriptors<K, V> read() {
+      return new AutoValue_KafkaIO_ReadSourceDescriptors.Builder<K, V>()
+          .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
+          .setConsumerConfig(KafkaIOUtils.DEFAULT_CONSUMER_PROPERTIES)
+          .setCommitOffsetEnabled(false)
+          .build()
+          .withProcessingTime()
+          .withMonotonicallyIncreasingWatermarkEstimator();
+    }
+
+    /**
+     * Sets the bootstrap servers to use for the Kafka consumer if unspecified via
+     * KafkaSourceDescriptor#getBootStrapServers()}.
+     */
+    public ReadSourceDescriptors<K, V> withBootstrapServers(String bootstrapServers) {
+      return withConsumerConfigUpdates(
+          ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+    }
+
+    public ReadSourceDescriptors<K, V> withKeyDeserializerProvider(
+        DeserializerProvider<K> deserializerProvider) {
+      return toBuilder().setKeyDeserializerProvider(deserializerProvider).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withValueDeserializerProvider(
+        DeserializerProvider<V> deserializerProvider) {
+      return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
+    }
+
+    /**
+     * Sets a Kafka {@link Deserializer} to interpret key bytes read from Kafka.
+     *
+     * <p>In addition, Beam also needs a {@link Coder} to serialize and deserialize key objects at
+     * runtime. KafkaIO tries to infer a coder for the key based on the {@link Deserializer} class,
+     * however in case that fails, you can use {@link #withKeyDeserializerAndCoder(Class, Coder)} to
+     * provide the key coder explicitly.
+     */
+    public ReadSourceDescriptors<K, V> withKeyDeserializer(
+        Class<? extends Deserializer<K>> keyDeserializer) {
+      return withKeyDeserializerProvider(LocalDeserializerProvider.of(keyDeserializer));
+    }
+
+    /**
+     * Sets a Kafka {@link Deserializer} to interpret value bytes read from Kafka.
+     *
+     * <p>In addition, Beam also needs a {@link Coder} to serialize and deserialize value objects at
+     * runtime. KafkaIO tries to infer a coder for the value based on the {@link Deserializer}
+     * class, however in case that fails, you can use {@link #withValueDeserializerAndCoder(Class,
+     * Coder)} to provide the value coder explicitly.
+     */
+    public ReadSourceDescriptors<K, V> withValueDeserializer(
+        Class<? extends Deserializer<V>> valueDeserializer) {
+      return withValueDeserializerProvider(LocalDeserializerProvider.of(valueDeserializer));
+    }
+
+    /**
+     * Sets a Kafka {@link Deserializer} for interpreting key bytes read from Kafka along with a
+     * {@link Coder} for helping the Beam runner materialize key objects at runtime if necessary.
+     *
+     * <p>Use this method to override the coder inference performed within {@link
+     * #withKeyDeserializer(Class)}.
+     */
+    public ReadSourceDescriptors<K, V> withKeyDeserializerAndCoder(
+        Class<? extends Deserializer<K>> keyDeserializer, Coder<K> keyCoder) {
+      return withKeyDeserializer(keyDeserializer).toBuilder().setKeyCoder(keyCoder).build();
+    }
+
+    /**
+     * Sets a Kafka {@link Deserializer} for interpreting value bytes read from Kafka along with a
+     * {@link Coder} for helping the Beam runner materialize value objects at runtime if necessary.
+     *
+     * <p>Use this method to override the coder inference performed within {@link
+     * #withValueDeserializer(Class)}.
+     */
+    public ReadSourceDescriptors<K, V> withValueDeserializerAndCoder(
+        Class<? extends Deserializer<V>> valueDeserializer, Coder<V> valueCoder) {
+      return withValueDeserializer(valueDeserializer).toBuilder().setValueCoder(valueCoder).build();
+    }
+
+    /**
+     * A factory to create Kafka {@link Consumer} from consumer configuration. This is useful for
+     * supporting another version of Kafka consumer. Default is {@link KafkaConsumer}.
+     */
+    public ReadSourceDescriptors<K, V> withConsumerFactoryFn(
+        SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
+      return toBuilder().setConsumerFactoryFn(consumerFactoryFn).build();
+    }
+
+    /**
+     * Updates configuration for the main consumer. This method merges updates from the provided map
+     * with with any prior updates using {@link KafkaIOUtils#DEFAULT_CONSUMER_PROPERTIES} as the
+     * starting configuration.
+     *
+     * <p>In {@link ReadFromKafkaDoFn}, there're two consumers running in the backend:
+     *
+     * <ol>
+     *   <li>the main consumer which reads data from kafka.
+     *   <li>the secondary offset consumer which is used to estimate the backlog by fetching the
+     *       latest offset.
+     * </ol>
+     *
+     * <p>See {@link #withConsumerConfigOverrides} for overriding the configuration instead of
+     * updating it.
+     *
+     * <p>See {@link #withOffsetConsumerConfigOverrides} for configuring the secondary offset
+     * consumer.
+     */
+    public ReadSourceDescriptors<K, V> withConsumerConfigUpdates(
+        Map<String, Object> configUpdates) {
+      Map<String, Object> config =
+          KafkaIOUtils.updateKafkaProperties(getConsumerConfig(), configUpdates);
+      return toBuilder().setConsumerConfig(config).build();
+    }
+
+    /**
+     * A function to calculate output timestamp for a given {@link KafkaRecord}. The default value
+     * is {@link #withProcessingTime()}.
+     */
+    public ReadSourceDescriptors<K, V> withExtractOutputTimestampFn(
+        SerializableFunction<KafkaRecord<K, V>, Instant> fn) {
+      return toBuilder().setExtractOutputTimestampFn(fn).build();
+    }
+
+    /**
+     * A function to create a {@link WatermarkEstimator}. The default value is {@link
+     * MonotonicallyIncreasing}.
+     */
+    public ReadSourceDescriptors<K, V> withCreatWatermarkEstimatorFn(
+        SerializableFunction<Instant, WatermarkEstimator<Instant>> fn) {
+      return toBuilder().setCreateWatermarkEstimatorFn(fn).build();
+    }
+
+    /** Use the log append time as the output timestamp. */
+    public ReadSourceDescriptors<K, V> withLogAppendTime() {
+      return withExtractOutputTimestampFn(
+          ReadSourceDescriptors.ExtractOutputTimestampFns.useLogAppendTime());
+    }
+
+    /** Use the processing time as the output timestamp. */
+    public ReadSourceDescriptors<K, V> withProcessingTime() {
+      return withExtractOutputTimestampFn(
+          ReadSourceDescriptors.ExtractOutputTimestampFns.useProcessingTime());
+    }
+
+    /** Use the creation time of {@link KafkaRecord} as the output timestamp. */
+    public ReadSourceDescriptors<K, V> withCreateTime() {
+      return withExtractOutputTimestampFn(
+          ReadSourceDescriptors.ExtractOutputTimestampFns.useCreateTime());
+    }
+
+    /** Use the {@link WallTime} as the watermark estimator. */
+    public ReadSourceDescriptors<K, V> withWallTimeWatermarkEstimator() {
+      return withCreatWatermarkEstimatorFn(
+          state -> {
+            return new WallTime(state);
+          });
+    }
+
+    /** Use the {@link MonotonicallyIncreasing} as the watermark estimator. */
+    public ReadSourceDescriptors<K, V> withMonotonicallyIncreasingWatermarkEstimator() {
+      return withCreatWatermarkEstimatorFn(
+          state -> {
+            return new MonotonicallyIncreasing(state);
+          });
+    }
+
+    /** Use the {@link Manual} as the watermark estimator. */
+    public ReadSourceDescriptors<K, V> withManualWatermarkEstimator() {
+      return withCreatWatermarkEstimatorFn(
+          state -> {
+            return new Manual(state);
+          });
+    }
+
+    /**
+     * Sets "isolation_level" to "read_committed" in Kafka consumer configuration. This ensures that
+     * the consumer does not read uncommitted messages. Kafka version 0.11 introduced transactional
+     * writes. Applications requiring end-to-end exactly-once semantics should only read committed
+     * messages. See JavaDoc for {@link KafkaConsumer} for more description.
+     */
+    public ReadSourceDescriptors<K, V> withReadCommitted() {
+      return withConsumerConfigUpdates(ImmutableMap.of("isolation.level", "read_committed"));
+    }
+
+    /**
+     * Enable committing record offset. If {@link #withReadCommitted()} or {@link
+     * ConsumerConfig#ENABLE_AUTO_COMMIT_CONFIG} is set together with {@link #commitOffsets()},
+     * {@link #commitOffsets()} will be ignored.
+     */
+    public ReadSourceDescriptors<K, V> commitOffsets() {
+      return toBuilder().setCommitOffsetEnabled(true).build();
+    }
+
+    /**
+     * Set additional configuration for the offset consumer. It may be required for a secured Kafka
+     * cluster, especially when you see similar WARN log message {@code exception while fetching
+     * latest offset for partition {}. will be retried}.
+     *
+     * <p>In {@link ReadFromKafkaDoFn}, there are two consumers running in the backend:
+     *
+     * <ol>
+     *   <li>the main consumer which reads data from kafka.
+     *   <li>the secondary offset consumer which is used to estimate the backlog by fetching the
+     *       latest offset.
+     * </ol>
+     *
+     * <p>By default, offset consumer inherits the configuration from main consumer, with an
+     * auto-generated {@link ConsumerConfig#GROUP_ID_CONFIG}. This may not work in a secured Kafka
+     * which requires additional configuration.
+     *
+     * <p>See {@link #withConsumerConfigUpdates} for configuring the main consumer.
+     */
+    public ReadSourceDescriptors<K, V> withOffsetConsumerConfigOverrides(
+        Map<String, Object> offsetConsumerConfig) {
+      return toBuilder().setOffsetConsumerConfig(offsetConsumerConfig).build();
+    }
+
+    /**
+     * Replaces the configuration for the main consumer.
+     *
+     * <p>In {@link ReadFromKafkaDoFn}, there are two consumers running in the backend:
+     *
+     * <ol>
+     *   <li>the main consumer which reads data from kafka.
+     *   <li>the secondary offset consumer which is used to estimate the backlog by fetching the
+     *       latest offset.
+     * </ol>
+     *
+     * <p>By default, main consumer uses the configuration from {@link
+     * KafkaIOUtils#DEFAULT_CONSUMER_PROPERTIES}.
+     *
+     * <p>See {@link #withConsumerConfigUpdates} for updating the configuration instead of
+     * overriding it.
+     */
+    public ReadSourceDescriptors<K, V> withConsumerConfigOverrides(
+        Map<String, Object> consumerConfig) {
+      return toBuilder().setConsumerConfig(consumerConfig).build();
+    }
+
+    ReadAllFromRow forExternalBuild() {
+      return new ReadAllFromRow(this);
+    }
+
+    /**
+     * A transform that is used in cross-language case. The input {@link Row} should be encoded with
+     * an equivalent schema as {@link KafkaSourceDescriptor}.
+     */
+    private static class ReadAllFromRow<K, V>
+        extends PTransform<PCollection<Row>, PCollection<KV<K, V>>> {
+
+      private final ReadSourceDescriptors<K, V> readViaSDF;
+
+      ReadAllFromRow(ReadSourceDescriptors read) {
+        readViaSDF = read;
+      }
+
+      @Override
+      public PCollection<KV<K, V>> expand(PCollection<Row> input) {
+        return input
+            .apply(Convert.fromRows(KafkaSourceDescriptor.class))
+            .apply(readViaSDF)
+            .apply(
+                ParDo.of(
+                    new DoFn<KafkaRecord<K, V>, KV<K, V>>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element KafkaRecord element, OutputReceiver<KV<K, V>> outputReceiver) {
+                        outputReceiver.output(element.getKV());
+                      }
+                    }))
+            .setCoder(KvCoder.<K, V>of(readViaSDF.getKeyCoder(), readViaSDF.getValueCoder()));
+      }
+    }
+
+    /**
+     * Set the {@link TimestampPolicyFactory}. If the {@link TimestampPolicyFactory} is given, the
+     * output timestamp will be computed by the {@link
+     * TimestampPolicyFactory#createTimestampPolicy(TopicPartition, Optional)} and {@link Manual} is
+     * used as the watermark estimator.
+     */
+    ReadSourceDescriptors<K, V> withTimestampPolicyFactory(
+        TimestampPolicyFactory<K, V> timestampPolicyFactory) {
+      return toBuilder()
+          .setTimestampPolicyFactory(timestampPolicyFactory)
+          .build()
+          .withManualWatermarkEstimator();
+    }
+
+    @Override
+    public PCollection<KafkaRecord<K, V>> expand(PCollection<KafkaSourceDescriptor> input) {
+      checkArgument(
+          ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api"),
+          "The ReadSourceDescriptors can only used when beam_fn_api is enabled.");
+
+      checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
+      checkArgument(getValueDeserializerProvider() != null, "withValueDeserializer() is required");
+
+      ConsumerSpEL consumerSpEL = new ConsumerSpEL();
+      if (!consumerSpEL.hasOffsetsForTimes()) {
+        LOG.warn(
+            "Kafka client version {} is too old. Versions before 0.10.1.0 are deprecated and "
+                + "may not be supported in next release of Apache Beam. "
+                + "Please upgrade your Kafka client version.",
+            AppInfoParser.getVersion());
+      }
+
+      if (isCommitOffsetEnabled()) {
+        if (configuredKafkaCommit()) {
+          LOG.info(
+              "Either read_committed or auto_commit is set together with commitOffsetEnabled but you "
+                  + "only need one of them. The commitOffsetEnabled is going to be ignored");
+        }
+      }
+
+      if (getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) == null) {
+        LOG.warn(
+            "The bootstrapServers is not set. It must be populated through the KafkaSourceDescriptor during runtime otherwise the pipeline will fail.");
+      }
+
+      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+      Coder<K> keyCoder = getKeyCoder(coderRegistry);
+      Coder<V> valueCoder = getValueCoder(coderRegistry);
+      Coder<KafkaRecord<K, V>> outputCoder = KafkaRecordCoder.of(keyCoder, valueCoder);
+      PCollection<KafkaRecord<K, V>> output =
+          input.apply(ParDo.of(new ReadFromKafkaDoFn<K, V>(this))).setCoder(outputCoder);
+      // TODO(BEAM-10123): Add CommitOffsetTransform to expansion.
+      if (isCommitOffsetEnabled() && !configuredKafkaCommit()) {
+        throw new IllegalStateException("Offset committed is not supported yet");
+      }
+      return output;
+    }
+
+    private Coder<K> getKeyCoder(CoderRegistry coderRegistry) {
+      return (getKeyCoder() != null)
+          ? getKeyCoder()
+          : getKeyDeserializerProvider().getCoder(coderRegistry);
+    }
+
+    private Coder<V> getValueCoder(CoderRegistry coderRegistry) {
+      return (getValueCoder() != null)
+          ? getValueCoder()
+          : getValueDeserializerProvider().getCoder(coderRegistry);
+    }
+
+    private boolean configuredKafkaCommit() {
+      return getConsumerConfig().get("isolation.level") == "read_committed"
+          || Boolean.TRUE.equals(getConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG));
+    }
+
+    static class ExtractOutputTimestampFns<K, V> {
+      public static <K, V> SerializableFunction<KafkaRecord<K, V>, Instant> useProcessingTime() {
+        return record -> Instant.now();
+      }
+
+      public static <K, V> SerializableFunction<KafkaRecord<K, V>, Instant> useCreateTime() {
+        return record -> {
+          checkArgument(
+              record.getTimestampType() == KafkaTimestampType.CREATE_TIME,
+              "Kafka record's timestamp is not 'CREATE_TIME' "
+                  + "(topic: %s, partition %s, offset %s, timestamp type '%s')",
+              record.getTopic(),
+              record.getPartition(),
+              record.getOffset(),
+              record.getTimestampType());
+          return new Instant(record.getTimestamp());
+        };
+      }
+
+      public static <K, V> SerializableFunction<KafkaRecord<K, V>, Instant> useLogAppendTime() {
+        return record -> {
+          checkArgument(
+              record.getTimestampType() == KafkaTimestampType.LOG_APPEND_TIME,
+              "Kafka record's timestamp is not 'LOG_APPEND_TIME' "
+                  + "(topic: %s, partition %s, offset %s, timestamp type '%s')",
+              record.getTopic(),
+              record.getPartition(),
+              record.getOffset(),
+              record.getTimestampType());
+          return new Instant(record.getTimestamp());
+        };
+      }
+    }
+  }
+
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaIO.class);
-
-  /**
-   * Returns a new config map which is merge of current config and updates. Verifies the updates do
-   * not includes ignored properties.
-   */
-  private static Map<String, Object> updateKafkaProperties(
-      Map<String, Object> currentConfig,
-      Map<String, String> ignoredProperties,
-      Map<String, Object> updates) {
-
-    for (String key : updates.keySet()) {
-      checkArgument(
-          !ignoredProperties.containsKey(key),
-          "No need to configure '%s'. %s",
-          key,
-          ignoredProperties.get(key));
-    }
-
-    Map<String, Object> config = new HashMap<>(currentConfig);
-    config.putAll(updates);
-
-    return config;
-  }
 
   /** Static class, prevent instantiation. */
   private KafkaIO() {}
@@ -1184,7 +1801,7 @@ public class KafkaIO {
     @Deprecated
     public WriteRecords<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
       Map<String, Object> config =
-          updateKafkaProperties(getProducerConfig(), IGNORED_PRODUCER_PROPERTIES, configUpdates);
+          KafkaIOUtils.updateKafkaProperties(getProducerConfig(), configUpdates);
       return toBuilder().setProducerConfig(config).build();
     }
 
@@ -1196,7 +1813,7 @@ public class KafkaIO {
      */
     public WriteRecords<K, V> withProducerConfigUpdates(Map<String, Object> configUpdates) {
       Map<String, Object> config =
-          updateKafkaProperties(getProducerConfig(), IGNORED_PRODUCER_PROPERTIES, configUpdates);
+          KafkaIOUtils.updateKafkaProperties(getProducerConfig(), configUpdates);
       return toBuilder().setProducerConfig(config).build();
     }
 
