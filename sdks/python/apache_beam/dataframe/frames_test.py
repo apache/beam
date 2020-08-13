@@ -16,6 +16,7 @@
 
 from __future__ import absolute_import
 
+import sys
 import unittest
 
 import numpy as np
@@ -69,6 +70,7 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.groupby('group').sum(), df)
     self._run_test(lambda df: df.groupby('group').median(), df)
 
+  @unittest.skipIf(sys.version_info <= (3, ), 'differing signature')
   def test_merge(self):
     # This is from the pandas doctests, but fails due to re-indexing being
     # order-sensitive.
