@@ -52,7 +52,7 @@ public final class SparkRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
       return ImmutableList.of(
-          SparkPipelineOptions.class, SparkStructuredStreamingPipelineOptions.class);
+          SparkPipelineOptions.class, SparkStructuredStreamingPipelineOptions.class, SparkPortableStreamingPipelineOptions.class);
     }
   }
 }

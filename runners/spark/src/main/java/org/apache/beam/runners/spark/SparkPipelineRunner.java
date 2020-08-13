@@ -134,6 +134,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
         translator.createTranslationContext(jsc, pipelineOptions, jobInfo);
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
+    LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
+
     if (isStreaming) {
       final JavaStreamingContext jssc = ((SparkStreamingTranslationContext) context).getStreamingContext();
 
@@ -156,6 +158,9 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
       jssc.checkpoint(pipelineOptions.getCheckpointDir());
 
+      // Obtain timeout from options.
+      Long timeout = pipelineOptions.as(SparkPortableStreamingPipelineOptions.class).getTimeout();
+
       final Future<?> submissionFuture =
           executorService.submit(
               () -> {
@@ -168,9 +173,9 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
                 jssc.start();
                 try {
-                  jssc.awaitTermination(); // time in ms
+                  jssc.awaitTerminationOrTimeout(timeout);
                 } catch (InterruptedException e) {
-                  LOG.warn("#### jssc interrupted");
+                  LOG.warn("Streaming context interrupted, shutting down.");
                   e.printStackTrace();
                 }
                 jssc.stop();
@@ -181,8 +186,6 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
               submissionFuture, jssc);
     }
     else {
-      LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
-
       final Future<?> submissionFuture =
           executorService.submit(
               () -> {

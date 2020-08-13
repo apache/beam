@@ -86,6 +86,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
   def pipelineOptions = []
   if (streaming) {
     pipelineOptions += "--streaming"
+    pipelineOptions += "--timeout=10000"
   }
   createPortableValidatesRunnerTask(
     name: "validatesPortableRunner${name}",
