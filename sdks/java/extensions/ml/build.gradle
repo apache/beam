@@ -26,20 +26,20 @@ applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.ex
 description = 'Apache Beam :: SDKs :: Java :: Extensions :: ML'
 
 dependencies {
-    compile project(path: ":sdks:java:core", configuration: "shadow")
-    compile project(":sdks:java:expansion-service")
-    compile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
-    compile 'com.google.cloud:google-cloud-dlp:1.1.4'
-    compile 'com.google.cloud:google-cloud-language:1.99.4'
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(":sdks:java:expansion-service")
+    implementation 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
+    implementation 'com.google.cloud:google-cloud-dlp:1.1.4'
+    implementation 'com.google.cloud:google-cloud-language:1.99.4'
     provided library.java.junit
-    testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
-    compile 'com.google.cloud:google-cloud-vision:1.99.3'
-    testCompile library.java.mockito_core
-    testCompile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
-    testCompile 'com.google.cloud:google-cloud-dlp:1.1.4'
-    testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
-    testCompile 'com.google.cloud:google-cloud-language:1.99.4'
-    testCompile 'com.google.cloud:google-cloud-vision:1.99.3'
+    testImplementation project(path: ':sdks:java:core', configuration: 'shadowTest')
+    implementation 'com.google.cloud:google-cloud-vision:1.99.3'
+    testImplementation library.java.mockito_core
+    testImplementation 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
+    testImplementation 'com.google.cloud:google-cloud-dlp:1.1.4'
+    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+    testImplementation 'com.google.cloud:google-cloud-language:1.99.4'
+    testImplementation 'com.google.cloud:google-cloud-vision:1.99.3'
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(":runners:google-cloud-dataflow-java")
 }

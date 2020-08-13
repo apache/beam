@@ -33,6 +33,6 @@ processResources {
 }
 
 dependencies {
-  compile project(path: ":runners:direct-java", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":runners:direct-java", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
 }

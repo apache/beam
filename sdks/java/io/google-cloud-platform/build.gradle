@@ -29,71 +29,71 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
 
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:expansion-service")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile project(":sdks:java:extensions:protobuf")
-  compile library.java.avro
-  compile library.java.bigdataoss_util
-  compile library.java.gax
-  compile library.java.gax_grpc
-  compile library.java.google_api_client
-  compile library.java.google_api_services_bigquery
-  compile library.java.google_api_services_healthcare
-  compile library.java.google_api_services_pubsub
-  compile library.java.google_auth_library_credentials
-  compile library.java.google_auth_library_oauth2_http
-  compile library.java.google_cloud_bigquery_storage
-  compile(library.java.google_cloud_bigtable_client_core) {
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:expansion-service")
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:extensions:protobuf")
+  implementation library.java.avro
+  implementation library.java.bigdataoss_util
+  implementation library.java.gax
+  implementation library.java.gax_grpc
+  implementation library.java.google_api_client
+  implementation library.java.google_api_services_bigquery
+  implementation library.java.google_api_services_healthcare
+  implementation library.java.google_api_services_pubsub
+  implementation library.java.google_auth_library_credentials
+  implementation library.java.google_auth_library_oauth2_http
+  implementation library.java.google_cloud_bigquery_storage
+  implementation(library.java.google_cloud_bigtable_client_core) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
     exclude group: 'io.grpc', module: 'grpc-grpclb'
   }
-  compile library.java.google_cloud_core
-  compile(library.java.google_cloud_core_grpc) {
+  implementation library.java.google_cloud_core
+  implementation(library.java.google_cloud_core_grpc) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
   }
-  compile library.java.google_cloud_datastore_v1_proto_client
-  compile library.java.google_cloud_pubsublite
-  compile library.java.google_cloud_spanner
-  compile library.java.google_http_client
-  compile library.java.google_http_client_jackson2
-  compile library.java.grpc_alts
-  compile library.java.grpc_auth
-  compile library.java.grpc_core
-  compile library.java.grpc_context
-  compile library.java.grpc_grpclb
-  compile library.java.grpc_netty
-  compile library.java.grpc_netty_shaded
-  compile library.java.grpc_stub
-  compile library.java.grpc_google_cloud_pubsub_v1
-  compile library.java.grpc_google_cloud_pubsublite_v1
-  compile library.java.guava
-  compile library.java.hamcrest_core
-  compile library.java.jackson_databind
-  compile library.java.joda_time
-  compile library.java.junit
-  compile library.java.netty_handler
-  compile library.java.netty_tcnative_boringssl_static
-  compile library.java.proto_google_cloud_bigquery_storage_v1beta1
-  compile library.java.proto_google_cloud_bigtable_v2
-  compile library.java.proto_google_cloud_datastore_v1
-  compile library.java.proto_google_cloud_pubsub_v1
-  compile library.java.proto_google_cloud_pubsublite_v1
-  compile library.java.proto_google_cloud_spanner_admin_database_v1
-  compile library.java.proto_google_common_protos
-  compile library.java.protobuf_java
-  compile library.java.slf4j_api
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  implementation library.java.google_cloud_datastore_v1_proto_client
+  implementation library.java.google_cloud_pubsublite
+  implementation library.java.google_cloud_spanner
+  implementation library.java.google_http_client
+  implementation library.java.google_http_client_jackson2
+  implementation library.java.grpc_alts
+  implementation library.java.grpc_auth
+  implementation library.java.grpc_core
+  implementation library.java.grpc_context
+  implementation library.java.grpc_grpclb
+  implementation library.java.grpc_netty
+  implementation library.java.grpc_netty_shaded
+  implementation library.java.grpc_stub
+  implementation library.java.grpc_google_cloud_pubsub_v1
+  implementation library.java.grpc_google_cloud_pubsublite_v1
+  implementation library.java.guava
+  implementation library.java.hamcrest_core
+  implementation library.java.junit
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.netty_handler
+  implementation library.java.netty_tcnative_boringssl_static
+  implementation library.java.proto_google_cloud_bigquery_storage_v1beta1
+  implementation library.java.proto_google_cloud_bigtable_v2
+  implementation library.java.proto_google_cloud_datastore_v1
+  implementation library.java.proto_google_cloud_pubsub_v1
+  implementation library.java.proto_google_cloud_pubsublite_v1
+  implementation library.java.proto_google_cloud_spanner_admin_database_v1
+  implementation library.java.proto_google_common_protos
+  implementation library.java.protobuf_java
+  implementation library.java.slf4j_api
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+  testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   // For testing Cross-language transforms
-  testCompile project(":runners:core-construction-java")
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
-  testCompile library.java.powermock
-  testCompile library.java.powermock_mockito
+  testImplementation project(":runners:core-construction-java")
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.mockito_core
+  testImplementation library.java.powermock
+  testImplementation library.java.powermock_mockito
   testRuntimeOnly library.java.slf4j_jdk14
 }
 

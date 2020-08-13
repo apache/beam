@@ -27,17 +27,17 @@ ext.summary = """Contains code shared across the Beam Java SDK Harness and Java 
 the Beam Portability Framework."""
 
 dependencies {
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":model:fn-execution", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_grpc_1_26_0
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.slf4j_api
-  compile library.java.joda_time
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":model:fn-execution", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.vendored_grpc_1_26_0
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
   provided library.java.junit
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.mockito_core
   testRuntimeOnly library.java.slf4j_jdk14
 }

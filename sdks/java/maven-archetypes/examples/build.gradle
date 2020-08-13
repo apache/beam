@@ -70,5 +70,5 @@ sourceSets {
 }
 
 dependencies {
-  compile project(":examples:java")
+  implementation project(":examples:java")
 }

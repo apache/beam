@@ -37,32 +37,32 @@ test {
 def hbase_version = "1.2.6"
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:io:hadoop-common")
-  compile library.java.slf4j_api
-  compile "org.apache.hbase:hbase-shaded-client:$hbase_version"
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.hadoop_minicluster
-  testCompile library.java.hadoop_hdfs
-  testCompile library.java.hadoop_common
-  testCompile "org.apache.hbase:hbase-shaded-server:$hbase_version"
-  testCompile("org.apache.hbase:hbase-server:$hbase_version:tests") {
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:io:hadoop-common")
+  implementation library.java.slf4j_api
+  implementation "org.apache.hbase:hbase-shaded-client:$hbase_version"
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.hadoop_minicluster
+  testImplementation library.java.hadoop_hdfs
+  testImplementation library.java.hadoop_common
+  testImplementation "org.apache.hbase:hbase-shaded-server:$hbase_version"
+  testImplementation("org.apache.hbase:hbase-server:$hbase_version:tests") {
     // We prevent bringing in unshaded dependencies to not conflict
     // with hbase-shaded-server and hbase-shaded-client
     transitive = false
   }
-  testCompile("org.apache.hbase:hbase-common:$hbase_version:tests") {
+  testImplementation("org.apache.hbase:hbase-common:$hbase_version:tests") {
     // We prevent bringing in unshaded dependencies to not conflict
     // with hbase-shaded-server and hbase-shaded-client
     transitive = false
   }
-  testCompile "org.apache.hbase:hbase-hadoop-compat:$hbase_version:tests"
-  testCompile "org.apache.hbase:hbase-hadoop2-compat:$hbase_version:tests"
+  testImplementation "org.apache.hbase:hbase-hadoop-compat:$hbase_version:tests"
+  testImplementation "org.apache.hbase:hbase-hadoop2-compat:$hbase_version:tests"
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 

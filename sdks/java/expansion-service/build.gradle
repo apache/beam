@@ -34,20 +34,20 @@ test {
 }
 
 dependencies {
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":model:fn-execution", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":runners:core-construction-java")
-  compile project(path: ":runners:java-fn-execution")
-  compile library.java.vendored_grpc_1_26_0
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.slf4j_api
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":model:fn-execution", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":runners:core-construction-java")
+  implementation project(path: ":runners:java-fn-execution")
+  implementation library.java.vendored_grpc_1_26_0
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.slf4j_api
   runtimeOnly library.java.slf4j_jdk14
-  testCompile library.java.junit
+  testImplementation library.java.junit
   // TODO(BEAM-10632): Remove this. Currently Schema inference (used in
   // ExpansionServiceTest) hits an NPE when checker is enabled and
   // checkerframework is not in the classpath.
-  testCompile "org.checkerframework:checker:3.5.0"
+  testImplementation "org.checkerframework:checker:3.5.0"
 }
 
 task runExpansionService (type: JavaExec) {

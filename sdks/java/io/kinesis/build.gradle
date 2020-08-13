@@ -30,27 +30,27 @@ test {
 }
 
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.slf4j_api
-  compile library.java.joda_time
-  compile library.java.jackson_dataformat_cbor
-  compile library.java.guava
-  compile library.java.aws_java_sdk_cloudwatch
-  compile library.java.aws_java_sdk_core
-  compile library.java.aws_java_sdk_kinesis
-  compile "com.amazonaws:amazon-kinesis-client:1.13.0"
-  compile "com.amazonaws:amazon-kinesis-producer:0.13.1"
-  compile "commons-lang:commons-lang:2.6"
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.guava_testlib
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.powermock
-  testCompile library.java.powermock_mockito
-  testCompile library.java.testcontainers_localstack
-  testCompile "org.assertj:assertj-core:3.11.1"
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
+  implementation library.java.jackson_dataformat_cbor
+  implementation library.java.guava
+  implementation library.java.aws_java_sdk_cloudwatch
+  implementation library.java.aws_java_sdk_core
+  implementation library.java.aws_java_sdk_kinesis
+  implementation "com.amazonaws:amazon-kinesis-client:1.13.0"
+  implementation "com.amazonaws:amazon-kinesis-producer:0.13.1"
+  implementation "commons-lang:commons-lang:2.6"
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation library.java.guava_testlib
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.powermock
+  testImplementation library.java.powermock_mockito
+  testImplementation library.java.testcontainers_localstack
+  testImplementation "org.assertj:assertj-core:3.11.1"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

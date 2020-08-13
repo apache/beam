@@ -53,18 +53,18 @@ subprojects {
   }
 
   dependencies {
-    compile "org.apache.beam:beam-sdks-java-core:$beamVersion"
-    runtime "org.apache.beam:beam-runners-direct-java:$beamVersion"
+    implementation "org.apache.beam:beam-sdks-java-core:$beamVersion"
+    runtimeOnly "org.apache.beam:beam-runners-direct-java:$beamVersion"
 
-    compile "joda-time:joda-time:$jodaTimeVersion"
-    compile "org.slf4j:slf4j-api:$slf4jVersion"
-    compile "org.apache.logging.log4j:log4j-slf4j-impl:$log4jSlf4jImpl"
-    compile "com.google.guava:guava:$guavaVersion"
+    implementation "joda-time:joda-time:$jodaTimeVersion"
+    implementation "org.slf4j:slf4j-api:$slf4jVersion"
+    implementation "org.apache.logging.log4j:log4j-slf4j-impl:$log4jSlf4jImpl"
+    implementation "com.google.guava:guava:$guavaVersion"
 
-    testCompile "junit:junit:$junitVersion"
-    testCompile "org.hamcrest:hamcrest-core:$hamcrestVersion"
-    testCompile "org.hamcrest:hamcrest-library:$hamcrestVersion"
-    testCompile "org.assertj:assertj-core:$assertjVersion"
+    testImplementation "junit:junit:$junitVersion"
+    testImplementation "org.hamcrest:hamcrest-core:$hamcrestVersion"
+    testImplementation "org.hamcrest:hamcrest-library:$hamcrestVersion"
+    testImplementation "org.assertj:assertj-core:$assertjVersion"
   }
 
   sourceSets {
@@ -102,14 +102,14 @@ subprojects {
 
 project(':util') {
   dependencies {
-    compile "junit:junit:$junitVersion"
+    implementation "junit:junit:$junitVersion"
   }
 }
 
 configure(subprojects.findAll { it.name != 'util' }) {
   dependencies {
-    compile project(':util').sourceSets.main.output
-    testCompile project(':util').sourceSets.test.output
+    implementation project(':util').sourceSets.main.output
+    testImplementation project(':util').sourceSets.test.output
   }
 }
 

@@ -65,37 +65,37 @@ dependencies {
   // runners/google-cloud-dataflow-java/worker/legacy-worker/build.gradle using the rules provided
   // there.
   //
-  // All main sourceset dependencies here should be listed as compile scope so that the dependencies
+  // All main sourceset dependencies here should be listed as implementation scope so that the dependencies
   // are all packaged into a single uber jar allowing the jar to serve as an application.
-  compile project(":runners:google-cloud-dataflow-java")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile project(":sdks:java:io:google-cloud-platform")
-  compile project(path: ":model:fn-execution", configuration: "shadow")
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(":runners:core-construction-java")
-  compile project(":runners:core-java")
-  compile project(":runners:java-fn-execution")
-  compile project(":sdks:java:fn-execution")
-  compile project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
-  compile library.java.vendored_grpc_1_26_0
-  compile google_api_services_dataflow
-  compile library.java.avro
-  compile library.java.google_api_client
-  compile library.java.google_http_client
-  compile library.java.google_http_client_jackson2
-  compile library.java.jackson_annotations
-  compile library.java.jackson_core
-  compile library.java.jackson_databind
-  compile library.java.joda_time
+  implementation project(":runners:google-cloud-dataflow-java")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(path: ":model:fn-execution", configuration: "shadow")
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(":runners:core-construction-java")
+  implementation project(":runners:core-java")
+  implementation project(":runners:java-fn-execution")
+  implementation project(":sdks:java:fn-execution")
+  implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
+  implementation library.java.vendored_grpc_1_26_0
+  implementation google_api_services_dataflow
+  implementation library.java.avro
+  implementation library.java.google_api_client
+  implementation library.java.google_http_client
+  implementation library.java.google_http_client_jackson2
+  implementation library.java.jackson_annotations
+  implementation library.java.jackson_core
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
   shadow library.java.vendored_guava_26_0_jre
-  compile library.java.slf4j_api
-  compile "javax.servlet:javax.servlet-api:3.1.0"
-  compile "org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"
-  compile "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
-  compile "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
-  compile library.java.error_prone_annotations
-  compile library.java.slf4j_jdk14
+  implementation library.java.slf4j_api
+  implementation "javax.servlet:javax.servlet-api:3.1.0"
+  implementation "org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"
+  implementation "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
+  implementation "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
+  implementation library.java.error_prone_annotations
+  implementation library.java.slf4j_jdk14
 
   // All test sourceset dependencies can be marked as shadowTest since we create an uber jar without
   // relocating any code.

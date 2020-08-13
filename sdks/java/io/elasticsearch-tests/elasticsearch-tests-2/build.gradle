@@ -32,19 +32,19 @@ def log4j_version = "2.6.2"
 def elastic_search_version = "2.4.1"
 
 dependencies {
-  testCompile project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:core", configuration: "shadow")
-  testCompile project(":sdks:java:io:elasticsearch")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile library.java.slf4j_api
-  testCompile "net.java.dev.jna:jna:$jna_version"
-  testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
-  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.junit
-  testCompile "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
-  testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
+  testImplementation project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:core", configuration: "shadow")
+  testImplementation project(":sdks:java:io:elasticsearch")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testImplementation library.java.slf4j_api
+  testImplementation "net.java.dev.jna:jna:$jna_version"
+  testImplementation "org.apache.logging.log4j:log4j-api:$log4j_version"
+  testImplementation "org.apache.logging.log4j:log4j-core:$log4j_version"
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.junit
+  testImplementation "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
+  testImplementation "org.elasticsearch:elasticsearch:$elastic_search_version"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

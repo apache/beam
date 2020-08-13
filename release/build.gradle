@@ -23,8 +23,8 @@ repositories {
 }
 
 dependencies {
-  compile library.groovy.groovy_all
-  compile 'commons-cli:commons-cli:1.2'
+  implementation library.groovy.groovy_all
+  implementation 'commons-cli:commons-cli:1.2'
 }
 
 task runJavaExamplesValidationTask {

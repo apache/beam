@@ -29,8 +29,8 @@ dependencies {
 
   // Needed for HCatalogTableProvider tests,
   // they use HCat* types
-  testCompile "io.netty:netty-all:$netty_version"
-  testCompile("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
+  testImplementation "io.netty:netty-all:$netty_version"
+  testImplementation("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
     // Hive brings full Calcite 1.6 + Avatica with JDBC driver which
     // gets registered and gets started instead of ours
     exclude group: "org.apache.calcite", module:"calcite-avatica"

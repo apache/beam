@@ -39,9 +39,9 @@ applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.kryo',
 description = 'Apache Beam :: SDKs :: Java :: Extensions :: Kryo'
 
 dependencies {
-    compile "com.esotericsoftware:kryo:${kryoVersion}"
+    implementation "com.esotericsoftware:kryo:${kryoVersion}"
     shadow project(path: ':sdks:java:core', configuration: 'shadow')
-    testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
+    testImplementation project(path: ':sdks:java:core', configuration: 'shadowTest')
     testRuntimeOnly project(path: ':runners:direct-java', configuration: 'shadow')
 }
 

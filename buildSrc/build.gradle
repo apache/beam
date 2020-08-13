@@ -20,7 +20,7 @@
 plugins {
   id 'java-gradle-plugin'
   id 'groovy'
-  id "com.diffplug.gradle.spotless" version "3.24.0"
+  id "com.diffplug.spotless" version "5.1.1"
 }
 
 // Define the set of repositories required to fetch and enable plugins.
@@ -35,29 +35,29 @@ repositories {
 
 // Dependencies on other plugins used when this plugin is invoked
 dependencies {
-  compile gradleApi()
-  compile localGroovy()
-  compile 'com.github.jengelman.gradle.plugins:shadow:4.0.3'
-  compile 'com.github.spotbugs:spotbugs-gradle-plugin:3.0.0'                                          // Enable spotbugs
+  implementation gradleApi()
+  implementation localGroovy()
+  implementation 'com.github.jengelman.gradle.plugins:shadow:4.0.3'
+  implementation 'com.github.spotbugs:spotbugs-gradle-plugin:3.0.0'                                          // Enable spotbugs
 
-  runtime "net.ltgt.gradle:gradle-apt-plugin:0.20"                                                    // Enable a Java annotation processor
-  runtime "com.google.protobuf:protobuf-gradle-plugin:0.8.5"                                          // Enable proto code generation
-  runtime "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                            // Enable provided and optional configurations
-  runtime "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"                                   // Enable Avro code generation
-  runtime "com.diffplug.spotless:spotless-plugin-gradle:3.24.0"                                       // Enable a code formatting plugin
-  runtime "gradle.plugin.com.github.blindpirate:gogradle:0.11.4"                                      // Enable Go code compilation
-  runtime "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.20.1"                             // Enable building Docker containers
-  runtime "gradle.plugin.com.dorongold.plugins:task-tree:1.3.1"                                       // Adds a 'taskTree' task to print task dependency tree
-  runtime "com.github.jengelman.gradle.plugins:shadow:4.0.3"                                          // Enable shading Java dependencies
-  runtime "ca.coglinc:javacc-gradle-plugin:2.4.0"                                                     // Enable the JavaCC parser generator
-  runtime "net.linguica.gradle:maven-settings-plugin:0.5"
-  runtime "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.5.0" // Enable creating an offline repository
-  runtime "net.ltgt.gradle:gradle-errorprone-plugin:1.1.1"                                           // Enable errorprone Java static analysis
-  runtime "org.ajoberstar.grgit:grgit-gradle:3.0.0"                                                   // Enable website git publish to asf-site branch
-  runtime "com.avast.gradle:gradle-docker-compose-plugin:0.8.8"                                       // Enable docker compose tasks
-  runtime "ca.cutterslade.gradle:gradle-dependency-analyze:1.3.1"                                     // Enable dep analysis
-  runtime "gradle.plugin.net.ossindex:ossindex-gradle-plugin:0.4.11"                                  // Enable dep vulnerability analysis
-  runtime "org.checkerframework:checkerframework-gradle-plugin:0.5.5"                                 // Enable enhanced static checking plugin
+  runtimeOnly "net.ltgt.gradle:gradle-apt-plugin:0.21"                                                    // Enable a Java annotation processor
+  runtimeOnly "com.google.protobuf:protobuf-gradle-plugin:0.8.8"                                          // Enable proto code generation
+  runtimeOnly "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                            // Enable provided and optional configurations
+  runtimeOnly "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"                                   // Enable Avro code generation
+  runtimeOnly "com.diffplug.spotless:spotless-plugin-gradle:5.1.1"                                       // Enable a code formatting plugin
+  runtimeOnly "gradle.plugin.com.github.blindpirate:gogradle:0.11.4"                                      // Enable Go code compilation
+  runtimeOnly "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.20.1"                             // Enable building Docker containers
+  runtimeOnly "gradle.plugin.com.dorongold.plugins:task-tree:1.3.1"                                       // Adds a 'taskTree' task to print task dependency tree
+  runtimeOnly "com.github.jengelman.gradle.plugins:shadow:4.0.3"                                          // Enable shading Java dependencies
+  runtimeOnly "ca.coglinc:javacc-gradle-plugin:2.4.0"                                                     // Enable the JavaCC parser generator
+  runtimeOnly "net.linguica.gradle:maven-settings-plugin:0.5"
+  runtimeOnly "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.5.0" // Enable creating an offline repository
+  runtimeOnly "net.ltgt.gradle:gradle-errorprone-plugin:1.1.1"                                           // Enable errorprone Java static analysis
+  runtimeOnly "org.ajoberstar.grgit:grgit-gradle:3.0.0"                                                   // Enable website git publish to asf-site branch
+  runtimeOnly "com.avast.gradle:gradle-docker-compose-plugin:0.8.8"                                       // Enable docker compose tasks
+  runtimeOnly "ca.cutterslade.gradle:gradle-dependency-analyze:1.3.1"                                     // Enable dep analysis
+  runtimeOnly "gradle.plugin.net.ossindex:ossindex-gradle-plugin:0.4.11"                                  // Enable dep vulnerability analysis
+  runtimeOnly "org.checkerframework:checkerframework-gradle-plugin:0.5.5"                                 // Enable enhanced static checking plugin
 }
 
 // Because buildSrc is built and tested automatically _before_ gradle

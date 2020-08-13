@@ -36,23 +36,23 @@ test {
 }
 
 dependencies {
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":model:job-management", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_grpc_1_26_0
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.classgraph
-  compile library.java.jackson_core
-  compile library.java.jackson_databind
-  compile library.java.joda_time
-  compile library.java.slf4j_api
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.jackson_annotations
-  testCompile library.java.jackson_dataformat_yaml
-  testCompile project(path: ":model:fn-execution", configuration: "shadow")
-  testCompile project(path: ":sdks:java:core", configuration: "testRuntime")
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":model:job-management", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.vendored_grpc_1_26_0
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.classgraph
+  implementation library.java.jackson_core
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation library.java.jackson_annotations
+  testImplementation library.java.jackson_dataformat_yaml
+  testImplementation project(path: ":model:fn-execution", configuration: "shadow")
+  testImplementation project(path: ":sdks:java:core", configuration: "testRuntime")
   testRuntimeOnly library.java.slf4j_jdk14
 }

@@ -28,6 +28,6 @@ ext.summary = "Portable definitions for Interactive Beam"
 dependencies {
   // We purposely depend on the unshaded classes for protobuf compilation and
   // export the shaded variant as the actual runtime dependency.
-  compile project(path: ":model:pipeline", configuration: "unshaded")
-  runtime project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":model:pipeline", configuration: "unshaded")
+  runtimeOnly project(path: ":model:pipeline", configuration: "shadow")
 }

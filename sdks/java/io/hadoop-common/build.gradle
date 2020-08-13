@@ -23,11 +23,11 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Common"
 ext.summary = "Library to add shared Hadoop classes among Beam IOs."
 
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
   provided library.java.hadoop_client
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.junit
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.junit
 }

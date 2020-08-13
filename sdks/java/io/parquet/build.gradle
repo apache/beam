@@ -28,19 +28,19 @@ ext.summary = "IO to read and write on Parquet storage format."
 def parquet_version = "1.10.0"
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:io:hadoop-common")
-  compile library.java.slf4j_api
-  compile "org.apache.parquet:parquet-avro:$parquet_version"
-  compile "org.apache.parquet:parquet-common:$parquet_version"
-  compile "org.apache.parquet:parquet-hadoop:$parquet_version"
-  compile library.java.avro
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:io:hadoop-common")
+  implementation library.java.slf4j_api
+  implementation "org.apache.parquet:parquet-avro:$parquet_version"
+  implementation "org.apache.parquet:parquet-common:$parquet_version"
+  implementation "org.apache.parquet:parquet-hadoop:$parquet_version"
+  implementation library.java.avro
   provided library.java.hadoop_client
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

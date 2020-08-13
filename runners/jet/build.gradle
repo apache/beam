@@ -38,18 +38,18 @@ configurations {
 }
 
 dependencies {
-    compile project(path: ":sdks:java:core", configuration: "shadow")
-    compile project(":runners:core-java")
-    compile "com.hazelcast.jet:hazelcast-jet:$jet_version"
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(":runners:core-java")
+    implementation "com.hazelcast.jet:hazelcast-jet:$jet_version"
 
-    testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-    testCompile project(path: ":runners:core-java", configuration: "testRuntime")
-    testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
-    testCompile library.java.hamcrest_core
-    testCompile library.java.junit
-    testCompile library.java.joda_time
-    testCompile "com.hazelcast.jet:hazelcast-jet-core:$jet_version:tests"
-    testCompile "com.hazelcast:hazelcast:$hazelcast_version:tests"
+    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation project(path: ":runners:core-java", configuration: "testRuntime")
+    testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntime")
+    testImplementation library.java.hamcrest_core
+    testImplementation library.java.junit
+    testImplementation library.java.joda_time
+    testImplementation "com.hazelcast.jet:hazelcast-jet-core:$jet_version:tests"
+    testImplementation "com.hazelcast:hazelcast:$hazelcast_version:tests"
 
     needsRunner project(path: ":sdks:java:core", configuration: "shadowTest")
     needsRunner project(path: ":runners:core-java", configuration: "testRuntime")

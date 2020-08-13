@@ -646,7 +646,7 @@ class BeamModulePlugin implements Plugin<Project> {
     //  * checkstyle
     //  * spotbugs
     //  * shadow (conditional on shadowClosure being specified)
-    //  * com.diffplug.gradle.spotless (code style plugin)
+    //  * com.diffplug.spotless (code style plugin)
     //
     // Dependency Management for Java Projects
     // ---------------------------------------
@@ -886,7 +886,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: "net.ltgt.apt-eclipse"
 
       // Enables a plugin which can apply code formatting to source.
-      project.apply plugin: "com.diffplug.gradle.spotless"
+      project.apply plugin: "com.diffplug.spotless"
       // scan CVE
       project.apply plugin: "net.ossindex.audit"
       project.audit { rateLimitAsError = false }
@@ -1094,8 +1094,8 @@ class BeamModulePlugin implements Plugin<Project> {
           doLast {
             new File("${pomPropertiesFile}").text =
                 """version=${project.version}
-                       groupId=${project.mavenGroupId}
-                       artifactId=${project.archivesBaseName}"""
+                   groupId=${project.mavenGroupId}
+                   artifactId=${project.archivesBaseName}"""
           }
         }
 
@@ -1518,7 +1518,7 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.applyGroovyNature = {
       project.apply plugin: "groovy"
 
-      project.apply plugin: "com.diffplug.gradle.spotless"
+      project.apply plugin: "com.diffplug.spotless"
       def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
           project.disableSpotlessCheck == 'true'
       project.spotless {

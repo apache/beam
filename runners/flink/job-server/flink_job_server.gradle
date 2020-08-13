@@ -77,14 +77,14 @@ configurations.all {
 }
 
 dependencies {
-  compile project(flinkRunnerProject)
-  runtime group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
+  implementation project(flinkRunnerProject)
+  runtimeOnly group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
   validatesPortableRunner project(path: flinkRunnerProject, configuration: "testRuntime")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
-  runtime project(":sdks:java:extensions:google-cloud-platform-core")
-  runtime library.java.slf4j_simple
+  runtimeOnly project(":sdks:java:extensions:google-cloud-platform-core")
+  runtimeOnly library.java.slf4j_simple
 //  TODO: Enable AWS and HDFS file system.
   // External transform expansion
   // Kafka
@@ -242,7 +242,7 @@ def addTestJavaJarCreator(String pyVersion) {
 task miniCluster(type: Jar, dependsOn: shadowJar) {
   archiveBaseName = "${project.archivesBaseName}-mini-cluster"
   dependencies {
-    runtime project(path: flinkRunnerProject, configuration: "miniCluster")
+    runtimeOnly project(path: flinkRunnerProject, configuration: "miniCluster")
   }
   from zipTree(shadowJar.archivePath).matching {
     // If these classes aren't excluded from the mini cluster jar, they will be loaded instead of

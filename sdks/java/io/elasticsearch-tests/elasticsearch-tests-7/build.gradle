@@ -46,23 +46,23 @@ configurations.all {
 }
 
 dependencies {
-  testCompile project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntime")
-  testCompile "org.elasticsearch.test:framework:$elastic_search_version"
-  testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
-  testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.7.5"
-  testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
+  testImplementation project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntime")
+  testImplementation "org.elasticsearch.test:framework:$elastic_search_version"
+  testImplementation "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
+  testImplementation "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.7.5"
+  testImplementation "org.elasticsearch:elasticsearch:$elastic_search_version"
 
-  testCompile project(path: ":sdks:java:core", configuration: "shadow")
-  testCompile project(":sdks:java:io:elasticsearch")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
-  testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
-  testCompile library.java.slf4j_api
-  testCompile "net.java.dev.jna:jna:$jna_version"
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.junit
-  testCompile "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
+  testImplementation project(path: ":sdks:java:core", configuration: "shadow")
+  testImplementation project(":sdks:java:io:elasticsearch")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testImplementation "org.apache.logging.log4j:log4j-core:$log4j_version"
+  testImplementation "org.apache.logging.log4j:log4j-api:$log4j_version"
+  testImplementation library.java.slf4j_api
+  testImplementation "net.java.dev.jna:jna:$jna_version"
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.junit
+  testImplementation "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

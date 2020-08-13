@@ -32,7 +32,7 @@ dependencies {
   provided project(":sdks:java:io:google-cloud-platform")
   provided library.java.slf4j_api
 
-  testCompile project(":sdks:java:extensions:sql:zetasql")
+  testImplementation project(":sdks:java:extensions:sql:zetasql")
   testRuntimeOnly library.java.slf4j_simple
 }
 

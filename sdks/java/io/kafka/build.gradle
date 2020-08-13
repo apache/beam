@@ -32,17 +32,17 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
 ext.summary = "Library to read Kafka topics."
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:expansion-service")
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:expansion-service")
   // Get back to "provided" since 2.14
   provided library.java.kafka_clients
-  compile library.java.slf4j_api
-  compile library.java.joda_time
-  compile library.java.jackson_annotations
-  compile library.java.jackson_databind
-  compile "org.springframework:spring-expression:4.3.18.RELEASE"
-  compile ("io.confluent:kafka-avro-serializer:5.3.2") {
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
+  implementation library.java.jackson_annotations
+  implementation library.java.jackson_databind
+  implementation "org.springframework:spring-expression:4.3.18.RELEASE"
+  implementation ("io.confluent:kafka-avro-serializer:5.3.2") {
     // It depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
     exclude group: "org.apache.zookeeper", module: "zookeeper"
@@ -50,18 +50,18 @@ dependencies {
     exclude group: "org.apache.kafka", module: "kafka-clients"
   }
   provided library.java.jackson_dataformat_csv
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(":sdks:java:io:synthetic")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(":sdks:java:io:synthetic")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   // For testing Cross-language transforms
-  testCompile project(":runners:core-construction-java")
-  testCompile library.java.avro
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.junit
-  testCompile library.java.powermock
-  testCompile library.java.powermock_mockito
+  testImplementation project(":runners:core-construction-java")
+  testImplementation library.java.avro
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.junit
+  testImplementation library.java.powermock
+  testImplementation library.java.powermock_mockito
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

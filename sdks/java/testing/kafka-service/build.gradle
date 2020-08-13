@@ -25,8 +25,8 @@ ext.summary = """Self-contained Kafka service for testing IO transforms."""
 
 
 dependencies {
-  testCompile library.java.kafka
-  testCompile "org.apache.zookeeper:zookeeper:3.5.6"
+  testImplementation library.java.kafka
+  testImplementation "org.apache.zookeeper:zookeeper:3.5.6"
   testRuntimeOnly library.java.slf4j_log4j12
 }
 

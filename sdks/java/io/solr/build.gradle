@@ -26,20 +26,20 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Solr"
 ext.summary = "IO to read and write from/to Solr."
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.commons_compress
-  compile "org.apache.solr:solr-solrj:5.5.4"
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.commons_compress
+  implementation "org.apache.solr:solr-solrj:5.5.4"
   compileOnly "org.apache.httpcomponents:httpclient:4.5.6"
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(":sdks:java:io:common")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.junit
-  testCompile library.java.slf4j_api
-  testCompile "org.apache.solr:solr-test-framework:5.5.4"
-  testCompile "org.apache.solr:solr-core:5.5.4"
-  testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.3.2"
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(":sdks:java:io:common")
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.junit
+  testImplementation library.java.slf4j_api
+  testImplementation "org.apache.solr:solr-test-framework:5.5.4"
+  testImplementation "org.apache.solr:solr-core:5.5.4"
+  testImplementation "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.3.2"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

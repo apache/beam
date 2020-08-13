@@ -61,15 +61,15 @@ configurations {
 }
 
 dependencies {
-  compile library.java.kafka_clients
+  implementation library.java.kafka_clients
 
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":runners:direct-java", configuration: "shadow")
-  compile project(":sdks:java:io:synthetic")
-  compile project(":sdks:java:testing:test-utils")
-  compile project(":sdks:java:io:google-cloud-platform")
-  compile project(":sdks:java:io:kafka")
-  compile project(":sdks:java:io:kinesis")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":runners:direct-java", configuration: "shadow")
+  implementation project(":sdks:java:io:synthetic")
+  implementation project(":sdks:java:testing:test-utils")
+  implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(":sdks:java:io:kafka")
+  implementation project(":sdks:java:io:kinesis")
 
   gradleRun project(project.path)
   gradleRun project(path: runnerDependency, configuration: runnerConfiguration)

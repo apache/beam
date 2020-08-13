@@ -31,11 +31,11 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Expansion Service"
 ext.summary = "Expansion service serving several Java IOs"
 
 dependencies {
-  compile project(":sdks:java:expansion-service")
-  compile project(":sdks:java:io:kafka")
-  compile project(":sdks:java:io:jdbc")
+  implementation project(":sdks:java:expansion-service")
+  implementation project(":sdks:java:io:kafka")
+  implementation project(":sdks:java:io:jdbc")
   // Include postgres so it can be used with external JDBC
-  compile library.java.postgres
-  runtime library.java.kafka_clients
-  runtime library.java.slf4j_jdk14
+  implementation library.java.postgres
+  runtimeOnly library.java.kafka_clients
+  runtimeOnly library.java.slf4j_jdk14
 }

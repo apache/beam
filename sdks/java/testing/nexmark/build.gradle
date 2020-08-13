@@ -56,29 +56,29 @@ configurations {
 }
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:io:google-cloud-platform")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile project(":sdks:java:extensions:sql")
-  compile project(":sdks:java:extensions:sql:zetasql")
-  compile project(":sdks:java:io:kafka")
-  compile project(":sdks:java:testing:test-utils")
-  compile library.java.google_api_services_bigquery
-  compile library.java.jackson_core
-  compile library.java.jackson_annotations
-  compile library.java.jackson_databind
-  compile library.java.avro
-  compile library.java.joda_time
-  compile library.java.slf4j_api
-  compile library.java.kafka_clients
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:extensions:sql")
+  implementation project(":sdks:java:extensions:sql:zetasql")
+  implementation project(":sdks:java:io:kafka")
+  implementation project(":sdks:java:testing:test-utils")
+  implementation library.java.google_api_services_bigquery
+  implementation library.java.jackson_core
+  implementation library.java.jackson_annotations
+  implementation library.java.jackson_databind
+  implementation library.java.avro
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation library.java.kafka_clients
   provided library.java.junit
   provided library.java.hamcrest_core
-  testRuntimeClasspath library.java.slf4j_jdk14
-  testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
+  testRuntimeOnly library.java.slf4j_jdk14
+  testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
 
   gradleRun project(project.path)
   gradleRun project(path: nexmarkRunnerDependency, configuration: runnerConfiguration)

@@ -45,34 +45,34 @@ dependencies {
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
   fmppTask "org.freemarker:freemarker:2.3.28"
   fmppTemplates library.java.vendored_calcite_1_20_0
-  compile project(":sdks:java:core")
-  compile project(":sdks:java:extensions:join-library")
-  compile project(path: ":runners:direct-java", configuration: "shadow")
-  compile library.java.commons_codec
-  compile library.java.commons_csv
-  compile library.java.jackson_databind
-  compile library.java.joda_time
-  compile library.java.vendored_calcite_1_20_0
-  compile "com.alibaba:fastjson:1.2.68"
-  compile "org.codehaus.janino:janino:3.0.11"
-  compile "org.codehaus.janino:commons-compiler:3.0.11"
+  implementation project(":sdks:java:core")
+  implementation project(":sdks:java:extensions:join-library")
+  implementation project(path: ":runners:direct-java", configuration: "shadow")
+  implementation library.java.commons_codec
+  implementation library.java.commons_csv
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.vendored_calcite_1_20_0
+  implementation "com.alibaba:fastjson:1.2.68"
+  implementation "org.codehaus.janino:janino:3.0.11"
+  implementation "org.codehaus.janino:commons-compiler:3.0.11"
   provided "org.checkerframework:checker-qual:3.4.1"
   provided project(":sdks:java:io:kafka")
   provided project(":sdks:java:io:google-cloud-platform")
-  compile project(":sdks:java:io:mongodb")
+  implementation project(":sdks:java:io:mongodb")
   provided project(":sdks:java:io:parquet")
   provided library.java.jackson_dataformat_xml
   provided library.java.hadoop_client
   provided library.java.kafka_clients
-  testCompile library.java.vendored_calcite_1_20_0
-  testCompile library.java.vendored_guava_26_0_jre
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
-  testCompile library.java.quickcheck_core
-  testCompile project(path: ":sdks:java:io:mongodb", configuration: "testRuntime")
-  testRuntimeClasspath library.java.slf4j_jdk14
+  testImplementation library.java.vendored_calcite_1_20_0
+  testImplementation library.java.vendored_guava_26_0_jre
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.mockito_core
+  testImplementation library.java.quickcheck_core
+  testImplementation project(path: ":sdks:java:io:mongodb", configuration: "testRuntime")
+  testRuntimeOnly library.java.slf4j_jdk14
 }
 
 // Copy Calcite templates and our own template into the build directory

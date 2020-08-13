@@ -26,14 +26,14 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
 
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  testCompile library.java.mockito_core
-  testCompile project(":sdks:java:extensions:kryo")
-  testCompile library.java.slf4j_api
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  testImplementation library.java.mockito_core
+  testImplementation project(":sdks:java:extensions:kryo")
+  testImplementation library.java.slf4j_api
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.mockito_core
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 

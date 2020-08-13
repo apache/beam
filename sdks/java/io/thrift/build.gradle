@@ -26,16 +26,16 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Thrift"
 ext.summary = "IO to read and write Thrift encoded data files"
 
 dependencies {
-    compile library.java.vendored_guava_26_0_jre
-    compile library.java.slf4j_api
-    compile "org.apache.thrift:libthrift:0.13.0"
-    compile project(path: ":sdks:java:core", configuration: "shadow")
-    testCompile library.java.junit
-    testCompile library.java.hamcrest_core
-    testCompile library.java.hamcrest_library
-    testCompile library.java.jackson_databind
-    testCompile "com.google.code.gson:gson:2.8.6"
-    testCompile "commons-io:commons-io:2.6"
+    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.slf4j_api
+    implementation "org.apache.thrift:libthrift:0.13.0"
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    testImplementation library.java.junit
+    testImplementation library.java.hamcrest_core
+    testImplementation library.java.hamcrest_library
+    testImplementation library.java.jackson_databind
+    testImplementation "com.google.code.gson:gson:2.8.6"
+    testImplementation "commons-io:commons-io:2.6"
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

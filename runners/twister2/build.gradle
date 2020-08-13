@@ -31,18 +31,18 @@ configurations {
 description = "Apache Beam :: Runners :: Twister2"
 def twister2_version = '0.6.0'
 dependencies {
-    compile library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_26_0_jre
 
-    compile (project(path: ":runners:core-java")){
+    implementation (project(path: ":runners:core-java")){
         exclude group: 'com.esotericsoftware.kryo', module: 'kryo'
     }
-    compile project(":runners:java-fn-execution")
-    compile "org.twister2:api-java:$twister2_version"
-    compile "org.twister2:tset-api-java:$twister2_version"
-    compile "org.twister2:tset-java:$twister2_version"
-    compile "org.twister2:resource-scheduler-java:$twister2_version"
-    compile "org.twister2:local-runner-java:$twister2_version"
-    testCompile library.java.junit
+    implementation project(":runners:java-fn-execution")
+    implementation "org.twister2:api-java:$twister2_version"
+    implementation "org.twister2:tset-api-java:$twister2_version"
+    implementation "org.twister2:tset-java:$twister2_version"
+    implementation "org.twister2:resource-scheduler-java:$twister2_version"
+    implementation "org.twister2:local-runner-java:$twister2_version"
+    testImplementation library.java.junit
     validatesRunner (project(path: ":sdks:java:core", configuration: "shadowTest")){
         exclude group: 'com.esotericsoftware.kryo', module: 'kryo'
     }

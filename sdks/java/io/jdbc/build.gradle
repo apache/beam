@@ -28,20 +28,20 @@ description = "Apache Beam :: SDKs :: Java :: IO :: JDBC"
 ext.summary = "IO to read and write on JDBC datasource."
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile "org.apache.commons:commons-dbcp2:2.6.0"
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.slf4j_api
-  testCompile library.java.postgres
-  testCompile "org.apache.derby:derby:10.14.2.0"
-  testCompile "org.apache.derby:derbyclient:10.14.2.0"
-  testCompile "org.apache.derby:derbynet:10.14.2.0"
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation "org.apache.commons:commons-dbcp2:2.6.0"
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.slf4j_api
+  testImplementation library.java.postgres
+  testImplementation "org.apache.derby:derby:10.14.2.0"
+  testImplementation "org.apache.derby:derbyclient:10.14.2.0"
+  testImplementation "org.apache.derby:derbynet:10.14.2.0"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

@@ -25,21 +25,21 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop File System"
 ext.summary = "Library to read and write Hadoop/HDFS file formats from Beam."
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.jackson_core
-  compile library.java.jackson_databind
-  compile library.java.slf4j_api
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.jackson_core
+  implementation library.java.jackson_databind
+  implementation library.java.slf4j_api
   provided library.java.hadoop_client
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
-  testCompile library.java.junit
-  testCompile library.java.hadoop_minicluster
-  testCompile library.java.hadoop_hdfs_tests
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.mockito_core
+  testImplementation library.java.junit
+  testImplementation library.java.hadoop_minicluster
+  testImplementation library.java.hadoop_hdfs_tests
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

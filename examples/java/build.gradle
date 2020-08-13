@@ -48,32 +48,32 @@ configurations.sparkRunnerPreCommit {
 }
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile project(":sdks:java:io:google-cloud-platform")
-  compile project(":sdks:java:extensions:ml")
-  compile library.java.avro
-  compile library.java.bigdataoss_util
-  compile library.java.google_api_client
-  compile library.java.google_api_services_bigquery
-  compile library.java.google_api_services_pubsub
-  compile library.java.google_auth_library_credentials
-  compile library.java.google_auth_library_oauth2_http
-  compile library.java.google_cloud_datastore_v1_proto_client
-  compile library.java.google_code_gson
-  compile library.java.google_http_client
-  compile library.java.joda_time
-  compile library.java.proto_google_cloud_datastore_v1
-  compile library.java.slf4j_api
-  compile library.java.slf4j_jdk14
-  runtime project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile project(":sdks:java:io:google-cloud-platform")
-  testCompile project(":sdks:java:extensions:ml")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(":sdks:java:extensions:ml")
+  implementation library.java.avro
+  implementation library.java.bigdataoss_util
+  implementation library.java.google_api_client
+  implementation library.java.google_api_services_bigquery
+  implementation library.java.google_api_services_pubsub
+  implementation library.java.google_auth_library_credentials
+  implementation library.java.google_auth_library_oauth2_http
+  implementation library.java.google_cloud_datastore_v1_proto_client
+  implementation library.java.google_code_gson
+  implementation library.java.google_http_client
+  implementation library.java.joda_time
+  implementation library.java.proto_google_cloud_datastore_v1
+  implementation library.java.slf4j_api
+  implementation library.java.slf4j_jdk14
+  runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation project(":sdks:java:io:google-cloud-platform")
+  testImplementation project(":sdks:java:extensions:ml")
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
 
   // Add dependencies for the PreCommit configurations
   // For each runner a project level dependency on the examples project.

@@ -41,31 +41,31 @@ configurations {
 def samza_version = "1.3.0"
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":runners:core-java")
-  compile project(":runners:core-construction-java")
-  compile project(":runners:java-fn-execution")
-  compile project(":runners:java-job-service")
-  compile library.java.jackson_annotations
-  compile library.java.slf4j_api
-  compile library.java.joda_time
-  compile library.java.commons_io
-  compile library.java.args4j
-  compile "org.apache.samza:samza-api:$samza_version"
-  compile "org.apache.samza:samza-core_2.11:$samza_version"
-  compile "org.apache.samza:samza-kafka_2.11:$samza_version"
-  compile "org.apache.samza:samza-kv_2.11:$samza_version"
-  compile "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
-  compile "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
-  compile "org.apache.samza:samza-yarn_2.11:$samza_version"
-  compile "org.apache.kafka:kafka-clients:0.11.0.2"
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":runners:core-java", configuration: "testRuntime")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.jackson_dataformat_yaml
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":runners:core-java")
+  implementation project(":runners:core-construction-java")
+  implementation project(":runners:java-fn-execution")
+  implementation project(":runners:java-job-service")
+  implementation library.java.jackson_annotations
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
+  implementation library.java.commons_io
+  implementation library.java.args4j
+  implementation "org.apache.samza:samza-api:$samza_version"
+  implementation "org.apache.samza:samza-core_2.11:$samza_version"
+  implementation "org.apache.samza:samza-kafka_2.11:$samza_version"
+  implementation "org.apache.samza:samza-kv_2.11:$samza_version"
+  implementation "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
+  implementation "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
+  implementation "org.apache.samza:samza-yarn_2.11:$samza_version"
+  implementation "org.apache.kafka:kafka-clients:0.11.0.2"
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":runners:core-java", configuration: "testRuntime")
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation library.java.jackson_dataformat_yaml
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesRunner project(project.path)

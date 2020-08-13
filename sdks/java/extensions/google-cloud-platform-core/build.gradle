@@ -36,26 +36,26 @@ test {
 }
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.google_http_client_jackson2
-  compile library.java.google_auth_library_oauth2_http
-  compile library.java.google_api_client
-  compile library.java.bigdataoss_gcsio
-  compile library.java.bigdataoss_util
-  compile library.java.google_api_services_cloudresourcemanager
-  compile library.java.google_api_services_storage
-  compile library.java.google_auth_library_credentials
-  compile library.java.google_http_client
-  compile library.java.slf4j_api
-  compile library.java.joda_time
-  compile library.java.jackson_annotations
-  compile library.java.jackson_databind
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.google_http_client_jackson2
+  implementation library.java.google_auth_library_oauth2_http
+  implementation library.java.google_api_client
+  implementation library.java.bigdataoss_gcsio
+  implementation library.java.bigdataoss_util
+  implementation library.java.google_api_services_cloudresourcemanager
+  implementation library.java.google_api_services_storage
+  implementation library.java.google_auth_library_credentials
+  implementation library.java.google_http_client
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
+  implementation library.java.jackson_annotations
+  implementation library.java.jackson_databind
   provided library.java.hamcrest_core
   provided library.java.junit
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.mockito_core
   testRuntimeOnly library.java.slf4j_jdk14
 }
 

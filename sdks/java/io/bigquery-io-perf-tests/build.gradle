@@ -25,16 +25,16 @@ description = "Apache Beam :: SDKs :: Java :: Google BigQuery IO Performance tes
 ext.summary = "Performance tests for Google BigQuery IO sources and sinks"
 
 dependencies {
-    compile library.java.google_api_services_bigquery
-    testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-    testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
-    testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
-    testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
-    testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-    testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
-    testCompile project(":sdks:java:io:synthetic")
-    testCompile library.java.junit
-    testCompile library.java.hamcrest_core
-    testCompile library.java.jaxb_api
-    testCompile library.java.jaxb_impl
+    implementation library.java.google_api_services_bigquery
+    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+    testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
+    testImplementation project(":sdks:java:io:synthetic")
+    testImplementation library.java.junit
+    testImplementation library.java.hamcrest_core
+    testImplementation library.java.jaxb_api
+    testImplementation library.java.jaxb_impl
 }

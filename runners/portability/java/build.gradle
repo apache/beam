@@ -31,19 +31,19 @@ configurations {
 }
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.hamcrest_library
-  compile project(":runners:java-fn-execution")
-  compile project(":runners:java-job-service")
-  compile project(path: ":sdks:java:harness", configuration: "shadow")
-  compile library.java.vendored_grpc_1_26_0
-  compile library.java.slf4j_api
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.hamcrest_library
+  implementation project(":runners:java-fn-execution")
+  implementation project(":runners:java-job-service")
+  implementation project(path: ":sdks:java:harness", configuration: "shadow")
+  implementation library.java.vendored_grpc_1_26_0
+  implementation library.java.slf4j_api
 
-  testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
+  testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntime")
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation library.java.slf4j_jdk14
 
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")

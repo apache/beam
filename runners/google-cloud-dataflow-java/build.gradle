@@ -63,39 +63,40 @@ configurations {
 }
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile project(":sdks:java:io:google-cloud-platform")
-  compile project(":runners:core-construction-java")
-  compile library.java.avro
-  compile library.java.bigdataoss_util
-  compile library.java.google_api_client
-  compile library.java.google_api_services_clouddebugger
-  compile library.java.google_api_services_dataflow
-  compile library.java.google_api_services_storage
-  compile library.java.google_auth_library_credentials
-  compile library.java.google_auth_library_oauth2_http
-  compile library.java.google_http_client
-  compile library.java.google_http_client_jackson2
-  compile library.java.jackson_annotations
-  compile library.java.jackson_core
-  compile library.java.jackson_databind
-  compile library.java.joda_time
-  compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_26_0
-  testCompile library.java.hamcrest_core
-  testCompile library.java.guava_testlib
-  testCompile library.java.junit
-  testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
-  testCompile library.java.google_cloud_dataflow_java_proto_library_all
-  testCompile library.java.jackson_dataformat_yaml
-  testCompile library.java.mockito_core
-  testCompile library.java.proto_google_cloud_datastore_v1
-  testCompile library.java.slf4j_jdk14
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(":runners:core-construction-java")
+  implementation library.java.avro
+  implementation library.java.bigdataoss_util
+  implementation library.java.google_api_client
+  implementation library.java.google_api_services_clouddebugger
+  implementation library.java.google_api_services_dataflow
+  implementation library.java.google_api_services_storage
+  implementation library.java.google_auth_library_credentials
+  implementation library.java.google_auth_library_oauth2_http
+  implementation library.java.google_http_client
+  implementation library.java.google_http_client_jackson2
+  implementation library.java.jackson_annotations
+  implementation library.java.jackson_core
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_grpc_1_26_0
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.guava_testlib
+  testImplementation library.java.junit
+  testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+  testImplementation library.java.google_cloud_dataflow_java_proto_library_all
+  testImplementation library.java.jackson_dataformat_yaml
+  testImplementation library.java.mockito_core
+  testImplementation library.java.proto_google_cloud_datastore_v1
+  testImplementation library.java.slf4j_jdk14
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(project.path)
   validatesRunner project(path: project.path, configuration: "testRuntime")

@@ -26,15 +26,15 @@ applyJavaNature(enableChecker:false,
 description = "Apache Beam :: SDKs :: Java :: Test Utils"
 
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.google_cloud_bigquery
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.google_cloud_bigquery
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
 
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
 }
 

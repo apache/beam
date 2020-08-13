@@ -30,37 +30,37 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services 2"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.aws_java_sdk2_apache_client
-  compile library.java.aws_java_sdk2_auth
-  compile library.java.aws_java_sdk2_cloudwatch
-  compile library.java.aws_java_sdk2_dynamodb
-  compile library.java.aws_java_sdk2_kinesis
-  compile library.java.aws_java_sdk2_sdk_core
-  compile library.java.aws_java_sdk2_sns
-  compile library.java.aws_java_sdk2_sqs
-  compile library.java.jackson_core
-  compile library.java.jackson_annotations
-  compile library.java.jackson_databind
-  compile library.java.jackson_dataformat_cbor
-  compile library.java.joda_time
-  compile library.java.slf4j_api
-  compile "software.amazon.kinesis:amazon-kinesis-client:2.2.5"
-  compile "commons-lang:commons-lang:2.6"
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:io:kinesis", configuration: "testRuntime")
-  testCompile library.java.mockito_core
-  testCompile library.java.guava_testlib
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
-  testCompile library.java.hamcrest_library
-  testCompile library.java.powermock
-  testCompile library.java.powermock_mockito
-  testCompile library.java.testcontainers_localstack
-  testCompile "org.assertj:assertj-core:3.11.1"
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.aws_java_sdk2_apache_client
+  implementation library.java.aws_java_sdk2_auth
+  implementation library.java.aws_java_sdk2_cloudwatch
+  implementation library.java.aws_java_sdk2_dynamodb
+  implementation library.java.aws_java_sdk2_kinesis
+  implementation library.java.aws_java_sdk2_sdk_core
+  implementation library.java.aws_java_sdk2_sns
+  implementation library.java.aws_java_sdk2_sqs
+  implementation library.java.jackson_core
+  implementation library.java.jackson_annotations
+  implementation library.java.jackson_databind
+  implementation library.java.jackson_dataformat_cbor
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation "software.amazon.kinesis:amazon-kinesis-client:2.2.5"
+  implementation "commons-lang:commons-lang:2.6"
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:io:kinesis", configuration: "testRuntime")
+  testImplementation library.java.mockito_core
+  testImplementation library.java.guava_testlib
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.junit
+  testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.powermock
+  testImplementation library.java.powermock_mockito
+  testImplementation library.java.testcontainers_localstack
+  testImplementation "org.assertj:assertj-core:3.11.1"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

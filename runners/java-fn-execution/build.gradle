@@ -24,27 +24,27 @@ applyJavaNature(
 description = "Apache Beam :: Runners :: Java Fn Execution"
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(":runners:core-construction-java")
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(":runners:core-construction-java")
   provided project(":sdks:java:harness")
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":model:fn-execution", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:fn-execution")
-  compile project(":runners:core-construction-java")
-  compile project(path: ":vendor:sdks-java-extensions-protobuf", configuration: "shadow")
-  compile library.java.vendored_grpc_1_26_0
-  compile library.java.commons_compress
-  compile library.java.slf4j_api
-  compile library.java.args4j
-  testCompile project(":sdks:java:harness")
-  testCompile project(":runners:core-construction-java")
-  testCompile project(path: ":runners:core-java", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":model:fn-execution", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:fn-execution")
+  implementation project(":runners:core-construction-java")
+  implementation project(path: ":vendor:sdks-java-extensions-protobuf", configuration: "shadow")
+  implementation library.java.vendored_grpc_1_26_0
+  implementation library.java.commons_compress
+  implementation library.java.slf4j_api
+  implementation library.java.args4j
+  testImplementation project(":sdks:java:harness")
+  testImplementation project(":runners:core-construction-java")
+  testImplementation project(path: ":runners:core-java", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.mockito_core
   testRuntimeOnly library.java.slf4j_simple
 }
 

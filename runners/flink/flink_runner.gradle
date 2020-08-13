@@ -141,39 +141,39 @@ configurations {
 
 dependencies {
   compileOnly project(":sdks:java:build-tools")
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":runners:core-java")
-  compile project(":runners:core-construction-java")
-  compile project(":runners:java-fn-execution")
-  compile project(":runners:java-job-service")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile library.java.vendored_grpc_1_26_0
-  compile library.java.jackson_annotations
-  compile library.java.slf4j_api
-  compile library.java.joda_time
-  compile library.java.args4j
-  compile "org.apache.flink:flink-clients_2.11:$flink_version"
-  compile "org.apache.flink:flink-core:$flink_version"
-  compile "org.apache.flink:flink-metrics-core:$flink_version"
-  compile "org.apache.flink:flink-java:$flink_version"
-  compile "org.apache.flink:flink-runtime_2.11:$flink_version"
-  compile "org.apache.flink:flink-streaming-java_2.11:$flink_version"
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":runners:core-java")
+  implementation project(":runners:core-construction-java")
+  implementation project(":runners:java-fn-execution")
+  implementation project(":runners:java-job-service")
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation library.java.vendored_grpc_1_26_0
+  implementation library.java.jackson_annotations
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
+  implementation library.java.args4j
+  implementation "org.apache.flink:flink-clients_2.11:$flink_version"
+  implementation "org.apache.flink:flink-core:$flink_version"
+  implementation "org.apache.flink:flink-metrics-core:$flink_version"
+  implementation "org.apache.flink:flink-java:$flink_version"
+  implementation "org.apache.flink:flink-runtime_2.11:$flink_version"
+  implementation "org.apache.flink:flink-streaming-java_2.11:$flink_version"
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
-  testCompile project(path: ":runners:core-java", configuration: "testRuntime")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.powermock
-  testCompile library.java.google_api_services_bigquery
-  testCompile project(":sdks:java:io:google-cloud-platform")
-  testCompile library.java.jackson_dataformat_yaml
-  testCompile "org.apache.flink:flink-core:$flink_version:tests"
-  testCompile "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
-  testCompile "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
-  testCompile "org.apache.flink:flink-test-utils_2.11:$flink_version"
-  testCompile project(":sdks:java:harness")
+  testImplementation project(path: ":runners:core-java", configuration: "testRuntime")
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation library.java.powermock
+  testImplementation library.java.google_api_services_bigquery
+  testImplementation project(":sdks:java:io:google-cloud-platform")
+  testImplementation library.java.jackson_dataformat_yaml
+  testImplementation "org.apache.flink:flink-core:$flink_version:tests"
+  testImplementation "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
+  testImplementation "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
+  testImplementation "org.apache.flink:flink-test-utils_2.11:$flink_version"
+  testImplementation project(":sdks:java:harness")
   testRuntimeOnly library.java.slf4j_simple
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")

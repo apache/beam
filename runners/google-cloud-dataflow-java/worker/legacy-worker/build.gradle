@@ -204,23 +204,23 @@ dependencies {
         provided project(it)
     }
 
-    compile project(path: ":model:fn-execution", configuration: "shadow")
-    compile project(":runners:core-construction-java")
-    compile project(":runners:core-java")
-    compile project(":runners:java-fn-execution")
-    compile project(":sdks:java:fn-execution")
-    compile project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
+    implementation project(path: ":model:fn-execution", configuration: "shadow")
+    implementation project(":runners:core-construction-java")
+    implementation project(":runners:core-java")
+    implementation project(":runners:java-fn-execution")
+    implementation project(":sdks:java:fn-execution")
+    implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
     shadow library.java.vendored_guava_26_0_jre
-    compile "org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"
-    compile "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
-    compile "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
+    implementation "org.conscrypt:conscrypt-openjdk:1.1.3:linux-x86_64"
+    implementation "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
+    implementation "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
     provided library.java.error_prone_annotations
-    runtime library.java.slf4j_jdk14
+    runtimeOnly library.java.slf4j_jdk14
 
     // Any test dependency which intersects with our relocation rules above needs to be relocated
-    // as well and placed within the testCompile configuration. Otherwise we can place it within
+    // as well and placed within the testImplementation configuration. Otherwise we can place it within
     // the shadowTest configuration.
-    testCompile project(path: ":runners:core-java", configuration: "testRuntime")
+    testImplementation project(path: ":runners:core-java", configuration: "testRuntime")
     shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
     shadowTest project(path: ":runners:direct-java", configuration: "shadow")
     shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")

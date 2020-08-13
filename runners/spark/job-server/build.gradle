@@ -49,14 +49,14 @@ configurations.all {
 }
 
 dependencies {
-  compile project(sparkRunnerProject)
-  compile project(path: sparkRunnerProject, configuration: "provided")
+  implementation project(sparkRunnerProject)
+  implementation project(path: sparkRunnerProject, configuration: "provided")
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "testRuntime")
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "provided")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
 //  TODO: Enable AWS and HDFS file system.
 }
 

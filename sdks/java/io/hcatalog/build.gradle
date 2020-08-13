@@ -41,10 +41,10 @@ test {
 evaluationDependsOn(":sdks:java:io:common")
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:io:hadoop-common")
-  compile library.java.slf4j_api
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:io:hadoop-common")
+  implementation library.java.slf4j_api
   // Hive bundles without repackaging Jackson which is why we redeclare it here so that it appears
   // on the compile/test/runtime classpath before Hive.
   provided library.java.jackson_annotations
@@ -58,15 +58,15 @@ dependencies {
     exclude group: "org.apache.hive", module: "hive-exec"
     exclude group: "com.google.protobuf", module: "protobuf-java"
   }
-  testCompile project(":sdks:java:io:common").sourceSets.test.output
-  testCompile library.java.commons_io
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
-  testCompile "org.apache.hive:hive-exec:$hive_version"
-  testCompile "org.apache.hive:hive-common:$hive_version"
-  testCompile "org.apache.hive:hive-cli:$hive_version"
+  testImplementation project(":sdks:java:io:common").sourceSets.test.output
+  testImplementation library.java.commons_io
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
+  testImplementation "org.apache.hive:hive-exec:$hive_version"
+  testImplementation "org.apache.hive:hive-common:$hive_version"
+  testImplementation "org.apache.hive:hive-cli:$hive_version"
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 

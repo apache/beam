@@ -34,19 +34,19 @@ test {
 }
 
 dependencies {
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":model:fn-execution", configuration: "shadow")
-  compile project(":runners:core-construction-java")
-  compile project(":sdks:java:fn-execution")
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.joda_time
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
-  testCompile library.java.slf4j_api
-  testCompile library.java.jackson_dataformat_yaml
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":model:fn-execution", configuration: "shadow")
+  implementation project(":runners:core-construction-java")
+  implementation project(":sdks:java:fn-execution")
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.joda_time
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.mockito_core
+  testImplementation library.java.slf4j_api
+  testImplementation library.java.jackson_dataformat_yaml
   testRuntimeOnly library.java.slf4j_simple
 }
