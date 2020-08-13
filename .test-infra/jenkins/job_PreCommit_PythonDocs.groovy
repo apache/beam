@@ -21,13 +21,11 @@ import CommonJobProperties as common
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python',
+    nameBase: 'PythonDocs',
     gradleTask: ':pythonDocsPreCommit',
-    timeoutMins: 180,
+    timeoutMins: 30,
     triggerPathPatterns: [
-      '^model/.*$',
       '^sdks/python/.*$',
-      '^release/.*$',
     ]
     )
 builder.build {
