@@ -1365,10 +1365,8 @@ class ParDo(PTransformWithSideInputs):
       raise ValueError('Unexpected keyword arguments: %s' % list(main_kw))
     return _MultiParDo(self, tags, main_tag)
 
-  def _pardo_fn_data(self):
-    si_tags_and_types = None
-    windowing = None
-    return self.fn, self.args, self.kwargs, si_tags_and_types, windowing
+  def _do_fn_info(self):
+    return DoFnInfo.create(self.fn, self.args, self.kwargs)
 
   def _get_key_and_window_coder(self, named_inputs):
     if named_inputs is None or not self._signature.is_stateful_dofn():
@@ -1392,7 +1390,6 @@ class ParDo(PTransformWithSideInputs):
     # type: (PipelineContext, Any) -> typing.Tuple[str, message.Message]
     assert isinstance(self, ParDo), \
         "expected instance of ParDo, but got %s" % self.__class__
-    picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
     state_specs, timer_specs = userstate.get_dofn_specs(self.fn)
     if state_specs or timer_specs:
       context.add_requirement(
@@ -1419,9 +1416,7 @@ class ParDo(PTransformWithSideInputs):
     return (
         common_urns.primitives.PAR_DO.urn,
         beam_runner_api_pb2.ParDoPayload(
-            do_fn=beam_runner_api_pb2.FunctionSpec(
-                urn=python_urns.PICKLED_DOFN_INFO,
-                payload=picked_pardo_fn_data),
+            do_fn=self._do_fn_info().to_runner_api(context),
             requests_finalization=has_bundle_finalization,
             restriction_coder_id=restriction_coder_id,
             state_specs={
@@ -1491,6 +1486,72 @@ class _MultiParDo(PTransform):
     _ = pcoll | self._do_transform
     return pvalue.DoOutputsTuple(
         pcoll.pipeline, self._do_transform, self._tags, self._main_tag)
+
+
+class DoFnInfo(object):
+  """This class represents the state in the ParDoPayload's function spec,
+  which is the actual DoFn together with some data required for invoking it.
+  """
+  @staticmethod
+  def register_stateless_dofn(urn):
+    def wrapper(cls):
+      StatelessDoFnInfo.REGISTERED_DOFNS[urn] = cls
+      cls._stateless_dofn_urn = urn
+      return cls
+
+    return wrapper
+
+  @classmethod
+  def create(cls, fn, args, kwargs):
+    if hasattr(fn, '_stateless_dofn_urn'):
+      assert not args and not kwargs
+      return StatelessDoFnInfo(fn._stateless_dofn_urn)
+    else:
+      return PickledDoFnInfo(cls._pickled_do_fn_info(fn, args, kwargs))
+
+  @staticmethod
+  def from_runner_api(spec, unused_context):
+    if spec.urn == python_urns.PICKLED_DOFN_INFO:
+      return PickledDoFnInfo(spec.payload)
+    elif spec.urn in StatelessDoFnInfo.REGISTERED_DOFNS:
+      return StatelessDoFnInfo(spec.urn)
+    else:
+      raise ValueError('Unexpected DoFn type: %s' % spec.urn)
+
+  @staticmethod
+  def _pickled_do_fn_info(fn, args, kwargs):
+    # This can be cleaned up once all runners move to portability.
+    return pickler.dumps((fn, args, kwargs, None, None))
+
+  def serialized_data(self):
+    raise NotImplementedError(type(self))
+
+
+class PickledDoFnInfo(DoFnInfo):
+  def __init__(self, serialized_data):
+    self._serialized_data = serialized_data
+
+  def serialized_data(self):
+    return self._serialized_data
+
+  def to_runner_api(self, unused_context):
+    return beam_runner_api_pb2.FunctionSpec(
+        urn=python_urns.PICKLED_DOFN_INFO, payload=self._serialized_data)
+
+
+class StatelessDoFnInfo(DoFnInfo):
+
+  REGISTERED_DOFNS = {}
+
+  def __init__(self, urn):
+    assert urn in self.REGISTERED_DOFNS
+    self._urn = urn
+
+  def serialized_data(self):
+    return self._pickled_do_fn_info(self.REGISTERED_DOFNS[self._urn](), (), {})
+
+  def to_runner_api(self, unused_context):
+    return beam_runner_api_pb2.FunctionSpec(urn=self._urn)
 
 
 def FlatMap(fn, *args, **kwargs):  # pylint: disable=invalid-name
@@ -1899,7 +1960,7 @@ class CombineGlobally(PTransform):
     combined = (
         pcoll
         | 'KeyWithVoid' >> add_input_types(
-            Map(lambda v: (None, v)).with_output_types(
+            ParDo(_KeyWithNone()).with_output_types(
                 typehints.KV[None, pcoll.element_type]))
         | 'CombinePerKey' >> combine_per_key
         | 'UnKey' >> Map(lambda k_v: k_v[1]))
@@ -1945,6 +2006,12 @@ class CombineGlobally(PTransform):
   def from_runner_api_parameter(unused_ptransform, combine_payload, context):
     return CombineGlobally(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
+
+
+@DoFnInfo.register_stateless_dofn(python_urns.KEY_WITH_NONE_DOFN)
+class _KeyWithNone(DoFn):
+  def process(self, element):
+    yield None, element
 
 
 class CombinePerKey(PTransformWithSideInputs):
