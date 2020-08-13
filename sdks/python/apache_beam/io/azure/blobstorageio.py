@@ -36,19 +36,20 @@ from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.utils import retry
-from azure.core.exceptions import ResourceNotFoundError
 
 _LOGGER = logging.getLogger(__name__)
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
   # pylint: disable=ungrouped-imports
+  from azure.core.exceptions import ResourceNotFoundError
   from azure.storage.blob import (
       BlobServiceClient,
       ContentSettings,
   )
+  AZURE_DEPS_INSTALLED = True
 except ImportError:
-  raise ImportError('Missing `azure` requirement')
+  AZURE_DEPS_INSTALLED = False
 
 DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 
@@ -113,6 +114,8 @@ class BlobStorageIO(object):
       self.client = BlobServiceClient.from_connection_string(connect_str)
     else:
       self.client = client
+    if not AZURE_DEPS_INSTALLED:
+      raise RuntimeError('Azure dependencies not installed. Cannot run.')
 
   def open(
       self,
@@ -121,12 +124,14 @@ class BlobStorageIO(object):
       read_buffer_size=DEFAULT_READ_BUFFER_SIZE,
       mime_type='application/octet-stream'):
     """Open an Azure Blob Storage file path for reading or writing.
+
     Args:
       filename (str): Azure Blob Storage file path in the form
-      ``azfs://<storage-account>/<container>/<path>``.
+                      ``azfs://<storage-account>/<container>/<path>``.
       mode (str): ``'r'`` for reading or ``'w'`` for writing.
       read_buffer_size (int): Buffer size to use during read operations.
       mime_type (str): Mime type to set for write operations.
+
     Returns:
       Azure Blob Storage file object.
     Raises:
@@ -434,8 +439,8 @@ class BlobStorageIO(object):
 
     Args:
       paths: list of Azure Blob Storage paths in the form
-      azfs://<storage-account>/<container>/[name] that give the file
-      blobs to be deleted.
+             azfs://<storage-account>/<container>/[name] that give the 
+             file blobs to be deleted.
 
     Returns:
       List of tuples of (src, dest, exception) in the same order as the
@@ -494,8 +499,8 @@ class BlobStorageIO(object):
 
     Args:
       paths: list of Azure Blob Storage paths in the form
-      azfs://<storage-account>/<container>/[name] that give the file
-      blobs to be deleted.
+             azfs://<storage-account>/<container>/[name] that give the 
+             file blobs to be deleted.
 
     Returns:
       List of tuples of (src, dest, exception) in the same order as the
