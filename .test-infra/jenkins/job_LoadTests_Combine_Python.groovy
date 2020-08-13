@@ -95,7 +95,7 @@ def loadTestConfigurations = { datasetName, jobType ->
     ],
   ]
   .each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
-  .each{ test -> (jobType!='streaming') ?: addStreamingOptions(test) }
+  .each{ test -> (jobType != 'streaming') ?: addStreamingOptions(test) }
 }
 
 def addStreamingOptions(test){
