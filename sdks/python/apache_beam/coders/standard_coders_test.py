@@ -101,6 +101,13 @@ def value_parser_from_schema(schema):
       value_parser = attribute_parser_from_type(type_.map_type.value_type)
       return lambda x: dict(
           (key_parser(k), value_parser(v)) for k, v in x.items())
+    elif type_info == "logical_type":
+      # In YAML logical types are represented with their representation types.
+      to_language_type = schemas.LogicalType.from_runner_api(
+          type_.logical_type).to_language_type
+      parse_representation = attribute_parser_from_type(
+          type_.logical_type.representation)
+      return lambda x: to_language_type(parse_representation(x))
 
   parsers = [(field.name, attribute_parser_from_type(field.type))
              for field in schema.fields]

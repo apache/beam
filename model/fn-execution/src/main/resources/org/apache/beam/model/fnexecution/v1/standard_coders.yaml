@@ -408,3 +408,12 @@ examples:
   "\x01\x00\x00\x00\x00\x00": {f_map: {}}
   "\x01\x00\x00\x00\x00\x02\x03foo\x01\xa9F\x03bar\x01\xff\xff\xff\xff\xff\xff\xff\xff\x7f": {f_map: {"foo": 9001, "bar": 9223372036854775807}}
   "\x01\x00\x00\x00\x00\x04\neverything\x00\x02is\x00\x05null!\x00\r\xc2\xaf\\_(\xe3\x83\x84)_/\xc2\xaf\x00": {f_map: {"everything":null, "is": null, "null!": null, "¯\\_(ツ)_/¯": null}}
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # f_timestamp: logical(millis_instant), f_string: string, f_int: int64
+  payload: "\n:\n\x0bf_timestamp\x1a+:)\n#beam:logical_type:millis_instant:v1\x1a\x02\x10\x04\n\x0e\n\x08f_string\x1a\x02\x10\x07\n\x0b\n\x05f_int\x1a\x02\x10\x04\x12$a5af4d2a-6371-4f77-a03c-1818dd4cb317"
+examples:
+  "\x03\x00\xf0\xad\xaf\xc1\xbe.\x142020-08-13T14:14:14Z\xf0\xad\xaf\xc1\xbe.": {f_timestamp: 1597328054000, f_string: "2020-08-13T14:14:14Z", f_int: 1597328054000}

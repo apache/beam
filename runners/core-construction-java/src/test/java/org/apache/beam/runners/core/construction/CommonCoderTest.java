@@ -398,7 +398,11 @@ public class CommonCoderTest {
         }
 
         return row.build();
-      default: // DECIMAL, DATETIME, LOGICAL_TYPE
+      case DATETIME:
+        // Logical types are represented as their representation types in YAML. DATETIME is an alias
+        // for beam:logical_type:millis_instant:v1, represented as INT64 millis since epoch.
+        return Instant.ofEpochMilli((Long) value);
+      default: // DECIMAL, LOGICAL_TYPE
         throw new IllegalArgumentException("Unsupported type name: " + fieldType.getTypeName());
     }
   }
