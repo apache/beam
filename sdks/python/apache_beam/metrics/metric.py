@@ -130,10 +130,16 @@ class MetricResults(object):
     if not filter.names and not filter.namespaces:
       return True
 
-    if ((filter.namespaces and metric_key.metric.namespace in filter.namespaces)
-        or (filter.names and metric_key.metric.name in filter.names)):
-      return True
-    return False
+    if filter.names and filter.namespaces:
+      return ((
+          filter.namespaces and
+          metric_key.metric.namespace in filter.namespaces) and
+              (filter.names and metric_key.metric.name in filter.names))
+    else:
+      return ((
+          filter.namespaces and
+          metric_key.metric.namespace in filter.namespaces) or
+              (filter.names and metric_key.metric.name in filter.names))
 
   @staticmethod
   def _is_sub_list(needle, haystack):
