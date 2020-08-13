@@ -530,8 +530,8 @@ class DataflowRunner(PipelineRunner):
       debug_options.add_experiment("enable_windmill_service")
       debug_options.add_experiment("enable_streaming_engine")
     elif (apiclient._use_fnapi(options) and
-            apiclient._use_unified_worker(options) and
-            options.view_as(StandardOptions).streaming):
+          apiclient._use_unified_worker(options) and
+          options.view_as(StandardOptions).streaming):
       debug_options.add_experiment("enable_windmill_service")
       debug_options.add_experiment("enable_streaming_engine")
     else:
