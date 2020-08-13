@@ -76,7 +76,7 @@ class DeferredBase(object):
     return _elementwise_function(func, name, inplace=inplace)(self, *other_args)
 
   def __reduce__(self):
-    return UnusableUnpickledDeferredBase, (str(self),)
+    return UnusableUnpickledDeferredBase, (str(self), )
 
 
 class UnusableUnpickledDeferredBase(object):
