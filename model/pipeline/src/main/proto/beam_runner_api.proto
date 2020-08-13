@@ -875,6 +875,10 @@ message StandardCoders {
     //   - For present values the null indicator is followed by the value
     //     encoded with it's corresponding coder.
     //
+    // Standard logical types:
+    //   - beam:logical_type:millis_instant:v1: An instant in time represented
+    //     by INT64 milliseconds since the epoch. Timezone-naive.
+    //
     // The payload for RowCoder is an instance of Schema.
     // Components: None
     // Experimental.
