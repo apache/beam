@@ -35,6 +35,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
@@ -56,7 +58,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSch
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
-import org.joda.time.ReadableInstant;
 import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -223,13 +224,12 @@ public class JdbcDriverTest {
     Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
 
     // A table with one TIMESTAMP column
-    Schema schema = Schema.builder().addDateTimeField("ts").build();
+    Schema schema = Schema.builder().addLogicalTypeField("ts", SqlTypes.TIMESTAMP).build();
     connection
         .createStatement()
         .executeUpdate("CREATE EXTERNAL TABLE test (ts TIMESTAMP) TYPE 'test'");
 
-    ReadableInstant july1 =
-        ISODateTimeFormat.dateTimeParser().parseDateTime("2018-07-01T01:02:03Z");
+    Instant july1 = Instant.parse("2018-07-01T01:02:03Z");
     tableProvider.addRows("test", Row.withSchema(schema).addValue(july1).build());
 
     ResultSet selectResult =
@@ -240,10 +240,10 @@ public class JdbcDriverTest {
     assertThat(
         String.format(
             "Wrote %s to a table, but got back %s",
-            ISODateTimeFormat.basicDateTime().print(july1),
+            ISODateTimeFormat.basicDateTime().print(july1.toEpochMilli()),
             ISODateTimeFormat.basicDateTime().print(ts.getTime())),
         ts.getTime(),
-        equalTo(july1.getMillis()));
+        equalTo(july1.toEpochMilli()));
   }
 
   @Test
@@ -254,13 +254,12 @@ public class JdbcDriverTest {
     Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
 
     // A table with one TIMESTAMP column
-    Schema schema = Schema.builder().addDateTimeField("ts").build();
+    Schema schema = Schema.builder().addLogicalTypeField("ts", SqlTypes.TIMESTAMP).build();
     connection
         .createStatement()
         .executeUpdate("CREATE EXTERNAL TABLE test (ts TIMESTAMP) TYPE 'test'");
 
-    ReadableInstant july1 =
-        ISODateTimeFormat.dateTimeParser().parseDateTime("2018-07-01T01:02:03Z");
+    Instant july1 = Instant.parse("2018-07-01T01:02:03Z");
     tableProvider.addRows("test", Row.withSchema(schema).addValue(july1).build());
 
     ResultSet selectResult =
@@ -271,10 +270,10 @@ public class JdbcDriverTest {
     assertThat(
         String.format(
             "Wrote %s to a table, but got back %s",
-            ISODateTimeFormat.basicDateTime().print(july1),
+            ISODateTimeFormat.basicDateTime().print(july1.toEpochMilli()),
             ISODateTimeFormat.basicDateTime().print(ts.getTime())),
         ts.getTime(),
-        equalTo(july1.getMillis()));
+        equalTo(july1.toEpochMilli()));
   }
 
   @Test
@@ -284,13 +283,12 @@ public class JdbcDriverTest {
     Connection connection = JdbcDriver.connect(tableProvider, PipelineOptionsFactory.create());
 
     // A table with one TIMESTAMP column
-    Schema schema = Schema.builder().addDateTimeField("ts").build();
+    Schema schema = Schema.builder().addLogicalTypeField("ts", SqlTypes.TIMESTAMP).build();
     connection
         .createStatement()
         .executeUpdate("CREATE EXTERNAL TABLE test (ts TIMESTAMP) TYPE 'test'");
 
-    ReadableInstant july1 =
-        ISODateTimeFormat.dateTimeParser().parseDateTime("2018-07-01T01:02:03Z");
+    Instant july1 = Instant.parse("2018-07-01T01:02:03Z");
     tableProvider.addRows("test", Row.withSchema(schema).addValue(july1).build());
 
     ResultSet selectResult =
@@ -301,10 +299,10 @@ public class JdbcDriverTest {
     assertThat(
         String.format(
             "Wrote %s to a table, but got back %s",
-            ISODateTimeFormat.basicDateTime().print(july1),
+            ISODateTimeFormat.basicDateTime().print(july1.toEpochMilli()),
             ISODateTimeFormat.basicDateTime().print(ts.getTime())),
         ts.getTime(),
-        equalTo(july1.getMillis()));
+        equalTo(july1.toEpochMilli()));
   }
 
   @Test
@@ -428,10 +426,14 @@ public class JdbcDriverTest {
             ImmutableMap.of(
                 "test",
                 TestUnboundedTable.of(
-                        Schema.FieldType.INT32, "order_id",
-                        Schema.FieldType.INT32, "site_id",
-                        Schema.FieldType.INT32, "price",
-                        Schema.FieldType.DATETIME, "order_time")
+                        Schema.FieldType.INT32,
+                        "order_id",
+                        Schema.FieldType.INT32,
+                        "site_id",
+                        Schema.FieldType.INT32,
+                        "price",
+                        Schema.FieldType.logicalType(SqlTypes.TIMESTAMP),
+                        "order_time")
                     .timestampColumnIndex(3)
                     .addRows(Duration.ZERO, 1, 1, 1, FIRST_DATE, 1, 2, 6, FIRST_DATE)));
 

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.BOOLEAN;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.INTEGER;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
-import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimeStampWithoutTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -38,6 +38,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Test;
 
@@ -274,6 +275,8 @@ public class BeamSqlCliTest {
     // test TIME field
     assertEquals("15:23:59", row.getLogicalTypeValue("f_time", LocalTime.class).toString());
     // test TIMESTAMP field
-    assertEquals(parseTimestampWithUTCTimeZone("2018-07-01 21:26:07.123"), row.getDateTime("f_ts"));
+    assertEquals(
+        parseTimeStampWithoutTimeZone("2018-07-01T21:26:07.123Z"),
+        row.getLogicalTypeValue("f_ts", SqlTypes.TIMESTAMP.getClass()));
   }
 }

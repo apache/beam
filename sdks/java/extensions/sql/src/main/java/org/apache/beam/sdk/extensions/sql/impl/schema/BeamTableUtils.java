@@ -34,6 +34,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.NlsString;
@@ -135,6 +136,19 @@ public final class BeamTableUtils {
             .toLocalTime();
       } else {
         return LocalTime.ofNanoOfDay((Long) rawObj);
+      }
+    } else if (CalciteUtils.TIMESTAMP.typesEqual(type)
+        || CalciteUtils.NULLABLE_TIMESTAMP.typesEqual(type)) {
+      if (rawObj instanceof GregorianCalendar) { // used by the SQL CLI
+        GregorianCalendar calendar = (GregorianCalendar) rawObj;
+        return Instant.ofEpochMilli(calendar.getTimeInMillis())
+            .atZone(calendar.getTimeZone().toZoneId())
+            .toInstant();
+      } else {
+        return Instant.ofEpochSecond(
+                ((Row) rawObj).getInt64(Timestamp.EPOCH_SECOND_FIELD_NAME),
+                ((Row) rawObj).getInt32(Timestamp.NANO_FIELD_NAME))
+            .toEpochMilli();
       }
     } else if (CalciteUtils.isDateTimeType(type)) {
       // Internal representation of Date in Calcite is convertible to Joda's Datetime.

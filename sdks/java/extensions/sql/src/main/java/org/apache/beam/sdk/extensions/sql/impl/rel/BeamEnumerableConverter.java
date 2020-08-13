@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Collections;
@@ -51,6 +52,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -77,7 +79,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.Re
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
-import org.joda.time.ReadableInstant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -328,13 +329,20 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
           } else { // input type
             return (int) (((LocalDate) beamValue).toEpochDay());
           }
+        } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(logicalId)) {
+          if (beamValue instanceof Row) { // base type
+            return Instant.ofEpochSecond(
+                    ((Row) beamValue).getInt64(Timestamp.EPOCH_SECOND_FIELD_NAME),
+                    ((Row) beamValue).getInt32(Timestamp.NANO_FIELD_NAME))
+                .toEpochMilli();
+          } else { // input type
+            return ((Instant) beamValue).toEpochMilli();
+          }
         } else if (CharType.IDENTIFIER.equals(logicalId)) {
           return beamValue;
         } else {
           throw new UnsupportedOperationException("Unknown DateTime type " + logicalId);
         }
-      case DATETIME:
-        return ((ReadableInstant) beamValue).getMillis();
       case BYTE:
       case INT16:
       case INT32:

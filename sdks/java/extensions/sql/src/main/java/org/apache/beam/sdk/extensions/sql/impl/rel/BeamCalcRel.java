@@ -26,6 +26,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalT
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -87,7 +89,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.ScriptEvaluator;
-import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
 /** BeamRelNode to replace {@code Project} and {@code Filter} node. */
@@ -95,6 +96,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
   private static final long NANOS_PER_MILLISECOND = 1000000L;
   private static final long MILLIS_PER_DAY = 86400000L;
+  private static final long MILLIS_PER_SECOND = 1000L;
 
   private static final ParameterExpression outputSchemaParam =
       Expressions.parameter(Schema.class, "outputSchema");
@@ -322,11 +324,14 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
     if (CalciteUtils.TIMESTAMP.typesEqual(toType)
         || CalciteUtils.NULLABLE_TIMESTAMP.typesEqual(toType)) {
-      // Convert TIMESTAMP to joda Instant
-      if (value.getType() == java.sql.Timestamp.class) {
-        valueDateTime = Expressions.call(BuiltInMethod.TIMESTAMP_TO_LONG.method, valueDateTime);
-      }
-      valueDateTime = Expressions.new_(Instant.class, valueDateTime);
+      // Convert TIMESTAMP to java.time.Instant
+      Expression epochSecond =
+          Expressions.divide(valueDateTime, Expressions.constant(MILLIS_PER_SECOND));
+      Expression nanos =
+          Expressions.multiply(
+              Expressions.modulo(valueDateTime, Expressions.constant(MILLIS_PER_SECOND)),
+              Expressions.constant(NANOS_PER_MILLISECOND));
+      valueDateTime = Expressions.call(Instant.class, "ofEpochSecond", epochSecond, nanos);
     } else if (CalciteUtils.TIME.typesEqual(toType)
         || CalciteUtils.NULLABLE_TIME.typesEqual(toType)) {
       // Convert TIME to LocalTime
@@ -387,7 +392,6 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
             .put(TypeName.FLOAT, Float.class)
             .put(TypeName.DOUBLE, Double.class)
             .put(TypeName.STRING, String.class)
-            .put(TypeName.DATETIME, ReadableInstant.class)
             .put(TypeName.BOOLEAN, Boolean.class)
             .put(TypeName.MAP, Map.class)
             .put(TypeName.ARRAY, Collection.class)
@@ -401,6 +405,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
             .put(SqlTypes.TIME.getIdentifier(), Long.class)
             .put(TimeWithLocalTzType.IDENTIFIER, ReadableInstant.class)
             .put(SqlTypes.DATETIME.getIdentifier(), Row.class)
+            .put(SqlTypes.TIMESTAMP.getIdentifier(), Row.class)
             .put(CharType.IDENTIFIER, String.class)
             .build();
 
@@ -466,6 +471,17 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               Expressions.add(
                   Expressions.multiply(dateValue, Expressions.constant(MILLIS_PER_DAY)),
                   Expressions.divide(timeValue, Expressions.constant(NANOS_PER_MILLISECOND)));
+          return nullOr(value, returnValue);
+        } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(logicalId)) {
+          Expression epochSecond =
+              Expressions.call(
+                  value, "getInt64", Expressions.constant(Timestamp.EPOCH_SECOND_FIELD_NAME));
+          Expression nanos =
+              Expressions.call(value, "getInt32", Expressions.constant(Timestamp.NANO_FIELD_NAME));
+          Expression returnValue =
+              Expressions.add(
+                  Expressions.multiply(epochSecond, Expressions.constant(MILLIS_PER_SECOND)),
+                  Expressions.divide(nanos, Expressions.constant(NANOS_PER_MILLISECOND)));
           return nullOr(value, returnValue);
         } else if (!CharType.IDENTIFIER.equals(logicalId)) {
           throw new UnsupportedOperationException(

@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
-import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithoutTimeZone;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimeStampWithoutTimeZone;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -26,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
@@ -48,7 +49,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Test;
@@ -193,8 +193,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addDoubleField("avg5")
             .addDoubleField("max5")
             .addDoubleField("min5")
-            .addDateTimeField("max6")
-            .addDateTimeField("min6")
+            .addLogicalTypeField("max6", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("min6", SqlTypes.TIMESTAMP)
             .addStringField("max7")
             .addStringField("min7")
             .addDoubleField("varpop1")
@@ -228,8 +228,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
                 2.5,
                 4.0,
                 1.0,
-                parseTimestampWithoutTimeZone("2017-01-01 02:04:03"),
-                parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
+                parseTimeStampWithoutTimeZone("2017-01-01T02:04:03Z"),
+                parseTimeStampWithoutTimeZone("2017-01-01T01:01:03Z"),
                 "第四行",
                 "string_row1",
                 1.25,
@@ -574,8 +574,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         Schema.builder()
             .addInt32Field("f_int2")
             .addInt64Field("size")
-            .addDateTimeField("window_start")
-            .addDateTimeField("window_end")
+            .addLogicalTypeField("window_start", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("window_end", SqlTypes.TIMESTAMP)
             .build();
 
     List<Row> expectedRows =
@@ -583,16 +583,16 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addRows(
                 0,
                 1L,
-                parseTimestampWithUTCTimeZone("2016-12-08 00:00:00"),
-                parseTimestampWithUTCTimeZone("2017-01-08 00:00:00"),
+                parseTimeStampWithoutTimeZone("2016-12-08T00:00:00Z"),
+                parseTimeStampWithoutTimeZone("2017-01-08T00:00:00Z"),
                 0,
                 1L,
-                parseTimestampWithUTCTimeZone("2017-01-08 00:00:00"),
-                parseTimestampWithUTCTimeZone("2017-02-08 00:00:00"),
+                parseTimeStampWithoutTimeZone("2017-01-08T00:00:00Z"),
+                parseTimeStampWithoutTimeZone("2017-02-08T00:00:00Z"),
                 0,
                 1L,
-                parseTimestampWithUTCTimeZone("2017-02-08 00:00:00"),
-                parseTimestampWithUTCTimeZone("2017-03-11 00:00:00"))
+                parseTimeStampWithoutTimeZone("2017-02-08T00:00:00Z"),
+                parseTimeStampWithoutTimeZone("2017-03-11T00:00:00Z"))
             .getRows();
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
@@ -615,8 +615,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         Schema.builder()
             .addInt32Field("f_int2")
             .addInt64Field("size")
-            .addDateTimeField("window_start")
-            .addDateTimeField("window_end")
+            .addLogicalTypeField("window_start", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("window_end", SqlTypes.TIMESTAMP)
             .build();
 
     List<Row> expectedRows =
@@ -624,12 +624,12 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addRows(
                 0,
                 3L,
-                parseTimestampWithoutTimeZone("2017-01-01 01:00:00"),
-                parseTimestampWithoutTimeZone("2017-01-01 02:00:00"),
+                parseTimeStampWithoutTimeZone("2017-01-01T01:00:00Z"),
+                parseTimeStampWithoutTimeZone("2017-01-01T02:00:00Z"),
                 0,
                 1L,
-                parseTimestampWithoutTimeZone("2017-01-01 02:00:00"),
-                parseTimestampWithoutTimeZone("2017-01-01 03:00:00"))
+                parseTimeStampWithoutTimeZone("2017-01-01T02:00:00Z"),
+                parseTimeStampWithoutTimeZone("2017-01-01T03:00:00Z"))
             .getRows();
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
@@ -645,25 +645,28 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   @Category(UsesTestStream.class)
   public void testTriggeredTumble() throws Exception {
     Schema inputSchema =
-        Schema.builder().addInt32Field("f_int").addDateTimeField("f_timestamp").build();
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP)
+            .build();
 
     PCollection<Row> input =
         pipeline.apply(
             TestStream.create(inputSchema)
                 .addElements(
                     Row.withSchema(inputSchema)
-                        .addValues(1, parseTimestampWithoutTimeZone("2017-01-01 01:01:01"))
+                        .addValues(1, parseTimeStampWithoutTimeZone("2017-01-01T01:01:01Z"))
                         .build(),
                     Row.withSchema(inputSchema)
-                        .addValues(2, parseTimestampWithoutTimeZone("2017-01-01 01:01:01"))
+                        .addValues(2, parseTimeStampWithoutTimeZone("2017-01-01T01:01:01Z"))
                         .build())
                 .addElements(
                     Row.withSchema(inputSchema)
-                        .addValues(3, parseTimestampWithoutTimeZone("2017-01-01 01:01:01"))
+                        .addValues(3, parseTimeStampWithoutTimeZone("2017-01-01T01:01:01Z"))
                         .build())
                 .addElements(
                     Row.withSchema(inputSchema)
-                        .addValues(4, parseTimestampWithoutTimeZone("2017-01-01 01:01:01"))
+                        .addValues(4, parseTimeStampWithoutTimeZone("2017-01-01T01:01:01Z"))
                         .build())
                 .advanceWatermarkToInfinity());
 
@@ -720,8 +723,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         Schema.builder()
             .addInt32Field("f_int2")
             .addInt64Field("size")
-            .addDateTimeField("window_start")
-            .addDateTimeField("window_end")
+            .addLogicalTypeField("window_start", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("window_end", SqlTypes.TIMESTAMP)
             .build();
 
     List<Row> expectedRows =
@@ -729,20 +732,20 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addRows(
                 0,
                 3L,
-                parseTimestampWithoutTimeZone("2017-01-01 00:30:00"),
-                parseTimestampWithoutTimeZone("2017-01-01 01:30:00"),
+                parseTimeStampWithoutTimeZone("2017-01-01T00:30:00Z"),
+                parseTimeStampWithoutTimeZone("2017-01-01T01:30:00Z"),
                 0,
                 3L,
-                parseTimestampWithoutTimeZone("2017-01-01 01:00:00"),
-                parseTimestampWithoutTimeZone("2017-01-01 02:00:00"),
+                parseTimeStampWithoutTimeZone("2017-01-01T01:00:00Z"),
+                parseTimeStampWithoutTimeZone("2017-01-01T02:00:00Z"),
                 0,
                 1L,
-                parseTimestampWithoutTimeZone("2017-01-01 01:30:00"),
-                parseTimestampWithoutTimeZone("2017-01-01 02:30:00"),
+                parseTimeStampWithoutTimeZone("2017-01-01T01:30:00Z"),
+                parseTimeStampWithoutTimeZone("2017-01-01T02:30:00Z"),
                 0,
                 1L,
-                parseTimestampWithoutTimeZone("2017-01-01 02:00:00"),
-                parseTimestampWithoutTimeZone("2017-01-01 03:00:00"))
+                parseTimeStampWithoutTimeZone("2017-01-01T02:00:00Z"),
+                parseTimeStampWithoutTimeZone("2017-01-01T03:00:00Z"))
             .getRows();
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
@@ -777,8 +780,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         Schema.builder()
             .addInt32Field("f_int2")
             .addInt64Field("size")
-            .addDateTimeField("window_start")
-            .addDateTimeField("window_end")
+            .addLogicalTypeField("window_start", SqlTypes.TIMESTAMP)
+            .addLogicalTypeField("window_end", SqlTypes.TIMESTAMP)
             .build();
 
     List<Row> expectedRows =
@@ -786,12 +789,12 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addRows(
                 0,
                 3L,
-                parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
-                parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
+                parseTimeStampWithoutTimeZone("2017-01-01T01:01:03Z"),
+                parseTimeStampWithoutTimeZone("2017-01-01T01:01:03Z"),
                 0,
                 1L,
-                parseTimestampWithoutTimeZone("2017-01-01 02:04:03"),
-                parseTimestampWithoutTimeZone("2017-01-01 02:04:03"))
+                parseTimeStampWithoutTimeZone("2017-01-01T02:04:03Z"),
+                parseTimeStampWithoutTimeZone("2017-01-01T02:04:03Z"))
             .getRows();
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
@@ -863,13 +866,13 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   public void testSupportsGlobalWindowWithCustomTrigger() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
 
-    DateTime startTime = parseTimestampWithoutTimeZone("2017-1-1 0:0:0");
+    Instant startTime = parseTimeStampWithoutTimeZone("2017-01-01T00:00:00Z");
 
     Schema type =
         Schema.builder()
             .addInt32Field("f_intGroupingKey")
             .addInt32Field("f_intValue")
-            .addDateTimeField("f_timestamp")
+            .addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP)
             .build();
 
     Object[] rows =
@@ -964,13 +967,13 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
   @Test
   public void testSupportsNonGlobalWindowWithCustomTrigger() {
-    DateTime startTime = parseTimestampWithoutTimeZone("2017-1-1 0:0:0");
+    Instant startTime = parseTimeStampWithoutTimeZone("2017-01-01T00:00:00Z");
 
     Schema type =
         Schema.builder()
             .addInt32Field("f_intGroupingKey")
             .addInt32Field("f_intValue")
-            .addDateTimeField("f_timestamp")
+            .addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP)
             .build();
 
     Object[] rows =

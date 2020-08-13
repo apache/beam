@@ -18,14 +18,14 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
-import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithoutTimeZone;
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimeStampWithoutTimeZone;
 
 import java.math.BigDecimal;
 import java.text.ParseException;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
@@ -84,7 +84,7 @@ public class BeamSqlDslBase {
             .addFloatField("f_float")
             .addDoubleField("f_double")
             .addStringField("f_string")
-            .addDateTimeField("f_timestamp")
+            .addLogicalTypeField("f_timestamp", SqlTypes.TIMESTAMP)
             .addInt32Field("f_int2")
             .addDecimalField("f_decimal")
             .build();
@@ -99,7 +99,7 @@ public class BeamSqlDslBase {
                 1.0f,
                 1.0d,
                 "string_row1",
-                parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
+                parseTimeStampWithoutTimeZone("2017-01-01T01:01:03Z"),
                 0,
                 new BigDecimal(1))
             .addRows(
@@ -110,7 +110,7 @@ public class BeamSqlDslBase {
                 2.0f,
                 2.0d,
                 "string_row2",
-                parseTimestampWithoutTimeZone("2017-01-01 01:02:03"),
+                parseTimeStampWithoutTimeZone("2017-01-01T01:02:03Z"),
                 0,
                 new BigDecimal(2))
             .addRows(
@@ -121,7 +121,7 @@ public class BeamSqlDslBase {
                 3.0f,
                 3.0d,
                 "string_row3",
-                parseTimestampWithoutTimeZone("2017-01-01 01:06:03"),
+                parseTimeStampWithoutTimeZone("2017-01-01T01:06:03Z"),
                 0,
                 new BigDecimal(3))
             .addRows(
@@ -132,7 +132,7 @@ public class BeamSqlDslBase {
                 4.0f,
                 4.0d,
                 "第四行",
-                parseTimestampWithoutTimeZone("2017-01-01 02:04:03"),
+                parseTimeStampWithoutTimeZone("2017-01-01T02:04:03Z"),
                 0,
                 new BigDecimal(4))
             .getRows();
@@ -147,7 +147,7 @@ public class BeamSqlDslBase {
                 1.0f,
                 1.0d,
                 "string_row1",
-                parseTimestampWithUTCTimeZone("2017-01-01 01:01:03"),
+                parseTimeStampWithoutTimeZone("2017-01-01T01:01:03Z"),
                 0,
                 new BigDecimal(1))
             .addRows(
@@ -158,7 +158,7 @@ public class BeamSqlDslBase {
                 2.0f,
                 2.0d,
                 "string_row2",
-                parseTimestampWithUTCTimeZone("2017-02-01 01:02:03"),
+                parseTimeStampWithoutTimeZone("2017-02-01T01:02:03Z"),
                 0,
                 new BigDecimal(2))
             .addRows(
@@ -169,7 +169,7 @@ public class BeamSqlDslBase {
                 3.0f,
                 3.0d,
                 "string_row3",
-                parseTimestampWithUTCTimeZone("2017-03-01 01:06:03"),
+                parseTimeStampWithoutTimeZone("2017-03-01T01:06:03Z"),
                 0,
                 new BigDecimal(3))
             .getRows();
@@ -291,7 +291,10 @@ public class BeamSqlDslBase {
     TestStream.Builder<Row> values = TestStream.create(schemaInTableA);
 
     for (Row row : rowsInTableA) {
-      values = values.advanceWatermarkTo(new Instant(row.getDateTime("f_timestamp")));
+      values =
+          values.advanceWatermarkTo(
+              Instant.ofEpochMilli(
+                  row.getLogicalTypeValue("f_timestamp", java.time.Instant.class).toEpochMilli()));
       values = values.addElements(row);
     }
 
@@ -306,7 +309,10 @@ public class BeamSqlDslBase {
     TestStream.Builder<Row> values = TestStream.create(schemaInTableA);
 
     Row row = rowsInTableA.get(0);
-    values = values.advanceWatermarkTo(new Instant(row.getDateTime("f_timestamp")));
+    values =
+        values.advanceWatermarkTo(
+            Instant.ofEpochMilli(
+                row.getLogicalTypeValue("f_timestamp", java.time.Instant.class).toEpochMilli()));
     values = values.addElements(row);
 
     return PBegin.in(pipeline)

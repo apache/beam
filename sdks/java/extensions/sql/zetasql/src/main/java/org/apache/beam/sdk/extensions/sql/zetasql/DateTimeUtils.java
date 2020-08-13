@@ -28,7 +28,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -107,28 +106,10 @@ public class DateTimeUtils {
     return Instant.parse(str);
   }
 
-  public static DateTime parseTimestampWithUTCTimeZone(String str) {
-    return findDateTimePattern(str).withZoneUTC().parseDateTime(str);
-  }
-
-  @SuppressWarnings("unused")
-  public static DateTime parseTimestampWithLocalTimeZone(String str) {
-    return findDateTimePattern(str).withZone(DateTimeZone.getDefault()).parseDateTime(str);
-  }
-
   public static Value parseTimestampStringToValue(String timestampString) {
     Instant instant = Instant.parse(timestampString);
     return Value.createTimestampValueFromUnixMicros(
         instant.getEpochSecond() * MICROS_PER_SECOND + instant.getNano() / NANOS_PER_MICRO);
-  }
-
-  public static DateTime parseTimestampWithTimeZone(String str) {
-    // for example, accept "1990-10-20 13:24:01+0730"
-    if (str.indexOf('.') == -1) {
-      return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ssZ").parseDateTime(str);
-    } else {
-      return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSZ").parseDateTime(str);
-    }
   }
 
   public static String formatTimestampWithTimeZone(DateTime dt) {
@@ -149,11 +130,6 @@ public class DateTimeUtils {
     }
 
     return resultWithoutZone + zone;
-  }
-
-  @SuppressWarnings("unused")
-  public static DateTime parseTimestampWithoutTimeZone(String str) {
-    return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").parseDateTime(str);
   }
 
   public static DateTime parseDate(String str) {

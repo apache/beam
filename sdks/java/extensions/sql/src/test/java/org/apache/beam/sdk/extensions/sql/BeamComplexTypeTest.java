@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -38,7 +39,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -369,27 +369,27 @@ public class BeamComplexTypeTest {
   }
 
   @Test
-  public void testDatetimeFields() {
-    Instant current = new Instant(1561671380000L); // Long value corresponds to 27/06/2019
+  public void testLogicalTypeTimestampFields() {
+    Instant current = Instant.ofEpochSecond(1561671380L); // Long value corresponds to 27/06/2019
 
-    Schema dateTimeFieldSchema =
+    Schema timestampFieldSchema =
         Schema.builder()
-            .addField("dateTimeField", FieldType.DATETIME)
-            .addNullableField("nullableDateTimeField", FieldType.DATETIME)
+            .addField("timestampField", FieldType.logicalType(SqlTypes.TIMESTAMP))
+            .addNullableField("nullableTimestampField", FieldType.logicalType(SqlTypes.TIMESTAMP))
             .build();
 
-    Row dateTimeRow = Row.withSchema(dateTimeFieldSchema).addValues(current, null).build();
+    Row timestampRow = Row.withSchema(timestampFieldSchema).addValues(current, null).build();
 
     PCollection<Row> outputRow =
         pipeline
-            .apply(Create.of(dateTimeRow))
-            .setRowSchema(dateTimeFieldSchema)
+            .apply(Create.of(timestampRow))
+            .setRowSchema(timestampFieldSchema)
             .apply(
                 SqlTransform.query(
-                    "select EXTRACT(YEAR from dateTimeField) as yyyy, "
-                        + " EXTRACT(YEAR from nullableDateTimeField) as year_with_null, "
-                        + " EXTRACT(MONTH from dateTimeField) as mm, "
-                        + " EXTRACT(MONTH from nullableDateTimeField) as month_with_null "
+                    "select EXTRACT(YEAR from timestampField) as yyyy, "
+                        + " EXTRACT(YEAR from nullableTimestampField) as year_with_null, "
+                        + " EXTRACT(MONTH from timestampField) as mm, "
+                        + " EXTRACT(MONTH from nullableTimestampField) as month_with_null "
                         + " from PCOLLECTION"));
 
     Schema outputRowSchema =

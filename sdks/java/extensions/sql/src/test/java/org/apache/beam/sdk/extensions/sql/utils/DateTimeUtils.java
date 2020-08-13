@@ -17,11 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.sql.utils;
 
+import java.time.Instant;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 
 /** DateTimeUtils. */
 public class DateTimeUtils {
+
+  public static Instant parseTimeStampWithoutTimeZone(String str) {
+    return Instant.parse(str);
+  }
 
   public static DateTime parseTimestampWithUTCTimeZone(String str) {
     if (str.indexOf('.') == -1) {

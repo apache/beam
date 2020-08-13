@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimeStampWithoutTimeZone;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -1120,12 +1121,30 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   public void testFloor() {
     ExpressionChecker checker =
         new ExpressionChecker()
-            .addExpr("FLOOR(ts TO SECOND)", parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"))
-            .addExpr("FLOOR(ts TO MINUTE)", parseTimestampWithUTCTimeZone("1986-02-15 11:35:00"))
-            .addExpr("FLOOR(ts TO HOUR)", parseTimestampWithUTCTimeZone("1986-02-15 11:00:00"))
-            .addExpr("FLOOR(ts TO DAY)", parseTimestampWithUTCTimeZone("1986-02-15 00:00:00"))
-            .addExpr("FLOOR(ts TO MONTH)", parseTimestampWithUTCTimeZone("1986-02-01 00:00:00"))
-            .addExpr("FLOOR(ts TO YEAR)", parseTimestampWithUTCTimeZone("1986-01-01 00:00:00"))
+            .addExpr(
+                "FLOOR(ts TO SECOND)",
+                parseTimeStampWithoutTimeZone("1986-02-15T11:35:26Z"),
+                CalciteUtils.TIMESTAMP)
+            .addExpr(
+                "FLOOR(ts TO MINUTE)",
+                parseTimeStampWithoutTimeZone("1986-02-15T11:35:00Z"),
+                CalciteUtils.TIMESTAMP)
+            .addExpr(
+                "FLOOR(ts TO HOUR)",
+                parseTimeStampWithoutTimeZone("1986-02-15T11:00:00Z"),
+                CalciteUtils.TIMESTAMP)
+            .addExpr(
+                "FLOOR(ts TO DAY)",
+                parseTimeStampWithoutTimeZone("1986-02-15T00:00:00Z"),
+                CalciteUtils.TIMESTAMP)
+            .addExpr(
+                "FLOOR(ts TO MONTH)",
+                parseTimeStampWithoutTimeZone("1986-02-01T00:00:00Z"),
+                CalciteUtils.TIMESTAMP)
+            .addExpr(
+                "FLOOR(ts TO YEAR)",
+                parseTimeStampWithoutTimeZone("1986-01-01T00:00:00Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr("FLOOR(c_double)", 1.0);
 
     checker.buildRunAndCheck(getFloorCeilingTestPCollection());
@@ -1137,12 +1156,30 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   public void testCeil() {
     ExpressionChecker checker =
         new ExpressionChecker()
-            .addExpr("CEIL(ts TO SECOND)", parseTimestampWithUTCTimeZone("1986-02-15 11:35:26"))
-            .addExpr("CEIL(ts TO MINUTE)", parseTimestampWithUTCTimeZone("1986-02-15 11:36:00"))
-            .addExpr("CEIL(ts TO HOUR)", parseTimestampWithUTCTimeZone("1986-02-15 12:00:00"))
-            .addExpr("CEIL(ts TO DAY)", parseTimestampWithUTCTimeZone("1986-02-16 00:00:00"))
-            .addExpr("CEIL(ts TO MONTH)", parseTimestampWithUTCTimeZone("1986-03-01 00:00:00"))
-            .addExpr("CEIL(ts TO YEAR)", parseTimestampWithUTCTimeZone("1987-01-01 00:00:00"))
+            .addExpr(
+                "CEIL(ts TO SECOND)",
+                parseTimeStampWithoutTimeZone("1986-02-15T11:35:26Z"),
+                CalciteUtils.TIMESTAMP)
+            .addExpr(
+                "CEIL(ts TO MINUTE)",
+                parseTimeStampWithoutTimeZone("1986-02-15T11:36:00Z"),
+                CalciteUtils.TIMESTAMP)
+            .addExpr(
+                "CEIL(ts TO HOUR)",
+                parseTimeStampWithoutTimeZone("1986-02-15T12:00:00Z"),
+                CalciteUtils.TIMESTAMP)
+            .addExpr(
+                "CEIL(ts TO DAY)",
+                parseTimeStampWithoutTimeZone("1986-02-16T00:00:00Z"),
+                CalciteUtils.TIMESTAMP)
+            .addExpr(
+                "CEIL(ts TO MONTH)",
+                parseTimeStampWithoutTimeZone("1986-03-01T00:00:00Z"),
+                CalciteUtils.TIMESTAMP)
+            .addExpr(
+                "CEIL(ts TO YEAR)",
+                parseTimeStampWithoutTimeZone("1987-01-01T00:00:00Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr("CEIL(c_double)", 2.0);
 
     checker.buildRunAndCheck(getFloorCeilingTestPCollection());
@@ -1155,22 +1192,28 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
         new ExpressionChecker()
             .addExpr(
                 "TIMESTAMPADD(SECOND, 3, TIMESTAMP '1984-04-19 01:02:03')",
-                parseTimestampWithUTCTimeZone("1984-04-19 01:02:06"))
+                parseTimeStampWithoutTimeZone("1984-04-19T01:02:06Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMPADD(MINUTE, 3, TIMESTAMP '1984-04-19 01:02:03')",
-                parseTimestampWithUTCTimeZone("1984-04-19 01:05:03"))
+                parseTimeStampWithoutTimeZone("1984-04-19T01:05:03Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMPADD(HOUR, 3, TIMESTAMP '1984-04-19 01:02:03')",
-                parseTimestampWithUTCTimeZone("1984-04-19 04:02:03"))
+                parseTimeStampWithoutTimeZone("1984-04-19T04:02:03Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMPADD(DAY, 3, TIMESTAMP '1984-04-19 01:02:03')",
-                parseTimestampWithUTCTimeZone("1984-04-22 01:02:03"))
+                parseTimeStampWithoutTimeZone("1984-04-22T01:02:03Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMPADD(MONTH, 2, TIMESTAMP '1984-01-19 01:02:03')",
-                parseTimestampWithUTCTimeZone("1984-03-19 01:02:03"))
+                parseTimeStampWithoutTimeZone("1984-03-19T01:02:03Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMPADD(YEAR, 2, TIMESTAMP '1985-01-19 01:02:03')",
-                parseTimestampWithUTCTimeZone("1987-01-19 01:02:03"));
+                parseTimeStampWithoutTimeZone("1987-01-19T01:02:03Z"),
+                CalciteUtils.TIMESTAMP);
     checker.buildRunAndCheck();
   }
 
@@ -1181,22 +1224,28 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
         new ExpressionChecker()
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '3' SECOND",
-                parseTimestampWithUTCTimeZone("1984-01-19 01:02:06"))
+                parseTimeStampWithoutTimeZone("1984-01-19T01:02:06Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' MINUTE",
-                parseTimestampWithUTCTimeZone("1984-01-19 01:04:03"))
+                parseTimeStampWithoutTimeZone("1984-01-19T01:04:03Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' HOUR",
-                parseTimestampWithUTCTimeZone("1984-01-19 03:02:03"))
+                parseTimeStampWithoutTimeZone("1984-01-19T03:02:03Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' DAY",
-                parseTimestampWithUTCTimeZone("1984-01-21 01:02:03"))
+                parseTimeStampWithoutTimeZone("1984-01-21T01:02:03Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' MONTH",
-                parseTimestampWithUTCTimeZone("1984-03-19 01:02:03"))
+                parseTimeStampWithoutTimeZone("1984-03-19T01:02:03Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' YEAR",
-                parseTimestampWithUTCTimeZone("1986-01-19 01:02:03"))
+                parseTimeStampWithoutTimeZone("1986-01-19T01:02:03Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "DATE '1984-04-19' + INTERVAL '2' DAY",
                 LocalDate.parse("1984-04-21"),
@@ -1320,22 +1369,28 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
         new ExpressionChecker()
             .addExpr(
                 "TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '2' SECOND",
-                parseTimestampWithUTCTimeZone("1984-04-19 01:01:56"))
+                parseTimeStampWithoutTimeZone("1984-04-19T01:01:56Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '1' MINUTE",
-                parseTimestampWithUTCTimeZone("1984-04-19 01:00:58"))
+                parseTimeStampWithoutTimeZone("1984-04-19T01:00:58Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '4' HOUR",
-                parseTimestampWithUTCTimeZone("1984-04-18 21:01:58"))
+                parseTimeStampWithoutTimeZone("1984-04-18T21:01:58Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '5' DAY",
-                parseTimestampWithUTCTimeZone("1984-04-14 01:01:58"))
+                parseTimeStampWithoutTimeZone("1984-04-14T01:01:58Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:01:58' - INTERVAL '2' MONTH",
-                parseTimestampWithUTCTimeZone("1983-11-19 01:01:58"))
+                parseTimeStampWithoutTimeZone("1983-11-19T01:01:58Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:01:58' - INTERVAL '1' YEAR",
-                parseTimestampWithUTCTimeZone("1983-01-19 01:01:58"))
+                parseTimeStampWithoutTimeZone("1983-01-19T01:01:58Z"),
+                CalciteUtils.TIMESTAMP)
             .addExpr(
                 "DATE '1984-04-19' - INTERVAL '2' DAY",
                 LocalDate.parse("1984-04-17"),
