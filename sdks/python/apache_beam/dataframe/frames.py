@@ -35,27 +35,31 @@ class DeferredSeries(frame_base.DeferredFrame):
   transform = frame_base._elementwise_method(
       'transform', restrictions={'axis': 0})
 
-  def agg(self, func, axis=0, *args, **kwargs):
+  def aggregate(self, func, axis=0, *args, **kwargs):
     if isinstance(func, list) and len(func) > 1:
+      # Aggregate each column separately, then stick them all together.
       rows = [self.agg([f], *args, **kwargs) for f in func]
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
               'join_aggregate',
               lambda *rows: pd.concat(rows), [row._expr for row in rows]))
     else:
+      # We're only handling a single column.
       base_func = func[0] if isinstance(func, list) else func
       if _is_associative(base_func) and not args and not kwargs:
         intermediate = expressions.elementwise_expression(
-            'pre_agg',
+            'pre_aggregate',
             lambda s: s.agg([base_func], *args, **kwargs), [self._expr])
       else:
         intermediate = self._expr
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
-              'agg',
+              'aggregate',
               lambda s: s.agg(func, *args, **kwargs), [intermediate],
               preserves_partition_by=partitionings.Singleton(),
               requires_partition_by=partitionings.Singleton()))
+
+  agg = aggregate
 
   all = frame_base._agg_method('all')
   any = frame_base._agg_method('any')
@@ -166,9 +170,12 @@ class DeferredDataFrame(frame_base.DeferredFrame):
 
   def aggregate(self, func, axis=0, *args, **kwargs):
     if axis is None:
+      # Aggregate across all elements by first aggregating across columns,
+      # then across rows.
       return self.agg(func, *args, **dict(kwargs, axis=1)).agg(
           func, *args, **dict(kwargs, axis=0))
     elif axis in (1, 'columns'):
+      # This is an easy elementwise aggregation.
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
               'aggregate',
@@ -176,6 +183,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
               [self._expr],
               requires_partition_by=partitionings.Nothing()))
     elif len(self._expr.proxy().columns) == 0 or args or kwargs:
+      # For these corner cases, just colocate everything.
       return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'aggregate',
@@ -183,6 +191,8 @@ class DeferredDataFrame(frame_base.DeferredFrame):
             [self._expr],
             requires_partition_by=partitionings.Singleton()))
     else:
+      # In the general case, compute the aggregation of each column separately,
+      # then recombine.
       if not isinstance(func, dict):
         col_names = list(self._expr.proxy().columns)
         func = {col: func for col in col_names}
@@ -194,13 +204,16 @@ class DeferredDataFrame(frame_base.DeferredFrame):
         if not isinstance(funcs, list):
           funcs = [funcs]
         aggregated_cols.append(self[col].agg(funcs, *args, **kwargs))
+      # The final shape is different depending on whether any of the columns
+      # were aggregated by a list of aggregators.
       if any(isinstance(funcs, list) for funcs in func.values()):
         return frame_base.DeferredFrame.wrap(
             expressions.ComputedExpression(
                 'join_aggregate',
                 lambda *cols: pd.DataFrame(
                     {col: value for col, value in zip(col_names, cols)}),
-                [col._expr for col in aggregated_cols]))
+                [col._expr for col in aggregated_cols],
+                requires_partition_by=partitionings.Singleton()))
       else:
         return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
@@ -208,6 +221,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
                 lambda *cols: pd.Series(
                     {col: value[0] for col, value in zip(col_names, cols)}),
               [col._expr for col in aggregated_cols],
+              requires_partition_by=partitionings.Singleton(),
               proxy=self._expr.proxy().agg(func, *args, **kwargs)))
 
   agg = aggregate

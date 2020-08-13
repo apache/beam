@@ -261,6 +261,8 @@ class _DataframeExpressionsTransform(transforms.PTransform):
             # It also must be declared as an output of the producing stage.
             expr_to_stage(arg).outputs.add(arg)
       stage.ops.append(expr)
+      # Ensure that any inputs for the overall transform are added
+      # in downstream stages.
       for arg in expr.args():
         if arg in inputs:
           stage.inputs.add(arg)
