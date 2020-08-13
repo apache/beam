@@ -122,6 +122,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.diff': ['*'],
             'pandas.core.series.Series.items': ['*'],
             'pandas.core.series.Series.iteritems': ['*'],
+            'pandas.core.series.Series.searchsorted': ['*'],
             'pandas.core.series.Series.shift': ['*'],
             'pandas.core.series.Series.take': ['*'],
             'pandas.core.series.Series.to_dict': ['*'],
@@ -157,7 +158,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.repeat': ['*'],
             'pandas.core.series.Series.replace': ['*'],
             'pandas.core.series.Series.reset_index': ['*'],
-            'pandas.core.series.Series.searchsorted': ['*'],  # doctest issue
+            'pandas.core.series.Series.searchsorted': [
+                # This doctests is incorrectly parsed.
+                "x = pd.Categorical(['apple', 'bread', 'bread',"
+            ],
             'pandas.core.series.Series.sort_index': ['*'],
             'pandas.core.series.Series.sort_values': ['*'],
             'pandas.core.series.Series.to_csv': ['*'],
