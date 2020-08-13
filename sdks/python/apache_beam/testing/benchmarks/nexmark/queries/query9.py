@@ -16,27 +16,19 @@
 #
 
 """
-Query 2: Find bids with specific auction ids and show their bid price
-
-This query selects Bids that have a particular auctiuon id, and output their
-auction id with bid price.
-It illustrates a simple filter.
+Query 9: Winning-bids: extract the most recent of the highest bids
+See winning_bids.py for detailed documentation
 """
-
-# pytype: skip-file
 
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.models import auction_price
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
+from apache_beam.testing.benchmarks.nexmark.queries import winning_bids
 
 
 def load(events, metadata=None):
   return (
       events
-      | nexmark_query_util.JustBids()
-      | 'filter_by_skip' >>
-      beam.Filter(lambda bid: bid.auction % metadata.get('auction_skip') == 0)
-      | 'project' >>
-      beam.Map(lambda bid: auction_price.AuctionPrice(bid.auction, bid.price)))
+      | beam.Filter(nexmark_query_util.auction_or_bid)
+      | winning_bids.WinningBids())

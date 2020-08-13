@@ -15,33 +15,44 @@
 # limitations under the License.
 #
 
-"""Nexmark Query 1: Convert bid prices from dollars to euros.
-
-The Nexmark suite is a series of queries (streaming pipelines) performed
-on a simulation of auction events.
-
-This query converts bid prices from dollars to euros.
-It illustrates a simple map.
-"""
-# pytype: skip-file
-
+"""Utilities for working with NEXmark data stream."""
 from __future__ import absolute_import
 
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
-from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 
-USD_TO_EURO = 0.89
+AUCTION_TAG = 'auctions'
+BID_TAG = 'bids'
+PERSON_TAG = 'person'
 
 
-def load(events, query_args=None):
-  return (
-      events
-      | nexmark_query_util.JustBids()
-      | 'ConvertToEuro' >> beam.Map(
-          lambda bid: nexmark_model.Bid(
-              bid.auction,
-              bid.bidder,
-              bid.price * USD_TO_EURO,
-              bid.date_time,
-              bid.extra)))
+def is_bid(event):
+  return isinstance(event, nexmark_model.Bid)
+
+
+def is_auction(event):
+  return isinstance(event, nexmark_model.Auction)
+
+
+class JustBids(beam.PTransform):
+  def expand(self, pcoll):
+    return pcoll | "IsBid" >> beam.Filter(is_bid)
+
+
+class JustAuctions(beam.PTransform):
+  def expand(self, pcoll):
+    return pcoll | "IsAuction" >> beam.Filter(is_auction)
+
+
+class AuctionByIdFn(beam.DoFn):
+  def process(self, element):
+    yield element.id, element
+
+
+class BidByAuctionIdFn(beam.DoFn):
+  def process(self, element):
+    yield element.auction, element
+
+
+def auction_or_bid(event):
+  return isinstance(event, (nexmark_model.Auction, nexmark_model.Bid))

@@ -15,28 +15,26 @@
 # limitations under the License.
 #
 
-"""
-Query 2: Find bids with specific auction ids and show their bid price
-
-This query selects Bids that have a particular auctiuon id, and output their
-auction id with bid price.
-It illustrates a simple filter.
+""" Field names for de-serializing json representation of Models
 """
 
-# pytype: skip-file
 
-from __future__ import absolute_import
-
-import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.models import auction_price
-from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
-
-
-def load(events, metadata=None):
-  return (
-      events
-      | nexmark_query_util.JustBids()
-      | 'filter_by_skip' >>
-      beam.Filter(lambda bid: bid.auction % metadata.get('auction_skip') == 0)
-      | 'project' >>
-      beam.Map(lambda bid: auction_price.AuctionPrice(bid.auction, bid.price)))
+class FieldNames:
+  ID = 'id'
+  NAME = 'name'
+  EMAIL_ADDRESS = 'emailAddress'
+  CREDIT_CARD = 'creditCard'
+  CITY = "city"
+  STATE = "state"
+  DATE_TIME = "dateTime"
+  EXTRA = "extra"
+  ITEM_NAME = "itemName"
+  DESCRIPTION = "description"
+  INITIAL_BID = "initialBid"
+  RESERVE = "reserve"
+  EXPIRES = "expires"
+  SELLER = "seller"
+  CATEGORY = "category"
+  AUCTION = "auction"
+  BIDDER = "bidder"
+  PRICE = "price"
