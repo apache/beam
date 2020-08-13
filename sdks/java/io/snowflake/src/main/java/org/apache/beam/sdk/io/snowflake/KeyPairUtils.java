@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.snowflake.credentials;
+package org.apache.beam.sdk.io.snowflake;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -32,31 +32,16 @@ import javax.crypto.EncryptedPrivateKeyInfo;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
-/** POJO for handling Key-Pair authentication against Snowflake. */
-public class KeyPairSnowflakeCredentials implements SnowflakeCredentials {
-  private String username;
-  private PrivateKey privateKey;
+public class KeyPairUtils {
 
-  public KeyPairSnowflakeCredentials(
-      String username, String privateKeyPath, String privateKeyPassword) {
-    this.username = username;
-    this.privateKey = getPrivateKey(privateKeyPath, privateKeyPassword);
-  }
+  public static PrivateKey preparePrivateKey(String privateKey, String privateKeyPassphrase) {
 
-  public KeyPairSnowflakeCredentials(String username, PrivateKey privateKey) {
-    this.username = username;
-    this.privateKey = privateKey;
-  }
+    privateKey = privateKey.replace("-----BEGIN ENCRYPTED PRIVATE KEY-----", "");
+    privateKey = privateKey.replace("-----END ENCRYPTED PRIVATE KEY-----", "");
 
-  private PrivateKey getPrivateKey(String privateKeyPath, String privateKeyPassphrase) {
     try {
-      byte[] keyBytes = Files.readAllBytes(Paths.get(privateKeyPath));
-
-      String encrypted = new String(keyBytes, Charset.defaultCharset());
-      encrypted = encrypted.replace("-----BEGIN ENCRYPTED PRIVATE KEY-----", "");
-      encrypted = encrypted.replace("-----END ENCRYPTED PRIVATE KEY-----", "");
       EncryptedPrivateKeyInfo pkInfo =
-          new EncryptedPrivateKeyInfo(Base64.getMimeDecoder().decode(encrypted));
+          new EncryptedPrivateKeyInfo(Base64.getMimeDecoder().decode(privateKey));
       PBEKeySpec keySpec = new PBEKeySpec(privateKeyPassphrase.toCharArray());
       SecretKeyFactory pbeKeyFactory = SecretKeyFactory.getInstance(pkInfo.getAlgName());
       PKCS8EncodedKeySpec encodedKeySpec = pkInfo.getKeySpec(pbeKeyFactory.generateSecret(keySpec));
@@ -67,15 +52,16 @@ public class KeyPairSnowflakeCredentials implements SnowflakeCredentials {
         | NoSuchAlgorithmException
         | InvalidKeySpecException
         | InvalidKeyException ex) {
-      throw new RuntimeException("Can't create PrivateKey from options");
+      throw new RuntimeException("Can't create private key");
     }
   }
 
-  public String getUsername() {
-    return username;
-  }
-
-  public PrivateKey getPrivateKey() {
-    return privateKey;
+  public static String readPrivateKeyFile(String privateKeyPath) {
+    try {
+      byte[] keyBytes = Files.readAllBytes(Paths.get(privateKeyPath));
+      return new String(keyBytes, Charset.defaultCharset());
+    } catch (IOException e) {
+      throw new RuntimeException("Can't read private key from provided path");
+    }
   }
 }

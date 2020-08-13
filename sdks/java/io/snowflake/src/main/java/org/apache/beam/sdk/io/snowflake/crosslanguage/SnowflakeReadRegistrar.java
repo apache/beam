@@ -26,8 +26,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentials;
-import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentialsFactory;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -56,11 +54,9 @@ public final class SnowflakeReadRegistrar implements ExternalTransformRegistrar 
 
     @Override
     public PTransform<PBegin, PCollection<byte[]>> buildExternal(ReadConfiguration c) {
-      SnowflakeCredentials credentials = SnowflakeCredentialsFactory.of(c);
-
       SerializableFunction<Void, DataSource> dataSourceSerializableFunction =
           SnowflakeIO.DataSourceProviderFromDataSourceConfiguration.of(
-              SnowflakeIO.DataSourceConfiguration.create(credentials)
+              SnowflakeIO.DataSourceConfiguration.create()
                   .withServerName(c.getServerName())
                   .withDatabase(c.getDatabase())
                   .withSchema(c.getSchema()));
