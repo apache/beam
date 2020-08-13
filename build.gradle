@@ -230,6 +230,10 @@ task pythonPreCommit() {
   // have caught. Note that the same tests will still run in postcommit.
 }
 
+task pythonDocsPreCommit() {
+  dependsOn ":sdks:python:test-suites:tox:pycommon:docs"
+}
+
 task pythonDockerBuildPreCommit() {
   dependsOn ":sdks:python:container:py2:docker"
   dependsOn ":sdks:python:container:py35:docker"
