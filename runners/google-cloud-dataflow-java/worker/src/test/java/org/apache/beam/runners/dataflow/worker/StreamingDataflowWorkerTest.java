@@ -807,7 +807,9 @@ public class StreamingDataflowWorkerTest {
     worker.start();
 
     for (int i = 0; i < numIters; ++i) {
-      server.addWorkToOffer(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
+      server.addWorkToOffer(
+          makeInput(
+              i, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i), DEFAULT_SHARDING_KEY));
       // Also add work for a different shard of the same key.
       server.addWorkToOffer(
           makeInput(

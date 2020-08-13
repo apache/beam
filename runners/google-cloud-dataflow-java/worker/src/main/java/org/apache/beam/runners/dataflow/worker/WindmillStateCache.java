@@ -133,7 +133,7 @@ public class WindmillStateCache implements StatusDataProvider {
 
     private final String computation;
     private final ByteString key;
-    private long shardingKey;
+    private final long shardingKey;
     private final String stateFamily;
     // Cache token must be consistent for the key for the cache to be valid.
     private final long cacheToken;
