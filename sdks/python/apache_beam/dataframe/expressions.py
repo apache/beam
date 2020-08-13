@@ -255,9 +255,12 @@ def _get_allow_non_parallel():
 
 @contextlib.contextmanager
 def allow_non_parallel_operations(allow=True):
-  old_value, _ALLOW_NON_PARALLEL.value = _ALLOW_NON_PARALLEL.value, allow
-  yield
-  _ALLOW_NON_PARALLEL.value = old_value
+  if allow is None:
+    yield
+  else:
+    old_value, _ALLOW_NON_PARALLEL.value = _ALLOW_NON_PARALLEL.value, allow
+    yield
+    _ALLOW_NON_PARALLEL.value = old_value
 
 
 class NonParallelOperation(Exception):

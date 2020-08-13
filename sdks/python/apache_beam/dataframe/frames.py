@@ -50,14 +50,17 @@ class DeferredSeries(frame_base.DeferredFrame):
         intermediate = expressions.elementwise_expression(
             'pre_aggregate',
             lambda s: s.agg([base_func], *args, **kwargs), [self._expr])
+        allow_nonparallel_final = True
       else:
         intermediate = self._expr
-      return frame_base.DeferredFrame.wrap(
-          expressions.ComputedExpression(
-              'aggregate',
-              lambda s: s.agg(func, *args, **kwargs), [intermediate],
-              preserves_partition_by=partitionings.Singleton(),
-              requires_partition_by=partitionings.Singleton()))
+        allow_nonparallel_final = None  # i.e. don't change the value
+      with expressions.allow_non_parallel_operations(allow_nonparallel_final):
+        return frame_base.DeferredFrame.wrap(
+            expressions.ComputedExpression(
+                'aggregate',
+                lambda s: s.agg(func, *args, **kwargs), [intermediate],
+                preserves_partition_by=partitionings.Singleton(),
+                requires_partition_by=partitionings.Singleton()))
 
   agg = aggregate
 
@@ -206,23 +209,24 @@ class DeferredDataFrame(frame_base.DeferredFrame):
         aggregated_cols.append(self[col].agg(funcs, *args, **kwargs))
       # The final shape is different depending on whether any of the columns
       # were aggregated by a list of aggregators.
-      if any(isinstance(funcs, list) for funcs in func.values()):
-        return frame_base.DeferredFrame.wrap(
+      with expressions.allow_non_parallel_operations():
+        if any(isinstance(funcs, list) for funcs in func.values()):
+          return frame_base.DeferredFrame.wrap(
+              expressions.ComputedExpression(
+                  'join_aggregate',
+                  lambda *cols: pd.DataFrame(
+                      {col: value for col, value in zip(col_names, cols)}),
+                  [col._expr for col in aggregated_cols],
+                  requires_partition_by=partitionings.Singleton()))
+        else:
+          return frame_base.DeferredFrame.wrap(
             expressions.ComputedExpression(
                 'join_aggregate',
-                lambda *cols: pd.DataFrame(
-                    {col: value for col, value in zip(col_names, cols)}),
+                  lambda *cols: pd.Series(
+                      {col: value[0] for col, value in zip(col_names, cols)}),
                 [col._expr for col in aggregated_cols],
-                requires_partition_by=partitionings.Singleton()))
-      else:
-        return frame_base.DeferredFrame.wrap(
-          expressions.ComputedExpression(
-              'join_aggregate',
-                lambda *cols: pd.Series(
-                    {col: value[0] for col, value in zip(col_names, cols)}),
-              [col._expr for col in aggregated_cols],
-              requires_partition_by=partitionings.Singleton(),
-              proxy=self._expr.proxy().agg(func, *args, **kwargs)))
+                requires_partition_by=partitionings.Singleton(),
+                proxy=self._expr.proxy().agg(func, *args, **kwargs)))
 
   agg = aggregate
 
