@@ -64,7 +64,7 @@ class Expression(object):
     self._name = name
     self._proxy = proxy
     # Store for preservation through pickling.
-    self._id = _id or '%s_%s' % (name, id(self))
+    self._id = _id or '%s_%s_%s' % (name, type(proxy).__name__, id(self))
 
   def proxy(self):  # type: () -> T
     return self._proxy
@@ -255,9 +255,12 @@ def _get_allow_non_parallel():
 
 @contextlib.contextmanager
 def allow_non_parallel_operations(allow=True):
-  old_value, _ALLOW_NON_PARALLEL.value = _ALLOW_NON_PARALLEL.value, allow
-  yield
-  _ALLOW_NON_PARALLEL.value = old_value
+  if allow is None:
+    yield
+  else:
+    old_value, _ALLOW_NON_PARALLEL.value = _ALLOW_NON_PARALLEL.value, allow
+    yield
+    _ALLOW_NON_PARALLEL.value = old_value
 
 
 class NonParallelOperation(Exception):
