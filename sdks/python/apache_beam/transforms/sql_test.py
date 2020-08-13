@@ -30,11 +30,11 @@ from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import coders
-from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.sql import SqlTransform
+from apache_beam.utils.timestamp import Timestamp
 
 SimpleRow = typing.NamedTuple(
     "SimpleRow", [("id", int), ("str", unicode), ("flt", float)])
@@ -46,6 +46,10 @@ coders.registry.register_coder(Enrich, coders.RowCoder)
 Shopper = typing.NamedTuple(
     "Shopper", [("shopper", unicode), ("cart", typing.Mapping[unicode, int])])
 coders.registry.register_coder(Shopper, coders.RowCoder)
+
+TimestampWrapper = typing.NamedTuple(
+    "TimestampWrapper", [("timestamp", Timestamp)])
+coders.registry.register_coder(TimestampWrapper, coders.RowCoder)
 
 
 @attr('UsesSqlExpansionService')
@@ -190,6 +194,35 @@ class SqlTransformTest(unittest.TestCase):
           ]).with_output_types(Shopper)
           | SqlTransform("SELECT * FROM PCOLLECTION WHERE shopper = 'alice'"))
       assert_that(out, equal_to([('alice', {'apples': 2, 'bananas': 3})]))
+
+  def test_generate_timestamp(self):
+    with TestPipeline() as p:
+      out = (
+          p | SqlTransform(
+              "SELECT TIMESTAMP '2020-08-12 15:51:00.032' as `timestamp`"))
+      assert_that(
+          out,
+          equal_to([(Timestamp.from_rfc3339('2020-08-12T15:51:00.032Z'), )]))
+
+  def test_process_timestamp(self):
+    with TestPipeline() as p:
+      out = (
+          p | beam.Create([
+              '2020-08-12T15:51:00.032Z',
+              '1983-10-31T00:00:00.000Z',
+              '1970-01-01T00:00:00.001Z',
+          ])
+          | beam.Map(Timestamp.from_rfc3339)
+          # TODO: Why doesn't type inference work with Timestamp and beam.Row?
+          | beam.Map(lambda x: TimestampWrapper(timestamp=x)).with_output_types(
+              TimestampWrapper)
+          | SqlTransform(
+              """"
+            SELECT
+              YEAR(`timestamp`) AS `year`,
+              MONTH(`timestamp`) AS `month`
+            FROM PCOLLECTION"""))
+      assert_that(out, equal_to([(2020, 8), (1983, 10), (1970, 1)]))
 
 
 if __name__ == "__main__":
