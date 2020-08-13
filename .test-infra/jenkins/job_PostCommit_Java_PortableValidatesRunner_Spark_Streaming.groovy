@@ -21,23 +21,23 @@ import PostcommitJobBuilder
 
 // This job runs the suite of Java ValidatesRunner tests against the Spark runner in streaming mode.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Spark_Streaming',
-        'Run Java Spark PortableValidatesRunner Streaming', 'Java Spark PortableValidatesRunner Streaming Tests', this) {
-  description('Runs the Java PortableValidatesRunner suite on the Spark runner in streaming mode.')
+    'Run Java Spark PortableValidatesRunner Streaming', 'Java Spark PortableValidatesRunner Streaming Tests', this) {
+      description('Runs the Java PortableValidatesRunner suite on the Spark runner in streaming mode.')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  // Publish all test results to Jenkins
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
+      // Publish all test results to Jenkins
+      publishers {
+        archiveJunit('**/build/test-results/**/*.xml')
+      }
 
-  // Gradle goals for this job.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runners:spark:job-server:validatesPortableRunnerStreaming')
-      commonJobProperties.setGradleSwitches(delegate)
+      // Gradle goals for this job.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:spark:job-server:validatesPortableRunnerStreaming')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}

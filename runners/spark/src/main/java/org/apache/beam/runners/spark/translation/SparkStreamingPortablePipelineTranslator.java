@@ -21,7 +21,6 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
 
 import java.io.IOException;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -32,7 +31,6 @@ import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -69,7 +67,6 @@ import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -80,8 +77,6 @@ public class SparkStreamingPortablePipelineTranslator
 
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkStreamingPortablePipelineTranslator.class);
-
-  private static Instant firstTimestamp;
 
   private final ImmutableMap<String, PTransformTranslator> urnToTransformTranslator;
 
@@ -182,12 +177,11 @@ public class SparkStreamingPortablePipelineTranslator
         new UnboundedDataset<>(
             emptyStream, Collections.singletonList(emptyStream.inputDStream().id()));
 
-    if (firstTimestamp == null) firstTimestamp = new Instant();
     GlobalWatermarkHolder.SparkWatermarks sparkWatermark =
         new GlobalWatermarkHolder.SparkWatermarks(
             GlobalWindow.INSTANCE.maxTimestamp(),
             BoundedWindow.TIMESTAMP_MAX_VALUE,
-            firstTimestamp);
+            context.getFirstTimestamp());
     GlobalWatermarkHolder.add(output.getStreamSources().get(0), sparkWatermark);
 
     context.pushDataset(getOutputId(transformNode), output);
@@ -342,16 +336,17 @@ public class SparkStreamingPortablePipelineTranslator
       RunnerApi.Pipeline pipeline,
       SparkStreamingTranslationContext context) {
     String inputId = getInputId(transformNode);
-    UnboundedDataset<T> inputDataset =
-        (UnboundedDataset<T>) context.popDataset(inputId);
+    UnboundedDataset<T> inputDataset = (UnboundedDataset<T>) context.popDataset(inputId);
     List<Integer> streamSources = inputDataset.getStreamSources();
     JavaDStream<WindowedValue<T>> dStream = inputDataset.getDStream();
-    WindowedValue.WindowedValueCoder<T> coder = getWindowedValueCoder(inputId, pipeline.getComponents());
+    WindowedValue.WindowedValueCoder<T> coder =
+        getWindowedValueCoder(inputId, pipeline.getComponents());
 
     JavaDStream<WindowedValue<T>> reshuffledStream =
         dStream.transform(rdd -> GroupCombineFunctions.reshuffle(rdd, coder));
 
-    context.pushDataset(getOutputId(transformNode), new UnboundedDataset<>(reshuffledStream, streamSources));
+    context.pushDataset(
+        getOutputId(transformNode), new UnboundedDataset<>(reshuffledStream, streamSources));
   }
 
   private static String getInputId(PTransformNode transformNode) {

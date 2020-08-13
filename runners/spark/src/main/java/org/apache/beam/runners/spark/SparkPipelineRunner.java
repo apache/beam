@@ -41,9 +41,12 @@ import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.translation.*;
-import org.apache.beam.runners.spark.translation.streaming.Checkpoint;
-import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
+import org.apache.beam.runners.spark.translation.SparkBatchPortablePipelineTranslator;
+import org.apache.beam.runners.spark.translation.SparkContextFactory;
+import org.apache.beam.runners.spark.translation.SparkPortablePipelineTranslator;
+import org.apache.beam.runners.spark.translation.SparkStreamingPortablePipelineTranslator;
+import org.apache.beam.runners.spark.translation.SparkStreamingTranslationContext;
+import org.apache.beam.runners.spark.translation.SparkTranslationContext;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -137,7 +140,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
 
     if (isStreaming) {
-      final JavaStreamingContext jssc = ((SparkStreamingTranslationContext) context).getStreamingContext();
+      final JavaStreamingContext jssc =
+          ((SparkStreamingTranslationContext) context).getStreamingContext();
 
       jssc.addStreamingListener(
           new JavaStreamingListenerWrapper(
@@ -147,14 +151,16 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
               new MetricsAccumulator.AccumulatorCheckpointingSparkListener()));
 
       // register user-defined listeners.
-      for (JavaStreamingListener listener : pipelineOptions.as(SparkContextOptions.class).getListeners()) {
+      for (JavaStreamingListener listener :
+          pipelineOptions.as(SparkContextOptions.class).getListeners()) {
         LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
         jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
       }
 
       // register Watermarks listener to broadcast the advanced WMs.
       jssc.addStreamingListener(
-          new JavaStreamingListenerWrapper(new GlobalWatermarkHolder.WatermarkAdvancingStreamingListener()));
+          new JavaStreamingListenerWrapper(
+              new GlobalWatermarkHolder.WatermarkAdvancingStreamingListener()));
 
       jssc.checkpoint(pipelineOptions.getCheckpointDir());
 
@@ -181,11 +187,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
                 jssc.stop();
                 LOG.info(String.format("Job %s finished.", jobInfo.jobId()));
               });
-      result =
-          new SparkPipelineResult.PortableStreamingMode(
-              submissionFuture, jssc);
-    }
-    else {
+      result = new SparkPipelineResult.PortableStreamingMode(submissionFuture, jssc);
+    } else {
       final Future<?> submissionFuture =
           executorService.submit(
               () -> {

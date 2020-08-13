@@ -22,6 +22,7 @@ import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.joda.time.Instant;
 
 /**
  * Translation context used to lazily store Spark data sets during portable pipeline translation and
@@ -29,15 +30,21 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
  */
 public class SparkStreamingTranslationContext extends SparkTranslationContext {
   private final JavaStreamingContext streamingContext;
+  private final Instant firstTimestamp;
 
   public SparkStreamingTranslationContext(
       JavaSparkContext jsc, SparkPipelineOptions options, JobInfo jobInfo) {
     super(jsc, options, jobInfo);
     Duration batchDuration = new Duration(options.getBatchIntervalMillis());
     this.streamingContext = new JavaStreamingContext(jsc, batchDuration);
+    this.firstTimestamp = new Instant();
   }
 
   public JavaStreamingContext getStreamingContext() {
     return streamingContext;
+  }
+
+  public Instant getFirstTimestamp() {
+    return firstTimestamp;
   }
 }

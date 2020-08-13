@@ -32,7 +32,7 @@ public interface SparkPortablePipelineTranslator<T extends SparkTranslationConte
   Set<String> knownUrns();
 
   /** Translates the given pipeline. */
-  void translate(final RunnerApi.Pipeline pipeline, T context);
+  void translate(RunnerApi.Pipeline pipeline, T context);
 
   T createTranslationContext(JavaSparkContext jsc, SparkPipelineOptions options, JobInfo jobInfo);
 }
