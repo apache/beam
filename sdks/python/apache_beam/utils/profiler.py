@@ -50,11 +50,11 @@ class Profile(object):
   def __init__(
       self,
       profile_id, # type: str
-      profile_location=None, # type: str
+      profile_location=None, # type: Optional[str]
       log_results=False, # type: bool
-      file_copy_fn=None, # type: Callable
+      file_copy_fn=None, # type: Optional[Callable[[str, str], None]]
       time_prefix='%Y-%m-%d_%H_%M_%S-', # type: str
-      enable_cpu_profiling=True, # type: bool
+      enable_cpu_profiling=False, # type: bool
       enable_memory_profiling=False, # type: bool
   ):
     """Creates a Profile object.
