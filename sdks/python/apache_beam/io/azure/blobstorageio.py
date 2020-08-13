@@ -439,7 +439,7 @@ class BlobStorageIO(object):
 
     Args:
       paths: list of Azure Blob Storage paths in the form
-             azfs://<storage-account>/<container>/[name] that give the 
+             azfs://<storage-account>/<container>/[name] that give the
              file blobs to be deleted.
 
     Returns:
@@ -499,7 +499,7 @@ class BlobStorageIO(object):
 
     Args:
       paths: list of Azure Blob Storage paths in the form
-             azfs://<storage-account>/<container>/[name] that give the 
+             azfs://<storage-account>/<container>/[name] that give the
              file blobs to be deleted.
 
     Returns:
