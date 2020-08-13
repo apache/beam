@@ -254,7 +254,7 @@ public class JobInvocation {
     }
   }
 
-  static Boolean isTerminated(Enum state) {
+  public static Boolean isTerminated(Enum state) {
     switch (state) {
       case DONE:
       case FAILED:

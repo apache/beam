@@ -21,7 +21,6 @@ import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLV
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_TABLE_FUNCTION_STMT;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils.toZetaType;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -29,7 +28,6 @@ import com.google.zetasql.Analyzer;
 import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.Function;
 import com.google.zetasql.FunctionArgumentType;
-import com.google.zetasql.FunctionProtos.FunctionArgumentTypeOptionsProto;
 import com.google.zetasql.FunctionSignature;
 import com.google.zetasql.ParseResumeLocation;
 import com.google.zetasql.SimpleCatalog;
@@ -250,7 +248,7 @@ public class SqlAnalyzer {
     FunctionArgumentType descriptorType =
         new FunctionArgumentType(
             SignatureArgumentKind.ARG_TYPE_DESCRIPTOR,
-            FunctionArgumentTypeOptionsProto.newBuilder()
+            FunctionArgumentType.FunctionArgumentTypeOptions.builder()
                 .setDescriptorResolutionTableOffset(0)
                 .build(),
             1);
@@ -270,7 +268,9 @@ public class SqlAnalyzer {
                     TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
                 TVFRelation.Column.create(
                     TVFStreamingUtils.WINDOW_END,
-                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)))));
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP))),
+            null,
+            null));
 
     // HOP
     catalog.addTableValuedFunction(
@@ -286,7 +286,9 @@ public class SqlAnalyzer {
                     TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
                 TVFRelation.Column.create(
                     TVFStreamingUtils.WINDOW_END,
-                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)))));
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP))),
+            null,
+            null));
 
     // SESSION
     catalog.addTableValuedFunction(
@@ -302,7 +304,9 @@ public class SqlAnalyzer {
                     TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
                 TVFRelation.Column.create(
                     TVFStreamingUtils.WINDOW_END,
-                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)))));
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP))),
+            null,
+            null));
   }
 
   /**
@@ -340,7 +344,10 @@ public class SqlAnalyzer {
 
   private void addFieldsToTable(SimpleTableWithPath tableWithPath, RelDataType rowType) {
     for (RelDataTypeField field : rowType.getFieldList()) {
-      tableWithPath.getTable().addSimpleColumn(field.getName(), toZetaType(field.getType()));
+      tableWithPath
+          .getTable()
+          .addSimpleColumn(
+              field.getName(), ZetaSqlCalciteTranslationUtils.toZetaSqlType(field.getType()));
     }
   }
 

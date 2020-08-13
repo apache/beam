@@ -322,7 +322,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.24.0'
+    project.version = '2.25.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -416,6 +416,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def quickcheck_version = "0.8"
     def spark_version = "2.4.6"
     def spotbugs_version = "4.0.6"
+    def testcontainers_localstack_version = "1.14.3"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -564,6 +565,7 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
+        testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_localstack_version",
         vendored_bytebuddy_1_10_8                   : "org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1",
         vendored_grpc_1_26_0                        : "org.apache.beam:beam-vendor-grpc-1_26_0:0.3",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",

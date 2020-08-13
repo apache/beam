@@ -34,7 +34,7 @@ job('beam_sonarqube_report') {
   commonJobProperties.setAutoJob delegate
 
   publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
+    commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
   }
 
   steps {

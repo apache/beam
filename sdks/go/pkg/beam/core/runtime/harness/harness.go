@@ -347,6 +347,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			Response: &fnpb.InstructionResponse_ProcessBundleSplit{
 				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{
 					ChannelSplits: []*fnpb.ProcessBundleSplitResponse_ChannelSplit{{
+						TransformId:          plan.SourcePTransformID(),
 						LastPrimaryElement:   sr.PI,
 						FirstResidualElement: sr.RI,
 					}},

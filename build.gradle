@@ -178,6 +178,7 @@ task javaPostCommit() {
   dependsOn ":sdks:java:extensions:google-cloud-platform-core:postCommit"
   dependsOn ":sdks:java:extensions:zetasketch:postCommit"
   dependsOn ":sdks:java:io:google-cloud-platform:postCommit"
+  dependsOn ":sdks:java:io:kinesis:integrationTest"
 }
 
 task sqlPostCommit() {
@@ -344,7 +345,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 
   configurations { linkageCheckerJava }
   dependencies {
-    linkageCheckerJava "com.google.cloud.tools:dependencies:1.4.2"
+    linkageCheckerJava "com.google.cloud.tools:dependencies:1.5.0"
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the

@@ -18,13 +18,21 @@
 package org.apache.beam.sdk.expansion.service;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
-import java.io.ByteArrayOutputStream;
+import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.Nullable;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -34,24 +42,24 @@ import java.util.stream.Collectors;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Impulse;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
@@ -65,6 +73,17 @@ public class ExpansionServiceTest {
   private static final String TEST_NAMESPACE = "namespace";
 
   private ExpansionService expansionService = new ExpansionService();
+  public static final List<byte[]> BYTE_LIST =
+      ImmutableList.of("testing", "compound", "coders").stream()
+          .map(str -> str.getBytes(Charsets.UTF_8))
+          .collect(Collectors.toList());
+  public static final Map<String, Long> BYTE_KV_LIST =
+      ImmutableList.of("testing", "compound", "coders").stream()
+          .collect(Collectors.toMap((str) -> str, (str) -> (long) str.length()));
+  public static final Map<String, List<Long>> BYTE_KV_LIST_WITH_LIST_VALUE =
+      ImmutableList.of("testing", "compound", "coders").stream()
+          .collect(
+              Collectors.toMap(str -> str, str -> Collections.singletonList((long) str.length())));
 
   /** Registers a single test transformation. */
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
@@ -120,20 +139,15 @@ public class ExpansionServiceTest {
   @Test
   public void testConstructGenerateSequence() {
     ExternalTransforms.ExternalConfigurationPayload payload =
-        ExternalTransforms.ExternalConfigurationPayload.newBuilder()
-            .putConfiguration(
-                "start",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT))
-                    .setPayload(ByteString.copyFrom(new byte[] {0}))
-                    .build())
-            .putConfiguration(
-                "stop",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT))
-                    .setPayload(ByteString.copyFrom(new byte[] {1}))
-                    .build())
-            .build();
+        encodeRow(
+            Row.withSchema(
+                    Schema.of(
+                        Field.of("start", FieldType.INT64),
+                        Field.nullable("stop", FieldType.INT64)))
+                .withFieldValue("start", 0L)
+                .withFieldValue("stop", 1L)
+                .build());
+
     Pipeline p = Pipeline.create();
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     ExpansionApi.ExpansionRequest request =
@@ -157,92 +171,64 @@ public class ExpansionServiceTest {
   }
 
   @Test
-  public void testCompoundCodersForExternalConfiguration() throws Exception {
-    ExternalTransforms.ExternalConfigurationPayload.Builder builder =
-        ExternalTransforms.ExternalConfigurationPayload.newBuilder();
+  public void testCompoundCodersForExternalConfiguration_setters() throws Exception {
+    ExternalTransforms.ExternalConfigurationPayload externalConfig =
+        encodeRow(
+            Row.withSchema(
+                    Schema.of(
+                        Field.nullable("config_key1", FieldType.INT64),
+                        Field.nullable("config_key2", FieldType.iterable(FieldType.BYTES)),
+                        Field.of("config_key3", FieldType.map(FieldType.STRING, FieldType.INT64)),
+                        Field.of(
+                            "config_key4",
+                            FieldType.map(FieldType.STRING, FieldType.array(FieldType.INT64)))))
+                .withFieldValue("config_key1", 1L)
+                .withFieldValue("config_key2", BYTE_LIST)
+                .withFieldValue("config_key3", BYTE_KV_LIST)
+                .withFieldValue("config_key4", BYTE_KV_LIST_WITH_LIST_VALUE)
+                .build());
 
-    builder.putConfiguration(
-        "config_key1",
-        ExternalTransforms.ConfigValue.newBuilder()
-            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT))
-            .setPayload(ByteString.copyFrom(new byte[] {1}))
-            .build());
-
-    List<byte[]> byteList =
-        ImmutableList.of("testing", "compound", "coders").stream()
-            .map(str -> str.getBytes(Charsets.UTF_8))
-            .collect(Collectors.toList());
-    IterableCoder<byte[]> compoundCoder = IterableCoder.of(ByteArrayCoder.of());
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    compoundCoder.encode(byteList, baos);
-
-    builder.putConfiguration(
-        "config_key2",
-        ExternalTransforms.ConfigValue.newBuilder()
-            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.ITERABLE))
-            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.BYTES))
-            .setPayload(ByteString.copyFrom(baos.toByteArray()))
-            .build());
-
-    List<KV<byte[], Long>> byteKvList =
-        ImmutableList.of("testing", "compound", "coders").stream()
-            .map(str -> KV.of(str.getBytes(Charsets.UTF_8), (long) str.length()))
-            .collect(Collectors.toList());
-    IterableCoder<KV<byte[], Long>> compoundCoder2 =
-        IterableCoder.of(KvCoder.of(ByteArrayCoder.of(), VarLongCoder.of()));
-    ByteArrayOutputStream baos2 = new ByteArrayOutputStream();
-    compoundCoder2.encode(byteKvList, baos2);
-
-    builder.putConfiguration(
-        "config_key3",
-        ExternalTransforms.ConfigValue.newBuilder()
-            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.ITERABLE))
-            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.KV))
-            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.BYTES))
-            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT))
-            .setPayload(ByteString.copyFrom(baos2.toByteArray()))
-            .build());
-
-    List<KV<List<Long>, byte[]>> byteKvListWithListKey =
-        ImmutableList.of("testing", "compound", "coders").stream()
-            .map(
-                str ->
-                    KV.of(
-                        Collections.singletonList((long) str.length()),
-                        str.getBytes(Charsets.UTF_8)))
-            .collect(Collectors.toList());
-    Coder compoundCoder3 =
-        IterableCoder.of(KvCoder.of(IterableCoder.of(VarLongCoder.of()), ByteArrayCoder.of()));
-    ByteArrayOutputStream baos3 = new ByteArrayOutputStream();
-    compoundCoder3.encode(byteKvListWithListKey, baos3);
-
-    builder.putConfiguration(
-        "config_key4",
-        ExternalTransforms.ConfigValue.newBuilder()
-            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.ITERABLE))
-            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.KV))
-            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.ITERABLE))
-            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT))
-            .addCoderUrn(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.BYTES))
-            .setPayload(ByteString.copyFrom(baos3.toByteArray()))
-            .build());
-
-    ExternalTransforms.ExternalConfigurationPayload externalConfig = builder.build();
-    TestConfig config = new TestConfig();
-    ExpansionService.ExternalTransformRegistrarLoader.populateConfiguration(config, externalConfig);
+    TestConfigSetters config =
+        ExpansionService.ExternalTransformRegistrarLoader.payloadToConfig(
+            externalConfig, TestConfigSetters.class);
 
     assertThat(config.configKey1, Matchers.is(1L));
-    assertThat(config.configKey2, contains(byteList.toArray()));
-    assertThat(config.configKey3, contains(byteKvList.toArray()));
-    assertThat(config.configKey4, contains(byteKvListWithListKey.toArray()));
+    assertThat(config.configKey2, contains(BYTE_LIST.toArray()));
+    assertThat(config.configKey3, is(notNullValue()));
+    // no-op for checker framework
+    if (config.configKey3 != null) {
+      assertThat(
+          config.configKey3.entrySet(),
+          containsInAnyOrder(
+              BYTE_KV_LIST.entrySet().stream()
+                  .map(
+                      (entry) ->
+                          allOf(
+                              hasProperty("key", equalTo(entry.getKey())),
+                              hasProperty("value", equalTo(entry.getValue()))))
+                  .collect(Collectors.toList())));
+    }
+    assertThat(config.configKey4, is(notNullValue()));
+    // no-op for checker framework
+    if (config.configKey4 != null) {
+      assertThat(
+          config.configKey4.entrySet(),
+          containsInAnyOrder(
+              BYTE_KV_LIST_WITH_LIST_VALUE.entrySet().stream()
+                  .map(
+                      (entry) ->
+                          allOf(
+                              hasProperty("key", equalTo(entry.getKey())),
+                              hasProperty("value", equalTo(entry.getValue()))))
+                  .collect(Collectors.toList())));
+    }
   }
 
-  private static class TestConfig {
-
+  private static class TestConfigSetters {
     private @Nullable Long configKey1 = null;
     private @Nullable Iterable<byte[]> configKey2 = null;
-    private @Nullable Iterable<KV<byte[], Long>> configKey3 = null;
-    private @Nullable Iterable<KV<Iterable<Long>, byte[]>> configKey4 = null;
+    private @Nullable Map<byte[], Long> configKey3 = null;
+    private @Nullable Map<byte[], List<Long>> configKey4 = null;
 
     public void setConfigKey1(@Nullable Long configKey1) {
       this.configKey1 = configKey1;
@@ -252,13 +238,127 @@ public class ExpansionServiceTest {
       this.configKey2 = configKey2;
     }
 
-    public void setConfigKey3(@Nullable Iterable<KV<byte[], Long>> configKey3) {
+    public void setConfigKey3(@Nullable Map<byte[], Long> configKey3) {
       this.configKey3 = configKey3;
     }
 
-    public void setConfigKey4(@Nullable Iterable<KV<Iterable<Long>, byte[]>> configKey4) {
+    public void setConfigKey4(@Nullable Map<byte[], List<Long>> configKey4) {
       this.configKey4 = configKey4;
     }
+  }
+
+  @Test
+  public void testCompoundCodersForExternalConfiguration_schemas() throws Exception {
+    ExternalTransforms.ExternalConfigurationPayload externalConfig =
+        encodeRow(
+            Row.withSchema(
+                    Schema.of(
+                        Field.nullable("configKey1", FieldType.INT64),
+                        Field.nullable("configKey2", FieldType.iterable(FieldType.BYTES)),
+                        Field.of("configKey3", FieldType.map(FieldType.STRING, FieldType.INT64)),
+                        Field.of(
+                            "configKey4",
+                            FieldType.map(FieldType.STRING, FieldType.array(FieldType.INT64)))))
+                .withFieldValue("configKey1", 1L)
+                .withFieldValue("configKey2", BYTE_LIST)
+                .withFieldValue("configKey3", BYTE_KV_LIST)
+                .withFieldValue("configKey4", BYTE_KV_LIST_WITH_LIST_VALUE)
+                .build());
+    TestConfigSchema config =
+        ExpansionService.ExternalTransformRegistrarLoader.payloadToConfig(
+            externalConfig, TestConfigSchema.class);
+
+    assertThat(config.getConfigKey1(), Matchers.is(1L));
+    assertThat(config.getConfigKey2(), contains(BYTE_LIST.toArray()));
+    Map<String, Long> configKey3 = config.getConfigKey3();
+    assertThat(configKey3, is(notNullValue()));
+    // no-op for checker framework
+    if (configKey3 != null) {
+      assertThat(
+          configKey3.entrySet(),
+          containsInAnyOrder(
+              BYTE_KV_LIST.entrySet().stream()
+                  .map(
+                      (entry) ->
+                          allOf(
+                              hasProperty("key", equalTo(entry.getKey())),
+                              hasProperty("value", equalTo(entry.getValue()))))
+                  .collect(Collectors.toList())));
+    }
+    Map<String, List<Long>> configKey4 = config.getConfigKey4();
+    assertThat(configKey4, is(notNullValue()));
+    // no-op for checker framework
+    if (configKey4 != null) {
+      assertThat(
+          configKey4.entrySet(),
+          containsInAnyOrder(
+              BYTE_KV_LIST_WITH_LIST_VALUE.entrySet().stream()
+                  .map(
+                      (entry) ->
+                          allOf(
+                              hasProperty("key", equalTo(entry.getKey())),
+                              hasProperty("value", equalTo(entry.getValue()))))
+                  .collect(Collectors.toList())));
+    }
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class TestConfigSchema {
+    abstract @Nullable Long getConfigKey1();
+
+    abstract @Nullable Iterable<byte[]> getConfigKey2();
+
+    abstract @Nullable Map<String, Long> getConfigKey3();
+
+    abstract @Nullable Map<String, List<Long>> getConfigKey4();
+  }
+
+  @Test
+  public void testExternalConfiguration_simpleSchema() throws Exception {
+    ExternalTransforms.ExternalConfigurationPayload externalConfig =
+        encodeRow(
+            Row.withSchema(
+                    Schema.of(
+                        Field.of("bar", FieldType.STRING),
+                        Field.of("foo", FieldType.INT64),
+                        Field.of("list", FieldType.array(FieldType.STRING))))
+                .withFieldValue("foo", 1L)
+                .withFieldValue("bar", "test string")
+                .withFieldValue("list", ImmutableList.of("abc", "123"))
+                .build());
+
+    TestConfigSimpleSchema config =
+        ExpansionService.ExternalTransformRegistrarLoader.payloadToConfig(
+            externalConfig, TestConfigSimpleSchema.class);
+
+    assertThat(config.getFoo(), Matchers.is(1L));
+    assertThat(config.getBar(), Matchers.is("test string"));
+    assertThat(config.getList(), Matchers.is(ImmutableList.of("abc", "123")));
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class TestConfigSimpleSchema {
+    abstract Long getFoo();
+
+    abstract String getBar();
+
+    abstract List<String> getList();
+  }
+
+  private static ExternalTransforms.ExternalConfigurationPayload encodeRow(Row row) {
+    ByteString.Output outputStream = ByteString.newOutput();
+    try {
+      SchemaCoder.of(row.getSchema()).encode(row, outputStream);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    return ExternalTransforms.ExternalConfigurationPayload.newBuilder()
+        .setSchema(SchemaTranslation.schemaToProto(row.getSchema(), true))
+        .setPayload(outputStream.toByteString())
+        .build();
   }
 
   public Set<String> allIds(RunnerApi.Components components) {

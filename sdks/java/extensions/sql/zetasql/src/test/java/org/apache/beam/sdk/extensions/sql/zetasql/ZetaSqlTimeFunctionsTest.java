@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTime
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithTimeZone;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithUTCTimeZone;
 
-import com.google.zetasql.CivilTimeEncoder;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import java.time.LocalDate;
@@ -1049,12 +1048,10 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
   public void testDateTimeAddWithParameter() {
     String sql = "SELECT DATETIME_ADD(@p0, INTERVAL @p1 HOUR)";
 
-    LocalDateTime datetime = LocalDateTime.of(2008, 12, 25, 15, 30, 00).withNano(123456000);
+    LocalDateTime datetime = LocalDateTime.of(2008, 12, 25, 15, 30, 0).withNano(123456000);
     ImmutableMap<String, Value> params =
         ImmutableMap.of(
-            "p0",
-                Value.createDatetimeValue(
-                    CivilTimeEncoder.encodePacked64DatetimeSeconds(datetime), datetime.getNano()),
+            "p0", Value.createDatetimeValue(datetime),
             "p1", Value.createInt64Value(3L));
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -1065,7 +1062,7 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(
                     Schema.builder().addLogicalTypeField("f_datetime", SqlTypes.DATETIME).build())
-                .addValues(LocalDateTime.of(2008, 12, 25, 18, 30, 00).withNano(123456000))
+                .addValues(LocalDateTime.of(2008, 12, 25, 18, 30, 0).withNano(123456000))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

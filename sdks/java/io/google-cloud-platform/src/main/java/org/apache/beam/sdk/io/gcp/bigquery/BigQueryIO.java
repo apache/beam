@@ -984,8 +984,6 @@ public class BigQueryIO {
           // If the user provided a temp dataset, check if the dataset exists before launching the
           // query
           if (getQueryTempDataset() != null) {
-            Optional<String> queryTempDataset = Optional.ofNullable(getQueryTempDataset());
-
             // The temp table is only used for dataset and project id validation, not for table name
             // validation
             TableReference tempTable =
