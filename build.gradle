@@ -155,6 +155,7 @@ task javaPreCommit() {
   dependsOn ":sdks:java:extensions:sql:jdbc:preCommit"
   dependsOn ":sdks:java:javadoc:allJavadoc"
   dependsOn ":runners:direct-java:needsRunnerTests"
+  dependsOn ":runners:jet:validatesRunner"
   dependsOn ":sdks:java:container:docker"
 }
 
@@ -367,7 +368,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
         "${project.ext.mavenGroupId}:${it}:${project.version}"
       }
     }).join(',')]
-    
+
     // Exclusion file filters out existing linkage errors before a change
     if (project.hasProperty('javaLinkageWriteBaseline')) {
       arguments += ['--output-exclusion-file', project.getProperty('javaLinkageWriteBaseline')]
