@@ -270,7 +270,7 @@ public class StatefulParDoP<OutputT>
 
   private class KeyedStepContext implements StepContext {
 
-    private final Object NULL = new Object();
+    private final Object nullKey = new Object();
 
     private final ConcurrentHashMap<Object, InMemoryStateInternals> keyedStateInternals;
     private final ConcurrentHashMap<Object, InMemoryTimerInternals> keyedTimerInternals;
@@ -284,7 +284,7 @@ public class StatefulParDoP<OutputT>
     }
 
     void setKey(Object key) {
-      Object normalizedKey = key == null ? NULL : key;
+      Object normalizedKey = key == null ? nullKey : key;
       currentKey.set(normalizedKey);
       keyedStateInternals.computeIfAbsent(normalizedKey, InMemoryStateInternals::forKey);
       keyedTimerInternals.computeIfAbsent(normalizedKey, k -> new InMemoryTimerInternals());
