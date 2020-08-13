@@ -102,8 +102,9 @@ public class MetricTrackingWindmillServerStub {
         return false;
       }
       KeyAndComputation that = (KeyAndComputation) other;
-      return this.key.equals(that.key) && this.shardingKey == that.shardingKey && this.computation
-          .equals(that.computation);
+      return this.key.equals(that.key)
+          && this.shardingKey == that.shardingKey
+          && this.computation.equals(that.computation);
     }
 
     @Override
@@ -165,8 +166,9 @@ public class MetricTrackingWindmillServerStub {
 
         computationBuilder.addRequests(entry.request);
         pendingResponses.put(
-            new KeyAndComputation(entry.request.getKey(), entry.request.getShardingKey(),
-                entry.computation), entry.response);
+            new KeyAndComputation(
+                entry.request.getKey(), entry.request.getShardingKey(), entry.computation),
+            entry.response);
       } while (numReads++ < MAX_READS_PER_BATCH && (entry = readQueue.poll()) != null);
 
       // Build the full GetDataRequest from the KeyedGetDataRequests pulled from the queue.
@@ -184,7 +186,8 @@ public class MetricTrackingWindmillServerStub {
           pendingResponses
               .get(
                   new KeyAndComputation(
-                      keyResponse.getKey(), keyResponse.getShardingKey(),
+                      keyResponse.getKey(),
+                      keyResponse.getShardingKey(),
                       computationResponse.getComputationId()))
               .set(keyResponse);
         }
@@ -241,9 +244,7 @@ public class MetricTrackingWindmillServerStub {
     }
   }
 
-  /**
-   * Tells windmill processing is ongoing for the given keys.
-   */
+  /** Tells windmill processing is ongoing for the given keys. */
   public void refreshActiveWork(Map<String, List<KeyedGetDataRequest>> active) {
     activeHeartbeats.set(active.size());
     try {

@@ -38,9 +38,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link WindmillStateCache}.
- */
+/** Tests for {@link WindmillStateCache}. */
 @RunWith(JUnit4.class)
 public class WindmillStateCacheTest {
 
@@ -173,11 +171,6 @@ public class WindmillStateCacheTest {
         new TestState("t2"), keyCache.get(triggerNamespace(0, 0), new TestStateTag("tag2")));
   }
 
-<<<<<<< HEAD
-  /**
-   * Verifies that values are cached in the appropriate namespaces.
-   */
-=======
   /** Verifies that max weight is set */
   @Test
   public void testMaxWeight() throws Exception {
@@ -185,7 +178,6 @@ public class WindmillStateCacheTest {
   }
 
   /** Verifies that values are cached in the appropriate namespaces. */
->>>>>>> upstream/master
   @Test
   public void testInvalidation() throws Exception {
     keyCache = cache.forComputation(COMPUTATION).forKey(KEY, SHARDING_KEY, STATE_FAMILY, 0L, 1L);
@@ -203,9 +195,7 @@ public class WindmillStateCacheTest {
     assertEquals(0, cache.getWeight());
   }
 
-  /**
-   * Verifies that the cache is invalidated when the cache token changes.
-   */
+  /** Verifies that the cache is invalidated when the cache token changes. */
   @Test
   public void testEviction() throws Exception {
     keyCache = cache.forComputation(COMPUTATION).forKey(KEY, SHARDING_KEY, STATE_FAMILY, 0L, 1L);
@@ -219,9 +209,7 @@ public class WindmillStateCacheTest {
     assertNull(keyCache.get(triggerNamespace(0, 0), new TestStateTag("tag3")));
   }
 
-  /**
-   * Verifies that the cache does not vend for stale work tokens.
-   */
+  /** Verifies that the cache does not vend for stale work tokens. */
   @Test
   public void testStaleWorkItem() throws Exception {
     TestStateTag tag = new TestStateTag("tag2");
@@ -252,29 +240,30 @@ public class WindmillStateCacheTest {
     assertEquals(new TestState("w3"), keyCache.get(windowNamespace(0), tag));
   }
 
-  /**
-   * Verifies that caches are kept independently per-key.
-   */
+  /** Verifies that caches are kept independently per-key. */
   @Test
   public void testMultipleKeys() throws Exception {
     TestStateTag tag = new TestStateTag("tag1");
 
     WindmillStateCache.ForKey keyCache1 =
-        cache.forComputation("comp1")
+        cache
+            .forComputation("comp1")
             .forKey(ByteString.copyFromUtf8("key1"), SHARDING_KEY, STATE_FAMILY, 0L, 0L);
     WindmillStateCache.ForKey keyCache2 =
         cache
             .forComputation("comp1")
             .forKey(ByteString.copyFromUtf8("key2"), SHARDING_KEY, STATE_FAMILY, 0L, 10L);
     WindmillStateCache.ForKey keyCache3 =
-        cache.forComputation("comp2")
+        cache
+            .forComputation("comp2")
             .forKey(ByteString.copyFromUtf8("key1"), SHARDING_KEY, STATE_FAMILY, 0L, 0L);
 
     TestState state1 = new TestState("g1");
     keyCache1.put(StateNamespaces.global(), tag, state1, 2);
     assertNull(keyCache1.get(StateNamespaces.global(), tag));
     keyCache1 =
-        cache.forComputation("comp1")
+        cache
+            .forComputation("comp1")
             .forKey(ByteString.copyFromUtf8("key1"), SHARDING_KEY, STATE_FAMILY, 0L, 1L);
     assertEquals(state1, keyCache1.get(StateNamespaces.global(), tag));
     assertNull(keyCache2.get(StateNamespaces.global(), tag));
@@ -292,9 +281,7 @@ public class WindmillStateCacheTest {
     assertNull(keyCache3.get(StateNamespaces.global(), tag));
   }
 
-  /**
-   * Verifies that caches are kept independently per shard of key.
-   */
+  /** Verifies that caches are kept independently per shard of key. */
   @Test
   public void testMultipleShardsOfKey() throws Exception {
     TestStateTag tag = new TestStateTag("tag1");
@@ -302,23 +289,16 @@ public class WindmillStateCacheTest {
     ByteString key2 = ByteString.copyFromUtf8("key2");
 
     WindmillStateCache.ForKey key1CacheShard1 =
-        cache.forComputation(COMPUTATION)
-            .forKey(key1, 1, STATE_FAMILY, 0L, 0L);
+        cache.forComputation(COMPUTATION).forKey(key1, 1, STATE_FAMILY, 0L, 0L);
     WindmillStateCache.ForKey key1CacheShard2 =
-        cache
-            .forComputation(COMPUTATION)
-            .forKey(key1, 2, STATE_FAMILY, 0L, 0L);
+        cache.forComputation(COMPUTATION).forKey(key1, 2, STATE_FAMILY, 0L, 0L);
     WindmillStateCache.ForKey key2CacheShard1 =
-        cache
-            .forComputation(COMPUTATION)
-            .forKey(key2, 1, STATE_FAMILY, 0L, 0L);
+        cache.forComputation(COMPUTATION).forKey(key2, 1, STATE_FAMILY, 0L, 0L);
 
     TestState state1 = new TestState("g1");
     key1CacheShard1.put(StateNamespaces.global(), tag, state1, 2);
     assertNull(key1CacheShard1.get(StateNamespaces.global(), tag));
-    key1CacheShard1 =
-        cache.forComputation(COMPUTATION)
-            .forKey(key1, 1, STATE_FAMILY, 0L, 1L);
+    key1CacheShard1 = cache.forComputation(COMPUTATION).forKey(key1, 1, STATE_FAMILY, 0L, 1L);
     assertEquals(state1, key1CacheShard1.get(StateNamespaces.global(), tag));
     assertNull(key1CacheShard2.get(StateNamespaces.global(), tag));
     assertNull(key2CacheShard1.get(StateNamespaces.global(), tag));
@@ -326,31 +306,30 @@ public class WindmillStateCacheTest {
     TestState state2 = new TestState("g2");
     key1CacheShard2.put(StateNamespaces.global(), tag, state2, 2);
     assertNull(key1CacheShard2.get(StateNamespaces.global(), tag));
-    key1CacheShard2 =
-        cache
-            .forComputation(COMPUTATION)
-            .forKey(key1, 2, STATE_FAMILY, 0L, 20L);
+    key1CacheShard2 = cache.forComputation(COMPUTATION).forKey(key1, 2, STATE_FAMILY, 0L, 20L);
     assertEquals(state2, key1CacheShard2.get(StateNamespaces.global(), tag));
     assertEquals(state1, key1CacheShard1.get(StateNamespaces.global(), tag));
     assertNull(key2CacheShard1.get(StateNamespaces.global(), tag));
   }
 
-  /**
-   * Verifies explicit invalidation does indeed invalidate the correct entries.
-   */
+  /** Verifies explicit invalidation does indeed invalidate the correct entries. */
   @Test
   public void testExplicitInvalidation() throws Exception {
     WindmillStateCache.ForKey keyCache1 =
-        cache.forComputation("comp1")
+        cache
+            .forComputation("comp1")
             .forKey(ByteString.copyFromUtf8("key1"), 1, STATE_FAMILY, 0L, 0L);
     WindmillStateCache.ForKey keyCache2 =
-        cache.forComputation("comp1")
+        cache
+            .forComputation("comp1")
             .forKey(ByteString.copyFromUtf8("key2"), SHARDING_KEY, STATE_FAMILY, 0L, 0L);
     WindmillStateCache.ForKey keyCache3 =
-        cache.forComputation("comp2")
+        cache
+            .forComputation("comp2")
             .forKey(ByteString.copyFromUtf8("key1"), SHARDING_KEY, STATE_FAMILY, 0L, 0L);
     WindmillStateCache.ForKey keyCache4 =
-        cache.forComputation("comp1")
+        cache
+            .forComputation("comp1")
             .forKey(ByteString.copyFromUtf8("key1"), 2, STATE_FAMILY, 0L, 0L);
 
     keyCache1.put(StateNamespaces.global(), new TestStateTag("tag1"), new TestState("g1"), 1);
@@ -358,16 +337,20 @@ public class WindmillStateCacheTest {
     keyCache3.put(StateNamespaces.global(), new TestStateTag("tag3"), new TestState("g3"), 3);
     keyCache4.put(StateNamespaces.global(), new TestStateTag("tag4"), new TestState("g4"), 4);
     keyCache1 =
-        cache.forComputation("comp1")
+        cache
+            .forComputation("comp1")
             .forKey(ByteString.copyFromUtf8("key1"), 1, STATE_FAMILY, 0L, 1L);
     keyCache2 =
-        cache.forComputation("comp1")
+        cache
+            .forComputation("comp1")
             .forKey(ByteString.copyFromUtf8("key2"), SHARDING_KEY, STATE_FAMILY, 0L, 1L);
     keyCache3 =
-        cache.forComputation("comp2")
+        cache
+            .forComputation("comp2")
             .forKey(ByteString.copyFromUtf8("key1"), SHARDING_KEY, STATE_FAMILY, 0L, 1L);
     keyCache4 =
-        cache.forComputation("comp1")
+        cache
+            .forComputation("comp1")
             .forKey(ByteString.copyFromUtf8("key1"), 2, STATE_FAMILY, 0L, 1L);
     assertEquals(
         new TestState("g1"), keyCache1.get(StateNamespaces.global(), new TestStateTag("tag1")));
@@ -424,14 +407,16 @@ public class WindmillStateCacheTest {
   @Test
   public void testBadCoderEquality() throws Exception {
     WindmillStateCache.ForKey keyCache1 =
-        cache.forComputation("comp1")
+        cache
+            .forComputation("comp1")
             .forKey(ByteString.copyFromUtf8("key1"), SHARDING_KEY, STATE_FAMILY, 0L, 0L);
 
     StateTag<TestState> tag = new TestStateTagWithBadEquality("tag1");
     keyCache1.put(StateNamespaces.global(), tag, new TestState("g1"), 1);
 
     keyCache1 =
-        cache.forComputation("comp1")
+        cache
+            .forComputation("comp1")
             .forKey(ByteString.copyFromUtf8("key1"), SHARDING_KEY, STATE_FAMILY, 0L, 1L);
     assertEquals(new TestState("g1"), keyCache1.get(StateNamespaces.global(), tag));
     assertEquals(

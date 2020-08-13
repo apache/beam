@@ -164,9 +164,7 @@ import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Unit tests for {@link StreamingDataflowWorker}.
- */
+/** Unit tests for {@link StreamingDataflowWorker}. */
 @RunWith(Parameterized.class)
 public class StreamingDataflowWorkerTest {
 
@@ -174,7 +172,7 @@ public class StreamingDataflowWorkerTest {
 
   @Parameterized.Parameters(name = "{index}: [streamingEngine={0}]")
   public static Iterable<Object[]> data() {
-    return Arrays.asList(new Object[][]{{false}, {true}});
+    return Arrays.asList(new Object[][] {{false}, {true}});
   }
 
   public StreamingDataflowWorkerTest(Boolean streamingEngine) {
@@ -222,12 +220,9 @@ public class StreamingDataflowWorkerTest {
   private static final String DEFAULT_DATA_STRING = "data";
   private static final String DEFAULT_DESTINATION_STREAM_ID = "out";
 
-  @Rule
-  public BlockingFn blockingFn = new BlockingFn();
-  @Rule
-  public TestRule restoreMDC = new RestoreDataflowLoggingMDC();
-  @Rule
-  public ErrorCollector errorCollector = new ErrorCollector();
+  @Rule public BlockingFn blockingFn = new BlockingFn();
+  @Rule public TestRule restoreMDC = new RestoreDataflowLoggingMDC();
+  @Rule public ErrorCollector errorCollector = new ErrorCollector();
 
   WorkUnitClient mockWorkUnitClient = mock(WorkUnitClient.class);
   HotKeyLogger hotKeyLogger = mock(HotKeyLogger.class);
@@ -483,7 +478,9 @@ public class StreamingDataflowWorkerTest {
               builder.addDataBuilder().setComputationId(compRequest.getComputationId());
           for (KeyedGetDataRequest keyRequest : compRequest.getRequestsList()) {
             KeyedGetDataResponse.Builder keyBuilder =
-                compBuilder.addDataBuilder().setKey(keyRequest.getKey())
+                compBuilder
+                    .addDataBuilder()
+                    .setKey(keyRequest.getKey())
                     .setShardingKey(keyRequest.getShardingKey());
             keyBuilder.addAllValues(keyRequest.getValuesToFetchList());
             keyBuilder.addAllBags(keyRequest.getBagsToFetchList());
@@ -497,9 +494,8 @@ public class StreamingDataflowWorkerTest {
     return makeInput(index, timestamp, keyStringForIndex(index), DEFAULT_SHARDING_KEY);
   }
 
-  private Windmill.GetWorkResponse makeInput(int index, long timestamp, String key,
-      long shardingKey)
-      throws Exception {
+  private Windmill.GetWorkResponse makeInput(
+      int index, long timestamp, String key, long shardingKey) throws Exception {
     return buildInput(
         "work {"
             + "  computation_id: \""
@@ -546,9 +542,7 @@ public class StreamingDataflowWorkerTest {
     return builder;
   }
 
-  /**
-   * Sets the metadata of all the contained messages in this WorkItemCommitRequest.
-   */
+  /** Sets the metadata of all the contained messages in this WorkItemCommitRequest. */
   private WorkItemCommitRequest.Builder setMessagesMetadata(
       PaneInfo pane, byte[] windowBytes, WorkItemCommitRequest.Builder builder) throws Exception {
     if (windowBytes != null) {
@@ -560,9 +554,7 @@ public class StreamingDataflowWorkerTest {
     return builder;
   }
 
-  /**
-   * Reset value update timestamps to zero.
-   */
+  /** Reset value update timestamps to zero. */
   private WorkItemCommitRequest.Builder setValuesTimestamps(WorkItemCommitRequest.Builder builder) {
     for (int i = 0; i < builder.getValueUpdatesCount(); i++) {
       builder.getValueUpdatesBuilder(i).getValueBuilder().setTimestamp(0);
@@ -572,14 +564,14 @@ public class StreamingDataflowWorkerTest {
 
   private WorkItemCommitRequest.Builder makeExpectedOutput(int index, long timestamp)
       throws Exception {
-    return makeExpectedOutput(index, timestamp, keyStringForIndex(index), DEFAULT_SHARDING_KEY,
-        keyStringForIndex(index));
+    return makeExpectedOutput(
+        index, timestamp, keyStringForIndex(index), DEFAULT_SHARDING_KEY, keyStringForIndex(index));
   }
 
   private WorkItemCommitRequest.Builder makeExpectedOutput(
       int index, long timestamp, String key, long shardingKey, String outKey) throws Exception {
-    StringBuilder expectedCommitRequestBuilder = initializeExpectedCommitRequest(key, shardingKey,
-        index);
+    StringBuilder expectedCommitRequestBuilder =
+        initializeExpectedCommitRequest(key, shardingKey, index);
     appendCommitOutputMessages(expectedCommitRequestBuilder, index, timestamp, outKey);
 
     return setMessagesMetadata(
@@ -590,8 +582,8 @@ public class StreamingDataflowWorkerTest {
 
   private WorkItemCommitRequest.Builder makeExpectedTruncationRequestOutput(
       int index, String key, long shardingKey, long estimatedSize) throws Exception {
-    StringBuilder expectedCommitRequestBuilder = initializeExpectedCommitRequest(key, shardingKey,
-        index);
+    StringBuilder expectedCommitRequestBuilder =
+        initializeExpectedCommitRequest(key, shardingKey, index);
     appendCommitTruncationFields(expectedCommitRequestBuilder, estimatedSize);
 
     return parseCommitRequest(expectedCommitRequestBuilder.toString());
@@ -818,7 +810,10 @@ public class StreamingDataflowWorkerTest {
       server.addWorkToOffer(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
       // Also add work for a different shard of the same key.
       server.addWorkToOffer(
-          makeInput(i + 1000, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i),
+          makeInput(
+              i + 1000,
+              TimeUnit.MILLISECONDS.toMicros(i),
+              keyStringForIndex(i),
               DEFAULT_SHARDING_KEY + 1));
     }
 
@@ -830,7 +825,10 @@ public class StreamingDataflowWorkerTest {
       // Same work token.
       server.addWorkToOffer(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
       server.addWorkToOffer(
-          makeInput(i + 1000, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i),
+          makeInput(
+              i + 1000,
+              TimeUnit.MILLISECONDS.toMicros(i),
+              keyStringForIndex(i),
               DEFAULT_SHARDING_KEY + 1));
     }
 
@@ -840,7 +838,10 @@ public class StreamingDataflowWorkerTest {
     for (int i = 0; i < numIters; ++i) {
       // Different work token same keys.
       server.addWorkToOffer(
-          makeInput(i + numIters, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i),
+          makeInput(
+              i + numIters,
+              TimeUnit.MILLISECONDS.toMicros(i),
+              keyStringForIndex(i),
               DEFAULT_SHARDING_KEY));
     }
 
@@ -859,17 +860,21 @@ public class StreamingDataflowWorkerTest {
       assertTrue(result.containsKey((long) i + 1000));
       assertEquals(
           makeExpectedOutput(
-              i + 1000,
-              TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i), DEFAULT_SHARDING_KEY + 1,
-              keyStringForIndex(i))
+                  i + 1000,
+                  TimeUnit.MILLISECONDS.toMicros(i),
+                  keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY + 1,
+                  keyStringForIndex(i))
               .build(),
           result.get((long) i + 1000));
       assertTrue(result.containsKey((long) i + numIters));
       assertEquals(
           makeExpectedOutput(
-              i + numIters,
-              TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i), DEFAULT_SHARDING_KEY,
-              keyStringForIndex(i))
+                  i + numIters,
+                  TimeUnit.MILLISECONDS.toMicros(i),
+                  keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY,
+                  keyStringForIndex(i))
               .build(),
           result.get((long) i + numIters));
     }
@@ -877,7 +882,10 @@ public class StreamingDataflowWorkerTest {
     // Re-add the work, it should process due to the keys no longer being active.
     for (int i = 0; i < numIters; ++i) {
       server.addWorkToOffer(
-          makeInput(i + numIters * 2, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i),
+          makeInput(
+              i + numIters * 2,
+              TimeUnit.MILLISECONDS.toMicros(i),
+              keyStringForIndex(i),
               DEFAULT_SHARDING_KEY));
     }
     result = server.waitForAndGetCommits(numIters);
@@ -886,9 +894,11 @@ public class StreamingDataflowWorkerTest {
       assertTrue(result.containsKey((long) i + numIters * 2));
       assertEquals(
           makeExpectedOutput(
-              i + numIters * 2,
-              TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i), DEFAULT_SHARDING_KEY,
-              keyStringForIndex(i))
+                  i + numIters * 2,
+                  TimeUnit.MILLISECONDS.toMicros(i),
+                  keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY,
+                  keyStringForIndex(i))
               .build(),
           result.get((long) i + numIters * 2));
     }
@@ -977,7 +987,8 @@ public class StreamingDataflowWorkerTest {
 
     assertEquals(
         makeExpectedOutput(1, 0, DEFAULT_KEY_STRING, DEFAULT_SHARDING_KEY, DEFAULT_KEY_STRING)
-            .build(), result.get(1L));
+            .build(),
+        result.get(1L));
     assertEquals(1, result.size());
   }
 
@@ -1022,15 +1033,15 @@ public class StreamingDataflowWorkerTest {
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
     assertEquals(2, result.size());
-    assertEquals(makeExpectedOutput(2, 0, "key", DEFAULT_SHARDING_KEY, "key").build(),
-        result.get(2L));
+    assertEquals(
+        makeExpectedOutput(2, 0, "key", DEFAULT_SHARDING_KEY, "key").build(), result.get(2L));
 
     assertTrue(result.containsKey(1L));
     WorkItemCommitRequest largeCommit = result.get(1L);
     assertEquals("large_key", largeCommit.getKey().toStringUtf8());
     assertEquals(
         makeExpectedTruncationRequestOutput(
-            1, "large_key", DEFAULT_SHARDING_KEY, largeCommit.getEstimatedWorkItemCommitBytes())
+                1, "large_key", DEFAULT_SHARDING_KEY, largeCommit.getEstimatedWorkItemCommitBytes())
             .build(),
         largeCommit);
 
@@ -1075,7 +1086,7 @@ public class StreamingDataflowWorkerTest {
   public void testKeyChange() throws Exception {
     KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
-    List<ParallelInstruaction> instructions =
+    List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(kvCoder),
             makeDoFnInstruction(new ChangeKeysFn(), 0, kvCoder),
@@ -1084,10 +1095,13 @@ public class StreamingDataflowWorkerTest {
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
     for (int i = 0; i < 2; i++) {
       server.addWorkToOffer(
-          makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i),
-              DEFAULT_SHARDING_KEY));
+          makeInput(
+              i, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i), DEFAULT_SHARDING_KEY));
       server.addWorkToOffer(
-          makeInput(i + 1000, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i),
+          makeInput(
+              i + 1000,
+              TimeUnit.MILLISECONDS.toMicros(i),
+              keyStringForIndex(i),
               DEFAULT_SHARDING_KEY + i));
     }
 
@@ -1101,19 +1115,21 @@ public class StreamingDataflowWorkerTest {
       assertTrue(result.containsKey((long) i));
       assertEquals(
           makeExpectedOutput(
-              i,
-              TimeUnit.MILLISECONDS.toMicros(i),
-              keyStringForIndex(i), DEFAULT_SHARDING_KEY,
-              keyStringForIndex(i) + "_data" + i)
+                  i,
+                  TimeUnit.MILLISECONDS.toMicros(i),
+                  keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY,
+                  keyStringForIndex(i) + "_data" + i)
               .build(),
           result.get((long) i));
       assertTrue(result.containsKey((long) i + 1000));
       assertEquals(
           makeExpectedOutput(
-              i + 1000,
-              TimeUnit.MILLISECONDS.toMicros(i),
-              keyStringForIndex(i), DEFAULT_SHARDING_KEY + i,
-              keyStringForIndex(i) + "_data" + (i + 1000))
+                  i + 1000,
+                  TimeUnit.MILLISECONDS.toMicros(i),
+                  keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY + i,
+                  keyStringForIndex(i) + "_data" + (i + 1000))
               .build(),
           result.get((long) i + 1000));
     }
@@ -1245,7 +1261,7 @@ public class StreamingDataflowWorkerTest {
         PropertyNames.SERIALIZED_FN,
         StringUtils.byteArrayToJsonString(
             WindowingStrategyTranslation.toMessageProto(
-                WindowingStrategy.of(FixedWindows.of(gapDuration)), sdkComponents)
+                    WindowingStrategy.of(FixedWindows.of(gapDuration)), sdkComponents)
                 .toByteArray()));
 
     ParallelInstruction addWindowsInstruction =
@@ -1294,18 +1310,18 @@ public class StreamingDataflowWorkerTest {
         result.get((long) timestamp1),
         equalTo(
             setMessagesMetadata(
-                PaneInfo.NO_FIRING,
-                intervalWindowBytes(WINDOW_AT_ZERO),
-                makeExpectedOutput(timestamp1, timestamp1))
+                    PaneInfo.NO_FIRING,
+                    intervalWindowBytes(WINDOW_AT_ZERO),
+                    makeExpectedOutput(timestamp1, timestamp1))
                 .build()));
 
     assertThat(
         result.get((long) timestamp2),
         equalTo(
             setMessagesMetadata(
-                PaneInfo.NO_FIRING,
-                intervalWindowBytes(WINDOW_AT_ONE_SECOND),
-                makeExpectedOutput(timestamp2, timestamp2))
+                    PaneInfo.NO_FIRING,
+                    intervalWindowBytes(WINDOW_AT_ONE_SECOND),
+                    makeExpectedOutput(timestamp2, timestamp2))
                 .build()));
   }
 
@@ -1366,9 +1382,9 @@ public class StreamingDataflowWorkerTest {
         PropertyNames.SERIALIZED_FN,
         StringUtils.byteArrayToJsonString(
             WindowingStrategyTranslation.toMessageProto(
-                WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1)))
-                    .withTimestampCombiner(TimestampCombiner.EARLIEST),
-                sdkComponents)
+                    WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1)))
+                        .withTimestampCombiner(TimestampCombiner.EARLIEST),
+                    sdkComponents)
                 .toByteArray()));
     addObject(
         spec,
@@ -1456,19 +1472,19 @@ public class StreamingDataflowWorkerTest {
     // Encoded form for Iterable<String>: -1, true, 'data0', false
     ByteString outputData =
         ByteString.copyFrom(
-            new byte[]{
-                (byte) 0xff,
-                (byte) 0xff,
-                (byte) 0xff,
-                (byte) 0xff,
-                0x01,
-                0x05,
-                0x64,
-                0x61,
-                0x74,
-                0x61,
-                0x30,
-                0x00
+            new byte[] {
+              (byte) 0xff,
+              (byte) 0xff,
+              (byte) 0xff,
+              (byte) 0xff,
+              0x01,
+              0x05,
+              0x64,
+              0x61,
+              0x74,
+              0x61,
+              0x30,
+              0x00
             });
 
     // These values are not essential to the change detector test
@@ -1647,8 +1663,8 @@ public class StreamingDataflowWorkerTest {
     }
 
     GetWorkResponse response;
-    Timer[] expectedTimers = new Timer[]{};
-    WatermarkHold[] expectedHolds = new WatermarkHold[]{};
+    Timer[] expectedTimers = new Timer[] {};
+    WatermarkHold[] expectedHolds = new WatermarkHold[] {};
   }
 
   // Helper for running tests for merging sessions based upon Actions consisting of GetWorkResponse
@@ -1671,14 +1687,14 @@ public class StreamingDataflowWorkerTest {
         PropertyNames.SERIALIZED_FN,
         StringUtils.byteArrayToJsonString(
             WindowingStrategyTranslation.toMessageProto(
-                WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10)))
-                    .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
-                    .withTrigger(
-                        Repeatedly.forever(
-                            AfterWatermark.pastEndOfWindow()
-                                .withLateFirings(AfterPane.elementCountAtLeast(1))))
-                    .withAllowedLateness(Duration.standardMinutes(60)),
-                sdkComponents)
+                    WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10)))
+                        .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
+                        .withTrigger(
+                            Repeatedly.forever(
+                                AfterWatermark.pastEndOfWindow()
+                                    .withLateFirings(AfterPane.elementCountAtLeast(1))))
+                        .withAllowedLateness(Duration.standardMinutes(60)),
+                    sdkComponents)
                 .toByteArray()));
     addObject(
         spec,
@@ -1761,12 +1777,12 @@ public class StreamingDataflowWorkerTest {
                     buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 10),
                     buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 3600010)),
             new Action(
-                buildSessionInput(
-                    2,
-                    30,
-                    0,
-                    Collections.EMPTY_LIST,
-                    Arrays.asList(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 10))))
+                    buildSessionInput(
+                        2,
+                        30,
+                        0,
+                        Collections.EMPTY_LIST,
+                        Arrays.asList(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 10))))
                 .withTimers(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 3600010))
                 .withHolds(
                     buildHold("/gAAAAAAAAAsK/+uhold", -1, true),
@@ -1798,12 +1814,12 @@ public class StreamingDataflowWorkerTest {
                     buildHold("/gAAAAAAAAAsK/+uhold", 40, true),
                     buildHold("/gAAAAAAAAAsK/+uextra", 3600040, true)),
             new Action(
-                buildSessionInput(
-                    6,
-                    50,
-                    0,
-                    Collections.EMPTY_LIST,
-                    Arrays.asList(buildWatermarkTimer("/s/gAAAAAAAACko/+0", 40))))
+                    buildSessionInput(
+                        6,
+                        50,
+                        0,
+                        Collections.EMPTY_LIST,
+                        Arrays.asList(buildWatermarkTimer("/s/gAAAAAAAACko/+0", 40))))
                 .withTimers(buildWatermarkTimer("/s/gAAAAAAAACko/+0", 3600040))
                 .withHolds(
                     buildHold("/gAAAAAAAAAsK/+uhold", -1, true),
@@ -1855,7 +1871,7 @@ public class StreamingDataflowWorkerTest {
                 new ReadInstruction()
                     .setSource(
                         CustomSources.serializeToCloudSource(
-                            new TestCountingSource(numMessagesPerShard), options)
+                                new TestCountingSource(numMessagesPerShard), options)
                             .setCodec(codec)))
             .setOutputs(
                 Arrays.asList(
@@ -1906,33 +1922,33 @@ public class StreamingDataflowWorkerTest {
         commit,
         equalTo(
             setMessagesMetadata(
-                PaneInfo.NO_FIRING,
-                CoderUtils.encodeToByteArray(
-                    CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
-                    Arrays.asList(GlobalWindow.INSTANCE)),
-                parseCommitRequest(
-                    "key: \"0000000000000001\" "
-                        + "sharding_key: 1 "
-                        + "work_token: 1 "
-                        + "cache_token: 1 "
-                        + "source_backlog_bytes: 7 "
-                        + "output_messages {"
-                        + "  destination_stream_id: \"out\""
-                        + "  bundles {"
-                        + "    key: \"0000000000000001\""
-                        + "    messages {"
-                        + "      timestamp: 0"
-                        + "      data: \"0:0\""
-                        + "    }"
-                        + "    messages_ids: \"\""
-                        + "  }"
-                        + "} "
-                        + "source_state_updates {"
-                        + "  state: \"\000\""
-                        + "  finalize_ids: "
-                        + finalizeId
-                        + "} "
-                        + "source_watermark: 1000"))
+                    PaneInfo.NO_FIRING,
+                    CoderUtils.encodeToByteArray(
+                        CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
+                        Arrays.asList(GlobalWindow.INSTANCE)),
+                    parseCommitRequest(
+                        "key: \"0000000000000001\" "
+                            + "sharding_key: 1 "
+                            + "work_token: 1 "
+                            + "cache_token: 1 "
+                            + "source_backlog_bytes: 7 "
+                            + "output_messages {"
+                            + "  destination_stream_id: \"out\""
+                            + "  bundles {"
+                            + "    key: \"0000000000000001\""
+                            + "    messages {"
+                            + "      timestamp: 0"
+                            + "      data: \"0:0\""
+                            + "    }"
+                            + "    messages_ids: \"\""
+                            + "  }"
+                            + "} "
+                            + "source_state_updates {"
+                            + "  state: \"\000\""
+                            + "  finalize_ids: "
+                            + finalizeId
+                            + "} "
+                            + "source_watermark: 1000"))
                 .build()));
 
     assertEquals(
@@ -1968,17 +1984,17 @@ public class StreamingDataflowWorkerTest {
         commit,
         equalTo(
             parseCommitRequest(
-                "key: \"0000000000000001\" "
-                    + "sharding_key: 1 "
-                    + "work_token: 2 "
-                    + "cache_token: 1 "
-                    + "source_backlog_bytes: 7 "
-                    + "source_state_updates {"
-                    + "  state: \"\000\""
-                    + "  finalize_ids: "
-                    + finalizeId
-                    + "} "
-                    + "source_watermark: 1000")
+                    "key: \"0000000000000001\" "
+                        + "sharding_key: 1 "
+                        + "work_token: 2 "
+                        + "cache_token: 1 "
+                        + "source_backlog_bytes: 7 "
+                        + "source_state_updates {"
+                        + "  state: \"\000\""
+                        + "  finalize_ids: "
+                        + finalizeId
+                        + "} "
+                        + "source_watermark: 1000")
                 .build()));
 
     assertThat(finalizeTracker, contains(0));
@@ -2013,17 +2029,17 @@ public class StreamingDataflowWorkerTest {
         commit,
         equalTo(
             parseCommitRequest(
-                "key: \"0000000000000002\" "
-                    + "sharding_key: 2 "
-                    + "work_token: 3 "
-                    + "cache_token: 2 "
-                    + "source_backlog_bytes: 7 "
-                    + "source_state_updates {"
-                    + "  state: \"\000\""
-                    + "  finalize_ids: "
-                    + finalizeId
-                    + "} "
-                    + "source_watermark: 1000")
+                    "key: \"0000000000000002\" "
+                        + "sharding_key: 2 "
+                        + "work_token: 3 "
+                        + "cache_token: 2 "
+                        + "source_backlog_bytes: 7 "
+                        + "source_state_updates {"
+                        + "  state: \"\000\""
+                        + "  finalize_ids: "
+                        + finalizeId
+                        + "} "
+                        + "source_watermark: 1000")
                 .build()));
 
     assertEquals(null, getCounter(counters, "dataflow_input_size-computation"));
@@ -2067,33 +2083,33 @@ public class StreamingDataflowWorkerTest {
         commit,
         equalTo(
             setMessagesMetadata(
-                PaneInfo.NO_FIRING,
-                CoderUtils.encodeToByteArray(
-                    CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
-                    Arrays.asList(GlobalWindow.INSTANCE)),
-                parseCommitRequest(
-                    "key: \"0000000000000001\" "
-                        + "sharding_key: 1 "
-                        + "work_token: 2 "
-                        + "cache_token: 3 "
-                        + "source_backlog_bytes: 7 "
-                        + "output_messages {"
-                        + "  destination_stream_id: \"out\""
-                        + "  bundles {"
-                        + "    key: \"0000000000000001\""
-                        + "    messages {"
-                        + "      timestamp: 0"
-                        + "      data: \"0:0\""
-                        + "    }"
-                        + "    messages_ids: \"\""
-                        + "  }"
-                        + "} "
-                        + "source_state_updates {"
-                        + "  state: \"\000\""
-                        + "  finalize_ids: "
-                        + finalizeId
-                        + "} "
-                        + "source_watermark: 1000"))
+                    PaneInfo.NO_FIRING,
+                    CoderUtils.encodeToByteArray(
+                        CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
+                        Arrays.asList(GlobalWindow.INSTANCE)),
+                    parseCommitRequest(
+                        "key: \"0000000000000001\" "
+                            + "sharding_key: 1 "
+                            + "work_token: 2 "
+                            + "cache_token: 3 "
+                            + "source_backlog_bytes: 7 "
+                            + "output_messages {"
+                            + "  destination_stream_id: \"out\""
+                            + "  bundles {"
+                            + "    key: \"0000000000000001\""
+                            + "    messages {"
+                            + "      timestamp: 0"
+                            + "      data: \"0:0\""
+                            + "    }"
+                            + "    messages_ids: \"\""
+                            + "  }"
+                            + "} "
+                            + "source_state_updates {"
+                            + "  state: \"\000\""
+                            + "  finalize_ids: "
+                            + finalizeId
+                            + "} "
+                            + "source_watermark: 1000"))
                 .build()));
 
     // Test drain work item.
@@ -2124,13 +2140,13 @@ public class StreamingDataflowWorkerTest {
         commit,
         equalTo(
             parseCommitRequest(
-                "key: \"0000000000000001\" "
-                    + "sharding_key: 1 "
-                    + "work_token: 3 "
-                    + "cache_token: 3 "
-                    + "source_state_updates {"
-                    + "  only_finalize: true"
-                    + "} ")
+                    "key: \"0000000000000001\" "
+                        + "sharding_key: 1 "
+                        + "work_token: 3 "
+                        + "cache_token: 3 "
+                        + "source_state_updates {"
+                        + "  only_finalize: true"
+                        + "} ")
                 .build()));
 
     assertThat(finalizeTracker, contains(0));
@@ -2144,8 +2160,7 @@ public class StreamingDataflowWorkerTest {
     }
 
     @Override
-    public void run() {
-    }
+    public void run() {}
   }
 
   @Test
@@ -2361,7 +2376,7 @@ public class StreamingDataflowWorkerTest {
         if (i == 0 || i == 1) {
           state = ByteString.EMPTY;
         } else {
-          state = ByteString.copyFrom(new byte[]{42});
+          state = ByteString.copyFrom(new byte[] {42});
         }
         Windmill.GetDataResponse.Builder dataResponse = Windmill.GetDataResponse.newBuilder();
         dataResponse
@@ -2470,11 +2485,11 @@ public class StreamingDataflowWorkerTest {
             setValuesTimestamps(commit.toBuilder().clearOutputTimers()).build(),
             equalTo(
                 setMessagesMetadata(
-                    PaneInfo.NO_FIRING,
-                    CoderUtils.encodeToByteArray(
-                        CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
-                        ImmutableList.of(GlobalWindow.INSTANCE)),
-                    parseCommitRequest(sb.toString()))
+                        PaneInfo.NO_FIRING,
+                        CoderUtils.encodeToByteArray(
+                            CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
+                            ImmutableList.of(GlobalWindow.INSTANCE)),
+                        parseCommitRequest(sb.toString()))
                     .build()));
       }
     } finally {
@@ -2553,16 +2568,12 @@ public class StreamingDataflowWorkerTest {
     assertThat(server.numGetDataRequests(), greaterThan(0));
   }
 
-  /**
-   * For each input element, emits a large string.
-   */
+  /** For each input element, emits a large string. */
   private static class InflateDoFn extends DoFn<ValueWithRecordId<KV<Integer, Integer>>, String> {
 
     final int inflatedSize;
 
-    /**
-     * For each input elements, outputs a string of this length
-     */
+    /** For each input elements, outputs a string of this length */
     InflateDoFn(int inflatedSize) {
       this.inflatedSize = inflatedSize;
     }
@@ -2741,10 +2752,8 @@ public class StreamingDataflowWorkerTest {
     server.setDropStreamingCommits(true);
 
     // Add some work for key 1.
-    server
-        .addWorkToOffer(makeInput(10, TimeUnit.MILLISECONDS.toMicros(2), DEFAULT_KEY_STRING, 1));
-    server
-        .addWorkToOffer(makeInput(15, TimeUnit.MILLISECONDS.toMicros(3), DEFAULT_KEY_STRING, 5));
+    server.addWorkToOffer(makeInput(10, TimeUnit.MILLISECONDS.toMicros(2), DEFAULT_KEY_STRING, 1));
+    server.addWorkToOffer(makeInput(15, TimeUnit.MILLISECONDS.toMicros(3), DEFAULT_KEY_STRING, 5));
     server.waitForDroppedCommits(2);
     server.setDropStreamingCommits(false);
     // Enqueue another work item for key 1.
@@ -2755,8 +2764,9 @@ public class StreamingDataflowWorkerTest {
 
     assertTrue(result.containsKey(1L));
     assertEquals(
-        makeExpectedOutput(1, TimeUnit.MILLISECONDS.toMicros(1), DEFAULT_KEY_STRING, 1,
-            DEFAULT_KEY_STRING).build(),
+        makeExpectedOutput(
+                1, TimeUnit.MILLISECONDS.toMicros(1), DEFAULT_KEY_STRING, 1, DEFAULT_KEY_STRING)
+            .build(),
         result.get(1L));
   }
 }

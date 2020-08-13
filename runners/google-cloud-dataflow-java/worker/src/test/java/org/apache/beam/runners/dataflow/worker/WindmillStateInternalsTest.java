@@ -69,9 +69,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for {@link WindmillStateInternals}.
- */
+/** Tests for {@link WindmillStateInternals}. */
 @RunWith(JUnit4.class)
 public class WindmillStateInternalsTest {
 
@@ -85,21 +83,15 @@ public class WindmillStateInternalsTest {
       Sum.ofIntegers().getAccumulatorCoder(null, VarIntCoder.of());
   private long workToken = 0;
 
-<<<<<<< HEAD
-  @Mock
-  private WindmillStateReader mockReader;
-=======
   DataflowWorkerHarnessOptions options;
 
   @Mock private WindmillStateReader mockReader;
->>>>>>> upstream/master
 
   private WindmillStateInternals<String> underTest;
   private WindmillStateInternals<String> underTestNewKey;
   private WindmillStateCache cache;
 
-  @Mock
-  private Supplier<Closeable> readStateSupplier;
+  @Mock private Supplier<Closeable> readStateSupplier;
 
   private static ByteString key(StateNamespace namespace, String addrId) {
     return ByteString.copyFromUtf8(namespace.stringKey() + "+u" + addrId);
@@ -125,7 +117,8 @@ public class WindmillStateInternalsTest {
             STATE_FAMILY,
             mockReader,
             false,
-            cache.forComputation("comp")
+            cache
+                .forComputation("comp")
                 .forKey(ByteString.EMPTY, 123, STATE_FAMILY, 17L, workToken),
             readStateSupplier);
     underTestNewKey =
@@ -134,7 +127,8 @@ public class WindmillStateInternalsTest {
             STATE_FAMILY,
             mockReader,
             true,
-            cache.forComputation("comp")
+            cache
+                .forComputation("comp")
                 .forKey(ByteString.EMPTY, 123, STATE_FAMILY, 17L, workToken),
             readStateSupplier);
   }
@@ -148,14 +142,14 @@ public class WindmillStateInternalsTest {
 
   private <T> void waitAndSet(final SettableFuture<T> future, final T value, final long millis) {
     new Thread(
-        () -> {
-          try {
-            sleepMillis(millis);
-          } catch (InterruptedException e) {
-            throw new RuntimeException("Interrupted before setting", e);
-          }
-          future.set(value);
-        })
+            () -> {
+              try {
+                sleepMillis(millis);
+              } catch (InterruptedException e) {
+                throw new RuntimeException("Interrupted before setting", e);
+              }
+              future.set(value);
+            })
         .run();
   }
 
@@ -330,11 +324,11 @@ public class WindmillStateInternalsTest {
 
     value.add(5);
     value.add(6);
-    waitAndSet(future, Arrays.asList(new int[]{8}, new int[]{10}), 200);
+    waitAndSet(future, Arrays.asList(new int[] {8}, new int[] {10}), 200);
     assertThat(value.read(), Matchers.equalTo(29));
 
     // That get "compressed" the combiner. So, the underlying future should change:
-    future.set(Arrays.asList(new int[]{29}));
+    future.set(Arrays.asList(new int[] {29}));
 
     value.add(2);
     assertThat(value.read(), Matchers.equalTo(31));
@@ -378,7 +372,7 @@ public class WindmillStateInternalsTest {
         .bagFuture(byteString.capture(), eq(STATE_FAMILY), Mockito.<Coder<int[]>>any());
     assertThat(byteString.getValue(), byteStringEq(COMBINING_KEY));
 
-    waitAndSet(future, Arrays.asList(new int[]{29}), 200);
+    waitAndSet(future, Arrays.asList(new int[] {29}), 200);
     assertThat(result.read(), Matchers.is(false));
   }
 
@@ -424,13 +418,13 @@ public class WindmillStateInternalsTest {
     forceCompactOnWrite();
 
     Mockito.when(
-        mockReader.bagFuture(
-            org.mockito.Matchers.<ByteString>any(),
-            org.mockito.Matchers.<String>any(),
-            org.mockito.Matchers.<Coder<int[]>>any()))
+            mockReader.bagFuture(
+                org.mockito.Matchers.<ByteString>any(),
+                org.mockito.Matchers.<String>any(),
+                org.mockito.Matchers.<Coder<int[]>>any()))
         .thenReturn(
             Futures.<Iterable<int[]>>immediateFuture(
-                ImmutableList.of(new int[]{40}, new int[]{60})));
+                ImmutableList.of(new int[] {40}, new int[] {60})));
 
     GroupingState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
 
@@ -999,7 +993,7 @@ public class WindmillStateInternalsTest {
 
     SettableFuture<Iterable<int[]>> future = SettableFuture.create();
     when(mockReader.bagFuture(
-        eq(key(NAMESPACE, "combining")), eq(STATE_FAMILY), Mockito.<Coder<int[]>>any()))
+            eq(key(NAMESPACE, "combining")), eq(STATE_FAMILY), Mockito.<Coder<int[]>>any()))
         .thenReturn(future);
 
     assertEquals(0, cache.getWeight());
@@ -1007,7 +1001,7 @@ public class WindmillStateInternalsTest {
     value.readLater();
 
     value.add(1);
-    waitAndSet(future, Arrays.asList(new int[]{2}), 200);
+    waitAndSet(future, Arrays.asList(new int[] {2}), 200);
     assertThat(value.read(), Matchers.equalTo(3));
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
