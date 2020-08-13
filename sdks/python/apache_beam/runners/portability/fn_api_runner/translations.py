@@ -748,9 +748,22 @@ def pack_combiners(stages, context):
   # Group stages by parent, yielding ineligible stages.
   combine_stages_by_input_pcoll_id = collections.defaultdict(list)
   for stage in stages:
-    transform = only_transform(stage.transforms)
-    if transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn and len(
-        transform.inputs) == 1 and len(transform.outputs) == 1:
+    is_packable_combine = False
+
+    if (len(stage.transforms) == 1 and 
+        stage.environment is not None and
+        python_urns.PACKED_COMBINE_FN in
+        context.components.environments[stage.environment].capabilities):
+      transform = only_transform(stage.transforms)
+      if (transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn and
+          len(transform.inputs) == 1 and
+          len(transform.outputs) == 1):
+        combine_payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.CombinePayload)
+        if combine_payload.combine_fn.urn == python_urns.PICKLED_COMBINE_FN:
+          is_packable_combine = True
+
+    if is_packable_combine:
       input_pcoll_id = only_element(transform.inputs.values())
       combine_stages_by_input_pcoll_id[input_pcoll_id].append(stage)
     else:
@@ -758,9 +771,16 @@ def pack_combiners(stages, context):
 
   for input_pcoll_id, packable_stages in combine_stages_by_input_pcoll_id.items(
   ):
-    # Yield stage and continue if it has no siblings.
-    if len(packable_stages) == 1:
-      yield packable_stages[0]
+    try:
+      if not len(packable_stages) > 1:
+        raise ValueError('Only one stage in this group: Skipping stage packing')
+      # Fused stage is used as template and is not yielded.
+      fused_stage = functools.reduce(_try_fuse_stages, packable_stages)
+    except ValueError:
+      # Skip packing stages in this group.
+      # Yield the stages unmodified, and then continue to the next group.
+      for stage in packable_stages:
+        yield stage
       continue
 
     transforms = [only_transform(stage.transforms) for stage in packable_stages]
@@ -769,23 +789,6 @@ def pack_combiners(stages, context):
                                 beam_runner_api_pb2.CombinePayload)
         for transform in transforms
     ]
-
-    # Yield stages and continue if they cannot be packed.
-    try:
-      # Fused stage is used as template and is not yielded.
-      fused_stage = functools.reduce(_try_fuse_stages, packable_stages)
-      merged_transform_environment_id = functools.reduce(
-          Stage._merge_environments,
-          [transform.environment_id or None for transform in transforms])
-      # Combiner packing only supports Python CombineFns.
-      for combine_payload in combine_payloads:
-        if combine_payload.combine_fn.urn != python_urns.PICKLED_COMBINE_FN:
-          raise ValueError('Combiner packing only supports Python CombineFns')
-    except ValueError:
-      for stage in packable_stages:
-        yield stage
-      continue
-
     output_pcoll_ids = [
         only_element(transform.outputs.values()) for transform in transforms
     ]
@@ -850,7 +853,7 @@ def pack_combiners(stages, context):
             .SerializeToString()),
         inputs={'in': input_pcoll_id},
         outputs={'out': pack_pcoll_id},
-        environment_id=merged_transform_environment_id)
+        environment_id=fused_stage.environment)
     pack_stage = Stage(
         pack_combine_name + '/Pack', [pack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
@@ -872,7 +875,7 @@ def pack_combiners(stages, context):
                     payload=pickled_do_fn_data)).SerializeToString()),
         inputs={'in': pack_pcoll_id},
         outputs=dict(zip(tags, output_pcoll_ids)),
-        environment_id=merged_transform_environment_id)
+        environment_id=fused_stage.environment)
     unpack_stage = Stage(
         pack_combine_name + '/Unpack', [unpack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,

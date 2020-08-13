@@ -33,6 +33,8 @@ IMPULSE_READ_TRANSFORM = "beam:transform:read_from_impulse_python:v1"
 
 GENERIC_COMPOSITE_TRANSFORM = "beam:transform:generic_composite:v1"
 
+PACKED_COMBINE_FN = "beam:combinefn:packed_python:v1"
+
 # Invoke UserFns in process, via direct function calls.
 # Payload: None.
 EMBEDDED_PYTHON = "beam:env:embedded_python:v1"

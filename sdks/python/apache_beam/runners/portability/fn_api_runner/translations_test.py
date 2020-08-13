@@ -22,11 +22,12 @@ import logging
 import unittest
 
 import apache_beam as beam
+from apache_beam.options import pipeline_options
 from apache_beam.portability import common_urns
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.transforms import combiners
+from apache_beam.transforms import environments
 from apache_beam.transforms.core import Create
-
 
 class TranslationsTest(unittest.TestCase):
 
@@ -37,7 +38,9 @@ class TranslationsTest(unittest.TestCase):
     _ = pcoll | 'mean-perkey' >> combiners.Mean.PerKey()
     _ = pcoll | 'count-perkey' >> combiners.Count.PerKey()
 
-    pipeline_proto = pipeline.to_runner_api()
+    environment = environments.DockerEnvironment.from_options(
+        pipeline_options.PortableOptions(sdk_location='container'))
+    pipeline_proto = pipeline.to_runner_api(default_environment=environment)
     _, stages = translations.create_and_optimize_stages(
         pipeline_proto, [translations.pack_combiners],
         known_runner_urns=frozenset())
@@ -48,6 +51,28 @@ class TranslationsTest(unittest.TestCase):
           combine_per_key_stages.append(stage)
     self.assertEqual(len(combine_per_key_stages), 1)
     self.assertIn('/Pack', combine_per_key_stages[0].name)
+
+  def test_pack_combiners_with_missing_environment_capability(self):
+    pipeline = beam.Pipeline()
+    vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
+    pcoll = pipeline | 'start-perkey' >> Create([('a', x) for x in vals])
+    _ = pcoll | 'mean-perkey' >> combiners.Mean.PerKey()
+    _ = pcoll | 'count-perkey' >> combiners.Count.PerKey()
+
+    environment = environments.DockerEnvironment(capabilities=())
+    pipeline_proto = pipeline.to_runner_api(default_environment=environment)
+    _, stages = translations.create_and_optimize_stages(
+        pipeline_proto, [translations.pack_combiners],
+        known_runner_urns=frozenset())
+    combine_per_key_stages = []
+    for stage in stages:
+      for transform in stage.transforms:
+        if transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn:
+          combine_per_key_stages.append(stage)
+    # Combiner packing should be skipped because the environment is missing
+    # the beam:combinefn:packed_python:v1 capability.
+    self.assertEqual(len(combine_per_key_stages), 2)
+    self.assertNotIn('/Pack', combine_per_key_stages[0].name)
 
 
 if __name__ == '__main__':
