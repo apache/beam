@@ -307,28 +307,38 @@ public class SparkStreamingPortablePipelineTranslator
       RunnerApi.Pipeline pipeline,
       SparkStreamingTranslationContext context) {
     Map<String, String> inputsMap = transformNode.getTransform().getInputsMap();
-    final List<JavaDStream<WindowedValue<T>>> dStreams = new ArrayList<>();
-    final List<Integer> streamingSources = new ArrayList<>();
-    for (String inputId : inputsMap.values()) {
-      Dataset dataset = context.popDataset(inputId);
-      if (dataset instanceof UnboundedDataset) {
-        UnboundedDataset<T> unboundedDataset = (UnboundedDataset<T>) dataset;
-        streamingSources.addAll(unboundedDataset.getStreamSources());
-        dStreams.add(unboundedDataset.getDStream());
-      } else {
-        // create a single RDD stream.
-        Queue<JavaRDD<WindowedValue<T>>> q = new LinkedBlockingQueue<>();
-        q.offer(((BoundedDataset) dataset).getRDD());
-        // TODO: this is not recoverable from checkpoint!
-        JavaDStream<WindowedValue<T>> dStream = context.getStreamingContext().queueStream(q);
-        dStreams.add(dStream);
-      }
+    JavaDStream<WindowedValue<T>> unifiedStreams;
+    final List<Integer> streamSources = new ArrayList<>();
+
+    if (inputsMap.isEmpty()) {
+      Queue<JavaRDD<WindowedValue<T>>> q = new LinkedBlockingQueue<>();
+      q.offer(context.getSparkContext().emptyRDD());
+      unifiedStreams = context.getStreamingContext().queueStream(q);
     }
-    // Unify streams into a single stream.
-    JavaDStream<WindowedValue<T>> unifiedStreams =
-        SparkCompat.joinStreams(context.getStreamingContext(), dStreams);
+    else {
+      final List<JavaDStream<WindowedValue<T>>> dStreams = new ArrayList<>();
+      for (String inputId : inputsMap.values()) {
+        Dataset dataset = context.popDataset(inputId);
+        if (dataset instanceof UnboundedDataset) {
+          UnboundedDataset<T> unboundedDataset = (UnboundedDataset<T>) dataset;
+          streamSources.addAll(unboundedDataset.getStreamSources());
+          dStreams.add(unboundedDataset.getDStream());
+        } else {
+          // create a single RDD stream.
+          Queue<JavaRDD<WindowedValue<T>>> q = new LinkedBlockingQueue<>();
+          q.offer(((BoundedDataset) dataset).getRDD());
+          // TODO: this is not recoverable from checkpoint!
+          JavaDStream<WindowedValue<T>> dStream = context.getStreamingContext().queueStream(q);
+          dStreams.add(dStream);
+        }
+      }
+      // Unify streams into a single stream.
+      unifiedStreams =
+          SparkCompat.joinStreams(context.getStreamingContext(), dStreams);
+    }
+
     context.pushDataset(
-        getOutputId(transformNode), new UnboundedDataset<>(unifiedStreams, streamingSources));
+        getOutputId(transformNode), new UnboundedDataset<>(unifiedStreams, streamSources));
   }
 
   private static <T> void translateReshuffle(
