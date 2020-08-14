@@ -368,7 +368,7 @@ func TestSchemaConversion(t *testing.T) {
 				}
 				if d := cmp.Diff(test.st, got,
 					protocmp.Transform(),
-					protocmp.IgnoreFields(proto.MessageV2(&pipepb.Schema{}), "id", "options"),
+					protocmp.IgnoreFields(proto.MessageV2(&pipepb.Schema{}), "id"),
 				); d != "" {
 					t.Errorf("diff (-want, +got): %v", d)
 				}
