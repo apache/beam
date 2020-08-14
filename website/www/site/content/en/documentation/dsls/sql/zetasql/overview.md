@@ -23,7 +23,7 @@ Beam SQL has additional extensions leveraging Beam’s unified batch/streaming m
 ## Query syntax
 Query statements scan tables or expressions and return the computed result rows. For more information about query statements in Beam ZetaSQL, see the [Query syntax](/documentation/dsls/sql/zetasql/query-syntax) reference and [Function call rules](/documentation/dsls/sql/zetasql/syntax).
 
-## Lexical structure 
+## Lexical structure
 A Beam SQL statement comprises a series of tokens. For more information about tokens in Beam ZetaSQL, see the [Lexical structure](/documentation/dsls/sql/zetasql/lexical) reference.
 
 ## Data types
@@ -37,7 +37,7 @@ The following table summarizes the [ZetaSQL functions and operators](https://git
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/aggregate_functions.md">Aggregate functions</a></td><td>See Beam SQL <a href="/documentation/dsls/sql/zetasql/aggregate-functions">aggregate functions</a></td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/statistical_aggregate_functions.md">Statistical aggregate functions</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/approximate_aggregate_functions.md">Approximate aggregate functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/hll_functions.md">HyperLogLog++ functions</a></td><td>No</td></tr>  
+  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/hll_functions.md">HyperLogLog++ functions</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/functions-and-operators.md#kll16-quantile-functions">KLL16 quantile functions</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/numbering_functions.md">Numbering functions</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/bit_functions.md">Bit functions</a></td><td>No</td></tr>
@@ -46,7 +46,7 @@ The following table summarizes the [ZetaSQL functions and operators](https://git
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/aggregate_analytic_functions.md">Aggregate analytic functions</a></td><td>See <a href="/documentation/dsls/sql/zetasql/aggregate-functions">aggregate functions</a></td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/hash_functions.md">Hash functions</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/string_functions.md">String functions</a></td><td>See <a href="/documentation/dsls/sql/zetasql/string-functions">string functions</a></td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/json_functions.md">JSON functions</a></td><td>No</td></tr> 
+  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/json_functions.md">JSON functions</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/array_functions.md">Array functions</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/date_functions.md">Date functions</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/datetime_functions.md">DateTime functions</a></td><td>No</td></tr>

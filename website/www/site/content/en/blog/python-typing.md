@@ -3,8 +3,8 @@ layout: post
 title:  "Python SDK Typing Changes"
 date:   2020-05-28 00:00:01 -0800
 categories:
-  - blog 
-  - python 
+  - blog
+  - python
   - typing
 authors:
   - chadrik
@@ -42,31 +42,31 @@ Running mypy on the above code will give the error:
 
 We've recently made changes to Beam in 2 areas:
 
-Adding type annotations throughout Beam.  Type annotations make a large and 
-sophisticated codebase like Beam easier to comprehend and navigate in your 
+Adding type annotations throughout Beam.  Type annotations make a large and
+sophisticated codebase like Beam easier to comprehend and navigate in your
 favorite IDE.
 
 Second, we've added support for Python 3 type annotations. This allows SDK
-users to specify a DoFn's type hints in one place. 
+users to specify a DoFn's type hints in one place.
 We've also expanded Beam's support of `typing` module types.
 
-For more background see: 
+For more background see:
 [Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety/).
 
 # Beam Is Typed
 
 In tandem with the new type annotation support within DoFns, we've invested a
 great deal of time adding type annotations to the Beam python code itself.
-With this in place, we have begun using mypy, a static type 
-checker, as part of Beam's code review process, which ensures higher quality 
+With this in place, we have begun using mypy, a static type
+checker, as part of Beam's code review process, which ensures higher quality
 contributions and fewer bugs.
-The added context and insight that type annotations add throughout Beam is 
+The added context and insight that type annotations add throughout Beam is
 useful for all Beam developers, contributors and end users alike, but
 it is especially beneficial for developers who are new to the project.
 If you use an IDE that understands type annotations, it will provide richer
 type completions and warnings than before.
-You'll also be able to use your IDE to inspect the types of Beam functions and 
-transforms to better understand how they work, which will ease your own 
+You'll also be able to use your IDE to inspect the types of Beam functions and
+transforms to better understand how they work, which will ease your own
 development.
 Finally, once Beam is fully annotated, end users will be able to benefit from
 the use of static type analysis on their own pipelines and custom transforms.
@@ -102,9 +102,9 @@ place to disable it:
 1. Calling `apache_beam.typehints.disable_type_annotations()` before pipeline
 construction will disable the new feature completely.
 1. Decorating a function with `@apache_beam.typehints.no_annotations` will
-tell Beam to ignore annotations for it. 
- 
-Uses of Beam's `with_input_type`, `with_output_type` methods and decorators will 
+tell Beam to ignore annotations for it.
+
+Uses of Beam's `with_input_type`, `with_output_type` methods and decorators will
 still work and take precedence over annotations.
 
 ### Sidebar
@@ -131,6 +131,6 @@ native typing types. Native types have  as these are supported by additional too
 
 While working on Python 3 annotations syntax support, we've also discovered and
 fixed issues with native type support. There may still be bugs and unsupported
-native types. Please 
+native types. Please
 [let us know](https://beam.apache.org/community/contact-us/) if you encounter
-issues. 
+issues.

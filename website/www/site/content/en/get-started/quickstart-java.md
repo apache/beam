@@ -81,24 +81,24 @@ PS> cd .\word-count-beam
 
 PS> dir
 
-... 
- 
-Mode                LastWriteTime         Length Name                                                        
-----                -------------         ------ ----                                                        
-d-----        7/19/2018  11:00 PM                src                                                         
+...
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+d-----        7/19/2018  11:00 PM                src
 -a----        7/19/2018  11:00 PM          16051 pom.xml
 
 PS> dir .\src\main\java\org\apache\beam\examples
 
 ...
-Mode                LastWriteTime         Length Name                                                        
-----                -------------         ------ ----                                                        
-d-----        7/19/2018  11:00 PM                common                                                      
-d-----        7/19/2018  11:00 PM                complete                                                    
-d-----        7/19/2018  11:00 PM                subprocess                                                  
--a----        7/19/2018  11:00 PM           7073 DebuggingWordCount.java                                     
--a----        7/19/2018  11:00 PM           5945 MinimalWordCount.java                                       
--a----        7/19/2018  11:00 PM           9490 WindowedWordCount.java                                      
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+d-----        7/19/2018  11:00 PM                common
+d-----        7/19/2018  11:00 PM                complete
+d-----        7/19/2018  11:00 PM                subprocess
+-a----        7/19/2018  11:00 PM           7073 DebuggingWordCount.java
+-a----        7/19/2018  11:00 PM           5945 MinimalWordCount.java
+-a----        7/19/2018  11:00 PM           9490 WindowedWordCount.java
 -a----        7/19/2018  11:00 PM           7662 WordCount.java
 {{< /highlight >}}
 
@@ -405,7 +405,7 @@ barrenly: 1
 ...
 {{< /highlight >}}
 
-{{< highlight class="runner-samza-local" >}}  
+{{< highlight class="runner-samza-local" >}}
 $ more /tmp/counts*
 api: 7
 are: 2

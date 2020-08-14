@@ -86,7 +86,7 @@
 
 * New overloads for BigtableIO.Read.withKeyRange() and BigtableIO.Read.withRowFilter()
   methods that take ValueProvider as a parameter (Java) ([BEAM-10283](https://issues.apache.org/jira/browse/BEAM-10283)).
-* The WriteToBigQuery transform (Python) in Dataflow Batch no longer relies on BigQuerySink by default. It relies on 
+* The WriteToBigQuery transform (Python) in Dataflow Batch no longer relies on BigQuerySink by default. It relies on
   a new, fully-featured transform based on file loads into BigQuery. To revert the behavior to the old implementation,
   you may use `--experiments=use_legacy_bq_sink`.
 * Add cross-language support to Java's JdbcIO, now available in the Python module `apache_beam.io.external.jdbc` ([BEAM-10135](https://issues.apache.org/jira/browse/BEAM-10135), [BEAM-10136](https://issues.apache.org/jira/browse/BEAM-10136)).
@@ -145,7 +145,7 @@
   `{"foo": "bar", "baz": null}`, whereas an implicit null like `{"foo": "bar"}` would raise an
   exception. Now both JSON strings will yield the same result by default. This behavior can be
   overridden with `RowJson.RowJsonDeserializer#withNullBehavior`.
-* Fixed a bug in `GroupIntoBatches` experimental transform in Python to actually group batches by key. 
+* Fixed a bug in `GroupIntoBatches` experimental transform in Python to actually group batches by key.
   This changes the output type for this transform ([BEAM-6696](https://issues.apache.org/jira/browse/BEAM-6696)).
 
 ## Deprecations
@@ -214,17 +214,17 @@ for example usage.
 
     If you suspect that this feature is causing your pipeline to fail, calling
     `apache_beam.typehints.disable_type_annotations()` before pipeline creation
-    will disable is completely, and decorating specific functions (such as 
+    will disable is completely, and decorating specific functions (such as
     `process()`) with `@apache_beam.typehints.no_annotations` will disable it
     for that function.
 
-    More details will be in 
+    More details will be in
     [Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety/)
     and an upcoming
     [blog post](https://beam.apache.org/blog/python-typing/index.html).
 
-* Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra 
-context to fields and schemas. This replaces the current Beam metadata that is present 
+* Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra
+context to fields and schemas. This replaces the current Beam metadata that is present
 in a FieldType only, options are available in fields and row schemas. Schema options are
 fully typed and can contain complex rows. *Remark: Schema aware is still experimental.*
 ([BEAM-9035](https://issues.apache.org/jira/browse/BEAM-9035))
@@ -241,15 +241,15 @@ conversion to beam schema options. *Remark: Schema aware is still experimental.*
     values as strings) into Python native types that are written to Avro
     (Python's date, datetime types, decimal, etc). For more information
     see https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions.
-* Added integration of Java SDK with Google Cloud AI VideoIntelligence service 
+* Added integration of Java SDK with Google Cloud AI VideoIntelligence service
 ([BEAM-9147](https://issues.apache.org/jira/browse/BEAM-9147))
 * Added integration of Java SDK with Google Cloud AI natural language processing API
 ([BEAM-9634](https://issues.apache.org/jira/browse/BEAM-9634))
-* `docker-pull-licenses` tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when `docker-pull-licenses` was set. 
-  The files are added to `/opt/apache/beam/third_party_licenses/`. 
+* `docker-pull-licenses` tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when `docker-pull-licenses` was set.
+  The files are added to `/opt/apache/beam/third_party_licenses/`.
   By default, no licenses/notices are added to the docker images. ([BEAM-9136](https://issues.apache.org/jira/browse/BEAM-9136))
 
- 
+
 ## Breaking Changes
 
 * Dataflow runner now requires the `--region` option to be set, unless a default value is set in the environment ([BEAM-9199](https://issues.apache.org/jira/browse/BEAM-9199)). See [here](https://cloud.google.com/dataflow/docs/concepts/regional-endpoints) for more details.
@@ -287,7 +287,7 @@ Schema Options, it will be removed in version `2.23.0`. ([BEAM-9704](https://iss
 * Added a PTransform for inspection and deidentification of text using Google Cloud DLP. (Python) ([BEAM-9258](https://issues.apache.org/jira/browse/BEAM-9258))
 * New AnnotateText PTransform that integrates Google Cloud Natural Language functionality (Python) ([BEAM-9248](https://issues.apache.org/jira/browse/BEAM-9248))
 * _ReadFromBigQuery_ now supports value providers for the query string (Python) ([BEAM-9305](https://issues.apache.org/jira/browse/BEAM-9305))
-* Direct runner for FnApi supports further parallelism (Python) ([BEAM-9228](https://issues.apache.org/jira/browse/BEAM-9228)) 
+* Direct runner for FnApi supports further parallelism (Python) ([BEAM-9228](https://issues.apache.org/jira/browse/BEAM-9228))
 * Support for _@RequiresTimeSortedInput_ in Flink and Spark (Java) ([BEAM-8550](https://issues.apache.org/jira/browse/BEAM-8550))
 
 ## Breaking Changes

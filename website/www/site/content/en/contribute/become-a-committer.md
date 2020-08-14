@@ -28,7 +28,7 @@ for more about being a committer in the Apache Software Foundation.
 The [PMC](https://www.apache.org/foundation/how-it-works.html#pmc-members)
 makes someone a committer via nomination, discussion, and then majority vote.
 We use data from as many sources as possible to inform our reasoning. Here are
-some examples: 
+some examples:
 
  - [dev@ archives](https://lists.apache.org/list.html?dev@beam.apache.org) and [statistics](https://lists.apache.org/trends.html?dev@beam.apache.org)
  - [user@ archives](https://lists.apache.org/list.html?user@beam.apache.org) and [statistics](https://lists.apache.org/trends.html?user@beam.apache.org)

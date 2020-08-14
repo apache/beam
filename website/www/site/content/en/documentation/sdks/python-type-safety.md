@@ -91,8 +91,8 @@ The following code declares an `int` input and a `str` output type hint on the `
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test_py3.py" type_hints_map_annotations >}}
 {{< /highlight >}}
 
-The following code demonstrates how to use annotations on `PTransform` subclasses. 
-A valid annotation is a `PCollection` that wraps an internal (nested) type, `PBegin`, `PDone`, or `None`. 
+The following code demonstrates how to use annotations on `PTransform` subclasses.
+A valid annotation is a `PCollection` that wraps an internal (nested) type, `PBegin`, `PDone`, or `None`.
 The following code declares typehints on a custom PTransform, that takes a `PCollection[int]` input
 and outputs a `PCollection[str]`, using annotations.
 

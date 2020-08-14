@@ -22,7 +22,7 @@ by the status of the [Beam Portability Framework](https://beam.apache.org/roadma
 portable runners.
 
 **April 2020 Update**
-This year we hope to move the SDK out of experimental at least for Batch usage. 
+This year we hope to move the SDK out of experimental at least for Batch usage.
 
 To do so, there are a few blocking changes:
   * Support Interoperability with other SDKs
@@ -67,9 +67,9 @@ The following are dependant on the features being implemented in the Portability
 Without SDFs, IOs are always constrained to work on a single machine prior to a sharding operation (like CoGroupByKey),
 which makes scalable IOs difficult to impossible to write.
 
-Otherwise, improving examples and documentation for devs and users alike is ongoing. 
+Otherwise, improving examples and documentation for devs and users alike is ongoing.
 Contributions are welcome. Please contact the [dev list](mailto:dev@beam.apache.org?subject=%5BGo%20SDK%5D%20How%20can%20I%20help%3F)
 for assistance in finding a place to help out.
 
  - JIRA: [sdk-go](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go)
- - Contact: Robert Burke (@lostluck) [Email](mailto:lostluck@apache.org?subject=%5BGo%20SDK%20Roadmap%5D) - Please also cc the dev@beam.apache.org list. I strongly prefer public discussion of Go SDK matters. 
+ - Contact: Robert Burke (@lostluck) [Email](mailto:lostluck@apache.org?subject=%5BGo%20SDK%20Roadmap%5D) - Please also cc the dev@beam.apache.org list. I strongly prefer public discussion of Go SDK matters.

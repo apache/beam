@@ -40,31 +40,31 @@ multiple worker instances in parallel. As such, the code you provide for
   1. **Serializability:** Your `Source` or `FileBasedSink` subclass, whether
      bounded or unbounded, must be Serializable. A runner might create multiple
      instances of your `Source` or `FileBasedSink` subclass to be sent to
-     multiple remote workers to facilitate reading or writing in parallel.  
+     multiple remote workers to facilitate reading or writing in parallel.
 
   1. **Immutability:**
      Your `Source` or `FileBasedSink` subclass must be effectively immutable.
      All private fields must be declared final, and all private variables of
      collection type must be effectively immutable. If your class has setter
      methods, those methods must return an independent copy of the object with
-     the relevant field modified.  
+     the relevant field modified.
 
      You should only use mutable state in your `Source` or `FileBasedSink`
      subclass if you are using lazy evaluation of expensive computations that
      you need to implement the source or sink; in that case, you must declare
-     all mutable instance variables transient.  
+     all mutable instance variables transient.
 
   1. **Thread-Safety:** Your code must be thread-safe. If you build your source
      to work with dynamic work rebalancing, it is critical that you make your
      code thread-safe. The Beam SDK provides a helper class to make this easier.
      See [Using Your BoundedSource with dynamic work rebalancing](#bounded-dynamic)
-     for more details.  
+     for more details.
 
   1. **Testability:** It is critical to exhaustively unit test all of your
      `Source` and `FileBasedSink` subclasses, especially if you build your
      classes to work with advanced features such as dynamic work rebalancing. A
      minor implementation error can lead to data corruption or data loss (such
-     as skipping or duplicating records) that can be hard to detect.  
+     as skipping or duplicating records) that can be hard to detect.
 
      To assist in testing `BoundedSource` implementations, you can use the
      SourceTestUtils class. `SourceTestUtils` contains utilities for automatically
@@ -93,12 +93,12 @@ Supply the logic for your source by creating the following classes:
   * A subclass of `BoundedSource` if you want to read a finite (batch) data set,
     or a subclass of `UnboundedSource` if you want to read an infinite (streaming)
     data set. These subclasses describe the data you want to read, including the
-    data's location and parameters (such as how much data to read).  
+    data's location and parameters (such as how much data to read).
 
   * A subclass of `Source.Reader`. Each Source must have an associated Reader that
     captures all the state involved in reading from that `Source`. This can
     include things like file handles, RPC connections, and other parameters that
-    depend on the specific requirements of the data format you want to read.  
+    depend on the specific requirements of the data format you want to read.
 
   * The `Reader` class hierarchy mirrors the Source hierarchy. If you're extending
     `BoundedSource`, you'll need to provide an associated `BoundedReader`. if you're
@@ -135,10 +135,10 @@ To implement a `BoundedSource`, your subclass must override the following
 abstract methods:
 
   * `split`: The runner uses this method to split your finite data
-    into bundles of a given size.  
+    into bundles of a given size.
 
   * `getEstimatedSizeBytes`: The runner uses this method to estimate the total
-    size of your data, in bytes.  
+    size of your data, in bytes.
 
   * `createReader`: Creates the associated `BoundedReader` for this
     `BoundedSource`.
@@ -199,15 +199,15 @@ A runner uses the following methods to read data using `BoundedReader` or
 
   * `start`: Initializes the `Reader` and advances to the first record to be read.
     This method is called exactly once when the runner begins reading your data,
-    and is a good place to put expensive operations needed for initialization.  
+    and is a good place to put expensive operations needed for initialization.
 
   * `advance`: Advances the reader to the next valid record. This method must
     return false if there is no more input available. `BoundedReader` should stop
     reading once advance returns false, but `UnboundedReader` can return true in
-    future calls once more data is available from your stream.  
+    future calls once more data is available from your stream.
 
   * `getCurrent`: Returns the data record at the current position, last read by
-    start or advance.  
+    start or advance.
 
   * `getCurrentTimestamp`: Returns the timestamp for the current data record. You
     only need to override `getCurrentTimestamp` if your source reads data that has
@@ -225,19 +225,19 @@ additional methods for managing reads from an unbounded data source:
     them; otherwise, you can return a hash of the record contents, using at
     least a 128-bit hash. It is incorrect to use Java's `Object.hashCode()`, as
     a 32-bit hash is generally insufficient for preventing collisions, and
-    `hasCode()` is not guaranteed to be stable across processes.  
+    `hasCode()` is not guaranteed to be stable across processes.
 
     Implementing `getCurrentRecordId` is optional if your source uses a
     checkpointing scheme that uniquely identifies each record. For example, if
     your splits are files and the checkpoints are file positions up to which all
     data has been read, you do not need record IDs. However, record IDs can
     still be useful if upstream systems writing data to your source occasionally
-    produce duplicate records that your source might then read.  
+    produce duplicate records that your source might then read.
 
   * `getWatermark`: Returns a watermark that your `Reader` provides. The watermark
     is the approximate lower bound on timestamps of future elements to be read
     by your `Reader`. The runner uses the watermark as an estimate of data
-    completeness. Watermarks are used in windowing and triggers.  
+    completeness. Watermarks are used in windowing and triggers.
 
   * `getCheckpointMark`: The runner uses this method to create a checkpoint in
     your data stream. The checkpoint represents the progress of the
@@ -246,13 +246,13 @@ additional methods for managing reads from an unbounded data source:
     received records to be acknowledged, while others might use positional
     checkpointing. You'll need to tailor this method to the most appropriate
     checkpointing scheme. For example, you might have this method return the
-    most recently acked record(s).  
+    most recently acked record(s).
 
   * `getCheckpointMark` is optional; you don't need to implement it if your data
     does not have meaningful checkpoints. However, if you choose not to
     implement checkpointing in your source, you may encounter duplicate data or
     data loss in your pipeline, depending on whether your data source tries to
-    re-send records in case of errors.  
+    re-send records in case of errors.
 
 You can read a bounded `PCollection` from an `UnboundedSource` by specifying
 either `.withMaxNumRecords` or `.withMaxReadTime` when you read from your
