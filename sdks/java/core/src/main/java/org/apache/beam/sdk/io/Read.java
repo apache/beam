@@ -27,6 +27,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -62,6 +63,7 @@ import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.StripIdsDoFn;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -134,9 +136,7 @@ public class Read {
     public final PCollection<T> expand(PBegin input) {
       source.validate();
 
-      if (ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
-          && !ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
+      if (useSdf(input.getPipeline().getOptions())) {
         // We don't use Create here since Create is defined as a BoundedSource and using it would
         // cause an infinite expansion loop. We can reconsider this if Create is implemented
         // directly as a SplittableDoFn.
@@ -209,9 +209,7 @@ public class Read {
     public final PCollection<T> expand(PBegin input) {
       source.validate();
 
-      if (ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
-          && !ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
+      if (useSdf(input.getPipeline().getOptions())) {
         // We don't use Create here since Create is defined as a BoundedSource and using it would
         // cause an infinite expansion loop. We can reconsider this if Create is implemented
         // directly as a SplittableDoFn.
@@ -924,4 +922,31 @@ public class Read {
   }
 
   private static final int DEFAULT_DESIRED_NUM_SPLITS = 20;
+
+  /**
+   * Used to migrate runners to use splittable DoFn without needing to rely on PTransform
+   * replacement which allows removal of the migration code without changing the pipeline shape
+   * since pipeline shape affects pipeline update for some runners.
+   */
+  private static final Set<String> SPLITTABLE_DOFN_PREFERRED_RUNNERS =
+      ImmutableSet.of("DirectRunner");
+
+  private static boolean useSdf(PipelineOptions options) {
+    // TODO(BEAM-10670): Make this by default true and have runners opt-out instead.
+    boolean runnerPrefersSdf = false;
+    try {
+      runnerPrefersSdf =
+          SPLITTABLE_DOFN_PREFERRED_RUNNERS.contains(options.getRunner().getSimpleName());
+    } catch (Exception e) {
+      // Ignore construction failures since there may not be a runner on the classpath if this is a
+      // test.
+    }
+
+    // We keep the old names of experiments around for portable runners and existing users.
+    return (runnerPrefersSdf
+            || ExperimentalOptions.hasExperiment(options, "beam_fn_api")
+            || ExperimentalOptions.hasExperiment(options, "use_sdf_read"))
+        && !(ExperimentalOptions.hasExperiment(options, "beam_fn_api_use_deprecated_read")
+            || ExperimentalOptions.hasExperiment(options, "use_deprecated_read"));
+  }
 }

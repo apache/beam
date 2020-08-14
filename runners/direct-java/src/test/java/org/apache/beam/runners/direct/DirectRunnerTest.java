@@ -601,7 +601,6 @@ public class DirectRunnerTest implements Serializable {
     Pipeline p = getPipeline();
     p.apply(GenerateSequence.from(0)).setCoder(new LongNoDecodeCoder());
 
-    thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Cannot decode a long");
     p.run();
   }
