@@ -314,8 +314,7 @@ public class SparkStreamingPortablePipelineTranslator
       Queue<JavaRDD<WindowedValue<T>>> q = new LinkedBlockingQueue<>();
       q.offer(context.getSparkContext().emptyRDD());
       unifiedStreams = context.getStreamingContext().queueStream(q);
-    }
-    else {
+    } else {
       final List<JavaDStream<WindowedValue<T>>> dStreams = new ArrayList<>();
       for (String inputId : inputsMap.values()) {
         Dataset dataset = context.popDataset(inputId);
@@ -333,8 +332,7 @@ public class SparkStreamingPortablePipelineTranslator
         }
       }
       // Unify streams into a single stream.
-      unifiedStreams =
-          SparkCompat.joinStreams(context.getStreamingContext(), dStreams);
+      unifiedStreams = SparkCompat.joinStreams(context.getStreamingContext(), dStreams);
     }
 
     context.pushDataset(

@@ -86,49 +86,104 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
   def pipelineOptions = []
   if (streaming) {
     pipelineOptions += "--streaming"
-    pipelineOptions += "--timeout=10000"
+    pipelineOptions += "--timeout=20000"
+    // exclude unsupported tests
+    createPortableValidatesRunnerTask(
+            name: "validatesPortableRunner${name}",
+            jobServerDriver: "org.apache.beam.runners.spark.SparkJobServerDriver",
+            jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
+            testClasspathConfiguration: configurations.validatesPortableRunner,
+            numParallelTests: 4,
+            pipelineOpts: pipelineOptions,
+            environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
+            systemProperties: [
+                    "beam.spark.test.reuseSparkContext": "false",
+                    "spark.ui.enabled": "false",
+                    "spark.ui.showConsoleProgress": "false",
+            ],
+            testCategories: {
+              includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+              excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+              excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+              //SplitableDoFnTests
+              excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+              // Tests to exclude when streaming
+              excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
+            },
+            testFilter: {
+              // TODO(BEAM-10094)
+              excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+              // Tests to exclude when streaming
+              excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest'
+              excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineFnsTest'
+              excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests'
+              excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateCoderInferenceTests'
+              excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests'
+              excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests'
+              excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests'
+              excludeTestsMatching 'org.apache.beam.sdk.transforms.join.CoGroupByKeyTest'
+              excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest'
+            },
+    )
+  } else {
+    createPortableValidatesRunnerTask(
+            name: "validatesPortableRunner${name}",
+            jobServerDriver: "org.apache.beam.runners.spark.SparkJobServerDriver",
+            jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
+            testClasspathConfiguration: configurations.validatesPortableRunner,
+            numParallelTests: 4,
+            pipelineOpts: pipelineOptions,
+            environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
+            systemProperties: [
+              "beam.spark.test.reuseSparkContext": "false",
+              "spark.ui.enabled": "false",
+              "spark.ui.showConsoleProgress": "false",
+            ],
+            testCategories: {
+              includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+              excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+              excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+              //SplitableDoFnTests
+              excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+              excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+            },
+            testFilter: {
+              // TODO(BEAM-10094)
+              excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+            },
+    )
   }
-  createPortableValidatesRunnerTask(
-    name: "validatesPortableRunner${name}",
-    jobServerDriver: "org.apache.beam.runners.spark.SparkJobServerDriver",
-    jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
-    testClasspathConfiguration: configurations.validatesPortableRunner,
-    numParallelTests: 4,
-    pipelineOpts: pipelineOptions,
-    environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
-    systemProperties: [
-      "beam.spark.test.reuseSparkContext": "false",
-      "spark.ui.enabled": "false",
-      "spark.ui.showConsoleProgress": "false",
-    ],
-    testCategories: {
-      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-      excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-      excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-      //SplitableDoFnTests
-      excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-    },
-    testFilter: {
-      // TODO(BEAM-10094)
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
-    },
-  )
 }
 
 project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false)
