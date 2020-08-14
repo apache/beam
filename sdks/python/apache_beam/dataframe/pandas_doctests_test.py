@@ -159,7 +159,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.replace': ['*'],
             'pandas.core.series.Series.reset_index': ['*'],
             'pandas.core.series.Series.searchsorted': [
-                # This doctests is incorrectly parsed.
+                # This doctest seems to be incorrectly parsed.
                 "x = pd.Categorical(['apple', 'bread', 'bread',"
             ],
             'pandas.core.series.Series.sort_index': ['*'],
