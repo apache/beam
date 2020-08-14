@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -40,7 +39,6 @@ import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -67,7 +65,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -513,44 +510,6 @@ public class BigQueryIOReadTest implements Serializable {
     assertThat(displayData, hasDisplayItem("flattenResults", false));
     assertThat(displayData, hasDisplayItem("useLegacySql", false));
     assertThat(displayData, hasDisplayItem("validation", false));
-  }
-
-  @Test
-  public void testTableSourcePrimitiveDisplayData() throws IOException, InterruptedException {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    BigQueryIO.Read read =
-        BigQueryIO.read()
-            .from("project:dataset.tableId")
-            .withTestServices(
-                new FakeBigQueryServices()
-                    .withDatasetService(new FakeDatasetService())
-                    .withJobService(new FakeJobService()))
-            .withoutValidation();
-
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-    assertThat(
-        "BigQueryIO.Read should include the table spec in its primitive display data",
-        displayData,
-        hasItem(hasDisplayItem("table")));
-  }
-
-  @Test
-  public void testQuerySourcePrimitiveDisplayData() throws IOException, InterruptedException {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    BigQueryIO.Read read =
-        BigQueryIO.read()
-            .fromQuery("foobar")
-            .withTestServices(
-                new FakeBigQueryServices()
-                    .withDatasetService(new FakeDatasetService())
-                    .withJobService(new FakeJobService()))
-            .withoutValidation();
-
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-    assertThat(
-        "BigQueryIO.Read should include the query in its primitive display data",
-        displayData,
-        hasItem(hasDisplayItem("query")));
   }
 
   @Test
