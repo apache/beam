@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strings"
 
 	"bytes"
 
@@ -36,7 +37,7 @@ import (
 // we handle the top GBK/CoGBK layer in the processing node directly.
 
 // ElementEncoder handles FullValue serialization to a byte stream. The encoder
-// can be reused, even if an error is encountered. Concurrency-safe.
+// can be reused, even if an error is encountered.
 type ElementEncoder interface {
 	// Encode serializes the given value to the writer.
 	Encode(*FullValue, io.Writer) error
@@ -53,7 +54,7 @@ func EncodeElement(c ElementEncoder, val interface{}) ([]byte, error) {
 }
 
 // ElementDecoder handles FullValue deserialization from a byte stream. The decoder
-// can be reused, even if an error is encountered.  Concurrency-safe.
+// can be reused, even if an error is encountered.
 type ElementDecoder interface {
 	// Decode deserializes a value from the given reader.
 	Decode(io.Reader) (*FullValue, error)
@@ -61,8 +62,8 @@ type ElementDecoder interface {
 	DecodeTo(io.Reader, *FullValue) error
 }
 
-// MakeElementEncoder returns a ElementCoder for the given coder. It panics
-// if given a coder with stream types, such as GBK.
+// MakeElementEncoder returns a ElementCoder for the given coder.
+// It panics if given an unknown coder, or a coder with stream types, such as GBK.
 func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 	switch c.Kind {
 	case coder.Bytes:
@@ -81,9 +82,31 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 		return &stringEncoder{}
 
 	case coder.Custom:
-		return &customEncoder{
+		enc := &customEncoder{
 			t:   c.Custom.Type,
 			enc: makeEncoder(c.Custom.Enc.Fn),
+		}
+		if c.Custom.Name != "schema" {
+			return enc
+		}
+		// Custom schema coding is shorthand for using beam infrastructure
+		// wrapped in a custom coder.
+		switch c.T.Type().Kind() {
+		case reflect.Slice, reflect.Array:
+			// We don't permit registering custom coders for slice types
+			// so we must length prefix the entire iterable.
+			return &lpEncoder{
+				enc: &iterableEncoder{
+					t:   c.Custom.Type,
+					enc: enc,
+				},
+			}
+		}
+		return enc
+
+	case coder.LP:
+		return &lpEncoder{
+			enc: MakeElementEncoder(c.Components[0]),
 		}
 
 	case coder.KV:
@@ -92,13 +115,49 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 			snd: MakeElementEncoder(c.Components[1]),
 		}
 
+	case coder.Window:
+		return &wrappedWindowEncoder{
+			enc: MakeWindowEncoder(c.Window),
+		}
+
+	case coder.Iterable:
+		return &iterableEncoder{
+			enc: MakeElementEncoder(c.Components[0]),
+		}
+
+	case coder.WindowedValue:
+		return &windowedValueEncoder{
+			elm: MakeElementEncoder(c.Components[0]),
+			win: MakeWindowEncoder(c.Window),
+		}
+
+	case coder.ParamWindowedValue:
+		return &paramWindowedValueEncoder{
+			elm: MakeElementEncoder(c.Components[0]),
+			win: MakeWindowEncoder(c.Window),
+		}
+
+	case coder.Timer:
+		return &timerEncoder{
+			elm: MakeElementEncoder(c.Components[0]),
+		}
+
+	case coder.Row:
+		enc, err := coder.RowEncoderForStruct(c.T.Type())
+		if err != nil {
+			panic(err)
+		}
+		return &rowEncoder{
+			enc: enc,
+		}
+
 	default:
 		panic(fmt.Sprintf("Unexpected coder: %v", c))
 	}
 }
 
-// MakeElementDecoder returns a ElementDecoder for the given coder. It panics
-// if given a coder with stream types, such as GBK.
+// MakeElementDecoder returns a ElementDecoder for the given coder.
+// It panics if given an unknown coder, or a coder with stream types, such as GBK.
 func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 	switch c.Kind {
 	case coder.Bytes:
@@ -117,15 +176,86 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 		return &stringDecoder{}
 
 	case coder.Custom:
-		return &customDecoder{
+		dec := &customDecoder{
 			t:   c.Custom.Type,
 			dec: makeDecoder(c.Custom.Dec.Fn),
+		}
+
+		fmt.Println("getting decoder", c.Custom)
+		if c.Custom.Name != "schema" {
+			return dec
+		}
+		// Custom schema coding is shorthand for using beam infrastructure
+		// wrapped in a custom coder.
+		switch c.T.Type().Kind() {
+		case reflect.Slice:
+			return &lpDecoder{
+				dec: &iterableDecoder{
+					t:   c.Custom.Type,
+					dec: dec,
+				},
+			}
+		case reflect.Array:
+			return &lpDecoder{
+				dec: &arrayDecoder{
+					t:   c.Custom.Type,
+					dec: dec,
+				},
+			}
+		}
+		return dec
+
+	case coder.LP:
+		return &lpDecoder{
+			dec: MakeElementDecoder(c.Components[0]),
 		}
 
 	case coder.KV:
 		return &kvDecoder{
 			fst: MakeElementDecoder(c.Components[0]),
 			snd: MakeElementDecoder(c.Components[1]),
+		}
+
+	// The following cases are not expected to be executed in the normal
+	// course of a pipeline, however including them here enables simpler
+	// end to end validation of standard coders against
+	// the standard_coders.yaml specs.
+	case coder.Window:
+		return &wrappedWindowDecoder{
+			dec: MakeWindowDecoder(c.Window),
+		}
+
+	// Note: Iterables in CoGBK are handled in datasource.go instead.
+	case coder.Iterable:
+		return &iterableDecoder{
+			t:   c.T.Type(),
+			dec: MakeElementDecoder(c.Components[0]),
+		}
+
+	case coder.WindowedValue:
+		return &windowedValueDecoder{
+			elm: MakeElementDecoder(c.Components[0]),
+			win: MakeWindowDecoder(c.Window),
+		}
+
+	case coder.ParamWindowedValue:
+		return &paramWindowedValueDecoder{
+			elm: MakeElementDecoder(c.Components[0]),
+			win: MakeWindowDecoder(c.Window),
+		}
+
+	case coder.Timer:
+		return &timerDecoder{
+			elm: MakeElementDecoder(c.Components[0]),
+		}
+
+	case coder.Row:
+		dec, err := coder.RowDecoderForStruct(c.T.Type())
+		if err != nil {
+			panic(err)
+		}
+		return &rowDecoder{
+			dec: dec,
 		}
 
 	default:
@@ -142,25 +272,14 @@ func (*bytesEncoder) Encode(val *FullValue, w io.Writer) error {
 	if !ok {
 		return errors.Errorf("received unknown value type: want []byte, got %T", val.Elm)
 	}
-	size := len(data)
-
-	if err := coder.EncodeVarInt((int64)(size), w); err != nil {
-		return err
-	}
-	_, err := w.Write(data)
-	return err
+	return coder.EncodeBytes(data, w)
 }
 
 type bytesDecoder struct{}
 
 func (*bytesDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 	// Encoding: size (varint) + raw data
-
-	size, err := coder.DecodeVarInt(r)
-	if err != nil {
-		return err
-	}
-	data, err := ioutilx.ReadN(r, (int)(size))
+	data, err := coder.DecodeBytes(r)
 	if err != nil {
 		return err
 	}
@@ -361,6 +480,53 @@ func (c *customDecoder) Decode(r io.Reader) (*FullValue, error) {
 	return fv, nil
 }
 
+type lpEncoder struct {
+	enc ElementEncoder
+	buf bytes.Buffer
+}
+
+func (c *lpEncoder) Encode(val *FullValue, w io.Writer) error {
+	// (1) Call encode
+	if err := c.enc.Encode(val, &c.buf); err != nil {
+		return err
+	}
+
+	// (2) Add length prefix
+	data := c.buf.Bytes()
+	size := len(data)
+	if err := coder.EncodeVarInt((int64)(size), w); err != nil {
+		return err
+	}
+	_, err := w.Write(data)
+	c.buf.Reset()
+	return err
+}
+
+type lpDecoder struct {
+	dec ElementDecoder
+	r   io.LimitedReader
+}
+
+func (c *lpDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
+	// (1) Read length-prefixed encoded data
+	size, err := coder.DecodeVarInt(r)
+	if err != nil {
+		return err
+	}
+	c.r = io.LimitedReader{R: r, N: size}
+
+	// (2) Call decode
+	return c.dec.DecodeTo(&c.r, fv)
+}
+
+func (c *lpDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := c.DecodeTo(r, fv); err != nil {
+		return nil, err
+	}
+	return fv, nil
+}
+
 type kvEncoder struct {
 	fst, snd ElementEncoder
 	cached   FullValue
@@ -434,6 +600,267 @@ func convertIfNeeded(v interface{}, allocated *FullValue) *FullValue {
 	return allocated
 }
 
+type iterableEncoder struct {
+	t   reflect.Type
+	enc ElementEncoder
+}
+
+func (c *iterableEncoder) Encode(val *FullValue, w io.Writer) error {
+	// Do a reflect, get the length.
+	rv := reflect.ValueOf(val.Elm)
+	size := rv.Len()
+	if err := coder.EncodeInt32((int32)(size), w); err != nil {
+		return err
+	}
+	var e FullValue
+	for i := 0; i < size; i++ {
+		e.Elm = rv.Index(i).Interface()
+		err := c.enc.Encode(&e, w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type iterableDecoder struct {
+	t   reflect.Type
+	dec ElementDecoder
+}
+
+func (c *iterableDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
+	// (1) Read count prefixed encoded data
+
+	size, err := coder.DecodeInt32(r)
+	if err != nil {
+		return err
+	}
+	n := int(size)
+	switch {
+	case n >= 0:
+		rv, err := c.decodeToSlice(int(n), r)
+		if err != nil {
+			return err
+		}
+		*fv = FullValue{Elm: rv.Interface()}
+		return nil
+	case n == -1:
+		rv := reflect.MakeSlice(c.t, 0, 0)
+		chunk, err := coder.DecodeVarInt(r)
+		if err != nil {
+			return err
+		}
+		for chunk != 0 {
+			rvi, err := c.decodeToSlice(int(chunk), r)
+			if err != nil {
+				return err
+			}
+			rv = reflect.AppendSlice(rv, rvi)
+			chunk, err = coder.DecodeVarInt(r)
+			if err != nil {
+				return err
+			}
+		}
+		*fv = FullValue{Elm: rv.Interface()}
+	}
+
+	return nil
+}
+
+func (c *iterableDecoder) decodeToSlice(n int, r io.Reader) (reflect.Value, error) {
+	var e FullValue
+	rv := reflect.MakeSlice(c.t, n, n)
+	for i := 0; i < int(n); i++ {
+		err := c.dec.DecodeTo(r, &e)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		if e.Elm != nil {
+			rv.Index(i).Set(reflect.ValueOf(e.Elm))
+		} else {
+			rv.Index(i).Set(reflect.ValueOf(e.Windows[0]))
+		}
+	}
+	return rv, nil
+}
+
+func (c *iterableDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := c.DecodeTo(r, fv); err != nil {
+		return nil, err
+	}
+	return fv, nil
+}
+
+type arrayDecoder struct {
+	t   reflect.Type // array type
+	dec ElementDecoder
+}
+
+func (c *arrayDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
+	// (1) Read count prefixed encoded data
+
+	size, err := coder.DecodeInt32(r)
+	if err != nil {
+		return err
+	}
+	n := int(size)
+	if n != c.t.Len() {
+		return errors.Errorf("array len mismatch. decoding %v but only have %v elements.", c.t, n)
+	}
+	switch {
+	case n >= 0:
+		rv := reflect.New(c.t).Elem()
+		var e FullValue
+		for i := 0; i < int(n); i++ {
+			err := c.dec.DecodeTo(r, &e)
+			if err != nil {
+				return err
+			}
+			if e.Elm != nil {
+				rv.Index(i).Set(reflect.ValueOf(e.Elm))
+			}
+		}
+		*fv = FullValue{Elm: rv.Interface()}
+		return nil
+	default:
+		return errors.Errorf("unable to decode array with iterable marker %v", n)
+	}
+}
+
+func (c *arrayDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := c.DecodeTo(r, fv); err != nil {
+		return nil, err
+	}
+	return fv, nil
+}
+
+type windowedValueEncoder struct {
+	elm ElementEncoder
+	win WindowEncoder
+}
+
+func (e *windowedValueEncoder) Encode(val *FullValue, w io.Writer) error {
+	if err := EncodeWindowedValueHeader(e.win, val.Windows, val.Timestamp, w); err != nil {
+		return err
+	}
+	return e.elm.Encode(val, w)
+}
+
+type windowedValueDecoder struct {
+	elm ElementDecoder
+	win WindowDecoder
+}
+
+func (d *windowedValueDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
+	// Encoding: beam utf8 string (length prefix + run of bytes)
+	w, et, err := DecodeWindowedValueHeader(d.win, r)
+	if err != nil {
+		return err
+	}
+	if err := d.elm.DecodeTo(r, fv); err != nil {
+		return err
+	}
+	fv.Windows = w
+	fv.Timestamp = et
+	return nil
+}
+
+func (d *windowedValueDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := d.DecodeTo(r, fv); err != nil {
+		return nil, err
+	}
+	return fv, nil
+}
+
+type paramWindowedValueEncoder struct {
+	elm ElementEncoder
+	win WindowEncoder
+}
+
+func (*paramWindowedValueEncoder) Encode(val *FullValue, w io.Writer) error {
+	// Encoding: beam utf8 string (length prefix + run of bytes)
+	return coder.EncodeStringUTF8(val.Elm.(string), w)
+}
+
+type paramWindowedValueDecoder struct {
+	elm ElementDecoder
+	win WindowDecoder
+}
+
+func (*paramWindowedValueDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
+	// Encoding: beam utf8 string (length prefix + run of bytes)
+	f, err := coder.DecodeStringUTF8(r)
+	if err != nil {
+		return err
+	}
+	*fv = FullValue{Elm: f}
+	return nil
+}
+
+func (d *paramWindowedValueDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := d.DecodeTo(r, fv); err != nil {
+		return nil, err
+	}
+	return fv, nil
+}
+
+type timerEncoder struct {
+	elm ElementEncoder
+}
+
+func (e *timerEncoder) Encode(val *FullValue, w io.Writer) error {
+	return e.elm.Encode(val, w)
+}
+
+type timerDecoder struct {
+	elm ElementDecoder
+}
+
+func (d *timerDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
+	return d.elm.DecodeTo(r, fv)
+}
+
+func (d *timerDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := d.DecodeTo(r, fv); err != nil {
+		return nil, err
+	}
+	return fv, nil
+}
+
+type rowEncoder struct {
+	enc func(interface{}, io.Writer) error
+}
+
+func (e *rowEncoder) Encode(val *FullValue, w io.Writer) error {
+	return e.enc(val.Elm, w)
+}
+
+type rowDecoder struct {
+	dec func(r io.Reader) (interface{}, error)
+}
+
+func (d *rowDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
+	v, err := d.dec(r)
+	if err != nil {
+		return err
+	}
+	*fv = FullValue{Elm: v}
+	return nil
+}
+
+func (d *rowDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := d.DecodeTo(r, fv); err != nil {
+		return nil, err
+	}
+	return fv, nil
+}
+
 // WindowEncoder handles Window serialization to a byte stream. The encoder
 // can be reused, even if an error is encountered. Concurrency-safe.
 type WindowEncoder interface {
@@ -457,10 +884,15 @@ func EncodeWindow(c WindowEncoder, w typex.Window) ([]byte, error) {
 type WindowDecoder interface {
 	// Decode deserializes a value from the given reader.
 	Decode(io.Reader) ([]typex.Window, error)
+	// DecodeSingle decodes a single window from the given reader.
+	DecodeSingle(io.Reader) (typex.Window, error)
 }
 
 // MakeWindowEncoder returns a WindowEncoder for the given window coder.
 func MakeWindowEncoder(c *coder.WindowCoder) WindowEncoder {
+	if c.Payload != "" {
+		return &payloadWindowEncoder{payload: []byte(c.Payload)}
+	}
 	switch c.Kind {
 	case coder.GlobalWindow:
 		return &globalWindowEncoder{}
@@ -475,16 +907,85 @@ func MakeWindowEncoder(c *coder.WindowCoder) WindowEncoder {
 
 // MakeWindowDecoder returns a WindowDecoder for the given window coder.
 func MakeWindowDecoder(c *coder.WindowCoder) WindowDecoder {
+	var w WindowDecoder
 	switch c.Kind {
 	case coder.GlobalWindow:
-		return &globalWindowDecoder{}
+		w = &globalWindowDecoder{}
 
 	case coder.IntervalWindow:
-		return &intervalWindowDecoder{}
+		w = &intervalWindowDecoder{}
 
 	default:
 		panic(fmt.Sprintf("Unexpected window coder: %v", c))
 	}
+	if c.Payload != "" {
+		w = &payloadWindowDecoder{dec: w, payload: c.Payload, payloadR: strings.NewReader(c.Payload)}
+	}
+	return w
+}
+
+// wrappedWindowEncoder wraps a WindowEncoder for the ElementEncoder interface.
+type wrappedWindowEncoder struct {
+	enc WindowEncoder
+}
+
+func (e *wrappedWindowEncoder) Encode(val *FullValue, w io.Writer) error {
+	if len(val.Windows) == 0 {
+		return nil
+	}
+	return e.enc.EncodeSingle(val.Windows[0], w)
+}
+
+// wrappedWindowDecoder wraps a WindowDecoder for the ElementDecoder interface.
+type wrappedWindowDecoder struct {
+	dec WindowDecoder
+}
+
+func (d *wrappedWindowDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
+	ws, err := d.dec.DecodeSingle(r)
+	if err != nil {
+		return err
+	}
+	fv.Windows = []typex.Window{ws}
+	return nil
+}
+
+func (d *wrappedWindowDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := d.DecodeTo(r, fv); err != nil {
+		return nil, err
+	}
+	return fv, nil
+}
+
+type payloadWindowEncoder struct {
+	payload []byte
+}
+
+func (e *payloadWindowEncoder) Encode(ws []typex.Window, w io.Writer) error {
+	_, err := w.Write(e.payload)
+	return err
+}
+
+func (e *payloadWindowEncoder) EncodeSingle(ws typex.Window, w io.Writer) error {
+	_, err := w.Write(e.payload)
+	return err
+}
+
+type payloadWindowDecoder struct {
+	dec      WindowDecoder
+	payload  string
+	payloadR *strings.Reader
+}
+
+func (d *payloadWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
+	d.payloadR.Reset(d.payload)
+	return d.dec.Decode(d.payloadR)
+}
+
+func (d *payloadWindowDecoder) DecodeSingle(r io.Reader) (typex.Window, error) {
+	d.payloadR.Reset(d.payload)
+	return d.dec.DecodeSingle(d.payloadR)
 }
 
 type globalWindowEncoder struct{}
@@ -503,6 +1004,9 @@ type globalWindowDecoder struct{}
 func (*globalWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
 	_, err := coder.DecodeInt32(r) // #windows
 	return window.SingleGlobalWindow, err
+}
+func (*globalWindowDecoder) DecodeSingle(r io.Reader) (typex.Window, error) {
+	return window.SingleGlobalWindow[0], nil
 }
 
 type intervalWindowEncoder struct{}
@@ -534,24 +1038,32 @@ func (*intervalWindowEncoder) EncodeSingle(elm typex.Window, w io.Writer) error 
 
 type intervalWindowDecoder struct{}
 
-func (*intervalWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
+func (d *intervalWindowDecoder) Decode(r io.Reader) ([]typex.Window, error) {
 	// Encoding: upper bound and duration
 
 	n, err := coder.DecodeInt32(r) // #windows
 
 	ret := make([]typex.Window, n, n)
 	for i := int32(0); i < n; i++ {
-		end, err := coder.DecodeEventTime(r)
+		w, err := d.DecodeSingle(r)
 		if err != nil {
 			return nil, err
 		}
-		duration, err := coder.DecodeVarUint64(r)
-		if err != nil {
-			return nil, err
-		}
-		ret[i] = window.IntervalWindow{Start: mtime.FromMilliseconds(end.Milliseconds() - int64(duration)), End: end}
+		ret[i] = w
 	}
 	return ret, err
+}
+
+func (*intervalWindowDecoder) DecodeSingle(r io.Reader) (typex.Window, error) {
+	end, err := coder.DecodeEventTime(r)
+	if err != nil {
+		return nil, err
+	}
+	duration, err := coder.DecodeVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	return window.IntervalWindow{Start: mtime.FromMilliseconds(end.Milliseconds() - int64(duration)), End: end}, nil
 }
 
 var paneNoFiring = []byte{0xf}

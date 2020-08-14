@@ -22,6 +22,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
@@ -29,6 +30,15 @@ import (
 func init() {
 	runtime.RegisterFunction(dec)
 	runtime.RegisterFunction(enc)
+}
+
+type registeredNamedTypeForTest struct {
+	A, B int64
+	C    string
+}
+
+func init() {
+	schema.RegisterType(reflect.TypeOf((*registeredNamedTypeForTest)(nil)))
 }
 
 // TestMarshalUnmarshalCoders verifies that coders survive a proto roundtrip.
@@ -88,6 +98,10 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 		{
 			"CoGBK<foo,bar,baz>",
 			coder.NewCoGBK([]*coder.Coder{foo, bar, baz}),
+		},
+		{
+			name: "R[*graphx.registeredNamedTypeForTest]",
+			c:    coder.NewR(typex.New(reflect.TypeOf((*registeredNamedTypeForTest)(nil)))),
 		},
 	}
 
