@@ -265,6 +265,26 @@ class InteractiveEnvironmentTest(unittest.TestCase):
     ie.current_env().track_user_pipelines()
     mocked_cleanup.assert_called_once()
 
+  def test_evict_pcollections(self):
+    """Tests the evicton logic in the InteractiveEnvironment."""
+
+    # Create two PCollection, one that will be evicted and another that won't.
+    p_to_evict = beam.Pipeline()
+    to_evict = p_to_evict | beam.Create([])
+
+    p_not_evicted = beam.Pipeline()
+    not_evicted = p_not_evicted | beam.Create([])
+
+    # Mark the PCollections as computed because the eviction logic only works
+    # on computed PCollections.
+    ie.current_env().mark_pcollection_computed([to_evict, not_evicted])
+    self.assertSetEqual(
+        ie.current_env().computed_pcollections, {to_evict, not_evicted})
+
+    # Evict the PCollection and then check that the other PCollection is safe.
+    ie.current_env().evict_computed_pcollections(p_to_evict)
+    self.assertSetEqual(ie.current_env().computed_pcollections, {not_evicted})
+
 
 if __name__ == '__main__':
   unittest.main()
