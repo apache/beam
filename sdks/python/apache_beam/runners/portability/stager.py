@@ -371,7 +371,7 @@ class Stager(object):
         if int(response['status']) >= 400:
           raise RuntimeError(
               'Artifact not found at %s (response: %s)' % (from_url, response))
-        with open(to_path, 'w') as f:
+        with open(to_path, 'wb') as f:
           f.write(content)
       except Exception:
         _LOGGER.info('Failed to download Artifact from %s', from_url)
