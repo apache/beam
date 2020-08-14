@@ -199,11 +199,8 @@ class ComputedExpression(Expression):
         ComputedExpression will produce at execution time. If not provided, a
         proxy will be generated using `func` and the proxies of `args`.
       _id: (Optional) a string to uniquely identify this expression.
-      requires_partition_by_index: Whether this expression requires its
-        argument(s) to be partitioned by index.
-      preserves_partition_by_index: Whether the result of this expression will
-        be partitioned by index whenever all of its inputs are partitioned by
-        index.
+      requires_partition_by: The required (common) partitioning of the args.
+      preserves_partition_by: The level of partitioning preserved.
     """
     if (not _get_allow_non_parallel() and
         requires_partition_by == partitionings.Singleton()):
