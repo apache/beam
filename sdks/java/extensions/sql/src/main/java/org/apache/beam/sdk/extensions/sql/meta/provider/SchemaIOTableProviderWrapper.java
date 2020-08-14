@@ -80,7 +80,7 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
     }
   }
 
-  public BeamTableStatistics getTableStatistics(PipelineOptions options, SchemaIO schemaIO) {
+  protected BeamTableStatistics getTableStatistics(PipelineOptions options, SchemaIO schemaIO) {
     if (isBounded().equals(PCollection.IsBounded.BOUNDED)) {
       return BeamTableStatistics.BOUNDED_UNKNOWN;
     }
