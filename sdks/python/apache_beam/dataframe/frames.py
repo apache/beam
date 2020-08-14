@@ -29,8 +29,45 @@ class DeferredSeries(frame_base.DeferredFrame):
     raise frame_base.WontImplementError(
         'Conversion to a non-deferred a numpy array.')
 
+  astype = frame_base._elementwise_method('astype')
+
+  between = frame_base._elementwise_method('between')
+
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  @frame_base.maybe_inplace
+  def dropna(self, **kwargs):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'dropna',
+            lambda df: df.dropna(**kwargs), [self._expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=partitionings.Nothing()))
+
+  items = iteritems = frame_base.wont_implement_method('non-lazy')
+
+  isin = frame_base._elementwise_method('isin')
+
   isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
+
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  @frame_base.maybe_inplace
+  def fillna(self, value, method):
+    if method is not None:
+      raise frame_base.WontImplementError('order-sensitive')
+    if isinstance(value, frame_base.DeferredBase):
+      value_expr = value._expr
+    else:
+      value_expr = expressions.ConstantExpression(value)
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'fillna',
+            lambda df,
+            value: df.fillna(value, method=method), [self._expr, value_expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=partitionings.Nothing()))
 
   transform = frame_base._elementwise_method(
       'transform', restrictions={'axis': 0})
@@ -90,8 +127,42 @@ class DeferredSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
 
-  def unstack(self, *args, **kwargs):
-    raise frame_base.WontImplementError('non-deferred column values')
+  round = frame_base._elementwise_method('round')
+
+  searchsorted = frame_base.wont_implement_method('order-sensitive')
+
+  shift = frame_base.wont_implement_method('order-sensitive')
+
+  take = frame_base.wont_implement_method('deprecated')
+
+  to_dict = frame_base.wont_implement_method('non-deferred')
+
+  to_frame = frame_base._elementwise_method('to_frame')
+
+  def unique(self, as_series=False):
+    if not as_series:
+      raise frame_base.WontImplementError(
+          'pass as_series=True to get the result as a (deferred) Series')
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'unique',
+            lambda df: pd.Series(df.unique()), [self._expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=partitionings.Singleton()))
+
+  def update(self, other):
+    self._expr = expressions.ComputedExpression(
+        'update',
+        lambda df,
+        other: df.update(other) or df, [self._expr, other._expr],
+        preserves_partition_by=partitionings.Singleton(),
+        requires_partition_by=partitionings.Index())
+
+  unstack = frame_base.wont_implement_method('non-deferred column values')
+
+  values = property(frame_base.wont_implement_method('non-deferred'))
+
+  view = frame_base.wont_implement_method('memory sharing semantics')
 
 
 for base in ['add', 'sub', 'mul', 'div', 'truediv', 'floordiv', 'mod', 'pow']:
@@ -279,6 +350,25 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
 
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def fillna(self, value, method, axis, **kwargs):
+    if method is not None and axis in (0, 'index'):
+      raise frame_base.WontImplementError('order-sensitive')
+    if isinstance(value, frame_base.DeferredBase):
+      value_expr = value._expr
+    else:
+      value_expr = expressions.ConstantExpression(value)
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'fillna',
+            lambda df, value: df.fillna(
+                value, method=method, axis=axis, **kwargs),
+            [self._expr, value_expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=partitionings.Nothing()))
+
   prod = product = frame_base._agg_method('prod')
 
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -373,6 +463,8 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   stack = frame_base._elementwise_method('stack')
 
   sum = frame_base._agg_method('sum')
+
+  take = frame_base.wont_implement_method('deprecated')
 
   to_records = to_dict = to_numpy = to_string = (
       frame_base.wont_implement_method('non-deferred value'))
