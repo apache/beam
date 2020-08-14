@@ -80,7 +80,7 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
     }
   }
 
-  private BeamTableStatistics getTableStatistics(PipelineOptions options) {
+  public BeamTableStatistics getTableStatistics(PipelineOptions options, SchemaIO schemaIO) {
     if (isBounded().equals(PCollection.IsBounded.BOUNDED)) {
       return BeamTableStatistics.BOUNDED_UNKNOWN;
     }
@@ -123,7 +123,7 @@ public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProv
 
     @Override
     public BeamTableStatistics getTableStatistics(PipelineOptions options) {
-      return SchemaIOTableProviderWrapper.this.getTableStatistics(options);
+      return SchemaIOTableProviderWrapper.this.getTableStatistics(options, schemaIO);
     }
   }
 }

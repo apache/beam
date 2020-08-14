@@ -40,10 +40,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A {@code PTransform} to perform a conversion of {@code PCollection<Row>} to {@code
- * PCollection<Entity>}.
- */
+/** A {@code PTransform} to perform a conversion of {@link Row} to {@link Entity}. */
 public class RowToEntity extends PTransform<PCollection<Row>, PCollection<Entity>> {
   private final Supplier<String> keySupplier;
   private final String kind;

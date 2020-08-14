@@ -54,6 +54,13 @@ public class DataStoreV1SchemaIOProvider implements SchemaIOProvider {
   /**
    * Returns the expected schema of the configuration object. Note this is distinct from the schema
    * of the data source itself.
+   *
+   * <p>Configuration Parameters:
+   *
+   * <ul>
+   *   <li>STRING keyField: The name of the Beam schema field to map the DataStore entity key.
+   *       Defaults to {@code __key__} if not set or null.
+   * </ul>
    */
   @Override
   public Schema configurationSchema() {
@@ -81,7 +88,7 @@ public class DataStoreV1SchemaIOProvider implements SchemaIOProvider {
   }
 
   /** An abstraction to create schema aware IOs. */
-  static class DataStoreV1SchemaIO implements SchemaIO, Serializable {
+  public static class DataStoreV1SchemaIO implements SchemaIO, Serializable {
     protected final Schema dataSchema;
     protected final String location;
     protected final String kind;
@@ -135,6 +142,14 @@ public class DataStoreV1SchemaIOProvider implements SchemaIOProvider {
               .apply("Write Datastore Entities", DatastoreIO.v1().write().withProjectId(projectId));
         }
       };
+    }
+
+    public String getProjectId() {
+      return projectId;
+    }
+
+    public String getKind() {
+      return kind;
     }
 
     private String determineKeyField(String configKey) {

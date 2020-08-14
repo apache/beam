@@ -18,10 +18,14 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.datastore;
 
 import com.google.auto.service.AutoService;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.provider.SchemaIOTableProviderWrapper;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.gcp.datastore.DataStoreV1SchemaIOProvider;
+import org.apache.beam.sdk.io.gcp.datastore.DataStoreV1SchemaIOProvider.DataStoreV1SchemaIO;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreIO;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 
 /**
@@ -52,5 +56,21 @@ public class DataStoreV1TableProvider extends SchemaIOTableProviderWrapper {
   @Override
   public String getTableType() {
     return "datastoreV1";
+  }
+
+  @Override
+  public BeamTableStatistics getTableStatistics(PipelineOptions options, SchemaIO schemaIO) {
+    DataStoreV1SchemaIO dataStoreV1SchemaIO = (DataStoreV1SchemaIO) schemaIO;
+    long count =
+        DatastoreIO.v1()
+            .read()
+            .withProjectId(dataStoreV1SchemaIO.getProjectId())
+            .getNumEntities(options, dataStoreV1SchemaIO.getKind(), null);
+
+    if (count < 0) {
+      return BeamTableStatistics.BOUNDED_UNKNOWN;
+    }
+
+    return BeamTableStatistics.createBoundedTableStatistics((double) count);
   }
 }

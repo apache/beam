@@ -44,9 +44,12 @@ public class DataStoreV1SchemaIOProviderTest {
   @Test
   public void testBuildBeamSqlTable() {
     final String location = "projectId/batch_kind";
-    Row configuration = Row.withSchema(generateRowSchema()).addValue(null).build();
-    SchemaIO schemaIO =
-        (new DataStoreV1SchemaIOProvider()).from(location, configuration, generateDataSchema());
+
+    Row configuration =
+        Row.withSchema(provider.configurationSchema())
+            .withFieldValue(KEY_FIELD_PROPERTY, null)
+            .build();
+    SchemaIO schemaIO = provider.from(location, configuration, generateDataSchema());
 
     assertNotNull(schemaIO);
     assertTrue(schemaIO instanceof DataStoreV1SchemaIO);
@@ -61,9 +64,11 @@ public class DataStoreV1SchemaIOProviderTest {
   public void testTableProperty() {
     final String location = "projectId/batch_kind";
 
-    Row configuration = Row.withSchema(generateRowSchema()).addValue("field_name").build();
-    SchemaIO schemaIO =
-        (new DataStoreV1SchemaIOProvider()).from(location, configuration, generateDataSchema());
+    Row configuration =
+        Row.withSchema(provider.configurationSchema())
+            .withFieldValue(KEY_FIELD_PROPERTY, "field_name")
+            .build();
+    SchemaIO schemaIO = provider.from(location, configuration, generateDataSchema());
 
     assertNotNull(schemaIO);
     assertTrue(schemaIO instanceof DataStoreV1SchemaIO);
@@ -77,7 +82,11 @@ public class DataStoreV1SchemaIOProviderTest {
   @Test
   public void testTableProperty_nullValue_throwsException() {
     final String location = "projectId/batch_kind";
-    Row configuration = Row.withSchema(generateRowSchema()).addValue("").build();
+
+    Row configuration =
+        Row.withSchema(provider.configurationSchema())
+            .withFieldValue(KEY_FIELD_PROPERTY, "")
+            .build();
 
     assertThrows(
         IllegalArgumentException.class,
@@ -91,9 +100,5 @@ public class DataStoreV1SchemaIOProviderTest {
         .addNullableField("id", Schema.FieldType.INT32)
         .addNullableField("name", Schema.FieldType.STRING)
         .build();
-  }
-
-  private Schema generateRowSchema() {
-    return Schema.builder().addNullableField(KEY_FIELD_PROPERTY, Schema.FieldType.STRING).build();
   }
 }

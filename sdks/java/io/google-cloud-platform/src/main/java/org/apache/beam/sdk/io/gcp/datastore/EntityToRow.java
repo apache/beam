@@ -35,10 +35,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A {@code PTransform} to perform a conversion of {@code PCollection<Entity>} to {@code
- * PCollection<Row>}.
- */
+/** A {@code PTransform} to perform a conversion of {@link Entity} to {@link Row}. */
 public class EntityToRow extends PTransform<PCollection<Entity>, PCollection<Row>> {
   private final Schema schema;
   private final String keyField;
@@ -53,7 +50,7 @@ public class EntityToRow extends PTransform<PCollection<Entity>, PCollection<Row
         throw new IllegalStateException(
             "Field `"
                 + keyField
-                + "` should of type `VARBINARY`. Please change the type or specify a field to"
+                + "` should of type `BYTES`. Please change the type or specify a field to"
                 + " store the KEY value.");
       }
       LOG.info("Entity KEY will be stored under `" + keyField + "` field.");
