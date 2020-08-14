@@ -63,7 +63,7 @@ class RowCoderTest(unittest.TestCase):
       knows_javascript=False,
       payload=None,
       custom_metadata={},
-      favorite_time=Timestamp.from_rfc3339('2016-03-18T23:22:59.123'),
+      favorite_time=Timestamp.from_rfc3339('2016-03-18T23:22:59.123Z'),
   )
   PEOPLE = [
       JON_SNOW,
