@@ -115,7 +115,8 @@ import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
  *                         .setMaxAttempts(5)
  *                         .setMaxDuration(Duration.standardMinutes(1))
  *                         .build())
- *               .withDynamoDbClientProvider(new BasicDynamoDbClientProvider(dynamoDbClientProvider, region));
+ *               .withDynamoDbClientProvider(new BasicDynamoDbClientProvider(dynamoDbClientProvider, region))
+ *               .withOverwriteByPKeys(overwriteByPKeys));
  * }</pre>
  *
  * <p>As a client, you need to provide at least the following things:
@@ -360,6 +361,8 @@ public final class DynamoDBIO {
 
     abstract @Nullable SerializableFunction<T, KV<String, WriteRequest>> getWriteItemMapperFn();
 
+    abstract @Nullable List<String> getOverwriteByPKeys();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -371,6 +374,8 @@ public final class DynamoDBIO {
 
       abstract Builder<T> setWriteItemMapperFn(
           SerializableFunction<T, KV<String, WriteRequest>> writeItemMapperFn);
+
+      abstract Builder<T> setOverwriteByPKeys(List<String> overwriteByPKeys);
 
       abstract Write<T> build();
     }
@@ -424,6 +429,10 @@ public final class DynamoDBIO {
       return toBuilder().setWriteItemMapperFn(writeItemMapperFn).build();
     }
 
+    public Write<T> withOverwriteByPKeys(List<String> overwriteByPKeys) {
+      return toBuilder().setOverwriteByPKeys(overwriteByPKeys).build();
+    }
+
     @Override
     public PCollection<Void> expand(PCollection<T> input) {
       return input.apply(ParDo.of(new WriteFn<>(this)));
@@ -472,10 +481,33 @@ public final class DynamoDBIO {
       public void processElement(ProcessContext context) throws Exception {
         final KV<String, WriteRequest> writeRequest =
             (KV<String, WriteRequest>) spec.getWriteItemMapperFn().apply(context.element());
+        if (spec.getOverwriteByPKeys() != null) {
+          removeDupPKeysRequestsIfAny(writeRequest.getValue());
+        }
         batch.add(writeRequest);
         if (batch.size() >= BATCH_SIZE) {
           flushBatch();
         }
+      }
+
+      private void removeDupPKeysRequestsIfAny(WriteRequest request) {
+        Map<String, AttributeValue> pKeyValueNew = extractPkeyValues(request);
+        batch.removeIf(item -> extractPkeyValues(item.getValue()).equals(pKeyValueNew));
+      }
+
+      private Map<String, AttributeValue> extractPkeyValues(WriteRequest request) {
+        if (spec.getOverwriteByPKeys() != null) {
+          if (request.putRequest() != null) {
+            return request.putRequest().item().entrySet().stream()
+                .filter(entry -> spec.getOverwriteByPKeys().contains(entry.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+          } else if (request.deleteRequest() != null) {
+            return request.deleteRequest().key().entrySet().stream()
+                .filter(entry -> spec.getOverwriteByPKeys().contains(entry.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+          }
+        }
+        return Collections.emptyMap();
       }
 
       @FinishBundle

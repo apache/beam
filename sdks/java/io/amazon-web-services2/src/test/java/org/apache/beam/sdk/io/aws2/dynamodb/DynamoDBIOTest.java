@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
@@ -216,6 +217,10 @@ public class DynamoDBIOTest implements Serializable {
     List<KV<String, Integer>> items =
         ImmutableList.of(KV.of("test1", 111), KV.of("test2", 222), KV.of("test3", 333));
 
+    final List<String> overwriteByPKeys = new ArrayList<>();
+    overwriteByPKeys.add("hashKey1");
+    overwriteByPKeys.add("rangeKey2");
+
     final PCollection<Void> output =
         pipeline
             .apply(Create.of(items))
@@ -246,7 +251,8 @@ public class DynamoDBIOTest implements Serializable {
                             .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
                             .build())
                     .withDynamoDbClientProvider(
-                        DynamoDbClientProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient())));
+                        DynamoDbClientProviderMock.of(DynamoDBIOTestHelper.getDynamoDBClient()))
+                    .withOverwriteByPKeys(overwriteByPKeys));
 
     final PCollection<Long> publishedResultsSize = output.apply(Count.globally());
     PAssert.that(publishedResultsSize).containsInAnyOrder(0L);
@@ -266,6 +272,10 @@ public class DynamoDBIOTest implements Serializable {
 
     List<KV<String, Integer>> items =
         ImmutableList.of(KV.of("test1", 111), KV.of("test2", 222), KV.of("test3", 333));
+
+    final List<String> overwriteByPKeys = new ArrayList<>();
+    overwriteByPKeys.add("hashKey1");
+    overwriteByPKeys.add("rangeKey2");
 
     DynamoDbClient amazonDynamoDBMock = Mockito.mock(DynamoDbClient.class);
     Mockito.when(amazonDynamoDBMock.batchWriteItem(Mockito.any(BatchWriteItemRequest.class)))
@@ -298,7 +308,8 @@ public class DynamoDBIOTest implements Serializable {
                         .setMaxDuration(Duration.standardSeconds(10))
                         .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
                         .build())
-                .withDynamoDbClientProvider(DynamoDbClientProviderMock.of(amazonDynamoDBMock)));
+                .withDynamoDbClientProvider(DynamoDbClientProviderMock.of(amazonDynamoDBMock))
+                .withOverwriteByPKeys(overwriteByPKeys));
 
     try {
       pipeline.run().waitUntilFinish();
