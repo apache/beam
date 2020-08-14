@@ -27,9 +27,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     triggerPathPatterns: [
       '^sdks/python/.*$',
     ]
-    )
+)
 builder.build {
-  // Publish all test results to Jenkins.
-  publishers {
-  }
+  publishers {}
 }
