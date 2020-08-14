@@ -29,6 +29,7 @@ over the last 10 closed auctions by the same seller. In CQL syntax::
 """
 
 from __future__ import absolute_import
+from __future__ import division
 
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import seller_price
@@ -89,4 +90,4 @@ class MovingMeanSellingPriceFn(beam.CombineFn):
     sum_price = 0
     for bid in accumulator:
       sum_price += bid.price
-    return round(sum_price / len(accumulator))
+    return int(sum_price / len(accumulator))

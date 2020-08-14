@@ -16,6 +16,8 @@
 #
 
 """Result of Query6."""
+from __future__ import absolute_import
+
 from apache_beam.coders import coder_impl
 from apache_beam.coders.coders import FastCoder
 from apache_beam.testing.benchmarks.nexmark import nexmark_util
