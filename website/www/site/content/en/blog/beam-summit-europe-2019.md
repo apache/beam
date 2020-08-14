@@ -34,7 +34,7 @@ As these events happened, we were building up to the [20th anniversary of the Ap
 <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
 In that spirit, let's have an overview of the things that have happened, what the next few months look like, and how we can foster even more community growth.
-  
+
 
 ## Meetups
 We've had a flurry of activity, with several meetups in the planning process and more popping up globally over time. As diversity of contributors is a core ASF value, this geographic spread is exciting for the community. Here's a picture from the latest Apache Beam meetup organized at Lyft in San Francisco:
@@ -52,7 +52,7 @@ and [Stockholm](https://www.meetup.com/Apache-Beam-Stockholm/events/260634514) h
 <blockquote class="twitter-tweet" data-lang="en-gb"><p lang="en" dir="ltr">Big audience for the second <a href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">@ApacheBeam</a> meetup in Stockholm! Gleb, <a href="https://twitter.com/kanterov?ref_src=twsrc%5Etfw">@kanterov</a> from <a href="https://twitter.com/SpotifyEng?ref_src=twsrc%5Etfw">@SpotifyEng</a> kicking off the first talk with Beam SQL.<a href="https://twitter.com/hashtag/ApacheBeamStockholm?src=hash&amp;ref_src=twsrc%5Etfw">#ApacheBeamStockholm</a> <a href="https://t.co/fDqPPFh2gY">pic.twitter.com/fDqPPFh2gY</a></p>&mdash; Matthias Baetens 🌆 (@matthiasbaetens) <a href="https://twitter.com/matthiasbaetens/status/1125442916711915521?ref_src=twsrc%5Etfw">6 May 2019</a></blockquote>
 <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
-Keep an eye out for a meetup in [Paris](https://www.meetup.com/Paris-Apache-Beam-Meetup). 
+Keep an eye out for a meetup in [Paris](https://www.meetup.com/Paris-Apache-Beam-Meetup).
 
 If you are interested in starting your own meetup, feel free [to reach out](https://beam.apache.org/community/contact-us)! Good places to start include our Slack channel, the dev and user mailing lists, or the Apache Beam Twitter.
 
@@ -63,7 +63,7 @@ The first summit of the year will be held in Berlin:
 
 <img src="https://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F58635346%2F70962106775%2F1%2Foriginal.20190317-212619?w=800&auto=compress&rect=0%2C115%2C2666%2C1333&s=2680f5036dcad9177b027cce026c0224" alt="Beam Summit Europe Banner" >
 
-You can find more info on the [website](https://beamsummit.org) and read about the inaugural edition of the Beam Summit Europe [here](https://beam.apache.org/blog/2018/10/31/beam-summit-aftermath.html). At these summits, you have the opportunity to meet with other Apache Beam creators and users, get expert advice, learn from the speaker sessions, and participate in workshops. 
+You can find more info on the [website](https://beamsummit.org) and read about the inaugural edition of the Beam Summit Europe [here](https://beam.apache.org/blog/2018/10/31/beam-summit-aftermath.html). At these summits, you have the opportunity to meet with other Apache Beam creators and users, get expert advice, learn from the speaker sessions, and participate in workshops.
 
 We strongly encourage you to get involved again this year! You can participate in the following ways for the upcoming summit in Europe:
 
@@ -76,7 +76,7 @@ We also launched the CfP for our Beam Summit in North America, which will be hel
 🎤 If you want to give a talk, take a look at our [CfP](https://www.apachecon.com/acna19/cfp.html).
 
 Stay tuned for more information on the summit in North America and Asia.
-  
+
 ## Why community engagement matters
 Why we need a strong Apache Beam community:
 * We're receiving lots of code contributions and need committers to review those and help onboard new contributors to the project.

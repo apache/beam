@@ -181,7 +181,7 @@ pip install apache_beam
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
-Starting from Beam 2.20.0, pre-built Spark Job Service Docker images are available at 
+Starting from Beam 2.20.0, pre-built Spark Job Service Docker images are available at
 [Docker Hub](https://hub.docker.com/r/apache/beam_spark_job_server).
 {{< /paragraph >}}
 

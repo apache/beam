@@ -23,10 +23,10 @@
 
 Continuous Integration is important component of making Apache Beam robust and stable.
 
-Our execution environment for CI is mainly the Jenkins which is available at 
-[https://ci-beam.apache.org/](https://ci-beam.apache.org/). See 
+Our execution environment for CI is mainly the Jenkins which is available at
+[https://ci-beam.apache.org/](https://ci-beam.apache.org/). See
 [.test-infra/jenkins/README](.test-infra/jenkins/README.md)
-for trigger phrase, status and link of all Jenkins jobs. See Apache Beam Developer Guide for 
+for trigger phrase, status and link of all Jenkins jobs. See Apache Beam Developer Guide for
 [Jenkins Tips](https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips).
 
 An additional execution environment for CI is [GitHub Actions](https://github.com/features/actions). GitHub Actions
@@ -67,7 +67,7 @@ after merge even if they do not fail in isolation.
 
 Those runs are results of (nightly) triggered job - only for `master` branch. The
 main purpose of the job is to check if there was no impact of external dependency changes on the Apache
-Beam code (for example transitive dependencies released that fail the build). Another reason for the nightly 
+Beam code (for example transitive dependencies released that fail the build). Another reason for the nightly
 build is that the builds tags most recent master with `nightly-master`.
 
 All runs consist of the same jobs, but the jobs behave slightly differently or they are skipped in different
@@ -118,7 +118,7 @@ Service Account shall have following permissions ([IAM roles](https://cloud.goog
 
 ### GitHub Action Tips
 
-* If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request. 
+* If you introduce changes to the workflow it is possible that your changes will not be present in the check run triggered in Pull Request.
 In this case please attach link to the modified workflow run executed on your fork.
 * Possible timeouts with macOS runner - existing issue: [(X) This check failed - sometimes happens on macOS runner #841](https://github.com/actions/virtual-environments/issues/841)
 * [GitHub Actions Documentation](https://docs.github.com/en/actions)

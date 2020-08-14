@@ -19,7 +19,7 @@
 Filter using ParDo
 ------------------
 
-**Kata:** Implement a filter function that filters out the even numbers by using 
+**Kata:** Implement a filter function that filters out the even numbers by using
 [DoFn](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html).
 
 <div class="hint">

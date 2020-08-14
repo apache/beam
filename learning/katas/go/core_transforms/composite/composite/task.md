@@ -18,13 +18,13 @@
 
 # Composite Transform
 
-Transforms can have a nested structure, where a complex transform performs multiple simpler 
-transforms (such as more than one ParDo, Combine, GroupByKey, or even other composite transforms). 
-These transforms are called composite transforms. Nesting multiple transforms inside a single 
-composite transform can make your code more modular and easier to understand.  Additionally, 
+Transforms can have a nested structure, where a complex transform performs multiple simpler
+transforms (such as more than one ParDo, Combine, GroupByKey, or even other composite transforms).
+These transforms are called composite transforms. Nesting multiple transforms inside a single
+composite transform can make your code more modular and easier to understand.  Additionally,
 scopes may be augmented with custom naming for monitoring purposes.
 
-**Kata:** This kata has two tasks.  One is to implement a composite transform that extracts characters 
+**Kata:** This kata has two tasks.  One is to implement a composite transform that extracts characters
 from a list of strings, excludes any spaces and returns a PCollection of type KV<string, int>
 associating a character with its count in the sample input.
 Second is to create a sub-scope in the composite transform with the name "CountCharacters".

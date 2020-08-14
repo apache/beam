@@ -235,10 +235,10 @@ Output:
 
 ## Related transforms
 
-* [Filter](/documentation/transforms/python/elementwise/filter) is useful if the function is just 
+* [Filter](/documentation/transforms/python/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
 * [ParDo](/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
-  operation, and includes other abilities such as multiple output collections and side-inputs. 
+  operation, and includes other abilities such as multiple output collections and side-inputs.
 * [Map](/documentation/transforms/python/elementwise/map) behaves the same, but produces exactly one output for each input.
 
 {{< button-pydoc path="apache_beam.transforms.core" class="FlatMap" >}}

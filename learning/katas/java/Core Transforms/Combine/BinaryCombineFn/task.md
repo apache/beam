@@ -19,17 +19,17 @@
 Combine - BinaryCombineFn
 -------------------------
 
-Combine is a Beam transform for combining collections of elements or values in your data. When you 
-apply a Combine transform, you must provide the function that contains the logic for combining the 
-elements or values. The combining function should be commutative and associative, as the function 
-is not necessarily invoked exactly once on all values with a given key. Because the input data 
-(including the value collection) may be distributed across multiple workers, the combining function 
+Combine is a Beam transform for combining collections of elements or values in your data. When you
+apply a Combine transform, you must provide the function that contains the logic for combining the
+elements or values. The combining function should be commutative and associative, as the function
+is not necessarily invoked exactly once on all values with a given key. Because the input data
+(including the value collection) may be distributed across multiple workers, the combining function
 might be called multiple times to perform partial combining on subsets of the value collection.
 
-BinaryCombineFn is used for implementing combiners that are more easily expressed as binary 
+BinaryCombineFn is used for implementing combiners that are more easily expressed as binary
 operations.
 
-**Kata:** Implement the summation of BigInteger using 
+**Kata:** Implement the summation of BigInteger using
 [Combine.BinaryCombineFn](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Combine.BinaryCombineFn.html).
 
 <div class="hint">

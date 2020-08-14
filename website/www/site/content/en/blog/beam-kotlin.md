@@ -33,12 +33,12 @@ Apache Beam samples are now available in Kotlin!
 If you are someone who's been working with Java in your professional career; there's a good chance that you've also heard of [Kotlin](https://kotlinlang.org/), which is an Open Sourced, statically typed language for JVM and is mostly being favoured by Android Developers due to the many myriad features which enable more concise and cleaner code than Java without sacrificing performance or safety.
 
 It gives us an immense pleasure to announce that we are also taking a step ahead in the same direction and releasing the samples for the Beam SDK in Kotlin alongside Java!
- 
+
  (Note : At the time of writing this post, only the WordCount samples have been added in Koltin with more samples underway)
 
 
 ## Code Snippets
-Here are few brief snippets of code that show how the Kotlin Samples compare to Java 
+Here are few brief snippets of code that show how the Kotlin Samples compare to Java
 
 ### Java
 
@@ -55,10 +55,10 @@ Here are few brief snippets of code that show how the Kotlin Samples compare to 
 
 {{< highlight java >}}
  // String templating
- val filename = "$filenamePrefixForWindow(intervalWindow)-$shardNumber-of-$numShards${outputFileHints.suggestedFilenameSuffix)"  
+ val filename = "$filenamePrefixForWindow(intervalWindow)-$shardNumber-of-$numShards${outputFileHints.suggestedFilenameSuffix)"
 {{< /highlight >}}
 
-### Java 
+### Java
 
 {{< highlight java >}}
 public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
