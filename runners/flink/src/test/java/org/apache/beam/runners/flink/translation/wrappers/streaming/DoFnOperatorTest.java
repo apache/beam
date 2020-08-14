@@ -372,7 +372,7 @@ public class DoFnOperatorTest {
 
     assertThat(stripStreamRecordFromWindowedValue(testHarness.getOutput()), emptyIterable());
     assertThat(
-        doFnOperator.timerInternals.getMinOutputTimestampMs(),
+        doFnOperator.keyedStateInternals.minWatermarkHoldMs(),
         is(timerOutputTimestamp.getMillis()));
 
     // this must fire the event timers
