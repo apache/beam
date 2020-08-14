@@ -201,6 +201,9 @@ public class BigQueryUtils {
           .put("SqlCharType", StandardSQLTypeName.STRING)
           .build();
 
+  private static final String BIGQUERY_MAP_KEY_FIELD_NAME = "key";
+  private static final String BIGQUERY_MAP_VALUE_FIELD_NAME = "value";
+
   /**
    * Get the corresponding BigQuery {@link StandardSQLTypeName} for supported Beam {@link
    * FieldType}.
@@ -264,6 +267,18 @@ public class BigQueryUtils {
                 "SqlTimestampWithLocalTzType", FieldType.STRING, "", FieldType.DATETIME) {});
       case "STRUCT":
       case "RECORD":
+        // check if record represents a map entry
+        if (nestedFields.size() == 2) {
+          TableFieldSchema key = nestedFields.get(0);
+          TableFieldSchema value = nestedFields.get(1);
+          if (BIGQUERY_MAP_KEY_FIELD_NAME.equals(key.getName())
+              && BIGQUERY_MAP_VALUE_FIELD_NAME.equals(value.getName())) {
+            return FieldType.map(
+                fromTableFieldSchemaType(key.getType(), key.getFields()),
+                fromTableFieldSchemaType(value.getType(), value.getFields()));
+          }
+        }
+
         Schema rowSchema = fromTableFieldSchema(nestedFields);
         return FieldType.row(rowSchema);
       default:
@@ -279,7 +294,8 @@ public class BigQueryUtils {
           fromTableFieldSchemaType(tableFieldSchema.getType(), tableFieldSchema.getFields());
 
       Optional<Mode> fieldMode = Optional.ofNullable(tableFieldSchema.getMode()).map(Mode::valueOf);
-      if (fieldMode.filter(m -> m == Mode.REPEATED).isPresent()) {
+      if (fieldMode.filter(m -> m == Mode.REPEATED).isPresent()
+          && !fieldType.getTypeName().isMapType()) {
         fieldType = FieldType.array(fieldType);
       }
 
@@ -455,10 +471,10 @@ public class BigQueryUtils {
         Map<?, ?> pairs = (Map<?, ?>) fieldValue;
         convertedItems = Lists.newArrayListWithCapacity(pairs.size());
         for (Map.Entry<?, ?> pair : pairs.entrySet()) {
-          HashMap<String, Object> item = new HashMap<>(2);
-          item.put("key", pair.getKey());
-          item.put("value", pair.getValue());
-          convertedItems.add(item);
+          convertedItems.add(
+              new TableRow()
+                  .set(BIGQUERY_MAP_KEY_FIELD_NAME, pair.getKey())
+                  .set(BIGQUERY_MAP_VALUE_FIELD_NAME, pair.getValue()));
         }
         return convertedItems;
 
@@ -660,7 +676,7 @@ public class BigQueryUtils {
       case DECIMAL:
         throw new RuntimeException("Does not support converting DECIMAL type value");
       case MAP:
-        throw new RuntimeException("Does not support converting MAP type value");
+        return convertAvroMap(beamFieldType, avroValue, options);
       default:
         throw new RuntimeException(
             "Does not support converting unknown type value: " + beamFieldTypeName);
@@ -694,6 +710,20 @@ public class BigQueryUtils {
     FieldType collectionElement = beamField.getCollectionElementType();
     for (Object v : values) {
       ret.add(convertAvroFormat(collectionElement, v, options));
+    }
+    return ret;
+  }
+
+  private static Object convertAvroMap(
+      FieldType beamField, Object value, BigQueryUtils.ConversionOptions options) {
+    List<GenericData.Record> records = (List<GenericData.Record>) value;
+    HashMap<Object, Object> ret = new HashMap<>();
+    FieldType keyElement = beamField.getMapKeyType();
+    FieldType valueElement = beamField.getMapValueType();
+    for (GenericData.Record record : records) {
+      ret.put(
+          convertAvroFormat(keyElement, record.get(0), options),
+          convertAvroFormat(valueElement, record.get(1), options));
     }
     return ret;
   }
