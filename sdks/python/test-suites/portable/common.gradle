@@ -205,6 +205,7 @@ project.task("postCommitPy${pythonVersionSuffix}") {
   dependsOn = ['setupVirtualenv',
                "postCommitPy${pythonVersionSuffix}IT",
                ':runners:spark:job-server:shadowJar',
+               'portableLocalRunnerJuliaSetWithSetupPy',
                'portableWordCountSparkRunnerBatch']
 }
 
@@ -212,7 +213,6 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
-          'portableLocalRunnerJuliaSetWithSetupPy',
           ':runners:flink:1.10:job-server:shadowJar',
           ':sdks:java:container:docker',
           ':sdks:java:io:expansion-service:shadowJar',
