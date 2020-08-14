@@ -28,9 +28,3 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^sdks/python/.*$',
     ]
     )
-builder.build {
-  // Publish all test results to Jenkins.
-  publishers {
-    common.setArchiveJunitWithStabilityHistory(delegate, '**/pytest*.xml')
-  }
-}
