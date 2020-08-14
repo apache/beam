@@ -18,6 +18,7 @@
 package org.apache.beam.runners.samza.runtime;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -33,6 +34,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
@@ -137,7 +139,7 @@ public class SamzaTimerInternalsFactoryTest {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
 
-    final KeyValueStore<ByteArray, byte[]> store = createStore("store1");
+    final KeyValueStore<ByteArray, byte[]> store = createStore("store1-" + UUID.randomUUID());
     final SamzaTimerInternalsFactory<String> timerInternalsFactory =
         createTimerInternalsFactory(null, "timer", pipelineOptions, store);
 
@@ -175,7 +177,8 @@ public class SamzaTimerInternalsFactoryTest {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
 
-    KeyValueStore<ByteArray, byte[]> store = createStore("store2");
+    String storeName = "store2-" + UUID.randomUUID();
+    KeyValueStore<ByteArray, byte[]> store = createStore(storeName);
     final SamzaTimerInternalsFactory<String> timerInternalsFactory =
         createTimerInternalsFactory(null, "timer", pipelineOptions, store);
 
@@ -195,7 +198,7 @@ public class SamzaTimerInternalsFactoryTest {
     store.close();
 
     // restore by creating a new instance
-    store = createStore("store2");
+    store = createStore(storeName);
     final SamzaTimerInternalsFactory<String> restoredFactory =
         createTimerInternalsFactory(null, "timer", pipelineOptions, store);
 
@@ -220,7 +223,8 @@ public class SamzaTimerInternalsFactoryTest {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
 
-    KeyValueStore<ByteArray, byte[]> store = createStore("store3");
+    String storeName = "store3-" + UUID.randomUUID();
+    KeyValueStore<ByteArray, byte[]> store = createStore(storeName);
     TestTimerRegistry timerRegistry = new TestTimerRegistry();
 
     final SamzaTimerInternalsFactory<String> timerInternalsFactory =
@@ -243,7 +247,7 @@ public class SamzaTimerInternalsFactoryTest {
     store.close();
 
     // restore by creating a new instance
-    store = createStore("store3");
+    store = createStore(storeName);
     TestTimerRegistry restoredRegistry = new TestTimerRegistry();
     final SamzaTimerInternalsFactory<String> restoredFactory =
         createTimerInternalsFactory(restoredRegistry, "timer", pipelineOptions, store);
@@ -253,8 +257,8 @@ public class SamzaTimerInternalsFactoryTest {
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
     StringUtf8Coder.of().encode("testKey", baos);
     final byte[] keyBytes = baos.toByteArray();
-    restoredFactory.removeProcessingTimer(new KeyedTimerData(keyBytes, "testKey", timer1));
-    restoredFactory.removeProcessingTimer(new KeyedTimerData(keyBytes, "testKey", timer2));
+    restoredFactory.removeProcessingTimer(new KeyedTimerData<>(keyBytes, "testKey", timer1));
+    restoredFactory.removeProcessingTimer(new KeyedTimerData<>(keyBytes, "testKey", timer2));
 
     store.close();
   }
@@ -264,7 +268,7 @@ public class SamzaTimerInternalsFactoryTest {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
 
-    KeyValueStore<ByteArray, byte[]> store = createStore("store4");
+    KeyValueStore<ByteArray, byte[]> store = createStore("store4-" + UUID.randomUUID());
     final SamzaTimerInternalsFactory<String> timerInternalsFactory =
         createTimerInternalsFactory(null, "timer", pipelineOptions, store);
 
@@ -315,7 +319,7 @@ public class SamzaTimerInternalsFactoryTest {
     assertEquals("found it", map.get(key2));
 
     map.remove(key1);
-    assertTrue(!map.containsKey(key2));
+    assertFalse(map.containsKey(key2));
     assertTrue(map.isEmpty());
   }
 }
