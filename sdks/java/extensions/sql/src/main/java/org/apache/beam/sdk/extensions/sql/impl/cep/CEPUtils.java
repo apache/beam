@@ -40,7 +40,7 @@ public class CEPUtils {
     Quantifier quantToAdd;
     if (!isReluctant) {
       if (start == end) {
-        quantToAdd = new Quantifier("{ " + start + " }");
+        quantToAdd = new Quantifier("{ " + start + " }", start, end, false);
       } else {
         if (end == -1) {
           if (start == 0) {
@@ -48,21 +48,21 @@ public class CEPUtils {
           } else if (start == 1) {
             quantToAdd = Quantifier.PLUS;
           } else {
-            quantToAdd = new Quantifier("{ " + start + " }");
+            quantToAdd = new Quantifier("{ " + start + " }", start, end, false);
           }
         } else {
           if (start == 0 && end == 1) {
             quantToAdd = Quantifier.QMARK;
           } else if (start == -1) {
-            quantToAdd = new Quantifier("{ , " + end + " }");
+            quantToAdd = new Quantifier("{ , " + end + " }", start, end, false);
           } else {
-            quantToAdd = new Quantifier("{ " + start + " , }");
+            quantToAdd = new Quantifier("{ " + start + " , }", start, end, false);
           }
         }
       }
     } else {
       if (start == end) {
-        quantToAdd = new Quantifier("{ " + start + " }?");
+        quantToAdd = new Quantifier("{ " + start + " }?", start, end, true);
       } else {
         if (end == -1) {
           if (start == 0) {
@@ -70,15 +70,15 @@ public class CEPUtils {
           } else if (start == 1) {
             quantToAdd = Quantifier.PLUS_RELUCTANT;
           } else {
-            quantToAdd = new Quantifier("{ " + start + " }?");
+            quantToAdd = new Quantifier("{ " + start + " }?", start, end, true);
           }
         } else {
           if (start == 0 && end == 1) {
             quantToAdd = Quantifier.QMARK_RELUCTANT;
           } else if (start == -1) {
-            quantToAdd = new Quantifier("{ , " + end + " }?");
+            quantToAdd = new Quantifier("{ , " + end + " }?", start, end, true);
           } else {
-            quantToAdd = new Quantifier("{ " + start + " , }?");
+            quantToAdd = new Quantifier("{ " + start + " , }?", start, end, true);
           }
         }
       }

@@ -62,8 +62,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.codehaus.janino.ScriptEvaluator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -201,6 +199,10 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       // apply the pattern match in each partition
       ArrayList<CEPPattern> cepPattern =
           CEPUtils.getCEPPatternFromPattern(upstreamSchema, pattern, patternDefs);
+      for(CEPPattern i : cepPattern) {
+        CEPCall j = i.getPatternCondition();
+        LOG.info(j.toString());
+      }
       String regexPattern = CEPUtils.getRegexFromPattern(pattern);
       List<CEPMeasure> cepMeasures = new ArrayList<>();
       for (Map.Entry<String, RexNode> i : measures.entrySet()) {

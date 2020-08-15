@@ -93,8 +93,9 @@ public class CEPPattern implements Serializable {
         "backward functions (PREV, NEXT) not supported for now");
   }
 
-  public boolean evalRow(Row rowEle) {
-    return patternCondition.eval(rowEle);
+  // implement with NFA
+  private CEPLiteral last() {
+
   }
 
   @Override
