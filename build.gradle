@@ -188,6 +188,7 @@ task sqlPostCommit() {
 }
 
 task goPreCommit() {
+  dependsOn ":sdks:go:goBuild"
   dependsOn ":sdks:go:goTest"
 
   dependsOn ":sdks:go:examples:goBuild"
