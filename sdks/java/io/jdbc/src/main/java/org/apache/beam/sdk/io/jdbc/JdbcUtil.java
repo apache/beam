@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.jdbc;
 
 import java.sql.Date;
 import java.sql.JDBCType;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
@@ -29,6 +31,7 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 
@@ -155,6 +158,28 @@ class JdbcUtil {
                     + " in schema is not supported while writing. Please provide statement and preparedStatementSetter");
           }
         }
+    }
+  }
+
+  static class BeamRowPreparedStatementSetter implements JdbcIO.PreparedStatementSetter<Row> {
+    @Override
+    public void setParameters(Row row, PreparedStatement statement) {
+      Schema schema = row.getSchema();
+      List<Schema.Field> fieldTypes = schema.getFields();
+      IntStream.range(0, fieldTypes.size())
+          .forEachOrdered(
+              i -> {
+                Schema.FieldType type = fieldTypes.get(i).getType();
+                try {
+                  JdbcUtil.getPreparedStatementSetCaller(type)
+                      .set(row, statement, i, SchemaUtil.FieldWithIndex.of(schema.getField(i), i));
+                } catch (SQLException throwables) {
+                  throwables.printStackTrace();
+                  throw new RuntimeException(
+                      String.format("Unable to create prepared statement for type: %s", type),
+                      throwables);
+                }
+              });
     }
   }
 

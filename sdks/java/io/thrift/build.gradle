@@ -20,7 +20,7 @@ plugins {
     id 'org.apache.beam.module'
     // id "org.jruyi.thrift" version "0.4.1"
 }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.thrift')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.thrift')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Thrift"
 ext.summary = "IO to read and write Thrift encoded data files"

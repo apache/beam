@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.jet')
+applyJavaNature(automaticModuleName: 'org.apache.beam.runners.jet', enableChecker:false, ignoreRawtypeErrors: true)
 
 description = "Apache Beam :: Runners :: Hazelcast Jet"
 
@@ -73,6 +73,7 @@ task validatesRunnerBatch(type: Test) {
         excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse' //impulse doesn't cooperate properly with Jet when multiple cluster members are used
         exclude '**/SplittableDoFnTest.class' //Splittable DoFn functionality not yet in the runner
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'

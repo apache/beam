@@ -45,6 +45,7 @@ from typing import overload
 import grpc
 
 from apache_beam.io import filesystems
+from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
@@ -365,8 +366,10 @@ class EmbeddedWorkerHandler(WorkerHandler):
     pass
 
   def data_api_service_descriptor(self):
-    # type: () -> None
-    return None
+    # type: () -> endpoints_pb2.ApiServiceDescriptor
+    # A fake endpoint is needed for properly constructing timer info map in
+    # bundle_processor for fnapi_runner.
+    return endpoints_pb2.ApiServiceDescriptor(url='fake')
 
   def state_api_service_descriptor(self):
     # type: () -> None
@@ -462,9 +465,13 @@ class GrpcServer(object):
                 self.provision_info.provision_info, worker_manager),
             self.control_server)
 
+      def open_uncompressed(f):
+        return filesystems.FileSystems.open(
+            f, compression_type=CompressionTypes.UNCOMPRESSED)
+
       beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
           artifact_service.ArtifactRetrievalService(
-              file_reader=filesystems.FileSystems.open),
+              file_reader=open_uncompressed),
           self.control_server)
 
     self.data_plane_handler = data_plane.BeamFnDataServicer(
@@ -822,6 +829,8 @@ class WorkerHandlerManager(object):
       self._grpc_server = GrpcServer(
           self.state_servicer, self._job_provision_info, self)
       grpc_server = self._grpc_server
+    else:
+      grpc_server = self._grpc_server
 
     worker_handler_list = self._cached_handlers[environment_id]
     if len(worker_handler_list) < num_workers:
@@ -832,9 +841,11 @@ class WorkerHandlerManager(object):
             self._job_provision_info.for_environment(environment),
             grpc_server)
         _LOGGER.info(
-            "Created Worker handler %s for environment %s",
+            "Created Worker handler %s for environment %s (%s, %r)",
             worker_handler,
-            environment)
+            environment_id,
+            environment.urn,
+            environment.payload)
         self._cached_handlers[environment_id].append(worker_handler)
         self._workers_by_id[worker_handler.worker_id] = worker_handler
         worker_handler.start_worker()

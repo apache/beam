@@ -29,14 +29,15 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
  * <b>For internal use only; no backwards compatibility guarantees.</b>
  *
  * <p>A {@link PTransform} that returns a {@link PCollection} equivalent to its input but
- * operationally provides some of the side effects of a {@link GroupByKey}, in particular preventing
- * fusion of the surrounding transforms, checkpointing and deduplication by id.
+ * operationally provides some of the side effects of a {@link GroupByKey}, in particular
+ * checkpointing, and preventing fusion of the surrounding transforms.
  *
  * <p>Performs a {@link GroupByKey} so that the data is key-partitioned. Configures the {@link
  * WindowingStrategy} so that no data is dropped, but doesn't affect the need for the user to
@@ -109,16 +110,33 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
   public static class ViaRandomKey<T> extends PTransform<PCollection<T>, PCollection<T>> {
     private ViaRandomKey() {}
 
+    private ViaRandomKey(@Nullable Integer numBuckets) {
+      this.numBuckets = numBuckets;
+    }
+
+    // The number of buckets to shard into. This is a performance optimization to prevent having
+    // unit sized bundles on the output. If unset, uses a random integer key.
+    private @Nullable Integer numBuckets;
+
+    public ViaRandomKey<T> withNumBuckets(@Nullable Integer numBuckets) {
+      return new ViaRandomKey<>(numBuckets);
+    }
+
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       return input
-          .apply("Pair with random key", ParDo.of(new AssignShardFn<>()))
+          .apply("Pair with random key", ParDo.of(new AssignShardFn<>(numBuckets)))
           .apply(Reshuffle.of())
           .apply(Values.create());
     }
 
     private static class AssignShardFn<T> extends DoFn<T, KV<Integer, T>> {
       private int shard;
+      private @Nullable Integer numBuckets;
+
+      private AssignShardFn(@Nullable Integer numBuckets) {
+        this.numBuckets = numBuckets;
+      }
 
       @Setup
       public void setup() {
@@ -137,6 +155,9 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
         // This hashing strategy is copied from
         // org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Hashing.smear().
         int hashOfShard = 0x1b873593 * Integer.rotateLeft(shard * 0xcc9e2d51, 15);
+        if (numBuckets != null) {
+          hashOfShard %= numBuckets;
+        }
         r.output(KV.of(hashOfShard, element));
       }
     }

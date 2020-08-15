@@ -213,7 +213,7 @@ public class BigQueryIOStorageReadTest {
   }
 
   private void checkTypedReadTableObject(
-      TypedRead typedRead, String project, String dataset, String table) {
+      TypedRead<?> typedRead, String project, String dataset, String table) {
     assertEquals(project, typedRead.getTable().getProjectId());
     assertEquals(dataset, typedRead.getTable().getDatasetId());
     assertEquals(table, typedRead.getTable().getTableId());

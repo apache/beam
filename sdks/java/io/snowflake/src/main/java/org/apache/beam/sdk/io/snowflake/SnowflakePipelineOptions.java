@@ -20,9 +20,11 @@ package org.apache.beam.sdk.io.snowflake;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.options.ValueProvider;
 
-public interface SnowflakePipelineOptions extends PipelineOptions {
+public interface SnowflakePipelineOptions extends PipelineOptions, StreamingOptions {
   String BASIC_CONNECTION_INFO_VALIDATION_GROUP = "BASIC_CONNECTION_INFO_GROUP";
   String AUTH_VALIDATION_GROUP = "AUTH_VALIDATION_GROUP";
 
@@ -111,23 +113,18 @@ public interface SnowflakePipelineOptions extends PipelineOptions {
 
   void setLoginTimeout(String loginTimeout);
 
-  @Description("External location name to connect to.")
-  String getExternalLocation();
-
-  void setExternalLocation(String externalLocation);
-
-  @Description("Temporary GCS bucket name")
+  @Description("Temporary GCS bucket name.")
   String getStagingBucketName();
 
   void setStagingBucketName(String stagingBucketName);
 
-  @Description("Storage integration - required in case the external stage is not specified.")
-  String getStorageIntegration();
+  @Description("Storage integration name")
+  String getStorageIntegrationName();
 
-  void setStorageIntegration(String integration);
+  void setStorageIntegrationName(String storageIntegrationName);
 
-  @Description("Stage name. Optional.")
-  String getStage();
+  @Description("SnowPipe name. Optional.")
+  ValueProvider<String> getSnowPipe();
 
-  void setStage(String stage);
+  void setSnowPipe(ValueProvider<String> snowPipe);
 }

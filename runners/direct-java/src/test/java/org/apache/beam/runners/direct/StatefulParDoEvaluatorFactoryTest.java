@@ -19,12 +19,10 @@ package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Matchers.anyList;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
@@ -35,10 +33,6 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateNamespaces;
-import org.apache.beam.runners.core.StateTag;
-import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
@@ -85,7 +79,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -126,130 +119,6 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
         .thenReturn(
             SideInputContainer.create(mockEvaluationContext, Collections.emptyList())
                 .createReaderForViews(Collections.emptyList()));
-  }
-
-  @Test
-  public void windowCleanupScheduled() throws Exception {
-    // To test the factory, first we set up a pipeline and then we use the constructed
-    // pipeline to create the right parameters to pass to the factory
-
-    final String stateId = "my-state-id";
-
-    // For consistency, window it into FixedWindows. Actually we will fabricate an input bundle.
-    PCollection<KV<String, Integer>> input =
-        pipeline
-            .apply(Create.of(KV.of("hello", 1), KV.of("hello", 2)))
-            .apply(Window.into(FixedWindows.of(Duration.millis(10))));
-
-    TupleTag<Integer> mainOutput = new TupleTag<>();
-    final ParDoMultiOverrideFactory.GbkThenStatefulParDo<String, Integer, Integer>
-        gbkThenStatefulParDo;
-    gbkThenStatefulParDo =
-        new ParDoMultiOverrideFactory.GbkThenStatefulParDo<>(
-            new DoFn<KV<String, Integer>, Integer>() {
-              @StateId(stateId)
-              private final StateSpec<ValueState<String>> spec =
-                  StateSpecs.value(StringUtf8Coder.of());
-
-              @ProcessElement
-              public void process(ProcessContext c) {}
-            },
-            mainOutput,
-            TupleTagList.empty(),
-            Collections.emptyList(),
-            DoFnSchemaInformation.create(),
-            Collections.emptyMap());
-
-    final PCollection<KeyedWorkItem<String, KV<String, Integer>>> grouped =
-        gbkThenStatefulParDo.groupToKeyedWorkItem(input);
-
-    PCollection<Integer> produced =
-        gbkThenStatefulParDo.applyStatefulParDo(grouped).get(mainOutput).setCoder(VarIntCoder.of());
-
-    StatefulParDoEvaluatorFactory<String, Integer, Integer> factory =
-        new StatefulParDoEvaluatorFactory<>(mockEvaluationContext, options);
-
-    AppliedPTransform<
-            PCollection<? extends KeyedWorkItem<String, KV<String, Integer>>>,
-            PCollectionTuple,
-            StatefulParDo<String, Integer, Integer>>
-        producingTransform = (AppliedPTransform) DirectGraphs.getProducer(produced);
-
-    // Then there will be a digging down to the step context to get the state internals
-    when(mockEvaluationContext.getExecutionContext(
-            eq(producingTransform), Mockito.<StructuralKey>any()))
-        .thenReturn(mockExecutionContext);
-    when(mockExecutionContext.getStepContext(any())).thenReturn(mockStepContext);
-
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(9));
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(10), new Instant(19));
-
-    StateNamespace firstWindowNamespace =
-        StateNamespaces.window(IntervalWindow.getCoder(), firstWindow);
-    StateNamespace secondWindowNamespace =
-        StateNamespaces.window(IntervalWindow.getCoder(), secondWindow);
-    StateTag<ValueState<String>> tag =
-        StateTags.tagForSpec(stateId, StateSpecs.value(StringUtf8Coder.of()));
-
-    // Set up non-empty state. We don't mock + verify calls to clear() but instead
-    // check that state is actually empty. We musn't care how it is accomplished.
-    stateInternals.state(firstWindowNamespace, tag).write("first");
-    stateInternals.state(secondWindowNamespace, tag).write("second");
-
-    // A single bundle with some elements in the global window; it should register cleanup for the
-    // global window state merely by having the evaluator created. The cleanup logic does not
-    // depend on the window.
-    CommittedBundle<KeyedWorkItem<String, KV<String, Integer>>> inputBundle =
-        BUNDLE_FACTORY
-            .createBundle(grouped)
-            .add(
-                WindowedValue.of(
-                    KeyedWorkItems.<String, KV<String, Integer>>elementsWorkItem(
-                        "hello",
-                        Collections.singleton(
-                            WindowedValue.of(
-                                KV.of("hello", 1),
-                                new Instant(3),
-                                firstWindow,
-                                PaneInfo.NO_FIRING))),
-                    new Instant(3),
-                    firstWindow,
-                    PaneInfo.NO_FIRING))
-            .add(
-                WindowedValue.of(
-                    KeyedWorkItems.<String, KV<String, Integer>>elementsWorkItem(
-                        "hello",
-                        Collections.singleton(
-                            WindowedValue.of(
-                                KV.of("hello", 2),
-                                new Instant(11),
-                                secondWindow,
-                                PaneInfo.NO_FIRING))),
-                    new Instant(11),
-                    secondWindow,
-                    PaneInfo.NO_FIRING))
-            .commit(Instant.now());
-
-    // Merely creating the evaluator should suffice to register the cleanup callback
-    factory.forApplication(producingTransform, inputBundle);
-
-    ArgumentCaptor<Runnable> argumentCaptor = ArgumentCaptor.forClass(Runnable.class);
-    verify(mockEvaluationContext)
-        .scheduleAfterWindowExpiration(
-            eq(producingTransform), eq(firstWindow), Mockito.any(), argumentCaptor.capture());
-
-    // Should actually clear the state for the first window
-    argumentCaptor.getValue().run();
-    assertThat(stateInternals.state(firstWindowNamespace, tag).read(), nullValue());
-    assertThat(stateInternals.state(secondWindowNamespace, tag).read(), equalTo("second"));
-
-    verify(mockEvaluationContext)
-        .scheduleAfterWindowExpiration(
-            eq(producingTransform), eq(secondWindow), Mockito.any(), argumentCaptor.capture());
-
-    // Should actually clear the state for the second window
-    argumentCaptor.getValue().run();
-    assertThat(stateInternals.state(secondWindowNamespace, tag).read(), nullValue());
   }
 
   /**

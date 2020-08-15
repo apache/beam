@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getEs
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getRingFraction;
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.isMurmur3Partitioner;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -40,7 +41,6 @@ import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
 import info.archinnov.achilles.embedded.CassandraEmbeddedServerBuilder;
 import info.archinnov.achilles.embedded.CassandraShutDownHook;
-import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
@@ -80,12 +80,14 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.cassandra.service.StorageServiceMBean;
-import org.apache.commons.io.FileUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -109,8 +111,7 @@ public class CassandraIOTest implements Serializable {
   private static Cluster cluster;
   private static Session session;
 
-  private static final String TEMPORARY_FOLDER =
-      System.getProperty("java.io.tmpdir") + "/embedded-cassandra/";
+  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   private static CassandraShutDownHook shutdownHook;
 
@@ -118,15 +119,11 @@ public class CassandraIOTest implements Serializable {
   public static void beforeClass() throws Exception {
     jmxPort = NetworkTestHelper.getAvailableLocalPort();
     shutdownHook = new CassandraShutDownHook();
-    String data = TEMPORARY_FOLDER + "/data";
-    Files.createDirectories(Paths.get(data));
-    String commitLog = TEMPORARY_FOLDER + "/commit-log";
-    Files.createDirectories(Paths.get(commitLog));
-    String cdcRaw = TEMPORARY_FOLDER + "/cdc-raw";
-    Files.createDirectories(Paths.get(cdcRaw));
-    String hints = TEMPORARY_FOLDER + "/hints";
-    Files.createDirectories(Paths.get(hints));
-    String savedCache = TEMPORARY_FOLDER + "/saved-cache";
+    String data = TEMPORARY_FOLDER.newFolder("data").getAbsolutePath();
+    String commitLog = TEMPORARY_FOLDER.newFolder("commit-log").getAbsolutePath();
+    String cdcRaw = TEMPORARY_FOLDER.newFolder("cdc-raw").getAbsolutePath();
+    String hints = TEMPORARY_FOLDER.newFolder("hints").getAbsolutePath();
+    String savedCache = TEMPORARY_FOLDER.newFolder("saved-cache").getAbsolutePath();
     Files.createDirectories(Paths.get(savedCache));
     CassandraEmbeddedServerBuilder builder =
         CassandraEmbeddedServerBuilder.builder()
@@ -184,7 +181,6 @@ public class CassandraIOTest implements Serializable {
   @AfterClass
   public static void afterClass() throws InterruptedException, IOException {
     shutdownHook.shutDownNow();
-    FileUtils.deleteDirectory(new File(TEMPORARY_FOLDER));
   }
 
   private static void insertData() throws Exception {
@@ -225,7 +221,7 @@ public class CassandraIOTest implements Serializable {
               CASSANDRA_KEYSPACE,
               CASSANDRA_TABLE));
     }
-    flushMemTables();
+    flushMemTablesAndRefreshSizeEstimates();
   }
 
   /**
@@ -239,7 +235,7 @@ public class CassandraIOTest implements Serializable {
    * /src/java/org/apache/cassandra/tools/nodetool/Flush.java
    */
   @SuppressWarnings("unused")
-  private static void flushMemTables() throws Exception {
+  private static void flushMemTablesAndRefreshSizeEstimates() throws Exception {
     JMXServiceURL url =
         new JMXServiceURL(
             String.format(
@@ -251,6 +247,7 @@ public class CassandraIOTest implements Serializable {
     StorageServiceMBean mBeanProxy =
         JMX.newMBeanProxy(mBeanServerConnection, objectName, StorageServiceMBean.class);
     mBeanProxy.forceKeyspaceFlush(CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
+    mBeanProxy.refreshSizeEstimates();
     jmxConnector.close();
     Thread.sleep(FLUSH_TIMEOUT);
   }
@@ -287,8 +284,12 @@ public class CassandraIOTest implements Serializable {
             .withTable(CASSANDRA_TABLE);
     CassandraIO.CassandraSource<Scientist> source = new CassandraIO.CassandraSource<>(read, null);
     long estimatedSizeBytes = source.getEstimatedSizeBytes(pipelineOptions);
-    // the size is non determanistic in Cassandra backend
-    assertTrue((estimatedSizeBytes >= 12960L * 0.9f) && (estimatedSizeBytes <= 12960L * 1.1f));
+    // the size is non determanistic in Cassandra backend: checks that estimatedSizeBytes >= 12960L
+    // -20%  && estimatedSizeBytes <= 12960L +20%
+    assertThat(
+        "wrong estimated size in " + CASSANDRA_KEYSPACE + "/" + CASSANDRA_TABLE,
+        estimatedSizeBytes,
+        greaterThan(0L));
   }
 
   @Test
@@ -372,7 +373,8 @@ public class CassandraIOTest implements Serializable {
                 .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withEntity(ScientistWrite.class));
-    // table to write to is specified in the entity in @Table annotation (in that case scientist)
+    // table to write to is specified in the entity in @Table annotation (in that case
+    // scientist_write)
     pipeline.run();
 
     List<Row> results = getRows(CASSANDRA_TABLE_WRITE);
@@ -637,7 +639,7 @@ public class CassandraIOTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

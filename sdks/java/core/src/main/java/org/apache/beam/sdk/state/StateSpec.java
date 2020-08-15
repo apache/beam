@@ -76,6 +76,8 @@ public interface StateSpec<StateT extends State> extends Serializable {
 
     ResultT dispatchBag(Coder<?> elementCoder);
 
+    ResultT dispatchOrderedList(Coder<?> elementCoder);
+
     ResultT dispatchCombining(Combine.CombineFn<?, ?, ?> combineFn, Coder<?> accumCoder);
 
     ResultT dispatchMap(Coder<?> keyCoder, Coder<?> valueCoder);

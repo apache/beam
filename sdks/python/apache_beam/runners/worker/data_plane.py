@@ -337,7 +337,6 @@ class InMemoryDataChannel(DataChannel):
               instruction_id=instruction_id,
               transform_id=transform_id,
               timer_family_id='',
-              timers=b'',
               is_last=True))
 
     return ClosableOutputStream.create(
@@ -434,8 +433,7 @@ class _GrpcDataChannel(DataChannel):
             else:
               yield element
           elif isinstance(element, beam_fn_api_pb2.Elements.Data):
-            # TODO(BEAM-9558): Cleanup once dataflow is updated.
-            if element.is_last or not element.data:
+            if element.is_last:
               done_inputs.add(element.transform_id)
             else:
               assert element.transform_id not in done_inputs
@@ -466,7 +464,6 @@ class _GrpcDataChannel(DataChannel):
           beam_fn_api_pb2.Elements.Data(
               instruction_id=instruction_id,
               transform_id=transform_id,
-              data=b'',
               is_last=True))
 
     return ClosableOutputStream.create(
@@ -490,7 +487,6 @@ class _GrpcDataChannel(DataChannel):
               instruction_id=instruction_id,
               transform_id=transform_id,
               timer_family_id=timer_family_id,
-              timers=b'',
               is_last=True))
 
     return ClosableOutputStream.create(
@@ -628,6 +624,8 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
       self._credentials = credentials
 
   def create_data_channel_from_url(self, url):
+    if not url:
+      return None
     if url not in self._data_channel_cache:
       with self._lock:
         if url not in self._data_channel_cache:

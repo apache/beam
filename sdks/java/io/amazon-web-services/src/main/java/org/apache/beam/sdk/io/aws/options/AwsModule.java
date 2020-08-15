@@ -26,6 +26,7 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EC2ContainerCredentialsProviderWrapper;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.PropertiesFileCredentialsProvider;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
@@ -76,6 +77,8 @@ public class AwsModule extends SimpleModule {
   public static final String PROXY_PORT = "proxyPort";
   public static final String PROXY_USERNAME = "proxyUsername";
   public static final String PROXY_PASSWORD = "proxyPassword";
+  private static final String ROLE_ARN = "roleArn";
+  private static final String ROLE_SESSION_NAME = "roleSessionName";
 
   public AwsModule() {
     super("AwsModule");
@@ -132,6 +135,10 @@ public class AwsModule extends SimpleModule {
         return new ProfileCredentialsProvider();
       } else if (typeName.equals(EC2ContainerCredentialsProviderWrapper.class.getSimpleName())) {
         return new EC2ContainerCredentialsProviderWrapper();
+      } else if (typeName.equals(STSAssumeRoleSessionCredentialsProvider.class.getSimpleName())) {
+        return new STSAssumeRoleSessionCredentialsProvider.Builder(
+                asMap.get(ROLE_ARN), asMap.get(ROLE_SESSION_NAME))
+            .build();
       } else {
         throw new IOException(
             String.format("AWS credential provider type '%s' is not supported", typeName));
@@ -148,7 +155,8 @@ public class AwsModule extends SimpleModule {
             EnvironmentVariableCredentialsProvider.class,
             SystemPropertiesCredentialsProvider.class,
             ProfileCredentialsProvider.class,
-            EC2ContainerCredentialsProviderWrapper.class);
+            EC2ContainerCredentialsProviderWrapper.class,
+            STSAssumeRoleSessionCredentialsProvider.class);
 
     @Override
     public void serialize(
@@ -203,7 +211,27 @@ public class AwsModule extends SimpleModule {
         } catch (NoSuchFieldException | IllegalAccessException e) {
           throw new IOException("failed to access private field with reflection", e);
         }
+      } else if (credentialsProvider
+          .getClass()
+          .equals(STSAssumeRoleSessionCredentialsProvider.class)) {
+        try {
+          STSAssumeRoleSessionCredentialsProvider specificProvider =
+              (STSAssumeRoleSessionCredentialsProvider) credentialsProvider;
 
+          Field fieldRole =
+              STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField(ROLE_ARN);
+          fieldRole.setAccessible(true);
+          String roleArn = (String) fieldRole.get(specificProvider);
+          jsonGenerator.writeStringField(ROLE_ARN, roleArn);
+
+          Field fieldSession =
+              STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField(ROLE_SESSION_NAME);
+          fieldSession.setAccessible(true);
+          String roleSessionName = (String) fieldSession.get(specificProvider);
+          jsonGenerator.writeStringField(ROLE_SESSION_NAME, roleSessionName);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+          throw new IOException("failed to access private field with reflection", e);
+        }
       } else if (!SINGLETON_CREDENTIAL_PROVIDERS.contains(credentialsProvider.getClass())) {
         throw new IllegalArgumentException(
             "Unsupported AWS credentials provider type " + credentialsProvider.getClass());

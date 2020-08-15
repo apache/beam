@@ -26,11 +26,12 @@ def dependOnProjects = [":runners:core-construction-java",
                         ":runners:core-java",
                         ":runners:local-java",
                         ":runners:java-fn-execution",
-                        ":runners:java-job-service",
                         ":sdks:java:fn-execution"]
 
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.runners.direct',
+        enableChecker: false,
+        ignoreRawtypeErrors: true,
         shadowClosure: {
           dependencies {
             dependOnProjects.each {
@@ -142,7 +143,6 @@ task validatesRunner(type: Test) {
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
-    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
 }
 

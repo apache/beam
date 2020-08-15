@@ -143,6 +143,7 @@ class DataflowRunner(PipelineRunner):
     # "executes" a pipeline.
     self._cache = cache if cache is not None else PValueCache()
     self._unique_step_id = 0
+    self._default_environment = None
 
   def is_fnapi_compatible(self):
     return False
@@ -472,13 +473,14 @@ class DataflowRunner(PipelineRunner):
 
     use_fnapi = apiclient._use_fnapi(options)
     from apache_beam.transforms import environments
-    default_environment = environments.DockerEnvironment.from_container_image(
-        apiclient.get_container_image_from_options(options),
-        artifacts=environments.python_sdk_dependencies(options))
+    self._default_environment = (
+        environments.DockerEnvironment.from_container_image(
+            apiclient.get_container_image_from_options(options),
+            artifacts=environments.python_sdk_dependencies(options)))
 
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
-        return_context=True, default_environment=default_environment)
+        return_context=True, default_environment=self._default_environment)
 
     if use_fnapi:
       self._check_for_unsupported_fnapi_features(self.proto_pipeline)
@@ -499,7 +501,7 @@ class DataflowRunner(PipelineRunner):
 
       # We need to generate a new context that maps to the new pipeline object.
       self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
-          return_context=True, default_environment=default_environment)
+          return_context=True, default_environment=self._default_environment)
 
     else:
       # Performing configured PTransform overrides which should not be reflected
@@ -527,14 +529,20 @@ class DataflowRunner(PipelineRunner):
     if google_cloud_options.enable_streaming_engine:
       debug_options.add_experiment("enable_windmill_service")
       debug_options.add_experiment("enable_streaming_engine")
+    elif (apiclient._use_fnapi(options) and
+          apiclient._use_unified_worker(options) and
+          options.view_as(StandardOptions).streaming):
+      debug_options.add_experiment("enable_windmill_service")
+      debug_options.add_experiment("enable_streaming_engine")
     else:
       if (debug_options.lookup_experiment("enable_windmill_service") or
           debug_options.lookup_experiment("enable_streaming_engine")):
         raise ValueError(
             """Streaming engine both disabled and enabled:
-        enable_streaming_engine flag is not set, but enable_windmill_service
+        --enable_streaming_engine flag is not set, but
+        enable_windmill_service
         and/or enable_streaming_engine experiments are present.
-        It is recommended you only set the enable_streaming_engine flag.""")
+        It is recommended you only set the --enable_streaming_engine flag.""")
 
     dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
     if dataflow_worker_jar is not None:
@@ -590,15 +598,13 @@ class DataflowRunner(PipelineRunner):
     return result
 
   def _maybe_add_unified_worker_missing_options(self, options):
-    # set default beam_fn_api and use_beam_bq_sink experiment if use unified
+    # set default beam_fn_api experiment if use unified
     # worker experiment flag exists, no-op otherwise.
     debug_options = options.view_as(DebugOptions)
     from apache_beam.runners.dataflow.internal import apiclient
     if apiclient._use_unified_worker(options):
       if not debug_options.lookup_experiment('beam_fn_api'):
         debug_options.add_experiment('beam_fn_api')
-      if not debug_options.lookup_experiment('use_beam_bq_sink'):
-        debug_options.add_experiment('use_beam_bq_sink')
 
   def _get_typehint_based_encoding(self, typehint, window_coder):
     """Returns an encoding based on a typehint object."""
@@ -740,7 +746,8 @@ class DataflowRunner(PipelineRunner):
 
     step.add_property(
         PropertyNames.WINDOWING_STRATEGY,
-        self.serialize_windowing_strategy(windowing_strategy))
+        self.serialize_windowing_strategy(
+            windowing_strategy, self._default_environment))
     return step
 
   def run_Impulse(self, transform_node, options):
@@ -864,7 +871,7 @@ class DataflowRunner(PipelineRunner):
     windowing = transform_node.transform.get_windowing(transform_node.inputs)
     step.add_property(
         PropertyNames.SERIALIZED_FN,
-        self.serialize_windowing_strategy(windowing))
+        self.serialize_windowing_strategy(windowing, self._default_environment))
 
   def run_RunnerAPIPTransformHolder(self, transform_node, options):
     """Adding Dataflow runner job description for transform holder objects.
@@ -1364,6 +1371,9 @@ class DataflowRunner(PipelineRunner):
     transform = transform_node.transform
     step = self._add_step(
         TransformNames.READ, transform_node.full_label, transform_node)
+    step.add_property(
+        PropertyNames.SERIALIZED_FN,
+        self.proto_context.transforms.get_id(transform_node))
     step.add_property(PropertyNames.FORMAT, 'test_stream')
     test_stream_payload = beam_runner_api_pb2.TestStreamPayload()
     # TestStream source doesn't do any decoding of elements,
@@ -1400,9 +1410,10 @@ class DataflowRunner(PipelineRunner):
   run_TestStream.__test__ = False  # type: ignore[attr-defined]
 
   @classmethod
-  def serialize_windowing_strategy(cls, windowing):
+  def serialize_windowing_strategy(cls, windowing, default_environment):
     from apache_beam.runners import pipeline_context
-    context = pipeline_context.PipelineContext()
+    context = pipeline_context.PipelineContext(
+        default_environment=default_environment)
     windowing_proto = windowing.to_runner_api(context)
     return cls.byte_array_to_json_string(
         beam_runner_api_pb2.MessageWithComponents(

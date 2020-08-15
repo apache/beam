@@ -108,7 +108,7 @@ public class BeamFnDataSizeBasedBufferingOutboundObserverTest {
     // Test that when we close with an empty buffer we only have one end of stream
     consumer.close();
 
-    assertEquals(endMessageWithData(), values.get(2));
+    assertEquals(endMessage(), values.get(2));
 
     // Test that we can't write to a closed stream.
     try {
@@ -119,13 +119,8 @@ public class BeamFnDataSizeBasedBufferingOutboundObserverTest {
       // expected
     }
 
-    // Test that we can't close a stream twice.
-    try {
-      consumer.close();
-      fail("Closing twice should be prohibited.");
-    } catch (IllegalStateException exn) {
-      // expected
-    }
+    // Test that we can close a stream twice.
+    consumer.close();
   }
 
   @Test
@@ -203,7 +198,7 @@ public class BeamFnDataSizeBasedBufferingOutboundObserverTest {
     return messageWithDataBuilder(datum).build();
   }
 
-  BeamFnApi.Elements endMessageWithData() throws IOException {
+  BeamFnApi.Elements endMessage() throws IOException {
     BeamFnApi.Elements.Builder builder = messageWithDataBuilder();
     if (endpoint.isTimer()) {
       builder.getTimersBuilder(0).setIsLast(true);

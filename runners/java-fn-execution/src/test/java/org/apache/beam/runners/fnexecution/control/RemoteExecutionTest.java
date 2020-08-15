@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static org.apache.beam.sdk.options.ExperimentalOptions.addExperiment;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -100,6 +101,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.ReadableState;
@@ -399,6 +401,9 @@ public class RemoteExecutionTest implements Serializable {
   @Test
   public void testExecutionWithSideInput() throws Exception {
     Pipeline p = Pipeline.create();
+    addExperiment(p.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+    // TODO(BEAM-10097): Remove experiment once all portable runners support this view type
+    addExperiment(p.getOptions().as(ExperimentalOptions.class), "use_runner_v2");
     PCollection<String> input =
         p.apply("impulse", Impulse.create())
             .apply(
@@ -464,7 +469,6 @@ public class RemoteExecutionTest implements Serializable {
               (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputContents::add));
     }
 
-    Iterable<String> sideInputData = Arrays.asList("A", "B", "C");
     StateRequestHandler stateRequestHandler =
         StateRequestHandlers.forSideInputHandlerFactory(
             descriptor.getSideInputSpecs(),
@@ -476,7 +480,17 @@ public class RemoteExecutionTest implements Serializable {
                       String sideInputId,
                       Coder<V> elementCoder,
                       Coder<W> windowCoder) {
-                throw new UnsupportedOperationException();
+                return new IterableSideInputHandler<V, W>() {
+                  @Override
+                  public Iterable<V> get(W window) {
+                    return (Iterable) Arrays.asList("A", "B", "C");
+                  }
+
+                  @Override
+                  public Coder<V> elementCoder() {
+                    return elementCoder;
+                  }
+                };
               }
 
               @Override
@@ -486,27 +500,7 @@ public class RemoteExecutionTest implements Serializable {
                       String sideInputId,
                       KvCoder<K, V> elementCoder,
                       Coder<W> windowCoder) {
-                return new MultimapSideInputHandler<K, V, W>() {
-                  @Override
-                  public Iterable<K> get(W window) {
-                    throw new UnsupportedOperationException();
-                  }
-
-                  @Override
-                  public Iterable<V> get(K key, W window) {
-                    return (Iterable) sideInputData;
-                  }
-
-                  @Override
-                  public Coder<K> keyCoder() {
-                    return elementCoder.getKeyCoder();
-                  }
-
-                  @Override
-                  public Coder<V> valueCoder() {
-                    return elementCoder.getValueCoder();
-                  }
-                };
+                throw new UnsupportedOperationException();
               }
             });
     BundleProgressHandler progressHandler = BundleProgressHandler.ignored();
@@ -725,7 +719,6 @@ public class RemoteExecutionTest implements Serializable {
           @Override
           public void onCompleted(ProcessBundleResponse response) {
             List<Matcher<MonitoringInfo>> matchers = new ArrayList<>();
-
             // User Counters.
             SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
             builder
@@ -1351,6 +1344,11 @@ public class RemoteExecutionTest implements Serializable {
     @Override
     public void checkDone() throws IllegalStateException {
       checkState(!needsSplitting(), "Expected for this restriction to have been split.");
+    }
+
+    @Override
+    public IsBounded isBounded() {
+      return IsBounded.BOUNDED;
     }
   }
 

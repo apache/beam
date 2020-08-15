@@ -16,6 +16,8 @@
 
 from __future__ import absolute_import
 
+import contextlib
+import threading
 from typing import Any
 from typing import Callable
 from typing import Iterable
@@ -62,7 +64,7 @@ class Expression(object):
     self._name = name
     self._proxy = proxy
     # Store for preservation through pickling.
-    self._id = _id or '%s_%s' % (name, id(self))
+    self._id = _id or '%s_%s_%s' % (name, type(proxy).__name__, id(self))
 
   def proxy(self):  # type: () -> T
     return self._proxy
@@ -197,12 +199,14 @@ class ComputedExpression(Expression):
         ComputedExpression will produce at execution time. If not provided, a
         proxy will be generated using `func` and the proxies of `args`.
       _id: (Optional) a string to uniquely identify this expression.
-      requires_partition_by_index: Whether this expression requires its
-        argument(s) to be partitioned by index.
-      preserves_partition_by_index: Whether the result of this expression will
-        be partitioned by index whenever all of its inputs are partitioned by
-        index.
+      requires_partition_by: The required (common) partitioning of the args.
+      preserves_partition_by: The level of partitioning preserved.
     """
+    if (not _get_allow_non_parallel() and
+        requires_partition_by == partitionings.Singleton()):
+      raise NonParallelOperation(
+          "Using non-parallel form of %s "
+          "outside of allow_non_parallel_operations block." % name)
     args = tuple(args)
     if proxy is None:
       proxy = func(*(arg.proxy() for arg in args))
@@ -236,3 +240,25 @@ def elementwise_expression(name, func, args):
       args,
       requires_partition_by=partitionings.Nothing(),
       preserves_partition_by=partitionings.Singleton())
+
+
+_ALLOW_NON_PARALLEL = threading.local()
+_ALLOW_NON_PARALLEL.value = False
+
+
+def _get_allow_non_parallel():
+  return _ALLOW_NON_PARALLEL.value
+
+
+@contextlib.contextmanager
+def allow_non_parallel_operations(allow=True):
+  if allow is None:
+    yield
+  else:
+    old_value, _ALLOW_NON_PARALLEL.value = _ALLOW_NON_PARALLEL.value, allow
+    yield
+    _ALLOW_NON_PARALLEL.value = old_value
+
+
+class NonParallelOperation(Exception):
+  pass

@@ -127,13 +127,12 @@ class MetricResults(object):
 
   @staticmethod
   def _matches_name(filter, metric_key):
-    if not filter.names and not filter.namespaces:
+    if ((filter.namespaces and
+         metric_key.metric.namespace not in filter.namespaces) or
+        (filter.names and metric_key.metric.name not in filter.names)):
+      return False
+    else:
       return True
-
-    if ((filter.namespaces and metric_key.metric.namespace in filter.namespaces)
-        or (filter.names and metric_key.metric.name in filter.names)):
-      return True
-    return False
 
   @staticmethod
   def _is_sub_list(needle, haystack):
@@ -219,6 +218,11 @@ class MetricsFilter(object):
   @property
   def namespaces(self):
     return frozenset(self._namespaces)
+
+  def with_metric(self, metric):
+    return (
+        self.with_name(metric.metric_name.name).with_namespace(
+            metric.metric_name.namespace))
 
   def with_name(self, name):
     return self.with_names([name])

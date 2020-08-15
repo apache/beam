@@ -75,7 +75,7 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
       url = self._executable_jar
     else:
       url = job_server.JavaJarJobServer.path_to_beam_jar(
-          'runners:flink:%s:job-server:shadowJar' % self.flink_version())
+          ':runners:flink:%s:job-server:shadowJar' % self.flink_version())
     return job_server.JavaJarJobServer.local_jar(url)
 
   def flink_version(self):

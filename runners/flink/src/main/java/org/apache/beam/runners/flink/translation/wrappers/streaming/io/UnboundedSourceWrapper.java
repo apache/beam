@@ -228,6 +228,8 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
     ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
         new ReaderInvocationUtil<>(stepName, serializedOptions.get(), metricContainer);
 
+    setNextWatermarkTimer(this.runtimeContext);
+
     if (localReaders.isEmpty()) {
       // It can happen when value of parallelism is greater than number of IO readers (for example,
       // parallelism is 2 and number of Kafka topic partitions is 1). In this case, we just fall
@@ -235,7 +237,6 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
       LOG.info("Number of readers is 0 for this task executor, idle");
       // Do nothing here but still execute the rest of the source logic
     } else if (isConvertedBoundedSource) {
-      setNextWatermarkTimer(this.runtimeContext);
 
       // We read sequentially from all bounded sources
       for (int i = 0; i < localReaders.size() && isRunning; i++) {
@@ -275,8 +276,6 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
           }
         }
       }
-
-      setNextWatermarkTimer(this.runtimeContext);
 
       // a flag telling us whether any of the localReaders had data
       // if no reader had data, sleep for bit
@@ -348,8 +347,10 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
   @Override
   public void close() throws Exception {
-    metricContainer.registerMetricsForPipelineResult();
     try {
+      if (metricContainer != null) {
+        metricContainer.registerMetricsForPipelineResult();
+      }
       super.close();
       if (localReaders != null) {
         for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
@@ -430,7 +431,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
     CoderTypeInformation<KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>>
         typeInformation = (CoderTypeInformation) new CoderTypeInformation<>(checkpointCoder);
     stateForCheckpoint =
-        stateStore.getOperatorState(
+        stateStore.getListState(
             new ListStateDescriptor<>(
                 DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME,
                 typeInformation.createSerializer(new ExecutionConfig())));

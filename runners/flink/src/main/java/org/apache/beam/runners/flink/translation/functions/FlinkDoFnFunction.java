@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -48,6 +47,7 @@ import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Encapsulates a {@link DoFn} inside a Flink {@link
@@ -206,7 +206,7 @@ public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
 
   static class DoFnOutputManager implements DoFnRunners.OutputManager, CollectorAware {
 
-    @Nullable private Collector<WindowedValue<RawUnionValue>> collector;
+    private @Nullable Collector<WindowedValue<RawUnionValue>> collector;
 
     DoFnOutputManager() {
       this(null);
@@ -235,7 +235,7 @@ public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
 
   static class MultiDoFnOutputManager implements DoFnRunners.OutputManager, CollectorAware {
 
-    @Nullable private Collector<WindowedValue<RawUnionValue>> collector;
+    private @Nullable Collector<WindowedValue<RawUnionValue>> collector;
     private final Map<TupleTag<?>, Integer> outputMap;
 
     MultiDoFnOutputManager(Map<TupleTag<?>, Integer> outputMap) {

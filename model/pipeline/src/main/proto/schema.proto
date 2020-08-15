@@ -19,6 +19,9 @@
 // ** Experimental **
 // Protocol Buffers describing Beam Schemas, a portable representation for
 // complex types.
+//
+// The primary application of Schema is as the payload for the standard coder
+// "beam:coder:row:v1", defined in beam_runner_api.proto
 
 syntax = "proto3";
 

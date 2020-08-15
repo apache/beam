@@ -743,6 +743,20 @@ class DoOperation(Operation):
     return infos
 
 
+class SdfTruncateSizedRestrictions(DoOperation):
+  def __init__(self, *args, **kwargs):
+    super(SdfTruncateSizedRestrictions, self).__init__(*args, **kwargs)
+
+  def current_element_progress(self):
+    # type: () -> Optional[iobase.RestrictionProgress]
+    return self.receivers[0].current_element_progress()
+
+  def try_split(
+      self, fraction_of_remainder
+  ):  # type: (...) -> Optional[Tuple[Iterable[SdfSplitResultsPrimary], Iterable[SdfSplitResultsResidual]]]
+    return self.receivers[0].try_split(fraction_of_remainder)
+
+
 class SdfProcessSizedElements(DoOperation):
   def __init__(self, *args, **kwargs):
     super(SdfProcessSizedElements, self).__init__(*args, **kwargs)
@@ -761,21 +775,24 @@ class SdfProcessSizedElements(DoOperation):
             receiver.opcounter.restart_sampling()
         # Actually processing the element can be expensive; do it without
         # the lock.
-        delayed_application = self.dofn_runner.process_with_sized_restriction(o)
-        if delayed_application:
+        delayed_applications = self.dofn_runner.process_with_sized_restriction(
+            o)
+        if delayed_applications:
           assert self.execution_context is not None
-          self.execution_context.delayed_applications.append(
-              (self, delayed_application))
+          for delayed_application in delayed_applications:
+            self.execution_context.delayed_applications.append(
+                (self, delayed_application))
       finally:
         with self.lock:
           self.element_start_output_bytes = None
 
   def try_split(self, fraction_of_remainder):
-    # type: (...) -> Optional[Tuple[SdfSplitResultsPrimary, SdfSplitResultsResidual]]
+    # type: (...) -> Optional[Tuple[Iterable[SdfSplitResultsPrimary], Iterable[SdfSplitResultsResidual]]]
     split = self.dofn_runner.try_split(fraction_of_remainder)
     if split:
-      primary, residual = split
-      return (self, primary), (self, residual)
+      primaries, residuals = split
+      return [(self, primary) for primary in primaries
+              ], [(self, residual) for residual in residuals]
     return None
 
   def current_element_progress(self):

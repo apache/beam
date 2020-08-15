@@ -21,35 +21,51 @@
 from __future__ import absolute_import
 
 import hashlib
+import json
 import logging
 
 import pandas as pd
 
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.testing.test_stream import WindowedValueHolder
 
 
 def to_element_list(
-    reader, # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
-    coder, # type: Coder
-    include_window_info # type: bool
-    ):
+    reader,  # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
+    coder,  # type: Coder
+    include_window_info,  # type: bool
+    n=None  # type: int
+):
   # type: (...) -> List[WindowedValue]
 
   """Returns an iterator that properly decodes the elements from the reader.
   """
 
-  for e in reader:
-    if isinstance(e, TestStreamPayload.Event):
-      if (e.HasField('watermark_event') or e.HasField('processing_time_event')):
-        continue
-      else:
+  # Defining a generator like this makes it easier to limit the count of
+  # elements read. Otherwise, the count limit would need to be duplicated.
+  def elements():
+    for e in reader:
+      if isinstance(e, TestStreamPayload.Event):
+        if (e.HasField('watermark_event') or
+            e.HasField('processing_time_event')):
+          continue
         for tv in e.element_event.elements:
           decoded = coder.decode(tv.encoded_element)
           yield (
               decoded.windowed_value
               if include_window_info else decoded.windowed_value.value)
-    else:
-      yield e.windowed_value if include_window_info else e.windowed_value.value
+      elif isinstance(e, WindowedValueHolder):
+        yield (
+            e.windowed_value if include_window_info else e.windowed_value.value)
+      else:
+        yield e
+
+  # Because we can yield multiple elements from a single TestStreamFileRecord,
+  # we have to limit the count here to ensure that `n` is fulfilled.
+  for count, e in enumerate(elements()):
+    if n and count >= n:
+      break
+    yield e
 
 
 def elements_to_df(elements, include_window_info=False):
@@ -204,3 +220,23 @@ def progress_indicated(func):
       return func(*args, **kwargs)
 
   return run_within_progress_indicator
+
+
+def as_json(func):
+  # type: (Callable[..., Any]) -> Callable[..., str]
+
+  """A decorator convert python objects returned by callables to json
+  string.
+
+  The decorated function should always return an object parsable by json.dumps.
+  If the object is not parsable, the str() of original object is returned
+  instead.
+  """
+  def return_as_json(*args, **kwargs):
+    try:
+      return_value = func(*args, **kwargs)
+      return json.dumps(return_value)
+    except TypeError:
+      return str(return_value)
+
+  return return_as_json

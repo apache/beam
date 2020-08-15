@@ -21,32 +21,32 @@ import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Flink',
-  'Run XVR_Flink PostCommit', 'Flink CrossLanguageValidatesRunner Tests', this) {
-  description('Runs the CrossLanguageValidatesRunner suite on the Flink runner.')
+    'Run XVR_Flink PostCommit', 'Flink CrossLanguageValidatesRunner Tests', this) {
+      description('Runs the CrossLanguageValidatesRunner suite on the Flink runner.')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  // Publish all test results to Jenkins
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
+      // Publish all test results to Jenkins
+      publishers {
+        commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
+      }
 
-  // Gradle goals for this job.
-  steps {
-    shell('echo "*** RUN CROSS-LANGUAGE FLINK USING PYTHON 2.7 ***"')
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runners:flink:1.10:job-server:validatesCrossLanguageRunner')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-PpythonVersion=2.7')
+      // Gradle goals for this job.
+      steps {
+        shell('echo "*** RUN CROSS-LANGUAGE FLINK USING PYTHON 2.7 ***"')
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:flink:1.10:job-server:validatesCrossLanguageRunner')
+          commonJobProperties.setGradleSwitches(delegate)
+          switches('-PpythonVersion=2.7')
+        }
+        shell('echo "*** RUN CROSS-LANGUAGE FLINK USING PYTHON 3.5 ***"')
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:flink:1.10:job-server:validatesCrossLanguageRunner')
+          commonJobProperties.setGradleSwitches(delegate)
+          switches('-PpythonVersion=3.5')
+        }
+      }
     }
-    shell('echo "*** RUN CROSS-LANGUAGE FLINK USING PYTHON 3.5 ***"')
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runners:flink:1.10:job-server:validatesCrossLanguageRunner')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-PpythonVersion=3.5')
-    }
-  }
-}

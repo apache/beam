@@ -1,0 +1,65 @@
+{
+  "name": "apache-beam-jupyterlab-sidepanel",
+  "version": "0.1.0",
+  "description": "A side panel providing information and controls to run Apache Beam notebooks interactively.",
+  "keywords": [
+    "jupyter",
+    "jupyterlab",
+    "jupyterlab-extension"
+  ],
+  "homepage": "https://github.com/apache/beam",
+  "bugs": {
+    "url": "https://github.com/apache/beam/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "apache-beam",
+  "files": [
+    "lib/**/*.{d.ts,eot,gif,html,jpg,js,js.map,json,png,svg,woff2,ttf}",
+    "style/**/*.{css,eot,gif,html,jpg,json,png,svg,woff2,ttf}"
+  ],
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "style": "style/index.css",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/apache/beam.git"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf lib tsconfig.tsbuildinfo",
+    "eslint": "eslint . --ext .ts,.tsx --fix",
+    "eslint:check": "eslint . --ext .ts,.tsx",
+    "prepare": "jlpm run clean && jlpm run build",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "@jupyterlab/application": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^26.0.7",
+    "@types/react-dom": "^16.9.8",
+    "@typescript-eslint/eslint-plugin": "^2.25.0",
+    "@typescript-eslint/parser": "^2.25.0",
+    "eslint": "^6.8.0",
+    "eslint-config-prettier": "^6.10.1",
+    "eslint-plugin-prettier": "^3.1.2",
+    "eslint-plugin-react": "^7.20.5",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^26.1.0",
+    "prettier": "^1.19.0",
+    "react-dom": "^16.13.1",
+    "rimraf": "^2.6.1",
+    "ts-jest": "^26.1.3",
+    "typescript": "~3.7.0"
+  },
+  "sideEffects": [
+    "style/*.css"
+  ],
+  "jupyterlab": {
+    "extension": true
+  },
+  "test": "jest",
+  "resolutions": {
+    "@types/react": "~16.9.16"
+  }
+}

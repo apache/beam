@@ -115,6 +115,9 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 		}
 		p.status = Up
 	}
+	if p.source != nil {
+		p.source.InitSplittable()
+	}
 
 	if p.status != Up {
 		return errors.Errorf("invalid status for plan %v: %v", p.id, p.status)
@@ -204,13 +207,28 @@ type SplitPoints struct {
 	BufSize int64
 }
 
+// SplitResult contains the result of performing a split on a Plan.
+type SplitResult struct {
+	// Indices are always included, for both channel and sub-element splits.
+	PI int64 // Primary index, last element of the primary.
+	RI int64 // Residual index, first element of the residual.
+
+	// Extra information included for sub-element splits. If PS and RS are
+	// present then a sub-element split occurred.
+	PS   []byte // Primary split. If an element is split, this is the encoded primary.
+	RS   []byte // Residual split. If an element is split, this is the encoded residual.
+	TId  string // Transform ID of the transform receiving the split elements.
+	InId string // Input ID of the input the split elements are received from.
+}
+
 // Split takes a set of potential split indexes, and if successful returns
-// the split index of the first element of the residual, on which processing
-// will be halted.
+// the split result.
 // Returns an error when unable to split.
-func (p *Plan) Split(s SplitPoints) (int64, error) {
+func (p *Plan) Split(s SplitPoints) (SplitResult, error) {
+	// TODO: When bundles with multiple sources, are supported, perform splits
+	// on all sources.
 	if p.source != nil {
 		return p.source.Split(s.Splits, s.Frac, s.BufSize)
 	}
-	return 0, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
+	return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
 }

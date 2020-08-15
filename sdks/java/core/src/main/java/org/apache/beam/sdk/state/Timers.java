@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.state;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Interface for interacting with time. */

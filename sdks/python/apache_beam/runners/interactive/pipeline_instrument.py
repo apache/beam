@@ -32,6 +32,7 @@ from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_fragment as pf
 from apache_beam.runners.interactive import background_caching_job
+from apache_beam.runners.interactive.utils import obfuscate
 from apache_beam.testing import test_stream
 from apache_beam.transforms.window import WindowedValue
 
@@ -66,7 +67,9 @@ class Cacheable:
 # TODO: turn this into a dataclass object when we finally get off of Python2.
 class CacheKey:
   def __init__(self, var, version, producer_version, pipeline_id):
-    self.var = var
+    # Makes sure that the variable name is obfuscated and only first 10
+    # characters taken so that the CacheKey has a constant length.
+    self.var = obfuscate(var)[:10]
     self.version = version
     self.producer_version = producer_version
     self.pipeline_id = pipeline_id
@@ -93,11 +96,11 @@ class PipelineInstrument(object):
   """
   def __init__(self, pipeline, options=None):
     self._pipeline = pipeline
-    # The global cache manager is lazily initiated outside of this module by any
-    # interactive runner so that its lifespan could cover multiple runs in
-    # the interactive environment. Owned by interactive_environment module. Not
-    # owned by this module.
-    self._cache_manager = ie.current_env().cache_manager()
+    # The cache manager per user-defined pipeline is lazily initiated the first
+    # time accessed. It is owned by interactive_environment module. This
+    # shortcut reference will be initialized when the user pipeline associated
+    # to the given pipeline is identified.
+    self._cache_manager = None
 
     # Invoke a round trip through the runner API. This makes sure the Pipeline
     # proto is stable. The snapshot of pipeline will not be mutated within this
@@ -556,19 +559,26 @@ class PipelineInstrument(object):
             if not self._pin._user_pipeline:
               # Retrieve a reference to the user defined pipeline instance.
               self._pin._user_pipeline = user_pcoll.pipeline
-              # Once user_pipeline is retrieved, check if the user pipeline
-              # contains any source to cache. If so, current cache manager held
-              # by current interactive environment might get wrapped into a
-              # streaming cache, thus re-assign the reference to that cache
-              # manager.
+              # Retrieve a reference to the cache manager for the user defined
+              # pipeline instance.
+              self._pin._cache_manager = ie.current_env().get_cache_manager(
+                  self._pin._user_pipeline, create_if_absent=True)
+              # Check if the user defined pipeline contains any source to cache.
+              # If so, during the check, the cache manager is converted into a
+              # streaming cache manager, thus re-assign the reference.
               if background_caching_job.has_source_to_cache(
                   self._pin._user_pipeline):
-                self._pin._cache_manager = ie.current_env().cache_manager()
+                self._pin._cache_manager = ie.current_env().get_cache_manager(
+                    self._pin._user_pipeline)
             self._pin._runner_pcoll_to_user_pcoll[pcoll] = user_pcoll
             self._pin.cacheables[cacheable_key].pcoll = pcoll
 
     v = PreprocessVisitor(self)
     self._pipeline.visit(v)
+    if not self._user_pipeline:
+      self._user_pipeline = self._pipeline
+      self._cache_manager = ie.current_env().get_cache_manager(
+          self._user_pipeline, create_if_absent=True)
 
   def _write_cache(
       self,
@@ -728,11 +738,8 @@ class PipelineInstrument(object):
       if output_tags:
         output_pcolls = pipeline | test_stream.TestStream(
             output_tags=output_tags, coder=self._cache_manager._default_pcoder)
-        if len(output_tags) == 1:
-          self._cached_pcoll_read[list(output_tags)[0]] = output_pcolls
-        else:
-          for tag, pcoll in output_pcolls.items():
-            self._cached_pcoll_read[tag] = pcoll
+        for tag, pcoll in output_pcolls.items():
+          self._cached_pcoll_read[tag] = pcoll
 
     class ReadCacheWireVisitor(PipelineVisitor):
       """Visitor wires cache read as inputs to replace corresponding original

@@ -182,7 +182,9 @@ def is_cache_complete(pipeline_id):
   cache_changed = is_source_to_cache_changed(
       user_pipeline, update_cached_source_signature=False)
 
-  return is_done and not cache_changed
+  # Stop reading from the cache if the background job is done or the underlying
+  # cache signature changed that requires a new background caching job.
+  return is_done or cache_changed
 
 
 def has_source_to_cache(user_pipeline):
@@ -202,14 +204,16 @@ def has_source_to_cache(user_pipeline):
   # Add logic for other cacheable sources here when they are available.
   has_cache = instr.has_unbounded_sources(user_pipeline)
   if has_cache:
-    if not isinstance(ie.current_env().cache_manager(),
+    if not isinstance(ie.current_env().get_cache_manager(user_pipeline,
+                                                         create_if_absent=True),
                       streaming_cache.StreamingCache):
 
       ie.current_env().set_cache_manager(
           streaming_cache.StreamingCache(
-              ie.current_env().cache_manager()._cache_dir,
+              ie.current_env().get_cache_manager(user_pipeline)._cache_dir,
               is_cache_complete=is_cache_complete,
-              sample_resolution_sec=1.0))
+              sample_resolution_sec=1.0),
+          user_pipeline)
   return has_cache
 
 
@@ -289,7 +293,7 @@ def is_source_to_cache_changed(
             'data to start at the same time, all captured data has been '
             'cleared and a new segment of data will be recorded.')
 
-    ie.current_env().cleanup()
+    ie.current_env().cleanup(user_pipeline)
     ie.current_env().set_cached_source_signature(
         user_pipeline, current_signature)
   return is_changed

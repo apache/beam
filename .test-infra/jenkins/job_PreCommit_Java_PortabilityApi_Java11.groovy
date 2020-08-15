@@ -20,33 +20,37 @@ import PrecommitJobBuilder
 import CommonJobProperties as properties
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
-        scope: this,
-        nameBase: 'JavaPortabilityApiJava11',
-        gradleTask: ':clean', // Do nothing here
-        gradleSwitches: ['-PdisableSpotlessCheck=true'], // spotless checked in separate pre-commit
-        triggerPathPatterns: [
-                '^model/.*$',
-                '^sdks/java/.*$',
-                '^runners/google-cloud-dataflow-java/worker.*$',
-                '^examples/java/.*$',
-                '^examples/kotlin/.*$',
-                '^release/.*$',
-        ]
-)
+    scope: this,
+    nameBase: 'JavaPortabilityApiJava11',
+    gradleTask: ':clean', // Do nothing here
+    gradleSwitches: [
+      '-PdisableSpotlessCheck=true',
+      '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
+    ], // spotless checked in separate pre-commit
+    triggerPathPatterns: [
+      '^model/.*$',
+      '^sdks/java/.*$',
+      '^runners/google-cloud-dataflow-java/worker.*$',
+      '^examples/java/.*$',
+      '^examples/kotlin/.*$',
+      '^release/.*$',
+    ]
+    )
 builder.build {
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
-    }
+  publishers {
+    properties.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
+  }
 
-    steps {
-        gradle {
-            rootBuildScriptDir(properties.checkoutDir)
-            tasks 'javaPreCommitPortabilityApi'
-            switches '-Pdockerfile=Dockerfile-java11'
-            switches '-PdisableSpotlessCheck=true'
-            switches '-PcompileAndRunTestsWithJava11'
-            switches "-Pjava11Home=${properties.JAVA_11_HOME}"
-            properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
-        }
+  steps {
+    gradle {
+      rootBuildScriptDir(properties.checkoutDir)
+      tasks 'javaPreCommitPortabilityApi'
+      switches '-Pdockerfile=Dockerfile-java11'
+      switches '-PdisableSpotlessCheck=true'
+      switches '-PcompileAndRunTestsWithJava11'
+      switches '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK11
+      switches "-Pjava11Home=${properties.JAVA_11_HOME}"
+      properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
     }
+  }
 }

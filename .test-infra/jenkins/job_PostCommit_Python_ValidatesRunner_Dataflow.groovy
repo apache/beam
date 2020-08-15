@@ -22,29 +22,31 @@ import PostcommitJobBuilder
 // This job runs the suite of Python ValidatesRunner tests against the
 // Dataflow runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow', 'Run Python Dataflow ValidatesRunner',
-  'Google Cloud Dataflow Runner Python ValidatesRunner Tests', this) {
-  description('Runs Python ValidatesRunner suite on the Dataflow runner.')
+    'Google Cloud Dataflow Runner Python ValidatesRunner Tests', this) {
+      description('Runs Python ValidatesRunner suite on the Dataflow runner.')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  publishers {
-    archiveJunit('**/nosetests*.xml')
-  }
+      publishers {
+        commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/nosetests*.xml')
+      }
 
-  // Execute gradle task to test Python SDK.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:python:test-suites:dataflow:py2:validatesRunnerBatchTests')
-      tasks(':sdks:python:test-suites:dataflow:py2:validatesRunnerStreamingTests')
-      tasks(':sdks:python:test-suites:dataflow:py35:validatesRunnerBatchTests')
-      tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerBatchTests')
-      tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerBatchTests')
-      tasks(':sdks:python:test-suites:dataflow:py35:validatesRunnerStreamingTests')
-      tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerStreamingTests')
-      tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerStreamingTests')
-      commonJobProperties.setGradleSwitches(delegate)
+      // Execute gradle task to test Python SDK.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:python:test-suites:dataflow:py2:validatesRunnerBatchTests')
+          tasks(':sdks:python:test-suites:dataflow:py2:validatesRunnerStreamingTests')
+          tasks(':sdks:python:test-suites:dataflow:py35:validatesRunnerBatchTests')
+          tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerBatchTests')
+          tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerBatchTests')
+          tasks(':sdks:python:test-suites:dataflow:py38:validatesRunnerBatchTests')
+          tasks(':sdks:python:test-suites:dataflow:py35:validatesRunnerStreamingTests')
+          tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerStreamingTests')
+          tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerStreamingTests')
+          tasks(':sdks:python:test-suites:dataflow:py38:validatesRunnerStreamingTests')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}

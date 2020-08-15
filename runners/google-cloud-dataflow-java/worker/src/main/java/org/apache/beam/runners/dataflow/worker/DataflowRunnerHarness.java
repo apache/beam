@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -42,6 +41,7 @@ import org.apache.beam.runners.fnexecution.status.BeamWorkerStatusGrpcService;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +58,7 @@ public class DataflowRunnerHarness {
 
   /** Fetches and processes work units from the Dataflow service. */
   public static void main(String[] unusedArgs) throws Exception {
-    @Nullable RunnerApi.Pipeline pipeline = DataflowWorkerHarnessHelper.getPipelineFromEnv();
+    RunnerApi.@Nullable Pipeline pipeline = DataflowWorkerHarnessHelper.getPipelineFromEnv();
 
     // This descriptor is used for all services except logging. They are isolated to keep
     // critical traffic protected from best effort traffic.
@@ -171,7 +171,7 @@ public class DataflowRunnerHarness {
 
   @SuppressWarnings("InfiniteLoopStatement")
   public static void start(
-      @Nullable RunnerApi.Pipeline pipeline,
+      RunnerApi.@Nullable Pipeline pipeline,
       DataflowWorkerHarnessOptions pipelineOptions,
       BeamFnControlService beamFnControlService,
       BeamFnDataGrpcService beamFnDataService,

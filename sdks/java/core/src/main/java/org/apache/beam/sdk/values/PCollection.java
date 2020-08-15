@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.Collections;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link PCollection PCollection&lt;T&gt;} is an immutable collection of values of type {@code
@@ -85,7 +85,7 @@ public class PCollection<T> extends PValueBase implements PValue {
   private CoderOrFailure<T> coderOrFailure =
       new CoderOrFailure<>(null, "No Coder was specified, and Coder Inference did not occur");
 
-  @Nullable private TypeDescriptor<T> typeDescriptor;
+  private @Nullable TypeDescriptor<T> typeDescriptor;
 
   @Override
   public void finishSpecifyingOutput(
@@ -120,8 +120,7 @@ public class PCollection<T> extends PValueBase implements PValue {
    * {@code T}, if possible. May return {@code null} if no information is available. Subclasses may
    * override this to enable better {@code Coder} inference.
    */
-  @Nullable
-  public TypeDescriptor<T> getTypeDescriptor() {
+  public @Nullable TypeDescriptor<T> getTypeDescriptor() {
     return typeDescriptor;
   }
 
@@ -463,8 +462,8 @@ public class PCollection<T> extends PValueBase implements PValue {
   }
 
   private static class CoderOrFailure<T> {
-    @Nullable private final Coder<T> coder;
-    @Nullable private final String failure;
+    private final @Nullable Coder<T> coder;
+    private final @Nullable String failure;
 
     public CoderOrFailure(@Nullable Coder<T> coder, @Nullable String failure) {
       this.coder = coder;

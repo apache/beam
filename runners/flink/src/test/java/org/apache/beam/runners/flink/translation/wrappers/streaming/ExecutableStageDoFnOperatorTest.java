@@ -23,7 +23,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -47,7 +46,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.function.BiConsumer;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
@@ -83,7 +81,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
@@ -115,6 +112,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OutputTag;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -266,8 +264,12 @@ public class ExecutableStageDoFnOperatorTest {
     TupleTag<Integer> additionalOutput2 = new TupleTag<>("output-2");
     ImmutableMap<TupleTag<?>, OutputTag<?>> tagsToOutputTags =
         ImmutableMap.<TupleTag<?>, OutputTag<?>>builder()
-            .put(additionalOutput1, new OutputTag<String>(additionalOutput1.getId()) {})
-            .put(additionalOutput2, new OutputTag<String>(additionalOutput2.getId()) {})
+            .put(
+                additionalOutput1,
+                new OutputTag<WindowedValue<String>>(additionalOutput1.getId()) {})
+            .put(
+                additionalOutput2,
+                new OutputTag<WindowedValue<String>>(additionalOutput2.getId()) {})
             .build();
     ImmutableMap<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders =
         ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
@@ -845,72 +847,63 @@ public class ExecutableStageDoFnOperatorTest {
     InMemoryStateInternals test = InMemoryStateInternals.forKey("test");
     KeyedStateBackend<ByteBuffer> stateBackend = FlinkStateInternalsTest.createStateBackend();
 
+    ExecutableStageDoFnOperator.BagUserStateFactory<Integer, GlobalWindow> bagUserStateFactory =
+        new ExecutableStageDoFnOperator.BagUserStateFactory<>(
+            test, stateBackend, NoopLock.get(), null);
+
+    ByteString key1 = ByteString.copyFrom("key1", Charsets.UTF_8);
+    ByteString key2 = ByteString.copyFrom("key2", Charsets.UTF_8);
+
+    Map<String, Map<String, ProcessBundleDescriptors.BagUserStateSpec>> userStateMapMock =
+        Mockito.mock(Map.class);
+    Map<String, ProcessBundleDescriptors.BagUserStateSpec> transformMap = Mockito.mock(Map.class);
+
+    final String userState1 = "userstate1";
+    ProcessBundleDescriptors.BagUserStateSpec bagUserStateSpec1 = mockBagUserState(userState1);
+    when(transformMap.get(userState1)).thenReturn(bagUserStateSpec1);
+
+    final String userState2 = "userstate2";
+    ProcessBundleDescriptors.BagUserStateSpec bagUserStateSpec2 = mockBagUserState(userState2);
+    when(transformMap.get(userState2)).thenReturn(bagUserStateSpec2);
+
+    when(userStateMapMock.get(anyString())).thenReturn(transformMap);
+    when(processBundleDescriptor.getBagUserStateSpecs()).thenReturn(userStateMapMock);
+    StateRequestHandler stateRequestHandler =
+        StateRequestHandlers.forBagUserStateHandlerFactory(
+            processBundleDescriptor, bagUserStateFactory);
+
     // User state the cache token is valid for the lifetime of the operator
-    for (String expectedToken : new String[] {"first token", "second token"}) {
-      final IdGenerator cacheTokenGenerator = () -> expectedToken;
-      ExecutableStageDoFnOperator.BagUserStateFactory<Integer, GlobalWindow> bagUserStateFactory =
-          new ExecutableStageDoFnOperator.BagUserStateFactory<>(
-              cacheTokenGenerator, test, stateBackend, NoopLock.get(), null);
+    final BeamFnApi.ProcessBundleRequest.CacheToken expectedCacheToken =
+        Iterables.getOnlyElement(stateRequestHandler.getCacheTokens());
 
-      ByteString key1 = ByteString.copyFrom("key1", Charsets.UTF_8);
-      ByteString key2 = ByteString.copyFrom("key2", Charsets.UTF_8);
+    // Make a request to generate initial cache token
+    stateRequestHandler.handle(getRequest(key1, userState1));
+    BeamFnApi.ProcessBundleRequest.CacheToken returnedCacheToken =
+        Iterables.getOnlyElement(stateRequestHandler.getCacheTokens());
+    assertThat(returnedCacheToken.hasUserState(), is(true));
+    assertThat(returnedCacheToken, is(expectedCacheToken));
 
-      Map<String, Map<String, ProcessBundleDescriptors.BagUserStateSpec>> userStateMapMock =
-          Mockito.mock(Map.class);
-      Map<String, ProcessBundleDescriptors.BagUserStateSpec> transformMap = Mockito.mock(Map.class);
+    List<RequestGenerator> generators =
+        Arrays.asList(
+            ExecutableStageDoFnOperatorTest::getRequest,
+            ExecutableStageDoFnOperatorTest::getAppend,
+            ExecutableStageDoFnOperatorTest::getClear);
 
-      final String userState1 = "userstate1";
-      ProcessBundleDescriptors.BagUserStateSpec bagUserStateSpec1 = mockBagUserState(userState1);
-      when(transformMap.get(userState1)).thenReturn(bagUserStateSpec1);
+    for (RequestGenerator req : generators) {
+      // For every state read the tokens remains unchanged
+      stateRequestHandler.handle(req.makeRequest(key1, userState1));
+      assertThat(
+          Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()), is(expectedCacheToken));
 
-      final String userState2 = "userstate2";
-      ProcessBundleDescriptors.BagUserStateSpec bagUserStateSpec2 = mockBagUserState(userState2);
-      when(transformMap.get(userState2)).thenReturn(bagUserStateSpec2);
+      // The token is still valid for another key in the same key range
+      stateRequestHandler.handle(req.makeRequest(key2, userState1));
+      assertThat(
+          Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()), is(expectedCacheToken));
 
-      when(userStateMapMock.get(anyString())).thenReturn(transformMap);
-      when(processBundleDescriptor.getBagUserStateSpecs()).thenReturn(userStateMapMock);
-      StateRequestHandler stateRequestHandler =
-          StateRequestHandlers.forBagUserStateHandlerFactory(
-              processBundleDescriptor, bagUserStateFactory);
-
-      // There should be no cache token available before any requests have been made
-      assertThat(stateRequestHandler.getCacheTokens(), iterableWithSize(0));
-
-      // Make a request to generate initial cache token
-      stateRequestHandler.handle(getRequest(key1, userState1));
-      BeamFnApi.ProcessBundleRequest.CacheToken cacheTokenStruct =
-          Iterables.getOnlyElement(stateRequestHandler.getCacheTokens());
-      assertThat(cacheTokenStruct.hasUserState(), is(true));
-      ByteString cacheToken = cacheTokenStruct.getToken();
-      final ByteString expectedCacheToken =
-          ByteString.copyFrom(expectedToken.getBytes(Charsets.UTF_8));
-      assertThat(cacheToken, is(expectedCacheToken));
-
-      List<RequestGenerator> generators =
-          Arrays.asList(
-              ExecutableStageDoFnOperatorTest::getRequest,
-              ExecutableStageDoFnOperatorTest::getAppend,
-              ExecutableStageDoFnOperatorTest::getClear);
-
-      for (RequestGenerator req : generators) {
-        // For every state read the tokens remains unchanged
-        stateRequestHandler.handle(req.makeRequest(key1, userState1));
-        assertThat(
-            Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()).getToken(),
-            is(expectedCacheToken));
-
-        // The token is still valid for another key in the same key range
-        stateRequestHandler.handle(req.makeRequest(key2, userState1));
-        assertThat(
-            Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()).getToken(),
-            is(expectedCacheToken));
-
-        // The token is still valid for another state cell in the same key range
-        stateRequestHandler.handle(req.makeRequest(key2, userState2));
-        assertThat(
-            Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()).getToken(),
-            is(expectedCacheToken));
-      }
+      // The token is still valid for another state cell in the same key range
+      stateRequestHandler.handle(req.makeRequest(key2, userState2));
+      assertThat(
+          Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()), is(expectedCacheToken));
     }
   }
 

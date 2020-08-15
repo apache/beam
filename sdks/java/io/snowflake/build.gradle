@@ -16,9 +16,13 @@
  * limitations under the License.
  */
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.snowflake')
+applyJavaNature(
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.sdk.io.snowflake')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
+
 description = "Apache Beam :: SDKs :: Java :: IO :: Snowflake"
 ext.summary = "IO to read and write on Snowflake."
 dependencies {
@@ -26,8 +30,9 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(path: ":sdks:java:extensions:google-cloud-platform-core")
   compile library.java.slf4j_api
-  compile group: 'net.snowflake', name: 'snowflake-jdbc', version: '3.11.0'
+  compile group: 'net.snowflake', name: 'snowflake-jdbc', version: '3.12.7'
   compile group: 'com.opencsv', name: 'opencsv', version: '5.0'
+  compile 'net.snowflake:snowflake-ingest-sdk:0.9.9'
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")

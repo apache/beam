@@ -63,6 +63,20 @@ ignored exception
 ignored result
 '''
 
+ERROR_RAISING_NAME_ERROR_TESTS = '''
+>>> import apache_beam
+>>> raise apache_beam.dataframe.frame_base.WontImplementError('anything')
+ignored exception
+>>> raise NameError
+ignored exception
+>>> undefined_name
+ignored exception
+>>> 2 + 2
+4
+>>> raise NameError
+failed exception
+'''
+
 
 @unittest.skipIf(sys.version_info <= (3, ), 'Requires contextlib.ExitStack.')
 class DoctestTest(unittest.TestCase):
@@ -101,9 +115,22 @@ class DoctestTest(unittest.TestCase):
     self.assertEqual(result.failed, 0)
 
   def test_wont_implement(self):
-    doctests.teststring(ERROR_RAISING_TESTS, optionflags=doctest.ELLIPSIS)
     doctests.teststring(
-        ERROR_RAISING_TESTS, optionflags=doctest.IGNORE_EXCEPTION_DETAIL)
+        ERROR_RAISING_TESTS,
+        optionflags=doctest.ELLIPSIS,
+        wont_implement_ok=True)
+    doctests.teststring(
+        ERROR_RAISING_TESTS,
+        optionflags=doctest.IGNORE_EXCEPTION_DETAIL,
+        wont_implement_ok=True)
+
+  def test_wont_implement_followed_by_name_error(self):
+    result = doctests.teststring(
+        ERROR_RAISING_NAME_ERROR_TESTS,
+        optionflags=doctest.ELLIPSIS,
+        wont_implement_ok=True)
+    self.assertEqual(result.attempted, 6)
+    self.assertEqual(result.failed, 1)  # Only the very last one.
 
 
 if __name__ == '__main__':

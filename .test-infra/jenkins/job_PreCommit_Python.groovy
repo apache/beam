@@ -17,6 +17,7 @@
  */
 
 import PrecommitJobBuilder
+import CommonJobProperties as common
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
@@ -28,10 +29,10 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^sdks/python/.*$',
       '^release/.*$',
     ]
-)
+    )
 builder.build {
   // Publish all test results to Jenkins.
   publishers {
-    archiveJunit('**/pytest*.xml')
+    common.setArchiveJunitWithStabilityHistory(delegate, '**/pytest*.xml')
   }
 }

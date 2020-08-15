@@ -59,8 +59,8 @@ public class HadoopFileSystemModuleTest {
     assertThat(
         deserializedConfiguration,
         Matchers.<Map.Entry<String, String>>containsInAnyOrder(
-            new AbstractMap.SimpleEntry("testPropertyA", "A"),
-            new AbstractMap.SimpleEntry("testPropertyB", "B"),
-            new AbstractMap.SimpleEntry("testPropertyC", "baseC")));
+            new AbstractMap.SimpleEntry<>("testPropertyA", "A"),
+            new AbstractMap.SimpleEntry<>("testPropertyB", "B"),
+            new AbstractMap.SimpleEntry<>("testPropertyC", "baseC")));
   }
 }

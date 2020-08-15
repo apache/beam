@@ -50,7 +50,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.Filte
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterToCalcRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectToCalcRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSets;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.joda.time.Duration;
@@ -96,7 +95,7 @@ public class TestTableProviderWithFilterPushDown {
     sqlEnv =
         BeamSqlEnv.builder(tableProvider)
             .setPipelineOptions(PipelineOptionsFactory.create())
-            .setRuleSets(new RuleSet[] {RuleSets.ofList(rulesWithPushDown)})
+            .setRuleSets(ImmutableList.of(RuleSets.ofList(rulesWithPushDown)))
             .build();
   }
 

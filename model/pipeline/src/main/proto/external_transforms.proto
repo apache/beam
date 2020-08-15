@@ -29,17 +29,15 @@ option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "ExternalTransforms";
 
 import "beam_runner_api.proto";
-
-message ConfigValue {
-  // Coder and its components (in case of a compound Coder)
-  repeated string coder_urn = 1;
-  // The Payload which is decoded using the coder_urn
-  bytes payload = 2;
-}
+import "schema.proto";
 
 // A configuration payload for an external transform.
 // Used as the payload of ExternalTransform as part of an ExpansionRequest.
 message ExternalConfigurationPayload {
-  // Configuration key => value
-  map<string, ConfigValue> configuration = 1;
+  // A schema for use in beam:coder:row:v1
+  Schema schema = 1;
+
+  // A payload which can be decoded using beam:coder:row:v1 and the given
+  // schema.
+  bytes payload = 2;
 }

@@ -19,8 +19,8 @@ import CommonJobProperties as commonJobProperties
 
 job('beam_sonarqube_report') {
   commonJobProperties.setTopLevelMainJobProperties(
-        delegate, 'master', 120,
-        true)
+      delegate, 'master', 120,
+      true)
 
   /**
    * https://issues.jenkins-ci.org/browse/JENKINS-42741
@@ -34,7 +34,7 @@ job('beam_sonarqube_report') {
   commonJobProperties.setAutoJob delegate
 
   publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
+    commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
   }
 
   steps {

@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
+import org.apache.beam.runners.core.InMemoryBundleFinalizer;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -50,6 +52,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The evaluation context for a specific pipeline being executed by the {@link DirectRunner}.
@@ -68,6 +72,8 @@ import org.joda.time.Instant;
  * executed.
  */
 class EvaluationContext {
+  private static final Logger LOG = LoggerFactory.getLogger(EvaluationContext.class);
+
   /** The graph representing this {@link Pipeline}. */
   private final DirectGraph graph;
 
@@ -140,7 +146,6 @@ class EvaluationContext {
    *     null} if the transform that produced the result is a root transform
    * @param completedTimers the timers that were delivered to produce the {@code completedBundle},
    *     or an empty iterable if no timers were delivered
-   * @param pushedBackTimers timers that have been pushed back during processing
    * @param result the result of evaluating the input bundle
    * @return the committed bundles contained within the handled {@code result}
    */
@@ -148,6 +153,7 @@ class EvaluationContext {
       CommittedBundle<?> completedBundle,
       Iterable<TimerData> completedTimers,
       TransformResult<?> result) {
+
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
     metrics.commitLogical(completedBundle, result.getLogicalMetricUpdates());
@@ -182,6 +188,15 @@ class EvaluationContext {
         committedResult.getUnprocessedInputs().orElse(null),
         committedResult.getOutputs(),
         result.getWatermarkHold());
+
+    // Callback and requested bundle finalizations
+    for (InMemoryBundleFinalizer.Finalization finalization : result.getBundleFinalizations()) {
+      try {
+        finalization.getCallback().onBundleSuccess();
+      } catch (Exception e) {
+        LOG.warn("Failed to finalize {} for completed bundle {}", finalization, completedBundle, e);
+      }
+    }
     return committedResult;
   }
 
@@ -368,15 +383,23 @@ class EvaluationContext {
     fireAllAvailableCallbacks();
   }
 
-  /**
-   * Extracts all timers that have been fired and have not already been extracted.
-   *
-   * <p>This is a destructive operation. Timers will only appear in the result of this method once
-   * for each time they are set.
-   */
+  @VisibleForTesting
   Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> extractFiredTimers() {
+    return extractFiredTimers(Collections.emptyList());
+  }
+
+  /**
+   * Extracts all timers that have been fired and have not already been extracted. Do not extract
+   * timers for given ignored transforms.
+   *
+   * @param ignoredTransforms transforms that must be ignored and timers not extracted for them
+   *     <p>This is a destructive operation. Timers will only appear in the result of this method
+   *     once for each time they are set.
+   */
+  Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> extractFiredTimers(
+      Collection<AppliedPTransform<?, ?, ?>> ignoredTransforms) {
     forceRefresh();
-    return watermarkManager.extractFiredTimers();
+    return watermarkManager.extractFiredTimers(ignoredTransforms);
   }
 
   /** Returns true if the step will not produce additional output. */

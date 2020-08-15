@@ -22,6 +22,14 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
+import com.google.cloud.language.v1.AnnotateTextRequest;
+import com.google.cloud.language.v1.AnnotateTextResponse;
+import com.google.cloud.language.v1.Document;
+import com.google.cloud.language.v1.Entity;
+import com.google.cloud.language.v1.Sentence;
+import com.google.cloud.language.v1.Token;
+import com.google.gson.Gson;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -30,12 +38,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
+import org.apache.beam.sdk.extensions.ml.AnnotateText;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -54,6 +64,8 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.Join;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -61,6 +73,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Watch;
@@ -78,6 +91,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -166,7 +180,7 @@ public class Snippets {
       TableRow row = new TableRow();
       row.set("string", "abc");
       byte[] rawbytes = {(byte) 0xab, (byte) 0xac};
-      row.set("bytes", new String(Base64.getEncoder().encodeToString(rawbytes)));
+      row.set("bytes", Base64.getEncoder().encodeToString(rawbytes));
       row.set("integer", 5);
       row.set("float", 0.5);
       row.set("numeric", 5);
@@ -912,6 +926,236 @@ public class Snippets {
                   .withSideInputs(sideInput));
       // [END PeriodicallyUpdatingSideInputs]
       return result;
+    }
+  }
+
+  public static class SchemaJoinPattern {
+    public static PCollection<String> main(
+        Pipeline p,
+        final List<Row> emailUsers,
+        final List<Row> phoneUsers,
+        Schema emailSchema,
+        Schema phoneSchema) {
+      // [START SchemaJoinPatternJoin]
+      // Create/Read Schema PCollections
+      PCollection<Row> emailList =
+          p.apply("CreateEmails", Create.of(emailUsers).withRowSchema(emailSchema));
+
+      PCollection<Row> phoneList =
+          p.apply("CreatePhones", Create.of(phoneUsers).withRowSchema(phoneSchema));
+
+      // Perform Join
+      PCollection<Row> resultRow =
+          emailList.apply("Apply Join", Join.<Row, Row>innerJoin(phoneList).using("name"));
+
+      // Preview Result
+      resultRow.apply(
+          "Preview Result",
+          MapElements.into(TypeDescriptors.strings())
+              .via(
+                  x -> {
+                    System.out.println(x);
+                    return "";
+                  }));
+
+      /* Sample Output From the pipeline:
+       Row:[Row:[person1, person1@example.com], Row:[person1, 111-222-3333]]
+       Row:[Row:[person2, person2@example.com], Row:[person2, 222-333-4444]]
+       Row:[Row:[person4, person4@example.com], Row:[person4, 555-333-4444]]
+       Row:[Row:[person3, person3@example.com], Row:[person3, 444-333-4444]]
+      */
+      // [END SchemaJoinPatternJoin]
+
+      // [START SchemaJoinPatternFormat]
+      PCollection<String> result =
+          resultRow.apply(
+              "Format Output",
+              MapElements.into(TypeDescriptors.strings())
+                  .via(
+                      x -> {
+                        String userInfo =
+                            "Name: "
+                                + x.getRow(0).getValue("name")
+                                + " Email: "
+                                + x.getRow(0).getValue("email")
+                                + " Phone: "
+                                + x.getRow(1).getValue("phone");
+                        System.out.println(userInfo);
+                        return userInfo;
+                      }));
+
+      /* Sample output From the pipeline
+      Name: person4 Email: person4@example.com Phone: 555-333-4444
+      Name: person2 Email: person2@example.com Phone: 222-333-4444
+      Name: person3 Email: person3@example.com Phone: 444-333-4444
+      Name: person1 Email: person1@example.com Phone: 111-222-3333
+       */
+      // [END SchemaJoinPatternFormat]
+
+      return result;
+    }
+  }
+
+  public static class NaturalLanguageIntegration {
+    private static final SerializableFunction<AnnotateTextResponse, List<Map<String, List<String>>>>
+        // [START NlpAnalyzeDependencyTree]
+        analyzeDependencyTree =
+            (SerializableFunction<AnnotateTextResponse, List<Map<String, List<String>>>>)
+                response -> {
+                  List<Map<String, List<String>>> adjacencyLists = new ArrayList<>();
+                  int index = 0;
+                  for (Sentence s : response.getSentencesList()) {
+                    Map<String, List<String>> adjacencyMap = new HashMap<>();
+                    int sentenceBegin = s.getText().getBeginOffset();
+                    int sentenceEnd = sentenceBegin + s.getText().getContent().length() - 1;
+                    while (index < response.getTokensCount()
+                        && response.getTokens(index).getText().getBeginOffset() <= sentenceEnd) {
+                      Token token = response.getTokensList().get(index);
+                      int headTokenIndex = token.getDependencyEdge().getHeadTokenIndex();
+                      String headTokenContent =
+                          response.getTokens(headTokenIndex).getText().getContent();
+                      List<String> adjacencyList =
+                          adjacencyMap.getOrDefault(headTokenContent, new ArrayList<>());
+                      adjacencyList.add(token.getText().getContent());
+                      adjacencyMap.put(headTokenContent, adjacencyList);
+                      index++;
+                    }
+                    adjacencyLists.add(adjacencyMap);
+                  }
+                  return adjacencyLists;
+                };
+    // [END NlpAnalyzeDependencyTree]
+
+    private static final SerializableFunction<? super AnnotateTextResponse, TextSentiments>
+        // [START NlpExtractSentiments]
+        extractSentiments =
+        (SerializableFunction<AnnotateTextResponse, TextSentiments>)
+            annotateTextResponse -> {
+              TextSentiments sentiments = new TextSentiments();
+              sentiments.setDocumentSentiment(
+                  annotateTextResponse.getDocumentSentiment().getMagnitude());
+              Map<String, Float> sentenceSentimentsMap =
+                  annotateTextResponse.getSentencesList().stream()
+                      .collect(
+                          Collectors.toMap(
+                              (Sentence s) -> s.getText().getContent(),
+                              (Sentence s) -> s.getSentiment().getMagnitude()));
+              sentiments.setSentenceSentiments(sentenceSentimentsMap);
+              return sentiments;
+            };
+    // [END NlpExtractSentiments]
+
+    private static final SerializableFunction<? super AnnotateTextResponse, Map<String, String>>
+        // [START NlpExtractEntities]
+        extractEntities =
+        (SerializableFunction<AnnotateTextResponse, Map<String, String>>)
+            annotateTextResponse ->
+                annotateTextResponse.getEntitiesList().stream()
+                    .collect(
+                        Collectors.toMap(Entity::getName, (Entity e) -> e.getType().toString()));
+    // [END NlpExtractEntities]
+
+    private static final SerializableFunction<? super Map<String, String>, String>
+        mapEntitiesToJson =
+            (SerializableFunction<Map<String, String>, String>)
+                item -> {
+                  StringBuilder builder = new StringBuilder("[");
+                  builder.append(
+                      item.entrySet().stream()
+                          .map(
+                              entry -> "{\"" + entry.getKey() + "\": \"" + entry.getValue() + "\"}")
+                          .collect(Collectors.joining(",")));
+                  builder.append("]");
+                  return builder.toString();
+                };
+
+    private static final SerializableFunction<List<Map<String, List<String>>>, String>
+        mapDependencyTreesToJson =
+            (SerializableFunction<List<Map<String, List<String>>>, String>)
+                tree -> {
+                  Gson gson = new Gson();
+                  return gson.toJson(tree);
+                };
+
+    public static void main(Pipeline p) {
+      // [START NlpAnalyzeText]
+      AnnotateTextRequest.Features features =
+          AnnotateTextRequest.Features.newBuilder()
+              .setExtractEntities(true)
+              .setExtractDocumentSentiment(true)
+              .setExtractEntitySentiment(true)
+              .setExtractSyntax(true)
+              .build();
+      AnnotateText annotateText = AnnotateText.newBuilder().setFeatures(features).build();
+
+      PCollection<AnnotateTextResponse> responses =
+          p.apply(
+                  Create.of(
+                      "My experience so far has been fantastic, "
+                          + "I\'d really recommend this product."))
+              .apply(
+                  MapElements.into(TypeDescriptor.of(Document.class))
+                      .via(
+                          (SerializableFunction<String, Document>)
+                              input ->
+                                  Document.newBuilder()
+                                      .setContent(input)
+                                      .setType(Document.Type.PLAIN_TEXT)
+                                      .build()))
+              .apply(annotateText);
+
+      responses
+          .apply(MapElements.into(TypeDescriptor.of(TextSentiments.class)).via(extractSentiments))
+          .apply(
+              MapElements.into(TypeDescriptors.strings())
+                  .via((SerializableFunction<TextSentiments, String>) TextSentiments::toJson))
+          .apply(TextIO.write().to("sentiments.txt"));
+
+      responses
+          .apply(
+              MapElements.into(
+                      TypeDescriptors.maps(TypeDescriptors.strings(), TypeDescriptors.strings()))
+                  .via(extractEntities))
+          .apply(MapElements.into(TypeDescriptors.strings()).via(mapEntitiesToJson))
+          .apply(TextIO.write().to("entities.txt"));
+
+      responses
+          .apply(
+              MapElements.into(
+                      TypeDescriptors.lists(
+                          TypeDescriptors.maps(
+                              TypeDescriptors.strings(),
+                              TypeDescriptors.lists(TypeDescriptors.strings()))))
+                  .via(analyzeDependencyTree))
+          .apply(MapElements.into(TypeDescriptors.strings()).via(mapDependencyTreesToJson))
+          .apply(TextIO.write().to("adjacency_list.txt"));
+      // [END NlpAnalyzeText]
+    }
+
+    private static class TextSentiments implements Serializable {
+      private Float documentSentiment;
+      private Map<String, Float> sentenceSentiments;
+
+      public void setSentenceSentiments(Map<String, Float> sentenceSentiments) {
+        this.sentenceSentiments = sentenceSentiments;
+      }
+
+      public Float getDocumentSentiment() {
+        return documentSentiment;
+      }
+
+      public void setDocumentSentiment(Float documentSentiment) {
+        this.documentSentiment = documentSentiment;
+      }
+
+      public Map<String, Float> getSentenceSentiments() {
+        return sentenceSentiments;
+      }
+
+      public String toJson() {
+        Gson gson = new Gson();
+        return gson.toJson(this);
+      }
     }
   }
 }

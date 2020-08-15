@@ -336,11 +336,6 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-apex" >}}
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
-{{< /highlight >}}
-
 {{< highlight class="runner-flink-local" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
@@ -391,23 +386,21 @@ To view the full code in Java, see
 python -m apache_beam.examples.wordcount --input YOUR_INPUT_FILE --output counts
 {{< /highlight >}}
 
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Python SDK.
-{{< /highlight >}}
-
 {{< highlight class="runner-flink-local" >}}
-Currently, running wordcount.py on Flink requires a full download of the Beam source code.
-See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
+python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+                                         --output /path/to/write/counts \
+                                         --runner FlinkRunner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-cluster" >}}
-Currently, running wordcount.py on Flink requires a full download of the Beam source code.
-See https://beam.apache.org/documentation/runners/flink/ for more information.
+# Running Beam Python on a distributed Flink cluster requires additional configuration.
+# See https://beam.apache.org/documentation/runners/flink/ for more information.
 {{< /highlight >}}
 
 {{< highlight class="runner-spark" >}}
-Currently, running wordcount.py on Spark requires a full download of the Beam source code.
-See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.
+python -m apache_beam.examples.wordcount --input /path/to/inputfile \
+                                         --output /path/to/write/counts \
+                                         --runner SparkRunner
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
@@ -441,10 +434,6 @@ To view the full code in Python, see
 {{< highlight class="runner-direct" >}}
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
 $ wordcount --input <PATH_TO_INPUT_FILE> --output counts
-{{< /highlight >}}
-
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
@@ -679,11 +668,6 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordC
      -Dexec.args="--output=counts" -Pdirect-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-apex" >}}
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--output=counts --runner=ApexRunner" -Papex-runner
-{{< /highlight >}}
-
 {{< highlight class="runner-flink-local" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
      -Dexec.args="--runner=FlinkRunner --output=counts" -Pflink-runner
@@ -734,10 +718,6 @@ To view the full code in Java, see
 python -m apache_beam.examples.wordcount_debugging --input YOUR_INPUT_FILE --output counts
 {{< /highlight >}}
 
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Python SDK.
-{{< /highlight >}}
-
 {{< highlight class="runner-flink-local" >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
@@ -780,10 +760,6 @@ To view the full code in Python, see
 {{< highlight class="runner-direct" >}}
 $ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
 $ debugging_wordcount --input <PATH_TO_INPUT_FILE> --output counts
-{{< /highlight >}}
-
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
@@ -928,11 +904,6 @@ or DEBUG significantly increases the amount of logs output.
 > **Note:** This section is yet to be added. There is an open issue for this
 > ([BEAM-791](https://issues.apache.org/jira/browse/BEAM-791)).
 
-#### Apache Apex Runner
-
-> **Note:** This section is yet to be added. There is an open issue for this
-> ([BEAM-2285](https://issues.apache.org/jira/browse/BEAM-2285)).
-
 #### Apache Nemo Runner
 
 When executing your pipeline with the `NemoRunner`, most log messages are printed 
@@ -1021,11 +992,6 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCo
      -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-apex" >}}
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
-{{< /highlight >}}
-
 {{< highlight class="runner-flink-local" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
      -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
@@ -1080,10 +1046,6 @@ parameter. using the format `PROJECT:DATASET.TABLE` or
 python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE --output_table PROJECT:DATASET.TABLE
 {{< /highlight >}}
 
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Python SDK.
-{{< /highlight >}}
-
 {{< highlight class="runner-flink-local" >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
@@ -1126,10 +1088,6 @@ To view the full code in Python, see
 {{< highlight class="runner-direct" >}}
 $ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
 $ windowed_wordcount --input <PATH_TO_INPUT_FILE> --output counts
-{{< /highlight >}}
-
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
@@ -1386,10 +1344,6 @@ python -m apache_beam.examples.streaming_wordcount \
   --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
   --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
   --streaming
-{{< /highlight >}}
-
-{{< highlight class="runner-apex" >}}
-This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}

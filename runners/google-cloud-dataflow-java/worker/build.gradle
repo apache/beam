@@ -30,6 +30,8 @@ applyJavaNature(
   archivesBaseName: 'beam-runners-google-cloud-dataflow-java-fn-api-worker',
   publish: false,
   exportJavadoc: false,
+  enableChecker:false,
+  ignoreRawtypeErrors: true,
   enableSpotbugs: true,
   validateShadowJar: false,
   shadowClosure: {

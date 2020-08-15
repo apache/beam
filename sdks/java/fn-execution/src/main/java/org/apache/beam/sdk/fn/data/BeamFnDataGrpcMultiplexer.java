@@ -23,7 +23,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -34,6 +33,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,14 +52,14 @@ import org.slf4j.LoggerFactory;
  */
 public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcMultiplexer.class);
-  @Nullable private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
+  private final Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor;
   private final StreamObserver<BeamFnApi.Elements> inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
   private final ConcurrentMap<LogicalEndpoint, CompletableFuture<BiConsumer<ByteString, Boolean>>>
       consumers;
 
   public BeamFnDataGrpcMultiplexer(
-      @Nullable Endpoints.ApiServiceDescriptor apiServiceDescriptor,
+      Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor,
       OutboundObserverFactory outboundObserverFactory,
       OutboundObserverFactory.BasicFactory<Elements, Elements> baseOutboundObserverFactory) {
     this.apiServiceDescriptor = apiServiceDescriptor;
@@ -138,9 +138,8 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
                     + "Waiting for consumer to be registered.",
                 key);
           }
-          boolean isLast = data.getIsLast() || data.getData().isEmpty();
-          consumer.get().accept(data.getData(), isLast);
-          if (isLast) {
+          consumer.get().accept(data.getData(), data.getIsLast());
+          if (data.getIsLast()) {
             consumers.remove(key);
           }
           /*
@@ -176,9 +175,8 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
                     + "Waiting for consumer to be registered.",
                 key);
           }
-          boolean isLast = timer.getIsLast() || timer.getTimers().isEmpty();
-          consumer.get().accept(timer.getTimers(), isLast);
-          if (isLast) {
+          consumer.get().accept(timer.getTimers(), timer.getIsLast());
+          if (timer.getIsLast()) {
             consumers.remove(key);
           }
           /*

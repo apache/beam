@@ -82,7 +82,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
    * Stream}.
    */
   public BigQueryStorageStreamSource<T> fromExisting(Stream newStream) {
-    return new BigQueryStorageStreamSource(
+    return new BigQueryStorageStreamSource<>(
         readSession, newStream, jsonTableSchema, parseFn, outputCoder, bqServices);
   }
 

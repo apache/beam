@@ -17,23 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import static com.google.zetasql.CivilTimeEncoder.decodePacked64TimeNanos;
-import static com.google.zetasql.CivilTimeEncoder.encodePacked64TimeNanos;
-
 import com.google.zetasql.Value;
 import io.grpc.Status;
+import java.time.LocalTime;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.DateString;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.TimeString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.joda.time.LocalTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -163,29 +158,14 @@ public class DateTimeUtils {
     }
   }
 
-  @SuppressWarnings(
-      "Value with nanoseconds will be truncated to milliseconds in decodePacked64TimeNanos.")
-  public static TimeString convertTimeValueToTimeString(Value value) {
-    LocalTime localTime = decodePacked64TimeNanos(value.getTimeValue());
-    return TimeString.fromMillisOfDay(localTime.getMillisOfDay());
-  }
-
-  // dates are represented as an int32 value, indicating the offset
-  // in days from the epoch 1970-01-01.  ZetaSQL dates are not timezone aware,
-  // and do not correspond to any particular 24 hour period.
-  public static DateString convertDateValueToDateString(Value value) {
-    return DateString.fromDaysSinceEpoch(value.getDateValue());
-  }
-
   public static Value parseDateToValue(String dateString) {
     DateTime dateTime = parseDate(dateString);
     return Value.createDateValue((int) (dateTime.getMillis() / MILLIS_PER_DAY));
   }
 
   public static Value parseTimeToValue(String timeString) {
-    DateTime dateTime = parseTime(timeString);
-    return Value.createTimeValue(
-        encodePacked64TimeNanos(LocalTime.fromMillisOfDay(dateTime.getMillisOfDay())));
+    LocalTime localTime = LocalTime.parse(timeString);
+    return Value.createTimeValue(localTime);
   }
 
   public static Value parseTimestampWithTZToValue(String timestampString) {
@@ -194,23 +174,6 @@ public class DateTimeUtils {
     // TODO: how to handle overflow.
     return Value.createTimestampValueFromUnixMicros(
         LongMath.checkedMultiply(dateTime.getMillis(), MICROS_PER_MILLI));
-  }
-
-  private static void safeCheckSubMillisPrecision(long micros) {
-    long subMilliPrecision = micros % 1000L;
-    if (subMilliPrecision != 0) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s has sub-millisecond precision, which Beam ZetaSQL does"
-                  + " not currently support.",
-              micros));
-    }
-  }
-
-  @SuppressWarnings("GoodTime")
-  public static long safeMicrosToMillis(long micros) {
-    safeCheckSubMillisPrecision(micros);
-    return micros / 1000L;
   }
 
   /**

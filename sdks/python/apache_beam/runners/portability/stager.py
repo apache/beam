@@ -371,7 +371,7 @@ class Stager(object):
         if int(response['status']) >= 400:
           raise RuntimeError(
               'Artifact not found at %s (response: %s)' % (from_url, response))
-        with open(to_path, 'w') as f:
+        with open(to_path, 'wb') as f:
           f.write(content)
       except Exception:
         _LOGGER.info('Failed to download Artifact from %s', from_url)
@@ -628,16 +628,17 @@ class Stager(object):
       _LOGGER.info('Staging SDK sources from PyPI: %s', sdk_sources_staged_name)
       staged_sdk_files = [(sdk_local_file, sdk_sources_staged_name)]
       try:
+        abi_suffix = (
+            'mu' if sys.version_info[0] < 3 else
+            ('m' if sys.version_info < (3, 8) else ''))
         # Stage binary distribution of the SDK, for now on a best-effort basis.
         sdk_local_file = Stager._download_pypi_sdk_package(
             temp_dir,
             fetch_binary=True,
             language_version_tag='%d%d' %
             (sys.version_info[0], sys.version_info[1]),
-            abi_tag='cp%d%d%s' % (
-                sys.version_info[0],
-                sys.version_info[1],
-                'mu' if sys.version_info[0] < 3 else 'm'))
+            abi_tag='cp%d%d%s' %
+            (sys.version_info[0], sys.version_info[1], abi_suffix))
         sdk_binary_staged_name = Stager.\
             _desired_sdk_filename_in_staging_location(sdk_local_file)
         _LOGGER.info(

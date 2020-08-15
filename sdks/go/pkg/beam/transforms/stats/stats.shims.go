@@ -28,7 +28,8 @@ import (
 )
 
 func init() {
-	runtime.RegisterFunction(mapFn)
+	runtime.RegisterFunction(countFn)
+	runtime.RegisterFunction(keyedCountFn)
 	runtime.RegisterFunction(maxFloat32Fn)
 	runtime.RegisterFunction(maxFloat64Fn)
 	runtime.RegisterFunction(maxInt16Fn)
@@ -78,6 +79,7 @@ func init() {
 	reflectx.RegisterFunc(reflect.TypeOf((*func(meanAccum, meanAccum) meanAccum)(nil)).Elem(), funcMakerMeanAccumMeanAccumГMeanAccum)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(meanAccum, typex.T) meanAccum)(nil)).Elem(), funcMakerMeanAccumTypex۰TГMeanAccum)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(meanAccum) float64)(nil)).Elem(), funcMakerMeanAccumГFloat64)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T) int)(nil)).Elem(), funcMakerTypex۰TГInt)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T) (typex.T, int))(nil)).Elem(), funcMakerTypex۰TГTypex۰TInt)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(uint16, uint16) uint16)(nil)).Elem(), funcMakerUint16Uint16ГUint16)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(uint32, uint32) uint32)(nil)).Elem(), funcMakerUint32Uint32ГUint32)
@@ -355,6 +357,32 @@ func (c *callerMeanAccumГFloat64) Call(args []interface{}) []interface{} {
 
 func (c *callerMeanAccumГFloat64) Call1x1(arg0 interface{}) interface{} {
 	return c.fn(arg0.(meanAccum))
+}
+
+type callerTypex۰TГInt struct {
+	fn func(typex.T) int
+}
+
+func funcMakerTypex۰TГInt(fn interface{}) reflectx.Func {
+	f := fn.(func(typex.T) int)
+	return &callerTypex۰TГInt{fn: f}
+}
+
+func (c *callerTypex۰TГInt) Name() string {
+	return reflectx.FunctionName(c.fn)
+}
+
+func (c *callerTypex۰TГInt) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *callerTypex۰TГInt) Call(args []interface{}) []interface{} {
+	out0 := c.fn(args[0].(typex.T))
+	return []interface{}{out0}
+}
+
+func (c *callerTypex۰TГInt) Call1x1(arg0 interface{}) interface{} {
+	return c.fn(arg0.(typex.T))
 }
 
 type callerTypex۰TГTypex۰TInt struct {

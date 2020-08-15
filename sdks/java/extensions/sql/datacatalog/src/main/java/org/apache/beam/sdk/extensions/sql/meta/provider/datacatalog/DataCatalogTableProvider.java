@@ -31,7 +31,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -45,6 +44,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Uses DataCatalog to get the source type and schema for a table. */
 public class DataCatalogTableProvider extends FullNameTableProvider implements AutoCloseable {
@@ -101,7 +101,7 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
   }
 
   @Override
-  public @Nullable Table getTableByFullName(TableName fullTableName) {
+  public Table getTableByFullName(TableName fullTableName) {
 
     ImmutableList<String> allNameParts =
         ImmutableList.<String>builder()
@@ -116,10 +116,14 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
 
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
-    return DELEGATE_PROVIDERS.get(table.getType()).buildBeamSqlTable(table);
+    TableProvider tableProvider = DELEGATE_PROVIDERS.get(table.getType());
+    if (tableProvider == null) {
+      throw new RuntimeException("TableProvider is null");
+    }
+    return tableProvider.buildBeamSqlTable(table);
   }
 
-  private @Nullable Table loadTable(String tableName) {
+  private Table loadTable(String tableName) {
     if (!tableCache.containsKey(tableName)) {
       tableCache.put(tableName, loadTableFromDC(tableName));
     }

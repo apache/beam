@@ -20,7 +20,6 @@ package org.apache.beam.sdk.schemas.utils;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.JavaFieldSchema.JavaFieldTypeSupplier;
@@ -49,6 +48,7 @@ import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.byt
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.ClassWriter;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Helper functions for converting between equivalent schema types. */
 @Experimental(Kind.SCHEMAS)
@@ -56,10 +56,10 @@ public class ConvertHelpers {
   /** Return value after converting a schema. */
   public static class ConvertedSchemaInformation<T> implements Serializable {
     // If the output type is a composite type, this is the schema coder.
-    @Nullable public final SchemaCoder<T> outputSchemaCoder;
+    public final @Nullable SchemaCoder<T> outputSchemaCoder;
     // If the input schema has a single field and the output type's schema matches that field, this
     // is the output type.
-    @Nullable public final FieldType unboxedType;
+    public final @Nullable FieldType unboxedType;
 
     public ConvertedSchemaInformation(
         @Nullable SchemaCoder<T> outputSchemaCoder, @Nullable FieldType unboxedType) {

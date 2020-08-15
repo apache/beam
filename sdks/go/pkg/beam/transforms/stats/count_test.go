@@ -16,6 +16,7 @@
 package stats
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
@@ -65,5 +66,62 @@ func TestCountInt(t *testing.T) {
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Count(%v) != %v: %v", test.in, test.exp, err)
 		}
+	}
+}
+
+// TestCountElms verifies that CountElms works correctly with PCollections of
+// various types, including keyed and unkeyed elements.
+func TestCountElms(t *testing.T) {
+
+	tests := []struct {
+		name  string
+		in    func(s beam.Scope) beam.PCollection
+		count int
+	}{
+		{
+			name: "empty",
+			in: func(s beam.Scope) beam.PCollection {
+				return beam.CreateList(s, []int{})
+			},
+			count: 0,
+		},
+		{
+			name: "single",
+			in: func(s beam.Scope) beam.PCollection {
+				return beam.Create(s, 1)
+			},
+			count: 1,
+		},
+		{
+			name: "multiple",
+			in: func(s beam.Scope) beam.PCollection {
+				return beam.Create(s, "one", "two", "three")
+			},
+			count: 3,
+		},
+		{
+			name: "keyed",
+			in: func(s beam.Scope) beam.PCollection {
+				vals := beam.Create(s, 1.0, 2.0, 3.0, 4.0, 5.0)
+				return beam.AddFixedKey(s, vals)
+			},
+			count: 5,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(fmt.Sprintf("_%v", test.name), func(t *testing.T) {
+			p := beam.NewPipeline()
+			s := p.Root()
+			in := test.in(s)
+			exp := beam.Create(s, test.count)
+			count := CountElms(s, in)
+			passert.Equals(s, count, exp)
+
+			if err := ptest.Run(p); err != nil {
+				t.Errorf("CountElms != %v: %v", test.count, err)
+			}
+		})
 	}
 }

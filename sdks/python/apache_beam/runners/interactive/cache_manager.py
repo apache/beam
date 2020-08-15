@@ -22,7 +22,6 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
-import datetime
 import os
 import sys
 import tempfile
@@ -68,13 +67,17 @@ class CacheManager(object):
     """Returns the latest version number of the PCollection cache."""
     raise NotImplementedError
 
-  def read(self, *labels):
-    # type (*str) -> Tuple[str, Generator[Any]]
+  def read(self, *labels, **args):
+    # type (*str, Dict[str, Any]) -> Tuple[str, Generator[Any]]
 
     """Return the PCollection as a list as well as the version number.
 
     Args:
       *labels: List of labels for PCollection instance.
+      **args: Dict of additional arguments. Currently only supports 'limiters'
+        as a list of ElementLimiters, and 'tail' as a boolean. Limiters limits
+        the amount of elements read and duration with respect to processing
+        time.
 
     Returns:
       A tuple containing an iterator for the items in the PCollection and the
@@ -98,6 +101,17 @@ class CacheManager(object):
     """
     raise NotImplementedError
 
+  def clear(self, *labels):
+    # type (*str) -> Boolean
+
+    """Clears the cache entry of the given labels and returns True on success.
+
+    Args:
+      value: An encodable (with corresponding PCoder) value
+      *labels: List of labels for PCollection instance
+    """
+    raise NotImplementedError
+
   def source(self, *labels):
     # type (*str) -> ptransform.PTransform
 
@@ -107,7 +121,11 @@ class CacheManager(object):
   def sink(self, labels, is_capture=False):
     # type (*str, bool) -> ptransform.PTransform
 
-    """Returns a PTransform that writes the PCollection cache."""
+    """Returns a PTransform that writes the PCollection cache.
+
+    TODO(BEAM-10514): Make sure labels will not be converted into an
+    arbitrarily long file path: e.g., windows has a 260 path limit.
+    """
     raise NotImplementedError
 
   def save_pcoder(self, pcoder, *labels):
@@ -150,12 +168,10 @@ class FileBasedCacheManager(CacheManager):
 
   def __init__(self, cache_dir=None, cache_format='text'):
     if cache_dir:
-      self._cache_dir = filesystems.FileSystems.join(
-          cache_dir,
-          datetime.datetime.now().strftime("cache-%y-%m-%d-%H_%M_%S"))
+      self._cache_dir = cache_dir
     else:
       self._cache_dir = tempfile.mkdtemp(
-          prefix='interactive-temp-', dir=os.environ.get('TEST_TMPDIR', None))
+          prefix='it-', dir=os.environ.get('TEST_TMPDIR', None))
     self._versions = collections.defaultdict(lambda: self._CacheVersion())
 
     if cache_format not in self._available_formats:
@@ -195,17 +211,35 @@ class FileBasedCacheManager(CacheManager):
         self._default_pcoder if self._default_pcoder is not None else
         self._saved_pcoders[self._path(*labels)])
 
-  def read(self, *labels):
+  def read(self, *labels, **args):
     # Return an iterator to an empty list if it doesn't exist.
     if not self.exists(*labels):
       return iter([]), -1
+
+    limiters = args.pop('limiters', [])
 
     # Otherwise, return a generator to the cached PCollection.
     source = self.source(*labels)._source
     range_tracker = source.get_range_tracker(None, None)
     reader = source.read(range_tracker)
     version = self._latest_version(*labels)
-    return reader, version
+
+    # The return type is a generator, so in order to implement the limiter for
+    # the FileBasedCacheManager we wrap the original generator with the logic
+    # to limit yielded elements.
+    def limit_reader(r):
+      for e in r:
+        # Update the limiters and break early out of reading from cache if any
+        # are triggered.
+        for l in limiters:
+          l.update(e)
+
+        if any(l.is_triggered() for l in limiters):
+          break
+
+        yield e
+
+    return limit_reader(reader), version
 
   def write(self, values, *labels):
     sink = self.sink(labels)._sink
@@ -216,6 +250,12 @@ class FileBasedCacheManager(CacheManager):
     for v in values:
       writer.write(v)
     writer.close()
+
+  def clear(self, *labels):
+    if self.exists(*labels):
+      filesystems.FileSystems.delete(self._match(*labels))
+      return True
+    return False
 
   def source(self, *labels):
     return self._reader_class(

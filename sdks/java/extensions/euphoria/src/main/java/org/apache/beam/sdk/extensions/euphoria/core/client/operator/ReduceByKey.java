@@ -21,7 +21,6 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Optional;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
@@ -37,7 +36,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareness;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
@@ -53,6 +51,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -410,24 +409,24 @@ public class ReduceByKey<InputT, KeyT, ValueT, AccT, OutputT>
 
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
-    @Nullable private final String name;
+    private final @Nullable String name;
     private PCollection<InputT> input;
     private UnaryFunction<InputT, KeyT> keyExtractor;
-    @Nullable private TypeDescriptor<KeyT> keyType;
-    @Nullable private UnaryFunction<InputT, ValueT> valueExtractor;
-    @Nullable private TypeDescriptor<ValueT> valueType;
-    @Nullable private TypeDescriptor<OutputT> outputType;
-    @Nullable private BinaryFunction<ValueT, ValueT, Integer> valueComparator;
+    private @Nullable TypeDescriptor<KeyT> keyType;
+    private @Nullable UnaryFunction<InputT, ValueT> valueExtractor;
+    private @Nullable TypeDescriptor<ValueT> valueType;
+    private @Nullable TypeDescriptor<OutputT> outputType;
+    private @Nullable BinaryFunction<ValueT, ValueT, Integer> valueComparator;
 
     // following are defined for RBK using ReduceFunctor
-    @Nullable private final ReduceFunctor<ValueT, OutputT> reducer;
+    private final @Nullable ReduceFunctor<ValueT, OutputT> reducer;
 
     // following are defined when combineFnStyle == true
-    @Nullable private final VoidFunction<AccT> accumulatorFactory;
-    @Nullable private final BinaryFunction<AccT, ValueT, AccT> accumulate;
-    @Nullable private final CombinableBinaryFunction<AccT> mergeAccumulators;
-    @Nullable private final UnaryFunction<AccT, OutputT> outputFn;
-    @Nullable private final TypeDescriptor<AccT> accumulatorTypeDescriptor;
+    private final @Nullable VoidFunction<AccT> accumulatorFactory;
+    private final @Nullable BinaryFunction<AccT, ValueT, AccT> accumulate;
+    private final @Nullable CombinableBinaryFunction<AccT> mergeAccumulators;
+    private final @Nullable UnaryFunction<AccT, OutputT> outputFn;
+    private final @Nullable TypeDescriptor<AccT> accumulatorTypeDescriptor;
 
     Builder(@Nullable String name) {
       this.name = name;
@@ -602,12 +601,12 @@ public class ReduceByKey<InputT, KeyT, ValueT, AccT, OutputT>
     }
 
     @Override
-    public PCollection<KV<KeyT, OutputT>> output(OutputHint... outputHints) {
+    public PCollection<KV<KeyT, OutputT>> output() {
       return OperatorTransform.apply(createOperator(), PCollectionList.of(input));
     }
 
     @Override
-    public PCollection<OutputT> outputValues(OutputHint... outputHints) {
+    public PCollection<OutputT> outputValues() {
       return OperatorTransform.apply(
           new OutputValues<>(name, outputType, createOperator()), PCollectionList.of(input));
     }
@@ -665,8 +664,8 @@ public class ReduceByKey<InputT, KeyT, ValueT, AccT, OutputT>
   private final @Nullable TypeDescriptor<AccT> accumulatorType;
 
   private final UnaryFunction<InputT, ValueT> valueExtractor;
-  @Nullable private final BinaryFunction<ValueT, ValueT, Integer> valueComparator;
-  @Nullable private final TypeDescriptor<ValueT> valueType;
+  private final @Nullable BinaryFunction<ValueT, ValueT, Integer> valueComparator;
+  private final @Nullable TypeDescriptor<ValueT> valueType;
 
   private ReduceByKey(
       @Nullable String name,

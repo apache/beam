@@ -550,6 +550,41 @@ class ApproximateQuantilesTest(unittest.TestCase):
           equal_to([[100, 75, 50, 25, 0]]),
           label='checkReversedQuantiles')
 
+  def test_quantiles_globally_weighted(self):
+    num_inputs = 1e3
+    a = -3
+    b = 3
+
+    # Weighting function coincides with the pdf of the standard normal
+    # distribution up to a constant. Since 99.7% of the probability mass for
+    # this pdf is concentrated in the interval [a, b] = [-3, 3], the quantiles
+    # for a sample from this interval with the given weight function are
+    # expected to be close to the quantiles of the standard normal distribution.
+    def weight(x):
+      return math.exp(-(x**2) / 2)
+
+    input_data = [
+        (a + (b - a) * i / num_inputs, weight(a + (b - a) * i / num_inputs))
+        for i in range(int(num_inputs) + 1)
+    ]
+    with TestPipeline() as p:
+      pc = p | Create(input_data)
+
+      weighted_quantiles = pc | "Quantiles globally weighted" >> \
+                           beam.ApproximateQuantiles.Globally(5, weighted=True)
+      reversed_weighted_quantiles = (
+          pc | 'Quantiles globally weighted reversed' >>
+          beam.ApproximateQuantiles.Globally(5, reverse=True, weighted=True))
+
+      assert_that(
+          weighted_quantiles,
+          equal_to([[-3., -0.6720000000000002, 0., 0.6720000000000002, 3.]]),
+          label="checkWeightedQuantilesGlobally")
+      assert_that(
+          reversed_weighted_quantiles,
+          equal_to([[3., 0.6720000000000002, 0., -0.6720000000000002, -3.]]),
+          label="checkWeightedReversedQuantilesGlobally")
+
   def test_quantiles_per_key(self):
     with TestPipeline() as p:
       data = self._kv_data
@@ -568,6 +603,26 @@ class ApproximateQuantilesTest(unittest.TestCase):
           per_key_reversed,
           equal_to([('a', [3, 1]), ('b', [100, 1])]),
           label='checkReversedQuantilesPerKey')
+
+  def test_quantiles_per_key_weighted(self):
+    with TestPipeline() as p:
+      data = [(k, (v, 2.)) for k, v in self._kv_data]
+      pc = p | Create(data)
+
+      per_key = pc | 'Weighted Quantiles PerKey' >> \
+                beam.ApproximateQuantiles.PerKey(2, weighted=True)
+      per_key_reversed = pc | 'Weighted Quantiles PerKey Reversed' >> \
+                         beam.ApproximateQuantiles.PerKey(
+                           2, reverse=True, weighted=True)
+
+      assert_that(
+          per_key,
+          equal_to([('a', [1, 3]), ('b', [1, 100])]),
+          label='checkWeightedQuantilesPerKey')
+      assert_that(
+          per_key_reversed,
+          equal_to([('a', [3, 1]), ('b', [100, 1])]),
+          label='checkWeightedReversedQuantilesPerKey')
 
   def test_quantiles_per_key_with_key_argument(self):
     with TestPipeline() as p:
@@ -695,19 +750,22 @@ class ApproximateQuantilesTest(unittest.TestCase):
   def _display_data_matcher(instance):
     expected_items = [
         DisplayDataItemMatcher('num_quantiles', instance._num_quantiles),
+        DisplayDataItemMatcher('weighted', str(instance._weighted)),
         DisplayDataItemMatcher('key', str(instance._key.__name__)),
         DisplayDataItemMatcher('reverse', str(instance._reverse))
     ]
     return expected_items
 
   def test_global_display_data(self):
-    transform = beam.ApproximateQuantiles.Globally(3, key=len, reverse=True)
+    transform = beam.ApproximateQuantiles.Globally(
+        3, weighted=True, key=len, reverse=True)
     data = DisplayData.create_from(transform)
     expected_items = self._display_data_matcher(transform)
     hc.assert_that(data.items, hc.contains_inanyorder(*expected_items))
 
   def test_perkey_display_data(self):
-    transform = beam.ApproximateQuantiles.PerKey(3, key=len, reverse=True)
+    transform = beam.ApproximateQuantiles.PerKey(
+        3, weighted=True, key=len, reverse=True)
     data = DisplayData.create_from(transform)
     expected_items = self._display_data_matcher(transform)
     hc.assert_that(data.items, hc.contains_inanyorder(*expected_items))

@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.util.List;
 import java.util.Set;
-import javax.annotation.Nullable;
+import org.apache.beam.runners.core.InMemoryBundleFinalizer;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
@@ -27,6 +28,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -92,6 +94,14 @@ interface TransformResult<InputT> {
    * OutputType#BUNDLE}, as empty bundles may be dropped when the transform is committed.
    */
   Set<OutputType> getOutputTypes();
+
+  /**
+   * Returns a collection of bundle finalization callbacks that were requested during processing of
+   * this transform that should be invoked when the bundle is successfully committed.
+   *
+   * <p>Returns an empty list if there were none.
+   */
+  List<InMemoryBundleFinalizer.Finalization> getBundleFinalizations();
 
   /**
    * Returns a new TransformResult based on this one but overwriting any existing logical metric

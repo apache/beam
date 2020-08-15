@@ -47,7 +47,6 @@ try:
   from IPython.core.display import Javascript  # pylint: disable=import-error
   from IPython.core.display import display  # pylint: disable=import-error
   from IPython.core.display import display_javascript  # pylint: disable=import-error
-  from IPython.core.display import update_display  # pylint: disable=import-error
   from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator  # pylint: disable=import-error
   from timeloop import Timeloop  # pylint: disable=import-error
 
@@ -134,6 +133,10 @@ _DATAFRAME_PAGINATION_TEMPLATE = _CSS + """
             <script>
               {script_in_jquery_with_datatable}
             </script>"""
+_NO_DATA_TEMPLATE = _CSS + """
+            <div id="no_data_{id}">No data to display.</div>"""
+_NO_DATA_REMOVAL_SCRIPT = """
+            $("#no_data_{id}").remove();"""
 
 
 def visualize(
@@ -382,23 +385,30 @@ class PCollectionVisualization(object):
     if update and not update._is_datatable_empty:
       display_javascript(Javascript(script_in_jquery_with_datatable))
     else:
-      html = _DATAFRAME_PAGINATION_TEMPLATE.format(
-          table_id=table_id,
-          script_in_jquery_with_datatable=script_in_jquery_with_datatable)
+      if data.empty:
+        html = _NO_DATA_TEMPLATE.format(id=table_id)
+      else:
+        html = _DATAFRAME_PAGINATION_TEMPLATE.format(
+            table_id=table_id,
+            script_in_jquery_with_datatable=script_in_jquery_with_datatable)
       if update:
         if not data.empty:
-          # Re-initialize a datatable to replace the existing empty datatable.
-          update_display(HTML(html), display_id=update._df_display_id)
+          # Initialize a datatable to replace the existing no data div.
+          display(
+              Javascript(
+                  ie._JQUERY_WITH_DATATABLE_TEMPLATE.format(
+                      customized_script=_NO_DATA_REMOVAL_SCRIPT.format(
+                          id=table_id))))
+          display(HTML(html), display_id=update._df_display_id)
           update._is_datatable_empty = False
       else:
-        # Initialize a datatable for the first time rendering.
         display(HTML(html), display_id=self._df_display_id)
         if not data.empty:
           self._is_datatable_empty = False
 
   def _to_dataframe(self):
     results = []
-    cache_manager = ie.current_env().cache_manager()
+    cache_manager = ie.current_env().get_cache_manager(self._pcoll.pipeline)
     if cache_manager.exists('full', self._cache_key):
       coder = cache_manager.load_pcoder('full', self._cache_key)
       reader, _ = cache_manager.read('full', self._cache_key)

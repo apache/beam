@@ -22,31 +22,31 @@ import PostcommitJobBuilder
 // This job runs the suite of Python ValidatesRunner tests against the
 // Dataflow runner V2.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow_V2', 'Run Python Dataflow V2 ValidatesRunner',
-  'Google Cloud Dataflow Runner V2 Python ValidatesRunner Tests', this) {
-  description('Runs Python ValidatesRunner suite on the Dataflow runner v2.')
+    'Google Cloud Dataflow Runner V2 Python ValidatesRunner Tests', this) {
+      description('Runs Python ValidatesRunner suite on the Dataflow runner v2.')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  publishers {
-    archiveJunit('**/nosetests*.xml')
-  }
+      publishers {
+        commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/nosetests*.xml')
+      }
 
-  // Execute gradle task to test Python SDK.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:python:test-suites:dataflow:py2:validatesRunnerBatchTests')
-      tasks(':sdks:python:test-suites:dataflow:py2:validatesRunnerStreamingTests')
-      // TODO: Enable following tests after making sure we have enough capacity.
-      // tasks(':sdks:python:test-suites:dataflow:py35:validatesRunnerBatchTests')
-      // tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerBatchTests')
-      // tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerBatchTests')
-      // tasks(':sdks:python:test-suites:dataflow:py35:validatesRunnerStreamingTests')
-      // tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerStreamingTests')
-      // tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerStreamingTests')
-      switches('-PuseRunnerV2')
-      commonJobProperties.setGradleSwitches(delegate)
+      // Execute gradle task to test Python SDK.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:python:test-suites:dataflow:py2:validatesRunnerBatchTests')
+          tasks(':sdks:python:test-suites:dataflow:py2:validatesRunnerStreamingTests')
+          // TODO: Enable following tests after making sure we have enough capacity.
+          // tasks(':sdks:python:test-suites:dataflow:py35:validatesRunnerBatchTests')
+          // tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerBatchTests')
+          // tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerBatchTests')
+          // tasks(':sdks:python:test-suites:dataflow:py35:validatesRunnerStreamingTests')
+          // tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerStreamingTests')
+          // tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerStreamingTests')
+          switches('-PuseRunnerV2')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}

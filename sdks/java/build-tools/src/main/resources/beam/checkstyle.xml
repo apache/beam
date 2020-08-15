@@ -76,8 +76,14 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="severity" value="error"/>
     </module>
 
+    <!-- Forbid importing any shaded code, since it does not exist at compile time and this is probably an IDE error -->
     <module name="IllegalImport">
       <property name="illegalPkgs" value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
+    </module>
+
+    <!-- This is not the Nullable annotation you are looking for -->
+    <module name="IllegalImport">
+      <property name="illegalPkgs" value="com.sun.istack" />
     </module>
 
     <module name="RedundantModifier">
@@ -88,7 +94,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
     </module>
 
     <!--
-        IllegalImport cannot blacklist classes, and c.g.api.client.util is used for some shaded
+        IllegalImport cannot forbid classes, and c.g.api.client.util is used for some shaded
         code and some useful code. So we need to fall back to Regexp.
     -->
     <module name="RegexpSinglelineJava">

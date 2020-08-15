@@ -45,8 +45,8 @@ call *one* row of the main table and *all* rows of the side table. The runner
 may use some caching techniques to share the side inputs between calls in order
 to avoid excessive reading:::
 
-  main_table = pipeline | 'VeryBig' >> beam.io.Read(beam.io.BigQuerySource()
-  side_table = pipeline | 'NotBig' >> beam.io.Read(beam.io.BigQuerySource()
+  main_table = pipeline | 'VeryBig' >> beam.io.ReadFroBigQuery(...)
+  side_table = pipeline | 'NotBig' >> beam.io.ReadFromBigQuery(...)
   results = (
       main_table
       | 'ProcessData' >> beam.Map(
@@ -58,25 +58,26 @@ as a parameter to the Map transform. AsList signals to the execution framework
 that its input should be made available whole.
 
 The main and side inputs are implemented differently. Reading a BigQuery table
-as main input entails exporting the table to a set of GCS files (currently in
-JSON format) and then processing those files. Reading the same table as a side
-input entails querying the table for all its rows. The coder argument on
-BigQuerySource controls the reading of the lines in the export files (i.e.,
-transform a JSON object into a PCollection element). The coder is not involved
-when the same table is read as a side input since there is no intermediate
-format involved. We get the table rows directly from the BigQuery service with
-a query.
+as main input entails exporting the table to a set of GCS files (in AVRO or in
+JSON format) and then processing those files.
 
 Users may provide a query to read from rather than reading all of a BigQuery
 table. If specified, the result obtained by executing the specified query will
 be used as the data of the input transform.::
 
-  query_results = pipeline | beam.io.Read(beam.io.BigQuerySource(
-      query='SELECT year, mean_temp FROM samples.weather_stations'))
+  query_results = pipeline | beam.io.gcp.bigquery.ReadFromBigQuery(
+      query='SELECT year, mean_temp FROM samples.weather_stations')
 
 When creating a BigQuery input transform, users should provide either a query
 or a table. Pipeline construction will fail with a validation error if neither
 or both are specified.
+
+When reading via `ReadFromBigQuery`, bytes are returned decoded as bytes.
+This is due to the fact that ReadFromBigQuery uses Avro exports by default.
+When reading from BigQuery using `apache_beam.io.BigQuerySource`, bytes are
+returned as base64-encoded bytes. To get base64-encoded bytes using
+`ReadFromBigQuery`, you can use the flag `use_json_exports` to export
+data as JSON, and receive base64-encoded bytes.
 
 Writing Data to BigQuery
 ========================
@@ -225,8 +226,7 @@ The GEOGRAPHY data type works with Well-Known Text (See
 https://en.wikipedia.org/wiki/Well-known_text) format for reading and writing
 to BigQuery.
 BigQuery IO requires values of BYTES datatype to be encoded using base64
-encoding when writing to BigQuery. When bytes are read from BigQuery they are
-returned as base64-encoded bytes.
+encoding when writing to BigQuery.
 """
 
 # pytype: skip-file
@@ -238,6 +238,7 @@ import decimal
 import itertools
 import json
 import logging
+import random
 import time
 import uuid
 from builtins import object
@@ -251,14 +252,18 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.avroio import _create_avro_source as create_avro_source
 from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
+from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.iobase import BoundedSource
 from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.iobase import SourceBundle
 from apache_beam.io.textio import _TextSource as TextSource
+from apache_beam.metrics import Metrics
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -273,10 +278,10 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.transforms.sideinputs import get_sideinput_index
+from apache_beam.transforms.util import ReshufflePerKey
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
-from apache_beam.utils.annotations import experimental
 
 __all__ = [
     'TableRowJsonCoder',
@@ -289,6 +294,22 @@ __all__ = [
 ]
 
 _LOGGER = logging.getLogger(__name__)
+"""
+Template for BigQuery jobs created by BigQueryIO. This template is:
+`"beam_bq_job_{job_type}_{job_id}_{step_id}_{random}"`, where:
+
+- `job_type` represents the BigQuery job type (e.g. extract / copy / load /
+    query).
+- `job_id` is the Beam job name.
+- `step_id` is a UUID representing the the Dataflow step that created the
+    BQ job.
+- `random` is a random string.
+
+NOTE: This job name template does not have backwards compatibility guarantees.
+"""
+BQ_JOB_NAME_TEMPLATE = "beam_bq_job_{job_type}_{job_id}_{step_id}{random}"
+"""The number of shards per destination when writing via streaming inserts."""
+DEFAULT_SHARDS_PER_DESTINATION = 500
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
@@ -450,8 +471,8 @@ class BigQuerySource(dataflow_io.NativeSource):
         This parameter is ignored for table inputs.
       flatten_results (bool): Flattens all nested and repeated fields in the
         query results. The default value is :data:`True`.
-      kms_key (str): Experimental. Optional Cloud KMS key name for use when
-        creating new tables.
+      kms_key (str): Optional Cloud KMS key name for use when creating new
+        tables.
 
     Raises:
       ValueError: if any of the following is true:
@@ -609,7 +630,8 @@ class _CustomBigQuerySource(BoundedSource):
       use_standard_sql=False,
       flatten_results=True,
       kms_key=None,
-      bigquery_job_labels=None):
+      bigquery_job_labels=None,
+      use_json_exports=False):
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -637,18 +659,26 @@ class _CustomBigQuerySource(BoundedSource):
     self.kms_key = kms_key
     self.split_result = None
     self.options = pipeline_options
+    self.bq_io_metadata = None  # Populate in setup, as it may make an RPC
     self.bigquery_job_labels = bigquery_job_labels or {}
+    self.use_json_exports = use_json_exports
 
   def display_data(self):
+    export_format = 'JSON' if self.use_json_exports else 'AVRO'
     return {
         'table': str(self.table_reference),
         'query': str(self.query),
         'project': str(self.project),
         'use_legacy_sql': self.use_legacy_sql,
         'bigquery_job_labels': json.dumps(self.bigquery_job_labels),
+        'export_file_format': export_format,
+        'launchesBigQueryJobs': DisplayDataItem(
+            True, label="This Dataflow job launches bigquery jobs."),
     }
 
   def estimate_size(self):
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
     bq = bigquery_tools.BigQueryWrapper()
     if self.table_reference is not None:
       table_ref = self.table_reference
@@ -673,7 +703,8 @@ class _CustomBigQuerySource(BoundedSource):
           job_id=uuid.uuid4().hex,
           dry_run=True,
           kms_key=self.kms_key,
-          job_labels=self.bigquery_job_labels)
+          job_labels=self.bq_io_metadata.add_additional_bq_job_labels(
+              self.bigquery_job_labels))
       size = int(job.statistics.totalBytesProcessed)
       return size
     else:
@@ -691,6 +722,17 @@ class _CustomBigQuerySource(BoundedSource):
       project = self.project
     return project
 
+  def _create_source(self, path, schema):
+    if not self.use_json_exports:
+      return create_avro_source(path, use_fastavro=True)
+    else:
+      return TextSource(
+          path,
+          min_bundle_size=0,
+          compression_type=CompressionTypes.UNCOMPRESSED,
+          strip_trailing_newlines=True,
+          coder=self.coder(schema))
+
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
       bq = bigquery_tools.BigQueryWrapper()
@@ -701,13 +743,10 @@ class _CustomBigQuerySource(BoundedSource):
 
       schema, metadata_list = self._export_files(bq)
       self.split_result = [
-          TextSource(
-              metadata.path,
-              0,
-              CompressionTypes.UNCOMPRESSED,
-              True,
-              self.coder(schema)) for metadata in metadata_list
+          self._create_source(metadata.path, schema)
+          for metadata in metadata_list
       ]
+
       if self.query is not None:
         bq.clean_up_temporary_dataset(self._get_project())
 
@@ -736,6 +775,8 @@ class _CustomBigQuerySource(BoundedSource):
 
   @check_accessible(['query'])
   def _execute_query(self, bq):
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
     job = bq._start_query_job(
         self._get_project(),
         self.query.get(),
@@ -743,7 +784,8 @@ class _CustomBigQuerySource(BoundedSource):
         self.flatten_results,
         job_id=uuid.uuid4().hex,
         kms_key=self.kms_key,
-        job_labels=self.bigquery_job_labels)
+        job_labels=self.bq_io_metadata.add_additional_bq_job_labels(
+            self.bigquery_job_labels))
     job_ref = job.jobReference
     bq.wait_for_bq_job(job_ref, max_retries=0)
     return bq._get_temp_table(self._get_project())
@@ -755,13 +797,27 @@ class _CustomBigQuerySource(BoundedSource):
       bigquery.TableSchema instance, a list of FileMetadata instances
     """
     job_id = uuid.uuid4().hex
-    job_ref = bq.perform_extract_job([self.gcs_location],
-                                     job_id,
-                                     self.table_reference,
-                                     bigquery_tools.FileFormat.JSON,
-                                     project=self._get_project(),
-                                     include_header=False,
-                                     job_labels=self.bigquery_job_labels)
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
+    job_labels = self.bq_io_metadata.add_additional_bq_job_labels(
+        self.bigquery_job_labels)
+    if self.use_json_exports:
+      job_ref = bq.perform_extract_job([self.gcs_location],
+                                       job_id,
+                                       self.table_reference,
+                                       bigquery_tools.FileFormat.JSON,
+                                       project=self._get_project(),
+                                       job_labels=job_labels,
+                                       include_header=False)
+    else:
+      job_ref = bq.perform_extract_job([self.gcs_location],
+                                       job_id,
+                                       self.table_reference,
+                                       bigquery_tools.FileFormat.AVRO,
+                                       project=self._get_project(),
+                                       include_header=False,
+                                       job_labels=job_labels,
+                                       use_avro_logical_types=True)
     bq.wait_for_bq_job(job_ref)
     metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
 
@@ -848,8 +904,8 @@ bigquery_v2_messages.TableSchema` object or a single string  of the form
         that will be JSON serialized as a line in a file. This argument needs a
         value only in special cases when writing table rows as dictionaries is
         not desirable.
-      kms_key (str): Experimental. Optional Cloud KMS key name for use when
-        creating new tables.
+      kms_key (str): Optional Cloud KMS key name for use when creating new
+        tables.
 
     Raises:
       TypeError: if the schema argument is not a :class:`str` or a
@@ -942,6 +998,9 @@ bigquery_v2_messages.TableSchema` object.
         buffer_size=buffer_size)
 
 
+_KNOWN_TABLES = set()
+
+
 class BigQueryWriteFn(DoFn):
   """A ``DoFn`` that streams writes to BigQuery once the table is created."""
 
@@ -960,7 +1019,8 @@ class BigQueryWriteFn(DoFn):
       test_client=None,
       max_buffered_rows=None,
       retry_strategy=None,
-      additional_bq_parameters=None):
+      additional_bq_parameters=None,
+      ignore_insert_ids=False):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -982,8 +1042,7 @@ class BigQueryWriteFn(DoFn):
         -  BigQueryDisposition.WRITE_APPEND: add to existing rows.
         -  BigQueryDisposition.WRITE_EMPTY: fail the write if table not empty.
         For streaming pipelines WriteTruncate can not be used.
-      kms_key: Experimental. Optional Cloud KMS key name for use when creating
-        new tables.
+      kms_key: Optional Cloud KMS key name for use when creating new tables.
       test_client: Override the default bigquery client used for testing.
 
       max_buffered_rows: The maximum number of rows that are allowed to stay
@@ -996,6 +1055,12 @@ class BigQueryWriteFn(DoFn):
         to be passed when creating a BigQuery table. These are passed when
         triggering a load job for FILE_LOADS, and when creating a new table for
         STREAMING_INSERTS.
+      ignore_insert_ids: When using the STREAMING_INSERTS method to write data
+        to BigQuery, `insert_ids` are a feature of BigQuery that support
+        deduplication of events. If your use case is not sensitive to
+        duplication of data inserted to BigQuery, set `ignore_insert_ids`
+        to True to increase the throughput for BQ writing. See:
+        https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication
     """
     self.schema = schema
     self.test_client = test_client
@@ -1003,17 +1068,23 @@ class BigQueryWriteFn(DoFn):
     self.write_disposition = write_disposition
     self._rows_buffer = []
     self._reset_rows_buffer()
-    self._observed_tables = set()
 
     self._total_buffered_rows = 0
     self.kms_key = kms_key
     self._max_batch_size = batch_size or BigQueryWriteFn.DEFAULT_MAX_BATCH_SIZE
     self._max_buffered_rows = (
         max_buffered_rows or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS)
-    self._retry_strategy = (
-        retry_strategy or bigquery_tools.RetryStrategy.RETRY_ALWAYS)
+    self._retry_strategy = retry_strategy or RetryStrategy.RETRY_ALWAYS
+    self.ignore_insert_ids = ignore_insert_ids
 
     self.additional_bq_parameters = additional_bq_parameters or {}
+
+    self.batch_size_metric = Metrics.distribution(self.__class__, "batch_size")
+    self.batch_latency_metric = Metrics.distribution(
+        self.__class__, "batch_latency_ms")
+    self.failed_rows_metric = Metrics.distribution(
+        self.__class__, "rows_failed_per_batch")
+    self.bigquery_wrapper = None
 
   def display_data(self):
     return {
@@ -1022,7 +1093,8 @@ class BigQueryWriteFn(DoFn):
         'retry_strategy': self._retry_strategy,
         'create_disposition': str(self.create_disposition),
         'write_disposition': str(self.write_disposition),
-        'additional_bq_parameters': str(self.additional_bq_parameters)
+        'additional_bq_parameters': str(self.additional_bq_parameters),
+        'ignore_insert_ids': str(self.ignore_insert_ids)
     }
 
   def _reset_rows_buffer(self):
@@ -1052,10 +1124,9 @@ class BigQueryWriteFn(DoFn):
   def start_bundle(self):
     self._reset_rows_buffer()
 
-    self.bigquery_wrapper = bigquery_tools.BigQueryWrapper(
-        client=self.test_client)
-
-    self._observed_tables = set()
+    if not self.bigquery_wrapper:
+      self.bigquery_wrapper = bigquery_tools.BigQueryWrapper(
+          client=self.test_client)
 
     self._backoff_calculator = iter(
         retry.FuzzedExponentialIntervals(
@@ -1066,7 +1137,7 @@ class BigQueryWriteFn(DoFn):
         table_reference.projectId,
         table_reference.datasetId,
         table_reference.tableId)
-    if str_table_reference in self._observed_tables:
+    if str_table_reference in _KNOWN_TABLES:
       return
 
     if self.create_disposition == BigQueryDisposition.CREATE_NEVER:
@@ -1090,7 +1161,7 @@ class BigQueryWriteFn(DoFn):
         self.create_disposition,
         self.write_disposition,
         additional_create_parameters=self.additional_bq_parameters)
-    self._observed_tables.add(str_table_reference)
+    _KNOWN_TABLES.add(str_table_reference)
 
   def process(self, element, *schema_side_inputs):
     destination = element[0]
@@ -1144,11 +1215,16 @@ class BigQueryWriteFn(DoFn):
         'Flushing data to %s. Total %s rows.',
         destination,
         len(rows_and_insert_ids))
+    self.batch_size_metric.update(len(rows_and_insert_ids))
 
     rows = [r[0] for r in rows_and_insert_ids]
-    insert_ids = [r[1] for r in rows_and_insert_ids]
+    if self.ignore_insert_ids:
+      insert_ids = None
+    else:
+      insert_ids = [r[1] for r in rows_and_insert_ids]
 
     while True:
+      start = time.time()
       passed, errors = self.bigquery_wrapper.insert_rows(
           project_id=table_reference.projectId,
           dataset_id=table_reference.datasetId,
@@ -1156,12 +1232,14 @@ class BigQueryWriteFn(DoFn):
           rows=rows,
           insert_ids=insert_ids,
           skip_invalid_rows=True)
+      self.batch_latency_metric.update((time.time() - start) * 1000)
 
       failed_rows = [rows[entry.index] for entry in errors]
       should_retry = any(
-          bigquery_tools.RetryStrategy.should_retry(
+          RetryStrategy.should_retry(
               self._retry_strategy, entry.errors[0].reason) for entry in errors)
       if not passed:
+        self.failed_rows_metric.update(len(failed_rows))
         message = (
             'There were errors inserting to BigQuery. Will{} retry. '
             'Errors were {}'.format(("" if should_retry else " not"), errors))
@@ -1204,6 +1282,7 @@ class _StreamToBigQuery(PTransform):
       kms_key,
       retry_strategy,
       additional_bq_parameters,
+      ignore_insert_ids,
       test_client=None):
     self.table_reference = table_reference
     self.table_side_inputs = table_side_inputs
@@ -1216,8 +1295,12 @@ class _StreamToBigQuery(PTransform):
     self.retry_strategy = retry_strategy
     self.test_client = test_client
     self.additional_bq_parameters = additional_bq_parameters
+    self.ignore_insert_ids = ignore_insert_ids
 
   class InsertIdPrefixFn(DoFn):
+    def __init__(self, shards=DEFAULT_SHARDS_PER_DESTINATION):
+      self.shards = shards
+
     def start_bundle(self):
       self.prefix = str(uuid.uuid4())
       self._row_count = 0
@@ -1225,6 +1308,7 @@ class _StreamToBigQuery(PTransform):
     def process(self, element):
       key = element[0]
       value = element[1]
+      key = (key, random.randint(0, self.shards))
 
       insert_id = '%s-%s' % (self.prefix, self._row_count)
       self._row_count += 1
@@ -1239,15 +1323,29 @@ class _StreamToBigQuery(PTransform):
         kms_key=self.kms_key,
         retry_strategy=self.retry_strategy,
         test_client=self.test_client,
-        additional_bq_parameters=self.additional_bq_parameters)
+        additional_bq_parameters=self.additional_bq_parameters,
+        ignore_insert_ids=self.ignore_insert_ids)
 
-    return (
+    def drop_shard(elms):
+      key_and_shard = elms[0]
+      key = key_and_shard[0]
+      value = elms[1]
+      return (key, value)
+
+    sharded_data = (
         input
         | 'AppendDestination' >> beam.ParDo(
             bigquery_tools.AppendDestinationsFn(self.table_reference),
             *self.table_side_inputs)
-        | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn())
-        | 'CommitInsertIds' >> beam.Reshuffle()
+        | 'AddInsertIdsWithRandomKeys' >> beam.ParDo(
+            _StreamToBigQuery.InsertIdPrefixFn()))
+
+    if not self.ignore_insert_ids:
+      sharded_data = (sharded_data | 'CommitInsertIds' >> ReshufflePerKey())
+
+    return (
+        sharded_data
+        | 'DropShard' >> beam.Map(drop_shard)
         | 'StreamInsertRows' >> ParDo(
             bigquery_write_fn, *self.schema_side_inputs).with_outputs(
                 BigQueryWriteFn.FAILED_ROWS, main='main'))
@@ -1290,7 +1388,8 @@ class WriteToBigQuery(PTransform):
       schema_side_inputs=None,
       triggering_frequency=None,
       validate=True,
-      temp_file_format=None):
+      temp_file_format=None,
+      ignore_insert_ids=False):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1343,8 +1442,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           empty.
 
         For streaming pipelines WriteTruncate can not be used.
-      kms_key (str): Experimental. Optional Cloud KMS key name for use when
-        creating new tables.
+      kms_key (str): Optional Cloud KMS key name for use when creating new
+        tables.
       batch_size (int): Number of rows to be written to BQ per streaming API
         insert. The default is 500.
         insert.
@@ -1370,7 +1469,18 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         Default is to retry always. This means that whenever there are rows
         that fail to be inserted to BigQuery, they will be retried indefinitely.
         Other retry strategy settings will produce a deadletter PCollection
-        as output.
+        as output. Appropriate values are:
+
+        * `RetryStrategy.RETRY_ALWAYS`: retry all rows if
+          there are any kind of errors. Note that this will hold your pipeline
+          back if there are errors until you cancel or update it.
+        * `RetryStrategy.RETRY_NEVER`: rows with errors
+          will not be retried. Instead they will be output to a dead letter
+          queue under the `'FailedRows'` tag.
+        * `RetryStrategy.RETRY_ON_TRANSIENT_ERROR`: retry
+          rows with transient errors (e.g. timeouts). Rows with permanent errors
+          will be output to dead letter queue under `'FailedRows'` tag.
+
       additional_bq_parameters (callable): A function that returns a dictionary
         with additional parameters to pass to BQ when creating / loading data
         into a table. These can be 'timePartitioning', 'clustering', etc. They
@@ -1397,6 +1507,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro
         and
         https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json.
+      ignore_insert_ids: When using the STREAMING_INSERTS method to write data
+        to BigQuery, `insert_ids` are a feature of BigQuery that support
+        deduplication of events. If your use case is not sensitive to
+        duplication of data inserted to BigQuery, set `ignore_insert_ids`
+        to True to increase the throughput for BQ writing. See:
+        https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication
     """
     self._table = table
     self._dataset = dataset
@@ -1428,6 +1544,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.additional_bq_parameters = additional_bq_parameters or {}
     self.table_side_inputs = table_side_inputs or ()
     self.schema_side_inputs = schema_side_inputs or ()
+    self._ignore_insert_ids = ignore_insert_ids
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -1439,9 +1556,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
   def _compute_method(self, experiments, is_streaming_pipeline):
     # If the new BQ sink is not activated for experiment flags, then we use
     # streaming inserts by default (it gets overridden in dataflow_runner.py).
-    if 'use_beam_bq_sink' not in experiments:
-      return self.Method.STREAMING_INSERTS
-    elif self.method == self.Method.DEFAULT and is_streaming_pipeline:
+    if self.method == self.Method.DEFAULT and is_streaming_pipeline:
       return self.Method.STREAMING_INSERTS
     elif self.method == self.Method.DEFAULT and not is_streaming_pipeline:
       return self.Method.FILE_LOADS
@@ -1484,6 +1599,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           self.kms_key,
           self.insert_retry_strategy,
           self.additional_bq_parameters,
+          self._ignore_insert_ids,
           test_client=self.test_client)
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
@@ -1622,12 +1738,12 @@ class _PassThroughThenCleanup(PTransform):
     return main_output
 
 
-@experimental()
 class ReadFromBigQuery(PTransform):
   """Read data from BigQuery.
 
     This PTransform uses a BigQuery export job to take a snapshot of the table
-    on GCS, and then reads from each produced JSON file.
+    on GCS, and then reads from each produced file. File format is Avro by
+    default.
 
   Args:
     table (str, callable, ValueProvider): The ID of the table, or a callable
@@ -1661,8 +1777,8 @@ class ReadFromBigQuery(PTransform):
       This parameter is ignored for table inputs.
     flatten_results (bool): Flattens all nested and repeated fields in the
       query results. The default value is :data:`True`.
-    kms_key (str): Experimental. Optional Cloud KMS key name for use when
-      creating new temporary tables.
+    kms_key (str): Optional Cloud KMS key name for use when creating new
+      temporary tables.
     gcs_location (str, ValueProvider): The name of the Google Cloud Storage
       bucket where the extracted table should be written as a string or
       a :class:`~apache_beam.options.value_provider.ValueProvider`. If
@@ -1671,7 +1787,23 @@ class ReadFromBigQuery(PTransform):
       to BigQuery export and query jobs created by this transform. See:
       https://cloud.google.com/bigquery/docs/reference/rest/v2/\
               Job#JobConfiguration
-  """
+    use_json_exports (bool): By default, this transform works by exporting
+      BigQuery data into Avro files, and reading those files. With this
+      parameter, the transform will instead export to JSON files. JSON files
+      are slower to read due to their larger size.
+      When using JSON exports, the BigQuery types for DATE, DATETIME, TIME, and
+      TIMESTAMP will be exported as strings. This behavior is consistent with
+      BigQuerySource.
+      When using Avro exports, these fields will be exported as native Python
+      types (datetime.date, datetime.datetime, datetime.datetime,
+      and datetime.datetime respectively). Avro exports are recommended.
+      To learn more about BigQuery types, and Time-related type
+      representations, see: https://cloud.google.com/bigquery/docs/reference/\
+              standard-sql/data-types
+      To learn more about type conversions between BigQuery and Avro, see:
+      https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\
+              #avro_conversions
+   """
   def __init__(self, gcs_location=None, validate=False, *args, **kwargs):
     if gcs_location:
       if not isinstance(gcs_location, (str, unicode, ValueProvider)):

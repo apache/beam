@@ -21,24 +21,24 @@ import PostcommitJobBuilder
 
 // This job defines the Python postcommit tests.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python2', 'Run Python 2 PostCommit',
-  'Python2_PC("Run Python 2 PostCommit")', this) {
-  description('Runs Python postcommit tests using Python 2.7.')
+    'Python2_PC("Run Python 2 PostCommit")', this) {
+      description('Runs Python postcommit tests using Python 2.7.')
 
-  previousNames('/beam_PostCommit_Python_Verify/')
+      previousNames('/beam_PostCommit_Python_Verify/')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  publishers {
-    archiveJunit('**/nosetests*.xml')
-  }
+      publishers {
+        commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/nosetests*.xml')
+      }
 
-  // Execute shell command to test Python SDK.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':python2PostCommit')
-      commonJobProperties.setGradleSwitches(delegate)
+      // Execute shell command to test Python SDK.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':python2PostCommit')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}

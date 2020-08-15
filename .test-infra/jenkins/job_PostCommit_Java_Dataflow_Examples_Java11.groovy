@@ -20,27 +20,27 @@ import PostcommitJobBuilder
 import CommonJobProperties as commonJobProperties
 
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_Java11',
-        'Run Java examples on Dataflow Java 11', 'Google Cloud Dataflow Runner Examples Java 11', this) {
+    'Run Java examples on Dataflow Java 11', 'Google Cloud Dataflow Runner Examples Java 11', this) {
 
-    description('Runs the Java Examples suite on the Java 11 enabled Dataflow runner.')
+      description('Runs the Java Examples suite on the Java 11 enabled Dataflow runner.')
 
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
-    }
+      publishers {
+        commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
+      }
 
-    steps {
+      steps {
         gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:google-cloud-dataflow-java:examples:java11PostCommit')
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:google-cloud-dataflow-java:examples:java11PostCommit')
 
-            // Increase parallel worker threads above processor limit since most time is
-            // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
-            // because each one launches a Dataflow job with about 3 mins of overhead.
-            // 3 x num_cores strikes a good balance between maxing out parallelism without
-            // overloading the machines.
-            commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
+          // Increase parallel worker threads above processor limit since most time is
+          // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
+          // because each one launches a Dataflow job with about 3 mins of overhead.
+          // 3 x num_cores strikes a good balance between maxing out parallelism without
+          // overloading the machines.
+          commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
         }
+      }
     }
-}

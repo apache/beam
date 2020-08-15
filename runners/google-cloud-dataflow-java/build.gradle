@@ -19,7 +19,10 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.dataflow')
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.runners.dataflow',
+  enableChecker: false,
+  ignoreRawtypeErrors: true)
 
 description = "Apache Beam :: Runners :: Google Cloud Dataflow"
 
@@ -39,7 +42,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.container_version' : 'beam-master-20200227'
+    'dataflow.container_version' : 'beam-master-20200629'
   ]
 }
 
@@ -138,6 +141,7 @@ def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
   'org.apache.beam.sdk.testing.UsesSetState',
   'org.apache.beam.sdk.testing.UsesMapState',
+  'org.apache.beam.sdk.testing.UsesOrderedListState',
   'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs',
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesParDoLifecycle',
