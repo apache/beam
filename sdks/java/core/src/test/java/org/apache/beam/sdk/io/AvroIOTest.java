@@ -25,12 +25,10 @@ import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeFalse;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -48,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
-import java.util.Set;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileReader;
@@ -66,7 +63,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -74,7 +70,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -83,7 +78,6 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -1494,26 +1488,5 @@ public class AvroIOTest implements Serializable {
     }
     // TODO: for Write only, test withSuffix,
     // withShardNameTemplate and withoutSharding.
-
-    @Test
-    @Category(ValidatesRunner.class)
-    public void testPrimitiveReadDisplayData() {
-      // Read is no longer a primitive transform when using the portability framework.
-      assumeFalse(
-          ExperimentalOptions.hasExperiment(
-              DisplayDataEvaluator.getDefaultOptions(), "beam_fn_api"));
-      DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-
-      AvroIO.Read<GenericRecord> read =
-          AvroIO.readGenericRecords(Schema.create(Schema.Type.STRING))
-              .withBeamSchemas(withBeamSchemas)
-              .from("/foo.*");
-
-      Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-      assertThat(
-          "AvroIO.Read should include the file pattern in its primitive transform",
-          displayData,
-          hasItem(hasDisplayItem("filePattern")));
-    }
   }
 }
