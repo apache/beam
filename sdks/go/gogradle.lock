@@ -681,6 +681,11 @@ dependencies:
     commit: "7646b5360d049a7ca31e9133315db43456f39e2e"
     url: "https://github.com/grpc/grpc-go"
     transitive: false
+  - vcs: "git"
+    name: "google.golang.org/protobuf"
+    commit: "d165be301fb1e13390ad453281ded24385fd8ebc"
+    url: "https://go.googlesource.com/protobuf"
+    transitive: false
   - name: "gopkg.in/cheggaaa/pb.v1"
     host:
       name: "github.com/etcd-io/etcd"
@@ -702,20 +707,8 @@ dependencies:
     vendorPath: "vendor/gopkg.in/yaml.v2"
     transitive: false
   test:
-  - urls:
-    - "https://github.com/google/go-cmp.git"
-    - "git@github.com:google/go-cmp.git"
-    vcs: "git"
-    name: "github.com/google/go-cmp"
-    commit: "9680bfaf28748393e28e00238d94070fb9972fd8"
-    transitive: false
   - vcs: "git"
     name: "golang.org/x/xerrors"
     commit: "5ec99f83aff198f5fbd629d6c8d8eb38a04218ca"
     url: "https://go.googlesource.com/xerrors"
-    transitive: false
-  - vcs: "git"
-    name: "google.golang.org/protobuf"
-    commit: "d165be301fb1e13390ad453281ded24385fd8ebc"
-    url: "https://go.googlesource.com/protobuf"
     transitive: false
