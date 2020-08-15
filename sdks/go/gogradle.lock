@@ -52,6 +52,13 @@ dependencies:
       vcs: "git"
     vendorPath: "vendor/github.com/coreos/bbolt"
     transitive: false
+  - urls:
+    - "https://github.com/etcd-io/etcd.git"
+    - "git@github.com:etcd-io/etcd.git"
+    vcs: "git"
+    name: "github.com/etcd-io/etcd"
+    commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
+    transitive: false
   - name: "github.com/coreos/go-semver"
     host:
       name: "github.com/etcd-io/etcd"
@@ -138,13 +145,6 @@ dependencies:
     commit: "44cc805cf13205b55f69e14bcb69867d1ae92f98"
     transitive: false
   - urls:
-    - "https://github.com/etcd-io/etcd.git"
-    - "git@github.com:etcd-io/etcd.git"
-    vcs: "git"
-    name: "github.com/etcd-io/etcd"
-    commit: "11214aa33bf5a47d3d9d8dafe0f6b97237dfe921"
-    transitive: false
-  - urls:
     - "https://github.com/fsnotify/fsnotify.git"
     - "git@github.com:fsnotify/fsnotify.git"
     vcs: "git"
@@ -200,7 +200,7 @@ dependencies:
     - "git@github.com:golang/protobuf.git"
     vcs: "git"
     name: "github.com/golang/protobuf"
-    commit: "d04d7b157bb510b1e0c10132224b616ac0e26b17"
+    commit: "ed6926b37a637426117ccab59282c3839528a700"
     transitive: false
   - urls:
     - "https://github.com/golang/snappy.git"
@@ -224,7 +224,7 @@ dependencies:
     - "git@github.com:google/go-cmp.git"
     vcs: "git"
     name: "github.com/google/go-cmp"
-    commit: "9680bfaf28748393e28e00238d94070fb9972fd8"
+    commit: "3af367b6b30c263d47e8895973edcca9a49cf029"
     transitive: false
   - urls:
     - "https://github.com/google/pprof.git"
@@ -701,21 +701,4 @@ dependencies:
       vcs: "git"
     vendorPath: "vendor/gopkg.in/yaml.v2"
     transitive: false
-  test:
-  - urls:
-    - "https://github.com/google/go-cmp.git"
-    - "git@github.com:google/go-cmp.git"
-    vcs: "git"
-    name: "github.com/google/go-cmp"
-    commit: "9680bfaf28748393e28e00238d94070fb9972fd8"
-    transitive: false
-  - vcs: "git"
-    name: "golang.org/x/xerrors"
-    commit: "5ec99f83aff198f5fbd629d6c8d8eb38a04218ca"
-    url: "https://go.googlesource.com/xerrors"
-    transitive: false
-  - vcs: "git"
-    name: "google.golang.org/protobuf"
-    commit: "d165be301fb1e13390ad453281ded24385fd8ebc"
-    url: "https://go.googlesource.com/protobuf"
-    transitive: false
+  test: []
