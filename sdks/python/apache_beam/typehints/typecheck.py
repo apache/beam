@@ -89,6 +89,7 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
     try:
       result = method(*args, **kwargs)
     except TypeCheckError as e:
+      # TODO: Remove the 'ParDo' prefix for the label name (BEAM-10710)
       error_msg = (
           'Runtime type violation detected within ParDo(%s): '
           '%s' % (self.full_label, e))
@@ -291,15 +292,11 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
   def visit_transform(self, applied_transform):
     transform = applied_transform.transform
     if isinstance(transform, core.ParDo) and not self._in_combine:
-      # TODO: Remove this 'ParDo' prefix check and fix the error messages
-      #  for runtime type checking (BEAM-10710)
-      # Prefix label with 'ParDo' if necessary
       full_label = applied_transform.full_label
-      if not full_label.startswith('ParDo'):
-        full_label = 'ParDo(%s)' % full_label
 
       # Store output type hints in current transform
-      transform.fn._runtime_output_constraints = {}
+      if not hasattr(transform.fn, '_runtime_output_constraints'):
+        transform.fn._runtime_output_constraints = {}
       output_type_hints = self.get_output_type_hints(transform)
       if output_type_hints:
         transform.fn._runtime_output_constraints[full_label] = (
