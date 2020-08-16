@@ -716,7 +716,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     return False
 
   def _add_type_constraint_from_consumer(self, full_label, input_type_hints):
-    # type: (str, Tuple[Any, ...]) -> None
+    # type: (str, Tuple[str, Any]) -> None
 
     """Adds a consumer transform's input type hints to our output type
     constraints, which is used during performance runtime type-checking.
