@@ -87,6 +87,8 @@ public class TableResolution {
    * Data class to store simple table, its full path (excluding top-level schema), and top-level
    * schema.
    */
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   static class SimpleTableWithPath {
 
     SimpleTable table;

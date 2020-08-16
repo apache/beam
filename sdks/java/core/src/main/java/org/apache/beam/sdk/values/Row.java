@@ -735,7 +735,7 @@ public abstract class Row implements Serializable {
       return this;
     }
 
-    public Builder addValues(Object... values) {
+    public Builder addValues(@Nullable Object... values) {
       return addValues(Arrays.asList(values));
     }
 

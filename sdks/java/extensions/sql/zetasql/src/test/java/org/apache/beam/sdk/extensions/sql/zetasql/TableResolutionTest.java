@@ -33,6 +33,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link TableResolution}. */
+// TODO: Fix Later
+@SuppressWarnings("nullness")
 @RunWith(JUnit4.class)
 public class TableResolutionTest {
 

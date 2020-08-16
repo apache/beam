@@ -218,6 +218,8 @@ public class SqlAnalyzer {
     return catalog;
   }
 
+  //TODO: Fix Later
+  @SuppressWarnings("nullness")
   private void addBuiltinFunctionsToCatalog(SimpleCatalog catalog, AnalyzerOptions options) {
     // Enable ZetaSQL builtin functions.
     ZetaSQLBuiltinFunctionOptions zetasqlBuiltinFunctionOptions =

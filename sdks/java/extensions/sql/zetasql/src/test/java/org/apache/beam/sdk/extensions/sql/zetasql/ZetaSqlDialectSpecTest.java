@@ -1497,6 +1497,8 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   public void testZetaSQLAnyValueInGroupBy() {
     String sql =
         "SELECT rowCol.row_id as key, ANY_VALUE(rowCol.data) as any_value FROM table_with_struct_two GROUP BY rowCol.row_id";
@@ -3968,6 +3970,8 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
   @Test
   // test default timezone works properly in query analysis stage
+  // TODO: Fix Later
+  @SuppressWarnings("method.invocation.invalid")
   public void testCastStringToTimestampWithDefaultTimezoneSet() {
     String sql = "SELECT CAST('2014-12-01 12:34:56+07:30' AS TIMESTAMP)";
 

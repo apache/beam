@@ -88,6 +88,8 @@ class JoinScanWithRefConverter extends RelConverter<ResolvedJoinScan> {
    *
    * <p>The context has a map of WITH queries populated when the inputs to this JOIN are parsed.
    */
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   private List<ResolvedColumn> getColumnsForScan(ResolvedScan resolvedScan) {
     return resolvedScan instanceof ResolvedWithRefScan
         ? getTrait()

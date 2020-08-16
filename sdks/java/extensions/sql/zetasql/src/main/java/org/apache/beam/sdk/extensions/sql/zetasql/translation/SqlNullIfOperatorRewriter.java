@@ -34,6 +34,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *   END</pre></code>
  */
 class SqlNullIfOperatorRewriter implements SqlOperatorRewriter {
+
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   @Override
   public RexNode apply(RexBuilder rexBuilder, List<RexNode> operands) {
     Preconditions.checkArgument(

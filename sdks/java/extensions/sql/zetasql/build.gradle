@@ -20,9 +20,7 @@ plugins {
   id 'org.apache.beam.module'
 }
 
-applyJavaNature(
-  enableChecker: false,
-  ignoreRawtypeErrors: true,
+applyJavaNature(ignoreRawtypeErrors: true,
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql.zetasql')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL :: ZetaSQL"

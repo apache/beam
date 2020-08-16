@@ -300,6 +300,8 @@ public final class ZetaSqlCalciteTranslationUtils {
   }
 
   // internal only, used for DateTimestampPart
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   private static RexNode enumValueToRexNode(Value value, RexBuilder rexBuilder) {
     String enumDescriptorName = value.getType().asEnum().getDescriptor().getFullName();
     if (!"zetasql.functions.DateTimestampPart".equals(enumDescriptorName)) {

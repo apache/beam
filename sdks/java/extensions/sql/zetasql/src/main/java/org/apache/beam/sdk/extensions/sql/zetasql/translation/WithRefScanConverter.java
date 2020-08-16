@@ -30,6 +30,8 @@ class WithRefScanConverter extends RelConverter<ResolvedWithRefScan> {
     super(context);
   }
 
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   @Override
   public List<ResolvedNode> getInputs(ResolvedWithRefScan zetaNode) {
     // WithRefScan contains only a name of a WITH query,

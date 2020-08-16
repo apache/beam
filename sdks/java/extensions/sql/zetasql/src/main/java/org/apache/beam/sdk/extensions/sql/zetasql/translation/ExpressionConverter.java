@@ -55,11 +55,7 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedParameter;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedProjectScan;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Internal;
@@ -278,8 +274,8 @@ public class ExpressionConverter {
   /** Create a RexNode for a corresponding resolved expression node. */
   public RexNode convertRexNodeFromResolvedExpr(
       ResolvedExpr expr,
-      List<ResolvedColumn> columnList,
-      List<RelDataTypeField> fieldList,
+      @Nullable List<ResolvedColumn> columnList,
+      @Nullable List<RelDataTypeField> fieldList,
       Map<String, RexNode> functionArguments) {
     if (columnList == null || fieldList == null) {
       return convertRexNodeFromResolvedExpr(expr);
@@ -339,10 +335,10 @@ public class ExpressionConverter {
         // TODO: is there a better way to shared code for different cases of
         // convertResolvedFunctionCall than passing nulls?
         ret =
-            convertResolvedFunctionCall((ResolvedFunctionCall) expr, null, null, ImmutableMap.of());
+            convertResolvedFunctionCall((ResolvedFunctionCall) expr, Collections.emptyList(), Collections.emptyList(), ImmutableMap.of());
         break;
       case RESOLVED_CAST:
-        ret = convertResolvedCast((ResolvedCast) expr, null, null, ImmutableMap.of());
+        ret = convertResolvedCast((ResolvedCast) expr, Collections.emptyList(), Collections.emptyList(), ImmutableMap.of());
         break;
       case RESOLVED_PARAMETER:
         ret = convertResolvedParameter((ResolvedParameter) expr);
@@ -361,6 +357,8 @@ public class ExpressionConverter {
   }
 
   /** Extract the RexNode from expression with ref scan. */
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   public RexNode convertRexNodeFromResolvedExprWithRefScan(
       ResolvedExpr expr,
       List<ResolvedColumn> refScanLeftColumnList,
@@ -504,6 +502,8 @@ public class ExpressionConverter {
   }
 
   /** Convert a TableValuedFunction in ZetaSQL to a RexCall in Calcite. */
+  // TODO: FIX Later
+  @SuppressWarnings("nullness")
   public RexCall convertTableValuedFunction(
       RelNode input,
       TableValuedFunction tvf,
@@ -670,6 +670,8 @@ public class ExpressionConverter {
     return ret;
   }
 
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   private RexNode convertResolvedFunctionCall(
       ResolvedFunctionCall functionCall,
       @Nullable List<ResolvedColumn> columnList,
@@ -826,23 +828,23 @@ public class ExpressionConverter {
       String datePart) {
     switch (datePart) {
       case "YEAR":
-        return new SqlIntervalQualifier(TimeUnit.YEAR, null, SqlParserPos.ZERO);
+        return new SqlIntervalQualifier(TimeUnit.YEAR, TimeUnit.YEAR, SqlParserPos.ZERO);
       case "MONTH":
-        return new SqlIntervalQualifier(TimeUnit.MONTH, null, SqlParserPos.ZERO);
+        return new SqlIntervalQualifier(TimeUnit.MONTH, TimeUnit.MONTH, SqlParserPos.ZERO);
       case "DAY":
-        return new SqlIntervalQualifier(TimeUnit.DAY, null, SqlParserPos.ZERO);
+        return new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.DAY, SqlParserPos.ZERO);
       case "HOUR":
-        return new SqlIntervalQualifier(TimeUnit.HOUR, null, SqlParserPos.ZERO);
+        return new SqlIntervalQualifier(TimeUnit.HOUR, TimeUnit.HOUR, SqlParserPos.ZERO);
       case "MINUTE":
-        return new SqlIntervalQualifier(TimeUnit.MINUTE, null, SqlParserPos.ZERO);
+        return new SqlIntervalQualifier(TimeUnit.MINUTE, TimeUnit.MINUTE, SqlParserPos.ZERO);
       case "SECOND":
-        return new SqlIntervalQualifier(TimeUnit.SECOND, null, SqlParserPos.ZERO);
+        return new SqlIntervalQualifier(TimeUnit.SECOND, TimeUnit.SECOND, SqlParserPos.ZERO);
       case "WEEK":
-        return new SqlIntervalQualifier(TimeUnit.WEEK, null, SqlParserPos.ZERO);
+        return new SqlIntervalQualifier(TimeUnit.WEEK, TimeUnit.WEEK, SqlParserPos.ZERO);
       case "QUARTER":
-        return new SqlIntervalQualifier(TimeUnit.QUARTER, null, SqlParserPos.ZERO);
+        return new SqlIntervalQualifier(TimeUnit.QUARTER, TimeUnit.QUARTER, SqlParserPos.ZERO);
       case "MILLISECOND":
-        return new SqlIntervalQualifier(TimeUnit.MILLISECOND, null, SqlParserPos.ZERO);
+        return new SqlIntervalQualifier(TimeUnit.MILLISECOND, TimeUnit.MILLISECOND, SqlParserPos.ZERO);
       default:
         throw new SqlConversionException(
             String.format(
@@ -919,6 +921,8 @@ public class ExpressionConverter {
     return Optional.empty();
   }
 
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   private RexNode convertResolvedParameter(ResolvedParameter parameter) {
     Value value;
     switch (queryParams.getKind()) {
@@ -946,6 +950,8 @@ public class ExpressionConverter {
     }
   }
 
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   private RexNode convertResolvedArgumentRef(
       ResolvedArgumentRef resolvedArgumentRef, Map<String, RexNode> functionArguments) {
     return functionArguments.get(resolvedArgumentRef.getName());

@@ -58,6 +58,8 @@ public class QueryTrait {
   }
 
   /** Returns a full table path (exlucding top-level schema) for a given ZetaSQL Table. */
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   public List<String> getTablePath(Table table) {
     checkArgument(
         isTableResolved(table),

@@ -40,6 +40,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -47,6 +48,8 @@ import org.joda.time.Instant;
  *
  * <p>Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
  */
+// TODO: Fix Later
+@SuppressWarnings("nullness")
 @Internal
 public final class ZetaSqlBeamTranslationUtils {
 
@@ -105,7 +108,7 @@ public final class ZetaSqlBeamTranslationUtils {
   }
 
   // Value conversion: Beam => ZetaSQL
-  public static Value toZetaSqlValue(Object object, FieldType fieldType) {
+  public static Value toZetaSqlValue(@Nullable Object object, FieldType fieldType) {
     if (object == null) {
       return Value.createNullValue(toZetaSqlType(fieldType));
     }
@@ -224,7 +227,7 @@ public final class ZetaSqlBeamTranslationUtils {
   }
 
   // Value conversion: ZetaSQL => Beam (target Beam type known)
-  public static Object toBeamObject(Value value, FieldType fieldType, boolean verifyValues) {
+  public static @Nullable Object toBeamObject(Value value, FieldType fieldType, boolean verifyValues) {
     if (value.isNull()) {
       return null;
     }

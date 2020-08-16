@@ -63,9 +63,14 @@ public class ZetaSQLPushDownTest {
           .addInt64Field("unused2")
           .build();
 
+  // These fields are being initialized in Setup method
+  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static TestTableProvider tableProvider;
+  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static FrameworkConfig config;
+  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static ZetaSQLQueryPlanner zetaSQLQueryPlanner;
+  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static BeamSqlEnv sqlEnv;
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();

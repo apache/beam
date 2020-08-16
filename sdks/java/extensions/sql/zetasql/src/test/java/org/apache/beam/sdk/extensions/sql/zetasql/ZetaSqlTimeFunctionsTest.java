@@ -48,6 +48,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for ZetaSQL time functions (DATE, TIME, DATETIME, and TIMESTAMP functions). */
+// TODO: Fix Later
+@SuppressWarnings("nullness")
 @RunWith(JUnit4.class)
 public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 

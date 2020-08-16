@@ -60,6 +60,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Framework
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 
 /** ZetaSQLQueryPlanner. */
 public class ZetaSQLQueryPlanner implements QueryPlanner {
@@ -128,7 +129,8 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     return plannerImpl.getDefaultTimezone();
   }
 
-  public void setDefaultTimezone(String timezone) {
+  public void setDefaultTimezone(@UnderInitialization(ZetaSQLQueryPlanner.class) ZetaSQLQueryPlanner this,
+                                 String timezone) {
     plannerImpl.setDefaultTimezone(timezone);
   }
 
@@ -187,6 +189,8 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     return (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
   }
 
+  // TODO: Resolve later
+  @SuppressWarnings("nullness")
   private static FrameworkConfig defaultConfig(
       JdbcConnection connection, Collection<RuleSet> ruleSets) {
     final CalciteConnectionConfig config = connection.config();

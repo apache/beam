@@ -51,8 +51,11 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Framework
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Program;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Util;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** ZetaSQLPlannerImpl. */
+// TODO: Fix Later
+@SuppressWarnings("nullness")
 class ZetaSQLPlannerImpl {
   private final SchemaPlus defaultSchemaPlus;
 

@@ -143,6 +143,9 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     private final Schema outputSchema;
     private final String defaultTimezone;
     private final boolean verifyRowValues;
+
+    // This is being set in setup method
+    @SuppressWarnings("initialization.fields.uninitialized")
     private transient PreparedExpression exp;
 
     CalcFn(

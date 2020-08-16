@@ -38,6 +38,7 @@ import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.apache.beam.sdk.util.Preconditions;
 
 /** Tests for utility methods for ZetaSQL related operations. */
 @RunWith(JUnit4.class)
@@ -143,7 +144,7 @@ public class ZetaSqlBeamTranslationUtilsTest {
 
   @Test
   public void testZetaSqlValueToJavaObject() {
-    assertEquals(
-        ZetaSqlBeamTranslationUtils.toBeamObject(TEST_VALUE, TEST_FIELD_TYPE, true), TEST_ROW);
+    Object object = ZetaSqlBeamTranslationUtils.toBeamObject(TEST_VALUE, TEST_FIELD_TYPE, true);
+    assertEquals(Preconditions.checkArgumentNotNull(object), TEST_ROW);
   }
 }

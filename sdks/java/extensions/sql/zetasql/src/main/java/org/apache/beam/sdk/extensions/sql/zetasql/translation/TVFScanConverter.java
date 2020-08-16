@@ -39,6 +39,8 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
     super(context);
   }
 
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   @Override
   public RelNode convert(ResolvedTVFScan zetaNode, List<RelNode> inputs) {
     RelNode input = inputs.get(0);
@@ -61,6 +63,8 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
     return tableFunctionScan;
   }
 
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   @Override
   public List<ResolvedNode> getInputs(ResolvedTVFScan zetaNode) {
     List<ResolvedNode> inputs = new ArrayList();

@@ -170,6 +170,8 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
     return LogicalProject.create(input, projects, fieldNames);
   }
 
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   private AggregateCall convertAggCall(
       ResolvedComputedColumn computedColumn, int columnRefOff, boolean nullable) {
     ResolvedAggregateFunctionCall aggregateFunctionCall =

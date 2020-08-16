@@ -33,6 +33,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Mocked table for bounded data sources. */
 @Experimental
@@ -91,7 +92,7 @@ public class TestBoundedTable extends TestTable {
    * )
    * }</pre>
    */
-  public TestBoundedTable addRows(Object... args) {
+  public TestBoundedTable addRows(@Nullable Object... args) {
     List<Row> rows = TestTableUtils.buildRows(getSchema(), Arrays.asList(args));
     this.rows.addAll(rows);
     return this;

@@ -49,6 +49,8 @@ class LimitOffsetScanToLimitConverter extends RelConverter<ResolvedLimitOffsetSc
     return Collections.singletonList(zetaNode.getInputScan());
   }
 
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   @Override
   public RelNode convert(ResolvedLimitOffsetScan zetaNode, List<RelNode> inputs) {
     RelNode input = inputs.get(0);
