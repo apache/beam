@@ -177,7 +177,8 @@ public class SqlAnalyzer {
                     LanguageFeature.FEATURE_V_1_1_SELECT_STAR_EXCEPT_REPLACE,
                     LanguageFeature.FEATURE_TABLE_VALUED_FUNCTIONS,
                     LanguageFeature.FEATURE_CREATE_TABLE_FUNCTION,
-                    LanguageFeature.FEATURE_TEMPLATE_FUNCTIONS)));
+                    LanguageFeature.FEATURE_TEMPLATE_FUNCTIONS,
+                    LanguageFeature.FEATURE_ANALYTIC_FUNCTIONS)));
     options.getLanguageOptions().setSupportedStatementKinds(SUPPORTED_STATEMENT_KINDS);
 
     return options;

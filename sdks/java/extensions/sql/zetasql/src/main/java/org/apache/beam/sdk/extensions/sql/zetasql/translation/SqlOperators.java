@@ -69,7 +69,7 @@ public class SqlOperators {
   private static final RelDataType OTHER = createSqlType(SqlTypeName.OTHER, false);
   private static final RelDataType TIMESTAMP = createSqlType(SqlTypeName.TIMESTAMP, false);
   private static final RelDataType NULLABLE_TIMESTAMP = createSqlType(SqlTypeName.TIMESTAMP, true);
-  private static final RelDataType BIGINT = createSqlType(SqlTypeName.BIGINT, false);
+  public static final RelDataType BIGINT = createSqlType(SqlTypeName.BIGINT, false);
   private static final RelDataType NULLABLE_BIGINT = createSqlType(SqlTypeName.BIGINT, true);
 
   public static final SqlOperator STRING_AGG_STRING_FN =

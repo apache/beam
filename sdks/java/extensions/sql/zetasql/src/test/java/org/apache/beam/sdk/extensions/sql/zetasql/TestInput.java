@@ -308,4 +308,34 @@ class TestInput {
           .addRows(2000L, 2.0d, "string_row2", parseTimestampWithUTCTimeZone("2017-02-01 01:02:03"))
           .addRows(
               3000L, 3.0d, "string_row3", parseTimestampWithUTCTimeZone("2017-03-01 01:06:03"));
+  /**
+   * Table schema and data taken from.
+   * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#produce_table
+   */
+  public static final TestBoundedTable ANALYTIC_TABLE =
+      TestBoundedTable.of(
+              Schema.builder()
+                  .addStringField("item")
+                  .addStringField("category")
+                  .addInt64Field("purchases")
+                  .build())
+          .addRows(
+              "kale",
+              "vegetable",
+              23L,
+              "orange",
+              "fruit",
+              2L,
+              "cabbage",
+              "vegetable",
+              9L,
+              "apple",
+              "fruit",
+              8L,
+              "leek",
+              "vegetable",
+              2L,
+              "lettuce",
+              "vegetable",
+              10L);
 }

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_AGGREGATE_SCAN;
+import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_ANALYTIC_SCAN;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_ARRAY_SCAN;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_FILTER_SCAN;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_JOIN_SCAN;
@@ -73,6 +74,7 @@ public class QueryStatementConverter extends RelConverter<ResolvedQueryStmt> {
             .put(RESOLVED_WITH_REF_SCAN, new WithRefScanConverter(context))
             .put(RESOLVED_WITH_SCAN, new WithScanConverter(context))
             .put(RESOLVED_TVFSCAN, new TVFScanConverter(context))
+            .put(RESOLVED_ANALYTIC_SCAN, new AnalyticScanConverter(context))
             .build();
   }
 

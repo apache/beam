@@ -978,7 +978,7 @@ public class ExpressionConverter {
     return rexBuilder().makeFieldAccess(referencedExpr, fieldIdx);
   }
 
-  private RexBuilder rexBuilder() {
+  public RexBuilder rexBuilder() {
     return cluster.getRexBuilder();
   }
 }
