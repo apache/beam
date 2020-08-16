@@ -1475,9 +1475,9 @@ class ParDo(PTransformWithSideInputs):
     return DoFnSignature(self.fn).get_restriction_coder()
 
   def _add_type_constraint_from_consumer(self, full_label, input_type_hints):
-    output_constraints = getattr(self.fn, '_runtime_output_constraints', {})
-    output_constraints[full_label] = input_type_hints
-    self.fn._runtime_output_constraints = output_constraints
+    if not hasattr(self.fn, '_runtime_output_constraints'):
+      self.fn._runtime_output_constraints = {}
+    self.fn._runtime_output_constraints[full_label] = input_type_hints
 
 
 class _MultiParDo(PTransform):
