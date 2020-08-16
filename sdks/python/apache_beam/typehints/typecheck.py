@@ -303,9 +303,9 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
             output_type_hints)
 
       # Store input type hints in producer transform
-      producer = applied_transform.inputs[0].producer
       input_type_hints = self.get_input_type_hints(transform)
       if input_type_hints:
+        producer = applied_transform.inputs[0].producer
         producer.transform._add_type_constraint_from_consumer(
             full_label, input_type_hints)
 
@@ -321,17 +321,14 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
         input_types = normal_hints
 
     parameter_name = 'Unknown Parameter'
-    try:
-      argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
-      if len(argspec.args):
-        arg_index = 0
-        if argspec.args[0] == 'self':
-          arg_index = 1
-        parameter_name = argspec.args[arg_index]
-        if isinstance(input_types, dict):
-          input_types = (input_types[argspec.args[arg_index]], )
-    except TypeError:
-      pass
+    argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
+    if len(argspec.args):
+      arg_index = 0
+      if argspec.args[0] == 'self':
+        arg_index = 1
+      parameter_name = argspec.args[arg_index]
+      if isinstance(input_types, dict):
+        input_types = (input_types[argspec.args[arg_index]], )
 
     if input_types and len(input_types):
       input_types = input_types[0]
