@@ -272,26 +272,12 @@ class TypeCheckVisitor(pipeline.PipelineVisitor):
 
 
 class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
-
-  _in_combine = False
-  combine_classes = (
-      core.CombineFn,
-      core.CombinePerKey,
-      core.CombineValuesDoFn,
-      core.CombineValues,
-      core.CombineGlobally)
-
-  def enter_composite_transform(self, applied_transform):
-    if isinstance(applied_transform.transform, self.combine_classes):
-      self._in_combine = True
-
-  def leave_composite_transform(self, applied_transform):
-    if isinstance(applied_transform.transform, self.combine_classes):
-      self._in_combine = False
-
   def visit_transform(self, applied_transform):
     transform = applied_transform.transform
-    if isinstance(transform, core.ParDo) and not self._in_combine:
+
+    # TODO: remove this isinstance check and extract type hints
+    #  from all transform types (BEAM-10711)
+    if isinstance(transform, core.ParDo):
       full_label = applied_transform.full_label
 
       # Store output type hints in current transform
