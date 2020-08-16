@@ -1348,10 +1348,6 @@ class _OutputProcessor(OutputProcessor):
           'Returning a %s from a ParDo or FlatMap is '
           'discouraged. Please use list("%s") if you really '
           'want this behavior.' % (results_type, results))
-    elif not isinstance(results, collections.Iterable):
-      raise TypeCheckError(
-          'FlatMap and ParDo must return an '
-          'iterable. %s was returned instead.' % type(results))
 
     output_element_count = 0
     for result in results:

@@ -234,14 +234,11 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     def incorrect_par_do_fn(x):
       return x + 5
 
-    with self.assertRaises(TypeCheckError) as cm:
+    with self.assertRaises(TypeError) as cm:
       (self.p | beam.Create([1, 1]) | beam.FlatMap(incorrect_par_do_fn))
       self.p.run()
 
-    self.assertStartswith(
-        cm.exception.args[0],
-        'FlatMap and ParDo must return an iterable. '
-        '{} was returned instead.'.format(int))
+    self.assertStartswith(cm.exception.args[0], "'int' object is not iterable ")
 
   def test_simple_type_satisfied(self):
     @with_input_types(int, int)
