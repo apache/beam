@@ -291,6 +291,8 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
   def visit_transform(self, applied_transform):
     transform = applied_transform.transform
     if isinstance(transform, core.ParDo) and not self._in_combine:
+      # TODO: Remove this 'ParDo' prefix check and fix the error messages
+      #  for runtime type checking (BEAM-10710)
       # Prefix label with 'ParDo' if necessary
       full_label = applied_transform.full_label
       if not full_label.startswith('ParDo'):
