@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import java.util.*;
-import org.apache.beam.sdk.extensions.sql.*;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.schemas.Schema;
