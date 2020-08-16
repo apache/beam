@@ -572,8 +572,6 @@ public class KafkaIO {
         // Set required defaults
         setTopicPartitions(Collections.emptyList());
         setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN);
-        setMaxNumRecords(Long.MAX_VALUE);
-        setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN);
         if (config.maxReadTime != null) {
           setMaxReadTime(Duration.standardSeconds(config.maxReadTime));
         }
