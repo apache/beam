@@ -247,13 +247,8 @@ class MainInputTest(unittest.TestCase):
       return element * 2
 
     # This is raised in runners/common.py (process_outputs).
-    with self.assertRaises(typehints.TypeCheckError) as e:
+    with self.assertRaisesRegex(TypeError, r'int.*is not iterable'):
       _ = [1, 2, 3] | beam.FlatMap(fn)
-
-    self.assertStartswith(
-        e.exception.args[0],
-        "FlatMap and ParDo must return an iterable. "
-        "{} was returned instead.".format(int))
 
   def test_typed_flatmap_optional(self):
     def fn(element: int) -> typehints.Optional[typehints.Iterable[int]]:

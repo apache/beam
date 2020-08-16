@@ -476,10 +476,11 @@ class Operation(object):
 
     return '<%s %s>' % (printable_name, ', '.join(printable_fields))
 
-  def _get_runtime_performance_hints(self) -> Union[None, Dict[str, Tuple[Any, ...]]]:
-    """Returns any type hints required for
-    performance runtime type-checking.
-    """
+  def _get_runtime_performance_hints(self):
+    # type: () -> Union[None, Dict[str, Tuple[Any, ...]]]
+
+    """Returns any type hints required for performance runtime
+    type-checking."""
     return None
 
 
