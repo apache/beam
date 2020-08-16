@@ -476,11 +476,9 @@ class Operation(object):
 
     return '<%s %s>' % (printable_name, ', '.join(printable_fields))
 
-  def _get_runtime_performance_hints(self):
-    """Returns any type hints required for performance runtime type-checking.
-    These type hints are stored in the operation's spec's serialized_fn.
-
-    This is only overridden by DoOperation's.
+  def _get_runtime_performance_hints(self) -> Union[None, Dict[str, Tuple[Any, ...]]]:
+    """Returns any type hints required for
+    performance runtime type-checking.
     """
     return None
 
@@ -776,7 +774,7 @@ class DoOperation(Operation):
         infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
     return infos
 
-  def _get_runtime_performance_hints(self):
+  def _get_runtime_performance_hints(self) -> Dict[str, Tuple[Any, ...]]:
     fns = pickler.loads(self.spec.serialized_fn)
     if fns and hasattr(fns[0], '_runtime_output_constraints'):
       return fns[0]._runtime_output_constraints

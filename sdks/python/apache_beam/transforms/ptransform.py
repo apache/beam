@@ -718,8 +718,6 @@ class PTransform(WithTypeHints, HasDisplayData):
   def _add_type_constraint_from_consumer(self, full_label, input_type_hints):
     """Adds a consumer transform's input type hints to our output type
     constraints, which is used during performance runtime type-checking.
-
-    This is only overridden by ParDo's.
     """
     pass
 
