@@ -26,7 +26,6 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 from __future__ import division
 
-import collections
 import threading
 import traceback
 from builtins import next

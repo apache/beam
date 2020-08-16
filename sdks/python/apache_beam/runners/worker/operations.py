@@ -775,7 +775,7 @@ class DoOperation(Operation):
         infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
     return infos
 
-  def _get_runtime_performance_hints(self) -> Dict[str, Tuple[Any, ...]]:
+  def _get_runtime_performance_hints(self):
     fns = pickler.loads(self.spec.serialized_fn)
     if fns and hasattr(fns[0], '_runtime_output_constraints'):
       return fns[0]._runtime_output_constraints
