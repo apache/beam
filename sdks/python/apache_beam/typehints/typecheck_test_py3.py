@@ -328,6 +328,38 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         "Expected an instance of {}, "
         "instead found 4.0, an instance of {}.".format(int, float))
 
+  def test_downstream_input_type_hint_error_has_descriptive_error_msg(self):
+    @with_input_types(int)
+    @with_output_types(int)
+    class IntToInt(beam.DoFn):
+      def process(self, element, *args, **kwargs):
+        yield element
+
+    @with_input_types(str)
+    @with_output_types(int)
+    class StrToInt(beam.DoFn):
+      def process(self, element, *args, **kwargs):
+        yield int(element)
+
+    # This will raise a type check error in IntToInt even though the actual
+    # type check error won't happen until StrToInt. The user will be told that
+    # StrToInt's input type hints were not satisfied while running IntToInt.
+    with self.assertRaises(TypeCheckError) as e:
+      (
+          self.p
+          | beam.Create([9])
+          | beam.ParDo(IntToInt())
+          | beam.ParDo(StrToInt()))
+      self.p.run()
+
+    self.assertStartswith(
+        e.exception.args[0],
+        "Runtime type violation detected within ParDo(StrToInt): "
+        "Type-hint for argument: 'element' violated. "
+        "Expected an instance of {}, "
+        "instead found 9, an instance of {}. "
+        "[while running 'ParDo(IntToInt)']".format(str, int))
+
 
 if __name__ == '__main__':
   unittest.main()

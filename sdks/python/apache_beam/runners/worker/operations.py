@@ -477,7 +477,7 @@ class Operation(object):
     return '<%s %s>' % (printable_name, ', '.join(printable_fields))
 
   def _get_runtime_performance_hints(self):
-    # type: () -> Optional[Dict[Optional[str], Any]]
+    # type: () -> Optional[Dict[Optional[str], Tuple[Optional[str], Any]]]
 
     """Returns any type hints required for performance runtime
     type-checking."""
