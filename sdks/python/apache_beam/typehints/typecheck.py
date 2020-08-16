@@ -274,13 +274,10 @@ class TypeCheckVisitor(pipeline.PipelineVisitor):
 class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
   def visit_transform(self, applied_transform):
     transform = applied_transform.transform
+    full_label = applied_transform.full_label
 
-    # TODO: remove this isinstance check and extract type hints
-    #  from all transform types (BEAM-10711)
-    if isinstance(transform, core.ParDo):
-      full_label = applied_transform.full_label
-
-      # Store output type hints in current transform
+    # Store output type hints in current transform
+    if hasattr(transform, 'fn'):
       if not hasattr(transform.fn, '_runtime_output_constraints'):
         transform.fn._runtime_output_constraints = {}
       output_type_hints = self.get_output_type_hints(transform)
@@ -288,10 +285,11 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
         transform.fn._runtime_output_constraints[full_label] = (
             output_type_hints)
 
-      # Store input type hints in producer transform
-      input_type_hints = self.get_input_type_hints(transform)
-      if input_type_hints:
-        producer = applied_transform.inputs[0].producer
+    # Store input type hints in producer transform
+    input_type_hints = self.get_input_type_hints(transform)
+    if input_type_hints and len(applied_transform.inputs):
+      producer = applied_transform.inputs[0].producer
+      if producer:
         producer.transform._add_type_constraint_from_consumer(
             full_label, input_type_hints)
 
@@ -307,14 +305,15 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
         input_types = normal_hints
 
     parameter_name = 'Unknown Parameter'
-    argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
-    if len(argspec.args):
-      arg_index = 0
-      if argspec.args[0] == 'self':
-        arg_index = 1
-      parameter_name = argspec.args[arg_index]
-      if isinstance(input_types, dict):
-        input_types = (input_types[argspec.args[arg_index]], )
+    if hasattr(transform, 'fn'):
+      argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
+      if len(argspec.args):
+        arg_index = 0
+        if argspec.args[0] == 'self':
+          arg_index = 1
+        parameter_name = argspec.args[arg_index]
+        if isinstance(input_types, dict):
+          input_types = (input_types[argspec.args[arg_index]], )
 
     if input_types and len(input_types):
       input_types = input_types[0]
