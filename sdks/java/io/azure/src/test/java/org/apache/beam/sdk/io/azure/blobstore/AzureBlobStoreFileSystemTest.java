@@ -78,17 +78,10 @@ public class AzureBlobStoreFileSystemTest {
               return mockedContainerClient;
             });
 
-    when(mockedContainerClient.exists()).thenReturn(created[0]);
+    when(mockedContainerClient.exists()).thenAnswer((invocation) -> created[0]);
     when(azureBlobStoreFileSystem.getClient().getBlobContainerClient(anyString()))
         .thenReturn(mockedContainerClient);
     when(mockedContainerClient.getBlobClient(anyString())).thenReturn(mockedBlobClient);
-  }
-
-  @Test
-  public void test() {
-    BlobServiceClient client = azureBlobStoreFileSystem.getClient();
-    BlobContainerClient blobContainerClient = client.createBlobContainer("container");
-    assertTrue(blobContainerClient.exists());
   }
 
   @Test
