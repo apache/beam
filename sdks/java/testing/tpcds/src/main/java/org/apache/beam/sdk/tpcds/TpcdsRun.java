@@ -24,7 +24,7 @@ import java.util.concurrent.Callable;
 /**
  * To fulfill multi-threaded execution
  */
-public class TpcdsRun implements Callable<PipelineResult> {
+public class TpcdsRun implements Callable<TpcdsRunResult> {
     private final Pipeline pipeline;
 
     public TpcdsRun (Pipeline pipeline) {
@@ -32,9 +32,22 @@ public class TpcdsRun implements Callable<PipelineResult> {
     }
 
     @Override
-    public PipelineResult call() {
-        PipelineResult pipelineResult = pipeline.run();
-        pipelineResult.waitUntilFinish();
-        return pipelineResult;
+    public TpcdsRunResult call() {
+        TpcdsRunResult tpcdsRunResult;
+
+        try {
+            PipelineResult pipelineResult = pipeline.run();
+            long startTimeStamp = System.currentTimeMillis();
+            pipelineResult.waitUntilFinish();
+            long endTimeStamp = System.currentTimeMillis();
+
+            tpcdsRunResult = new TpcdsRunResult(true, startTimeStamp, endTimeStamp, pipeline.getOptions(), pipelineResult);
+        } catch (Exception e) {
+            // If the pipeline execution failed, return a result with failed status but don't interrupt other threads.
+            e.printStackTrace();
+            tpcdsRunResult = new TpcdsRunResult(false, 0, 0, pipeline.getOptions(), null);
+        }
+
+        return tpcdsRunResult;
     }
 }
