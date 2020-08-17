@@ -31,7 +31,6 @@ import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -339,8 +338,8 @@ public class BigQueryUtils {
       if (TypeName.MAP == type.getTypeName()) {
         Schema mapSchema =
             Schema.builder()
-                .addField("key", type.getMapKeyType())
-                .addField("value", type.getMapValueType())
+                .addField(BIGQUERY_MAP_KEY_FIELD_NAME, type.getMapKeyType())
+                .addField(BIGQUERY_MAP_VALUE_FIELD_NAME, type.getMapValueType())
                 .build();
         type = FieldType.row(mapSchema);
         field.setFields(toTableFieldSchema(mapSchema));
@@ -468,13 +467,17 @@ public class BigQueryUtils {
         return convertedItems;
 
       case MAP:
+        FieldType keyElementType = fieldType.getMapKeyType();
+        FieldType valueElementType = fieldType.getMapValueType();
         Map<?, ?> pairs = (Map<?, ?>) fieldValue;
         convertedItems = Lists.newArrayListWithCapacity(pairs.size());
         for (Map.Entry<?, ?> pair : pairs.entrySet()) {
           convertedItems.add(
               new TableRow()
-                  .set(BIGQUERY_MAP_KEY_FIELD_NAME, pair.getKey())
-                  .set(BIGQUERY_MAP_VALUE_FIELD_NAME, pair.getValue()));
+                  .set(BIGQUERY_MAP_KEY_FIELD_NAME, fromBeamField(keyElementType, pair.getKey()))
+                  .set(
+                      BIGQUERY_MAP_VALUE_FIELD_NAME,
+                      fromBeamField(valueElementType, pair.getValue())));
         }
         return convertedItems;
 
@@ -676,7 +679,7 @@ public class BigQueryUtils {
       case DECIMAL:
         throw new RuntimeException("Does not support converting DECIMAL type value");
       case MAP:
-        return convertAvroMap(beamFieldType, avroValue, options);
+        return convertAvroRecordToMap(beamFieldType, avroValue, options);
       default:
         throw new RuntimeException(
             "Does not support converting unknown type value: " + beamFieldTypeName);
@@ -714,10 +717,10 @@ public class BigQueryUtils {
     return ret;
   }
 
-  private static Object convertAvroMap(
+  private static Object convertAvroRecordToMap(
       FieldType beamField, Object value, BigQueryUtils.ConversionOptions options) {
     List<GenericData.Record> records = (List<GenericData.Record>) value;
-    HashMap<Object, Object> ret = new HashMap<>();
+    ImmutableMap.Builder<Object, Object> ret = ImmutableMap.builder();
     FieldType keyElement = beamField.getMapKeyType();
     FieldType valueElement = beamField.getMapValueType();
     for (GenericData.Record record : records) {
@@ -725,7 +728,7 @@ public class BigQueryUtils {
           convertAvroFormat(keyElement, record.get(0), options),
           convertAvroFormat(valueElement, record.get(1), options));
     }
-    return ret;
+    return ret.build();
   }
 
   private static Object convertAvroPrimitiveTypes(TypeName beamType, Object value) {
