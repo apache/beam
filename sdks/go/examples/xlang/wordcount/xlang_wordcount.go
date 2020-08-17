@@ -39,7 +39,7 @@ import (
 
 var (
 	// Set this option to choose a different input file or glob.
-	input = flag.String("input", "./input", "File(s) to read.")
+	input = flag.String("input", "../../../data/shakespeare/kinglear.txt", "File(s) to read.")
 
 	// Set this required option to specify where to write the output.
 	output = flag.String("output", "./output", "Output file (required).")

@@ -82,7 +82,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return errors.WithContextf(err, "generating model pipeline")
 	}
-
 	xlangx.PurgeOutputInput(edges, pipeline)
 
 	xlangx.MergeExpandedWithPipeline(edges, pipeline)
