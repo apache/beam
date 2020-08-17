@@ -227,7 +227,8 @@ public final class ZetaSqlBeamTranslationUtils {
   }
 
   // Value conversion: ZetaSQL => Beam (target Beam type known)
-  public static @Nullable Object toBeamObject(Value value, FieldType fieldType, boolean verifyValues) {
+  public static @Nullable Object toBeamObject(
+      Value value, FieldType fieldType, boolean verifyValues) {
     if (value.isNull()) {
       return null;
     }

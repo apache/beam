@@ -339,10 +339,19 @@ public class ExpressionConverter {
         // TODO: is there a better way to shared code for different cases of
         // convertResolvedFunctionCall than passing nulls?
         ret =
-            convertResolvedFunctionCall((ResolvedFunctionCall) expr, Collections.emptyList(), Collections.emptyList(), ImmutableMap.of());
+            convertResolvedFunctionCall(
+                (ResolvedFunctionCall) expr,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                ImmutableMap.of());
         break;
       case RESOLVED_CAST:
-        ret = convertResolvedCast((ResolvedCast) expr, Collections.emptyList(), Collections.emptyList(), ImmutableMap.of());
+        ret =
+            convertResolvedCast(
+                (ResolvedCast) expr,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                ImmutableMap.of());
         break;
       case RESOLVED_PARAMETER:
         ret = convertResolvedParameter((ResolvedParameter) expr);
@@ -848,7 +857,8 @@ public class ExpressionConverter {
       case "QUARTER":
         return new SqlIntervalQualifier(TimeUnit.QUARTER, TimeUnit.QUARTER, SqlParserPos.ZERO);
       case "MILLISECOND":
-        return new SqlIntervalQualifier(TimeUnit.MILLISECOND, TimeUnit.MILLISECOND, SqlParserPos.ZERO);
+        return new SqlIntervalQualifier(
+            TimeUnit.MILLISECOND, TimeUnit.MILLISECOND, SqlParserPos.ZERO);
       default:
         throw new SqlConversionException(
             String.format(

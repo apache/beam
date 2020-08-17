@@ -37,8 +37,8 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.Sq
 
 /** Base class for table-valued function windowing operator (TUMBLE, HOP and SESSION). */
 class SqlWindowTableFunction extends SqlFunction {
-    // TODO: Fix Later
-    @SuppressWarnings("nullness")
+  // TODO: Fix Later
+  @SuppressWarnings("nullness")
   public SqlWindowTableFunction(String name) {
     super(
         name,
