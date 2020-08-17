@@ -18,30 +18,66 @@
 package org.apache.beam.sdk.io.azure.blobstore;
 
 import com.azure.storage.blob.BlobServiceClientBuilder;
+import com.azure.storage.common.StorageSharedKeyCredential;
 import org.apache.beam.sdk.io.azure.options.BlobstoreClientBuilderFactory;
 import org.apache.beam.sdk.io.azure.options.BlobstoreOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
-/** Construct BlobServiceClientBuilder with default values of Azure client properties. */
+/** Construct BlobServiceClientBuilder with given values of Azure client properties. */
 public class DefaultBlobstoreClientBuilderFactory implements BlobstoreClientBuilderFactory {
-
-  // TODO: add any other options that should be passed to BlobServiceClientBuilder
 
   @Override
   public BlobServiceClientBuilder createBuilder(BlobstoreOptions blobstoreOptions) {
     BlobServiceClientBuilder builder = new BlobServiceClientBuilder();
 
-    if (blobstoreOptions.getClientConfiguration() != null) {
-      builder = builder.configuration(blobstoreOptions.getClientConfiguration());
+    if (!Strings.isNullOrEmpty(blobstoreOptions.getAzureConnectionString())) {
+      builder = builder.connectionString(blobstoreOptions.getAzureConnectionString());
     }
 
-    if (blobstoreOptions.getAzureConnectionString() != null) {
-      builder.connectionString(blobstoreOptions.getAzureConnectionString());
+    if (blobstoreOptions.getSharedKeyCredential() != null) {
+      builder = builder.credential(blobstoreOptions.getSharedKeyCredential());
     }
 
-    if (!Strings.isNullOrEmpty(blobstoreOptions.getAzureServiceEndpoint())) {
-      builder = builder.endpoint(blobstoreOptions.getAzureServiceEndpoint());
+    if (blobstoreOptions.getTokenCredential() != null) {
+      builder = builder.credential(blobstoreOptions.getTokenCredential());
     }
+
+    if (!Strings.isNullOrEmpty(blobstoreOptions.getSasToken())) {
+      builder = builder.sasToken(blobstoreOptions.getSasToken());
+    }
+
+    if (!Strings.isNullOrEmpty(blobstoreOptions.getAccountName())
+        && !Strings.isNullOrEmpty(blobstoreOptions.getAccessKey())) {
+      StorageSharedKeyCredential credential =
+          new StorageSharedKeyCredential(
+              blobstoreOptions.getAccountName(), blobstoreOptions.getAccessKey());
+      builder = builder.credential(credential);
+    }
+
+    if (!Strings.isNullOrEmpty(blobstoreOptions.getBlobServiceEndpoint())) {
+      builder = builder.endpoint(blobstoreOptions.getBlobServiceEndpoint());
+    }
+
+    if (blobstoreOptions.getCustomerProvidedKey() != null) {
+      builder = builder.customerProvidedKey(blobstoreOptions.getCustomerProvidedKey());
+    }
+
+    if (blobstoreOptions.getEnvironmentConfiguration() != null) {
+      builder = builder.configuration(blobstoreOptions.getEnvironmentConfiguration());
+    }
+
+    if (blobstoreOptions.getPipelinePolicy() != null) {
+      builder = builder.addPolicy(blobstoreOptions.getPipelinePolicy());
+    }
+
+    if (blobstoreOptions.getHttpClient() != null) {
+      builder = builder.httpClient(blobstoreOptions.getHttpClient());
+    }
+
+    if (blobstoreOptions.getHttpPipeline() != null) {
+      builder = builder.pipeline(blobstoreOptions.getHttpPipeline());
+    }
+
     return builder;
   }
 }
