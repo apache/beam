@@ -42,7 +42,7 @@ For extra spiciness our implementation differs slightly from the above:
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.models import category_price
+from apache_beam.testing.benchmarks.nexmark.models.result_name import ResultNames
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.testing.benchmarks.nexmark.queries import winning_bids
 from apache_beam.transforms import window
@@ -73,5 +73,8 @@ def load(events, metadata=None):
 
 class ProjectToCategoryPriceFn(beam.DoFn):
   def process(self, element, pane_info=beam.DoFn.PaneInfoParam):
-    yield category_price.CategoryPrice(
-        element[0], element[1], pane_info.is_last)
+    yield {
+        ResultNames.CATEGORY: element[0],
+        ResultNames.PRICE: element[1],
+        ResultNames.IS_LAST: pane_info.is_last
+    }

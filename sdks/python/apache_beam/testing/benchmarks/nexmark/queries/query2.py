@@ -28,7 +28,7 @@ It illustrates a simple filter.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.models import auction_price
+from apache_beam.testing.benchmarks.nexmark.models.result_name import ResultNames
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 
 
@@ -38,5 +38,7 @@ def load(events, metadata=None):
       | nexmark_query_util.JustBids()
       | 'filter_by_skip' >>
       beam.Filter(lambda bid: bid.auction % metadata.get('auction_skip') == 0)
-      | 'project' >>
-      beam.Map(lambda bid: auction_price.AuctionPrice(bid.auction, bid.price)))
+      | 'project' >> beam.Map(
+          lambda bid: {
+              ResultNames.AUCTION_ID: bid.auction, ResultNames.PRICE: bid.price
+          }))

@@ -32,7 +32,7 @@ from __future__ import absolute_import
 from __future__ import division
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.models import seller_price
+from apache_beam.testing.benchmarks.nexmark.models.result_name import ResultNames
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.testing.benchmarks.nexmark.queries import winning_bids
 from apache_beam.transforms import trigger
@@ -54,9 +54,10 @@ def load(events, metadata=None):
           trigger=trigger.Repeatedly(trigger.AfterCount(1)),
           accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
           allowed_lateness=0)
-      # | beam.combiners.Count.Globally())
       | beam.CombinePerKey(MovingMeanSellingPriceFn(10))
-      | beam.Map(lambda t: seller_price.SellerPrice(t[0], t[1])))
+      | beam.Map(lambda t: {
+          ResultNames.SELLER: t[0], ResultNames.PRICE: t[1]
+      }))
 
 
 class MovingMeanSellingPriceFn(beam.CombineFn):
@@ -87,7 +88,5 @@ class MovingMeanSellingPriceFn(beam.CombineFn):
   def extract_output(self, accumulator):
     if len(accumulator) == 0:
       return 0
-    sum_price = 0
-    for bid in accumulator:
-      sum_price += bid.price
+    sum_price = sum(bid.price for bid in accumulator)
     return int(sum_price / len(accumulator))

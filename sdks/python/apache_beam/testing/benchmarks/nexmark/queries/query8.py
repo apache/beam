@@ -30,7 +30,7 @@ shorter window.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.models import id_name_reserve
+from apache_beam.testing.benchmarks.nexmark.models.result_name import ResultNames
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.transforms import window
 
@@ -68,5 +68,8 @@ class JoinPersonAuctionFn(beam.DoFn):
       # do nothing if this seller id is not a new person in this window
       return
     for auction in group[nexmark_query_util.AUCTION_TAG]:
-      yield id_name_reserve.IdNameReserve(
-          person.id, person.name, auction.reserve)
+      yield {
+          ResultNames.ID: person.id,
+          ResultNames.NAME: person.name,
+          ResultNames.RESERVE: auction.reserve
+      }

@@ -27,7 +27,7 @@ bids per session.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.models import bids_per_session
+from apache_beam.testing.benchmarks.nexmark.models.result_name import ResultNames
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
@@ -50,5 +50,7 @@ def load(events, metadata=None):
       # count per bidder
       | beam.combiners.Count.PerElement()
       | beam.Map(
-          lambda bidder_count: bids_per_session.BidsPerSession(
-              bidder_count[0], bidder_count[1])))
+          lambda bidder_count: {
+              ResultNames.BIDDER_ID: bidder_count[0],
+              ResultNames.BID_COUNT: bidder_count[1]
+          }))

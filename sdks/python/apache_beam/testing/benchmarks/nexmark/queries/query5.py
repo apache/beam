@@ -34,7 +34,7 @@ windows, and we'll also preserve the bid counts.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.models import auction_count
+from apache_beam.testing.benchmarks.nexmark.models.result_name import ResultNames
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.transforms import window
 
@@ -55,10 +55,9 @@ def load(events, metadata=None):
       # TODO(leiyiz): fanout has bug, uncomment after it is fixed [BEAM-10617]
       # .with_fanout(metadata.get('fanout'))
       | beam.FlatMap(
-          lambda auc_count: [
-              auction_count.AuctionCount(auction, auc_count[1])
-              for auction in auc_count[0]
-          ]))
+          lambda auc_count: [{
+              ResultNames.AUCTION_ID: auction, ResultNames.NUM: auc_count[1]
+          } for auction in auc_count[0]]))
 
 
 class MostBidCombineFn(beam.CombineFn):

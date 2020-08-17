@@ -36,15 +36,13 @@ from __future__ import absolute_import
 import logging
 
 import apache_beam as beam
-from apache_beam.coders import coders
-from apache_beam.testing.benchmarks.nexmark.models import name_city_state_id
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
+from apache_beam.testing.benchmarks.nexmark.models.result_name import ResultNames
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.transforms import trigger
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.transforms.userstate import on_timer
-from apache_beam.utils.timestamp import Duration
 
 
 def load(events, metadata=None):
@@ -54,8 +52,7 @@ def load(events, metadata=None):
       | beam.WindowInto(
           window.GlobalWindows(),
           trigger=trigger.Repeatedly(trigger.AfterCount(num_events_in_pane)),
-          accumulation_mode=trigger.AccumulationMode.DISCARDING,
-          allowed_lateness=Duration.of(0)))
+          accumulation_mode=trigger.AccumulationMode.DISCARDING))
   auction_by_seller_id = (
       windowed_events
       | nexmark_query_util.JustAuctions()
@@ -78,8 +75,12 @@ def load(events, metadata=None):
           | 'query3_join' >> beam.ParDo(
               JoinFn(metadata.get('max_auction_waiting_time')))
           | 'query3_output' >> beam.Map(
-              lambda t: name_city_state_id.NameCiyStateId(
-                  t[1].name, t[1].city, t[1].state, t[0].id)))
+              lambda t: {
+                  ResultNames.NAME: t[1].name,
+                  ResultNames.CITY: t[1].city,
+                  ResultNames.STATE: t[1].state,
+                  ResultNames.AUCTION_ID: t[0].id
+              }))
 
 
 class JoinFn(beam.DoFn):
@@ -100,8 +101,7 @@ class JoinFn(beam.DoFn):
   PERSON = 'person_state'
   PERSON_EXPIRING = 'person_state_expiring'
 
-  auction_spec = userstate.ReadModifyWriteStateSpec(
-      AUCTIONS, coders.IterableCoder(nexmark_model.Auction.CODER))
+  auction_spec = userstate.BagStateSpec(AUCTIONS, nexmark_model.Auction.CODER)
   person_spec = userstate.ReadModifyWriteStateSpec(
       PERSON, nexmark_model.Person.CODER)
   person_timer_spec = userstate.TimerSpec(
@@ -152,12 +152,8 @@ class JoinFn(beam.DoFn):
       return
 
     # remember auction until we see person
-    pending_auctions = auction_state.read()
-    if not pending_auctions:
-      pending_auctions = []
     for auction in group[nexmark_query_util.AUCTION_TAG]:
-      pending_auctions.append(auction)
-    auction_state.write(pending_auctions)
+      auction_state.add(auction)
 
   @on_timer(person_timer_spec)
   def expiry(self, person_state=beam.DoFn.StateParam(person_spec)):
