@@ -154,7 +154,7 @@ class Stage(object):
       return False
 
     def no_overlap(a, b):
-      return not a.intersection(b)
+      return not a or not b or not a.intersection(b)
 
     return (
         not consumer.forced_root and not self in consumer.must_follow and
@@ -524,6 +524,22 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
         add_parent(parent, parents.get(parent))
       components.transforms[parent].subtransforms.append(child)
 
+  copied_subtransform_ids = set()
+
+  def copy_subtransform(subtransform_id):
+    if subtransform_id in copied_subtransform_ids:
+      return
+    if subtransform_id not in components.transforms:
+      if subtransform_id not in pipeline_proto.components.transforms:
+        raise RuntimeError('Could not find subtransform to copy: ' +
+                           subtransform_id)
+      components.transforms[subtransform_id].CopyFrom(
+          pipeline_proto.components.transforms[subtransform_id])
+      copied_subtransform_ids.add(subtransform_id)
+      for subsubtransform_id in components.transforms[
+          subtransform_id].subtransforms:
+        copy_subtransform(subsubtransform_id)
+
   all_consumers = collections.defaultdict(
       set)  # type: DefaultDict[str, Set[int]]
   for stage in stages:
@@ -540,6 +556,14 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
     transform_id = unique_name(components.transforms, stage.name)
     components.transforms[transform_id].CopyFrom(transform)
     add_parent(transform_id, stage.parent)
+
+  if partial:
+    subtransforms_to_copy = [
+        subtransform for transform in components.transforms.values()
+        for subtransform in transform.subtransforms
+    ]
+    for subtransform in subtransforms_to_copy:
+      copy_subtransform(subtransform)
 
   del new_proto.root_transform_ids[:]
   new_proto.root_transform_ids.extend(roots)
@@ -862,8 +886,7 @@ def lift_combiners(stages, context):
       yield make_stage(stage, context.components.transforms[sub])
 
   for stage in stages:
-    assert len(stage.transforms) == 1
-    transform = stage.transforms[0]
+    transform = only_transform(stage)
     if transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn:
       expansion = lifted_stages if can_lift(transform) else unlifted_stages
       for substage in expansion(stage):
@@ -877,8 +900,7 @@ def expand_sdf(stages, context):
 
   """Transforms splitable DoFns into pair+split+read."""
   for stage in stages:
-    assert len(stage.transforms) == 1
-    transform = stage.transforms[0]
+    transform = only_transform(stage)
     if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
 
       pardo_payload = proto_utils.parse_Bytes(
@@ -1055,11 +1077,9 @@ def expand_sdf(stages, context):
 def expand_gbk(stages, pipeline_context):
   # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
 
-  """Transforms each GBK into a write followed by a read.
-  """
+  """Transforms each GBK into a write followed by a read."""
   for stage in stages:
-    assert len(stage.transforms) == 1
-    transform = stage.transforms[0]
+    transform = only_transform(stage)
     if transform.spec.urn == common_urns.primitives.GROUP_BY_KEY.urn:
       for pcoll_id in transform.inputs.values():
         pipeline_context.length_prefix_pcoll_coders(pcoll_id)
@@ -1473,6 +1493,12 @@ def only_element(iterable):
   # type: (Iterable[T]) -> T
   element, = iterable
   return element
+
+
+def only_transform(stage):
+  # type: Stage -> beam_runner_api_pb2.PTransform
+  assert len(stage.transforms) == 1
+  return stage.transforms[0]
 
 
 def create_buffer_id(name, kind='materialize'):
