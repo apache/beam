@@ -23,6 +23,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/xlangx"
 
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
@@ -82,54 +83,63 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return errors.WithContextf(err, "generating model pipeline")
 	}
 
-	// Adding Expanded transforms to their counterparts in the Pipeline
-	for id, external := range p.ExpandedTransforms {
-		pipeline.Requirements = append(pipeline.Requirements, external.Requirements...)
+	xlangx.PurgeOutputInput(edges, pipeline)
 
-		// Correct update of transform corresponding to the ExpandedTransform
-		// TODO(pskevin): Figure if there is a better way of supporting multiple outputs
-		transform := pipeline.Components.Transforms[id]
-		existingInput := ""
-		newInput := ""
-		for _, v := range transform.Outputs {
-			existingInput = v
-		}
-		for _, v := range external.ExpandedTransform.Outputs {
-			newInput = v
-		}
+	xlangx.MergeExpandedWithPipeline(edges, pipeline)
+	// os.Exit(1)
 
-		for _, t := range pipeline.Components.Transforms {
-			for idx, i := range t.Inputs {
-				if i == existingInput {
-					t.Inputs[idx] = newInput
+	// pipeline, err = pipelinex.Update(pipeline, pipeline.Components)
+	fmt.Printf("\n\n%v\n\n", pipeline)
+
+	/*
+		// Adding Expanded transforms to their counterparts in the Pipeline
+		for id, external := range p.ExpandedTransforms {
+			pipeline.Requirements = append(pipeline.Requirements, external.Requirements...)
+
+			// Correct update of transform corresponding to the ExpandedTransform
+			// TODO(pskevin): Figure if there is a better way of supporting multiple outputs
+			transform := pipeline.Components.Transforms[id]
+			existingInput := ""
+			newInput := ""
+			for _, v := range transform.Outputs {
+				existingInput = v
+			}
+			for _, v := range external.ExpandedTransform.Outputs {
+				newInput = v
+			}
+
+			for _, t := range pipeline.Components.Transforms {
+				for idx, i := range t.Inputs {
+					if i == existingInput {
+						t.Inputs[idx] = newInput
+					}
 				}
 			}
-		}
 
-		// Adding components of the Expanded Transforms to the current Pipeline
-		for k, v := range external.Components.Transforms {
-			pipeline.Components.Transforms[k] = v
-		}
-		for k, v := range external.Components.Pcollections {
-			pipeline.Components.Pcollections[k] = v
-		}
-		for k, v := range external.Components.WindowingStrategies {
-			pipeline.Components.WindowingStrategies[k] = v
-		}
-		for k, v := range external.Components.Coders {
-			pipeline.Components.Coders[k] = v
-		}
-		for k, v := range external.Components.Environments {
-			// TODO(pskevin): Resolve temporary hack to enable LOOPBACK mode
-			if k == "go" {
-				continue
+			// Adding components of the Expanded Transforms to the current Pipeline
+			for k, v := range external.Components.Transforms {
+				pipeline.Components.Transforms[k] = v
 			}
-			pipeline.Components.Environments[k] = v
+			for k, v := range external.Components.Pcollections {
+				pipeline.Components.Pcollections[k] = v
+			}
+			for k, v := range external.Components.WindowingStrategies {
+				pipeline.Components.WindowingStrategies[k] = v
+			}
+			for k, v := range external.Components.Coders {
+				pipeline.Components.Coders[k] = v
+			}
+			for k, v := range external.Components.Environments {
+				// TODO(pskevin): Resolve temporary hack to enable LOOPBACK mode
+				if k == "go" {
+					continue
+				}
+				pipeline.Components.Environments[k] = v
+			}
+
+			pipeline.Components.Transforms[id] = external.ExpandedTransform
 		}
-
-		pipeline.Components.Transforms[id] = external.ExpandedTransform
-	}
-
+	*/
 	log.Info(ctx, proto.MarshalTextString(pipeline))
 
 	opt := &runnerlib.JobOptions{

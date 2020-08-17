@@ -60,8 +60,7 @@ func (s Scope) String() string {
 // Pipelines can safely be executed concurrently.
 type Pipeline struct {
 	// real is the deferred execution Graph as it is being constructed.
-	real               *graph.Graph
-	ExpandedTransforms map[string]*ExternalTransform
+	real *graph.Graph
 }
 
 // NewPipeline creates a new empty pipeline.

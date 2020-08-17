@@ -24,7 +24,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/xlang"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
@@ -146,14 +145,14 @@ type MultiEdge struct {
 	parent *Scope
 
 	Op               Opcode
-	DoFn             *DoFn                    // ParDo
-	RestrictionCoder *coder.Coder             // SplittableParDo
-	CombineFn        *CombineFn               // Combine
-	AccumCoder       *coder.Coder             // Combine
-	Value            []byte                   // Impulse
-	External         *xlang.ExternalTransform // Current External Transforms API
-	Payload          *Payload                 // Legacy External Transforms API
-	WindowFn         *window.Fn               // WindowInto
+	DoFn             *DoFn              // ParDo
+	RestrictionCoder *coder.Coder       // SplittableParDo
+	CombineFn        *CombineFn         // Combine
+	AccumCoder       *coder.Coder       // Combine
+	Value            []byte             // Impulse
+	External         *ExternalTransform // Current External Transforms API
+	Payload          *Payload           // Legacy External Transforms API
+	WindowFn         *window.Fn         // WindowInto
 
 	Input  []*Inbound
 	Output []*Outbound
@@ -284,26 +283,31 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 }
 
 // NewCrossLanguage inserts a Cross-langugae External transform.
-func NewCrossLanguage(g *Graph, s *Scope, e *xlang.ExternalTransform) *MultiEdge {
+func NewCrossLanguage(g *Graph, s *Scope, ext *ExternalTransform) *MultiEdge {
 	edge := g.NewEdge(s)
 	edge.Op = External
+	edge.External = ext
 
-	// Payload can be decoupled completely from MultiEdge after current API is implemented
-	edge.External = e
-
-	for _, n := range e.inputs {
+	for _, n := range ext.Inputs() {
 		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: n, Type: n.Type()})
 	}
 	return edge
 }
 
 // AddOutboundLinks adds Outbound links to existing MultiEdge
-// TODO(pskevin): Could be decoupled from exisiting NewExternal and used by all external transforms
-func AddOutboundLinks(g *Graph, e *MultiEdge, in []*Node, out []typex.FullType, bounded bool) {
-	for _, t := range out {
-		n := g.NewNode(t, inputWindow(in), bounded)
-		e.Output = append(e.Output, &Outbound{To: n, Type: t})
+func AddOutboundLinks(g *Graph, e *MultiEdge) {
+	windowingStrategy := inputWindow([]*Node{e.Input[0].From})
+	outputTypes := e.External.OutputTypes()
+	boundedOutputs := e.External.Expanded().BoundedOutputs()
+	outputs := make(map[string]*Node)
+
+	for tag, fullType := range outputTypes {
+		n := g.NewNode(fullType, windowingStrategy, boundedOutputs[tag])
+		outputs[tag] = n
+		e.Output = append(e.Output, &Outbound{To: n, Type: fullType})
 	}
+
+	e.External.Outputs = outputs
 }
 
 // NewExternal inserts an External transform. The system makes no assumptions about

@@ -11,11 +11,13 @@ func PCollectionToNode(p PCollection) *graph.Node {
 	return p.n
 }
 
-func NodeToPCollection(n *graph.Node) PCollection{
+func NodeToPCollection(n *graph.Node) PCollection {
 	if n == nil {
 		panic("tried converting invalid Node")
 	}
-	return PCollection {n: n}
+	c := PCollection{n}
+	c.SetCoder(NewCoder(c.Type()))
+	return c
 }
 
 func mapPCollectionToNode(pMap map[string]PCollection) map[string]*graph.Node {
@@ -26,10 +28,10 @@ func mapPCollectionToNode(pMap map[string]PCollection) map[string]*graph.Node {
 	return nMap
 }
 
-func mapNodeToPCollection (nMap map[string]*graph.Node) pMap map[string]PCollection{
+func mapNodeToPCollection(nMap map[string]*graph.Node) map[string]PCollection {
 	pMap := make(map[string]PCollection)
 	for k, n := range nMap {
-		nMap[k] = NodeToPCollection(n)
+		pMap[k] = NodeToPCollection(n)
 	}
 	return pMap
 }

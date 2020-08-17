@@ -16,17 +16,11 @@
 package beam
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"google.golang.org/grpc"
 )
 
+/*
 // ExternalTransform represents the cross-language transform in and out of the Pipeline as a MultiEdge and Expanded proto respectively
 type ExternalTransform struct {
 	id                int
@@ -152,7 +146,7 @@ func TryCrossLanguage(s Scope, p *Pipeline, e *ExternalTransform) ([]PCollection
 		ret = append(ret, c)
 	}
 	return ret, nil
-}
+} */
 
 // External defines a Beam external transform. The interpretation of this primitive is runner
 // specific. The runner is responsible for parsing the payload based on the
