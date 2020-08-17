@@ -196,7 +196,7 @@ public class SnowflakeIO {
   public static <T> Read<T> read(SnowflakeService snowflakeService) {
     return new AutoValue_SnowflakeIO_Read.Builder<T>()
         .setSnowflakeService(snowflakeService)
-        .setQuotationMark(CSV_QUOTE_CHAR)
+        .setQuotationMark(ValueProvider.StaticValueProvider.of(CSV_QUOTE_CHAR))
         .build();
   }
 
@@ -273,7 +273,7 @@ public class SnowflakeIO {
     abstract @Nullable SnowflakeService getSnowflakeService();
 
     @Nullable
-    abstract String getQuotationMark();
+    abstract ValueProvider<String> getQuotationMark();
 
     abstract Builder<T> toBuilder();
 
@@ -296,7 +296,7 @@ public class SnowflakeIO {
 
       abstract Builder<T> setSnowflakeService(SnowflakeService snowflakeService);
 
-      abstract Builder<T> setQuotationMark(String quotationMark);
+      abstract Builder<T> setQuotationMark(ValueProvider<String> quotationMark);
 
       abstract Read<T> build();
     }
@@ -407,6 +407,12 @@ public class SnowflakeIO {
      * @return
      */
     public Read<T> withQuotationMark(String quotationMark) {
+      return toBuilder()
+          .setStorageIntegrationName(ValueProvider.StaticValueProvider.of(quotationMark))
+          .build();
+    }
+
+    public Read<T> withQuotationMark(ValueProvider<String> quotationMark) {
       return toBuilder().setQuotationMark(quotationMark).build();
     }
 
@@ -482,7 +488,7 @@ public class SnowflakeIO {
       private final ValueProvider<String> stagingBucketDir;
       private final String tmpDirName;
       private final SnowflakeService snowflakeService;
-      private final String quotationMark;
+      private final ValueProvider<String> quotationMark;
 
       private CopyIntoStageFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn,
@@ -492,7 +498,7 @@ public class SnowflakeIO {
           ValueProvider<String> stagingBucketDir,
           String tmpDirName,
           SnowflakeService snowflakeService,
-          String quotationMark) {
+          ValueProvider<String> quotationMark) {
         this.dataSourceProviderFn = dataSourceProviderFn;
         this.query = query;
         this.table = table;
@@ -531,7 +537,7 @@ public class SnowflakeIO {
                 queryValue,
                 storageIntegrationName.get(),
                 stagingBucketRunDir,
-                quotationMark);
+                quotationMark.get());
 
         String output = snowflakeService.read(config);
 
@@ -544,16 +550,16 @@ public class SnowflakeIO {
      * files.
      */
     public static class MapCsvToStringArrayFn extends DoFn<String, String[]> {
-      private String quoteChar;
+      private ValueProvider<String> quoteChar;
 
-      public MapCsvToStringArrayFn(String quoteChar) {
+      public MapCsvToStringArrayFn(ValueProvider<String> quoteChar) {
         this.quoteChar = quoteChar;
       }
 
       @ProcessElement
       public void processElement(ProcessContext c) throws IOException {
         String csvLine = c.element();
-        CSVParser parser = new CSVParserBuilder().withQuoteChar(quoteChar.charAt(0)).build();
+        CSVParser parser = new CSVParserBuilder().withQuoteChar(quoteChar.get().charAt(0)).build();
         String[] parts = parser.parseLine(csvLine);
         c.output(parts);
       }
