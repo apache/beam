@@ -85,6 +85,7 @@ public interface SnowflakePipelineOptions extends PipelineOptions, StreamingOpti
 
   @Description("Database name to connect to. Optional.")
   @Default.String("")
+  @Validation.Required
   ValueProvider<String> getDatabase();
 
   void setDatabase(ValueProvider<String> database);
@@ -132,11 +133,13 @@ public interface SnowflakePipelineOptions extends PipelineOptions, StreamingOpti
   void setLoginTimeout(String loginTimeout);
 
   @Description("Temporary GCS bucket name.")
+  @Validation.Required
   ValueProvider<String> getStagingBucketName();
 
   void setStagingBucketName(ValueProvider<String> stagingBucketName);
 
   @Description("Storage integration name")
+  @Validation.Required
   ValueProvider<String> getStorageIntegrationName();
 
   void setStorageIntegrationName(ValueProvider<String> storageIntegrationName);

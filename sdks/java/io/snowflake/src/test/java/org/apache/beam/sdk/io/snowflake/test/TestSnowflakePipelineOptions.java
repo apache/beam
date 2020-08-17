@@ -84,6 +84,7 @@ public interface TestSnowflakePipelineOptions extends PipelineOptions, Streaming
 
   @Description("Database name to connect to. Optional.")
   @Default.String("")
+  @Validation.Required
   String getDatabase();
 
   void setDatabase(String database);
@@ -131,11 +132,13 @@ public interface TestSnowflakePipelineOptions extends PipelineOptions, Streaming
   void setLoginTimeout(String loginTimeout);
 
   @Description("Temporary GCS bucket name.")
+  @Validation.Required
   String getStagingBucketName();
 
   void setStagingBucketName(String stagingBucketName);
 
   @Description("Storage integration name")
+  @Validation.Required
   String getStorageIntegrationName();
 
   void setStorageIntegrationName(String storageIntegrationName);
