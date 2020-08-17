@@ -79,14 +79,12 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
   @Override
   public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
-    boolean isStreaming;
     SparkPortablePipelineTranslator translator;
-    if (!pipelineOptions.isStreaming() && !hasUnboundedPCollections(pipeline)) {
-      isStreaming = false;
-      translator = new SparkBatchPortablePipelineTranslator();
-    } else {
-      isStreaming = true;
+    boolean isStreaming = pipelineOptions.isStreaming() || hasUnboundedPCollections(pipeline);
+    if (isStreaming) {
       translator = new SparkStreamingPortablePipelineTranslator();
+    } else {
+      translator = new SparkBatchPortablePipelineTranslator();
     }
 
     // Expand any splittable DoFns within the graph to enable sizing and splitting of bundles.
@@ -181,8 +179,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
                 try {
                   jssc.awaitTerminationOrTimeout(timeout);
                 } catch (InterruptedException e) {
-                  LOG.warn("Streaming context interrupted, shutting down.");
-                  e.printStackTrace();
+                  LOG.warn("Streaming context interrupted, shutting down.", e);
                 }
                 jssc.stop();
                 LOG.info(String.format("Job %s finished.", jobInfo.jobId()));

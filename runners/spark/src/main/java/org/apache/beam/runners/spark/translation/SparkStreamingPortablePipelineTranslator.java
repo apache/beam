@@ -71,7 +71,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
-/** Translates a bounded portable pipeline into a Spark job. */
+/** Translates an unbounded portable pipeline into a Spark job. */
 public class SparkStreamingPortablePipelineTranslator
     implements SparkPortablePipelineTranslator<SparkStreamingTranslationContext> {
 
@@ -158,20 +158,18 @@ public class SparkStreamingPortablePipelineTranslator
             .collect(Collectors.toList());
 
     ByteArrayCoder coder = ByteArrayCoder.of();
-
     WindowedValue.FullWindowedValueCoder<byte[]> windowCoder =
         WindowedValue.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
-    JavaRDD<WindowedValue<byte[]>> emptyRDD =
+    JavaRDD<WindowedValue<byte[]>> emptyByteArrayRDD =
         context
             .getSparkContext()
             .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
             .map(CoderHelpers.fromByteFunction(windowCoder));
 
-    // create input DStream from RDD queue
-    Queue<JavaRDD<WindowedValue<byte[]>>> queueRDD = new LinkedBlockingQueue<>();
-    queueRDD.offer(emptyRDD);
+    Queue<JavaRDD<WindowedValue<byte[]>>> rddQueue = new LinkedBlockingQueue<>();
+    rddQueue.offer(emptyByteArrayRDD);
     JavaInputDStream<WindowedValue<byte[]>> emptyStream =
-        context.getStreamingContext().queueStream(queueRDD, true);
+        context.getStreamingContext().queueStream(rddQueue, true /* oneAtATime */);
 
     UnboundedDataset<byte[]> output =
         new UnboundedDataset<>(
@@ -246,7 +244,7 @@ public class SparkStreamingPortablePipelineTranslator
     Coder windowCoder =
         getWindowingStrategy(inputPCollectionId, components).getWindowFn().windowCoder();
 
-    // TODO: handle side inputs?
+    // TODO (BEAM-10712): handle side inputs.
     ImmutableMap<
             String, Tuple2<Broadcast<List<byte[]>>, WindowedValue.WindowedValueCoder<SideInputT>>>
         broadcastVariables = ImmutableMap.copyOf(new HashMap<>());
@@ -283,7 +281,7 @@ public class SparkStreamingPortablePipelineTranslator
             // ignore
           }
         });
-    // pop dataset to mark RDD as used
+    // pop dataset to mark DStream as used
     context.popDataset(intermediateId);
 
     for (String outputId : outputs.values()) {

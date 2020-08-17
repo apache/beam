@@ -20,16 +20,14 @@ package org.apache.beam.runners.spark;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 
 /**
- * Spark runner {@link PipelineOptions} handles Spark execution-related configurations, such as the
- * master address, batch-interval, and other user-related knobs.
+ * Pipeline options specific to the Spark portable runner running a streaming job.
  */
 @Experimental
 public interface SparkPortableStreamingPipelineOptions
-    extends SparkPipelineOptions, PortablePipelineOptions, PipelineOptions {
+    extends SparkPipelineOptions, PortablePipelineOptions {
   @Description("Timeout for testing Spark portable streaming, in milliseconds.")
   @Default.Long(-1L)
   Long getTimeout();
