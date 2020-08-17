@@ -65,6 +65,14 @@ public class CEPLiteral extends CEPOperation {
       public Byte getByte() {
         return myByte;
       }
+      @Override
+      public int compareTo(CEPLiteral other) {
+        if(getTypeName() != other.getTypeName()) {
+          throw new IllegalStateException("types does not match: " + getTypeName().toString() + ", "
+          + other.getTypeName().toString());
+        }
+        return myByte.compareTo(other.getByte());
+      }
     };
   }
 
@@ -73,6 +81,14 @@ public class CEPLiteral extends CEPOperation {
       @Override
       public Short getInt16() {
         return myShort;
+      }
+      @Override
+      public int compareTo(CEPLiteral other) {
+        if(getTypeName() != other.getTypeName()) {
+          throw new IllegalStateException("types does not match: " + getTypeName().toString() + ", "
+              + other.getTypeName().toString());
+        }
+        return myShort.compareTo(other.getInt16());
       }
     };
   }
@@ -83,6 +99,14 @@ public class CEPLiteral extends CEPOperation {
       public Integer getInt32() {
         return myInt;
       }
+      @Override
+      public int compareTo(CEPLiteral other) {
+        if(getTypeName() != other.getTypeName()) {
+          throw new IllegalStateException("types does not match: " + getTypeName().toString() + ", "
+              + other.getTypeName().toString());
+        }
+        return myInt.compareTo(other.getInt32());
+      }
     };
   }
 
@@ -91,6 +115,14 @@ public class CEPLiteral extends CEPOperation {
       @Override
       public Long getInt64() {
         return myLong;
+      }
+      @Override
+      public int compareTo(CEPLiteral other) {
+        if(getTypeName() != other.getTypeName()) {
+          throw new IllegalStateException("types does not match: " + getTypeName().toString() + ", "
+              + other.getTypeName().toString());
+        }
+        return myLong.compareTo(other.getInt64());
       }
     };
   }
@@ -101,6 +133,14 @@ public class CEPLiteral extends CEPOperation {
       public BigDecimal getDecimal() {
         return myDecimal;
       }
+      @Override
+      public int compareTo(CEPLiteral other) {
+        if(getTypeName() != other.getTypeName()) {
+          throw new IllegalStateException("types does not match: " + getTypeName().toString() + ", "
+              + other.getTypeName().toString());
+        }
+        return myDecimal.compareTo(other.getDecimal());
+      }
     };
   }
 
@@ -109,6 +149,14 @@ public class CEPLiteral extends CEPOperation {
       @Override
       public Float getFloat() {
         return myFloat;
+      }
+      @Override
+      public int compareTo(CEPLiteral other) {
+        if(getTypeName() != other.getTypeName()) {
+          throw new IllegalStateException("types does not match: " + getTypeName().toString() + ", "
+              + other.getTypeName().toString());
+        }
+        return myFloat.compareTo(other.getFloat());
       }
     };
   }
@@ -119,6 +167,14 @@ public class CEPLiteral extends CEPOperation {
       public Double getDouble() {
         return myDouble;
       }
+      @Override
+      public int compareTo(CEPLiteral other) {
+        if(getTypeName() != other.getTypeName()) {
+          throw new IllegalStateException("types does not match: " + getTypeName().toString() + ", "
+              + other.getTypeName().toString());
+        }
+        return myDouble.compareTo(other.getDouble());
+      }
     };
   }
 
@@ -127,6 +183,14 @@ public class CEPLiteral extends CEPOperation {
       @Override
       public ReadableDateTime getDateTime() {
         return myDateTime;
+      }
+      @Override
+      public int compareTo(CEPLiteral other) {
+        if(getTypeName() != other.getTypeName()) {
+          throw new IllegalStateException("types does not match: " + getTypeName().toString() + ", "
+              + other.getTypeName().toString());
+        }
+        return myDateTime.compareTo(other.getDateTime());
       }
     };
   }
@@ -137,6 +201,14 @@ public class CEPLiteral extends CEPOperation {
       public Boolean getBoolean() {
         return myBoolean;
       }
+      @Override
+      public int compareTo(CEPLiteral other) {
+        if(getTypeName() != other.getTypeName()) {
+          throw new IllegalStateException("types does not match: " + getTypeName().toString() + ", "
+              + other.getTypeName().toString());
+        }
+        return myBoolean.compareTo(other.getBoolean());
+      }
     };
   }
 
@@ -146,47 +218,59 @@ public class CEPLiteral extends CEPOperation {
       public String getString() {
         return myString;
       }
+      @Override
+      public int compareTo(CEPLiteral other) {
+        if(getTypeName() != other.getTypeName()) {
+          throw new IllegalStateException("types does not match: " + getTypeName().toString() + ", "
+              + other.getTypeName().toString());
+        }
+        return myString.compareTo(other.getString());
+      }
     };
   }
 
+  public int compareTo(CEPLiteral other) {
+    throw new IllegalStateException("the class must be subclassed properly to use this method");
+  };
+
   public Byte getByte() {
-    throw new SqlConversionException("the class must be subclassed properly to get the value");
+    throw new IllegalStateException("the class must be subclassed properly to get the value");
   }
 
   public Short getInt16() {
-    throw new SqlConversionException("the class must be subclassed properly to get the value");
+    throw new IllegalStateException("the class must be subclassed properly to get the value");
   }
 
   public Integer getInt32() {
-    throw new SqlConversionException("the class must be subclassed properly to get the value");
+    throw new IllegalStateException("the class must be subclassed properly to get the value");
   }
 
   public Long getInt64() {
-    throw new SqlConversionException("the class must be subclassed properly to get the value");
+    throw new IllegalStateException("the class must be subclassed properly to get the value");
   }
 
   public BigDecimal getDecimal() {
-    throw new SqlConversionException("the class must be subclassed properly to get the value");
+    throw new IllegalStateException("the class must be subclassed properly to get the value");
   }
 
   public Float getFloat() {
-    throw new SqlConversionException("the class must be subclassed properly to get the value");
+    throw new IllegalStateException("the class must be subclassed properly to get the value");
   }
 
   public Double getDouble() {
-    throw new SqlConversionException("the class must be subclassed properly to get the value");
+    throw new IllegalStateException("the class must be subclassed properly to get the value");
   }
 
   public ReadableDateTime getDateTime() {
-    throw new SqlConversionException("the class must be subclassed properly to get the value");
+    throw new IllegalStateException("the class must be subclassed properly to get the value");
   }
 
   public Boolean getBoolean() {
-    throw new SqlConversionException("the class must be subclassed properly to get the value");
+    throw new IllegalStateException("the class must be subclassed properly to get the value");
   }
 
   public String getString() {
-    throw new SqlConversionException("the class must be subclassed properly to get the value");
+    throw new IllegalStateException("the class must be subclassed properly to get the value");
   }
 
   public Schema.TypeName getTypeName() {

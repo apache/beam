@@ -93,11 +93,6 @@ public class CEPPattern implements Serializable {
         "backward functions (PREV, NEXT) not supported for now");
   }
 
-  // implement with NFA
-  private CEPLiteral last() {
-
-  }
-
   @Override
   public String toString() {
     return patternVar + quant.toString();
