@@ -26,7 +26,10 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.when;
 
+import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClient;
 import java.io.File;
@@ -48,21 +51,44 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings("CannotMockFinalClass") // Mockito 2 and above can mock final classes
 public class AzureBlobStoreFileSystemTest {
 
-  private AzureBlobStoreFileSystem azureBlobStoreFileSystem;
+  private static AzureBlobStoreFileSystem azureBlobStoreFileSystem;
 
   @Before
   public void beforeClass() {
     BlobstoreOptions options = PipelineOptionsFactory.as(BlobstoreOptions.class);
-    options.setAzureConnectionString(System.getenv("AZURE_STORAGE_CONNECTION_STRING"));
-    azureBlobStoreFileSystem = new AzureBlobStoreFileSystem(options);
+    BlobServiceClient mockedServiceClient = Mockito.mock(BlobServiceClient.class);
+    BlobContainerClient mockedContainerClient = Mockito.mock(BlobContainerClient.class);
+    BlobClient mockedBlobClient = Mockito.mock(BlobClient.class);
 
-    // TODO: Switch to mocks for BlobContainerClient, BlobClient, etc.
-    // azureBlobStoreFileSystem = buildMockedAzureFileSystem(azfsOptions());
+    azureBlobStoreFileSystem = new AzureBlobStoreFileSystem(options);
+    azureBlobStoreFileSystem.setClient(mockedServiceClient);
+
+    boolean[] created = {false};
+
+    when(azureBlobStoreFileSystem.getClient().createBlobContainer(anyString()))
+        .thenAnswer(
+            (invocation) -> {
+              created[0] = true;
+              return mockedContainerClient;
+            });
+
+    when(mockedContainerClient.exists()).thenReturn(created[0]);
+    when(azureBlobStoreFileSystem.getClient().getBlobContainerClient(anyString()))
+        .thenReturn(mockedContainerClient);
+    when(mockedContainerClient.getBlobClient(anyString())).thenReturn(mockedBlobClient);
+  }
+
+  @Test
+  public void test() {
+    BlobServiceClient client = azureBlobStoreFileSystem.getClient();
+    BlobContainerClient blobContainerClient = client.createBlobContainer("container");
+    assertTrue(blobContainerClient.exists());
   }
 
   @Test

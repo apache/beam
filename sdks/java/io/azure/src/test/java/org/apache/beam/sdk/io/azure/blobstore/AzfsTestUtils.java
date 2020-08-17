@@ -25,7 +25,6 @@ import org.mockito.Mockito;
 class AzfsTestUtils {
   static BlobstoreOptions azfsOptions() {
     BlobstoreOptions options = PipelineOptionsFactory.as(BlobstoreOptions.class);
-    options.setAzureConnectionString(System.getenv("AZURE_STORAGE_CONNECTION_STRING"));
     return options;
   }
 

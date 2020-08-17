@@ -27,6 +27,8 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Azure"
 ext.summary = "IO library to read and write Azure services from Beam."
 
+repositories { jcenter() }
+
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
