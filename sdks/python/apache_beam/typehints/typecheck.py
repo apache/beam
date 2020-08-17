@@ -314,7 +314,7 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
       else:
         if len(argspec.args):
           arg_index = 0
-          if argspec.args[0] == 'self':
+          if argspec.args[0] == 'self' and len(argspec.args) > 1:
             arg_index = 1
           parameter_name = argspec.args[arg_index]
           if isinstance(input_types, dict):
