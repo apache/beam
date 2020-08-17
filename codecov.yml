@@ -16,4 +16,4 @@
 # This file configures settings for Codecov.
 
 fixes:
-  - "::sdks/python/"
+  - "/home/jenkins/jenkins-slave/workspace/beam_PreCommit_Python_Commit/src/sdks/python/test-suites/tox/py38/build/srcs/::"
