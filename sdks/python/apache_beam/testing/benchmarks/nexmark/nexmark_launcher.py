@@ -89,10 +89,11 @@ class NexmarkLauncher(object):
     self.parse_args()
     self.manage_resources = self.args.manage_resources
     self.uuid = str(uuid.uuid4()) if self.manage_resources else ''
-    self.topic_name = (self.args.topic_name + self.uuid if
-      self.args.topic_name else None)
-    self.subscription_name = (self.args.subscription_name + self.uuid if
-        self.args.subscription_name else None)
+    self.topic_name = (
+        self.args.topic_name + self.uuid if self.args.topic_name else None)
+    self.subscription_name = (
+        self.args.subscription_name +
+        self.uuid if self.args.subscription_name else None)
     self.pubsub_mode = self.args.pubsub_mode
     if self.manage_resources:
       publish_client = pubsub.Client(project=self.project)
@@ -188,7 +189,6 @@ class NexmarkLauncher(object):
   def generate_events(self):
     publish_client = pubsub.Client(project=self.project)
     topic = publish_client.topic(self.topic_name)
-    sub = topic.subscription(self.subscription_name)
 
     logging.info('Generating auction events to topic %s', topic.name)
 
@@ -287,7 +287,7 @@ class NexmarkLauncher(object):
             self.run_query, args=[queries[i], query_args.get(i), query_errors])
         command.run(timeout=query_duration // 1000)
       else:
-        self.run_query(queries[i], query_args.get(i), query_errors=[])
+        self.run_query(queries[i], query_args.get(i), query_errors=query_errors)
 
     if query_errors:
       logging.error('Query failed with %s', ', '.join(query_errors))
