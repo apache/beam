@@ -155,7 +155,6 @@ task javaPreCommit() {
   dependsOn ":sdks:java:extensions:sql:jdbc:preCommit"
   dependsOn ":sdks:java:javadoc:allJavadoc"
   dependsOn ":runners:direct-java:needsRunnerTests"
-  dependsOn ":runners:jet:validatesRunner"
   dependsOn ":sdks:java:container:docker"
 }
 
