@@ -87,22 +87,27 @@ from apache_beam.transforms import window
 class NexmarkLauncher(object):
   def __init__(self):
     self.parse_args()
-    self.uuid = str(uuid.uuid4())
-    self.topic_name = self.args.topic_name + self.uuid
-    self.subscription_name = self.args.subscription_name + self.uuid
-    publish_client = pubsub.Client(project=self.project)
-    topic = publish_client.topic(self.topic_name)
-    if topic.exists():
-      logging.info('deleting topic %s', self.topic_name)
-      topic.delete()
-    logging.info('creating topic %s', self.topic_name)
-    topic.create()
-    sub = topic.subscription(self.subscription_name)
-    if sub.exists():
-      logging.info('deleting sub %s', self.topic_name)
-      sub.delete()
-    logging.info('creating sub %s', self.topic_name)
-    sub.create()
+    self.manage_resources = self.args.manage_resources
+    self.uuid = str(uuid.uuid4()) if self.manage_resources else ''
+    self.topic_name = (self.args.topic_name + self.uuid if
+      self.args.topic_name else None)
+    self.subscription_name = (self.args.subscription_name + self.uuid if
+        self.args.subscription_name else None)
+    self.pubsub_mode = self.args.pubsub_mode
+    if self.manage_resources:
+      publish_client = pubsub.Client(project=self.project)
+      topic = publish_client.topic(self.topic_name)
+      if topic.exists():
+        logging.info('deleting topic %s', self.topic_name)
+        topic.delete()
+      logging.info('creating topic %s', self.topic_name)
+      topic.create()
+      sub = topic.subscription(self.subscription_name)
+      if sub.exists():
+        logging.info('deleting sub %s', self.topic_name)
+        sub.delete()
+      logging.info('creating sub %s', self.topic_name)
+      sub.create()
 
   def parse_args(self):
     parser = argparse.ArgumentParser()
@@ -134,6 +139,17 @@ class NexmarkLauncher(object):
         type=str,
         required=True,
         help='Path to the data file containing nexmark events.')
+    parser.add_argument(
+        '--manage_resources',
+        default=False,
+        action='store_true',
+        help='If true, manage the creation and cleanup of topics and '
+        'subscriptions.')
+    parser.add_argument(
+        '--pubsub_mode',
+        type=str,
+        choices=['PUBLISH_ONLY', 'SUBSCRIBE_ONLY', 'COMBINED'],
+        help='Pubsub mode used in the pipeline.')
 
     self.args, self.pipeline_args = parser.parse_known_args()
     logging.basicConfig(
@@ -189,26 +205,31 @@ class NexmarkLauncher(object):
 
     logging.info('Finished event generation.')
 
+  def read_from_pubsub(self):
     # Read from PubSub into a PCollection.
-    if self.args.subscription_name:
+    if self.subscription_name:
       raw_events = self.pipeline | 'ReadPubSub' >> beam.io.ReadFromPubSub(
-          subscription=sub.full_name)
+          subscription=self.subscription_name)
     else:
       raw_events = self.pipeline | 'ReadPubSub' >> beam.io.ReadFromPubSub(
-          topic=topic.full_name)
-    raw_events = (
+          topic=self.topic_name)
+    events = (
         raw_events
-        | 'deserialization' >> beam.ParDo(nexmark_util.ParseJsonEvnetFn())
+        | 'deserialization' >> beam.ParDo(nexmark_util.ParseJsonEventFn())
         | 'timestamping' >>
         beam.Map(lambda e: window.TimestampedValue(e, e.date_time)))
-    return raw_events
+    return events
 
   def run_query(self, query, query_args, query_errors):
     try:
       self.parse_args()
       self.pipeline = beam.Pipeline(options=self.pipeline_options)
       nexmark_util.setup_coder()
-      events = self.generate_events()
+      if self.pubsub_mode != 'SUBSCRIBE_ONLY':
+        self.generate_events()
+      if self.pubsub_mode == 'PUBLISH_ONLY':
+        return
+      events = self.read_from_pubsub()
       output = query.load(events, query_args)
       # print results
       (  # pylint: disable=expression-not-assigned
@@ -230,13 +251,14 @@ class NexmarkLauncher(object):
       raise
 
   def cleanup(self):
-    publish_client = pubsub.Client(project=self.project)
-    topic = publish_client.topic(self.topic_name)
-    if topic.exists():
-      topic.delete()
-    sub = topic.subscription(self.subscription_name)
-    if sub.exists():
-      sub.delete()
+    if self.manage_resources:
+      publish_client = pubsub.Client(project=self.project)
+      topic = publish_client.topic(self.topic_name)
+      if topic.exists():
+        topic.delete()
+      sub = topic.subscription(self.subscription_name)
+      if sub.exists():
+        sub.delete()
 
   def run(self):
     queries = {
@@ -265,10 +287,7 @@ class NexmarkLauncher(object):
             self.run_query, args=[queries[i], query_args.get(i), query_errors])
         command.run(timeout=query_duration // 1000)
       else:
-        try:
-          self.run_query(queries[i], query_args.get(i), query_errors=None)
-        except Exception as exc:
-          query_errors.append(exc)
+        self.run_query(queries[i], query_args.get(i), query_errors=[])
 
     if query_errors:
       logging.error('Query failed with %s', ', '.join(query_errors))

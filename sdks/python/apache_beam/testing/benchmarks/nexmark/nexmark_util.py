@@ -122,7 +122,7 @@ class ParseEventFn(beam.DoFn):
     yield event
 
 
-class ParseJsonEvnetFn(beam.DoFn):
+class ParseJsonEventFn(beam.DoFn):
   """Parses the raw event info into a Python objects.
 
   Each event line has the following format:
