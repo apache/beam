@@ -20,15 +20,17 @@ package org.apache.beam.sdk.io.azure.options;
 import com.azure.core.credential.TokenCredential;
 import com.azure.core.util.Configuration;
 import com.azure.identity.DefaultAzureCredentialBuilder;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 
+@Experimental(Kind.FILESYSTEM)
 public interface AzureOptions extends PipelineOptions {
 
   // TODO: Add any other azure options that users should be able to configure
-  // TODO: Confirm that Azure options are in this file, Blobstore options in BlobstoreOptions
 
   /** The Azure service endpoint used by the Azure client. */
   @Description("Azure service endpoint used by the Azure client")

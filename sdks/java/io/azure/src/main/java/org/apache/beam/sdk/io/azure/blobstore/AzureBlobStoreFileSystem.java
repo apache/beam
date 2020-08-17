@@ -68,6 +68,8 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
   private static final ImmutableSet<String> NON_READ_SEEK_EFFICIENT_ENCODINGS =
       ImmutableSet.of("gzip");
 
+  private static final int expiryTime = 86400000;
+
   private Supplier<BlobServiceClient> client;
   private final BlobstoreOptions options;
 
@@ -130,8 +132,12 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
         matchResults.add(nonGlobMatches.next());
       }
     }
-    checkState(!globMatches.hasNext(), "Expect no more elements in globMatches.");
-    checkState(!nonGlobMatches.hasNext(), "Expect no more elements in nonGlobMatches.");
+    checkState(
+        !globMatches.hasNext(),
+        "Internal error encountered in AzureBlobStoreFileSystem: expected no more elements in globMatches.");
+    checkState(
+        !nonGlobMatches.hasNext(),
+        "Internal error encountered in AzureBlobStoreFileSystem: expected no more elements in nonGlobMatches.");
 
     return matchResults.build();
   }
@@ -206,7 +212,7 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
   @VisibleForTesting
   MatchResult expand(AzfsResourceId azfsPattern) {
 
-    checkArgument(azfsPattern.isWildcard(), "is Wildcard");
+    checkArgument(azfsPattern.isWildcard(), "The resource id should be a wildcard.");
     String blobPrefix = azfsPattern.getBlobNonWildcardPrefix();
     Pattern wildcardAsRegexp = Pattern.compile(wildcardToRegexp(azfsPattern.getBlob()));
 
@@ -217,7 +223,7 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
         wildcardAsRegexp.toString());
 
     ListBlobsOptions listOptions = new ListBlobsOptions().setPrefix(blobPrefix);
-    Duration timeout = Duration.ZERO.plusMinutes(1);
+    Duration timeout = Duration.ofMinutes(1);
 
     String account = azfsPattern.getAccount();
     String container = azfsPattern.getContainer();
@@ -229,7 +235,7 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
         blob -> {
           String name = blob.getName();
           if (wildcardAsRegexp.matcher(name).matches() && !name.endsWith("/")) {
-            LOG.debug("Matched object: {}", name);
+            LOG.debug("Matched object: azfs://{}/{}/{}", account, container, name);
 
             BlobProperties properties = blobContainerClient.getBlobClient(name).getProperties();
             AzfsResourceId rid =
@@ -246,13 +252,13 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
 
   private MatchResult.Metadata toMetadata(AzfsResourceId path, String contentEncoding) {
 
-    checkArgument(path.getSize().isPresent(), "path has size");
+    checkArgument(path.getSize() != null, "The resource id should have a size.");
     boolean isReadSeekEfficient = !NON_READ_SEEK_EFFICIENT_ENCODINGS.contains(contentEncoding);
 
     return MatchResult.Metadata.builder()
         .setIsReadSeekEfficient(isReadSeekEfficient)
         .setResourceId(path)
-        .setSizeBytes(path.getSize().get())
+        .setSizeBytes(path.getSize())
         .setLastModifiedMillis(path.getLastModified().transform(Date::getTime).or(0L))
         .build();
   }
@@ -301,7 +307,8 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
     BlobContainerClient blobContainerClient =
         client.get().getBlobContainerClient(resourceId.getContainer());
     if (!blobContainerClient.exists()) {
-      throw new UnsupportedOperationException("create does not create containers.");
+      throw new FileNotFoundException(
+          "This container does not exist. Creating containers is not supported.");
     }
 
     BlobClient blobClient = blobContainerClient.getBlobClient(resourceId.getBlob());
@@ -370,6 +377,7 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
         client.get().getBlobContainerClient(destinationPath.getContainer());
     if (!destBlobContainerClient.exists()) {
       client.get().createBlobContainer(destinationPath.getContainer());
+      LOG.info("Created a container called {}", destinationPath.getContainer());
     }
     BlobClient destBlobClient = destBlobContainerClient.getBlobClient(destinationPath.getBlob());
 
@@ -380,7 +388,7 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
   String generateSasToken() throws IOException {
     SharedAccessAccountPolicy sharedAccessAccountPolicy = new SharedAccessAccountPolicy();
     long date = new Date().getTime();
-    long expiryDate = new Date(date + 8640000).getTime();
+    long expiryDate = new Date(date + expiryTime).getTime();
 
     sharedAccessAccountPolicy.setPermissionsFromString("racwdlup");
     sharedAccessAccountPolicy.setSharedAccessStartTime(new Date(date));

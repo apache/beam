@@ -17,14 +17,16 @@
  */
 package org.apache.beam.sdk.io.azure.options;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.azure.blobstore.DefaultBlobstoreClientBuilderFactory;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 
+@Experimental(Kind.FILESYSTEM)
 public interface BlobstoreOptions extends AzureOptions {
 
   // TODO: Add any other blobstore options that users should be able to configure
-  // TODO: Confirm that Blobstore options are in this file, Azure options in AzureOptions
 
   @Description(
       "Factory class that should be created and used to create a builder of Azure Blobstore client."

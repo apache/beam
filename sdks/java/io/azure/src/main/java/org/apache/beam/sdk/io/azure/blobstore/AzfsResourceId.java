@@ -101,8 +101,8 @@ class AzfsResourceId implements ResourceId {
     return SCHEME;
   }
 
-  Optional<Long> getSize() {
-    return Optional.fromNullable(size);
+  Long getSize() {
+    return size;
   }
 
   AzfsResourceId withSize(long size) {

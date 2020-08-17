@@ -144,7 +144,7 @@ public class AzfsResourceIdTest {
     }
 
     @Test
-    public void testS3ResolveWithFileBase() {
+    public void testResolveWithFileBase() {
       ResourceId resourceId = AzfsResourceId.fromUri("azfs://account/container/path/to/file");
       thrown.expect(IllegalStateException.class);
       resourceId.resolve("child-path", RESOLVE_DIRECTORY); // resource is not a directory
