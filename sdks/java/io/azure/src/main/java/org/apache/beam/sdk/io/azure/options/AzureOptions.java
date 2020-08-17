@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.io.azure.options;
 
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
 
+@Experimental
 public interface AzureOptions extends PipelineOptions {
   // TODO: Add any general Azure options that are not specific to Blob storage
 }

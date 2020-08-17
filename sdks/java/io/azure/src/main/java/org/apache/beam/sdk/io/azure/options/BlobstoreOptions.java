@@ -25,6 +25,7 @@ import com.azure.core.util.Configuration;
 import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.storage.blob.models.CustomerProvidedKey;
 import com.azure.storage.common.StorageSharedKeyCredential;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.azure.blobstore.DefaultBlobstoreClientBuilderFactory;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -34,6 +35,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 // TODO: Tag each option with @Default or @Nullable
 
+@Experimental
 /** Options used to configure Microsoft Azure Blob Storage. */
 public interface BlobstoreOptions extends AzureOptions {
 
