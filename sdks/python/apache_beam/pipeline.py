@@ -522,11 +522,10 @@ class Pipeline(object):
 
       if (self._options.view_as(TypeOptions).runtime_type_check and
           self._options.view_as(TypeOptions).performance_runtime_type_check):
-        self._options.view_as(TypeOptions).runtime_type_check = False
-        # raise RuntimeError(
-        #     'You cannot turn on runtime_type_check '
-        #     'and performance_runtime_type_check simultaneously. '
-        #     'Pick one or the other.')
+        raise RuntimeError(
+            'You cannot turn on runtime_type_check '
+            'and performance_runtime_type_check simultaneously. '
+            'Pick one or the other.')
 
       if self._options.view_as(TypeOptions).runtime_type_check:
         from apache_beam.typehints import typecheck
