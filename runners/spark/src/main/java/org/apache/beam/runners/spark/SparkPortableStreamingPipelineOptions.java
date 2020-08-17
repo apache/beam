@@ -29,7 +29,7 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 public interface SparkPortableStreamingPipelineOptions
     extends SparkPipelineOptions, PortablePipelineOptions {
   @Description("Timeout for testing Spark portable streaming, in milliseconds.")
-  @Default.Long(-1L)
+  @Default.Long(-1L) /* -1L is treated as infinity, i.e. no timeout */
   Long getTimeout();
 
   void setTimeout(Long value);
