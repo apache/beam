@@ -17,10 +17,6 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.createOutputMap;
-import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
-import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.instantiateCoder;
-
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collections;
@@ -32,17 +28,14 @@ import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
-import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.util.ByteArray;
@@ -58,7 +51,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -70,6 +62,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
+
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.createOutputMap;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getExecutableStageIntermediateId;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getInputId;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getOutputId;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowedValueCoder;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.instantiateCoder;
 
 /** Translates a bounded portable pipeline into a Spark job. */
 public class SparkBatchPortablePipelineTranslator
@@ -396,32 +396,6 @@ public class SparkBatchPortablePipelineTranslator
     return (bundleSize > 0)
         ? null
         : new HashPartitioner(context.getSparkContext().defaultParallelism());
-  }
-
-  private static String getInputId(PTransformNode transformNode) {
-    return Iterables.getOnlyElement(transformNode.getTransform().getInputsMap().values());
-  }
-
-  private static String getOutputId(PTransformNode transformNode) {
-    return Iterables.getOnlyElement(transformNode.getTransform().getOutputsMap().values());
-  }
-
-  private static <T> WindowedValueCoder<T> getWindowedValueCoder(
-      String pCollectionId, RunnerApi.Components components) {
-    PCollection pCollection = components.getPcollectionsOrThrow(pCollectionId);
-    PCollectionNode pCollectionNode = PipelineNode.pCollection(pCollectionId, pCollection);
-    WindowedValueCoder<T> coder;
-    try {
-      coder =
-          (WindowedValueCoder) WireCoders.instantiateRunnerWireCoder(pCollectionNode, components);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    return coder;
-  }
-
-  private static String getExecutableStageIntermediateId(PTransformNode transformNode) {
-    return transformNode.getId();
   }
 
   @Override
