@@ -89,12 +89,12 @@ Those jobs often have matrix run strategy which runs several different variation
 ### Google Cloud Platform Credentials
 
 Some of the jobs require variables stored as [GitHub Secrets](https://docs.github.com/en/actions/configuring-and-managing-workflows/creating-and-storing-encrypted-secrets)
-to perform operations on Google Cloud Platform. Currently these jobs are limited to Apache repository only.
+to perform operations on Google Cloud Platform.
 These variables are:
  * `GCP_SA_EMAIL` - Service account email address. This is usually of the format `<name>@<project-id>.iam.gserviceaccount.com`.
  * `GCP_SA_KEY` - Service account key. This key should be created and encoded as a Base64 string (eg. `cat my-key.json | base64` on macOS).
 
-Service Account shall have following permissions:
+Service Account shall have following permissions ([IAM roles](https://cloud.google.com/iam/docs/understanding-roles)):
  * Storage Object Admin (roles/storage.objectAdmin)
 
 ### GitHub Action Tips
