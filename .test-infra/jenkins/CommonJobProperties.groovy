@@ -97,6 +97,7 @@ class CommonJobProperties {
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
       }
       timestamps()
+      colorizeOutput()
     }
 
     context.publishers {
