@@ -132,8 +132,6 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.join.CoGroupByKeyTest'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest'
-
-      includeTestsMatching 'org.apache.beam.sdk.transforms.ImpulseTest'
     }
   }
   else {

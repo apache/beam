@@ -25,8 +25,8 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.joda.time.Instant;
 
 /**
- * Translation context used to lazily store Spark datasets during streaming portable pipeline translation
- * and compute them after translation.
+ * Translation context used to lazily store Spark datasets during streaming portable pipeline
+ * translation and compute them after translation.
  */
 public class SparkStreamingTranslationContext extends SparkTranslationContext {
   private final JavaStreamingContext streamingContext;

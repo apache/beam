@@ -22,14 +22,13 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 
-/**
- * Pipeline options specific to the Spark portable runner running a streaming job.
- */
+/** Pipeline options specific to the Spark portable runner running a streaming job. */
 @Experimental
 public interface SparkPortableStreamingPipelineOptions
     extends SparkPipelineOptions, PortablePipelineOptions {
-  @Description("Timeout for Spark portable streaming, in milliseconds." +
-      "Default (-1L) is infinity, i.e. no timeout.")
+  @Description(
+      "Timeout for Spark portable streaming, in milliseconds."
+          + "Default (-1L) is infinity, i.e. no timeout.")
   @Default.Long(-1L)
   Long getStreamingTimeoutMs();
 

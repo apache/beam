@@ -163,7 +163,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
       jssc.checkpoint(pipelineOptions.getCheckpointDir());
 
       // Obtain timeout from options.
-      Long timeout = pipelineOptions.as(SparkPortableStreamingPipelineOptions.class).getStreamingTimeoutMs();
+      Long timeout =
+          pipelineOptions.as(SparkPortableStreamingPipelineOptions.class).getStreamingTimeoutMs();
 
       final Future<?> submissionFuture =
           executorService.submit(
