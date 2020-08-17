@@ -23,21 +23,21 @@ import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def loadTestConfigurations = { datasetName, jobType ->
+def loadTestConfigurations = { datasetName, mode ->
   [
     [
       title          : 'Combine Python Load test: 2GB 10 byte records',
       test           : 'apache_beam.testing.load_tests.combine_test',
       runner         : CommonTestProperties.Runner.DATAFLOW,
       pipelineOptions: [
-        job_name             : "load-tests-python-dataflow-${jobType}-combine-1-${now}",
+        job_name             : "load-tests-python-dataflow-${mode}-combine-1-${now}",
         project              : 'apache-beam-testing',
         region               : 'us-central1',
         temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
         publish_to_big_query : true,
         metrics_dataset      : datasetName,
-        metrics_table        : "python_dataflow_${jobType}_combine_1",
-        influx_measurement   : "python_${jobType}_combine_1",
+        metrics_table        : "python_dataflow_${mode}_combine_1",
+        influx_measurement   : "python_${mode}_combine_1",
         input_options        : '\'{' +
         '"num_records": 200000000,' +
         '"key_size": 1,' +
@@ -52,14 +52,14 @@ def loadTestConfigurations = { datasetName, jobType ->
       test           : 'apache_beam.testing.load_tests.combine_test',
       runner         : CommonTestProperties.Runner.DATAFLOW,
       pipelineOptions: [
-        job_name             : "load-tests-python-dataflow-${jobType}-combine-4-${now}",
+        job_name             : "load-tests-python-dataflow-${mode}-combine-4-${now}",
         project              : 'apache-beam-testing',
         region               : 'us-central1',
         temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
         publish_to_big_query : true,
         metrics_dataset      : datasetName,
-        metrics_table        : "python_dataflow_${jobType}_combine_4",
-        influx_measurement   : "python_${jobType}_combine_4",
+        metrics_table        : "python_dataflow_${mode}_combine_4",
+        influx_measurement   : "python_${mode}_combine_4",
         input_options        : '\'{' +
         '"num_records": 5000000,' +
         '"key_size": 10,' +
@@ -75,14 +75,14 @@ def loadTestConfigurations = { datasetName, jobType ->
       test           : 'apache_beam.testing.load_tests.combine_test',
       runner         : CommonTestProperties.Runner.DATAFLOW,
       pipelineOptions: [
-        job_name             : "load-tests-python-dataflow-${jobType}-combine-5-${now}",
+        job_name             : "load-tests-python-dataflow-${mode}-combine-5-${now}",
         project              : 'apache-beam-testing',
         region               : 'us-central1',
         temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
         publish_to_big_query : true,
         metrics_dataset      : datasetName,
-        metrics_table        : "python_dataflow_${jobType}_combine_5",
-        influx_measurement   : "python_${jobType}_combine_5",
+        metrics_table        : "python_dataflow_${mode}_combine_5",
+        influx_measurement   : "python_${mode}_combine_5",
         input_options        : '\'{' +
         '"num_records": 2500000,' +
         '"key_size": 10,' +
@@ -95,7 +95,7 @@ def loadTestConfigurations = { datasetName, jobType ->
     ],
   ]
   .each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
-  .each{ test -> (jobType != 'streaming') ?: addStreamingOptions(test) }
+  .each{ test -> (mode != 'streaming') ?: addStreamingOptions(test) }
 }
 
 def addStreamingOptions(test){
