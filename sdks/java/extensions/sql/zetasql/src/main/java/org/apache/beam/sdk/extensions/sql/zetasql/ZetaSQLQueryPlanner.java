@@ -129,8 +129,8 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     return plannerImpl.getDefaultTimezone();
   }
 
-  public void setDefaultTimezone(@UnderInitialization(ZetaSQLQueryPlanner.class) ZetaSQLQueryPlanner this,
-                                 String timezone) {
+  public void setDefaultTimezone(
+      @UnderInitialization(ZetaSQLQueryPlanner.class) ZetaSQLQueryPlanner this, String timezone) {
     plannerImpl.setDefaultTimezone(timezone);
   }
 
