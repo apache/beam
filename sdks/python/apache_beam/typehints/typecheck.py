@@ -306,14 +306,19 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
 
     parameter_name = 'Unknown Parameter'
     if hasattr(transform, 'fn'):
-      argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
-      if len(argspec.args):
-        arg_index = 0
-        if argspec.args[0] == 'self':
-          arg_index = 1
-        parameter_name = argspec.args[arg_index]
-        if isinstance(input_types, dict):
-          input_types = (input_types[argspec.args[arg_index]], )
+      try:
+        argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
+      except TypeError:
+        # An unsupported callable was passed to getfullargspec
+        pass
+      else:
+        if len(argspec.args):
+          arg_index = 0
+          if argspec.args[0] == 'self':
+            arg_index = 1
+          parameter_name = argspec.args[arg_index]
+          if isinstance(input_types, dict):
+            input_types = (input_types[argspec.args[arg_index]], )
 
     if input_types and len(input_types):
       input_types = input_types[0]
