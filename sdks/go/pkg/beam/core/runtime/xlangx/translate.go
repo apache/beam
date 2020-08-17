@@ -151,8 +151,6 @@ func RemoveFakeImpulses(c *pipepb.Components, ext *pipepb.PTransform) {
 		impulseIDs = append(impulseIDs, id)
 	}
 
-	fmt.Println(impulseIDs)
-
 	for _, id := range impulseIDs {
 		t := transforms[id]
 		if t.GetSpec().GetUrn() == string(graphx.URNImpulse) {

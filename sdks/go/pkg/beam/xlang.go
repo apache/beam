@@ -17,7 +17,6 @@ package beam
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
@@ -78,6 +77,7 @@ func CrossLanguageWithSingleInputOutput(s Scope, urn string, payload []byte, exp
 			withSink(output)))
 }
 */
+
 func TryCrossLanguage(s Scope, ext *graph.ExternalTransform) (map[string]*graph.Node, error) {
 	// Add ExternalTransform to the Graph
 
@@ -92,22 +92,22 @@ func TryCrossLanguage(s Scope, ext *graph.ExternalTransform) (map[string]*graph.
 	// Build the ExpansionRequest
 
 	// Obtaining the components and transform proto representing this transform
-	pipeline, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{})
+	p, err := graphx.Marshal([]*graph.MultiEdge{edge}, &graphx.Options{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to generate proto representation of %v", ext)
 	}
 
-	xlangx.AddFakeImpulses(pipeline)
+	xlangx.AddFakeImpulses(p)
 
 	// Assembling ExpansionRequest proto
-	transforms := pipeline.GetComponents().GetTransforms()
-	rootTransformID := pipeline.GetRootTransformIds()[0] // External transform is the only root transform
+	transforms := p.GetComponents().GetTransforms()
+	rootTransformID := p.GetRootTransformIds()[0] // External transform is the only root transform
 	rootTransform := transforms[rootTransformID]
 
 	delete(transforms, rootTransformID)
 
 	req := &jobpb.ExpansionRequest{
-		Components: pipeline.GetComponents(),
+		Components: p.GetComponents(),
 		Transform:  rootTransform,
 		Namespace:  s.String(), //TODO(pskevin): Need to be unique per transform (along with the UniqueName which is just string(Opcode) for now)
 	}
@@ -116,10 +116,6 @@ func TryCrossLanguage(s Scope, ext *graph.ExternalTransform) (map[string]*graph.
 	if err != nil {
 		return nil, errors.WithContextf(err, "failed to expand external transform with error [%v] for ExpansionRequest: %v", res.GetError(), req)
 	}
-
-	fmt.Printf("\n%v\n", res.Components)
-	fmt.Printf("\n%v\n", res.Transform)
-	fmt.Printf("\n%v\n", res.Requirements)
 
 	xlangx.RemoveFakeImpulses(res.GetComponents(), res.GetTransform())
 

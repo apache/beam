@@ -409,7 +409,6 @@ func (m *marshaller) expandCrossLanguage(edge NamedEdge) string {
 		Inputs:     inputs,
 	}
 
-	fmt.Println(e.External.IsExpanded())
 	if e.External.IsExpanded() {
 		// Outputs need to temporarily match format of unnamed Go SDK Nodes.
 		// After the initial pipeline is constructed, these will be used to correctly

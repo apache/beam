@@ -6,10 +6,6 @@ import (
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
-// func namespaceGenerator() func() string {
-
-// }
-
 type ExpandedTransform struct {
 	Components_     interface{} // *pipepb.Components
 	Transform_      interface{} //*pipepb.PTransform

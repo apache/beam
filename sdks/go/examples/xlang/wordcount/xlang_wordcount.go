@@ -43,6 +43,8 @@ var (
 
 	// Set this required option to specify where to write the output.
 	output = flag.String("output", "./output", "Output file (required).")
+
+	expansionAddr = flag.String("expansion-addr", "", "Address of Expansion Service")
 )
 
 var (
@@ -80,6 +82,10 @@ func main() {
 		log.Fatal("No output provided")
 	}
 
+	if *expansionAddr == "" {
+		log.Fatal("No expansion address provided")
+	}
+
 	p := beam.NewPipeline()
 	s := p.Root()
 
@@ -87,18 +93,16 @@ func main() {
 	col := beam.ParDo(s, extractFn, lines)
 
 	// Using Cross-language Count from Python's test expansion service
-	// TODO(pskevin): Cleaner using-face API
 	outputType := typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int64))
-	external := &beam.ExternalTransform{
-		In:            []beam.PCollection{col},
-		Urn:           "beam:transforms:xlang:count",
-		ExpansionAddr: "localhost:8118",
-		Out:           []typex.FullType{outputType},
-		Bounded:       true, // TODO(pskevin): Infer this value from output PCollection(s) part of the expanded tranform
-	}
-	counted := beam.CrossLanguage(s, p, external) // TODO(pskevin): Add external transform to Pipeline without passing it to the transform
+	counted := beam.CrossLanguage(s,
+		"beam:transforms:xlang:count",
+		nil,
+		*expansionAddr,
+		map[string]beam.PCollection{"xlang-in": col},
+		map[string]typex.FullType{"None": outputType},
+	)
 
-	formatted := beam.ParDo(s, formatFn, counted[0])
+	formatted := beam.ParDo(s, formatFn, counted["None"])
 	textio.Write(s, *output, formatted)
 
 	if err := beamx.Run(context.Background(), p); err != nil {

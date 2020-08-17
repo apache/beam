@@ -86,60 +86,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	xlangx.PurgeOutputInput(edges, pipeline)
 
 	xlangx.MergeExpandedWithPipeline(edges, pipeline)
-	// os.Exit(1)
 
-	// pipeline, err = pipelinex.Update(pipeline, pipeline.Components)
-	fmt.Printf("\n\n%v\n\n", pipeline)
-
-	/*
-		// Adding Expanded transforms to their counterparts in the Pipeline
-		for id, external := range p.ExpandedTransforms {
-			pipeline.Requirements = append(pipeline.Requirements, external.Requirements...)
-
-			// Correct update of transform corresponding to the ExpandedTransform
-			// TODO(pskevin): Figure if there is a better way of supporting multiple outputs
-			transform := pipeline.Components.Transforms[id]
-			existingInput := ""
-			newInput := ""
-			for _, v := range transform.Outputs {
-				existingInput = v
-			}
-			for _, v := range external.ExpandedTransform.Outputs {
-				newInput = v
-			}
-
-			for _, t := range pipeline.Components.Transforms {
-				for idx, i := range t.Inputs {
-					if i == existingInput {
-						t.Inputs[idx] = newInput
-					}
-				}
-			}
-
-			// Adding components of the Expanded Transforms to the current Pipeline
-			for k, v := range external.Components.Transforms {
-				pipeline.Components.Transforms[k] = v
-			}
-			for k, v := range external.Components.Pcollections {
-				pipeline.Components.Pcollections[k] = v
-			}
-			for k, v := range external.Components.WindowingStrategies {
-				pipeline.Components.WindowingStrategies[k] = v
-			}
-			for k, v := range external.Components.Coders {
-				pipeline.Components.Coders[k] = v
-			}
-			for k, v := range external.Components.Environments {
-				// TODO(pskevin): Resolve temporary hack to enable LOOPBACK mode
-				if k == "go" {
-					continue
-				}
-				pipeline.Components.Environments[k] = v
-			}
-
-			pipeline.Components.Transforms[id] = external.ExpandedTransform
-		}
-	*/
 	log.Info(ctx, proto.MarshalTextString(pipeline))
 
 	opt := &runnerlib.JobOptions{
