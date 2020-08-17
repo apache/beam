@@ -38,6 +38,8 @@ import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class executes jobs using PCollection and SqlTransform, it uses SqlTransform.query to run queries.
@@ -47,6 +49,8 @@ public class SqlTransformRunner {
     private static final String RESULT_DIRECTORY = "gs://beamsql_tpcds_1/tpcds_results";
     private static final String SUMMARY_START = "\n" + "TPC-DS Query Execution Summary:";
     private static final List<String> SUMMARY_HEADERS_LIST = Arrays.asList("Query Name", "Job Name", "Data Size", "Dialect", "Status", "Start Time", "End Time", "Elapsed Time(sec)");
+
+    private static final Logger Log = LoggerFactory.getLogger(SqlTransform.class);
 
     /**
      * Get all tables (in the form of TextTable) needed for a specific query execution
@@ -163,7 +167,7 @@ public class SqlTransformRunner {
                                 .withSuffix(".txt")
                                 .withNumShards(1));
             } catch (Exception e) {
-                System.out.println(queryNameArr[i] + " failed to execute");
+                Log.error("{} failed to execute", queryNameArr[i]);
                 e.printStackTrace();
             }
 

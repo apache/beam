@@ -20,6 +20,7 @@ package org.apache.beam.sdk.tpcds;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -42,6 +43,8 @@ import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class executes jobs using BeamSqlEnv, it uses BeamSqlEnv.executeDdl and BeamSqlEnv.parseQuery to run queries.
@@ -51,6 +54,8 @@ public class BeamSqlEnvRunner {
     private static final String RESULT_DIRECTORY = "gs://beamsql_tpcds_1/tpcds_results";
     private static final String SUMMARY_START = "\n" + "TPC-DS Query Execution Summary:";
     private static final List<String> SUMMARY_HEADERS_LIST = Arrays.asList("Query Name", "Job Name", "Data Size", "Dialect", "Status", "Start Time", "End Time", "Elapsed Time(sec)");
+
+    private static final Logger Log = LoggerFactory.getLogger(BeamSqlEnvRunner.class);
 
     private static String buildTableCreateStatement(String tableName) {
         String createStatement = "CREATE EXTERNAL TABLE " + tableName + " (%s) TYPE text LOCATION '%s' TBLPROPERTIES '{\"format\":\"csv\", \"csvformat\": \"InformixUnload\"}'";
@@ -169,7 +174,7 @@ public class BeamSqlEnvRunner {
                         .via((Row row) -> row.toString()));
                 rowStrings.apply(TextIO.write().to(RESULT_DIRECTORY + "/" + dataSize + "/" + pipelines[i].getOptions().getJobName()).withSuffix(".txt").withNumShards(1));
             } catch (Exception e) {
-                System.out.println(queryNameArr[i] + " failed to execute");
+                Log.error("{} failed to execute", queryNameArr[i]);
                 e.printStackTrace();
             }
 

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.tpcds;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineResult.State;
 import java.util.concurrent.Callable;
 
 /**
@@ -38,10 +39,12 @@ public class TpcdsRun implements Callable<TpcdsRunResult> {
         try {
             PipelineResult pipelineResult = pipeline.run();
             long startTimeStamp = System.currentTimeMillis();
-            pipelineResult.waitUntilFinish();
+            State state = pipelineResult.waitUntilFinish();
             long endTimeStamp = System.currentTimeMillis();
 
-            tpcdsRunResult = new TpcdsRunResult(true, startTimeStamp, endTimeStamp, pipeline.getOptions(), pipelineResult);
+            // Make sure to set the job status to be successful only when pipelineResult's final state is DONE.
+            boolean isSuccessful = state == State.DONE;
+            tpcdsRunResult = new TpcdsRunResult(isSuccessful, startTimeStamp, endTimeStamp, pipeline.getOptions(), pipelineResult);
         } catch (Exception e) {
             // If the pipeline execution failed, return a result with failed status but don't interrupt other threads.
             e.printStackTrace();
