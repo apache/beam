@@ -89,7 +89,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
 
   if (streaming) {
     pipelineOptions += "--streaming"
-    pipelineOptions += "--timeout=20000"
+    pipelineOptions += "--streamingTimeoutMs=20000"
 
     testCategories = {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
@@ -115,6 +115,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       // Currently unsupported in portable streaming
       excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
     }
 
@@ -131,6 +132,8 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.join.CoGroupByKeyTest'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest'
+
+      includeTestsMatching 'org.apache.beam.sdk.transforms.ImpulseTest'
     }
   }
   else {
