@@ -106,8 +106,8 @@ public class SplittableParDoNaiveBounded {
     @Override
     public PCollectionTuple expand(PCollection<KV<byte[], KV<InputT, RestrictionT>>> input) {
       return input
-          .apply("Drop key", Values.create())
           .apply("Reshuffle", Reshuffle.of())
+          .apply("Drop key", Values.create())
           .apply(
               "NaiveProcess",
               ParDo.of(
