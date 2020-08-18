@@ -265,7 +265,8 @@ def schema_from_element_type(element_type):  # (type) -> schema_pb2.Schema
 
   Returns schema as a list of (name, python_type) tuples"""
   if isinstance(element_type, row_type.RowTypeConstraint):
-    # TODO: Make sure beam.Row generated schemas are registered and de-duped
+    # TODO(BEAM-10722): Make sure beam.Row generated schemas are registered and
+    # de-duped
     return named_fields_to_schema(element_type._fields)
   elif _match_is_named_tuple(element_type):
     return named_tuple_to_schema(element_type)

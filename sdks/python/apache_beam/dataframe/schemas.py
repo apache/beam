@@ -22,48 +22,37 @@
 
 from __future__ import absolute_import
 
-from typing import NamedTuple
-from typing import TypeVar
+import typing
 
 import pandas as pd
 
+import apache_beam as beam
 from apache_beam import typehints
-from apache_beam.transforms.core import DoFn
-from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.util import BatchElements
 from apache_beam.typehints.schemas import named_fields_from_element_type
 
 __all__ = ('BatchRowsAsDataFrame', 'generate_proxy')
 
-T = TypeVar('T', bound=NamedTuple)
+T = typing.TypeVar('T', bound=typing.NamedTuple)
 
 
 @typehints.with_input_types(T)
 @typehints.with_output_types(pd.DataFrame)
-class BatchRowsAsDataFrame(BatchElements):
+class BatchRowsAsDataFrame(beam.PTransform):
   """A transform that batches schema-aware PCollection elements into DataFrames
 
   Batching parameters are inherited from
   :class:`~apache_beam.transforms.util.BatchElements`.
   """
   def __init__(self, *args, **kwargs):
-    super(BatchRowsAsDataFrame, self).__init__(*args, **kwargs)
     self._batch_elements_transform = BatchElements(*args, **kwargs)
 
   def expand(self, pcoll):
-    return super(BatchRowsAsDataFrame, self).expand(pcoll) | ParDo(
-        _RowBatchToDataFrameDoFn(pcoll.element_type))
-
-
-class _RowBatchToDataFrameDoFn(DoFn):
-  def __init__(self, element_type):
-    self._columns = [
-        name for name, _ in named_fields_from_element_type(element_type)
+    columns = [
+        name for name, _ in named_fields_from_element_type(pcoll.element_type)
     ]
-
-  def process(self, element):
-    result = pd.DataFrame.from_records(element, columns=self._columns)
-    yield result
+    return pcoll | self._batch_elements_transform | beam.Map(
+        lambda batch: pd.DataFrame.from_records(batch, columns=columns))
 
 
 def _make_empty_series(name, typ):

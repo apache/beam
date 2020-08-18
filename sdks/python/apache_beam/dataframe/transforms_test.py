@@ -28,6 +28,7 @@ from apache_beam import coders
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import transforms
+from apache_beam.dataframe import convert
 from apache_beam.testing.util import assert_that
 
 
@@ -113,7 +114,7 @@ class TransformTest(unittest.TestCase):
         'Speed': [5, 2, 35, 40]
     })
     self.run_scenario(df, lambda df: df.filter(items=['Animal']))
-    self.run_scenario(df, lambda df: df.filter(regex='A.*'))
+    self.run_scenario(df, lambda df: df.filter(regex='Anim.*'))
     self.run_scenario(
         df, lambda df: df.set_index('Animal').filter(regex='F.*', axis='index'))
 
@@ -142,7 +143,7 @@ class TransformTest(unittest.TestCase):
               AnimalSpeed('Elephant', 35),
               AnimalSpeed('Zebra', 40)
           ]).with_output_types(AnimalSpeed)
-          | transforms.DataframeTransform(lambda df: df.filter(regex='A.*')))
+          | transforms.DataframeTransform(lambda df: df.filter(regex='Anim.*')))
 
       assert_that(
           result,
@@ -159,6 +160,23 @@ class TransformTest(unittest.TestCase):
           | beam.Map(lambda tpl: beam.Row(Animal=tpl[0], Speed=tpl[1]))
           |
           transforms.DataframeTransform(lambda df: df.groupby('Animal').mean()))
+
+      assert_that(
+          result,
+          df_equal_to(
+              pd.DataFrame({
+                  'Animal': ['Falcon', 'Parrot'], 'Speed': [375., 25.]
+              }).set_index('Animal')))
+
+  def test_batching_beam_row_to_dataframe(self):
+    with beam.Pipeline() as p:
+      df = convert.to_dataframe(
+          p
+          | beam.Create([(u'Falcon', 380.), (u'Falcon', 370.), (
+              u'Parrot', 24.), (u'Parrot', 26.)])
+          | beam.Map(lambda tpl: beam.Row(Animal=tpl[0], Speed=tpl[1])))
+
+      result = convert.to_pcollection(df.groupby('Animal').mean())
 
       assert_that(
           result,

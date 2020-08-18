@@ -97,6 +97,7 @@ class SchemasTest(unittest.TestCase):
           | schemas.BatchRowsAsDataFrame()
           | transforms.DataframeTransform(
               lambda df: df.groupby('animal').mean(),
+              # TODO: Generate proxy in this case as well
               proxy=schemas.generate_proxy(Animal)))
       assert_that(
           res,
