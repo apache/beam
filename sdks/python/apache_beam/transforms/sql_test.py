@@ -218,7 +218,7 @@ class SqlTransformTest(unittest.TestCase):
           | beam.Map(lambda x: TimestampWrapper(timestamp=x)).with_output_types(
               TimestampWrapper)
           | SqlTransform(
-              """"
+              """
             SELECT
               YEAR(`timestamp`) AS `year`,
               MONTH(`timestamp`) AS `month`
