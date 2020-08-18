@@ -30,6 +30,7 @@
 [![Compat Check PyPI](https://python-compatibility-tools.appspot.com/one_badge_image?package=apache-beam%5Bgcp%5D)](https://python-compatibility-tools.appspot.com/one_badge_target?package=apache-beam%5Bgcp%5D)
 [![Compat Check at master](https://python-compatibility-tools.appspot.com/one_badge_image?package=git%2Bgit%3A//github.com/apache/beam.git%23subdirectory%3Dsdks/python)](https://python-compatibility-tools.appspot.com/one_badge_target?package=git%2Bgit%3A//github.com/apache/beam.git%23subdirectory%3Dsdks/python)
 ![Build python source distribution and wheels](https://github.com/apache/beam/workflows/Build%20python%20source%20distribution%20and%20wheels/badge.svg)
+![Python tests](https://github.com/apache/beam/workflows/Python%20tests/badge.svg)
 
 ### Post-commit tests status (on master branch)
 
