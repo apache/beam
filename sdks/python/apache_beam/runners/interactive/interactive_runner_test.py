@@ -66,6 +66,7 @@ class InteractiveRunnerTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()
 
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_basic(self):
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(
@@ -83,6 +84,7 @@ class InteractiveRunnerTest(unittest.TestCase):
     _ = pc0 | 'Print3' >> beam.Map(print_with_message('Run3'))
     p.run().wait_until_finish()
 
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_wordcount(self):
     class WordExtractingDoFn(beam.DoFn):
       def process(self, element):

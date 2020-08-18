@@ -50,6 +50,9 @@ jobs:
         env:
           GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          GCP_PROJECT_ID: "not-needed-here"
+          GCP_REGION: "not-needed-here"
+          GCP_TESTING_BUCKET: "not-needed-here"
 
   build_source:
     runs-on: ubuntu-latest
