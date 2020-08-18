@@ -67,6 +67,12 @@ try:
 except ImportError:
   pass
 
+try:
+  # TODO(pabloem): Remove this workaround after Python 2.7 support ends.
+  from json.decoder import JSONDecodeError
+except ImportError:
+  JSONDecodeError = ValueError
+
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
@@ -134,7 +140,11 @@ def parse_table_schema_from_json(schema_string):
   Returns:
     A TableSchema of the BigQuery export from either the Query or the Table.
   """
-  json_schema = json.loads(schema_string)
+  try:
+    json_schema = json.loads(schema_string)
+  except JSONDecodeError as e:
+    raise ValueError(
+        'Unable to parse JSON schema: %s - %r' % (schema_string, e))
 
   def _parse_schema_field(field):
     """Parse a single schema field from dictionary.
@@ -1375,7 +1385,11 @@ class AppendDestinationsFn(DoFn):
   Experimental; no backwards compatibility guarantees.
   """
   def __init__(self, destination):
+    self._display_destination = destination
     self.destination = AppendDestinationsFn._get_table_fn(destination)
+
+  def display_data(self):
+    return {'destination': str(self._display_destination)}
 
   @staticmethod
   def _value_provider_or_static_val(elm):

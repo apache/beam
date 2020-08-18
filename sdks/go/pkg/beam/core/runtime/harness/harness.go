@@ -189,7 +189,7 @@ func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
 		newPlan, err := exec.UnmarshalPlan(desc)
 		if err != nil {
 			c.mu.Unlock()
-			return nil, errors.WithContextf(err, "invalid bundle desc: %v", bdID)
+			return nil, errors.WithContextf(err, "invalid bundle desc: %v\n%v\n", bdID, desc.String())
 		}
 		plan = newPlan
 	}
@@ -347,6 +347,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			Response: &fnpb.InstructionResponse_ProcessBundleSplit{
 				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{
 					ChannelSplits: []*fnpb.ProcessBundleSplitResponse_ChannelSplit{{
+						TransformId:          plan.SourcePTransformID(),
 						LastPrimaryElement:   sr.PI,
 						FirstResidualElement: sr.RI,
 					}},

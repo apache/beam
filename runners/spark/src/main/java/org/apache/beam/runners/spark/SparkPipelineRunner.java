@@ -110,7 +110,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
     AggregatorsAccumulator.init(pipelineOptions, jsc);
 
-    MetricsEnvironment.setMetricsSupported(false);
+    MetricsEnvironment.setMetricsSupported(true);
     MetricsAccumulator.init(pipelineOptions, jsc);
 
     final SparkTranslationContext context =

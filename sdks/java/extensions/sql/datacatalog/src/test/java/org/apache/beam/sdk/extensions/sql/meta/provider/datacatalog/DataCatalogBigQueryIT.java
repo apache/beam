@@ -66,9 +66,11 @@ public class DataCatalogBigQueryIT {
           });
     }
 
+    @SuppressWarnings("initialization.fields.uninitialized")
     @Parameterized.Parameter(0)
     public String dialectName;
 
+    @SuppressWarnings("initialization.fields.uninitialized")
     @Parameterized.Parameter(1)
     public Class<? extends QueryPlanner> queryPlanner;
 
@@ -95,7 +97,7 @@ public class DataCatalogBigQueryIT {
       readPipeline
           .getOptions()
           .as(BeamSqlPipelineOptions.class)
-          .setPlannerName(queryPlanner.getCanonicalName());
+          .setPlannerName(queryPlanner.getName());
 
       try (DataCatalogTableProvider tableProvider =
           DataCatalogTableProvider.create(

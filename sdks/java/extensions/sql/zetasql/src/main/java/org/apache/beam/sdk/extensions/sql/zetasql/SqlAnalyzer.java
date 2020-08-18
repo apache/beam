@@ -28,7 +28,6 @@ import com.google.zetasql.Analyzer;
 import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.Function;
 import com.google.zetasql.FunctionArgumentType;
-import com.google.zetasql.FunctionProtos.FunctionArgumentTypeOptionsProto;
 import com.google.zetasql.FunctionSignature;
 import com.google.zetasql.ParseResumeLocation;
 import com.google.zetasql.SimpleCatalog;
@@ -249,7 +248,7 @@ public class SqlAnalyzer {
     FunctionArgumentType descriptorType =
         new FunctionArgumentType(
             SignatureArgumentKind.ARG_TYPE_DESCRIPTOR,
-            FunctionArgumentTypeOptionsProto.newBuilder()
+            FunctionArgumentType.FunctionArgumentTypeOptions.builder()
                 .setDescriptorResolutionTableOffset(0)
                 .build(),
             1);
@@ -269,7 +268,9 @@ public class SqlAnalyzer {
                     TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
                 TVFRelation.Column.create(
                     TVFStreamingUtils.WINDOW_END,
-                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)))));
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP))),
+            null,
+            null));
 
     // HOP
     catalog.addTableValuedFunction(
@@ -285,7 +286,9 @@ public class SqlAnalyzer {
                     TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
                 TVFRelation.Column.create(
                     TVFStreamingUtils.WINDOW_END,
-                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)))));
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP))),
+            null,
+            null));
 
     // SESSION
     catalog.addTableValuedFunction(
@@ -301,7 +304,9 @@ public class SqlAnalyzer {
                     TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
                 TVFRelation.Column.create(
                     TVFStreamingUtils.WINDOW_END,
-                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)))));
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP))),
+            null,
+            null));
   }
 
   /**

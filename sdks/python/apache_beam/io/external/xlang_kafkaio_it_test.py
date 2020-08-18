@@ -31,14 +31,38 @@ import unittest
 import uuid
 
 import apache_beam as beam
+from apache_beam.coders.coders import VarIntCoder
 from apache_beam.io.kafka import ReadFromKafka
 from apache_beam.io.kafka import WriteToKafka
 from apache_beam.metrics import Metrics
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.userstate import BagStateSpec
+from apache_beam.transforms.userstate import CombiningValueStateSpec
 
 NUM_RECORDS = 1000
+
+
+class CollectingFn(beam.DoFn):
+  BUFFER_STATE = BagStateSpec('buffer', VarIntCoder())
+  COUNT_STATE = CombiningValueStateSpec('count', sum)
+
+  def process(
+      self,
+      element,
+      buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
+      count_state=beam.DoFn.StateParam(COUNT_STATE)):
+    value = int(element[1].decode())
+    buffer_state.add(value)
+
+    count_state.add(1)
+    count = count_state.read()
+
+    if count >= NUM_RECORDS:
+      yield sum(buffer_state.read())
+      count_state.clear()
+      buffer_state.clear()
 
 
 class CrossLanguageKafkaIO(object):
@@ -51,9 +75,7 @@ class CrossLanguageKafkaIO(object):
   def build_write_pipeline(self, pipeline):
     _ = (
         pipeline
-        | 'Impulse' >> beam.Impulse()
-        | 'Generate' >> beam.FlatMap(lambda x: range(NUM_RECORDS))  # pylint: disable=range-builtin-not-iterating
-        | 'Reshuffle' >> beam.Reshuffle()
+        | 'Generate' >> beam.Create(range(NUM_RECORDS))  # pylint: disable=range-builtin-not-iterating
         | 'MakeKV' >> beam.Map(lambda x:
                                (b'', str(x).encode())).with_output_types(
                                    typing.Tuple[bytes, bytes])
@@ -79,13 +101,7 @@ class CrossLanguageKafkaIO(object):
 
     return (
         kafka_records
-        | 'Windowing' >> beam.WindowInto(
-            beam.window.FixedWindows(300),
-            trigger=beam.transforms.trigger.AfterProcessingTime(60),
-            accumulation_mode=beam.transforms.trigger.AccumulationMode.
-            DISCARDING)
-        | 'DecodingValue' >> beam.Map(lambda elem: int(elem[1].decode()))
-        | 'CombineGlobally' >> beam.CombineGlobally(sum).without_defaults()
+        | 'CalculateSum' >> beam.ParDo(CollectingFn())
         | 'SetSumCounter' >> beam.Map(self.sum_counter.inc))
 
   def run_xlang_kafkaio(self, pipeline):
@@ -94,6 +110,7 @@ class CrossLanguageKafkaIO(object):
     pipeline.run(False)
 
 
+@unittest.skip('BEAM-10663')
 @unittest.skipUnless(
     os.environ.get('LOCAL_KAFKA_JAR'),
     "LOCAL_KAFKA_JAR environment var is not provided.")

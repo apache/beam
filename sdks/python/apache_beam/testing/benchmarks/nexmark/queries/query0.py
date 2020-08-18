@@ -30,8 +30,17 @@ to verify the infrastructure.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.nexmark_util import ParseEventFn
 
 
-def load(raw_events, query_args=None):
-  return raw_events | 'ParseEventFn' >> beam.ParDo(ParseEventFn())  # pylint: disable=expression-not-assigned
+class RoundTripFn(beam.DoFn):
+  def process(self, element):
+    coder = element.CODER
+    byte_value = coder.encode(element)
+    recon = coder.decode(byte_value)
+    yield recon
+
+
+def load(events, query_args=None):
+  return (
+      events
+      | 'serialization_and_deserialization' >> beam.ParDo(RoundTripFn()))

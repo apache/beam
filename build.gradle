@@ -178,6 +178,7 @@ task javaPostCommit() {
   dependsOn ":sdks:java:extensions:google-cloud-platform-core:postCommit"
   dependsOn ":sdks:java:extensions:zetasketch:postCommit"
   dependsOn ":sdks:java:io:google-cloud-platform:postCommit"
+  dependsOn ":sdks:java:io:kinesis:integrationTest"
 }
 
 task sqlPostCommit() {
@@ -187,6 +188,7 @@ task sqlPostCommit() {
 }
 
 task goPreCommit() {
+  dependsOn ":sdks:go:goBuild"
   dependsOn ":sdks:go:goTest"
 
   dependsOn ":sdks:go:examples:goBuild"
@@ -220,13 +222,12 @@ task pythonPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
   dependsOn ":sdks:python:test-suites:tox:py38:preCommitPy38"
-  dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitIT"
-  dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitIT_V2"
-  dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT"
-  dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT_V2"
-  // We don't include Py35, Py36 precommit ITs to reduce quota footprint.
-  // We can reconsider if we ever see an issue that these suites would
-  // have caught. Note that the same tests will still run in postcommit.
+  dependsOn ":sdks:python:test-suites:dataflow:preCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:preCommitIT_V2"
+}
+
+task pythonDocsPreCommit() {
+  dependsOn ":sdks:python:test-suites:tox:pycommon:docs"
 }
 
 task pythonDockerBuildPreCommit() {
@@ -344,7 +345,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 
   configurations { linkageCheckerJava }
   dependencies {
-    linkageCheckerJava "com.google.cloud.tools:dependencies:1.4.2"
+    linkageCheckerJava "com.google.cloud.tools:dependencies:1.5.0"
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the

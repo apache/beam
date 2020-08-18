@@ -19,9 +19,13 @@ package org.apache.beam.runners.direct;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.IllegalMutationException;
 import org.apache.beam.sdk.util.MutationDetector;
 import org.apache.beam.sdk.util.MutationDetectors;
@@ -40,7 +44,61 @@ class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
   @Override
   public <T> ModelEnforcement<T> forBundle(
       CommittedBundle<T> input, AppliedPTransform<?, ?, ?> consumer) {
+    if (isReadTransform(consumer)) {
+      return NoopReadEnforcement.INSTANCE;
+    }
     return new ImmutabilityCheckingEnforcement<>(input, consumer);
+  }
+
+  private static boolean isReadTransform(AppliedPTransform<?, ?, ?> consumer) {
+    IsReadVisitor visitor = new IsReadVisitor(consumer.getTransform());
+    consumer.getPipeline().traverseTopologically(visitor);
+    return visitor.isRead();
+  }
+
+  private static class IsReadVisitor extends PipelineVisitor.Defaults {
+    private final PTransform<?, ?> transform;
+    private boolean isRead;
+    private boolean isInsideRead;
+
+    private IsReadVisitor(PTransform<?, ?> transform) {
+      this.transform = transform;
+    }
+
+    @Override
+    public CompositeBehavior enterCompositeTransform(Node node) {
+      if (node.getTransform() instanceof Read.Bounded
+          || node.getTransform() instanceof Read.Unbounded) {
+        isInsideRead = true;
+      }
+      if (isInsideRead && node.getTransform() == transform) {
+        isRead = true;
+      }
+      return CompositeBehavior.ENTER_TRANSFORM;
+    }
+
+    @Override
+    public void leaveCompositeTransform(Node node) {
+      if (node.getTransform() instanceof Read.Bounded
+          || node.getTransform() instanceof Read.Unbounded) {
+        isInsideRead = false;
+      }
+    }
+
+    @Override
+    public void visitPrimitiveTransform(Node node) {
+      if (isInsideRead && node.getTransform() == transform) {
+        isRead = true;
+      }
+    }
+
+    private boolean isRead() {
+      return isRead;
+    }
+  }
+
+  private static class NoopReadEnforcement<T> extends AbstractModelEnforcement<T> {
+    private static final NoopReadEnforcement INSTANCE = new NoopReadEnforcement<>();
   }
 
   private static class ImmutabilityCheckingEnforcement<T> extends AbstractModelEnforcement<T> {

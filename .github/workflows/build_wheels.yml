@@ -38,10 +38,10 @@ jobs:
 
   check_gcp_variables:
     timeout-minutes: 5
-    name: "Check are GCP variables set"
+    name: "Check GCP variables"
     runs-on: ubuntu-latest
     outputs:
-      are-gcp-variables-set: ${{ steps.check_gcp_variables.outputs.are-gcp-variables-set }}
+      gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
       - uses: actions/checkout@v2
       - name: "Check are GCP variables set"
@@ -97,7 +97,7 @@ jobs:
       - build_source
       - check_gcp_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true' && github.event_name != 'pull_request'
+    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
       - name: Authenticate on GCP
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -113,7 +113,7 @@ jobs:
       - prepare_gcs
       - check_gcp_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true'
+    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
         uses: actions/download-artifact@v2
@@ -180,7 +180,7 @@ jobs:
       - build_wheels
       - check_gcp_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true' && github.event_name != 'pull_request'
+    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
         os : [ubuntu-latest, macos-latest, windows-latest]
@@ -224,7 +224,7 @@ jobs:
      - upload_wheels_to_gcs
      - check_gcp_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true' && github.event_name != 'pull_request'
+    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Authenticate on GCP
       uses: GoogleCloudPlatform/github-actions/setup-gcloud@master

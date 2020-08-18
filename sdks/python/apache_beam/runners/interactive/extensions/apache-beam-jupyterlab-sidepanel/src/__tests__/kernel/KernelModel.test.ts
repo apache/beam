@@ -33,12 +33,16 @@ const fakeSessionContext = {
   }
 };
 
-it('creates new future with IOPub callbacks when executing new code in kernel', () => {
-  const kernelModel = new KernelModel(fakeSessionContext as any);
-  kernelModel.execute('new code');
-  expect(kernelModel.future).not.toBe(null);
-  expect(kernelModel.future.onIOPub).not.toBe(null);
-});
+it(
+  'creates new future with IOPub callbacks ' +
+    'when executing new code in kernel',
+  () => {
+    const kernelModel = new KernelModel(fakeSessionContext as any);
+    kernelModel.execute('new code');
+    expect(kernelModel.future).not.toBe(null);
+    expect(kernelModel.future.onIOPub).not.toBe(null);
+  }
+);
 
 it('handles execute result from IOPub channel', () => {
   const kernelModel = new KernelModel(fakeSessionContext as any);
@@ -51,7 +55,10 @@ it('handles execute result from IOPub channel', () => {
     content: {
       data: {
         'text/plain':
-          '\'{"pipelineId": {"metadata": {"name": "pipeline", "inMemoryId": 1, "type": "pipeline"}, "pcolls": {"pcollId": {"name": "pcoll", "inMemoryId": 2, "type": "pcollection"}}}}\''
+          '\'{"pipelineId": {"metadata": {"name": "pipeline", ' +
+          '"inMemoryId": 1, "type": "pipeline"}, "pcolls": ' +
+          '{"pcollId": {"name": "pcoll", "inMemoryId": 2, ' +
+          '"type": "pcollection"}}}}\''
       },
       channel: 'iopub'
     }
