@@ -172,6 +172,107 @@ class DoctestTest(unittest.TestCase):
         })
     self.assertEqual(result.failed, 0)
 
+  def test_string_tests(self):
+    # TODO(BEAM-10720)
+    result = doctests.testmod(
+        pd.core.strings,
+        use_beam=False,
+        skip={
+            'pandas.core.strings.StringMethods': ['*'],
+            'pandas.core.strings.StringMethods.capitalize': ['*'],
+            'pandas.core.strings.StringMethods.casefold': ['*'],
+            'pandas.core.strings.StringMethods.cat': ['*'],
+            'pandas.core.strings.StringMethods.contains': ['*'],
+            'pandas.core.strings.StringMethods.count': ['*'],
+            'pandas.core.strings.StringMethods.endswith': ['*'],
+            'pandas.core.strings.StringMethods.extract': ['*'],
+            'pandas.core.strings.StringMethods.extractall': ['*'],
+            'pandas.core.strings.StringMethods.findall': ['*'],
+            'pandas.core.strings.StringMethods.get': ['*'],
+            'pandas.core.strings.StringMethods.get_dummies': ['*'],
+            'pandas.core.strings.StringMethods.isalnum': ['*'],
+            'pandas.core.strings.StringMethods.isalpha': ['*'],
+            'pandas.core.strings.StringMethods.isdecimal': ['*'],
+            'pandas.core.strings.StringMethods.isdigit': ['*'],
+            'pandas.core.strings.StringMethods.islower': ['*'],
+            'pandas.core.strings.StringMethods.isnumeric': ['*'],
+            'pandas.core.strings.StringMethods.isspace': ['*'],
+            'pandas.core.strings.StringMethods.istitle': ['*'],
+            'pandas.core.strings.StringMethods.isupper': ['*'],
+            'pandas.core.strings.StringMethods.join': ['*'],
+            'pandas.core.strings.StringMethods.len': ['*'],
+            'pandas.core.strings.StringMethods.lower': ['*'],
+            'pandas.core.strings.StringMethods.lstrip': ['*'],
+            'pandas.core.strings.StringMethods.pad': ['*'],
+            'pandas.core.strings.StringMethods.partition': ['*'],
+            'pandas.core.strings.StringMethods.repeat': ['*'],
+            'pandas.core.strings.StringMethods.replace': ['*'],
+            'pandas.core.strings.StringMethods.rpartition': ['*'],
+            'pandas.core.strings.StringMethods.rsplit': ['*'],
+            'pandas.core.strings.StringMethods.rstrip': ['*'],
+            'pandas.core.strings.StringMethods.slice': ['*'],
+            'pandas.core.strings.StringMethods.slice_replace': ['*'],
+            'pandas.core.strings.StringMethods.split': ['*'],
+            'pandas.core.strings.StringMethods.startswith': ['*'],
+            'pandas.core.strings.StringMethods.strip': ['*'],
+            'pandas.core.strings.StringMethods.swapcase': ['*'],
+            'pandas.core.strings.StringMethods.title': ['*'],
+            'pandas.core.strings.StringMethods.upper': ['*'],
+            'pandas.core.strings.StringMethods.wrap': ['*'],
+            'pandas.core.strings.StringMethods.zfill': ['*'],
+            'pandas.core.strings.str_contains': ['*'],
+            'pandas.core.strings.str_count': ['*'],
+            'pandas.core.strings.str_endswith': ['*'],
+            'pandas.core.strings.str_extract': ['*'],
+            'pandas.core.strings.str_extractall': ['*'],
+            'pandas.core.strings.str_findall': ['*'],
+            'pandas.core.strings.str_get': ['*'],
+            'pandas.core.strings.str_get_dummies': ['*'],
+            'pandas.core.strings.str_join': ['*'],
+            'pandas.core.strings.str_pad': ['*'],
+            'pandas.core.strings.str_repeat': ['*'],
+            'pandas.core.strings.str_replace': ['*'],
+            'pandas.core.strings.str_slice': ['*'],
+            'pandas.core.strings.str_slice_replace': ['*'],
+            'pandas.core.strings.str_startswith': ['*'],
+            'pandas.core.strings.str_wrap': ['*'],
+        })
+    self.assertEqual(result.failed, 0)
+
+  def test_datetime_tests(self):
+    # TODO(BEAM-10721)
+    datetimelike_result = doctests.testmod(
+        pd.core.arrays.datetimelike,
+        use_beam=False,
+        skip={
+            'pandas.core.arrays.datetimelike.AttributesMixin._unbox_scalar': [
+                '*'
+            ],
+            'pandas.core.arrays.datetimelike.TimelikeOps.ceil': ['*'],
+            'pandas.core.arrays.datetimelike.TimelikeOps.floor': ['*'],
+            'pandas.core.arrays.datetimelike.TimelikeOps.round': ['*'],
+        })
+
+    datetime_result = doctests.testmod(
+        pd.core.arrays.datetimes,
+        use_beam=False,
+        skip={
+            'pandas.core.arrays.datetimes.DatetimeArray.is_leap_year': ['*'],
+            'pandas.core.arrays.datetimes.DatetimeArray.is_month_end': ['*'],
+            'pandas.core.arrays.datetimes.DatetimeArray.is_month_start': ['*'],
+            'pandas.core.arrays.datetimes.DatetimeArray.is_quarter_end': ['*'],
+            'pandas.core.arrays.datetimes.DatetimeArray.is_quarter_start': [
+                '*'
+            ],
+            'pandas.core.arrays.datetimes.DatetimeArray.is_year_end': ['*'],
+            'pandas.core.arrays.datetimes.DatetimeArray.is_year_start': ['*'],
+            'pandas.core.arrays.datetimes.DatetimeArray.to_period': ['*'],
+            'pandas.core.arrays.datetimes.DatetimeArray.tz_localize': ['*'],
+        })
+
+    self.assertEqual(datetimelike_result.failed, 0)
+    self.assertEqual(datetime_result.failed, 0)
+
 
 if __name__ == '__main__':
   unittest.main()
