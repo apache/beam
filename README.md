@@ -93,6 +93,7 @@ To get involved in Apache Beam:
 
 * [Subscribe](mailto:user-subscribe@beam.apache.org) or [mail](mailto:user@beam.apache.org) the [user@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-user/) list.
 * [Subscribe](mailto:dev-subscribe@beam.apache.org) or [mail](mailto:dev@beam.apache.org) the [dev@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-dev/) list.
+* [Join ASF Slack](https://s.apache.org/slack-invite) on [#beam channel](https://app.slack.com/client/T4S1WH2J3/C9H0YNP3P)
 * Report issues on [JIRA](https://issues.apache.org/jira/browse/BEAM).
 
 Instructions for building and testing Beam itself
