@@ -2208,10 +2208,10 @@ public class StreamingDataflowWorker {
           sdkWorkerHarness, key -> new ConcurrentLinkedQueue<>());
     }
 
-    /** Mark the given key and work as active. */
-    public boolean activateWork(ShardedKey key, Work work) {
+    /** Mark the given shardedKey and work as active. */
+    public boolean activateWork(ShardedKey shardedKey, Work work) {
       synchronized (activeWork) {
-        Deque<Work> queue = activeWork.get(key);
+        Deque<Work> queue = activeWork.get(shardedKey);
         if (queue != null) {
           Preconditions.checkState(!queue.isEmpty());
           // Ensure we don't already have this work token queueud.
@@ -2226,7 +2226,7 @@ public class StreamingDataflowWorker {
         } else {
           queue = new ArrayDeque<>();
           queue.addLast(work);
-          activeWork.put(key, queue);
+          activeWork.put(shardedKey, queue);
           // Fall through to execute without the lock held.
         }
       }
@@ -2234,11 +2234,14 @@ public class StreamingDataflowWorker {
       return true;
     }
 
-    /** Marks the work for a the given key as complete. Schedules queued work for the key if any. */
-    public void completeWork(ShardedKey key, long workToken) {
+    /**
+     * Marks the work for a the given shardedKey as complete. Schedules queued work for the key if
+     * any.
+     */
+    public void completeWork(ShardedKey shardedKey, long workToken) {
       Work nextWork;
       synchronized (activeWork) {
-        Queue<Work> queue = activeWork.get(key);
+        Queue<Work> queue = activeWork.get(shardedKey);
         Preconditions.checkNotNull(queue);
         Work completedWork = queue.peek();
         // avoid Preconditions.checkNotNull and checkState here to prevent eagerly evaluating the
@@ -2246,18 +2249,19 @@ public class StreamingDataflowWorker {
         if (completedWork == null) {
           throw new NullPointerException(
               String.format(
-                  "No active state for key %s, expected token %s", key.toString(), workToken));
+                  "No active state for key %s, expected token %s",
+                  shardedKey.toString(), workToken));
         }
         if (completedWork.getWorkItem().getWorkToken() != workToken) {
           throw new IllegalStateException(
               String.format(
                   "Token mismatch for key %s: %s and %s",
-                  key.toString(), completedWork.getWorkItem().getWorkToken(), workToken));
+                  shardedKey.toString(), completedWork.getWorkItem().getWorkToken(), workToken));
         }
         queue.remove(); // We consumed the matching work item.
         nextWork = queue.peek();
         if (nextWork == null) {
-          Preconditions.checkState(queue == activeWork.remove(key));
+          Preconditions.checkState(queue == activeWork.remove(shardedKey));
         }
       }
       if (nextWork != null) {
@@ -2271,14 +2275,14 @@ public class StreamingDataflowWorker {
         // activeWork as completeWork may delete the entry from activeWork.
         Map<ShardedKey, Long> stuckCommits = new HashMap<>();
         for (Map.Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
-          ShardedKey key = entry.getKey();
+          ShardedKey shardedKey = entry.getKey();
           Work work = entry.getValue().peek();
           if (work.getState() == State.COMMITTING
               && work.getStateStartTime().isBefore(stuckCommitDeadline)) {
             LOG.error(
                 "Detected key with sharding key {} stuck in COMMITTING state, completing it with error.",
                 work.workItem.getShardingKey());
-            stuckCommits.put(key, work.getWorkItem().getWorkToken());
+            stuckCommits.put(shardedKey, work.getWorkItem().getWorkToken());
           }
         }
         for (Map.Entry<ShardedKey, Long> stuckCommit : stuckCommits.entrySet()) {
@@ -2294,13 +2298,13 @@ public class StreamingDataflowWorker {
       List<Windmill.KeyedGetDataRequest> result = new ArrayList<>();
       synchronized (activeWork) {
         for (Map.Entry<ShardedKey, Deque<Work>> entry : activeWork.entrySet()) {
-          ShardedKey key = entry.getKey();
+          ShardedKey shardedKey = entry.getKey();
           for (Work work : entry.getValue()) {
             if (work.getStartTime().isBefore(refreshDeadline)) {
               result.add(
                   Windmill.KeyedGetDataRequest.newBuilder()
-                      .setKey(key.key)
-                      .setShardingKey(key.shardingKey)
+                      .setKey(shardedKey.key)
+                      .setShardingKey(shardedKey.shardingKey)
                       .setWorkToken(work.getWorkItem().getWorkToken())
                       .build());
             }
