@@ -44,7 +44,15 @@ class DataframeTransform(transforms.PTransform):
   """A PTransform for applying function that takes and returns dataframes
   to one or more PCollections.
 
-  For example, if pcoll is a PCollection of dataframes, one could write::
+  DataframeTransform will accept a PCollection with a schema and batch it
+  into dataframes if necessary. In this case the proxy can be omitted:
+
+      (pcoll | beam.Row(key=..., foo=..., bar=...)
+             | DataframeTransform(lambda df: df.group_by('key').sum()))
+
+  It is also possible to process a PCollection of dataframes directly, in this
+  case a proxy must be provided. For example, if pcoll is a PCollection of
+  dataframes, one could write::
 
       pcoll | DataframeTransform(lambda df: df.group_by('key').sum(), proxy=...)
 
