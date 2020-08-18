@@ -23,6 +23,8 @@ import com.google.zetasql.Value;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.function.IntFunction;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
@@ -150,6 +152,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     private final boolean verifyRowValues;
     private transient PreparedExpression exp;
     private transient List<Integer> referencedColumns;
+    private transient PreparedExpression.Stream stream;
 
     CalcFn(
         String sql,
@@ -184,10 +187,12 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         columns.add(Integer.parseInt(c.substring(1)));
       }
       referencedColumns = columns.build();
+
+      stream = exp.stream();
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(ProcessContext c) throws InterruptedException {
       Map<String, Value> columns = new HashMap<>();
       Row row = c.element();
       for (int i : referencedColumns) {
@@ -197,7 +202,13 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
                 row.getBaseValue(i, Object.class), inputSchema.getField(i).getType()));
       }
 
-      Value v = exp.execute(columns, nullParams);
+      final Future<Value> vf = stream.execute(columns, nullParams);
+      final Value v;
+      try {
+        v = vf.get();
+      } catch (ExecutionException e) {
+        throw (RuntimeException) e.getCause();
+      }
       if (!v.isNull()) {
         Row outputRow = ZetaSqlBeamTranslationUtils.toBeamRow(v, outputSchema, verifyRowValues);
         c.output(outputRow);
@@ -206,6 +217,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
     @Teardown
     public void teardown() {
+      stream.close();
       exp.close();
     }
   }
