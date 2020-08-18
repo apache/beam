@@ -56,7 +56,7 @@ public class PubsubToBigqueryIT implements Serializable {
 
   @Test
   public void testSimpleInsert() throws Exception {
-    // TODO(BEAM-10720): Reading from pubsub shouldn't require deprecated read
+    // TODO(BEAM-10752): Reading from pubsub shouldn't require deprecated read
     pipeline
         .getOptions()
         .as(ExperimentalOptions.class)
@@ -120,7 +120,7 @@ public class PubsubToBigqueryIT implements Serializable {
 
   @Test
   public void testSimpleInsertFlat() throws Exception {
-    // TODO(BEAM-10720): Reading from pubsub shouldn't require deprecated read
+    // TODO(BEAM-10752): Reading from pubsub shouldn't require deprecated read
     pipeline
         .getOptions()
         .as(ExperimentalOptions.class)
