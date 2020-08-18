@@ -26,9 +26,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
+import com.azure.core.http.rest.PagedIterable;
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClient;
@@ -38,10 +41,19 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+
+import com.azure.storage.blob.models.BlobItem;
+import com.azure.storage.blob.models.BlobProperties;
+import com.azure.storage.blob.models.ListBlobsOptions;
+import com.azure.storage.blob.specialized.BlobOutputStream;
+import com.azure.storage.blob.specialized.BlockBlobClient;
 import org.apache.beam.sdk.io.azure.options.BlobstoreOptions;
+import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
@@ -65,23 +77,35 @@ public class AzureBlobStoreFileSystemTest {
     BlobServiceClient mockedServiceClient = Mockito.mock(BlobServiceClient.class);
     BlobContainerClient mockedContainerClient = Mockito.mock(BlobContainerClient.class);
     BlobClient mockedBlobClient = Mockito.mock(BlobClient.class);
+    BlockBlobClient mockedBlockBlob = Mockito.mock(BlockBlobClient.class);
+    BlobProperties mockedProperties = Mockito.mock(BlobProperties.class);
+    PagedIterable<BlobItem> mockedPagedIterable = Mockito.mock(PagedIterable.class);
+    BlobOutputStream mockedOutputStream = Mockito.mock(BlobOutputStream.class);
 
     azureBlobStoreFileSystem = new AzureBlobStoreFileSystem(options);
     azureBlobStoreFileSystem.setClient(mockedServiceClient);
 
-    boolean[] created = {false};
+    boolean[] containerCreated = {false};
+    when(mockedServiceClient.createBlobContainer(anyString()))
+        .thenAnswer((invocation) -> { containerCreated[0] = true; return mockedContainerClient; });
+    when(mockedContainerClient.exists()).thenAnswer((invocation) -> containerCreated[0]);
 
-    when(azureBlobStoreFileSystem.getClient().createBlobContainer(anyString()))
-        .thenAnswer(
-            (invocation) -> {
-              created[0] = true;
-              return mockedContainerClient;
-            });
+    boolean[] blobCreated = {false};
+    doAnswer(invocation -> {
+      blobCreated[0] = true; return null;
+    }).when(mockedBlobClient).uploadFromFile(anyString());
+    when(mockedBlobClient.exists()).thenAnswer((invocation) -> blobCreated[0]);
 
-    when(mockedContainerClient.exists()).thenAnswer((invocation) -> created[0]);
     when(azureBlobStoreFileSystem.getClient().getBlobContainerClient(anyString()))
         .thenReturn(mockedContainerClient);
     when(mockedContainerClient.getBlobClient(anyString())).thenReturn(mockedBlobClient);
+    when(mockedBlobClient.getBlockBlobClient()).thenReturn(mockedBlockBlob);
+    when(mockedBlobClient.getProperties()).thenReturn(mockedProperties);
+    when(mockedProperties.getBlobSize()).thenReturn(Long.valueOf(1));
+    when(mockedProperties.getLastModified()).thenReturn(OffsetDateTime.now());
+    when(mockedContainerClient.listBlobs(any(ListBlobsOptions.class), any(Duration.class))).thenReturn(mockedPagedIterable);
+    when(mockedContainerClient.listBlobsByHierarchy(any(String.class))).thenReturn(mockedPagedIterable);
+    when(mockedBlockBlob.getBlobOutputStream()).thenReturn(mockedOutputStream);
   }
 
   @Test
