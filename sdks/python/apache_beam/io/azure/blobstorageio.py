@@ -83,12 +83,31 @@ def get_azfs_url(storage_account, container, blob=''):
   return 'https://' + storage_account + '.blob.core.windows.net/' + \
           container + '/' + blob
 
-def get_azurite_url(storage_account, container, blob='');
+def get_azurite_url(storage_account, container, blob=''):
   """Returns the url in the form of
    http://<local-machine-address>:<port>/<account-name>/<resource-path>
   """
   return 'http://127.0.0.1:1000' + storage_account + '/' + container \
           + '/' + blob
+
+def parse_azurite_path(azurite_path, blob_optional=False, get_account=False):
+  """Return the storage account, the container and
+  blob names of the given azurite path.
+  """
+  match = re.match(
+      '^http://127.0.0.1:1000/([a-z0-9]{3,24})/([a-z0-9](?![a-z0-9-]*--'
+      '[a-z0-9-]*)[a-z0-9-]{1,61}[a-z0-9])/(.*)$',
+      azurite_path)
+  if match is None or (match.group(3) == '' and not blob_optional):
+    raise ValueError(
+        'Azurite path must be in the form '
+        'http://127.0.0.1:1000/<storage-account>/<container>/<path>.')
+  result = None
+  if get_account:
+    result = match.group(1), match.group(2), match.group(3)
+  else:
+    result = match.group(2), match.group(3)
+  return result
 
 class Blob():
   """A Blob in Azure Blob Storage."""
