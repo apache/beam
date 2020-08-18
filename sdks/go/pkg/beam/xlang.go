@@ -25,6 +25,7 @@ import (
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 )
 
+// This is an experimetnal API and subject to change
 func CrossLanguage(s Scope, urn string, payload []byte, expansionAddr string, inputs map[string]PCollection, outputTypes map[string]FullType) map[string]PCollection {
 	inputNodes := mapPCollectionToNode(inputs)
 
@@ -135,4 +136,44 @@ func TryCrossLanguage(s Scope, ext *graph.ExternalTransform) (map[string]*graph.
 	graph.AddOutboundLinks(s.real, edge)
 
 	return ext.Outputs, nil
+}
+
+func pCollectionToNode(p PCollection) *graph.Node {
+	if !p.IsValid() {
+		panic("tried converting invalid PCollection")
+	}
+	return p.n
+}
+
+func nodeToPCollection(n *graph.Node) PCollection {
+	if n == nil {
+		panic("tried converting invalid Node")
+	}
+	c := PCollection{n}
+	c.SetCoder(NewCoder(c.Type()))
+	return c
+}
+
+func mapPCollectionToNode(pMap map[string]PCollection) map[string]*graph.Node {
+	if pMap == nil {
+		return nil
+	}
+
+	nMap := make(map[string]*graph.Node)
+	for k, p := range pMap {
+		nMap[k] = pCollectionToNode(p)
+	}
+	return nMap
+}
+
+func mapNodeToPCollection(nMap map[string]*graph.Node) map[string]PCollection {
+	if nMap == nil {
+		return nil
+	}
+
+	pMap := make(map[string]PCollection)
+	for k, n := range nMap {
+		pMap[k] = nodeToPCollection(n)
+	}
+	return pMap
 }

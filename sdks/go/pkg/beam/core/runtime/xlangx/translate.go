@@ -24,6 +24,8 @@ import (
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
+// TODO(BEAM-9919): add documentation to all helper methods
+
 func MergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 	// Adding Expanded transforms to their counterparts in the Pipeline
 

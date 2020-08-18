@@ -21,6 +21,7 @@ import (
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
+// TODO(pskevin): get rid helper methods
 type ExpandedTransform struct {
 	Components_     interface{} // *pipepb.Components
 	Transform_      interface{} //*pipepb.PTransform
@@ -28,6 +29,7 @@ type ExpandedTransform struct {
 	BoundedOutputs_ map[string]bool
 }
 
+// TODO(pskevin): move proto inference to runtime/xlangx
 func (exp *ExpandedTransform) Components() *pipepb.Components {
 	if c, ok := exp.Components_.(*pipepb.Components); ok {
 		return c
