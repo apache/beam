@@ -17,6 +17,15 @@
 # under the License.
 #
 
-content:
-- pardo
-- filter
+type: edu
+files:
+- name: test/task_test.go
+  visible: false
+- name: pkg/task/task.go
+  visible: true
+  placeholders:
+  - offset: 1010
+    length: 77
+    placeholder_text: TODO()
+- name: cmd/main.go
+  visible: true
