@@ -25,10 +25,10 @@ from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam import coders
+from apache_beam.dataframe import convert
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import transforms
-from apache_beam.dataframe import convert
 from apache_beam.testing.util import assert_that
 
 
