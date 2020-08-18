@@ -56,14 +56,18 @@ DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 MAX_BATCH_OPERATION_SIZE = 100
 
 
-def parse_azfs_path(azfs_path, blob_optional=False, get_account=False):
+def parse_azfs_path(
+    azfs_path, blob_optional=False, get_account=False, azurite=False):
   """Return the storage account, the container and
   blob names of the given azfs:// path.
   """
-  match = re.match(
-      '^azfs://([a-z0-9]{3,24})/([a-z0-9](?![a-z0-9-]*--[a-z0-9-]*)'
-      '[a-z0-9-]{1,61}[a-z0-9])/(.*)$',
-      azfs_path)
+  if azurite:
+    regex = ('^http://127.0.0.1:1000/([a-z0-9]{3,24})/([a-z0-9](?![a-z0-9-]*--'
+             '[a-z0-9-]*)[a-z0-9-]{1,61}[a-z0-9])/(.*)$')
+  else:
+    regex = ('^azfs://([a-z0-9]{3,24})/([a-z0-9](?![a-z0-9-]*--[a-z0-9-]*)'
+             '[a-z0-9-]{1,61}[a-z0-9])/(.*)$')
+  match = re.match(regex, azfs_path)
   if match is None or (match.group(3) == '' and not blob_optional):
     raise ValueError(
         'Azure Blob Storage path must be in the form '
@@ -135,10 +139,12 @@ class BlobStorageIO(object):
   """Azure Blob Storage I/O client."""
   def __init__(self, client=None):
     connect_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+    self.azurite = False
     if client is None:
       self.client = BlobServiceClient.from_connection_string(connect_str)
     else:
       self.client = client
+      self.azurite = True
     if not AZURE_DEPS_INSTALLED:
       raise RuntimeError('Azure dependencies are not installed. Unable to run.')
 
