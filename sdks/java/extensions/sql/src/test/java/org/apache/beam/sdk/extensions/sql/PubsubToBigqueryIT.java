@@ -31,6 +31,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubJsonTablePr
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.Row;
@@ -55,6 +56,12 @@ public class PubsubToBigqueryIT implements Serializable {
 
   @Test
   public void testSimpleInsert() throws Exception {
+    // TODO(BEAM-10720): Reading from pubsub shouldn't require deprecated read
+    pipeline
+        .getOptions()
+        .as(ExperimentalOptions.class)
+        .setExperiments(ImmutableList.of("use_deprecated_read"));
+
     BeamSqlEnv sqlEnv =
         BeamSqlEnv.inMemory(new PubsubJsonTableProvider(), new BigQueryTableProvider());
 
@@ -113,6 +120,12 @@ public class PubsubToBigqueryIT implements Serializable {
 
   @Test
   public void testSimpleInsertFlat() throws Exception {
+    // TODO(BEAM-10720): Reading from pubsub shouldn't require deprecated read
+    pipeline
+        .getOptions()
+        .as(ExperimentalOptions.class)
+        .setExperiments(ImmutableList.of("use_deprecated_read"));
+
     BeamSqlEnv sqlEnv =
         BeamSqlEnv.inMemory(new PubsubJsonTableProvider(), new BigQueryTableProvider());
 
