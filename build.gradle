@@ -368,7 +368,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
         "${project.ext.mavenGroupId}:${it}:${project.version}"
       }
     }).join(',')]
-    
+
     // Exclusion file filters out existing linkage errors before a change
     if (project.hasProperty('javaLinkageWriteBaseline')) {
       arguments += ['--output-exclusion-file', project.getProperty('javaLinkageWriteBaseline')]
