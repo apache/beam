@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.schemaio.expansion;
 
+import avro.shaded.com.google.common.annotations.VisibleForTesting;
 import com.google.auto.service.AutoService;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -75,7 +76,7 @@ public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegi
       this.config = config;
     }
 
-    public void setDataSchema(byte[] dataSchema) {
+    public void setDataSchema(@Nullable byte[] dataSchema) {
       this.dataSchema = dataSchema;
     }
   }
@@ -106,7 +107,8 @@ public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegi
     }
   }
 
-  private static class ReaderBuilder
+  @VisibleForTesting
+  static class ReaderBuilder
       implements ExternalTransformBuilder<Configuration, PBegin, PCollection<Row>> {
     SchemaIOProvider schemaIOProvider;
 
@@ -125,7 +127,8 @@ public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegi
     }
   }
 
-  private static class WriterBuilder
+  @VisibleForTesting
+  static class WriterBuilder
       implements ExternalTransformBuilder<Configuration, PCollection<Row>, PDone> {
     SchemaIOProvider schemaIOProvider;
 

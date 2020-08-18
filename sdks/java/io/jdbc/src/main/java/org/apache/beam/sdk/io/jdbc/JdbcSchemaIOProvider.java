@@ -104,45 +104,46 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
 
     @Override
     public PTransform<PBegin, PCollection<Row>> buildReader() {
-      String readQuery;
-      if (config.getString("readQuery") != null) {
-        readQuery = config.getString("readQuery");
-      } else {
-        readQuery = String.format("SELECT f_int FROM %s", location);
-      }
+      return new PTransform<PBegin, PCollection<Row>>() {
+        @Override
+        public PCollection<Row> expand(PBegin input) {
+          String readQuery;
+          if (config.getString("readQuery") != null) {
+            readQuery = config.getString("readQuery");
+          } else {
+            readQuery = String.format("SELECT * FROM %s", location);
+          }
 
-      JdbcIO.DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
+          JdbcIO.ReadRows readRows =
+              JdbcIO.readRows()
+                  .withDataSourceConfiguration(getDataSourceConfiguration())
+                  .withQuery(readQuery);
 
-      JdbcIO.ReadRows readRows =
-          JdbcIO.readRows()
-              .withDataSourceConfiguration(dataSourceConfiguration)
-              .withQuery(readQuery);
-
-      if (config.getInt16("fetchSize") != null) {
-        readRows = readRows.withFetchSize(config.getInt16("fetchSize"));
-      }
-      if (config.getBoolean("outputParallelization") != null) {
-        readRows = readRows.withOutputParallelization(config.getBoolean("outputParallelization"));
-      }
-      return readRows;
+          if (config.getInt16("fetchSize") != null) {
+            readRows = readRows.withFetchSize(config.getInt16("fetchSize"));
+          }
+          if (config.getBoolean("outputParallelization") != null) {
+            readRows =
+                readRows.withOutputParallelization(config.getBoolean("outputParallelization"));
+          }
+          return input.apply(readRows);
+        }
+      };
     }
 
     @Override
     public PTransform<PCollection<Row>, PDone> buildWriter() {
-      String writeStatement;
-      if (config.getString("writeStatement") != null) {
-        writeStatement = config.getString("writeStatement");
-      } else {
-        writeStatement = String.format("INSERT INTO %s VALUES(?, ?, ?)", location);
-      }
-
-      JdbcIO.DataSourceConfiguration dataSourceConfiguration = getDataSourceConfiguration();
-
-      // TODO: BEAM-10396 use writeRows() when it's available
-      return JdbcIO.<Row>write()
-          .withDataSourceConfiguration(dataSourceConfiguration)
-          .withStatement(writeStatement)
-          .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter());
+      return new PTransform<PCollection<Row>, PDone>() {
+        @Override
+        public PDone expand(PCollection<Row> input) {
+          // TODO: BEAM-10396 use writeRows() when it's available
+          return input.apply(
+              JdbcIO.<Row>write()
+                  .withDataSourceConfiguration(getDataSourceConfiguration())
+                  .withStatement(generateWriteStatement(input.getSchema()))
+                  .withPreparedStatementSetter(new JdbcUtil.BeamRowPreparedStatementSetter()));
+        }
+      };
     }
 
     protected JdbcIO.DataSourceConfiguration getDataSourceConfiguration() {
@@ -167,6 +168,18 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         dataSourceConfiguration = dataSourceConfiguration.withConnectionInitSqls(initSqls);
       }
       return dataSourceConfiguration;
+    }
+
+    private String generateWriteStatement(Schema schema) {
+      if (config.getString("writeStatement") != null) {
+        return config.getString("writeStatement");
+      } else {
+        String writeStatement = String.format("INSERT INTO %s VALUES(", location);
+        for (int i = 0; i < schema.getFieldCount() - 1; i++) {
+          writeStatement += "?, ";
+        }
+        return writeStatement + "?)";
+      }
     }
   }
 }

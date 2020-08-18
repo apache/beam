@@ -34,6 +34,10 @@ dependencies {
     compile project(path: ":sdks:java:expansion-service")
     compile project(":sdks:java:io:jdbc")
     compile library.java.postgres
+    testCompile library.java.junit
+    testCompile library.java.powermock_mockito
+    testCompile library.java.mockito_core
+    testCompile "org.checkerframework:checker-qual:3.5.0"
 }
 
 task runExpansionService (type: JavaExec) {
