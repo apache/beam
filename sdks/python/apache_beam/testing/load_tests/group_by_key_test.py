@@ -87,13 +87,13 @@ class GroupByKeyTest(LoadTest):
     self.fanout = self.get_option_or_default('fanout', 1)
     self.iterations = self.get_option_or_default('iterations', 1)
 
-  class _UngroupAndReiterate(beam.DoFn):
-    def process(self, element, iterations):
-      key, value = element
-      for i in range(iterations):
-        for v in value:
-          if i == iterations - 1:
-            return key, v
+  @staticmethod
+  def ungroup_and_reiterate(element, iterations):
+    key, value = element
+    for i in range(iterations):
+      for v in value:
+        if i == iterations - 1:
+          return key, v
 
   def test(self):
     pc = (
@@ -107,9 +107,9 @@ class GroupByKeyTest(LoadTest):
       (  # pylint: disable=expression-not-assigned
           pc
           | 'GroupByKey %i' % branch >> beam.GroupByKey()
-          | 'Ungroup %i' % branch >> beam.ParDo(
-              self._UngroupAndReiterate(), self.iterations)
-          | 'Measure latency' >> beam.ParDo(
+          | 'Ungroup %i' % branch >> beam.Map(self.ungroup_and_reiterate,
+                                              self.iterations)
+          | 'Measure latency %i' % branch >> beam.ParDo(
               MeasureLatency(self.metrics_namespace))
           | 'Measure time: End %i' % branch >> beam.ParDo(
               MeasureTime(self.metrics_namespace)))
