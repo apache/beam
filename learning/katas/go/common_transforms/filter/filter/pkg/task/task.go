@@ -22,7 +22,6 @@ import (
 
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 	return filter.Exclude(s, input, func(element int) bool {
-		return element%2 == 1
+		return element % 2 == 1
 	})
 }
-
