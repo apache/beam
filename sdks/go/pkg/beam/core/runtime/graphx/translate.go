@@ -246,6 +246,8 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 		return []string{m.expandCoGBK(edge)}
 	case edge.Edge.Op == graph.Reshuffle:
 		return []string{m.expandReshuffle(edge)}
+	case edge.Edge.Op == graph.External && edge.Edge.Payload == nil:
+		return []string{m.expandCrossLanguage(edge)}
 	}
 
 	inputs := make(map[string]string)
@@ -385,6 +387,44 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 	return allPIds
 }
 
+func (m *marshaller) expandCrossLanguage(edge NamedEdge) string {
+	e := edge.Edge
+	id := edgeID(e)
+
+	inputs := make(map[string]string)
+
+	for tag, n := range e.External.Inputs() {
+		m.addNode(n)
+		inputs[tag] = nodeID(n)
+	}
+
+	spec := &pipepb.FunctionSpec{
+		Urn:     e.External.Urn,
+		Payload: e.External.Payload,
+	}
+
+	transform := &pipepb.PTransform{
+		UniqueName: edge.Name,
+		Spec:       spec,
+		Inputs:     inputs,
+	}
+
+	if e.External.IsExpanded() {
+		// Outputs need to temporarily match format of unnamed Go SDK Nodes.
+		// After the initial pipeline is constructed, these will be used to correctly
+		// map consumers of these outputs to the expanded transform's outputs.
+		outputs := make(map[string]string)
+		for i, out := range edge.Edge.Output {
+			m.addNode(out.To)
+			outputs[fmt.Sprintf("i%v", i)] = nodeID(out.To)
+		}
+		transform.Outputs = outputs
+	}
+
+	m.transforms[id] = transform
+	return id
+}
+
 func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	// TODO(BEAM-490): replace once CoGBK is a primitive. For now, we have to translate
 	// CoGBK with multiple PCollections as described in cogbk.go.
@@ -498,15 +538,6 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 		EnvironmentId: m.addDefaultEnv(),
 	}
 	return cogbkID
-}
-
-func (m *marshaller) addNode(n *graph.Node) string {
-	id := nodeID(n)
-	if _, exists := m.pcollections[id]; exists {
-		return id
-	}
-	// TODO(herohde) 11/15/2017: expose UniqueName to user.
-	return m.makeNode(id, m.coders.Add(n.Coder), n)
 }
 
 // expandReshuffle translates resharding to a composite reshuffle
@@ -663,6 +694,15 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) string {
 		EnvironmentId: m.addDefaultEnv(),
 	}
 	return reshuffleID
+}
+
+func (m *marshaller) addNode(n *graph.Node) string {
+	id := nodeID(n)
+	if _, exists := m.pcollections[id]; exists {
+		return id
+	}
+	// TODO(herohde) 11/15/2017: expose UniqueName to user.
+	return m.makeNode(id, m.coders.Add(n.Coder), n)
 }
 
 func (m *marshaller) makeNode(id, cid string, n *graph.Node) string {
