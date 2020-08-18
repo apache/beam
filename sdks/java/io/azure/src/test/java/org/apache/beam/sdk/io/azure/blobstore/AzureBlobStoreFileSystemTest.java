@@ -35,6 +35,11 @@ import com.azure.core.http.rest.PagedIterable;
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClient;
+import com.azure.storage.blob.models.BlobItem;
+import com.azure.storage.blob.models.BlobProperties;
+import com.azure.storage.blob.models.ListBlobsOptions;
+import com.azure.storage.blob.specialized.BlobOutputStream;
+import com.azure.storage.blob.specialized.BlockBlobClient;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -46,14 +51,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
-import com.azure.storage.blob.models.BlobItem;
-import com.azure.storage.blob.models.BlobProperties;
-import com.azure.storage.blob.models.ListBlobsOptions;
-import com.azure.storage.blob.specialized.BlobOutputStream;
-import com.azure.storage.blob.specialized.BlockBlobClient;
 import org.apache.beam.sdk.io.azure.options.BlobstoreOptions;
-import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
@@ -87,13 +85,21 @@ public class AzureBlobStoreFileSystemTest {
 
     boolean[] containerCreated = {false};
     when(mockedServiceClient.createBlobContainer(anyString()))
-        .thenAnswer((invocation) -> { containerCreated[0] = true; return mockedContainerClient; });
+        .thenAnswer(
+            (invocation) -> {
+              containerCreated[0] = true;
+              return mockedContainerClient;
+            });
     when(mockedContainerClient.exists()).thenAnswer((invocation) -> containerCreated[0]);
 
     boolean[] blobCreated = {false};
-    doAnswer(invocation -> {
-      blobCreated[0] = true; return null;
-    }).when(mockedBlobClient).uploadFromFile(anyString());
+    doAnswer(
+            invocation -> {
+              blobCreated[0] = true;
+              return null;
+            })
+        .when(mockedBlobClient)
+        .uploadFromFile(anyString());
     when(mockedBlobClient.exists()).thenAnswer((invocation) -> blobCreated[0]);
 
     when(azureBlobStoreFileSystem.getClient().getBlobContainerClient(anyString()))
@@ -103,8 +109,10 @@ public class AzureBlobStoreFileSystemTest {
     when(mockedBlobClient.getProperties()).thenReturn(mockedProperties);
     when(mockedProperties.getBlobSize()).thenReturn(Long.valueOf(1));
     when(mockedProperties.getLastModified()).thenReturn(OffsetDateTime.now());
-    when(mockedContainerClient.listBlobs(any(ListBlobsOptions.class), any(Duration.class))).thenReturn(mockedPagedIterable);
-    when(mockedContainerClient.listBlobsByHierarchy(any(String.class))).thenReturn(mockedPagedIterable);
+    when(mockedContainerClient.listBlobs(any(ListBlobsOptions.class), any(Duration.class)))
+        .thenReturn(mockedPagedIterable);
+    when(mockedContainerClient.listBlobsByHierarchy(any(String.class)))
+        .thenReturn(mockedPagedIterable);
     when(mockedBlockBlob.getBlobOutputStream()).thenReturn(mockedOutputStream);
   }
 
