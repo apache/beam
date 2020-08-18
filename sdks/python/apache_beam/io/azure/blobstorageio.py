@@ -83,6 +83,12 @@ def get_azfs_url(storage_account, container, blob=''):
   return 'https://' + storage_account + '.blob.core.windows.net/' + \
           container + '/' + blob
 
+def get_azurite_url(storage_account, container, blob='');
+  """Returns the url in the form of
+   http://<local-machine-address>:<port>/<account-name>/<resource-path>
+  """
+  return 'http://127.0.0.1:1000' + storage_account + '/' + container \
+          + '/' + blob
 
 class Blob():
   """A Blob in Azure Blob Storage."""
