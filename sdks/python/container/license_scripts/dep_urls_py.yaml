@@ -48,7 +48,9 @@ pip_dependencies:
   cython:
     license: "https://raw.githubusercontent.com/cython/cython/master/LICENSE.txt"
   enum34:
-    license: "https://bitbucket.org/stoneleaf/enum34/raw/c208549a93b71b948ff7bbdfd29dce8f85527916/enum/LICENSE"
+    # The original repo is down. This license taken from somebody's clone:
+    # https://github.com/jamespharaoh/python-enum34/blob/master/enum/LICENSE
+    license: "file:///tmp/license_scripts/manual_licenses/enum34/LICENSE"
   fastavro:
     license: "https://raw.githubusercontent.com/fastavro/fastavro/master/LICENSE"
     notice: "https://raw.githubusercontent.com/fastavro/fastavro/master/NOTICE.txt"
