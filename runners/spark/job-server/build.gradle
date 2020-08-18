@@ -114,8 +114,11 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
       excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       // Currently unsupported in portable streaming
+      // TODO (BEAM-10712)
       excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
+      // TODO (BEAM-10754)
       excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+      // TODO (BEAM-10755)
       excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
     }
 
