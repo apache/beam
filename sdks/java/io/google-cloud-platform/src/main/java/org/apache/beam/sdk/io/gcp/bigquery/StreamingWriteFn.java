@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.Histogram;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ShardedKey;
@@ -36,13 +38,18 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Implementation of DoFn to perform streaming BigQuery write. */
 @SystemDoFnInternal
 @VisibleForTesting
 class StreamingWriteFn<ErrorT, ElementT>
     extends DoFn<KV<ShardedKey<String>, TableRowInfo<ElementT>>, Void> {
+  private static final Logger LOG = LoggerFactory.getLogger(StreamingWriteFn.class);
+
   private final BigQueryServices bqServices;
   private final InsertRetryPolicy retryPolicy;
   private final TupleTag<ErrorT> failedOutputTag;
@@ -57,6 +64,8 @@ class StreamingWriteFn<ErrorT, ElementT>
 
   /** The list of unique ids for each BigQuery table row. */
   private transient Map<String, List<String>> uniqueIdsForTableRows;
+
+  private transient Histogram histogram;
 
   /** Tracks bytes written, exposed as "ByteCount" Counter. */
   private Counter byteCounter = SinkMetrics.bytesWritten();
@@ -78,6 +87,20 @@ class StreamingWriteFn<ErrorT, ElementT>
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.ignoreInsertIds = ignoreInsertIds;
     this.toTableRow = toTableRow;
+  }
+
+  @Setup
+  public void setup() {
+    // record latency upto 30 seconds in the resolution of 20ms
+    histogram = Histogram.of(0, 30000, 1500, true);
+  }
+
+  @Teardown
+  public void teardown() {
+    if (histogram.getTotalCount() > 0) {
+      logPercentiles();
+      histogram.clear();
+    }
   }
 
   /** Prepares a target BigQuery table. */
@@ -125,6 +148,20 @@ class StreamingWriteFn<ErrorT, ElementT>
     for (ValueInSingleWindow<ErrorT> row : failedInserts) {
       context.output(failedOutputTag, row.getValue(), row.getTimestamp(), row.getWindow());
     }
+
+    if (histogram.getTotalCount() > options.getLatencyLoggingFrequency()) {
+      logPercentiles();
+      histogram.clear();
+    }
+  }
+
+  private void logPercentiles() {
+    LOG.info(
+        "Total number of streaming insert requests: {}, P99: {}ms, P90: {}ms, P50: {}ms",
+        histogram.getTotalCount(),
+        DoubleMath.roundToInt(histogram.p99(), RoundingMode.HALF_UP),
+        DoubleMath.roundToInt(histogram.p90(), RoundingMode.HALF_UP),
+        DoubleMath.roundToInt(histogram.p50(), RoundingMode.HALF_UP));
   }
 
   /** Writes the accumulated rows into BigQuery with streaming API. */
@@ -139,7 +176,7 @@ class StreamingWriteFn<ErrorT, ElementT>
       try {
         long totalBytes =
             bqServices
-                .getDatasetService(options)
+                .getDatasetService(options, histogram)
                 .insertAll(
                     tableReference,
                     tableRows,
