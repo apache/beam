@@ -65,7 +65,7 @@ class ElementStream:
     return self._var
 
   def display_id(self, suffix):
-    #Any type: (str) -> str
+    # type: (str) -> str
 
     """Returns a unique id able to be displayed in a web browser."""
     return utils.obfuscate(self._cache_key, suffix)
@@ -175,7 +175,7 @@ class Recording:
         self._result.cancel()
         self._result.wait_until_finish()
 
-      if all(s.is_done() for s in self._streams.values()):
+      elif all(s.is_done() for s in self._streams.values()):
         self._result.cancel()
         self._result.wait_until_finish()
 
