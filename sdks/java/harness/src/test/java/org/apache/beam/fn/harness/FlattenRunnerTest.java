@@ -91,8 +91,9 @@ public class FlattenRunnerTest {
             Collections.emptyMap(),
             consumers,
             null /* startFunctionRegistry */,
-            null, /* finishFunctionRegistry */
-            null, /* tearDownRegistry */
+            null /* finishFunctionRegistry */,
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
@@ -162,8 +163,9 @@ public class FlattenRunnerTest {
             Collections.emptyMap(),
             consumers,
             null /* startFunctionRegistry */,
-            null, /* finishFunctionRegistry */
-            null, /* tearDownRegistry */
+            null /* finishFunctionRegistry */,
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);

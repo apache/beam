@@ -123,6 +123,7 @@ public class ProcessBundleHandlerTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+    TestBundleProcessor.resetCnt = 0;
   }
 
   private static class TestDoFn extends DoFn<String, String> {
@@ -193,6 +194,11 @@ public class ProcessBundleHandlerTest {
     }
 
     @Override
+    List<ThrowingRunnable> getResetFunctions() {
+      return wrappedBundleProcessor.getResetFunctions();
+    }
+
+    @Override
     List<ThrowingRunnable> getTearDownFunctions() {
       return wrappedBundleProcessor.getTearDownFunctions();
     }
@@ -243,7 +249,7 @@ public class ProcessBundleHandlerTest {
     }
 
     @Override
-    void reset() {
+    void reset() throws Exception {
       resetCnt++;
       wrappedBundleProcessor.reset();
     }
@@ -356,6 +362,7 @@ public class ProcessBundleHandlerTest {
             pCollectionConsumerRegistry,
             startFunctionRegistry,
             finishFunctionRegistry,
+            addResetFunction,
             addTearDownFunction,
             addProgressRequestCallback,
             splitListener,
@@ -489,8 +496,9 @@ public class ProcessBundleHandlerTest {
             pCollectionConsumerRegistry,
             startFunctionRegistry,
             finishFunctionRegistry,
-            addProgressRequestCallback,
+            addResetFunction,
             addTearDownFunction,
+            addProgressRequestCallback,
             splitListener,
             bundleFinalizer) -> null);
 
@@ -562,8 +570,9 @@ public class ProcessBundleHandlerTest {
                     pCollectionConsumerRegistry,
                     startFunctionRegistry,
                     finishFunctionRegistry,
-                    addProgressRequestCallback,
+                    addResetFunction,
                     addTearDownFunction,
+                    addProgressRequestCallback,
                     splitListener,
                     bundleFinalizer) -> null),
             new TestBundleProcessorCache());
@@ -584,6 +593,25 @@ public class ProcessBundleHandlerTest {
     assertThat(handler.bundleProcessorCache.getCachedBundleProcessors().size(), equalTo(1));
     assertThat(
         handler.bundleProcessorCache.getCachedBundleProcessors().get("1L").size(), equalTo(1));
+
+    // Add a reset handler that throws to test discarding the bundle processor on reset failure.
+    Iterables.getOnlyElement(handler.bundleProcessorCache.getCachedBundleProcessors().get("1L"))
+        .getResetFunctions()
+        .add(
+            () -> {
+              throw new IllegalStateException("ResetFailed");
+            });
+
+    handler.processBundle(
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setInstructionId("999L")
+            .setProcessBundle(
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
+            .build());
+
+    // BundleProcessor is discarded instead of being added back to the BundleProcessorCache
+    assertThat(
+        handler.bundleProcessorCache.getCachedBundleProcessors().get("1L").size(), equalTo(0));
   }
 
   @Test
@@ -605,7 +633,7 @@ public class ProcessBundleHandlerTest {
   }
 
   @Test
-  public void testBundleProcessorReset() {
+  public void testBundleProcessorReset() throws Exception {
     PTransformFunctionRegistry startFunctionRegistry = mock(PTransformFunctionRegistry.class);
     PTransformFunctionRegistry finishFunctionRegistry = mock(PTransformFunctionRegistry.class);
     BundleSplitListener.InMemory splitListener = mock(BundleSplitListener.InMemory.class);
@@ -617,10 +645,12 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler.HandleStateCallsForBundle beamFnStateClient =
         mock(ProcessBundleHandler.HandleStateCallsForBundle.class);
     QueueingBeamFnDataClient queueingClient = mock(QueueingBeamFnDataClient.class);
+    ThrowingRunnable resetFunction = mock(ThrowingRunnable.class);
     BundleProcessor bundleProcessor =
         BundleProcessor.create(
             startFunctionRegistry,
             finishFunctionRegistry,
+            Collections.singletonList(resetFunction),
             new ArrayList<>(),
             new ArrayList<>(),
             splitListener,
@@ -639,6 +669,7 @@ public class ProcessBundleHandlerTest {
     verify(metricsContainerRegistry, times(1)).reset();
     verify(stateTracker, times(1)).reset();
     verify(bundleFinalizationCallbacks, times(1)).clear();
+    verify(resetFunction, times(1)).run();
   }
 
   @Test
@@ -675,6 +706,7 @@ public class ProcessBundleHandlerTest {
                     pCollectionConsumerRegistry,
                     startFunctionRegistry,
                     finishFunctionRegistry,
+                    addResetFunction,
                     addTearDownFunction,
                     addProgressRequestCallback,
                     splitListener,
@@ -728,6 +760,7 @@ public class ProcessBundleHandlerTest {
                         pCollectionConsumerRegistry,
                         startFunctionRegistry,
                         finishFunctionRegistry,
+                        addResetFunction,
                         addTearDownFunction,
                         addProgressRequestCallback,
                         splitListener,
@@ -796,6 +829,7 @@ public class ProcessBundleHandlerTest {
                         pCollectionConsumerRegistry,
                         startFunctionRegistry,
                         finishFunctionRegistry,
+                        addResetFunction,
                         addTearDownFunction,
                         addProgressRequestCallback,
                         splitListener,
@@ -854,6 +888,7 @@ public class ProcessBundleHandlerTest {
                         pCollectionConsumerRegistry,
                         startFunctionRegistry,
                         finishFunctionRegistry,
+                        addResetFunction,
                         addTearDownFunction,
                         addProgressRequestCallback,
                         splitListener,
@@ -950,6 +985,7 @@ public class ProcessBundleHandlerTest {
                       PCollectionConsumerRegistry pCollectionConsumerRegistry,
                       PTransformFunctionRegistry startFunctionRegistry,
                       PTransformFunctionRegistry finishFunctionRegistry,
+                      Consumer<ThrowingRunnable> addResetFunction,
                       Consumer<ThrowingRunnable> addTearDownFunction,
                       Consumer<ProgressRequestCallback> addProgressRequestCallback,
                       BundleSplitListener splitListener,
@@ -1015,6 +1051,7 @@ public class ProcessBundleHandlerTest {
                       PCollectionConsumerRegistry pCollectionConsumerRegistry,
                       PTransformFunctionRegistry startFunctionRegistry,
                       PTransformFunctionRegistry finishFunctionRegistry,
+                      Consumer<ThrowingRunnable> addResetFunction,
                       Consumer<ThrowingRunnable> addTearDownFunction,
                       Consumer<ProgressRequestCallback> addProgressRequestCallback,
                       BundleSplitListener splitListener,
@@ -1078,6 +1115,7 @@ public class ProcessBundleHandlerTest {
                       PCollectionConsumerRegistry pCollectionConsumerRegistry,
                       PTransformFunctionRegistry startFunctionRegistry,
                       PTransformFunctionRegistry finishFunctionRegistry,
+                      Consumer<ThrowingRunnable> addResetFunction,
                       Consumer<ThrowingRunnable> addTearDownFunction,
                       Consumer<ProgressRequestCallback> addProgressRequestCallback,
                       BundleSplitListener splitListener,
