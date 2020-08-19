@@ -766,7 +766,11 @@ func TestSplitHelper(t *testing.T) {
 			// Verify the above logic when we are partially through the stream.
 			{curr: 2, currProg: 0, size: 4, frac: 0.6, want: 3, wantFrac: -1.0},
 			{curr: 2, currProg: 0.9, size: 4, frac: 0.6, want: 4, wantFrac: -1.0},
-			{curr: 2, currProg: 0.5, size: 4, frac: 0.2, want: 2, wantFrac: 0.8},
+			{curr: 2, currProg: 0.5, size: 4, frac: 0.2, want: 2, wantFrac: 0.6},
+
+			// Verify that the fraction returned is in terms of remaining work.
+			{curr: 0, currProg: 0.8, size: 1, frac: 0.5, want: 0, wantFrac: 0.5},
+			{curr: 0, currProg: 0.4, size: 2, frac: 0.1875, want: 0, wantFrac: 0.5},
 		}
 		for _, test := range tests {
 			test := test
