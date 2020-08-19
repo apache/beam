@@ -105,6 +105,9 @@ func TryCrossLanguage(s Scope, ext *graph.ExternalTransform, ins []*graph.Inboun
 	// Using existing MultiEdge format to represent ExternalTransform (already backwards compatible)
 	edge, isBoundedUpdater := graph.NewCrossLanguage(s.real, s.scope, ext, ins, outs)
 
+	// Once the edge with the appropriate input and output nodes are added, a unique namespace can be requested.
+	ext.Namespace = graph.NewNamespace()
+
 	// Build the ExpansionRequest
 
 	// Obtaining the components and transform proto representing this transform
@@ -113,19 +116,21 @@ func TryCrossLanguage(s Scope, ext *graph.ExternalTransform, ins []*graph.Inboun
 		return nil, errors.Wrapf(err, "unable to generate proto representation of %v", ext)
 	}
 
-	xlangx.AddFakeImpulses(p)
-
 	// Assembling ExpansionRequest proto
 	transforms := p.GetComponents().GetTransforms()
 	rootTransformID := p.GetRootTransformIds()[0] // External transform is the only root transform
 	rootTransform := transforms[rootTransformID]
+
+	xlangx.AddNamespace(rootTransform, p.GetComponents(), ext.Namespace)
+
+	xlangx.AddFakeImpulses(p)
 
 	delete(transforms, rootTransformID)
 
 	req := &jobpb.ExpansionRequest{
 		Components: p.GetComponents(),
 		Transform:  rootTransform,
-		Namespace:  s.String(), //TODO(pskevin): Need to be unique per transform (along with the UniqueName which is just string(Opcode) for now)
+		Namespace:  ext.Namespace,
 	}
 
 	res, err := xlangx.Expand(context.Background(), req, ext.ExpansionAddr)

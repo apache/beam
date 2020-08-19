@@ -405,9 +405,10 @@ func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) string {
 	}
 
 	transform := &pipepb.PTransform{
-		UniqueName: namedEdge.Name,
-		Spec:       spec,
-		Inputs:     inputs,
+		UniqueName:    namedEdge.Name,
+		Spec:          spec,
+		Inputs:        inputs,
+		EnvironmentId: m.addDefaultEnv(),
 	}
 
 	if edge.External.Expanded != nil {

@@ -37,6 +37,8 @@ type ExpandedTransform struct {
 
 // ExternalTransform represents the cross-language transform in and out of the Pipeline as a MultiEdge and Expanded proto respectively
 type ExternalTransform struct {
+	Namespace string
+
 	Urn           string
 	Payload       []byte
 	ExpansionAddr string
