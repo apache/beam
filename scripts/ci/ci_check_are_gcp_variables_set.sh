@@ -34,7 +34,7 @@ function check_vars() {
   $ret
 }
 
-if ! check_vars "GCP_PROJECT_ID" "GCP_REGION" "GCP_SA_EMAIL" "GCP_SA_KEY" "GCP_TESTING_BUCKET"; then
+if ! check_vars "GCP_PROJECT_ID" "GCP_REGION" "GCP_SA_EMAIL" "GCP_SA_KEY" "GCP_TESTING_BUCKET" "GCP_PYTHON_WHEELS_BUCKET"; then
   echo "::set-output name=gcp-variables-set::false"
   echo >&2 "!!! WARNING !!!"
   echo >&2 "Not all GCP variables are set. Jobs which require them will be skipped."
