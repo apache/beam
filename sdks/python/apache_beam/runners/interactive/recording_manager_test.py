@@ -196,7 +196,7 @@ class RecordingTest(unittest.TestCase):
     ie.new_env()
 
   @unittest.skipIf(
-      sys.version_info < (3, 5, 3),
+      sys.version_info < (3, 6, 0),
       'This test requires at least Python 3.6 to work.')
   def test_computed(self):
     """Tests that a PCollection is marked as computed only in a complete state.
@@ -271,7 +271,7 @@ class RecordingManagerTest(unittest.TestCase):
     ie.new_env()
 
   @unittest.skipIf(
-      sys.version_info < (3, 5, 3),
+      sys.version_info < (3, 6, 0),
       'This test requires at least Python 3.6 to work.')
   def test_basic_wordcount(self):
     """A wordcount to be used as a smoke test."""
