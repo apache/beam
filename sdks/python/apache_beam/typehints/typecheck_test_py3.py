@@ -40,12 +40,10 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import decorators
-from apache_beam.typehints import decorators
-# TODO(BEAM-8371): Use tempfile.TemporaryDirectory.
-from apache_beam.utils.subprocess_server_test import TemporaryDirectory
-from apache_beam.typehints import decorators, TypeCheckError
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
+# TODO(BEAM-8371): Use tempfile.TemporaryDirectory.
+from apache_beam.utils.subprocess_server_test import TemporaryDirectory
 
 decorators._enable_from_callable = True
 
@@ -126,6 +124,7 @@ class RuntimeTypeCheckTest(unittest.TestCase):
             'teardown',
         ],
                              lines)
+
     def test_wrapper_pipeline_type_check(self):
       # Verifies that type hints are not masked by the wrapper. What actually
       # happens is that the wrapper is applied during self.p.run() (not invoked
@@ -136,6 +135,7 @@ class RuntimeTypeCheckTest(unittest.TestCase):
         dofn = MyDoFnBadAnnotation(f.name)
         with self.assertRaisesRegex(ValueError, r'int.*is not iterable'):
           _ = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
+
   def test_wrapper_pass_through(self):
     # We use a file to check the result because the MyDoFn instance passed is
     # not the same one that actually runs in the pipeline (it is serialized
