@@ -21,7 +21,6 @@ import com.azure.core.credential.TokenCredential;
 import com.azure.core.http.HttpClient;
 import com.azure.core.http.HttpPipeline;
 import com.azure.core.http.policy.HttpPipelinePolicy;
-import com.azure.core.util.Configuration;
 import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.storage.blob.models.CustomerProvidedKey;
 import com.azure.storage.common.StorageSharedKeyCredential;
@@ -54,25 +53,6 @@ public interface BlobstoreOptions extends PipelineOptions {
   HttpPipelinePolicy getPipelinePolicy();
 
   void setPipelinePolicy(HttpPipelinePolicy pipelinePolicy);
-
-  /** The client configuration instance that should be used to configure Azure service clients. */
-  /* @Description(
-      "The configuration instance used to retrieve environment configuration values "
-          + "when building an Azure Blobstore client. Set only those that need custom changes.")
-  @Default.InstanceFactory(BlobstoreOptions.ConfigurationFactory.class)
-  @Nullable
-  Configuration getEnvironmentConfiguration();
-
-  void setEnvironmentConfiguration(Configuration configuration); */
-
-  /** Default Azure client configuration. */
-  class ConfigurationFactory implements DefaultValueFactory<Configuration> {
-
-    @Override
-    public Configuration create(PipelineOptions options) {
-      return new Configuration();
-    }
-  }
 
   @Description("Sets the connection string to connect to the Azure Blobstore client.")
   String getAzureConnectionString();

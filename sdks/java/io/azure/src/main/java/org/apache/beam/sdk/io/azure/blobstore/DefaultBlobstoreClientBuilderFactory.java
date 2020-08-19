@@ -62,10 +62,6 @@ public class DefaultBlobstoreClientBuilderFactory implements BlobstoreClientBuil
       builder = builder.customerProvidedKey(blobstoreOptions.getCustomerProvidedKey());
     }
 
-    if (blobstoreOptions.getEnvironmentConfiguration() != null) {
-      builder = builder.configuration(blobstoreOptions.getEnvironmentConfiguration());
-    }
-
     if (blobstoreOptions.getPipelinePolicy() != null) {
       builder = builder.addPolicy(blobstoreOptions.getPipelinePolicy());
     }
