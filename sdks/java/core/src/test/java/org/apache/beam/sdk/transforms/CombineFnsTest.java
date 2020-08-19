@@ -35,7 +35,6 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesSideInputs;
@@ -99,7 +98,7 @@ public class CombineFnsTest {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSideInputs.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class, UsesSideInputs.class})
   public void testComposedCombine() {
     p.getCoderRegistry().registerCoderForClass(UserString.class, UserStringCoder.of());
 
@@ -149,7 +148,7 @@ public class CombineFnsTest {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSideInputs.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class, UsesSideInputs.class})
   public void testComposedCombineWithContext() {
     p.getCoderRegistry().registerCoderForClass(UserString.class, UserStringCoder.of());
 
@@ -210,7 +209,7 @@ public class CombineFnsTest {
   }
 
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class})
   public void testComposedCombineNullValues() {
     p.getCoderRegistry()
         .registerCoderForClass(UserString.class, NullableCoder.of(UserStringCoder.of()));

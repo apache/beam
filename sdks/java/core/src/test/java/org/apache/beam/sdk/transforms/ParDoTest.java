@@ -91,7 +91,6 @@ import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -2027,11 +2026,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testCoderInferenceOfList() {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
@@ -2071,11 +2066,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testValueStateFixedWindows() {
       final String stateId = "foo";
 
@@ -2174,11 +2165,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testValueStateTaggedOutput() {
       final String stateId = "foo";
 
@@ -2229,11 +2216,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testBagState() {
       final String stateId = "foo";
 
@@ -2960,11 +2943,7 @@ public class ParDoTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class StateCoderInferenceTests extends SharedTestBase implements Serializable {
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testBagStateCoderInference() {
       final String stateId = "foo";
       Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
@@ -3446,11 +3425,7 @@ public class ParDoTest implements Serializable {
      * hooks and is only supported by the direct runner.
      */
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testEventTimeTimerBounded() throws Exception {
       final String timerId = "foo";
 
@@ -3484,11 +3459,7 @@ public class ParDoTest implements Serializable {
      * case where both GBK and the user code share a timer delivery bundle.
      */
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testGbkFollowedByUserTimers() throws Exception {
 
       DoFn<KV<String, Iterable<Integer>>, Integer> fn =
@@ -3523,11 +3494,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testEventTimeTimerAlignBounded() throws Exception {
       final String timerId = "foo";
 
@@ -3562,11 +3529,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testTimerReceivedInOriginalWindow() throws Exception {
       final String timerId = "foo";
 
@@ -3616,11 +3579,7 @@ public class ParDoTest implements Serializable {
      * #testEventTimeTimerBounded()}.
      */
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testEventTimeTimerAbsolute() throws Exception {
       final String timerId = "foo";
 
@@ -3700,11 +3659,7 @@ public class ParDoTest implements Serializable {
      * implementations that may GC in ways not simply governed by the watermark.
      */
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testEventTimeTimerMultipleKeys() throws Exception {
       final String timerId = "foo";
       final String stateId = "sizzle";
@@ -3765,11 +3720,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testAbsoluteProcessingTimeTimerRejected() throws Exception {
       final String timerId = "foo";
 
@@ -3806,11 +3757,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testOutOfBoundsEventTimeTimer() throws Exception {
       final String timerId = "foo";
 
@@ -3850,22 +3797,13 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testOutputTimestampDefaultBounded() throws Exception {
       runTestOutputTimestampDefault(false);
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesUnboundedPCollections.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesUnboundedPCollections.class, UsesTimersInParDo.class})
     public void testOutputTimestampDefaultUnbounded() throws Exception {
       runTestOutputTimestampDefault(true);
     }
@@ -3903,11 +3841,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testOutOfBoundsEventTimeTimerHold() throws Exception {
       final String timerId = "foo";
 
@@ -3949,11 +3883,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testOutOfBoundsProcessingTimeTimerHold() throws Exception {
       final String timerId = "foo";
 
@@ -4430,11 +4360,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
     public void testPipelineOptionsParameterOnTimer() {
       final String timerId = "thisTimer";
 
@@ -4798,11 +4724,7 @@ public class ParDoTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class TimerCoderInferenceTests extends SharedTestBase implements Serializable {
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testValueStateCoderInference() {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
@@ -4868,11 +4790,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesStatefulParDo.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testValueStateCoderInferenceFromInputCoder() {
       final String stateId = "foo";
       MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
