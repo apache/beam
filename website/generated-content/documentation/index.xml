@@ -8646,14 +8646,13 @@ to a repository named &lt;code>example-repo&lt;/code> on Docker Hub.&lt;/p>
 &lt;p>After &lt;a href="#building-container-images">building a container image&lt;/a>, you can store it in a remote Docker repository.&lt;/p>
 &lt;p>The following steps push a Python3.6 SDK image to the &lt;a href="#overriding-default-docker-targets">&lt;code>docker-root-repository&lt;/code> value&lt;/a>.
 Please log in to the destination repository as needed.&lt;/p>
-&lt;pre>&lt;code>Upload it to the remote repository:
-&lt;/code>&lt;/pre>&lt;p>docker push example-repo/beam_python3.6_sdk&lt;/p>
-&lt;pre>&lt;code>
-To download the image again, run `docker pull`:
-&lt;/code>&lt;/pre>&lt;p>docker pull example-repo/beam_python3.6_sdk&lt;/p>
-&lt;pre>&lt;code>
-&amp;gt; **Note**: After pushing a container image, the remote image ID and digest match the local image ID and digest.
-&lt;/code>&lt;/pre></description></item><item><title>Documentation: Count</title><link>/documentation/transforms/java/aggregation/count/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/count/</guid><description>
+&lt;p>Upload it to the remote repository:&lt;/p>
+&lt;pre>&lt;code>docker push example-repo/beam_python3.6_sdk
+&lt;/code>&lt;/pre>&lt;p>To download the image again, run &lt;code>docker pull&lt;/code>:&lt;/p>
+&lt;pre>&lt;code>docker pull example-repo/beam_python3.6_sdk
+&lt;/code>&lt;/pre>&lt;blockquote>
+&lt;p>&lt;strong>Note&lt;/strong>: After pushing a container image, the remote image ID and digest match the local image ID and digest.&lt;/p>
+&lt;/blockquote></description></item><item><title>Documentation: Count</title><link>/documentation/transforms/java/aggregation/count/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/count/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
