@@ -67,8 +67,6 @@ import logging
 import sys
 import uuid
 
-from google.cloud import pubsub
-
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -96,6 +94,7 @@ class NexmarkLauncher(object):
         self.uuid if self.args.subscription_name else None)
     self.pubsub_mode = self.args.pubsub_mode
     if self.manage_resources:
+      from google.cloud import pubsub
       publish_client = pubsub.Client(project=self.project)
       topic = publish_client.topic(self.topic_name)
       if topic.exists():
@@ -187,6 +186,7 @@ class NexmarkLauncher(object):
     self.pipeline_options.view_as(SetupOptions).save_main_session = True
 
   def generate_events(self):
+    from google.cloud import pubsub
     publish_client = pubsub.Client(project=self.project)
     topic = publish_client.topic(self.topic_name)
 
@@ -252,6 +252,7 @@ class NexmarkLauncher(object):
 
   def cleanup(self):
     if self.manage_resources:
+      from google.cloud import pubsub
       publish_client = pubsub.Client(project=self.project)
       topic = publish_client.topic(self.topic_name)
       if topic.exists():
