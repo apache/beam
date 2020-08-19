@@ -106,6 +106,11 @@ class ElementStream:
 
     # Because a single TestStreamFileRecord can yield multiple elements, we
     # limit the count again here in the to_element_list call.
+    #
+    # There are two ways of exiting this loop either a limiter was triggered or
+    # all elements from the cache were read. In the latter situation, it may be
+    # the case that the pipeline was still running. Thus, another invocation of
+    # `read` will yield new elements.
     for e in utils.to_element_list(reader,
                                    coder,
                                    include_window_info=True,
