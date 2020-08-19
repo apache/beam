@@ -16,46 +16,23 @@
 package graph
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"math/rand"
+	"strings"
+	"time"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
-// TODO(pskevin): get rid helper methods
+var (
+	SourceInputTag string
+	SinkOutputTag  string
+	NewNamespace   func() string
+)
+
 type ExpandedTransform struct {
-	Components_     interface{} // *pipepb.Components
-	Transform_      interface{} //*pipepb.PTransform
-	Requirements_   []string
-	BoundedOutputs_ map[string]bool
-}
-
-// TODO(pskevin): move proto inference to runtime/xlangx
-func (exp *ExpandedTransform) Components() *pipepb.Components {
-	if c, ok := exp.Components_.(*pipepb.Components); ok {
-		return c
-	}
-	panic(errors.Errorf("malformed components; %v lacks a conforming pipeline component", exp))
-}
-
-func (exp *ExpandedTransform) Transform() *pipepb.PTransform {
-	if t, ok := exp.Transform_.(*pipepb.PTransform); ok {
-		return t
-	}
-	panic(errors.Errorf("malformed transform; %v lacks a conforming pipeline ptransform", exp))
-}
-
-func (exp *ExpandedTransform) Requirements() []string {
-	if exp.Requirements_ != nil {
-		return exp.Requirements_
-	}
-	return nil
-}
-
-func (exp *ExpandedTransform) BoundedOutputs() map[string]bool {
-	if exp.BoundedOutputs_ != nil {
-		return exp.BoundedOutputs_
-	}
-	return nil
+	Components   interface{} // *pipepb.Components
+	Transform    interface{} //*pipepb.PTransform
+	Requirements []string
 }
 
 // ExternalTransform represents the cross-language transform in and out of the Pipeline as a MultiEdge and Expanded proto respectively
@@ -64,68 +41,64 @@ type ExternalTransform struct {
 	Payload       []byte
 	ExpansionAddr string
 
-	//replace all input/output fields with Inbound and Outbound id maps referencing the orginal Multiedge
+	InputsMap  map[string]int
+	OutputsMap map[string]int
 
-	inputs      map[string]*Node
-	Outputs     map[string]*Node
-	outputTypes map[string]typex.FullType
-
-	Expanded_ *ExpandedTransform
+	Expanded *ExpandedTransform
 }
 
-func (ext ExternalTransform) WithNamedInputs(inputs map[string]*Node) ExternalTransform {
-	if ext.inputs != nil {
-		panic(errors.Errorf("inputs already set as: \n%v", ext.inputs))
+func init() {
+	NewNamespace = NewNamespaceGenerator(10)
+	SourceInputTag = NewNamespace()
+	SinkOutputTag = NewNamespace()
+}
+
+func (ext ExternalTransform) WithNamedInputs(inputsMap map[string]int) ExternalTransform {
+	if ext.InputsMap != nil {
+		panic(errors.Errorf("inputs already set as: \n%v", ext.InputsMap))
 	}
-	ext.inputs = inputs
+	ext.InputsMap = inputsMap
 	return ext
 }
 
-func (ext ExternalTransform) WithNamedOutputs(outputTypes map[string]typex.FullType) ExternalTransform {
-	if ext.outputTypes != nil {
-		panic(errors.Errorf("outputTypes already set as: \n%v", ext.outputTypes))
+func (ext ExternalTransform) WithNamedOutputs(outputsMap map[string]int) ExternalTransform {
+	if ext.OutputsMap != nil {
+		panic(errors.Errorf("outputTypes already set as: \n%v", ext.OutputsMap))
 	}
-	ext.outputTypes = outputTypes
+	ext.OutputsMap = outputsMap
 	return ext
 }
 
-func (ext ExternalTransform) WithSource(input *Node) ExternalTransform {
-	if ext.inputs != nil {
-		panic(errors.Errorf("inputs already set as: \n%v", ext.inputs))
-	}
-	ext.inputs = map[string]*Node{"sourceInput": input} // change to random package constants
-	return ext
-}
+// TODO(pskevin): Credit one of the best stackoverflow answers @ https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-go
 
-func (ext ExternalTransform) WithSink(outputType typex.FullType) ExternalTransform {
-	if ext.outputTypes != nil {
-		panic(errors.Errorf("outputTypes already set as: \n%v", ext.outputTypes))
-	}
-	ext.outputTypes = map[string]typex.FullType{"sinkOutput": outputType} // change to random package constants
-	return ext
-}
+func NewNamespaceGenerator(n int) func() string {
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	const (
+		letterIDBits = 6                   // 6 bits to represent a letter index
+		letterIDMask = 1<<letterIDBits - 1 // All 1-bits, as many as letterIDBits
+		letterIDMax  = 63 / letterIDBits   // # of letter indices fitting in 63 bits
+	)
 
-func (ext *ExternalTransform) Inputs() map[string]*Node {
-	if ext.inputs != nil {
-		return ext.inputs
-	}
-	return nil
-}
+	var src = rand.NewSource(time.Now().UnixNano())
 
-func (ext *ExternalTransform) OutputTypes() map[string]typex.FullType {
-	if ext.outputTypes != nil {
-		return ext.outputTypes
-	}
-	return nil
-}
+	random := func() string {
+		sb := strings.Builder{}
+		sb.Grow(n)
+		// A src.Int63() generates 63 random bits, enough for letterIDMax characters!
+		for i, cache, remain := n-1, src.Int63(), letterIDMax; i >= 0; {
+			if remain == 0 {
+				cache, remain = src.Int63(), letterIDMax
+			}
+			if idx := int(cache & letterIDMask); idx < len(letters) {
+				sb.WriteByte(letters[idx])
+				i--
+			}
+			cache >>= letterIDBits
+			remain--
+		}
 
-func (ext *ExternalTransform) Expanded() *ExpandedTransform {
-	if ext.IsExpanded() {
-		return ext.Expanded_
+		return sb.String()
 	}
-	return nil
-}
 
-func (ext *ExternalTransform) IsExpanded() bool {
-	return ext.Expanded_ != nil
+	return random
 }

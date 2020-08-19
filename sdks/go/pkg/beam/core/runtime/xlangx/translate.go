@@ -32,24 +32,24 @@ func MergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 	for _, e := range edges {
 		if e.Op == graph.External {
 			id := fmt.Sprintf("e%v", e.ID())
-			exp := e.External.Expanded()
+			exp := e.External.Expanded
 
-			p.Requirements = append(p.Requirements, exp.Requirements()...)
+			p.Requirements = append(p.Requirements, exp.Requirements...)
 
 			// Adding components of the Expanded Transforms to the current Pipeline
-			for k, v := range exp.Components().GetTransforms() {
+			for k, v := range graphx.ExpandedComponents(exp).GetTransforms() {
 				p.Components.Transforms[k] = v
 			}
-			for k, v := range exp.Components().GetPcollections() {
+			for k, v := range graphx.ExpandedComponents(exp).GetPcollections() {
 				p.Components.Pcollections[k] = v
 			}
-			for k, v := range exp.Components().GetWindowingStrategies() {
+			for k, v := range graphx.ExpandedComponents(exp).GetWindowingStrategies() {
 				p.Components.WindowingStrategies[k] = v
 			}
-			for k, v := range exp.Components().GetCoders() {
+			for k, v := range graphx.ExpandedComponents(exp).GetCoders() {
 				p.Components.Coders[k] = v
 			}
-			for k, v := range exp.Components().GetEnvironments() {
+			for k, v := range graphx.ExpandedComponents(exp).GetEnvironments() {
 				// TODO(pskevin): Resolve temporary hack to enable LOOPBACK mode
 				if k == "go" {
 					continue
@@ -57,7 +57,7 @@ func MergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 				p.Components.Environments[k] = v
 			}
 
-			p.Components.Transforms[id] = exp.Transform()
+			p.Components.Transforms[id] = graphx.ExpandedTransform(exp)
 
 		}
 	}
@@ -70,16 +70,16 @@ func PurgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 
 	for _, e := range edges {
 		if e.Op == graph.External {
-			for tag, n := range e.External.Outputs {
+			for tag, n := range graphx.ExternalOutputs(e) {
 				nodeID := fmt.Sprintf("n%v", n.ID())
-				pcolID := e.External.Expanded_.Transform().GetOutputs()[tag]
+				pcolID := graphx.ExpandedTransform(e.External.Expanded).GetOutputs()[tag]
 				idxMap[nodeID] = pcolID
 				components.GetPcollections()[nodeID] = nil // Will get purged while using pipelinex.Update
 			}
 		}
 	}
 
-	for _, t := range p.GetComponents().GetTransforms() {
+	for _, t := range components.GetTransforms() {
 		inputs := t.GetInputs()
 		for tag, nodeID := range inputs {
 			if pcolID, exists := idxMap[nodeID]; exists {
@@ -89,27 +89,28 @@ func PurgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 	}
 }
 
+// TODO(pskevin): handle sourceInput and sinkOutput
 func VerifyNamedOutputs(ext *graph.ExternalTransform) {
-	expandedTransform := ext.Expanded().Transform()
-	expandedOutputs := expandedTransform.GetOutputs()
+	expandedOutputs := graphx.ExpandedTransform(ext.Expanded).GetOutputs()
 
-	if len(expandedOutputs) != len(ext.OutputTypes()) {
-		panic(errors.Errorf("mismatched number of outputs:\nreceived - %v\nexpected - %v", len(expandedOutputs), len(ext.OutputTypes())))
+	if len(expandedOutputs) != len(ext.OutputsMap) {
+		panic(errors.Errorf("mismatched number of outputs:\nreceived - %v\nexpected - %v", len(expandedOutputs), len(ext.OutputsMap)))
 	}
 
-	for tag := range ext.OutputTypes() {
+	for tag := range ext.OutputsMap {
 		if _, exists := expandedOutputs[tag]; tag != "sinkOutput" && !exists {
 			panic(errors.Errorf("missing named output in expanded transform: %v is expected in %v", tag, expandedOutputs))
 		}
 	}
 }
 
-func ResolveOutputIsBounded(ext *graph.ExternalTransform) {
-	exp := ext.Expanded()
-	expandedPCollections := exp.Components().GetPcollections()
-	expandedOutputs := exp.Transform().GetOutputs()
+func ResolveOutputIsBounded(e *graph.MultiEdge, isBoundedUpdater func(*graph.Node, bool)) {
+	ext := e.External
+	exp := ext.Expanded
+	expandedPCollections := graphx.ExpandedComponents(exp).GetPcollections()
+	expandedOutputs := graphx.ExpandedTransform(exp).GetOutputs()
 
-	for tag := range ext.OutputTypes() {
+	for tag, node := range graphx.ExternalOutputs(e) {
 		var id string
 		isBounded := true
 
@@ -126,7 +127,7 @@ func ResolveOutputIsBounded(ext *graph.ExternalTransform) {
 			if pcol.GetIsBounded() == pipepb.IsBounded_UNBOUNDED {
 				isBounded = false
 			}
-			exp.BoundedOutputs_[tag] = isBounded
+			isBoundedUpdater(node, isBounded)
 		} else {
 			panic(errors.Errorf("missing corresponsing pcollection of named output: %v is expected in %v", id, expandedPCollections))
 		}

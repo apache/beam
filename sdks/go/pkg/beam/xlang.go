@@ -27,15 +27,22 @@ import (
 
 // This is an experimetnal API and subject to change
 func CrossLanguage(s Scope, urn string, payload []byte, expansionAddr string, inputs map[string]PCollection, outputTypes map[string]FullType) map[string]PCollection {
-	inputNodes := mapPCollectionToNode(inputs)
+	if !s.IsValid() {
+		panic(errors.New("invalid scope"))
+	}
+
+	namedInputNodes := mapPCollectionToNode(inputs)
+
+	inputsMap, inboundLinks := graph.NewNamedInboundLinks(namedInputNodes)
+	outputsMap, outboundLinks := graph.NewNamedOutboundLinks(s.real, outputTypes)
 
 	ext := graph.ExternalTransform{
 		Urn:           urn,
 		Payload:       payload,
 		ExpansionAddr: expansionAddr,
-	}.WithNamedInputs(inputNodes).WithNamedOutputs(outputTypes)
+	}.WithNamedInputs(inputsMap).WithNamedOutputs(outputsMap)
 
-	outputNodes, err := TryCrossLanguage(s, &ext)
+	outputNodes, err := TryCrossLanguage(s, &ext, inboundLinks, outboundLinks)
 	if err != nil {
 		panic(errors.WithContextf(err, "tried cross-language and failed"))
 	}
@@ -43,16 +50,29 @@ func CrossLanguage(s Scope, urn string, payload []byte, expansionAddr string, in
 }
 
 /*
-func CrossLanguageWithSink(s Scope, urn string, payload []byte, expansionAddr string, inputs map[string]PCollection, output FullType) PCollection {
-	return MustN(
-		TryCrossLanguage(
-			&ExternalTransform{
-				Urn:           urn,
-				Payload:       payload,
-				ExpansionAddr: expansionAddr,
-			}.
-				withNamedInputs(inputs).
-				withSink(output)))
+func CrossLanguageWithSink(s Scope, urn string, payload []byte, expansionAddr string, inputs map[string]PCollection, outputType FullType) PCollection {
+	inputNodes := mapPCollectionToNode(inputs)
+
+	inputsMap, inboundLinks := graph.NewNamedInboundLinks(inputNodes)
+	outputsMap, outboundLinks := graph.NewNamedOutboundLinks(s.real, map[string]typex.FullType{graph.SinkOutputTag: outputType})
+
+	ext := graph.ExternalTransform{
+		Urn:           urn,
+		Payload:       payload,
+		ExpansionAddr: expansionAddr,
+	}.WithNamedInputs(inputNodes).WithNamedOutputs(outputTypes)
+
+	outputNodes, err := TryCrossLanguage(s, &ext, inboundLinks, outboundLinks)
+	if err != nil {
+		panic(errors.WithContextf(err, "tried cross-language and failed"))
+	}
+	namedOutputNode := mapNodeToPCollection(outputNodes)
+
+	outputNode, exists := namedOutputNode[graph.SinkOutputTag]
+	if !exists {
+		panic("a")
+	}
+	return outputNode
 }
 
 func CrossLanguageWithSource(s Scope, urn string, payload []byte, expansionAddr string, input PCollection, outputs map[string]FullType) map[string]PCollection {
@@ -79,16 +99,11 @@ func CrossLanguageWithSingleInputOutput(s Scope, urn string, payload []byte, exp
 }
 */
 
-func TryCrossLanguage(s Scope, ext *graph.ExternalTransform) (map[string]*graph.Node, error) {
+func TryCrossLanguage(s Scope, ext *graph.ExternalTransform, ins []*graph.Inbound, outs []*graph.Outbound) (map[string]*graph.Node, error) {
 	// Add ExternalTransform to the Graph
 
-	// Validating scope
-	if !s.IsValid() {
-		return nil, errors.New("invalid scope")
-	}
-
 	// Using existing MultiEdge format to represent ExternalTransform (already backwards compatible)
-	edge := graph.NewCrossLanguage(s.real, s.scope, ext)
+	edge, isBoundedUpdater := graph.NewCrossLanguage(s.real, s.scope, ext, ins, outs)
 
 	// Build the ExpansionRequest
 
@@ -121,21 +136,17 @@ func TryCrossLanguage(s Scope, ext *graph.ExternalTransform) (map[string]*graph.
 	xlangx.RemoveFakeImpulses(res.GetComponents(), res.GetTransform())
 
 	exp := &graph.ExpandedTransform{
-		Components_:     res.GetComponents(),
-		Transform_:      res.GetTransform(),
-		Requirements_:   res.GetRequirements(),
-		BoundedOutputs_: make(map[string]bool),
+		Components:   res.GetComponents(),
+		Transform:    res.GetTransform(),
+		Requirements: res.GetRequirements(),
 	}
-	ext.Expanded_ = exp
+	ext.Expanded = exp
 
 	xlangx.VerifyNamedOutputs(ext)
 
-	xlangx.ResolveOutputIsBounded(ext)
+	xlangx.ResolveOutputIsBounded(edge, isBoundedUpdater)
 
-	// Using information about the output types and bounded nature inferred or explicitly passed by the user
-	graph.AddOutboundLinks(s.real, edge)
-
-	return ext.Outputs, nil
+	return graphx.ExternalOutputs(edge), nil
 }
 
 func pCollectionToNode(p PCollection) *graph.Node {
