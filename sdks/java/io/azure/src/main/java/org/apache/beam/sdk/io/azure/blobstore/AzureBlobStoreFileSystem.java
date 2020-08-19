@@ -134,10 +134,14 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
     ImmutableList.Builder<MatchResult> matchResults = ImmutableList.builder();
     for (Boolean isGlob : isGlobBooleans) {
       if (isGlob) {
-        checkState(globMatches.hasNext(), "Expect globMatches has next.");
+        checkState(
+            globMatches.hasNext(),
+            "Internal error encountered in AzureBlobStoreFileSystem: expected more elements in globMatches.");
         matchResults.add(globMatches.next());
       } else {
-        checkState(nonGlobMatches.hasNext(), "Expect nonGlobMatches has next.");
+        checkState(
+            nonGlobMatches.hasNext(),
+            "Internal error encountered in AzureBlobStoreFileSystem: expected more elements in nonGlobMatches.");
         matchResults.add(nonGlobMatches.next());
       }
     }
