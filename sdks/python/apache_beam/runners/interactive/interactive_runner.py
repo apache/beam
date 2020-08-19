@@ -153,7 +153,7 @@ class InteractiveRunner(runners.PipelineRunner):
         streaming_cache_manager = ie.current_env().get_cache_manager(
             user_pipeline)
 
-        # Only make the server if it doens't exist already.
+        # Only make the server if it doesn't exist already.
         if (streaming_cache_manager and
             not ie.current_env().get_test_stream_service_controller(
                 user_pipeline)):

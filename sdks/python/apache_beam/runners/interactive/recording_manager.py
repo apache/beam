@@ -90,7 +90,7 @@ class ElementStream:
     # Get the cache manager and wait until the file exists.
     cache_manager = ie.current_env().get_cache_manager(self._pipeline)
     while not cache_manager.exists('full', self._cache_key):
-      pass
+      time.sleep(0.5)
 
     # Retrieve the coder for the particular PCollection which will be used to
     # decode elements read from cache.
@@ -100,12 +100,9 @@ class ElementStream:
     limiters = [
         CountLimiter(self._n), ProcessingTimeLimiter(self._duration_secs)
     ]
-    if hasattr(cache_manager, 'read_multiple'):
-      reader = cache_manager.read_multiple([('full', self._cache_key)],
-                                           limiters=limiters,
-                                           tail=tail)
-    else:
-      reader, _ = cache_manager.read('full', self._cache_key, limiters=limiters)
+    reader, _ = cache_manager.read('full', self._cache_key,
+                                   limiters=limiters,
+                                   tail=tail)
 
     # Because a single TestStreamFileRecord can yield multiple elements, we
     # limit the count again here in the to_element_list call.
@@ -176,6 +173,8 @@ class Recording:
       if all(s.is_done() for s in self._streams.values()):
         self._result.cancel()
         self._result.wait_until_finish()
+
+      time.sleep(0.5)
 
     # Mark the PCollection as computed so that Interactive Beam wouldn't need to
     # re-compute.
