@@ -25,17 +25,23 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class AzureReadableSeekableByteChannel implements SeekableByteChannel {
 
+  private static final Logger LOG = LoggerFactory.getLogger(AzureReadableSeekableByteChannel.class);
   private final BlobInputStream inputStream;
   private boolean closed;
-  private final long contentLength;
+  private final Long contentLength;
   private long position = 0;
 
   public AzureReadableSeekableByteChannel(BlobClient blobClient) {
     inputStream = blobClient.openInputStream();
     contentLength = blobClient.getProperties().getBlobSize();
+    inputStream.mark(contentLength.intValue());
     closed = false;
   }
 
@@ -44,23 +50,22 @@ class AzureReadableSeekableByteChannel implements SeekableByteChannel {
     if (closed) {
       throw new ClosedChannelException();
     }
-    if (!dst.hasRemaining()) {
-      return 0;
-    }
 
     int read = 0;
     if (dst.hasArray()) {
       // Stores up to dst.remaining() bytes into dst.array() starting at dst.position().
       // But dst can have an offset with its backing array, hence the + dst.arrayOffset().
       read = inputStream.read(dst.array(), dst.position() + dst.arrayOffset(), dst.remaining());
+      LOG.info("PArray: " + StandardCharsets.UTF_8.decode(dst).toString());
     } else {
       byte[] myarray = new byte[dst.remaining()];
       read = inputStream.read(myarray, 0, myarray.length);
       dst.put(myarray);
+      LOG.info("Array: " + Arrays.toString(myarray));
     }
 
     if (read > 0) {
-      position += read;
+      dst.position(dst.position() + read);
     }
     return read;
   }
@@ -87,6 +92,17 @@ class AzureReadableSeekableByteChannel implements SeekableByteChannel {
     checkArgument(newPosition < contentLength, "new position too high");
 
     Long bytesToSkip = newPosition - position;
+    LOG.info(
+        "Blob length: {}. Current position: {}. New position: {}. Skipping {} bytes.",
+        contentLength,
+        position,
+        newPosition,
+        bytesToSkip);
+    if (bytesToSkip < 0) {
+      inputStream.reset();
+      bytesToSkip = newPosition;
+      LOG.info("As bytes to skip is negative. resetting. Skipping {}", bytesToSkip);
+    }
     Long n = inputStream.skip(bytesToSkip);
     position += n;
     return this;

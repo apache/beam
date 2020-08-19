@@ -347,6 +347,7 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
     if (!blobClient.exists()) {
       throw new FileNotFoundException("The requested file doesn't exist.");
     }
+    LOG.info("Creating a ReadableByteChannel for {}", resourceId);
     return new AzureReadableSeekableByteChannel(blobClient);
   }
 
@@ -441,7 +442,7 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
     delete(srcResourceIds);
   }
 
-  /** This method will delete a virtual folder or a blob, not a container */
+  /** This method will delete a virtual folder or a blob, not a container. */
   @Override
   protected void delete(Collection<AzfsResourceId> resourceIds) throws IOException {
     for (AzfsResourceId resourceId : resourceIds) {
