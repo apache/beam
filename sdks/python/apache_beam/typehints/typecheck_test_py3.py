@@ -125,16 +125,16 @@ class RuntimeTypeCheckTest(unittest.TestCase):
         ],
                              lines)
 
-    def test_wrapper_pipeline_type_check(self):
-      # Verifies that type hints are not masked by the wrapper. What actually
-      # happens is that the wrapper is applied during self.p.run() (not invoked
-      # in this case), while pipeline type checks happen during pipeline
-      # creation. Thus, the wrapper does not have to implement:
-      # default_type_hints, infer_output_type, get_type_hints.
-      with tempfile.NamedTemporaryFile(mode='w+t') as f:
-        dofn = MyDoFnBadAnnotation(f.name)
-        with self.assertRaisesRegex(ValueError, r'int.*is not iterable'):
-          _ = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
+  def test_wrapper_pipeline_type_check(self):
+    # Verifies that type hints are not masked by the wrapper. What actually
+    # happens is that the wrapper is applied during self.p.run() (not invoked
+    # in this case), while pipeline type checks happen during pipeline
+    # creation. Thus, the wrapper does not have to implement:
+    # default_type_hints, infer_output_type, get_type_hints.
+    with tempfile.NamedTemporaryFile(mode='w+t') as f:
+      dofn = MyDoFnBadAnnotation(f.name)
+      with self.assertRaisesRegex(ValueError, r'int.*is not iterable'):
+        _ = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
 
   def test_wrapper_pass_through(self):
     # We use a file to check the result because the MyDoFn instance passed is
