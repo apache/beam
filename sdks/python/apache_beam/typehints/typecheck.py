@@ -280,10 +280,10 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     if hasattr(transform, 'fn'):
       if not hasattr(transform.fn, '_runtime_output_constraints'):
         transform.fn._runtime_output_constraints = {}
-      output_type_hints = self.get_output_type_hints(transform)
-      if output_type_hints:
-        transform.fn._runtime_output_constraints[full_label] = (
-            output_type_hints)
+    output_type_hints = self.get_output_type_hints(transform)
+    if output_type_hints:
+      transform._add_type_constraint_from_consumer(
+          full_label, output_type_hints)
 
     # Store input type hints in producer transform
     input_type_hints = self.get_input_type_hints(transform)
