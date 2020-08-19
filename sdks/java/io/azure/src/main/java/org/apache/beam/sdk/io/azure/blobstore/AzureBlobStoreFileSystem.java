@@ -62,6 +62,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** {@link FileSystem} implementation for Azure Blob Storage. */
 class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AzureBlobStoreFileSystem.class);
@@ -75,6 +76,8 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
   private static final String DEFAULT_PERMISSIONS = "racwdlup";
   // By default generateSasToken returns an SAS token that grants access to containers and objects
   private static final String DEFAULT_RESOURCE_TYPES = "co";
+  // This filesystem is for blob storage (not file, queue, or table)
+  private static final String DEFAULT_SERVICES = "b";
 
   private Supplier<BlobServiceClient> client;
   private final BlobstoreOptions options;
@@ -392,7 +395,7 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
   }
 
   @VisibleForTesting
-  // Generate an SAS Token if the user did not provide one through pipeline options
+  /** Generate an SAS Token if the user did not provide one through pipeline options */
   String generateSasToken() throws IOException {
     if (!Strings.isNullOrEmpty(options.getSasToken())) {
       return options.getSasToken();
@@ -405,9 +408,8 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
     sharedAccessAccountPolicy.setPermissionsFromString(DEFAULT_PERMISSIONS);
     sharedAccessAccountPolicy.setSharedAccessStartTime(new Date(date));
     sharedAccessAccountPolicy.setSharedAccessExpiryTime(new Date(expiryDate));
-    sharedAccessAccountPolicy.setResourceTypeFromString(
-        DEFAULT_RESOURCE_TYPES); // container, object, add s for service
-    sharedAccessAccountPolicy.setServiceFromString("b"); // blob, add "fqt" for file, queue, table
+    sharedAccessAccountPolicy.setResourceTypeFromString(DEFAULT_RESOURCE_TYPES);
+    sharedAccessAccountPolicy.setServiceFromString(DEFAULT_SERVICES);
 
     String storageConnectionString;
     if (!Strings.isNullOrEmpty(options.getAzureConnectionString())) {
@@ -439,7 +441,7 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
     delete(srcResourceIds);
   }
 
-  // This method with delete a virtual folder or a blob
+  /** This method will delete a virtual folder or a blob, not a container */
   @Override
   protected void delete(Collection<AzfsResourceId> resourceIds) throws IOException {
     for (AzfsResourceId resourceId : resourceIds) {
