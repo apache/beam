@@ -55,6 +55,7 @@ jobs:
           GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GCP_TESTING_BUCKET: ${{ secrets.GCP_TESTING_BUCKET }}
+          GCP_PYTHON_WHEELS_BUCKET: "not-needed-here"
 
   build_python_sdk_source:
     name: 'Build python source distribution'
