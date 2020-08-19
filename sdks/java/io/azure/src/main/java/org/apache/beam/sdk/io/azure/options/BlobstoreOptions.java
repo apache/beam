@@ -56,14 +56,14 @@ public interface BlobstoreOptions extends PipelineOptions {
   void setPipelinePolicy(HttpPipelinePolicy pipelinePolicy);
 
   /** The client configuration instance that should be used to configure Azure service clients. */
-  @Description(
+  /* @Description(
       "The configuration instance used to retrieve environment configuration values "
           + "when building an Azure Blobstore client. Set only those that need custom changes.")
   @Default.InstanceFactory(BlobstoreOptions.ConfigurationFactory.class)
   @Nullable
   Configuration getEnvironmentConfiguration();
 
-  void setEnvironmentConfiguration(Configuration configuration);
+  void setEnvironmentConfiguration(Configuration configuration); */
 
   /** Default Azure client configuration. */
   class ConfigurationFactory implements DefaultValueFactory<Configuration> {
