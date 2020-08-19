@@ -34,11 +34,13 @@ func AddCoderID(c *pipepb.Components, idMap map[string]string, cid string, newID
 
 	// Updating ComponentCoderIDs of Coder
 	if coder.GetComponentCoderIds() != nil {
-		updatedComponentCoderIDs := coder.ComponentCoderIds // Pass by value
+		var updatedComponentCoderIDs []string
+		updatedComponentCoderIDs = append(updatedComponentCoderIDs, coder.ComponentCoderIds...)
+
 		for i, ccid := range coder.ComponentCoderIds {
 			updatedComponentCoderIDs[i] = AddCoderID(c, idMap, ccid, newID)
-			coder.ComponentCoderIds = updatedComponentCoderIDs
 		}
+		coder.ComponentCoderIds = updatedComponentCoderIDs
 	}
 
 	idMap[cid] = newID(cid)
@@ -105,31 +107,18 @@ func AddNamespace(t *pipepb.PTransform, c *pipepb.Components, namespace string) 
 
 	idMap := make(map[string]string)
 
-	updateCoderID := func(cid string) string {
-		return AddCoderID(c, idMap, cid, newID)
-	}
-
-	updateWindowingStrategyID := func(wid string) string {
-		return AddWindowingStrategyID(c, idMap, wid, newID)
-	}
-
-	updateEnvironmentID := func(eid string) string {
-		return AddEnvironmentID(c, idMap, eid, newID)
-	}
-
 	// Update Environment ID of PTransform
 	if t.EnvironmentId != "" {
-		t.EnvironmentId = updateEnvironmentID(t.EnvironmentId)
+		t.EnvironmentId = AddEnvironmentID(c, idMap, t.EnvironmentId, newID)
 	}
-	fmt.Println(t)
 	for _, pcolsMap := range []map[string]string{t.Inputs, t.Outputs} {
 		for _, pid := range pcolsMap {
 			if pcol, exists := c.Pcollections[pid]; exists {
 				// Update Coder ID of PCollection
-				pcol.CoderId = updateCoderID(pcol.CoderId)
+				pcol.CoderId = AddCoderID(c, idMap, pcol.CoderId, newID)
 
 				// Update WindowingStrategyID of PCollection
-				pcol.WindowingStrategyId = updateWindowingStrategyID(pcol.WindowingStrategyId)
+				pcol.WindowingStrategyId = AddWindowingStrategyID(c, idMap, pcol.WindowingStrategyId, newID)
 			}
 		}
 	}
