@@ -69,7 +69,12 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
   private static final ImmutableSet<String> NON_READ_SEEK_EFFICIENT_ENCODINGS =
       ImmutableSet.of("gzip");
 
+  // By default generateSasToken returns an SAS token that is valid for one day (86,400,000 millis)
   private static final int DEFAULT_EXPIRY_TIME = 86400000;
+  // By default, generateSasToken returns an SAS token that grants all permission
+  private static final String DEFAULT_PERMISSIONS = "racwdlup";
+  // By default generateSasToken returns an SAS token that grants access to containers and objects
+  private static final String DEFAULT_RESOURCE_TYPES = "co";
 
   private Supplier<BlobServiceClient> client;
   private final BlobstoreOptions options;
@@ -387,6 +392,7 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
   }
 
   @VisibleForTesting
+  // Generate an SAS Token if the user did not provide one through pipeline options
   String generateSasToken() throws IOException {
     if (!Strings.isNullOrEmpty(options.getSasToken())) {
       return options.getSasToken();
@@ -394,13 +400,13 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
 
     SharedAccessAccountPolicy sharedAccessAccountPolicy = new SharedAccessAccountPolicy();
     long date = new Date().getTime();
-    long expiryDate = new Date(date + expiryTime).getTime();
+    long expiryDate = new Date(date + DEFAULT_EXPIRY_TIME).getTime();
 
-    sharedAccessAccountPolicy.setPermissionsFromString("racwdlup");
+    sharedAccessAccountPolicy.setPermissionsFromString(DEFAULT_PERMISSIONS);
     sharedAccessAccountPolicy.setSharedAccessStartTime(new Date(date));
     sharedAccessAccountPolicy.setSharedAccessExpiryTime(new Date(expiryDate));
     sharedAccessAccountPolicy.setResourceTypeFromString(
-        "co"); // container, object, add s for service
+        DEFAULT_RESOURCE_TYPES); // container, object, add s for service
     sharedAccessAccountPolicy.setServiceFromString("b"); // blob, add "fqt" for file, queue, table
 
     String storageConnectionString;
