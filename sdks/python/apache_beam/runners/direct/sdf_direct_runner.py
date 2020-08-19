@@ -117,19 +117,18 @@ class ElementAndRestriction(object):
 class PairWithRestrictionFn(beam.DoFn):
   """A transform that pairs each element with a restriction."""
   def __init__(self, do_fn):
-    self._do_fn = do_fn
+    self._signature = DoFnSignature(do_fn)
 
   def start_bundle(self):
-    signature = DoFnSignature(self._do_fn)
     self._invoker = DoFnInvoker.create_invoker(
-        signature,
+        self._signature,
         output_processor=_NoneShallPassOutputProcessor(),
         process_invocation=False)
 
   def process(self, element, window=beam.DoFn.WindowParam, *args, **kwargs):
     initial_restriction = self._invoker.invoke_initial_restriction(element)
     watermark_estimator_state = (
-        self.signature.process_method.watermark_estimator_provider.
+        self._signature.process_method.watermark_estimator_provider.
         initial_estimator_state(element, initial_restriction))
     yield ElementAndRestriction(
         element, initial_restriction, watermark_estimator_state)
