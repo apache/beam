@@ -69,7 +69,7 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
   private static final ImmutableSet<String> NON_READ_SEEK_EFFICIENT_ENCODINGS =
       ImmutableSet.of("gzip");
 
-  private static final int expiryTime = 86400000;
+  private static final int DEFAULT_EXPIRY_TIME = 86400000;
 
   private Supplier<BlobServiceClient> client;
   private final BlobstoreOptions options;
