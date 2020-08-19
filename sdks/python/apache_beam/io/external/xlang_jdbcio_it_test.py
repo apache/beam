@@ -112,6 +112,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       _ = (
           p
           | beam.Create(inserted_rows).with_output_types(JdbcWriteTestRow)
+          # TODO(BEAM-10750) Add test with overridden write_statement
           | 'Write to jdbc' >> WriteToJdbc(
               table_name=table_name,
               driver_class_name=self.driver_class_name,
@@ -143,6 +144,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       p.not_use_test_runner_api = True
       result = (
           p
+          # TODO(BEAM-10750) Add test with overridden read_query
           | 'Read from jdbc' >> ReadFromJdbc(
               table_name=table_name,
               driver_class_name=self.driver_class_name,

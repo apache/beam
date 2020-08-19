@@ -102,8 +102,8 @@ def default_io_expansion_service():
         ':sdks:java:extensions:schemaio-expansion-service:shadowJar')
 
 
-ReadFromWriteToJdbcSchema = typing.NamedTuple(
-    'ReadFromWriteToJdbcSchema',
+JdbcConfigSchema = typing.NamedTuple(
+    'JdbcConfigSchema',
     [
         ('location', unicode),
         ('config', bytes)
@@ -128,7 +128,7 @@ Config = typing.NamedTuple(
 
 
 class WriteToJdbc(ExternalTransform):
-    """A PTransform which writes Rows to the specified database via JDBC.
+  """A PTransform which writes Rows to the specified database via JDBC.
 
   This transform receives Rows defined as NamedTuple type and registered in
   the coders registry, e.g.::
@@ -143,31 +143,37 @@ class WriteToJdbc(ExternalTransform):
           | beam.Create([ExampleRow(1, 'abc')])
               .with_output_types(ExampleRow)
           | 'Write to jdbc' >> WriteToJdbc(
+              table_name='jdbc_external_test_write'
               driver_class_name='org.postgresql.Driver',
               jdbc_url='jdbc:postgresql://localhost:5432/example',
               username='postgres',
               password='postgres',
-              statement='INSERT INTO example_table VALUES(?, ?)',
           ))
+
+  table_name is a required paramater, and by default, the write_statement is generated
+  from it.
+
+  The generated write_statement can be overridden by passing in a write_statment.
+
 
   Experimental; no backwards compatibility guarantees.
   """
 
-    URN = 'beam:external:java:schemaio:jdbc:write:v1'
+  URN = 'beam:external:java:schemaio:jdbc:write:v1'
 
-    def __init__(
-            self,
-            table_name,
-            driver_class_name,
-            jdbc_url,
-            username,
-            password,
-            statement=None,
-            connection_properties=None,
-            connection_init_sqls=None,
-            expansion_service=None,
-    ):
-        """
+  def __init__(
+      self,
+      table_name,
+      driver_class_name,
+      jdbc_url,
+      username,
+      password,
+      statement=None,
+      connection_properties=None,
+      connection_init_sqls=None,
+      expansion_service=None,
+  ):
+    """
     Initializes a write operation to Jdbc.
 
     :param driver_class_name: name of the jdbc driver class
@@ -183,33 +189,33 @@ class WriteToJdbc(ExternalTransform):
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
 
-        super(WriteToJdbc, self).__init__(
-            self.URN,
-            NamedTupleBasedPayloadBuilder(
-                ReadFromWriteToJdbcSchema(
-                    location=table_name,
-                    config=RowCoder(typing_to_runner_api(Config).row_type.schema).encode(
-                        Config(
-                            driver_class_name=driver_class_name,
-                            jdbc_url=jdbc_url,
-                            username=username,
-                            password=password,
-                            connection_properties=connection_properties,
-                            connection_init_sqls=connection_init_sqls,
-                            write_statement=statement,
-                            read_query=None,
-                            fetch_size=None,
-                            output_parallelization=None,
-                        )
+    super(WriteToJdbc, self).__init__(
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            JdbcConfigSchema(
+                location=table_name,
+                config=RowCoder(typing_to_runner_api(Config).row_type.schema).encode(
+                    Config(
+                        driver_class_name=driver_class_name,
+                        jdbc_url=jdbc_url,
+                        username=username,
+                        password=password,
+                        connection_properties=connection_properties,
+                        connection_init_sqls=connection_init_sqls,
+                        write_statement=statement,
+                        read_query=None,
+                        fetch_size=None,
+                        output_parallelization=None,
                     )
-                ),
+                )
             ),
-            expansion_service or default_io_expansion_service(),
-        )
+        ),
+        expansion_service or default_io_expansion_service(),
+    )
 
 
 class ReadFromJdbc(ExternalTransform):
-    """A PTransform which reads Rows from the specified database via JDBC.
+  """A PTransform which reads Rows from the specified database via JDBC.
 
   This transform delivers Rows defined as NamedTuple registered in
   the coders registry, e.g.::
@@ -222,33 +228,38 @@ class ReadFromJdbc(ExternalTransform):
       result = (
           p
           | 'Read from jdbc' >> ReadFromJdbc(
+              table_name='jdbc_external_test_read'
               driver_class_name='org.postgresql.Driver',
               jdbc_url='jdbc:postgresql://localhost:5432/example',
               username='postgres',
               password='postgres',
-              query='SELECT * FROM example_table',
           ))
+
+  table_name is a required paramater, and by default, the read_query is generated
+  from it.
+
+  The generated read_query can be overridden by passing in a read_query.
 
   Experimental; no backwards compatibility guarantees.
   """
 
-    URN = 'beam:external:java:schemaio:jdbc:read:v1'
+  URN = 'beam:external:java:schemaio:jdbc:read:v1'
 
-    def __init__(
-            self,
-            table_name,
-            driver_class_name,
-            jdbc_url,
-            username,
-            password,
-            query=None,
-            output_parallelization=None,
-            fetch_size=None,
-            connection_properties=None,
-            connection_init_sqls=None,
-            expansion_service=None,
-    ):
-        """
+  def __init__(
+      self,
+      table_name,
+      driver_class_name,
+      jdbc_url,
+      username,
+      password,
+      query=None,
+      output_parallelization=None,
+      fetch_size=None,
+      connection_properties=None,
+      connection_init_sqls=None,
+      expansion_service=None,
+  ):
+    """
     Initializes a read operation from Jdbc.
 
     :param driver_class_name: name of the jdbc driver class
@@ -265,25 +276,26 @@ class ReadFromJdbc(ExternalTransform):
                                  passed as list of strings
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-        super(ReadFromJdbc, self).__init__(
-            self.URN,
-            NamedTupleBasedPayloadBuilder(
-                ReadFromWriteToJdbcSchema(
-                    location=table_name,
-                    config=RowCoder(typing_to_runner_api(Config).row_type.schema).encode(
-                        Config(driver_class_name=driver_class_name,
-                                   jdbc_url=jdbc_url,
-                                   username=username,
-                                   password=password,
-                                   connection_properties=connection_properties,
-                                   connection_init_sqls=connection_init_sqls,
-                                   write_statement=None,
-                                   read_query=query,
-                                   fetch_size=fetch_size,
-                                   output_parallelization=output_parallelization,
-                                   )
+    super(ReadFromJdbc, self).__init__(
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            JdbcConfigSchema(
+                location=table_name,
+                config=RowCoder(typing_to_runner_api(Config).row_type.schema).encode(
+                    Config(
+                        driver_class_name=driver_class_name,
+                        jdbc_url=jdbc_url,
+                        username=username,
+                        password=password,
+                        connection_properties=connection_properties,
+                        connection_init_sqls=connection_init_sqls,
+                        write_statement=None,
+                        read_query=query,
+                        fetch_size=fetch_size,
+                        output_parallelization=output_parallelization,
                     )
-                ),
+                )
             ),
-            expansion_service or default_io_expansion_service(),
-        )
+        ),
+        expansion_service or default_io_expansion_service(),
+    )
