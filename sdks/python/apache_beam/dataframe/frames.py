@@ -241,6 +241,16 @@ class DeferredDataFrame(frame_base.DeferredFrame):
     new_index_names = [
         '__apache_beam_temp_%d_%s' % (ix, suffix)
         for (ix, _) in enumerate(original_index_names)]
+    def reindex(df):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'reindex',
+              lambda df:
+                  df.rename_axis(index=new_index_names, copy=False)
+                  .reset_index().set_index(cols),
+              [df._expr],
+              preserves_partition_by=partitionings.Nothing(),
+              requires_partition_by=partitionings.Nothing()))
     def revert(df):
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
@@ -251,23 +261,14 @@ class DeferredDataFrame(frame_base.DeferredFrame):
               [df._expr],
               preserves_partition_by=partitionings.Nothing(),
               requires_partition_by=partitionings.Nothing()))
-    reindexed = frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'reindex',
-            lambda df:
-                df.rename_axis(index=new_index_names, copy=False)
-                .reset_index().set_index(cols),
-            [self._expr],
-            preserves_partition_by=partitionings.Nothing(),
-            requires_partition_by=partitionings.Nothing()))
-    return reindexed, revert
+    return reindex, revert
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def join(self, other, on, **kwargs):
     if on is not None:
-      reindexed, revert = self._cols_as_temporary_index(on)
-      return revert(reindexed.join(other, **kwargs))
+      reindex, revert = self._cols_as_temporary_index(on)
+      return revert(reindex(self).join(other, **kwargs))
     if isinstance(other, list):
       other_is_list = True
     else:
