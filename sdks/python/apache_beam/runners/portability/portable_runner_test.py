@@ -61,7 +61,7 @@ _LOGGER = logging.getLogger(__name__)
 @pytest.mark.timeout(0)
 class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
 
-  TIMEOUT_SECS = 60
+  TIMEOUT_SECS = 600
 
   # Controls job service interaction, not sdk harness interaction.
   _use_subprocesses = False
