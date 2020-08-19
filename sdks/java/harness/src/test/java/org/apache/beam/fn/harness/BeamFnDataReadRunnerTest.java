@@ -288,16 +288,18 @@ public class BeamFnDataReadRunnerTest {
               Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
       assertThat(values, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
 
-      // Process for bundle id 1
-      bundleId.set("1");
+      readRunner.reset();
       values.clear();
-      readRunner.registerInputLocation();
       // Ensure that when we reuse the BeamFnDataReadRunner the read index is reset to -1
+      // before registerInputLocation.
       assertEquals(
           createReadIndexMonitoringInfoAt(-1),
           Iterables.getOnlyElement(
               Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
 
+      // Process for bundle id 1
+      bundleId.set("1");
+      readRunner.registerInputLocation();
       verify(mockBeamFnDataClient)
           .receive(
               eq(PORT_SPEC.getApiServiceDescriptor()),
