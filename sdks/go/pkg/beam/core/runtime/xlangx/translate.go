@@ -161,7 +161,6 @@ func AddFakeImpulses(p *pipepb.Pipeline) {
 
 func RemoveFakeImpulses(c *pipepb.Components, ext *pipepb.PTransform) {
 	transforms := c.GetTransforms()
-	// ext := transforms[p.GetRootTransformIds()[0]] // Will there be only one root transform after expansion? Should be.
 	var impulseIDs []string
 
 	for tag, _ := range ext.GetInputs() {
