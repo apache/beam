@@ -188,7 +188,9 @@ public class TestPubsub implements TestRule {
 
   private List<SubscriptionPath> listSubscriptions(ProjectPath projectPath, TopicPath topicPath)
       throws IOException {
-    return pubsub.listSubscriptions(projectPath, topicPath);
+    return pubsub.listSubscriptions(projectPath, topicPath).stream()
+        .filter((path) -> !path.equals(subscriptionPath))
+        .collect(ImmutableList.toImmutableList());
   }
 
   /** Publish messages to {@link #topicPath()}. */
