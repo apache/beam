@@ -163,6 +163,7 @@ public class BeamFnDataReadRunnerTest {
       PTransformFunctionRegistry finishFunctionRegistry =
           new PTransformFunctionRegistry(
               mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+      List<ThrowingRunnable> resetFunctions = new ArrayList<>();
       List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
       RunnerApi.PTransform pTransform =
@@ -185,6 +186,7 @@ public class BeamFnDataReadRunnerTest {
               consumers,
               startFunctionRegistry,
               finishFunctionRegistry,
+              resetFunctions::add,
               teardownFunctions::add,
               (PTransformRunnerFactory.ProgressRequestCallback callback) -> {},
               null /* splitListener */,
@@ -696,6 +698,7 @@ public class BeamFnDataReadRunnerTest {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> resetFunctions = new ArrayList<>();
     List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     RunnerApi.PTransform pTransform =
@@ -718,6 +721,7 @@ public class BeamFnDataReadRunnerTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            resetFunctions::add,
             teardownFunctions::add,
             (PTransformRunnerFactory.ProgressRequestCallback callback) -> {},
             null /* splitListener */,
