@@ -37,7 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Experimental
 /** Options used to configure Microsoft Azure Blob Storage. */
-public interface BlobstoreOptions extends AzureOptions {
+public interface BlobstoreOptions extends PipelineOptions {
 
   @Description(
       "Factory class that should be created and used to create a builder of Azure Blobstore client."

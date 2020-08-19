@@ -29,7 +29,6 @@ public class AzurePipelineOptionsRegistrar implements PipelineOptionsRegistrar {
   @Override
   public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
     return ImmutableList.<Class<? extends PipelineOptions>>builder()
-        .add(AzureOptions.class)
         .add(BlobstoreOptions.class)
         .build();
   }

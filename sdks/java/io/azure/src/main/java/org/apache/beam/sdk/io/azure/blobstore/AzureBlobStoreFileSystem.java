@@ -449,10 +449,11 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
       else {
         PagedIterable<BlobItem> blobsInDirectory =
             container.listBlobsByHierarchy(resourceId.getBlob());
-        for (BlobItem blob : blobsInDirectory) {
-          String blobName = blob.getName();
-          container.getBlobClient(blobName).delete();
-        }
+        blobsInDirectory.forEach(
+            blob -> {
+              String blobName = blob.getName();
+              container.getBlobClient(blobName).delete();
+            });
       }
     }
   }
