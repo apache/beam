@@ -369,6 +369,8 @@ class PortableRunner(runner.PipelineRunner):
     if options.view_as(SetupOptions).sdk_location == 'default':
       options.view_as(SetupOptions).sdk_location = 'container'
 
+    experiments = options.view_as(DebugOptions).experiments or []
+
     # This is needed as we start a worker server if one is requested
     # but none is provided.
     if portable_options.environment_type == 'LOOPBACK':
@@ -376,9 +378,10 @@ class PortableRunner(runner.PipelineRunner):
           DebugOptions).lookup_experiment('use_loopback_process_worker', False)
       portable_options.environment_config, server = (
           worker_pool_main.BeamFnExternalWorkerPoolServicer.start(
-              state_cache_size=sdk_worker_main._get_state_cache_size(options),
+              state_cache_size=
+              sdk_worker_main._get_state_cache_size(experiments),
               data_buffer_time_limit_ms=
-              sdk_worker_main._get_data_buffer_time_limit_ms(options),
+              sdk_worker_main._get_data_buffer_time_limit_ms(experiments),
               use_process=use_loopback_process_worker))
       cleanup_callbacks = [functools.partial(server.stop, 1)]
     else:
