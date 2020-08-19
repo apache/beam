@@ -277,9 +277,6 @@ class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
     full_label = applied_transform.full_label
 
     # Store output type hints in current transform
-    if hasattr(transform, 'fn'):
-      if not hasattr(transform.fn, '_runtime_output_constraints'):
-        transform.fn._runtime_output_constraints = {}
     output_type_hints = self.get_output_type_hints(transform)
     if output_type_hints:
       transform._add_type_constraint_from_consumer(
