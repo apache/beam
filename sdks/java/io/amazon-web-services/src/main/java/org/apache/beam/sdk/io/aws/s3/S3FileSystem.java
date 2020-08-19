@@ -83,6 +83,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** {@link FileSystem} implementation for Amazon S3. */
 class S3FileSystem extends FileSystem<S3ResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(S3FileSystem.class);
@@ -159,15 +160,23 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     ImmutableList.Builder<MatchResult> matchResults = ImmutableList.builder();
     for (Boolean isGlob : isGlobBooleans) {
       if (isGlob) {
-        checkState(globMatches.hasNext(), "Expect globMatches has next.");
+        checkState(
+            globMatches.hasNext(),
+            "Internal error encountered in S3Filesystem: expected more elements in globMatches.");
         matchResults.add(globMatches.next());
       } else {
-        checkState(nonGlobMatches.hasNext(), "Expect nonGlobMatches has next.");
+        checkState(
+            nonGlobMatches.hasNext(),
+            "Internal error encountered in S3Filesystem: expected more elements in nonGlobMatches.");
         matchResults.add(nonGlobMatches.next());
       }
     }
-    checkState(!globMatches.hasNext(), "Expect no more elements in globMatches.");
-    checkState(!nonGlobMatches.hasNext(), "Expect no more elements in nonGlobMatches.");
+    checkState(
+        !globMatches.hasNext(),
+        "Internal error encountered in S3Filesystem: expected no more elements in globMatches.");
+    checkState(
+        !nonGlobMatches.hasNext(),
+        "Internal error encountered in S3Filesystem: expected no more elements in nonGlobMatches.");
 
     return matchResults.build();
   }
@@ -377,7 +386,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
   private static MatchResult.Metadata createBeamMetadata(
       S3ResourceId path, String contentEncoding) {
-    checkArgument(path.getSize().isPresent(), "path has size");
+    checkArgument(path.getSize().isPresent(), "The resource id should have a size.");
     checkNotNull(contentEncoding, "contentEncoding");
     boolean isReadSeekEfficient = !NON_READ_SEEK_EFFICIENT_ENCODINGS.contains(contentEncoding);
 
