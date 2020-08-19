@@ -275,11 +275,30 @@ public class TestPubsub implements TestRule {
   /**
    * Check if topics exist.
    *
+   * <p>{@Deprecated prefer {@link #assertSubscriptionEventuallyCreated}}.
+   *
    * @param project GCP project identifier.
    * @param timeoutDuration Joda duration that sets a period of time before checking times out.
    */
+  @Deprecated
   public void checkIfAnySubscriptionExists(String project, Duration timeoutDuration)
       throws InterruptedException, IllegalArgumentException, IOException, TimeoutException {
+    try {
+      assertSubscriptionEventuallyCreated(project, timeoutDuration);
+    } catch (AssertionError e) {
+      throw new TimeoutException(e.getMessage());
+    }
+  }
+
+  /**
+   * Block until a subscription is created for this test topic in the specified project. Throws
+   * {@link AssertionError} if {@code timeoutDuration} is reached before a subscription is created.
+   *
+   * @param project GCP project identifier.
+   * @param timeoutDuration Joda duration before timeout occurs.
+   */
+  public void assertSubscriptionEventuallyCreated(String project, Duration timeoutDuration)
+      throws InterruptedException, IllegalArgumentException, IOException {
     if (timeoutDuration.getMillis() <= 0) {
       throw new IllegalArgumentException(String.format("timeoutDuration should be greater than 0"));
     }
@@ -299,7 +318,7 @@ public class TestPubsub implements TestRule {
     if (sizeOfSubscriptionList > 0) {
       return;
     } else {
-      throw new TimeoutException("Timed out when checking if topics exist for " + topicPath());
+      throw new AssertionError("Timed out before subscription created for " + topicPath());
     }
   }
 

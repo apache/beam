@@ -304,7 +304,7 @@ public class PubsubJsonIT implements Serializable {
                   return result.build();
                 });
 
-    eventsTopic.checkIfAnySubscriptionExists(
+    eventsTopic.assertSubscriptionEventuallyCreated(
         pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(1));
     eventsTopic.publish(messages);
     assertThat(queryResult.get(2, TimeUnit.MINUTES).size(), equalTo(3));
