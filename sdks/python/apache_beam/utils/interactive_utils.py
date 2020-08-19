@@ -23,6 +23,10 @@ For experimental usage only; no backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
+import logging
+
+_LOGGER = logging.getLogger(__name__)
+
 
 def is_in_ipython():
   """Determines if current code is executed within an ipython session."""
@@ -34,6 +38,11 @@ def is_in_ipython():
       is_in_ipython = True
   except ImportError:
     pass  # If dependencies are not available, then not interactive for sure.
+  except (KeyboardInterrupt, SystemExit):
+    raise
+  except:  # pylint: disable=bare-except
+    _LOGGER.info(
+        'Unexpected error occurred, treated as not in IPython.', exc_info=True)
   return is_in_ipython
 
 
