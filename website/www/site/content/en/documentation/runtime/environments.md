@@ -148,7 +148,6 @@ After [building a container image](#building-container-images), you can store it
 The following steps push a Python3.6 SDK image to the [`docker-root-repository` value](#overriding-default-docker-targets). 
 Please log in to the destination repository as needed. 
 
-```
 Upload it to the remote repository:
 ```
 docker push example-repo/beam_python3.6_sdk

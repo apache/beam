@@ -154,17 +154,21 @@ public abstract class DLPInspectText
   @Override
   public PCollection<KV<String, InspectContentResponse>> expand(
       PCollection<KV<String, String>> input) {
-    return input
-        .apply(ParDo.of(new MapStringToDlpRow(getColumnDelimiter())))
-        .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(getBatchSizeBytes())))
-        .apply(
-            "DLPInspect",
+    ParDo.SingleOutput<KV<String, Iterable<Table.Row>>, KV<String, InspectContentResponse>>
+        inspectParDo =
             ParDo.of(
                 new InspectData(
                     getProjectId(),
                     getInspectTemplateName(),
                     getInspectConfig(),
-                    getHeaderColumns())));
+                    getHeaderColumns()));
+    if (getHeaderColumns() != null) {
+      inspectParDo = inspectParDo.withSideInputs(getHeaderColumns());
+    }
+    return input
+        .apply(ParDo.of(new MapStringToDlpRow(getColumnDelimiter())))
+        .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(getBatchSizeBytes())))
+        .apply("DLPInspect", inspectParDo);
   }
 
   /** Performs calls to Cloud DLP service on GCP to inspect input data. */

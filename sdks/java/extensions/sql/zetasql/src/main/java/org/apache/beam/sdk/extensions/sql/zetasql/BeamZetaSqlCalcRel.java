@@ -127,7 +127,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     for (Map.Entry<String, RelDataType> entry : input.entrySet()) {
       result.put(
           entry.getKey(),
-          Value.createNullValue(ZetaSqlCalciteTranslationUtils.toZetaType(entry.getValue())));
+          Value.createNullValue(ZetaSqlCalciteTranslationUtils.toZetaSqlType(entry.getValue())));
     }
     return result;
   }
@@ -167,8 +167,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       for (int i = 0; i < inputSchema.getFieldCount(); i++) {
         options.addExpressionColumn(
             columnName(i),
-            ZetaSqlBeamTranslationUtils.beamFieldTypeToZetaSqlType(
-                inputSchema.getField(i).getType()));
+            ZetaSqlBeamTranslationUtils.toZetaSqlType(inputSchema.getField(i).getType()));
       }
 
       exp = new PreparedExpression(sql);
@@ -182,15 +181,13 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       for (int i = 0; i < inputSchema.getFieldCount(); i++) {
         columns.put(
             columnName(i),
-            ZetaSqlBeamTranslationUtils.javaObjectToZetaSqlValue(
+            ZetaSqlBeamTranslationUtils.toZetaSqlValue(
                 row.getBaseValue(i, Object.class), inputSchema.getField(i).getType()));
       }
 
       Value v = exp.execute(columns, nullParams);
       if (!v.isNull()) {
-        Row outputRow =
-            ZetaSqlBeamTranslationUtils.zetaSqlStructValueToBeamRow(
-                v, outputSchema, verifyRowValues);
+        Row outputRow = ZetaSqlBeamTranslationUtils.toBeamRow(v, outputSchema, verifyRowValues);
         c.output(outputRow);
       }
     }

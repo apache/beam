@@ -174,8 +174,12 @@ public class DoFnOperatorTest {
     TupleTag<String> additionalOutput2 = new TupleTag<>("output-2");
     ImmutableMap<TupleTag<?>, OutputTag<?>> tagsToOutputTags =
         ImmutableMap.<TupleTag<?>, OutputTag<?>>builder()
-            .put(additionalOutput1, new OutputTag<String>(additionalOutput1.getId()) {})
-            .put(additionalOutput2, new OutputTag<String>(additionalOutput2.getId()) {})
+            .put(
+                additionalOutput1,
+                new OutputTag<WindowedValue<String>>(additionalOutput1.getId()) {})
+            .put(
+                additionalOutput2,
+                new OutputTag<WindowedValue<String>>(additionalOutput2.getId()) {})
             .build();
     ImmutableMap<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders =
         ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
@@ -372,7 +376,7 @@ public class DoFnOperatorTest {
 
     assertThat(stripStreamRecordFromWindowedValue(testHarness.getOutput()), emptyIterable());
     assertThat(
-        doFnOperator.timerInternals.getMinOutputTimestampMs(),
+        doFnOperator.keyedStateInternals.minWatermarkHoldMs(),
         is(timerOutputTimestamp.getMillis()));
 
     // this must fire the event timers

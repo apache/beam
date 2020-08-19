@@ -48,6 +48,7 @@ class ConstantAvroDestination<UserT, OutputT>
   private final Map<String, Object> metadata;
   private final SerializableAvroCodecFactory codec;
   private final SerializableFunction<UserT, OutputT> formatFunction;
+  private final AvroSink.DatumWriterFactory<OutputT> datumWriterFactory;
 
   private class Metadata implements HasDisplayData {
     @Override
@@ -74,11 +75,22 @@ class ConstantAvroDestination<UserT, OutputT>
       Map<String, Object> metadata,
       CodecFactory codec,
       SerializableFunction<UserT, OutputT> formatFunction) {
+    this(filenamePolicy, schema, metadata, codec, formatFunction, null);
+  }
+
+  public ConstantAvroDestination(
+      FilenamePolicy filenamePolicy,
+      Schema schema,
+      Map<String, Object> metadata,
+      CodecFactory codec,
+      SerializableFunction<UserT, OutputT> formatFunction,
+      AvroSink.@Nullable DatumWriterFactory<OutputT> datumWriterFactory) {
     this.filenamePolicy = filenamePolicy;
     this.schema = Suppliers.compose(new SchemaFunction(), Suppliers.ofInstance(schema.toString()));
     this.metadata = metadata;
     this.codec = new SerializableAvroCodecFactory(codec);
     this.formatFunction = formatFunction;
+    this.datumWriterFactory = datumWriterFactory;
   }
 
   @Override
@@ -114,6 +126,11 @@ class ConstantAvroDestination<UserT, OutputT>
   @Override
   public CodecFactory getCodec(Void destination) {
     return codec.getCodec();
+  }
+
+  @Override
+  public AvroSink.@Nullable DatumWriterFactory<OutputT> getDatumWriterFactory(Void destination) {
+    return datumWriterFactory;
   }
 
   @Override

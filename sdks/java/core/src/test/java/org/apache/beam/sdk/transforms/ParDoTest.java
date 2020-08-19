@@ -4024,8 +4024,9 @@ public class ParDoTest implements Serializable {
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
               .addElements(KV.of("hello", 37))
               .advanceProcessingTime(
-                  Duration.millis(DateTimeUtils.currentTimeMillis())
-                      .plus(Duration.standardSeconds(60)))
+                  Duration.millis(
+                          DateTimeUtils.currentTimeMillis() / 1000 * 1000) // round to seconds
+                      .plus(Duration.standardMinutes(2)))
               .advanceWatermarkToInfinity();
 
       PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
@@ -4193,8 +4194,9 @@ public class ParDoTest implements Serializable {
               .addElements(KV.of("key", "input1"))
               .addElements(KV.of("key", "input2"))
               .advanceProcessingTime(
-                  Duration.millis(DateTimeUtils.currentTimeMillis())
-                      .plus(Duration.standardSeconds(60)))
+                  Duration.millis(
+                          DateTimeUtils.currentTimeMillis() / 1000 * 1000) // round to seconds
+                      .plus(Duration.standardMinutes(2)))
               .advanceWatermarkToInfinity();
 
       PCollection<String> output = pipeline.apply(stream).apply(ParDo.of(fn));

@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -35,11 +36,16 @@ import org.apache.beam.runners.core.construction.PTransformTranslation.Transform
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoLike;
 import org.apache.beam.runners.core.construction.ReadTranslation.BoundedReadPayloadTranslator;
 import org.apache.beam.runners.core.construction.ReadTranslation.UnboundedReadPayloadTranslator;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -628,6 +634,47 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
     public void tearDown() {
       invoker.invokeTeardown();
       invoker = null;
+    }
+  }
+
+  /**
+   * Throws an {@link IllegalArgumentException} if the pipeline contains any primitive read
+   * transforms that have not been expanded to be executed as {@link DoFn splittable DoFns} as long
+   * as the experiment {@code use_deprecated_read} is not specified.
+   */
+  public static void validateNoPrimitiveReads(Pipeline pipeline) {
+    // TODO(BEAM-10670): Remove the deprecated Read and make the splittable DoFn the only option.
+    if (!(ExperimentalOptions.hasExperiment(
+            pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
+        || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read"))) {
+
+      pipeline.traverseTopologically(new ValidateNoPrimitiveReads());
+    }
+  }
+
+  /**
+   * A {@link org.apache.beam.sdk.Pipeline.PipelineVisitor} that ensures that the pipeline does not
+   * contain any primitive reads.
+   */
+  private static class ValidateNoPrimitiveReads extends PipelineVisitor.Defaults {
+    public final List<PTransform<?, ?>> foundPrimitiveReads = new ArrayList<>();
+
+    @Override
+    public void visitPrimitiveTransform(Node node) {
+      if (node.getTransform() instanceof Read.Bounded
+          || node.getTransform() instanceof Read.Unbounded) {
+        foundPrimitiveReads.add(node.getTransform());
+      }
+    }
+
+    @Override
+    public void leavePipeline(Pipeline pipeline) {
+      if (!foundPrimitiveReads.isEmpty()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Found primitive read transforms %s within the pipeline when only Splittable DoFns were expected. If you would like to use the deprecated behavior, please specify the experiment 'use_deprecated_read'. For example '--experiements=use_deprecated_read' on the command line.",
+                foundPrimitiveReads));
+      }
     }
   }
 }

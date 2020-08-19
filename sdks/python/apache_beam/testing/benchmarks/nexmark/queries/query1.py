@@ -29,20 +29,19 @@ from __future__ import absolute_import
 
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
-from apache_beam.testing.benchmarks.nexmark.nexmark_util import ParseEventFn
-from apache_beam.testing.benchmarks.nexmark.nexmark_util import display
+from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
+
+USD_TO_EURO = 0.89
 
 
-def load(raw_events, query_args=None):
+def load(events, query_args=None):
   return (
-      raw_events
-      | 'ParseEventFn' >> beam.ParDo(ParseEventFn())
-      | 'FilterInBids' >>
-      beam.Filter(lambda event: isinstance(event, nexmark_model.Bid))
+      events
+      | nexmark_query_util.JustBids()
       | 'ConvertToEuro' >> beam.Map(
           lambda bid: nexmark_model.Bid(
               bid.auction,
-              bid.bidder, (float(bid.price) * 89) // 100,
-              bid.timestamp,
-              bid.extra))
-      | 'DisplayQuery1' >> beam.Map(display))  # pylint: disable=expression-not-assigned
+              bid.bidder,
+              bid.price * USD_TO_EURO,
+              bid.date_time,
+              bid.extra)))

@@ -26,6 +26,7 @@ from apache_beam.dataframe import doctests
 
 @unittest.skipIf(sys.version_info <= (3, ), 'Requires contextlib.ExitStack.')
 @unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
+@unittest.skipIf(sys.platform == 'win32', '[BEAM-10626]')
 class DoctestTest(unittest.TestCase):
   def test_dataframe_tests(self):
     result = doctests.testmod(
@@ -79,7 +80,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.drop': ['*'],
             'pandas.core.frame.DataFrame.eval': ['*'],
             'pandas.core.frame.DataFrame.explode': ['*'],
-            'pandas.core.frame.DataFrame.fillna': ['*'],
             'pandas.core.frame.DataFrame.info': ['*'],
             'pandas.core.frame.DataFrame.isin': ['*'],
             'pandas.core.frame.DataFrame.iterrows': ["print(df['int'].dtype)"],
@@ -130,20 +130,28 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.cumsum': ['*'],
             'pandas.core.series.Series.cumprod': ['*'],
             'pandas.core.series.Series.diff': ['*'],
+            'pandas.core.series.Series.items': ['*'],
+            'pandas.core.series.Series.iteritems': ['*'],
             'pandas.core.series.Series.nlargest': [
                 "s.nlargest(3, keep='last')"
             ],
             'pandas.core.series.Series.nsmallest': [
                 "s.nsmallest(3, keep='last')"
             ],
+            'pandas.core.series.Series.searchsorted': ['*'],
+            'pandas.core.series.Series.shift': ['*'],
+            'pandas.core.series.Series.take': ['*'],
+            'pandas.core.series.Series.to_dict': ['*'],
+            'pandas.core.series.Series.unique': ['*'],
             'pandas.core.series.Series.unstack': ['*'],
+            'pandas.core.series.Series.values': ['*'],
+            'pandas.core.series.Series.view': ['*'],
         },
         skip={
             'pandas.core.series.Series.append': ['*'],
             'pandas.core.series.Series.argmax': ['*'],
             'pandas.core.series.Series.argmin': ['*'],
             'pandas.core.series.Series.autocorr': ['*'],
-            'pandas.core.series.Series.between': ['*'],
             'pandas.core.series.Series.combine': ['*'],
             'pandas.core.series.Series.combine_first': ['*'],
             'pandas.core.series.Series.corr': ['*'],
@@ -152,15 +160,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.dot': ['*'],
             'pandas.core.series.Series.drop': ['*'],
             'pandas.core.series.Series.drop_duplicates': ['*'],
-            'pandas.core.series.Series.dropna': ['*'],
             'pandas.core.series.Series.duplicated': ['*'],
             'pandas.core.series.Series.explode': ['*'],
-            'pandas.core.series.Series.fillna': ['*'],
             'pandas.core.series.Series.idxmax': ['*'],
             'pandas.core.series.Series.idxmin': ['*'],
-            'pandas.core.series.Series.isin': ['*'],
-            'pandas.core.series.Series.items': ['*'],
-            'pandas.core.series.Series.iteritems': ['*'],
             'pandas.core.series.Series.memory_usage': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
             'pandas.core.series.Series.quantile': ['*'],
@@ -169,19 +172,17 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.repeat': ['*'],
             'pandas.core.series.Series.replace': ['*'],
             'pandas.core.series.Series.reset_index': ['*'],
-            'pandas.core.series.Series.round': ['*'],
-            'pandas.core.series.Series.searchsorted': ['*'],
-            'pandas.core.series.Series.shift': ['*'],
+            'pandas.core.series.Series.searchsorted': [
+                # This doctest seems to be incorrectly parsed.
+                "x = pd.Categorical(['apple', 'bread', 'bread',"
+            ],
             'pandas.core.series.Series.sort_index': ['*'],
             'pandas.core.series.Series.sort_values': ['*'],
-            'pandas.core.series.Series.take': ['*'],
             'pandas.core.series.Series.to_csv': ['*'],
-            'pandas.core.series.Series.to_dict': ['*'],
-            'pandas.core.series.Series.to_frame': ['*'],
-            'pandas.core.series.Series.unique': ['*'],
-            'pandas.core.series.Series.update': ['*'],
-            'pandas.core.series.Series.values': ['*'],
-            'pandas.core.series.Series.view': ['*'],
+            'pandas.core.series.Series.view': [
+                # Inspection after modification.
+                's'
+            ],
         })
     self.assertEqual(result.failed, 0)
 
