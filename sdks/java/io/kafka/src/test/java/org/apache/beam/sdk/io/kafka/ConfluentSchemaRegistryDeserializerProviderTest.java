@@ -45,7 +45,8 @@ public class ConfluentSchemaRegistryDeserializerProviderTest {
     assertEquals(AVRO_SCHEMA, coderV0.getSchema());
 
     try {
-      Integer version = mockRegistryClient.register(subject, AVRO_SCHEMA_V1);
+      mockRegistryClient.register(subject, AVRO_SCHEMA_V1);
+      Integer version = mockRegistryClient.getVersion(subject, AVRO_SCHEMA_V1);
       AvroCoder coderV1 =
           (AvroCoder)
               mockDeserializerProvider(schemaRegistryUrl, subject, version).getCoder(coderRegistry);

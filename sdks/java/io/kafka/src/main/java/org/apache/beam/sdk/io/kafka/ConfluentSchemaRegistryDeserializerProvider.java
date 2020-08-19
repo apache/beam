@@ -91,7 +91,10 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
             .put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl)
             .build();
     Deserializer<T> deserializer =
-        (Deserializer<T>) new KafkaAvroDeserializer(getSchemaRegistryClient());
+        (Deserializer<T>)
+            new ConfluentSchemaRegistryDeserializer(
+                getSchemaRegistryClient(),
+                new Schema.Parser().parse(getSchemaMetadata().getSchema()));
     deserializer.configure(csrConfig, isKey);
     return deserializer;
   }
@@ -114,5 +117,19 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
 
   private SchemaRegistryClient getSchemaRegistryClient() {
     return this.schemaRegistryClientProviderFn.apply(null);
+  }
+}
+
+class ConfluentSchemaRegistryDeserializer extends KafkaAvroDeserializer {
+  Schema readerSchema;
+
+  ConfluentSchemaRegistryDeserializer(SchemaRegistryClient client, Schema readerSchema) {
+    this.schemaRegistry = client;
+    this.readerSchema = readerSchema;
+  }
+
+  @Override
+  public Object deserialize(String s, byte[] bytes) {
+    return this.deserialize(bytes, readerSchema);
   }
 }
