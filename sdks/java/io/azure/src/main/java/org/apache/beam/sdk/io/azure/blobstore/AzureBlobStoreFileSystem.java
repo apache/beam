@@ -53,6 +53,7 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
@@ -329,11 +330,12 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
 
   @Override
   protected ReadableByteChannel open(AzfsResourceId resourceId) throws IOException {
-    BlobClient blobClient =
-        client
-            .get()
-            .getBlobContainerClient(resourceId.getContainer())
-            .getBlobClient(resourceId.getBlob());
+    BlobContainerClient containerClient =
+        client.get().getBlobContainerClient(resourceId.getContainer());
+    if (!containerClient.exists()) {
+      throw new FileNotFoundException("The requested file doesn't exist.");
+    }
+    BlobClient blobClient = containerClient.getBlobClient(resourceId.getBlob());
     if (!blobClient.exists()) {
       throw new FileNotFoundException("The requested file doesn't exist.");
     }
@@ -386,6 +388,10 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
 
   @VisibleForTesting
   String generateSasToken() throws IOException {
+    if (!Strings.isNullOrEmpty(options.getSasToken())) {
+      return options.getSasToken();
+    }
+
     SharedAccessAccountPolicy sharedAccessAccountPolicy = new SharedAccessAccountPolicy();
     long date = new Date().getTime();
     long expiryDate = new Date(date + expiryTime).getTime();
@@ -397,7 +403,21 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
         "co"); // container, object, add s for service
     sharedAccessAccountPolicy.setServiceFromString("b"); // blob, add "fqt" for file, queue, table
 
-    String storageConnectionString = options.getAzureConnectionString();
+    String storageConnectionString;
+    if (!Strings.isNullOrEmpty(options.getAzureConnectionString())) {
+      storageConnectionString = options.getAzureConnectionString();
+    } else if (!Strings.isNullOrEmpty(options.getAccessKey())) {
+      storageConnectionString =
+          "DefaultEndpointsProtocol=https;AccountName="
+              + client.get().getAccountName()
+              + ";AccountKey="
+              + options.getAccessKey()
+              + ";EndpointSuffix=core.windows.net";
+    } else {
+      throw new IOException(
+          "Copying blobs requires that a SAS token, connection string, or account key be provided.");
+    }
+
     try {
       CloudStorageAccount storageAccount = CloudStorageAccount.parse(storageConnectionString);
       return "?" + storageAccount.generateSharedAccessSignature(sharedAccessAccountPolicy);
@@ -437,10 +457,11 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
       else {
         PagedIterable<BlobItem> blobsInDirectory =
             container.listBlobsByHierarchy(resourceId.getBlob());
-        for (BlobItem blob : blobsInDirectory) {
-          String blobName = blob.getName();
-          container.getBlobClient(blobName).delete();
-        }
+        blobsInDirectory.forEach(
+            blob -> {
+              String blobName = blob.getName();
+              container.getBlobClient(blobName).delete();
+            });
       }
     }
   }
