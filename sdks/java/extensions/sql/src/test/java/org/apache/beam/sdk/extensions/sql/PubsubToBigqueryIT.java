@@ -154,7 +154,7 @@ public class PubsubToBigqueryIT implements Serializable {
 
     BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(1));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
     pipeline.apply(signal.signalStart());
 
     pipeline.run();
