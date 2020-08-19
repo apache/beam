@@ -29,5 +29,8 @@ import com.google.auto.service.AutoService;
  */
 @AutoService(Module.class)
 public class AzureModule extends SimpleModule {
-    
+
+    public AzureModule() {
+        super("AzureModule");
+    }
 }
