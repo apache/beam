@@ -5,19 +5,18 @@ import org.apache.beam.sdk.extensions.sql.impl.cep.CEPFieldRef;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPKind;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPLiteral;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPOperation;
-import org.apache.beam.sdk.extensions.sql.impl.cep.CEPOperator;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPPattern;
 import org.apache.beam.sdk.extensions.sql.impl.cep.Quantifier;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-// TODO: add support for more quantifiers: `?`, `{19, }` ...
+// TODO: add support for more quantifiers: `?`, `{19, }` ... for now, support `+` and singletons
 // TODO: sort conditions based on "the last identifier" during compilation
 // TODO: add optimization for the NFA
 // for now, assume the conditions are sorted.
@@ -27,7 +26,6 @@ public class NFA implements Serializable {
   private final State startState;
   private ArrayList<StateLocator> currentRuns;
   private final Schema outSchema;
-  private int runs = 0; // record the number of runs
 
   private NFA(List<CEPPattern> patterns, Schema outSchema) {
     this.startState = loadStates(patterns);
@@ -91,7 +89,7 @@ public class NFA implements Serializable {
   }
 
   private class Event implements Serializable {
-    private Map<EventPointer, Event> prevEvents = new HashMap<>(); // a mapping from the runIndex to the previous events
+    private HashMap<EventPointer, Event> prevEvents = new HashMap<>(); // a mapping from the runIndex to the previous events
     private CEPLiteral content;
 
     // store an input row as a literal
@@ -128,6 +126,10 @@ public class NFA implements Serializable {
     Event(Row inputRow, CEPFieldRef fieldRef) {
       this.content = rowToCEPLiteral(inputRow, fieldRef);
     }
+
+    public void addPrevEvent(EventPointer ptr, @Nullable Event prevEvent) {
+      prevEvents.put(ptr, prevEvent);
+    }
   }
 
   // shared buffer versioned pointer: see the UMASS paper for description
@@ -136,6 +138,24 @@ public class NFA implements Serializable {
 
     EventPointer(List<Integer> ptrValues) {
       this.ptrValues = ptrValues;
+    }
+
+    public EventPointer copy() {
+      ArrayList<Integer> newPtrValue = new ArrayList<>(ptrValues);
+      return new EventPointer(newPtrValue);
+    }
+
+    public EventPointer getNewProceedPointer(int value) {
+      ArrayList<Integer> newPtrValue = new ArrayList<>(ptrValues);
+      newPtrValue.add(value);
+      return new EventPointer(newPtrValue);
+    }
+
+    // for taking the take edge with splitting, set last pointer digit to the desired value
+    public EventPointer getNewTakePointer(int value) {
+      ArrayList<Integer> newPtrValue = new ArrayList<>(ptrValues);
+      newPtrValue.set(newPtrValue.size() - 1, value);
+      return new EventPointer(newPtrValue);
     }
 
     @Override
@@ -149,57 +169,79 @@ public class NFA implements Serializable {
     }
   }
 
+  // StateLocator should be thought as immutable
   private class StateLocator implements Serializable {
-    private Event origin;
     private EventPointer ptr;
     private State curState;
     private int takeCount = 0; // counts the number of events taken
     private Event curEvent = null;
-    private CEPFieldRef curFieldRef;
 
-    StateLocator(Event origin) {
-      this.origin = origin;
-      List<Integer> eventPtr = new ArrayList<>();
-      this.ptr = new EventPointer(eventPtr);
-      this.curState = startState;
-      CEPCall condition = (CEPCall) startState.getCondition();
-      this.curFieldRef = getFieldRefFromSideCondition((CEPCall) condition.getOperands().get(0));
+    StateLocator(EventPointer ptr, State curState, int takeCount, Event curEvent) {
+      this.ptr = ptr;
+      this.curState = curState;
+      this.takeCount = takeCount;
+      this.curEvent = curEvent;
     }
 
-    // todo: add support for all quantifiers
-    private boolean canTake() {
-      Quantifier quantAtCurState = curState.getQuantifier();
-    }
-
-    // upon a successful match, return true: continue pattern-match
-    private boolean process(Event inputEvent) {
-      // if at start state and the event stack is empty, return true
-      if(curEvent == null && curState == startState) {
-        this.curEvent = inputEvent;
-
-        return true;
-      }
-    }
-
-    // represents the "proceed" edge: transfer to a new state,
+    // represents the "proceed"/"begin" edge: transfer to a new state,
     // write the new event in the new state's buffer.
-    // returns a new state locator
+    // returns a "new" state locator
     // returns null if not a match
     public StateLocator proceed(Event inputEvent) {
-
+      if(curState.hasProceed()) {
+        // try to proceed
+        CEPCall condition = (CEPCall) curState.getProceedCondition();
+        if(evalCondition(inputEvent, condition)) {
+          // special case: for an event that starts a match,
+          // assign a new index as the pointer value
+          if(curState == startState && curEvent == null) {
+            int ptrValue = curState.assignIndex();
+            ArrayList<Integer> ptrArray = new ArrayList<>();
+            ptrArray.add(ptrValue);
+            EventPointer eventPointer = new EventPointer(ptrArray);
+            inputEvent.addPrevEvent(eventPointer, null);
+            return new StateLocator(eventPointer, curState.getNextState(), 0, inputEvent);
+          }
+          // for the other cases, add a zero in the event pointer
+          EventPointer newPtr = ptr.getNewProceedPointer(0);
+          inputEvent.addPrevEvent(newPtr, curEvent);
+          return new StateLocator(newPtr, curState.getNextState(), 0, inputEvent);
+        } else {
+          return null;
+        }
+      } else {
+        return null;
+      }
     }
 
     // represents the "take" edge: the state stays at current state,
     // write the new event in the current state's buffer.
     // returns null if not a match
-    public StateLocator take(Event inputEvent) {
-
+    public StateLocator take(Event inputEvent, boolean split) {
+      if(curState.hasTake()) {
+        if(split) {
+          // get another unique pointer value
+          int ptrValue = curState.assignIndex();
+          EventPointer newPtr = ptr.getNewTakePointer(ptrValue);
+          inputEvent.addPrevEvent(newPtr, curEvent);
+          return new StateLocator(newPtr, curState, takeCount + 1, inputEvent);
+        } else {
+          EventPointer newPtr = ptr.copy();
+          inputEvent.addPrevEvent(newPtr, curEvent);
+          return new StateLocator(newPtr, curState, takeCount + 1, inputEvent);
+        }
+      } else {
+        return null;
+      }
     }
 
     // evaluates the condition
     // returns true if the new event satisfies the condition at a givens state
-    private boolean evalCondition(Event inputEvent, State atState) {
-      CEPCall condition = (CEPCall) atState.getCondition();
+    private boolean evalCondition(Event inputEvent, CEPOperation operation) {
+      if(operation == null) {
+        return true;
+      }
+      CEPCall condition = (CEPCall) operation;
       CEPKind comparator = condition.getOperator().getCepKind();
       CEPOperation leftSide = condition.getOperands().get(0); // left side must contain field reference
       CEPOperation rightSide = condition.getOperands().get(1);
@@ -255,12 +297,51 @@ public class NFA implements Serializable {
       this.isKleenePlusSecondary = isKleenePlusSecondary;
     }
 
-    public void assignIndex(int indexToAssign) {
+    public void setIndex(int indexToAssign) {
       this.index = indexToAssign;
     }
 
-    public CEPOperation getCondition() {
-      return condition;
+    // assigns a new index
+    public int assignIndex() {
+      return ++index;
+    }
+
+    // checks if a state has a take edge
+    public boolean hasTake() {
+      return isKleenePlusSecondary;
+    }
+
+    // checks if a state has a proceed/begin edge
+    public boolean hasProceed() {
+      // for singleton state and first state p[1] of a paired state
+      // return true
+      return !(isFinal || isKleenePlusSecondary);
+    }
+
+    // get the condition for the `take` condition
+    // returns null if the take edge takes no condition
+    // throws exception if there is no take edge for the state
+    public CEPOperation getTakeCondition() {
+      if(!hasTake()) {
+        throw new IllegalStateException("The state does not have a take edge.");
+      }
+      return null;
+    }
+
+    // get the condition for the `proceed` or the `begin` edge
+    // returns null if the proceed (begin) edge is always evaluated to true
+    // throws exception if there is no proceed (begin) edge for the state
+    public CEPOperation getProceedCondition() {
+      if(!hasProceed()) {
+        throw new IllegalStateException("The state does not have a proceed edge.");
+      }
+      // for singleton state or the first state of a paired state
+      // return the current condition
+      if(!isKleenePlusSecondary) {
+        return condition;
+      } else {
+        return null;
+      }
     }
 
     public Quantifier getQuantifier() {
@@ -289,7 +370,7 @@ public class NFA implements Serializable {
   private static State setNextStatesAndAssignIndices(List<State> states) {
     for(int i = 0; i < (states.size() - 1); ++i) {
       State currentState = states.get(i);
-      currentState.assignIndex(i);
+      currentState.setIndex(i);
       State nextState = states.get(i + 1);
       if(currentState.isKleenePlus()) {
         State secondaryState = currentState.getNextState();
