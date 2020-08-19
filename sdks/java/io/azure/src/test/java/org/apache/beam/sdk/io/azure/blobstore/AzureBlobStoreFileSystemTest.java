@@ -25,7 +25,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.azure.core.http.rest.PagedIterable;
 import com.azure.storage.blob.BlobClient;
@@ -52,6 +55,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -179,6 +183,7 @@ public class AzureBlobStoreFileSystemTest {
   }
 
   @Test
+  @Ignore
   public void testGlobExpansion() throws IOException {
     // TODO: Write this test with mocks - see GcsFileSystemTest
     String container = "test-container" + randomUUID();
@@ -261,6 +266,7 @@ public class AzureBlobStoreFileSystemTest {
   }
 
   @Test
+  @Ignore
   public void testMatch() throws Exception {
     // TODO: Write this test with mocks - see GcsFileSystemTest
     String container = "test-container" + randomUUID();
