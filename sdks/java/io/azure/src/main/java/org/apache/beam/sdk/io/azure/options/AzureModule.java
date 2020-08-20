@@ -18,7 +18,18 @@
 package org.apache.beam.sdk.io.azure.options;
 
 import com.azure.core.credential.TokenCredential;
-import com.azure.identity.*;
+import com.azure.identity.ClientCertificateCredential;
+import com.azure.identity.ClientCertificateCredentialBuilder;
+import com.azure.identity.ClientSecretCredential;
+import com.azure.identity.ClientSecretCredentialBuilder;
+import com.azure.identity.DefaultAzureCredential;
+import com.azure.identity.DefaultAzureCredentialBuilder;
+import com.azure.identity.EnvironmentCredential;
+import com.azure.identity.EnvironmentCredentialBuilder;
+import com.azure.identity.ManagedIdentityCredential;
+import com.azure.identity.ManagedIdentityCredentialBuilder;
+import com.azure.identity.UsernamePasswordCredential;
+import com.azure.identity.UsernamePasswordCredentialBuilder;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
