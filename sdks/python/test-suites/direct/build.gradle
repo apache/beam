@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
-// Required to setup a Python 3 virtualenv and task names.
-pythonVersion = '3.5'
-apply from: '../common.gradle'
+task mongodbioIT {
+  getVersionsAsList('direct_mongodbio_it_task_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:direct:py${getVersionSuffix(it)}:mongodbioIT")
+  }
+}
