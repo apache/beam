@@ -524,21 +524,14 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
         add_parent(parent, parents.get(parent))
       components.transforms[parent].subtransforms.append(child)
 
-  copied_subtransform_ids = set()
-
-  def copy_subtransform(subtransform_id):
-    if subtransform_id in copied_subtransform_ids:
-      return
-    if subtransform_id not in components.transforms:
+  def copy_subtransforms(transform):
+    for subtransform_id in transform.subtransforms:
       if subtransform_id not in pipeline_proto.components.transforms:
         raise RuntimeError('Could not find subtransform to copy: ' +
                            subtransform_id)
-      components.transforms[subtransform_id].CopyFrom(
-          pipeline_proto.components.transforms[subtransform_id])
-      copied_subtransform_ids.add(subtransform_id)
-      for subsubtransform_id in components.transforms[
-          subtransform_id].subtransforms:
-        copy_subtransform(subsubtransform_id)
+      subtransform = pipeline_proto.components.transforms[subtransform_id]
+      components.transforms[subtransform_id].CopyFrom(subtransform)
+      copy_subtransforms(subtransform)
 
   all_consumers = collections.defaultdict(
       set)  # type: DefaultDict[str, Set[int]]
@@ -556,14 +549,8 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
     transform_id = unique_name(components.transforms, stage.name)
     components.transforms[transform_id].CopyFrom(transform)
     add_parent(transform_id, stage.parent)
-
-  if partial:
-    subtransforms_to_copy = [
-        subtransform for transform in components.transforms.values()
-        for subtransform in transform.subtransforms
-    ]
-    for subtransform in subtransforms_to_copy:
-      copy_subtransform(subtransform)
+    if partial:
+      copy_subtransforms(transform)
 
   del new_proto.root_transform_ids[:]
   new_proto.root_transform_ids.extend(roots)
