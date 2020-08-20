@@ -118,6 +118,10 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
   @Override
   public Iterator<RawUnionValue> call(Iterator<WindowedValue<InputT>> inputs) throws Exception {
+    // Do not call processElements if there are no inputs
+    // Otherwise, this may cause validation errors (e.g. ParDoTest)
+    if (!inputs.hasNext()) return new ConcurrentLinkedQueue<RawUnionValue>().iterator();
+
     try (ExecutableStageContext stageContext = contextFactory.get(jobInfo)) {
       ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
       try (StageBundleFactory stageBundleFactory =
