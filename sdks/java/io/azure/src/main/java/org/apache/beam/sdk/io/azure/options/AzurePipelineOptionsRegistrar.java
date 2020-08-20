@@ -15,27 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.azure.blobstore;
-
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+package org.apache.beam.sdk.io.azure.options;
 
 import com.google.auto.service.AutoService;
-import javax.annotation.Nonnull;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.io.FileSystem;
-import org.apache.beam.sdk.io.FileSystemRegistrar;
-import org.apache.beam.sdk.io.azure.options.BlobstoreOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
-/** {@link AutoService} registrar for the {@link AzureBlobStoreFileSystem}. */
-@AutoService(FileSystemRegistrar.class)
-@Experimental(Experimental.Kind.FILESYSTEM)
-public class AzureBlobStoreFileSystemRegistrar implements FileSystemRegistrar {
+/** A registrar containing the default Azure options. */
+@AutoService(PipelineOptionsRegistrar.class)
+public class AzurePipelineOptionsRegistrar implements PipelineOptionsRegistrar {
 
   @Override
-  public Iterable<FileSystem<?>> fromOptions(@Nonnull PipelineOptions options) {
-    checkNotNull(options, "Expect the runner have called FileSystems.setDefaultPipelineOptions().");
-    return ImmutableList.of(new AzureBlobStoreFileSystem(options.as(BlobstoreOptions.class)));
+  public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
+    return ImmutableList.<Class<? extends PipelineOptions>>builder()
+        .add(BlobstoreOptions.class)
+        .build();
   }
 }
