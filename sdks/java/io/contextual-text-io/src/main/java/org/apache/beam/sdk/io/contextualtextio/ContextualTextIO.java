@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileIO.MatchConfiguration;
 import org.apache.beam.sdk.io.ReadAllViaFileBasedSource;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -57,10 +58,15 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link PTransform}s that read text files and collect contextual information of the elements in
  * the input.
+ *
+ * <p>Use {@link TextIO} when not reading file with Multiline Records or additional metadata is not
+ * required.
  *
  * <h2>Reading from text files</h2>
  *
@@ -71,7 +77,7 @@ import org.joda.time.Duration;
  * {@link FileIO} to match them and {@link ContextualTextIO#readFiles()} to read them.
  *
  * <p>{@link #read} returns a {@link PCollection} of {@link RecordWithMetadata RecordWithMetadata},
- * each corresponding to one line of an inout UTF-8 text file (split into lines delimited by '\n',
+ * each corresponding to one line of an input UTF-8 text file (split into lines delimited by '\n',
  * '\r', '\r\n', or specified delimiter see {@link ContextualTextIO.Read#withDelimiter})
  *
  * <h3>Filepattern expansion and watching</h3>
@@ -92,7 +98,7 @@ import org.joda.time.Duration;
  * Pipeline p = ...;
  *
  * // A simple Read of a file:
- * PCollection<RecordWithMetadata> lines = p.apply(ContextualTextIO.read().from("/local/path/to/file.txt"));
+ * PCollection<RecordWithMetadata> records = p.apply(ContextualTextIO.read().from("/local/path/to/file.txt"));
  * }</pre>
  *
  * <p>Example 2: reading a PCollection of filenames.
@@ -105,7 +111,7 @@ import org.joda.time.Duration;
  * PCollection<String> filenames = ...;
  *
  * // Read all files in the collection.
- * PCollection<RecordWithMetadata> lines =
+ * PCollection<RecordWithMetadata> records =
  *     filenames
  *         .apply(FileIO.matchAll())
  *         .apply(FileIO.readMatches())
@@ -117,7 +123,7 @@ import org.joda.time.Duration;
  * <pre>{@code
  * Pipeline p = ...;
  *
- * PCollection<RecordWithMetadata> lines = p.apply(ContextualTextIO.read()
+ * PCollection<RecordWithMetadata> records = p.apply(ContextualTextIO.read()
  *     .from("/local/path/to/files/*")
  *     .watchForNewFiles(
  *       // Check for new files every minute
@@ -132,7 +138,7 @@ import org.joda.time.Duration;
  * <pre>{@code
  * Pipeline p = ...;
  *
- * PCollection<RecordWithMetadata> lines = p.apply(ContextualTextIO.read()
+ * PCollection<RecordWithMetadata> records = p.apply(ContextualTextIO.read()
  *     .from("/local/path/to/files/*.csv")
  *      .withHasMultilineCSVRecords(true));
  * }</pre>
@@ -142,7 +148,7 @@ import org.joda.time.Duration;
  * <pre>{@code
  * Pipeline p = ...;
  *
- * PCollection<RecordWithMetadata> lines = p.apply(FileIO.match()
+ * PCollection<RecordWithMetadata> records = p.apply(FileIO.match()
  *      .filepattern("filepattern")
  *      .continuously(
  *        Duration.millis(100),
@@ -151,8 +157,27 @@ import org.joda.time.Duration;
  *      .apply(ContextualTextIO.readFiles());
  * }</pre>
  *
- * NOTE: Using {@link ContextualTextIO.Read#withHasMultilineCSVRecords(Boolean)} introduces a
- * performance penalty: when this option is enabled, the input cannot be split and read in parallel.
+ * <p>Example 6: reading without recordNum metadata, or only fileName associated Metadata. (the
+ * Objects would still contain recordNums, but these recordNums would correspond to their positions
+ * in their respective offsets rather than their positions within the entire file).
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * PCollection<RecordWithMetadata> records = p.apply(ContextualTextIO.read()
+ *     .from("/local/path/to/files/*.csv")
+ *      .setWithoutRecordNumMetadata(true));
+ * }</pre>
+ *
+ * <p>NOTE: When using {@link ContextualTextIO.Read#withHasMultilineCSVRecords(Boolean)} this
+ * option, a single reader will be used to process the file, rather than multiple readers which can
+ * read from different offsets. For a large file this can result in lower performance.
+ *
+ * <p>NOTE: Use {@link Read#withoutRecordNumMetadata()} when recordNum metadata is not required or
+ * when only metadata associated with filenames is required, Not using this option introduces a
+ * shuffle step which increases the resources used by the pipeline. <b>This option is set to false
+ * by default. Meaning that the shuffle step will be performed, set it to false to avoid the shuffle
+ * step</b>
  *
  * <h3>Reading a very large number of files</h3>
  *
@@ -163,6 +188,7 @@ import org.joda.time.Duration;
  */
 public class ContextualTextIO {
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
+  private static final Logger LOG = LoggerFactory.getLogger(ContextualTextIO.class);
 
   /**
    * A {@link PTransform} that reads from one or more text files and returns a bounded {@link
@@ -172,7 +198,7 @@ public class ContextualTextIO {
     return new AutoValue_ContextualTextIO_Read.Builder()
         .setCompression(Compression.AUTO)
         .setHintMatchesManyFiles(false)
-        .setWithoutLineNumMetadata(false)
+        .setWithoutRecordNumMetadata(false)
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
         .setHasMultilineCSVRecords(false)
         .build();
@@ -201,7 +227,7 @@ public class ContextualTextIO {
 
     abstract boolean getHintMatchesManyFiles();
 
-    abstract boolean getWithoutLineNumMetadata();
+    abstract boolean getWithoutRecordNumMetadata();
 
     abstract Compression getCompression();
 
@@ -220,7 +246,7 @@ public class ContextualTextIO {
 
       abstract Builder setHintMatchesManyFiles(boolean hintManyFiles);
 
-      abstract Builder setWithoutLineNumMetadata(boolean withoutLineNumMetadata);
+      abstract Builder setWithoutRecordNumMetadata(boolean withoutLineNumMetadata);
 
       abstract Builder setCompression(Compression compression);
 
@@ -291,16 +317,16 @@ public class ContextualTextIO {
     }
 
     /**
-     * Allows the user the opt out of getting recordNums associated with each record.
+     * Allows the user to opt out of getting recordNums associated with each record.
      *
-     * <p>ContextualTextIO uses a shuffle step to assemble the recordNums for each record which may
-     * result in some performance loss.
+     * <p>When set to true, it will introduce a shuffle step to assemble the recordNums for each
+     * record, which will increase the resources used by the pipeline.
      *
      * <p>Use this when metadata like fileNames are required and their position/order can be
      * ignored.
      */
-    public Read withoutLineNumMetadata() {
-      return toBuilder().setWithoutLineNumMetadata(true).build();
+    public Read withoutRecordNumMetadata() {
+      return toBuilder().setWithoutRecordNumMetadata(true).build();
     }
 
     /** See {@link MatchConfiguration#withEmptyMatchTreatment}. */
@@ -329,12 +355,12 @@ public class ContextualTextIO {
     public PCollection<RecordWithMetadata> expand(PBegin input) {
       checkNotNull(
           getFilepattern(), "need to set the filepattern of a ContextualTextIO.Read transform");
-      PCollection<RecordWithMetadata> lines = null;
+      PCollection<RecordWithMetadata> records = null;
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
-        lines = input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
+        records = input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
       } else {
         // All other cases go through FileIO + ReadFiles
-        lines =
+        records =
             input
                 .apply(
                     "Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
@@ -348,8 +374,8 @@ public class ContextualTextIO {
       }
 
       // Check if the user decided to opt out of recordNums associated with records
-      if (getWithoutLineNumMetadata()) {
-        return lines;
+      if (getWithoutRecordNumMetadata()) {
+        return records;
       }
 
       // At this point the line number in RecordWithMetadata contains the relative line offset from
@@ -359,12 +385,12 @@ public class ContextualTextIO {
       // To compute the absolute position from the beginning of the input,
       // we group the lines within the same ranges, and evaluate the size of each range.
 
-      PCollection<KV<KV<String, Long>, RecordWithMetadata>> linesGroupedByFileAndRange =
-          lines.apply("AddFileNameAndRange", ParDo.of(new AddFileNameAndRange()));
+      PCollection<KV<KV<String, Long>, RecordWithMetadata>> recordsGroupedByFileAndRange =
+          records.apply("AddFileNameAndRange", ParDo.of(new AddFileNameAndRange()));
 
       PCollectionView<Map<KV<String, Long>, Long>> rangeSizes =
-          linesGroupedByFileAndRange
-              .apply("CountLinesForEachFileRange", Count.perKey())
+          recordsGroupedByFileAndRange
+              .apply("CountRecordsForEachFileRange", Count.perKey())
               .apply("SizesAsView", View.asMap());
 
       // Get Pipeline to create a dummy PCollection with one element to help compute the lines
@@ -377,17 +403,18 @@ public class ContextualTextIO {
 
       // After computing the number of lines before each range, we can find the line number in
       // original file as numLiesBeforeOffset + lineNumInCurrentOffset
-      PCollectionView<Map<KV<String, Long>, Long>> numLinesBeforeEachRange =
+      PCollectionView<Map<KV<String, Long>, Long>> numRecordsBeforeEachRange =
           singletonPcoll
               .apply(
-                  "ComputeLinesBeforeRange",
-                  ParDo.of(new ComputeLinesBeforeEachRange(rangeSizes)).withSideInputs(rangeSizes))
-              .apply("NumLinesBeforeEachRangeAsView", View.asMap());
+                  "ComputeRecordsBeforeRange",
+                  ParDo.of(new ComputeRecordsBeforeEachRange(rangeSizes))
+                      .withSideInputs(rangeSizes))
+              .apply("NumRecordsBeforeEachRangeAsView", View.asMap());
 
-      return linesGroupedByFileAndRange.apply(
+      return recordsGroupedByFileAndRange.apply(
           "AssignLineNums",
-          ParDo.of(new AssignLineNums(numLinesBeforeEachRange))
-              .withSideInputs(numLinesBeforeEachRange));
+          ParDo.of(new AssignRecordNums(numRecordsBeforeEachRange))
+              .withSideInputs(numRecordsBeforeEachRange));
     }
 
     @VisibleForTesting
@@ -395,21 +422,22 @@ public class ContextualTextIO {
         extends DoFn<RecordWithMetadata, KV<KV<String, Long>, RecordWithMetadata>> {
       @ProcessElement
       public void processElement(
-          @Element RecordWithMetadata line,
+          @Element RecordWithMetadata record,
           OutputReceiver<KV<KV<String, Long>, RecordWithMetadata>> out) {
-        out.output(KV.of(KV.of(line.getFileName(), line.getRange().getRangeNum()), line));
+        out.output(KV.of(KV.of(record.getFileName(), record.getStartingOffset()), record));
       }
     }
 
     /**
-     * Helper class for computing number of lines in the File preceding the beginning of the Range
+     * Helper class for computing number of record in the File preceding the beginning of the Range
      * in this file.
      */
     @VisibleForTesting
-    static class ComputeLinesBeforeEachRange extends DoFn<Integer, KV<KV<String, Long>, Long>> {
+    static class ComputeRecordsBeforeEachRange extends DoFn<Integer, KV<KV<String, Long>, Long>> {
       private final PCollectionView<Map<KV<String, Long>, Long>> rangeSizes;
 
-      public ComputeLinesBeforeEachRange(PCollectionView<Map<KV<String, Long>, Long>> rangeSizes) {
+      public ComputeRecordsBeforeEachRange(
+          PCollectionView<Map<KV<String, Long>, Long>> rangeSizes) {
         this.rangeSizes = rangeSizes;
       }
 
@@ -438,44 +466,48 @@ public class ContextualTextIO {
           sorted.put(entry.getKey(), entry.getValue());
         }
 
-        // HashMap that tracks lines passed for each file
-        Map<String, Long> pastLines = new HashMap<>();
+        // HashMap that tracks number of records passed for each file
+        Map<String, Long> pastRecords = new HashMap<>();
 
-        // For each (File, Range) Pair, compute the number of lines before it
+        // For each (File, Range) Pair, compute the number of records before it
         for (Map.Entry entry : sorted.entrySet()) {
-          Long lines = (long) entry.getValue();
+          Long numRecords = (long) entry.getValue();
           KV<String, Long> fileRange = (KV<String, Long>) entry.getKey();
           String file = fileRange.getKey();
-          Long linesBefore = 0L;
-          if (pastLines.containsKey(file)) {
-            linesBefore = pastLines.get(file);
+          Long numRecordsBefore = 0L;
+          if (pastRecords.containsKey(file)) {
+            numRecordsBefore = pastRecords.get(file);
           }
-          p.output(KV.of(fileRange, linesBefore));
-          pastLines.put(file, linesBefore + lines);
+          p.output(KV.of(fileRange, numRecordsBefore));
+          pastRecords.put(file, numRecordsBefore + numRecords);
         }
       }
     }
 
-    static class AssignLineNums
+    static class AssignRecordNums
         extends DoFn<KV<KV<String, Long>, RecordWithMetadata>, RecordWithMetadata> {
-      PCollectionView<Map<KV<String, Long>, Long>> numLinesBeforeEachRange;
+      PCollectionView<Map<KV<String, Long>, Long>> numRecordsBeforeEachRange;
 
-      public AssignLineNums(PCollectionView<Map<KV<String, Long>, Long>> numLinesBeforeEachRange) {
-        this.numLinesBeforeEachRange = numLinesBeforeEachRange;
+      public AssignRecordNums(
+          PCollectionView<Map<KV<String, Long>, Long>> numRecordsBeforeEachRange) {
+        this.numRecordsBeforeEachRange = numRecordsBeforeEachRange;
       }
 
       @ProcessElement
       public void processElement(ProcessContext p) {
         Long range = p.element().getKey().getValue();
         String file = p.element().getKey().getKey();
-        RecordWithMetadata line = p.element().getValue();
-        Long linesLessThanThisRange = p.sideInput(numLinesBeforeEachRange).get(KV.of(file, range));
+        RecordWithMetadata record = p.element().getValue();
+        Long numRecordsLessThanThisRange =
+            p.sideInput(numRecordsBeforeEachRange).get(KV.of(file, range));
         RecordWithMetadata newLine =
             RecordWithMetadata.newBuilder()
-                .setRecordValue(line.getRecordValue())
-                .setRecordNum(line.getRange().getRangeLineNum() + linesLessThanThisRange)
-                .setFileName(line.getFileName())
-                .setRange(line.getRange())
+                .setRecordValue(record.getRecordValue())
+                .setRecordOffset(record.getRecordOffset())
+                .setRecordNum(record.getRecordNumInOffset() + numRecordsLessThanThisRange)
+                .setFileName(record.getFileName())
+                .setStartingOffset(record.getStartingOffset())
+                .setRecordNumInOffset(record.getRecordNumInOffset())
                 .build();
         p.output(newLine);
       }
@@ -550,7 +582,7 @@ public class ContextualTextIO {
       try {
         coder = input.getPipeline().getSchemaRegistry().getSchemaCoder(RecordWithMetadata.class);
       } catch (NoSuchSchemaException e) {
-        System.out.println("No Coder!");
+        LOG.error("No Coder Found for RecordWithMetadata");
       }
       return input.apply(
           "Read all via FileBasedSource",

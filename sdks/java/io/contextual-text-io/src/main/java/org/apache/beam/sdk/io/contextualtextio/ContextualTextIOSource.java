@@ -35,6 +35,8 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implementation detail of {@link ContextualTextIO.Read}.
@@ -53,12 +55,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
   byte[] delimiter;
 
+  private final Logger LOG = LoggerFactory.getLogger(ContextualTextIOSource.class);
+
   // Used to Override isSplittable
   private boolean hasMultilineCSVRecords;
 
   @Override
   protected boolean isSplittable() throws Exception {
     if (hasMultilineCSVRecords) {
+      // When Having Multiline CSV Records,
+      // Splitting the file may cause a split to be within a record,
+      // Disabling split prevents this from happening
       return false;
     }
     return super.isSplittable();
@@ -102,7 +109,7 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
     try {
       coder = SchemaRegistry.createDefault().getSchemaCoder(RecordWithMetadata.class);
     } catch (NoSuchSchemaException e) {
-      System.out.println("No Coder!");
+      LOG.error("No Coder Found for RecordWithMetadata");
     }
     return coder;
   }
@@ -131,17 +138,17 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
     private byte @Nullable [] delimiter;
 
     // Add to override the isSplittable
-    private boolean hasRFC4180MultiLineColumn;
+    private boolean hasMultilineCSVRecords;
 
     private long startingOffset;
-    private long readerlineNum;
+    private long totalRecordCount;
 
     private MultiLineTextBasedReader(
-        ContextualTextIOSource source, byte[] delimiter, boolean hasRFC4180MultiLineColumn) {
+        ContextualTextIOSource source, byte[] delimiter, boolean hasMultilineCSVRecords) {
       super(source);
       buffer = ByteString.EMPTY;
       this.delimiter = delimiter;
-      this.hasRFC4180MultiLineColumn = hasRFC4180MultiLineColumn;
+      this.hasMultilineCSVRecords = hasMultilineCSVRecords;
       startingOffset = getCurrentSource().getStartOffset(); // Start offset;
     }
 
@@ -231,7 +238,7 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
         }
 
         byte currentByte = buffer.byteAt(bytePositionInBuffer);
-        if (hasRFC4180MultiLineColumn) {
+        if (hasMultilineCSVRecords) {
           // Check if we are inside an open Quote
           if (currentByte == '"') {
             doubleQuoteClosed = !doubleQuoteClosed;
@@ -318,26 +325,20 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
         dataToDecode = dataToDecode.substring(UTF8_BOM.size());
       }
 
-      /////////////////////////////////////////////
-
-      //      Data of the Current Line
-      //      dataToDecode.toStringUtf8();
-
       // The line num is:
-      Long lineUniqueLineNum = readerlineNum++;
+      Long recordUniqueNum = totalRecordCount++;
       // The Complete FileName (with uri if this is a web url eg: temp/abc.txt) is:
       String fileName = getCurrentSource().getSingleFileMetadata().resourceId().toString();
 
       // The single filename can be found as:
       // fileName.substring(fileName.lastIndexOf('/') + 1);
 
-      Range range =
-          Range.newBuilder().setRangeLineNum(lineUniqueLineNum).setRangeNum(startingOffset).build();
-      // The Range is the starting Offset for this reader:
       currentValue =
           RecordWithMetadata.newBuilder()
-              .setRange(range)
-              .setRecordNum(lineUniqueLineNum)
+              .setRecordNumInOffset(recordUniqueNum)
+              .setStartingOffset(startingOffset)
+              .setRecordOffset(startOfRecord)
+              .setRecordNum(recordUniqueNum)
               .setFileName(fileName)
               .setRecordValue(dataToDecode.toStringUtf8())
               .build();
