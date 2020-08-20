@@ -24,11 +24,14 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
@@ -101,7 +104,9 @@ public class SparkExecutableStageFunctionTest {
   public void sdkErrorsSurfaceOnClose() throws Exception {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
     doThrow(new Exception()).when(remoteBundle).close();
-    function.call(Collections.emptyIterator());
+    List<WindowedValue<Integer>> dummyList = new ArrayList<>();
+    dummyList.add(WindowedValue.valueInGlobalWindow(0));
+    function.call(dummyList.iterator());
   }
 
   @Test
@@ -205,7 +210,9 @@ public class SparkExecutableStageFunctionTest {
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
 
     SparkExecutableStageFunction<Integer, ?> function = getFunction(outputTagMap);
-    Iterator<RawUnionValue> iterator = function.call(Collections.emptyIterator());
+    List<WindowedValue<Integer>> dummyList = new ArrayList<>();
+    dummyList.add(WindowedValue.valueInGlobalWindow(0));
+    Iterator<RawUnionValue> iterator = function.call(dummyList.iterator());
     Iterable<RawUnionValue> iterable = () -> iterator;
 
     assertThat(
@@ -217,11 +224,20 @@ public class SparkExecutableStageFunctionTest {
   @Test
   public void testStageBundleClosed() throws Exception {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
-    function.call(Collections.emptyIterator());
+    List<WindowedValue<Integer>> dummyList = new ArrayList<>();
+    dummyList.add(WindowedValue.valueInGlobalWindow(0));
+    function.call(dummyList.iterator());
     verify(stageBundleFactory).getBundle(any(), any(), any(), any());
     verify(stageBundleFactory).getProcessBundleDescriptor();
     verify(stageBundleFactory).close();
     verifyNoMoreInteractions(stageBundleFactory);
+  }
+
+  @Test
+  public void testNoCallOnEmptyInputIterator() throws Exception {
+    SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
+    function.call(Collections.emptyIterator());
+    verifyZeroInteractions(stageBundleFactory);
   }
 
   private <InputT, SideInputT> SparkExecutableStageFunction<InputT, SideInputT> getFunction(
