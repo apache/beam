@@ -83,7 +83,7 @@ import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.extensions.gcp.util.CustomHttpErrors;
-import org.apache.beam.sdk.extensions.gcp.util.LoggingHttpRequestInitializer;
+import org.apache.beam.sdk.extensions.gcp.util.LatencyRecordingHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -1037,7 +1037,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     // caller.
     initBuilder.add(httpRequestInitializer);
     if (histogram != null) {
-      initBuilder.add(new LoggingHttpRequestInitializer(histogram));
+      initBuilder.add(new LatencyRecordingHttpRequestInitializer(histogram));
     }
     HttpRequestInitializer chainInitializer =
         new ChainingHttpRequestInitializer(

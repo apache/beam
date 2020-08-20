@@ -25,10 +25,10 @@ import com.google.api.client.http.HttpResponseInterceptor;
 import java.io.IOException;
 import org.apache.beam.sdk.util.Histogram;
 
-public class LoggingHttpRequestInitializer implements HttpRequestInitializer {
+public class LatencyRecordingHttpRequestInitializer implements HttpRequestInitializer {
   private final Histogram histogram;
 
-  public LoggingHttpRequestInitializer(Histogram histogram) {
+  public LatencyRecordingHttpRequestInitializer(Histogram histogram) {
     this.histogram = histogram;
   }
 

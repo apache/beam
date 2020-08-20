@@ -91,8 +91,8 @@ class StreamingWriteFn<ErrorT, ElementT>
 
   @Setup
   public void setup() {
-    // record latency upto 30 seconds in the resolution of 20ms
-    histogram = Histogram.of(0, 30000, 1500, true);
+    // record latency upto 60 seconds in the resolution of 20ms
+    histogram = Histogram.linear(0, 20, 3000);
   }
 
   @Teardown

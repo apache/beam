@@ -49,11 +49,13 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/** Tests for LoggingHttpRequestInitializer. */
+/** Tests for LatencyRecordingHttpRequestInitializer. */
 @RunWith(JUnit4.class)
-public class LoggingHttpRequestInitializerTest {
+public class LatencyRecordingHttpRequestInitializerTest {
 
-  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(LoggingHttpRequestInitializer.class);
+  @Rule
+  public ExpectedLogs expectedLogs =
+      ExpectedLogs.none(LatencyRecordingHttpRequestInitializer.class);
 
   @Mock private LowLevelHttpRequest mockLowLevelRequest;
   @Mock private LowLevelHttpResponse mockLowLevelResponse;
@@ -74,7 +76,8 @@ public class LoggingHttpRequestInitializerTest {
           }
         };
 
-    LoggingHttpRequestInitializer initializer = new LoggingHttpRequestInitializer(mockHistogram);
+    LatencyRecordingHttpRequestInitializer initializer =
+        new LatencyRecordingHttpRequestInitializer(mockHistogram);
     storage =
         new Storage.Builder(lowLevelTransport, jsonFactory, initializer)
             .setApplicationName("test")
