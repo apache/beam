@@ -89,7 +89,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
 
   if (streaming) {
     pipelineOptions += "--streaming"
-    pipelineOptions += "--streamingTimeoutMs=20000"
+    pipelineOptions += "--streamingTimeoutMs=30000"
 
     testCategories = {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
@@ -113,7 +113,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
       excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-      // Currently unsupported in portable streaming
+      // Currently unsupported in portable streaming:
       // TODO (BEAM-10712)
       excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
       // TODO (BEAM-10754)
@@ -125,16 +125,21 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
     testFilter = {
       // TODO(BEAM-10094)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
-      // Currently unsupported in portable streaming
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineFnsTest'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateCoderInferenceTests'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.join.CoGroupByKeyTest'
+      // Currently unsupported in portable streaming:
+      // // Timeout error
+      excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedContainsInAnyOrder'
+      excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedSerializablePredicate'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowTest.testNoWindowFnDoesNotReassignWindows'
+      // // Assertion error: empty iterable output
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testFixedWindowsCombine'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleAfterFixedWindowsAndGroupByKey'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleAfterSessionsAndGroupByKey'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleAfterSlidingWindowsAndGroupByKey'
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.join.CoGroupByKeyTest.testCoGroupByKeyWithWindowing'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest'
+      // // Assertion error: incorrect output
+      excludeTestsMatching 'CombineTest$BasicTests.testHotKeyCombining'
     }
   }
   else {
