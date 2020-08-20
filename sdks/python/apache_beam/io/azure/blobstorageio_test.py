@@ -139,6 +139,10 @@ class TestBlobStorageIO(unittest.TestCase):
         + "BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;")
     self.azurite_client = BlobServiceClient.from_connection_string(connect_str)
     self.azfs = blobstorageio.BlobStorageIO(self.azurite_client)
+    try:
+      self.azurite_client.create_container("gsoc")
+    except:
+      print("Container already exists.")
     self.TEST_DATA_PATH = 'azfs://devstoreaccount1/gsoc/'
 
   def test_file_mode(self):
