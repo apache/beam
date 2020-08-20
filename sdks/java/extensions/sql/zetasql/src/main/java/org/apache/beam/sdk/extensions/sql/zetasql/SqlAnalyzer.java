@@ -219,7 +219,7 @@ public class SqlAnalyzer {
   }
 
   // TODO: Fix Later
-  @SuppressWarnings("nullness")
+  // @SuppressWarnings("nullness") Testing for google zetasql version
   private void addBuiltinFunctionsToCatalog(SimpleCatalog catalog, AnalyzerOptions options) {
     // Enable ZetaSQL builtin functions.
     ZetaSQLBuiltinFunctionOptions zetasqlBuiltinFunctionOptions =
