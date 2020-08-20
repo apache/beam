@@ -17,14 +17,21 @@
  */
 package org.apache.beam.sdk.io.contextualtextio;
 
+import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.CompressedSource;
 import org.apache.beam.sdk.io.Compression;
-import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
-import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileIO.MatchConfiguration;
@@ -32,47 +39,50 @@ import org.apache.beam.sdk.io.ReadAllViaFileBasedSource;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-
-import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-
 /**
- * {@link PTransform}s for reading and writing text files.
+ * {@link PTransform}s that read text files and collect contextual information of the elements in
+ * the input.
  *
- * <h2>Reading text files</h2>
+ * <h2>Reading from text files</h2>
  *
- * <p>To read a {@link PCollection} from one or more text files, use {@code TextIO.read()} to
- * instantiate a transform and use {@link TextIO.Read#from(String)} to specify the path of the
- * file(s) to be read. Alternatively, if the filenames to be read are themselves in a {@link
- * PCollection} you can use {@link FileIO} to match them and {@link TextIO#readFiles} to read them.
+ * <p>To read a {@link PCollection} from one or more text files, use {@code
+ * ContextualTextIO.read()}. To instantiate a transform use {@link
+ * ContextualTextIO.Read#from(String)} and specify the path of the file(s) to be read.
+ * Alternatively, if the filenames to be read are themselves in a {@link PCollection} you can use
+ * {@link FileIO} to match them and {@link ContextualTextIO#readFiles()} to read them.
  *
- * <p>{@link #read} returns a {@link PCollection} of {@link String Strings}, each corresponding to
- * one line of an input UTF-8 text file (split into lines delimited by '\n', '\r', or '\r\n', or
- * specified delimiter see {@link TextIO.Read#withDelimiter}).
+ * <p>{@link #read} returns a {@link PCollection} of {@link RecordWithMetadata RecordWithMetadata},
+ * each corresponding to one line of an inout UTF-8 text file (split into lines delimited by '\n',
+ * '\r', '\r\n', or specified delimiter see {@link ContextualTextIO.Read#withDelimiter})
  *
  * <h3>Filepattern expansion and watching</h3>
  *
- * <p>By default, the filepatterns are expanded only once. {@link Read#watchForNewFiles} or the
- * combination of {@link FileIO.Match#continuously(Duration, TerminationCondition)} and {@link
- * #readFiles()} allow streaming of new files matching the filepattern(s).
+ * <p>By default, the filepatterns are expanded only once. The combination of {@link
+ * FileIO.Match#continuously(Duration, TerminationCondition)} and {@link #readFiles()} allow
+ * streaming of new files matching the filepattern(s).
  *
  * <p>By default, {@link #read} prohibits filepatterns that match no files, and {@link #readFiles()}
  * allows them in case the filepattern contains a glob wildcard character. Use {@link
- * Read#withEmptyMatchTreatment} or {@link
+ * ContextualTextIO.Read#withEmptyMatchTreatment} or {@link
  * FileIO.Match#withEmptyMatchTreatment(EmptyMatchTreatment)} plus {@link #readFiles()} to configure
  * this behavior.
  *
@@ -81,8 +91,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
  * <pre>{@code
  * Pipeline p = ...;
  *
- * // A simple Read of a local file (only runs locally):
- * PCollection<String> lines = p.apply(TextIO.read().from("/local/path/to/file.txt"));
+ * // A simple Read of a file:
+ * PCollection<RecordWithMetadata> lines = p.apply(ContextualTextIO.read().from("/local/path/to/file.txt"));
  * }</pre>
  *
  * <p>Example 2: reading a PCollection of filenames.
@@ -95,11 +105,11 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
  * PCollection<String> filenames = ...;
  *
  * // Read all files in the collection.
- * PCollection<String> lines =
+ * PCollection<RecordWithMetadata> lines =
  *     filenames
  *         .apply(FileIO.matchAll())
  *         .apply(FileIO.readMatches())
- *         .apply(TextIO.readFiles());
+ *         .apply(ContextualTextIO.readFiles());
  * }</pre>
  *
  * <p>Example 3: streaming new files matching a filepattern.
@@ -107,7 +117,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
  * <pre>{@code
  * Pipeline p = ...;
  *
- * PCollection<String> lines = p.apply(TextIO.read()
+ * PCollection<RecordWithMetadata> lines = p.apply(ContextualTextIO.read()
  *     .from("/local/path/to/files/*")
  *     .watchForNewFiles(
  *       // Check for new files every minute
@@ -116,71 +126,57 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
  *       afterTimeSinceNewOutput(Duration.standardHours(1))));
  * }</pre>
  *
+ * <p>Example 4: reading a file or file pattern of RFC4180-compliant CSV files with fields that may
+ * contain line breaks.
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * PCollection<RecordWithMetadata> lines = p.apply(ContextualTextIO.read()
+ *     .from("/local/path/to/files/*.csv")
+ *      .withHasMultilineCSVRecords(true));
+ * }</pre>
+ *
+ * <p>Example 5: reading while watching for new files
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * PCollection<RecordWithMetadata> lines = p.apply(FileIO.match()
+ *      .filepattern("filepattern")
+ *      .continuously(
+ *        Duration.millis(100),
+ *        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))))
+ *      .apply(FileIO.readMatches())
+ *      .apply(ContextualTextIO.readFiles());
+ * }</pre>
+ *
+ * NOTE: Using {@link ContextualTextIO.Read#withHasMultilineCSVRecords(Boolean)} introduces a
+ * performance penalty: when this option is enabled, the input cannot be split and read in parallel.
+ *
  * <h3>Reading a very large number of files</h3>
  *
  * <p>If it is known that the filepattern will match a very large number of files (e.g. tens of
- * thousands or more), use {@link Read#withHintMatchesManyFiles} for better performance and
- * scalability. Note that it may decrease performance if the filepattern matches only a small number
- * of files.
- *
- * <h2>Writing text files</h2>
- *
- * <p>To write a {@link PCollection} to one or more text files, use {@code TextIO.write()}, using
- * {@link TextIO.Write#to(String)} to specify the output prefix of the files to write.
- *
- * <p>For example:
- *
- * <pre>{@code
- * // A simple Write to a local file (only runs locally):
- * PCollection<String> lines = ...;
- * lines.apply(TextIO.write().to("/path/to/file.txt"));
- *
- * // Same as above, only with Gzip compression:
- * PCollection<String> lines = ...;
- * lines.apply(TextIO.write().to("/path/to/file.txt"))
- *      .withSuffix(".txt")
- *      .withCompression(Compression.GZIP));
- * }</pre>
- *
- * <p>Any existing files with the same names as generated output files will be overwritten.
- *
- * <p>If you want better control over how filenames are generated than the default policy allows, a
- * custom {@link FilenamePolicy} can also be set using {@link TextIO.Write#to(FilenamePolicy)}.
- *
- * <h3>Advanced features</h3>
- *
- * <p>{@link TextIO} supports all features of {@link FileIO#write} and {@link FileIO#writeDynamic},
- * such as writing windowed/unbounded data, writing data to multiple destinations, and so on, by
- * providing a {@link Sink} via {@link #sink()}.
- *
- * <p>For example, to write events of different type to different filenames:
- *
- * <pre>{@code
- * PCollection<Event> events = ...;
- * events.apply(FileIO.<EventType, Event>writeDynamic()
- *       .by(Event::getTypeName)
- *       .via(TextIO.sink(), Event::toString)
- *       .to(type -> nameFilesUsingWindowPaneAndShard(".../events/" + type + "/data", ".txt")));
- * }</pre>
- *
- * <p>For backwards compatibility, {@link TextIO} also supports the legacy {@link
- * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
+ * thousands or more), use {@link ContextualTextIO.Read#withHintMatchesManyFiles} for better
+ * performance and scalability. Note that it may decrease performance if the filepattern matches
+ * only a small number of files.
  */
 public class ContextualTextIO {
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
 
   /**
    * A {@link PTransform} that reads from one or more text files and returns a bounded {@link
-   * PCollection} containing one element for each line of the input files.
+   * PCollection} containing one {@link RecordWithMetadata}element for each line of the input files.
    */
   public static Read read() {
     return new AutoValue_ContextualTextIO_Read.Builder()
         .setCompression(Compression.AUTO)
         .setHintMatchesManyFiles(false)
+        .setWithoutLineNumMetadata(false)
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
+        .setHasMultilineCSVRecords(false)
         .build();
   }
-
 
   /**
    * Like {@link #read}, but reads each file in a {@link PCollection} of {@link
@@ -192,26 +188,24 @@ public class ContextualTextIO {
         // but is not so large as to exhaust a typical runner's maximum amount of output per
         // ProcessElement call.
         .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .setHasMultilineCSVRecords(false)
         .build();
   }
 
-  /**
-   * A {@link PTransform} that writes a {@link PCollection} to a text file (or multiple text files
-   * matching a sharding pattern), with each element of the input collection encoded into its own
-   * line.
-   */
-
   /** Implementation of {@link #read}. */
   @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
-
+  public abstract static class Read extends PTransform<PBegin, PCollection<RecordWithMetadata>> {
     abstract @Nullable ValueProvider<String> getFilepattern();
 
     abstract MatchConfiguration getMatchConfiguration();
 
     abstract boolean getHintMatchesManyFiles();
 
+    abstract boolean getWithoutLineNumMetadata();
+
     abstract Compression getCompression();
+
+    abstract @Nullable Boolean getHasMultilineCSVRecords();
 
     @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
     abstract byte @Nullable [] getDelimiter();
@@ -226,15 +220,19 @@ public class ContextualTextIO {
 
       abstract Builder setHintMatchesManyFiles(boolean hintManyFiles);
 
+      abstract Builder setWithoutLineNumMetadata(boolean withoutLineNumMetadata);
+
       abstract Builder setCompression(Compression compression);
 
       abstract Builder setDelimiter(byte @Nullable [] delimiter);
+
+      abstract Builder setHasMultilineCSVRecords(Boolean hasMultilineCSVRecords);
 
       abstract Read build();
     }
 
     /**
-     * Reads text files that reads from the file(s) with the given filename or filename pattern.
+     * Reads text from the file(s) with the given filename or filename pattern.
      *
      * <p>This can be a local path (if running locally), or a Google Cloud Storage filename or
      * filename pattern of the form {@code "gs://<bucket>/<filepath>"} (if running locally or using
@@ -263,24 +261,20 @@ public class ContextualTextIO {
     }
 
     /**
+     * When reading RFC4180 CSV files that have values that span multiple lines, set this to true.
+     * Note: this reduces the read performance (see: {@link ContextualTextIO}).
+     */
+    public Read withHasMultilineCSVRecords(Boolean hasMultilineCSVRecords) {
+      return toBuilder().setHasMultilineCSVRecords(hasMultilineCSVRecords).build();
+    }
+
+    /**
      * Reads from input sources using the specified compression type.
      *
      * <p>If no compression type is specified, the default is {@link Compression#AUTO}.
      */
     public Read withCompression(Compression compression) {
       return toBuilder().setCompression(compression).build();
-    }
-
-    /**
-     * See {@link MatchConfiguration#continuously}.
-     *
-     * <p>This works only in runners supporting {@link Kind#SPLITTABLE_DO_FN}.
-     */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
-    public Read watchForNewFiles(
-        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(
-          getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
     /**
@@ -294,6 +288,19 @@ public class ContextualTextIO {
      */
     public Read withHintMatchesManyFiles() {
       return toBuilder().setHintMatchesManyFiles(true).build();
+    }
+
+    /**
+     * Allows the user the opt out of getting recordNums associated with each record.
+     *
+     * <p>ContextualTextIO uses a shuffle step to assemble the recordNums for each record which may
+     * result in some performance loss.
+     *
+     * <p>Use this when metadata like fileNames are required and their position/order can be
+     * ignored.
+     */
+    public Read withoutLineNumMetadata() {
+      return toBuilder().setWithoutLineNumMetadata(true).build();
     }
 
     /** See {@link MatchConfiguration#withEmptyMatchTreatment}. */
@@ -319,31 +326,169 @@ public class ContextualTextIO {
     }
 
     @Override
-    public PCollection<String> expand(PBegin input) {
-      checkNotNull(getFilepattern(), "need to set the filepattern of a TextIO.Read transform");
+    public PCollection<RecordWithMetadata> expand(PBegin input) {
+      checkNotNull(
+          getFilepattern(), "need to set the filepattern of a ContextualTextIO.Read transform");
+      PCollection<RecordWithMetadata> lines = null;
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
-        return input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
+        lines = input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
+      } else {
+        // All other cases go through FileIO + ReadFiles
+        lines =
+            input
+                .apply(
+                    "Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+                .apply("Match All", FileIO.matchAll().withConfiguration(getMatchConfiguration()))
+                .apply(
+                    "Read Matches",
+                    FileIO.readMatches()
+                        .withCompression(getCompression())
+                        .withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+                .apply("Via ReadFiles", readFiles().withDelimiter(getDelimiter()));
       }
 
-      // All other cases go through FileIO + ReadFiles
-      return input
-          .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
-          .apply("Match All", FileIO.matchAll().withConfiguration(getMatchConfiguration()))
-          .apply(
-              "Read Matches",
-              FileIO.readMatches()
-                  .withCompression(getCompression())
-                  .withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
-          .apply("Via ReadFiles", readFiles().withDelimiter(getDelimiter()));
+      // Check if the user decided to opt out of recordNums associated with records
+      if (getWithoutLineNumMetadata()) {
+        return lines;
+      }
+
+      // At this point the line number in RecordWithMetadata contains the relative line offset from
+      // the
+      // beginning of the read range.
+
+      // To compute the absolute position from the beginning of the input,
+      // we group the lines within the same ranges, and evaluate the size of each range.
+
+      PCollection<KV<KV<String, Long>, RecordWithMetadata>> linesGroupedByFileAndRange =
+          lines.apply("AddFileNameAndRange", ParDo.of(new AddFileNameAndRange()));
+
+      PCollectionView<Map<KV<String, Long>, Long>> rangeSizes =
+          linesGroupedByFileAndRange
+              .apply("CountLinesForEachFileRange", Count.perKey())
+              .apply("SizesAsView", View.asMap());
+
+      // Get Pipeline to create a dummy PCollection with one element to help compute the lines
+      // before each Range
+      PCollection<Integer> singletonPcoll =
+          input.getPipeline().apply("CreateSingletonPcoll", Create.of(Arrays.asList(1)));
+
+      // For each (File, Offset) pair, calculate the number of lines occurring before the Range for
+      // each File
+
+      // After computing the number of lines before each range, we can find the line number in
+      // original file as numLiesBeforeOffset + lineNumInCurrentOffset
+      PCollectionView<Map<KV<String, Long>, Long>> numLinesBeforeEachRange =
+          singletonPcoll
+              .apply(
+                  "ComputeLinesBeforeRange",
+                  ParDo.of(new ComputeLinesBeforeEachRange(rangeSizes)).withSideInputs(rangeSizes))
+              .apply("NumLinesBeforeEachRangeAsView", View.asMap());
+
+      return linesGroupedByFileAndRange.apply(
+          "AssignLineNums",
+          ParDo.of(new AssignLineNums(numLinesBeforeEachRange))
+              .withSideInputs(numLinesBeforeEachRange));
+    }
+
+    @VisibleForTesting
+    static class AddFileNameAndRange
+        extends DoFn<RecordWithMetadata, KV<KV<String, Long>, RecordWithMetadata>> {
+      @ProcessElement
+      public void processElement(
+          @Element RecordWithMetadata line,
+          OutputReceiver<KV<KV<String, Long>, RecordWithMetadata>> out) {
+        out.output(KV.of(KV.of(line.getFileName(), line.getRange().getRangeNum()), line));
+      }
+    }
+
+    /**
+     * Helper class for computing number of lines in the File preceding the beginning of the Range
+     * in this file.
+     */
+    @VisibleForTesting
+    static class ComputeLinesBeforeEachRange extends DoFn<Integer, KV<KV<String, Long>, Long>> {
+      private final PCollectionView<Map<KV<String, Long>, Long>> rangeSizes;
+
+      public ComputeLinesBeforeEachRange(PCollectionView<Map<KV<String, Long>, Long>> rangeSizes) {
+        this.rangeSizes = rangeSizes;
+      }
+
+      // Add custom comparator as KV<K, V> is not comparable by default
+      private static class FileRangeComparator<K extends Comparable<K>, V extends Comparable<V>>
+          implements Comparator<KV<K, V>> {
+        @Override
+        public int compare(KV<K, V> a, KV<K, V> b) {
+          if (a.getKey().compareTo(b.getKey()) == 0) {
+            return a.getValue().compareTo(b.getValue());
+          }
+          return a.getKey().compareTo(b.getKey());
+        }
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext p) {
+        // Get the Map Containing the size from side-input
+        Map<KV<String, Long>, Long> rangeSizesMap = p.sideInput(rangeSizes);
+
+        // The FileRange Pair must be sorted
+        SortedMap<KV<String, Long>, Long> sorted = new TreeMap<>(new FileRangeComparator<>());
+
+        // Initialize sorted map with values
+        for (Map.Entry<KV<String, Long>, Long> entry : rangeSizesMap.entrySet()) {
+          sorted.put(entry.getKey(), entry.getValue());
+        }
+
+        // HashMap that tracks lines passed for each file
+        Map<String, Long> pastLines = new HashMap<>();
+
+        // For each (File, Range) Pair, compute the number of lines before it
+        for (Map.Entry entry : sorted.entrySet()) {
+          Long lines = (long) entry.getValue();
+          KV<String, Long> fileRange = (KV<String, Long>) entry.getKey();
+          String file = fileRange.getKey();
+          Long linesBefore = 0L;
+          if (pastLines.containsKey(file)) {
+            linesBefore = pastLines.get(file);
+          }
+          p.output(KV.of(fileRange, linesBefore));
+          pastLines.put(file, linesBefore + lines);
+        }
+      }
+    }
+
+    static class AssignLineNums
+        extends DoFn<KV<KV<String, Long>, RecordWithMetadata>, RecordWithMetadata> {
+      PCollectionView<Map<KV<String, Long>, Long>> numLinesBeforeEachRange;
+
+      public AssignLineNums(PCollectionView<Map<KV<String, Long>, Long>> numLinesBeforeEachRange) {
+        this.numLinesBeforeEachRange = numLinesBeforeEachRange;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext p) {
+        Long range = p.element().getKey().getValue();
+        String file = p.element().getKey().getKey();
+        RecordWithMetadata line = p.element().getValue();
+        Long linesLessThanThisRange = p.sideInput(numLinesBeforeEachRange).get(KV.of(file, range));
+        RecordWithMetadata newLine =
+            RecordWithMetadata.newBuilder()
+                .setRecordValue(line.getRecordValue())
+                .setRecordNum(line.getRange().getRangeLineNum() + linesLessThanThisRange)
+                .setFileName(line.getFileName())
+                .setRange(line.getRange())
+                .build();
+        p.output(newLine);
+      }
     }
 
     // Helper to create a source specific to the requested compression type.
-    protected FileBasedSource<String> getSource() {
+    protected FileBasedSource<RecordWithMetadata> getSource() {
       return CompressedSource.from(
               new ContextualTextIOSource(
                   getFilepattern(),
                   getMatchConfiguration().getEmptyMatchTreatment(),
-                  getDelimiter()))
+                  getDelimiter(),
+                  getHasMultilineCSVRecords()))
           .withCompression(getCompression());
     }
 
@@ -358,26 +503,31 @@ public class ContextualTextIO {
           .include("matchConfiguration", getMatchConfiguration())
           .addIfNotNull(
               DisplayData.item("delimiter", Arrays.toString(getDelimiter()))
-                  .withLabel("Custom delimiter to split records"));
+                  .withLabel("Custom delimiter to split records"))
+          .addIfNotNull(
+              DisplayData.item("hasMultilineCSVRecords", getHasMultilineCSVRecords())
+                  .withLabel("Has RFC4180 MultiLineCSV Records"));
     }
   }
-
-  /////////////////////////////////////////////////////////////////////////////
 
   /** Implementation of {@link #readFiles}. */
   @AutoValue
   public abstract static class ReadFiles
-      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<String>> {
+      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<RecordWithMetadata>> {
     abstract long getDesiredBundleSizeBytes();
 
     @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
     abstract byte @Nullable [] getDelimiter();
+
+    abstract boolean getHasMultilineCSVRecords();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
+
+      abstract Builder setHasMultilineCSVRecords(boolean hasMultilineCSVRecords);
 
       abstract Builder setDelimiter(byte @Nullable [] delimiter);
 
@@ -395,13 +545,19 @@ public class ContextualTextIO {
     }
 
     @Override
-    public PCollection<String> expand(PCollection<FileIO.ReadableFile> input) {
+    public PCollection<RecordWithMetadata> expand(PCollection<FileIO.ReadableFile> input) {
+      SchemaCoder<RecordWithMetadata> coder = null;
+      try {
+        coder = input.getPipeline().getSchemaRegistry().getSchemaCoder(RecordWithMetadata.class);
+      } catch (NoSuchSchemaException e) {
+        System.out.println("No Coder!");
+      }
       return input.apply(
           "Read all via FileBasedSource",
           new ReadAllViaFileBasedSource<>(
               getDesiredBundleSizeBytes(),
-              new CreateTextSourceFn(getDelimiter()),
-              StringUtf8Coder.of()));
+              new CreateTextSourceFn(getDelimiter(), getHasMultilineCSVRecords()),
+              coder));
     }
 
     @Override
@@ -413,20 +569,26 @@ public class ContextualTextIO {
     }
 
     private static class CreateTextSourceFn
-        implements SerializableFunction<String, FileBasedSource<String>> {
+        implements SerializableFunction<String, FileBasedSource<RecordWithMetadata>> {
       private byte[] delimiter;
+      private boolean hasMultilineCSVRecords;
 
-      private CreateTextSourceFn(byte[] delimiter) {
+      private CreateTextSourceFn(byte[] delimiter, boolean hasMultilineCSVRecords) {
         this.delimiter = delimiter;
+        this.hasMultilineCSVRecords = hasMultilineCSVRecords;
       }
 
       @Override
-      public FileBasedSource<String> apply(String input) {
+      public FileBasedSource<RecordWithMetadata> apply(String input) {
         return new ContextualTextIOSource(
-            StaticValueProvider.of(input), EmptyMatchTreatment.DISALLOW, delimiter);
+            StaticValueProvider.of(input),
+            EmptyMatchTreatment.DISALLOW,
+            delimiter,
+            hasMultilineCSVRecords);
       }
     }
   }
+
   /** Disable construction of utility class. */
   private ContextualTextIO() {}
 }

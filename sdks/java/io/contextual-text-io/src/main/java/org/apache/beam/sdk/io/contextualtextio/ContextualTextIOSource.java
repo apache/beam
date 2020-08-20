@@ -17,27 +17,27 @@
  */
 package org.apache.beam.sdk.io.contextualtextio;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.FileBasedSource;
-import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
-import org.apache.beam.sdk.io.fs.MatchResult;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.NoSuchElementException;
-
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.FileBasedSource;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
+import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Implementation detail of {@link}.
+ * Implementation detail of {@link ContextualTextIO.Read}.
  *
  * <p>A {@link FileBasedSource} which can decode records delimited by newline characters.
  *
@@ -50,45 +50,72 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
  * representing the beginning of the first record to be decoded.
  */
 @VisibleForTesting
-class ContextualTextIOSource extends FileBasedSource<String> {
+class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
   byte[] delimiter;
 
+  // Used to Override isSplittable
+  private boolean hasMultilineCSVRecords;
+
+  @Override
+  protected boolean isSplittable() throws Exception {
+    if (hasMultilineCSVRecords) {
+      return false;
+    }
+    return super.isSplittable();
+  }
+
   ContextualTextIOSource(
-      ValueProvider<String> fileSpec, EmptyMatchTreatment emptyMatchTreatment, byte[] delimiter) {
+      ValueProvider<String> fileSpec,
+      EmptyMatchTreatment emptyMatchTreatment,
+      byte[] delimiter,
+      boolean hasMultilineCSVRecords) {
     super(fileSpec, emptyMatchTreatment, 1L);
     this.delimiter = delimiter;
+    this.hasMultilineCSVRecords = hasMultilineCSVRecords;
   }
 
-  private ContextualTextIOSource(MatchResult.Metadata metadata, long start, long end, byte[] delimiter) {
+  private ContextualTextIOSource(
+      MatchResult.Metadata metadata,
+      long start,
+      long end,
+      byte[] delimiter,
+      boolean hasMultilineCSVRecords) {
     super(metadata, 1L, start, end);
     this.delimiter = delimiter;
+    this.hasMultilineCSVRecords = hasMultilineCSVRecords;
   }
 
   @Override
-  protected FileBasedSource<String> createForSubrangeOfFile(
+  protected FileBasedSource<RecordWithMetadata> createForSubrangeOfFile(
       MatchResult.Metadata metadata, long start, long end) {
-    return new ContextualTextIOSource(metadata, start, end, delimiter);
+    return new ContextualTextIOSource(metadata, start, end, delimiter, hasMultilineCSVRecords);
   }
 
   @Override
-  protected FileBasedReader<String> createSingleFileReader(PipelineOptions options) {
-    return new TextBasedReader(this, delimiter);
+  protected FileBasedReader<RecordWithMetadata> createSingleFileReader(PipelineOptions options) {
+    return new MultiLineTextBasedReader(this, delimiter, hasMultilineCSVRecords);
   }
 
   @Override
-  public Coder<String> getOutputCoder() {
-    return StringUtf8Coder.of();
+  public Coder<RecordWithMetadata> getOutputCoder() {
+    SchemaCoder<RecordWithMetadata> coder = null;
+    try {
+      coder = SchemaRegistry.createDefault().getSchemaCoder(RecordWithMetadata.class);
+    } catch (NoSuchSchemaException e) {
+      System.out.println("No Coder!");
+    }
+    return coder;
   }
 
   /**
    * A {@link FileBasedReader FileBasedReader} which can decode records delimited by delimiter
    * characters.
    *
-   * <p>See {@link } for further details.
+   * <p>See {@link ContextualTextIOSource } for further details.
    */
   @VisibleForTesting
-  static class TextBasedReader extends FileBasedReader<String> {
-    private static final int READ_BUFFER_SIZE = 8192;
+  static class MultiLineTextBasedReader extends FileBasedReader<RecordWithMetadata> {
+    public static final int READ_BUFFER_SIZE = 8192;
     private static final ByteString UTF8_BOM =
         ByteString.copyFrom(new byte[] {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF});
     private final ByteBuffer readBuffer = ByteBuffer.allocate(READ_BUFFER_SIZE);
@@ -99,14 +126,23 @@ class ContextualTextIOSource extends FileBasedSource<String> {
     private volatile long startOfNextRecord;
     private volatile boolean eof;
     private volatile boolean elementIsPresent;
-    private @Nullable String currentValue;
+    private @Nullable RecordWithMetadata currentValue;
     private @Nullable ReadableByteChannel inChannel;
     private byte @Nullable [] delimiter;
 
-    private TextBasedReader(ContextualTextIOSource source, byte[] delimiter) {
+    // Add to override the isSplittable
+    private boolean hasRFC4180MultiLineColumn;
+
+    private long startingOffset;
+    private long readerlineNum;
+
+    private MultiLineTextBasedReader(
+        ContextualTextIOSource source, byte[] delimiter, boolean hasRFC4180MultiLineColumn) {
       super(source);
       buffer = ByteString.EMPTY;
       this.delimiter = delimiter;
+      this.hasRFC4180MultiLineColumn = hasRFC4180MultiLineColumn;
+      startingOffset = getCurrentSource().getStartOffset(); // Start offset;
     }
 
     @Override
@@ -126,7 +162,7 @@ class ContextualTextIOSource extends FileBasedSource<String> {
     }
 
     @Override
-    public String getCurrent() throws NoSuchElementException {
+    public RecordWithMetadata getCurrent() throws NoSuchElementException {
       if (!elementIsPresent) {
         throw new NoSuchElementException();
       }
@@ -140,7 +176,7 @@ class ContextualTextIOSource extends FileBasedSource<String> {
       // first delimiter.
       long startOffset = getCurrentSource().getStartOffset();
       if (startOffset > 0) {
-        checkState(
+        Preconditions.checkState(
             channel instanceof SeekableByteChannel,
             "%s only supports reading from a SeekableByteChannel when given a start offset"
                 + " greater than 0.",
@@ -152,7 +188,7 @@ class ContextualTextIOSource extends FileBasedSource<String> {
           requiredPosition = startOffset - delimiter.length;
         }
         ((SeekableByteChannel) channel).position(requiredPosition);
-        findDelimiterBounds();
+        findDelimiterBoundsWithMultiLineCheck();
         buffer = buffer.substring(endOfDelimiterInBuffer);
         startOfNextRecord = requiredPosition + endOfDelimiterInBuffer;
         endOfDelimiterInBuffer = 0;
@@ -160,9 +196,18 @@ class ContextualTextIOSource extends FileBasedSource<String> {
       }
     }
 
+    private void findDelimiterBoundsWithMultiLineCheck() throws IOException {
+      findDelimiterBounds();
+    }
+
     /**
      * Locates the start position and end position of the next delimiter. Will consume the channel
      * till either EOF or the delimiter bounds are found.
+     *
+     * <p>If {@link ContextualTextIOSource#hasMultilineCSVRecords} is set then the behaviour will
+     * change from the standard read seen in {@link org.apache.beam.sdk.io.TextIO}. The assumption
+     * when {@link ContextualTextIOSource#hasMultilineCSVRecords} is set is that the file is being
+     * read with a single thread.
      *
      * <p>This fills the buffer and updates the positions as follows:
      *
@@ -177,6 +222,8 @@ class ContextualTextIOSource extends FileBasedSource<String> {
      */
     private void findDelimiterBounds() throws IOException {
       int bytePositionInBuffer = 0;
+      boolean doubleQuoteClosed = true;
+
       while (true) {
         if (!tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + 1)) {
           startOfDelimiterInBuffer = endOfDelimiterInBuffer = bytePositionInBuffer;
@@ -184,48 +231,58 @@ class ContextualTextIOSource extends FileBasedSource<String> {
         }
 
         byte currentByte = buffer.byteAt(bytePositionInBuffer);
+        if (hasRFC4180MultiLineColumn) {
+          // Check if we are inside an open Quote
+          if (currentByte == '"') {
+            doubleQuoteClosed = !doubleQuoteClosed;
+          }
+        } else {
+          doubleQuoteClosed = true;
+        }
 
         if (delimiter == null) {
           // default delimiter
           if (currentByte == '\n') {
             startOfDelimiterInBuffer = bytePositionInBuffer;
             endOfDelimiterInBuffer = startOfDelimiterInBuffer + 1;
-            break;
+            if (doubleQuoteClosed) {
+              break;
+            }
           } else if (currentByte == '\r') {
             startOfDelimiterInBuffer = bytePositionInBuffer;
             endOfDelimiterInBuffer = startOfDelimiterInBuffer + 1;
-
             if (tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + 2)) {
               currentByte = buffer.byteAt(bytePositionInBuffer + 1);
               if (currentByte == '\n') {
                 endOfDelimiterInBuffer += 1;
               }
             }
-            break;
+            if (doubleQuoteClosed) {
+              break;
+            }
           }
         } else {
-          // user defined delimiter
+          // when the user defines a delimiter
           int i = 0;
-          // initialize delimiter not found
           startOfDelimiterInBuffer = endOfDelimiterInBuffer = bytePositionInBuffer;
-          while ((i <= delimiter.length - 1) && (currentByte == delimiter[i])) {
-            // read next byte
+          while ((i < delimiter.length) && (currentByte == delimiter[i])) {
+            // read next byte;
             i++;
             if (tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + i + 1)) {
               currentByte = buffer.byteAt(bytePositionInBuffer + i);
             } else {
-              // corner case: delimiter truncated at the end of the file
+              // corner case: delimiter truncate at the end of file
               startOfDelimiterInBuffer = endOfDelimiterInBuffer = bytePositionInBuffer;
               break;
             }
           }
           if (i == delimiter.length) {
-            // all bytes of delimiter found
             endOfDelimiterInBuffer = bytePositionInBuffer + i;
-            break;
+            if (doubleQuoteClosed) {
+              break;
+            }
           }
         }
-        // Move to the next byte in buffer.
         bytePositionInBuffer += 1;
       }
     }
@@ -233,7 +290,8 @@ class ContextualTextIOSource extends FileBasedSource<String> {
     @Override
     protected boolean readNextRecord() throws IOException {
       startOfRecord = startOfNextRecord;
-      findDelimiterBounds();
+
+      findDelimiterBoundsWithMultiLineCheck();
 
       // If we have reached EOF file and consumed all of the buffer then we know
       // that there are no more records.
@@ -259,7 +317,31 @@ class ContextualTextIOSource extends FileBasedSource<String> {
       if (startOfRecord == 0 && dataToDecode.startsWith(UTF8_BOM)) {
         dataToDecode = dataToDecode.substring(UTF8_BOM.size());
       }
-      currentValue = dataToDecode.toStringUtf8();
+
+      /////////////////////////////////////////////
+
+      //      Data of the Current Line
+      //      dataToDecode.toStringUtf8();
+
+      // The line num is:
+      Long lineUniqueLineNum = readerlineNum++;
+      // The Complete FileName (with uri if this is a web url eg: temp/abc.txt) is:
+      String fileName = getCurrentSource().getSingleFileMetadata().resourceId().toString();
+
+      // The single filename can be found as:
+      // fileName.substring(fileName.lastIndexOf('/') + 1);
+
+      Range range =
+          Range.newBuilder().setRangeLineNum(lineUniqueLineNum).setRangeNum(startingOffset).build();
+      // The Range is the starting Offset for this reader:
+      currentValue =
+          RecordWithMetadata.newBuilder()
+              .setRange(range)
+              .setRecordNum(lineUniqueLineNum)
+              .setFileName(fileName)
+              .setRecordValue(dataToDecode.toStringUtf8())
+              .build();
+
       elementIsPresent = true;
       buffer = buffer.substring(endOfDelimiterInBuffer);
     }
