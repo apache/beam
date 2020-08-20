@@ -94,7 +94,7 @@ class StreamingWriteFn<ErrorT, ElementT>
   public void setup() {
     // record latency upto 60 seconds in the resolution of 20ms
     histogram = Histogram.linear(0, 20, 3000);
-    lastReportedSystemClockMillis = 0;
+    lastReportedSystemClockMillis = System.currentTimeMillis();
   }
 
   @Teardown
@@ -154,7 +154,7 @@ class StreamingWriteFn<ErrorT, ElementT>
     long currentTimeMillis = System.currentTimeMillis();
     if (histogram.getTotalCount() > 0
         && (currentTimeMillis - lastReportedSystemClockMillis)
-            > options.getLatencyLoggingFrequency()) {
+            > options.getLatencyLoggingFrequency() * 1000L) {
       logPercentiles();
       histogram.clear();
       lastReportedSystemClockMillis = currentTimeMillis;
