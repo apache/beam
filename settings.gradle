@@ -19,6 +19,9 @@
 rootProject.name = "beam"
 
 include ":release"
+include ":release:go-licenses:go"
+include ":release:go-licenses:java"
+include ":release:go-licenses:py"
 
 include ":examples:java"
 include ":examples:kotlin"
