@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -41,4 +43,31 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.junit
   testRuntimeOnly library.java.slf4j_jdk14
+}
+
+/**
+ * These are integration tests with the real Azure service and the DirectRunner.
+ */
+task integrationTest(type: Test, dependsOn: processTestResources) {
+  group = "Verification"
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=DirectRunner",
+          "--project=${gcpProject}",
+          "--tempRoot=${gcpTempRoot}",
+          "--inputFile=azfs://ettasaccount/test-container/test-blob"
+  ])
+
+  // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+  outputs.upToDateWhen { false }
+
+  include '**/WordCountIT.class'
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
 }
