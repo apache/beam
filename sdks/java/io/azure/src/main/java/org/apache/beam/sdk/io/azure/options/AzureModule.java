@@ -18,14 +18,11 @@
 package org.apache.beam.sdk.io.azure.options;
 
 import com.azure.core.credential.TokenCredential;
-import com.azure.core.util.Configuration;
 import com.azure.identity.*;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.core.type.WritableTypeId;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -51,11 +48,12 @@ public class AzureModule extends SimpleModule {
   private static final String AZURE_CLIENT_CERTIFICATE_PATH = "azureClientCertificatePath";
   private static final String AZURE_USERNAME = "azureUsername";
   private static final String AZURE_PASSWORD = "azurePassword";
+  private static final String AZURE_PFX_CERTIFICATE_PATH = "azurePfxCertificatePath";
+  private static final String AZURE_PFX_CERTIFICATE_PASSWORD = "azurePfxCertificatePassword";
 
   public AzureModule() {
     super("AzureModule");
     setMixInAnnotation(TokenCredential.class, TokenCredentialMixin.class);
-    setMixInAnnotation(Configuration.class, AzureClientConfigurationMixin.class);
   }
 
   /** A mixin to add Jackson annotations to {@link TokenCredential}. */
@@ -86,7 +84,9 @@ public class AzureModule extends SimpleModule {
             String.format("Azure credentials provider type name key '%s' not found", typeNameKey));
       }
 
-      if (typeName.equals(ClientSecretCredential.class.getSimpleName())) {
+      if (typeName.equals(DefaultAzureCredential.class.getSimpleName())) {
+        return new DefaultAzureCredentialBuilder().build();
+      } else if (typeName.equals(ClientSecretCredential.class.getSimpleName())) {
         return new ClientSecretCredentialBuilder()
             .clientId(asMap.get(AZURE_CLIENT_ID))
             .clientSecret(asMap.get(AZURE_CLIENT_SECRET))
@@ -97,20 +97,26 @@ public class AzureModule extends SimpleModule {
       } else if (typeName.equals(EnvironmentCredential.class.getSimpleName())) {
         return new EnvironmentCredentialBuilder().build();
       } else if (typeName.equals(ClientCertificateCredential.class.getSimpleName())) {
-        return new ClientCertificateCredentialBuilder()
-            .clientId(asMap.get(AZURE_CLIENT_ID))
-            // This could be a PFX certificate instead...
-            // .pfxCertificate("<PATH TO PFX CERTIFICATE>", "PFX CERTIFICATE PASSWORD")
-            .pemCertificate(asMap.get(AZURE_CLIENT_CERTIFICATE_PATH))
-            .tenantId(asMap.get(AZURE_TENANT_ID))
-            .build();
+        if (asMap.containsKey(AZURE_CLIENT_CERTIFICATE_PATH)) {
+          return new ClientCertificateCredentialBuilder()
+              .clientId(asMap.get(AZURE_CLIENT_ID))
+              .pemCertificate(asMap.get(AZURE_CLIENT_CERTIFICATE_PATH))
+              .tenantId(asMap.get(AZURE_TENANT_ID))
+              .build();
+        } else {
+          return new ClientCertificateCredentialBuilder()
+              .clientId(asMap.get(AZURE_CLIENT_ID))
+              .pfxCertificate(
+                  asMap.get(AZURE_PFX_CERTIFICATE_PATH), asMap.get(AZURE_PFX_CERTIFICATE_PASSWORD))
+              .tenantId(asMap.get(AZURE_TENANT_ID))
+              .build();
+        }
       } else if (typeName.equals(UsernamePasswordCredential.class.getSimpleName())) {
         return new UsernamePasswordCredentialBuilder()
             .clientId(asMap.get(AZURE_CLIENT_ID))
             .username(asMap.get(AZURE_USERNAME))
             .password(asMap.get(AZURE_PASSWORD))
             .build();
-        // Add other credentials...
       } else {
         throw new IOException(
             String.format("Azure credential provider type '%s' is not supported", typeName));
@@ -118,11 +124,11 @@ public class AzureModule extends SimpleModule {
     }
   }
 
+  // TODO: Write this class
   private static class TokenCredentialSerializer extends JsonSerializer<TokenCredential> {
     // These providers are singletons, so don't require any serialization, other than type.
-    private static final ImmutableSet<Object> SINGLETON_CREDENTIAL_PROVIDERS =
-        // add any singleton credentials...
-        ImmutableSet.of(DefaultAzureCredential.class);
+    // add any singleton credentials...
+    private static final ImmutableSet<Object> SINGLETON_CREDENTIAL_PROVIDERS = ImmutableSet.of();
 
     @Override
     public void serialize(
@@ -138,51 +144,8 @@ public class AzureModule extends SimpleModule {
         TokenCredential tokenCredential,
         JsonGenerator jsonGenerator,
         SerializerProvider serializers,
-        TypeSerializer typeSerializer)
-        throws IOException {
-      WritableTypeId typeId =
-          typeSerializer.writeTypePrefix(
-              jsonGenerator, typeSerializer.typeId(tokenCredential, JsonToken.START_OBJECT));
-      // add different credentials...
-      if (!SINGLETON_CREDENTIAL_PROVIDERS.contains(tokenCredential.getClass())) {
-        throw new IllegalArgumentException(
-            "Unsupported Azure credentials provider type " + tokenCredential.getClass());
-      }
-      typeSerializer.writeTypeSuffix(jsonGenerator, typeId);
-    }
-  }
-
-  /** A mixin to add Jackson annotations to {@link Configuration}. */
-  @JsonSerialize(using = AzureClientConfigurationSerializer.class)
-  @JsonDeserialize(using = AzureClientConfigurationDeserializer.class)
-  private static class AzureClientConfigurationMixin {}
-
-  private static class AzureClientConfigurationDeserializer
-      extends JsonDeserializer<Configuration> {
-    @Override
-    public Configuration deserialize(JsonParser jsonParser, DeserializationContext context)
-        throws IOException {
-      Map<String, Object> map = jsonParser.readValueAs(new TypeReference<Map<String, Object>>() {});
-
-      Configuration clientConfiguration = new Configuration();
-      // add the options...
-
-      return clientConfiguration;
-    }
-  }
-
-  private static class AzureClientConfigurationSerializer extends JsonSerializer<Configuration> {
-
-    @Override
-    public void serialize(
-        Configuration clientConfiguration,
-        JsonGenerator jsonGenerator,
-        SerializerProvider serializer)
-        throws IOException {
-
-      jsonGenerator.writeStartObject();
-      // add options...
-      jsonGenerator.writeEndObject();
+        TypeSerializer typeSerializer) {
+      throw new UnsupportedOperationException();
     }
   }
 }

@@ -23,7 +23,6 @@ import com.azure.core.http.HttpPipeline;
 import com.azure.core.http.policy.HttpPipelinePolicy;
 import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.storage.blob.models.CustomerProvidedKey;
-import com.azure.storage.common.StorageSharedKeyCredential;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.azure.blobstore.DefaultBlobstoreClientBuilderFactory;
@@ -58,16 +57,6 @@ public interface BlobstoreOptions extends PipelineOptions {
   String getAzureConnectionString();
 
   void setAzureConnectionString(String connectionString);
-
-  @Description("Sets a StorageSharedKeyCredential used to authorize requests sent to the service.")
-  StorageSharedKeyCredential getSharedKeyCredential();
-
-  void setSharedKeyCredential(StorageSharedKeyCredential sharedKeyCredential);
-
-  @Description("Sets a TokenCredential used to authorize requests sent to the service.")
-  TokenCredential getTokenCredential();
-
-  void setTokenCredential(TokenCredential tokenCredential);
 
   @Description("Sets the SAS token used to authorize requests sent to the service.")
   String getSasToken();
