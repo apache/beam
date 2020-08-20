@@ -113,6 +113,42 @@ class DeferredSeries(frame_base.DeferredFrame):
   diff = frame_base.wont_implement_method('order-sensitive')
 
   @frame_base.args_to_kwargs(pd.Series)
+  def nlargest(self, **kwargs):
+    if 'keep' in kwargs and kwargs['keep'] != 'all':
+      raise frame_base.WontImplementError('order-sensitive')
+    per_partition = expressions.ComputedExpression(
+        'nlargest-per-partition',
+        lambda df: df.nlargest(**kwargs), [self._expr],
+        preserves_partition_by=partitionings.Singleton(),
+        requires_partition_by=partitionings.Nothing())
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'nlargest',
+              lambda df: df.nlargest(**kwargs), [per_partition],
+              preserves_partition_by=partitionings.Singleton(),
+              requires_partition_by=partitionings.Singleton()))
+
+  @frame_base.args_to_kwargs(pd.Series)
+  def nsmallest(self, **kwargs):
+    if 'keep' in kwargs and kwargs['keep'] != 'all':
+      raise frame_base.WontImplementError('order-sensitive')
+    per_partition = expressions.ComputedExpression(
+        'nsmallest-per-partition',
+        lambda df: df.nsmallest(**kwargs), [self._expr],
+        preserves_partition_by=partitionings.Singleton(),
+        requires_partition_by=partitionings.Nothing())
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'nsmallest',
+              lambda df: df.nsmallest(**kwargs), [per_partition],
+              preserves_partition_by=partitionings.Singleton(),
+              requires_partition_by=partitionings.Singleton()))
+
+  rename_axis = frame_base._elementwise_method('rename_axis')
+
+  @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   @frame_base.maybe_inplace
   def replace(self, limit, **kwargs):
@@ -344,12 +380,6 @@ class DeferredDataFrame(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
 
-  items = itertuples = iterrows = iteritems = frame_base.wont_implement_method(
-      'non-lazy')
-
-  isna = frame_base._elementwise_method('isna')
-  notnull = notna = frame_base._elementwise_method('notna')
-
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
@@ -368,6 +398,182 @@ class DeferredDataFrame(frame_base.DeferredFrame):
             [self._expr, value_expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=partitionings.Nothing()))
+
+  isna = frame_base._elementwise_method('isna')
+  notnull = notna = frame_base._elementwise_method('notna')
+
+  items = itertuples = iterrows = iteritems = frame_base.wont_implement_method(
+      'non-lazy')
+
+  def _cols_as_temporary_index(self, cols, suffix=''):
+    original_index_names = list(self._expr.proxy().index.names)
+    new_index_names = [
+        '__apache_beam_temp_%d_%s' % (ix, suffix)
+        for (ix, _) in enumerate(original_index_names)]
+    def reindex(df):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'reindex',
+              lambda df:
+                  df.rename_axis(index=new_index_names, copy=False)
+                  .reset_index().set_index(cols),
+              [df._expr],
+              preserves_partition_by=partitionings.Nothing(),
+              requires_partition_by=partitionings.Nothing()))
+    def revert(df):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'join_restoreindex',
+              lambda df:
+                  df.reset_index().set_index(new_index_names)
+                  .rename_axis(index=original_index_names, copy=False),
+              [df._expr],
+              preserves_partition_by=partitionings.Nothing(),
+              requires_partition_by=partitionings.Nothing()))
+    return reindex, revert
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def join(self, other, on, **kwargs):
+    if on is not None:
+      reindex, revert = self._cols_as_temporary_index(on)
+      return revert(reindex(self).join(other, **kwargs))
+    if isinstance(other, list):
+      other_is_list = True
+    else:
+      other = [other]
+      other_is_list = False
+    placeholder = object()
+    other_exprs = [
+        df._expr for df in other if isinstance(df, frame_base.DeferredFrame)]
+    const_others = [
+        placeholder if isinstance(df, frame_base.DeferredFrame) else df
+        for df in other]
+    def fill_placeholders(values):
+      values = iter(values)
+      filled = [
+          next(values) if df is placeholder else df for df in const_others]
+      if other_is_list:
+        return filled
+      else:
+        return filled[0]
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'join',
+            lambda df, *deferred_others: df.join(
+                fill_placeholders(deferred_others), **kwargs),
+            [self._expr] + other_exprs,
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=partitionings.Index()))
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def merge(
+      self,
+      right,
+      on,
+      left_on,
+      right_on,
+      left_index,
+      right_index,
+      **kwargs):
+    self_proxy = self._expr.proxy()
+    right_proxy = right._expr.proxy()
+    # Validate with a pandas call.
+    _ = self_proxy.merge(
+        right_proxy,
+        on=on,
+        left_on=left_on,
+        right_on=right_on,
+        left_index=left_index,
+        right_index=right_index,
+        **kwargs)
+    if not any([on, left_on, right_on, left_index, right_index]):
+      on = [col for col in self_proxy.columns() if col in right_proxy.columns()]
+    if not left_on:
+      left_on = on
+    elif not isinstance(left_on, list):
+      left_on = [left_on]
+    if not right_on:
+      right_on = on
+    elif not isinstance(right_on, list):
+      right_on = [right_on]
+
+    if left_index:
+      indexed_left = self
+    else:
+      indexed_left = self.set_index(left_on, drop=False)
+
+    if right_index:
+      indexed_right = right
+    else:
+      indexed_right = right.set_index(right_on, drop=False)
+
+    merged = frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'merge',
+            lambda left, right: left.merge(
+                right, left_index=True, right_index=True, **kwargs),
+            [indexed_left._expr, indexed_right._expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=partitionings.Index()))
+
+    if left_index or right_index:
+      return merged
+    else:
+      return merged.reset_index(drop=True)
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  def nlargest(self, **kwargs):
+    if 'keep' in kwargs and kwargs['keep'] != 'all':
+      raise frame_base.WontImplementError('order-sensitive')
+    per_partition = expressions.ComputedExpression(
+            'nlargest-per-partition',
+            lambda df: df.nlargest(**kwargs),
+            [self._expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=partitionings.Nothing())
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'nlargest',
+              lambda df: df.nlargest(**kwargs),
+              [per_partition],
+              preserves_partition_by=partitionings.Singleton(),
+              requires_partition_by=partitionings.Singleton()))
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  def nsmallest(self, **kwargs):
+    if 'keep' in kwargs and kwargs['keep'] != 'all':
+      raise frame_base.WontImplementError('order-sensitive')
+    per_partition = expressions.ComputedExpression(
+            'nsmallest-per-partition',
+            lambda df: df.nsmallest(**kwargs),
+            [self._expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=partitionings.Nothing())
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'nsmallest',
+              lambda df: df.nsmallest(**kwargs),
+              [per_partition],
+              preserves_partition_by=partitionings.Singleton(),
+              requires_partition_by=partitionings.Singleton()))
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  def nunique(self, **kwargs):
+    if kwargs.get('axis', None) in (1, 'columns'):
+      requires_partition_by = partitionings.Nothing()
+    else:
+      requires_partition_by = partitionings.Singleton()
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'nunique',
+            lambda df: df.nunique(**kwargs),
+            [self._expr],
+            preserves_partition_by=partitionings.Singleton(),
+            requires_partition_by=requires_partition_by))
 
   prod = product = frame_base._agg_method('prod')
 
@@ -388,6 +594,37 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   query = frame_base._elementwise_method('query')
 
   @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def rename(self, **kwargs):
+    rename_index = (
+        'index' in kwargs
+        or kwargs.get('axis', None) in (0, 'index')
+        or ('columns' not in kwargs and 'axis' not in kwargs))
+    if rename_index:
+      # Technically, it's still partitioned by index, but it's no longer
+      # partitioned by the hash of the index.
+      preserves_partition_by = partitionings.Nothing()
+    else:
+      preserves_partition_by = partitionings.Singleton()
+    if kwargs.get('errors', None) == 'raise' and rename_index:
+      # Renaming index with checking.
+      requires_partition_by = partitionings.Singleton()
+      proxy = self._expr.proxy()
+    else:
+      requires_partition_by = partitionings.Nothing()
+      proxy = None
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'rename',
+            lambda df: df.rename(**kwargs),
+            [self._expr],
+            proxy=proxy,
+            preserves_partition_by=preserves_partition_by,
+            requires_partition_by=requires_partition_by))
+
+  rename_axis = frame_base._elementwise_method('rename_axis')
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def replace(self, limit, **kwargs):
@@ -406,7 +643,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
-  def reset_index(self, level, **kwargs):
+  def reset_index(self, level=None, **kwargs):
     if level is not None and not isinstance(level, (tuple, list)):
       level = [level]
     if level is None or len(level) == len(self._expr.proxy().index.levels):
