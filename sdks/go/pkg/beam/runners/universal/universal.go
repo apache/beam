@@ -83,7 +83,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return errors.WithContextf(err, "generating model pipeline")
 	}
 
-	xlangx.Resolve(ctx, edges, pipeline)
+	xlangx.ResolveArtifacts(ctx, edges, pipeline)
 
 	xlangx.PurgeOutputInput(edges, pipeline)
 

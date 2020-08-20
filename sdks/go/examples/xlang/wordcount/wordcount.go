@@ -96,7 +96,7 @@ func main() {
 		nil,
 		*expansionAddr,
 		map[string]beam.PCollection{"xlang-in": col},
-		map[string]typex.FullType{"output": outputType},
+		map[string]typex.FullType{"output": outputType}, // Should be "None" when submitting to Python Expansion service
 	)
 
 	formatted := beam.ParDo(s, formatFn, counted["output"])
