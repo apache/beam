@@ -42,9 +42,9 @@ For extra spiciness our implementation differs slightly from the above:
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.models.result_name import ResultNames
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 from apache_beam.testing.benchmarks.nexmark.queries import winning_bids
+from apache_beam.testing.benchmarks.nexmark.queries.nexmark_query_util import ResultNames
 from apache_beam.transforms import window
 
 
@@ -65,7 +65,8 @@ def load(events, metadata=None):
               metadata.get('window_period_sec')))
       # average for each category
       | beam.CombinePerKey(beam.combiners.MeanCombineFn())
-      # TODO(leiyiz): fanout has bug, uncomment after it is fixed [BEAM-10617]
+      # TODO(leiyiz): fanout with sliding window produces duplicated results,
+      #   uncomment after it is fixed [BEAM-10617]
       # .with_hot_key_fanout(metadata.get('fanout'))
       # produce output
       | beam.ParDo(ProjectToCategoryPriceFn()))

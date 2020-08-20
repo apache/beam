@@ -37,8 +37,8 @@ import logging
 
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
-from apache_beam.testing.benchmarks.nexmark.models.result_name import ResultNames
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
+from apache_beam.testing.benchmarks.nexmark.queries.nexmark_query_util import ResultNames
 from apache_beam.transforms import trigger
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
@@ -62,9 +62,8 @@ def load(events, metadata=None):
   person_by_id = (
       windowed_events
       | nexmark_query_util.JustPerson()
-      | 'query3_filter_region' >> beam.Filter(
-          lambda person: person.state == 'OR' or person.state == 'ID' or person.
-          state == 'CA')
+      | 'query3_filter_region' >>
+      beam.Filter(lambda person: person.state in ['OR', 'ID', 'CA'])
       | 'query3_key_by_person_id' >> beam.ParDo(
           nexmark_query_util.PersonByIdFn()))
   return ({
@@ -132,8 +131,7 @@ class JoinFn(beam.DoFn):
         new_person = person
       else:
         logging.error(
-            'two new person wtih same key: %s and %s' %
-            (repr(person), repr(new_person)))
+            'two new person wtih same key: %s and %s' % (person, new_person))
         continue
       # read all pending auctions for this person id, output and flush it
       pending_auctions = auction_state.read()

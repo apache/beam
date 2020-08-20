@@ -34,8 +34,8 @@ windows, and we'll also preserve the bid counts.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.models.result_name import ResultNames
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
+from apache_beam.testing.benchmarks.nexmark.queries.nexmark_query_util import ResultNames
 from apache_beam.transforms import window
 
 
@@ -52,7 +52,8 @@ def load(events, metadata=None):
       | 'bid_count_per_auction' >> beam.combiners.Count.PerElement()
       | 'bid_max_count' >> beam.CombineGlobally(
           MostBidCombineFn()).without_defaults()
-      # TODO(leiyiz): fanout has bug, uncomment after it is fixed [BEAM-10617]
+      # TODO(leiyiz): fanout with sliding window produces duplicated results,
+      #   uncomment after it is fixed [BEAM-10617]
       # .with_fanout(metadata.get('fanout'))
       | beam.FlatMap(
           lambda auc_count: [{

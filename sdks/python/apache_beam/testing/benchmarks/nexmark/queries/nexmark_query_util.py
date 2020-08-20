@@ -26,6 +26,22 @@ BID_TAG = 'bids'
 PERSON_TAG = 'person'
 
 
+class ResultNames:
+  SELLER = 'seller'
+  PRICE = 'price'
+  NAME = 'name'
+  CITY = 'city'
+  STATE = 'state'
+  AUCTION_ID = 'auction_id'
+  ID = 'id'
+  RESERVE = 'reserve'
+  CATEGORY = 'category'
+  IS_LAST = 'is_last'
+  BIDDER_ID = 'bidder_id'
+  BID_COUNT = 'bid_count'
+  NUM = 'num'
+
+
 def is_bid(event):
   return isinstance(event, nexmark_model.Bid)
 

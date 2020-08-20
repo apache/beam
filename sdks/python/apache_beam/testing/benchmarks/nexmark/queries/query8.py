@@ -30,8 +30,8 @@ shorter window.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.testing.benchmarks.nexmark.models.result_name import ResultNames
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
+from apache_beam.testing.benchmarks.nexmark.queries.nexmark_query_util import ResultNames
 from apache_beam.transforms import window
 
 
