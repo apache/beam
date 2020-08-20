@@ -160,11 +160,11 @@ public class ContextualTextIOTest {
     return lines;
   }
 
-  private static class convertRecordWithMetadataToString extends DoFn<RecordWithMetadata, String> {
+  private static class ConvertRecordWithMetadataToString extends DoFn<RecordWithMetadata, String> {
     @ProcessElement
-    public void processElement(@Element RecordWithMetadata L, OutputReceiver<String> out) {
-      String file = L.getFileName().substring(L.getFileName().lastIndexOf('/') + 1);
-      out.output(file + " " + L.getRecordNum() + " " + L.getRecordValue());
+    public void processElement(@Element RecordWithMetadata record, OutputReceiver<String> out) {
+      String file = record.getFileName().substring(record.getFileName().lastIndexOf('/') + 1);
+      out.output(file + " " + record.getRecordNum() + " " + record.getRecordValue());
     }
   }
 
@@ -177,7 +177,7 @@ public class ContextualTextIOTest {
    * <ul>
    *   <li>ContextualTextIO.read().from(filename).withCompression(compressionType).withHintMatchesManyFiles()
    *   <li>ContextualTextIO.read().from(filename).withCompression(compressionType)
-   *   <li>ContextualTextIO.read().from(filename).withCompression(compressionType).with
+   *   <li>ContextualTextIO.read().from(filename).withCompression(compressionType).withHasMultilineCSV(true)
    *   <li>ContextualTextIO.readFiles().withCompression(compressionType)
    * </ul>
    */
@@ -197,7 +197,7 @@ public class ContextualTextIOTest {
             p.apply("Read_" + file + "_" + compression.toString(), read)
                 .apply(
                     "ConvertRecordWithMetadataToString",
-                    ParDo.of(new convertRecordWithMetadataToString())))
+                    ParDo.of(new ConvertRecordWithMetadataToString())))
         .containsInAnyOrder(expectedOutput);
     PAssert.that(
             p.apply(
@@ -205,7 +205,7 @@ public class ContextualTextIOTest {
                     read.withHintMatchesManyFiles())
                 .apply(
                     "ConvertRecordWithMetadataToString" + "_many",
-                    ParDo.of(new convertRecordWithMetadataToString())))
+                    ParDo.of(new ConvertRecordWithMetadataToString())))
         .containsInAnyOrder(expectedOutput);
 
     PAssert.that(
@@ -214,7 +214,7 @@ public class ContextualTextIOTest {
                     read.withHasMultilineCSVRecords(true))
                 .apply(
                     "ConvertRecordWithMetadataToString" + "_withRFC4180",
-                    ParDo.of(new convertRecordWithMetadataToString())))
+                    ParDo.of(new ConvertRecordWithMetadataToString())))
         .containsInAnyOrder(expectedOutput);
 
     PAssert.that(
@@ -224,7 +224,7 @@ public class ContextualTextIOTest {
                 .apply("ReadFiles_" + compression.toString(), ContextualTextIO.readFiles())
                 .apply(
                     "ConvertRecordWithMetadataToStringWithFileIO",
-                    ParDo.of(new convertRecordWithMetadataToString())))
+                    ParDo.of(new ConvertRecordWithMetadataToString())))
         .containsInAnyOrder(expectedOutput);
   }
 
@@ -417,7 +417,7 @@ public class ContextualTextIOTest {
 
   @RunWith(Parameterized.class)
   public static class ReadWithDelimiterAndRFC4180 {
-    static final ImmutableList<String> Expected = ImmutableList.of("\"asdf\nhjkl\nmnop\"", "xyz");
+    static final ImmutableList<String> EXPECTED = ImmutableList.of("\"asdf\nhjkl\nmnop\"", "xyz");
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Parameterized.Parameters(name = "{index}: {0}")
@@ -425,11 +425,11 @@ public class ContextualTextIOTest {
       return ImmutableList.<Object[]>builder()
           .add(new Object[] {"\n\n\n", ImmutableList.of("", "", "")})
           .add(new Object[] {"\"asdf\nhjkl\"\nxyz\n", ImmutableList.of("\"asdf\nhjkl\"", "xyz")})
-          .add(new Object[] {"\"asdf\nhjkl\nmnop\"\nxyz\n", Expected})
-          .add(new Object[] {"\"asdf\nhjkl\nmnop\"\nxyz\r", Expected})
-          .add(new Object[] {"\"asdf\nhjkl\nmnop\"\r\nxyz\n", Expected})
-          .add(new Object[] {"\"asdf\nhjkl\nmnop\"\r\nxyz\r\n", Expected})
-          .add(new Object[] {"\"asdf\nhjkl\nmnop\"\rxyz\r\n", Expected})
+          .add(new Object[] {"\"asdf\nhjkl\nmnop\"\nxyz\n", EXPECTED})
+          .add(new Object[] {"\"asdf\nhjkl\nmnop\"\nxyz\r", EXPECTED})
+          .add(new Object[] {"\"asdf\nhjkl\nmnop\"\r\nxyz\n", EXPECTED})
+          .add(new Object[] {"\"asdf\nhjkl\nmnop\"\r\nxyz\r\n", EXPECTED})
+          .add(new Object[] {"\"asdf\nhjkl\nmnop\"\rxyz\r\n", EXPECTED})
           .build();
     }
 
@@ -492,7 +492,7 @@ public class ContextualTextIOTest {
 
     @Test
     @Category(NeedsRunner.class)
-    public void MultipleFilesTest() throws Exception {
+    public void multipleFilesTest() throws Exception {
       List<File> files =
           Arrays.asList(
               tempFolder.newFile("File1"),
@@ -736,7 +736,7 @@ public class ContextualTextIOTest {
           ContextualTextIO.read()
               .from(createFileFromList(input))
               .withHasMultilineCSVRecords(true)
-              .withoutLineNumMetadata();
+              .withoutRecordNumMetadata();
       PCollection<RecordWithMetadata> output = p.apply(read);
 
       PCollection<String> result =
@@ -754,17 +754,18 @@ public class ContextualTextIOTest {
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
     @Rule public TestPipeline p = TestPipeline.create();
 
-    public static class getLines extends DoFn<RecordWithMetadata, String> {
+    public static class GetLines extends DoFn<RecordWithMetadata, String> {
       @ProcessElement
-      public void processElement(@Element RecordWithMetadata L, OutputReceiver<String> out) {
-        out.output(L.getRecordValue());
+      public void processElement(@Element RecordWithMetadata record, OutputReceiver<String> out) {
+        out.output(record.getRecordValue());
       }
     }
 
-    public static class getDetails extends DoFn<RecordWithMetadata, String> {
+    public static class GetDetails extends DoFn<RecordWithMetadata, String> {
       @ProcessElement
-      public void processElement(@Element RecordWithMetadata L, OutputReceiver<String> out) {
-        out.output(L.getFileName() + " " + L.getRecordNum() + " " + L.getRecordValue());
+      public void processElement(@Element RecordWithMetadata record, OutputReceiver<String> out) {
+        out.output(
+            record.getFileName() + " " + record.getRecordNum() + " " + record.getRecordValue());
       }
     }
 
@@ -854,7 +855,7 @@ public class ContextualTextIOTest {
 
       PAssert.that(
               p.apply(ContextualTextIO.read().from(filename).withDelimiter(new byte[] {'|', '*'}))
-                  .apply(ParDo.of(new getLines())))
+                  .apply(ParDo.of(new GetLines())))
           .containsInAnyOrder(
               "To be, or not to be: that |is the question: To be, or not to be: "
                   + "that *is the question: Whether 'tis nobler in the mind to suffer ",
@@ -887,7 +888,7 @@ public class ContextualTextIOTest {
 
       PAssert.that(
               p.apply(ContextualTextIO.read().from(filename).withDelimiter(new byte[] {'|', '*'}))
-                  .apply(ParDo.of(new getDetails())))
+                  .apply(ParDo.of(new GetDetails())))
           .containsInAnyOrder(
               filename
                   + " 0 To be, or not to be: that |is the question: To be, or not to be: "
