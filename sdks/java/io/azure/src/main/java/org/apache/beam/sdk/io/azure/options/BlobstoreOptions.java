@@ -99,14 +99,25 @@ public interface BlobstoreOptions extends PipelineOptions {
 
   void setHttpPipeline(HttpPipeline httpPipeline);
 
+  /* Refer to {@link DefaultAWSCredentialsProviderChain} Javadoc for usage help. */
+
   /**
    * The credential instance that should be used to authenticate against Azure services. The option
    * value must contain a "@type" field and an Azure credentials provider class as the field value.
+   *
+   * <p>For example, to specify the Azure client id, tenant id, and client secret, specify the
+   * following: <code>
+   *     {"@type" : "ClientSecretCredential", "azureClientId": "client_id_value",
+   *     "azureTenantId": "tenant_id_value", "azureClientSecret": "client_secret_value"}
+   * </code>
    */
   @Description(
       "The credential instance that should be used to authenticate "
           + "against Azure services. The option value must contain \"@type\" field "
-          + "and an Azure credentials provider class name as the field value.")
+          + "and an Azure credentials provider class name as the field value. "
+          + " For example, to specify the Azure client id, tenant id, and client secret, specify the following: "
+          + "{\"@type\" : \"ClientSecretCredential\", \"azureClientId\": \"client_id_value\", "
+          + "\"azureTenantId\": \"tenant_id_value\", \"azureClientSecret\": \"client_secret_value\"}")
   @Default.InstanceFactory(AzureUserCredentialsFactory.class)
   TokenCredential getAzureCredentialsProvider();
 
