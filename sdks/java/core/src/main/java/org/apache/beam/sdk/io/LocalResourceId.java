@@ -39,8 +39,6 @@ class LocalResourceId implements ResourceId {
 
   private transient @Nullable volatile Path cachedPath;
 
-  private final boolean isDirectory;
-
   static LocalResourceId fromPath(Path path, boolean isDirectory) {
     checkNotNull(path, "path");
     return new LocalResourceId(path, isDirectory);
@@ -48,13 +46,12 @@ class LocalResourceId implements ResourceId {
 
   private LocalResourceId(Path path, boolean isDirectory) {
     this.pathString =
-        path.toAbsolutePath().normalize().toString() + (isDirectory ? File.separatorChar : "");
-    this.isDirectory = isDirectory;
+        path.toAbsolutePath().normalize().toString() + (isDirectory ? File.separator : "");
   }
 
   @Override
   public LocalResourceId resolve(String other, ResolveOptions resolveOptions) {
-    checkState(isDirectory, "Expected the path is a directory, but had [%s].", pathString);
+    checkState(isDirectory(), "Expected the path is a directory, but had [%s].", pathString);
     checkArgument(
         resolveOptions.equals(StandardResolveOptions.RESOLVE_FILE)
             || resolveOptions.equals(StandardResolveOptions.RESOLVE_DIRECTORY),
@@ -73,7 +70,7 @@ class LocalResourceId implements ResourceId {
 
   @Override
   public LocalResourceId getCurrentDirectory() {
-    if (isDirectory) {
+    if (isDirectory()) {
       return this;
     } else {
       Path path = getPath();
@@ -118,7 +115,7 @@ class LocalResourceId implements ResourceId {
 
   @Override
   public boolean isDirectory() {
-    return isDirectory;
+    return pathString.endsWith(File.separator);
   }
 
   Path getPath() {
@@ -139,11 +136,11 @@ class LocalResourceId implements ResourceId {
       return false;
     }
     LocalResourceId other = (LocalResourceId) obj;
-    return this.pathString.equals(other.pathString) && this.isDirectory == other.isDirectory;
+    return this.pathString.equals(other.pathString);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(pathString, isDirectory);
+    return Objects.hash(pathString);
   }
 }
