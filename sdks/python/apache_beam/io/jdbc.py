@@ -98,16 +98,13 @@ __all__ = [
 
 
 def default_io_expansion_service():
-    return BeamJarExpansionService(
-        ':sdks:java:extensions:schemaio-expansion-service:shadowJar')
+  return BeamJarExpansionService(
+      ':sdks:java:extensions:schemaio-expansion-service:shadowJar')
 
 
 JdbcConfigSchema = typing.NamedTuple(
     'JdbcConfigSchema',
-    [
-        ('location', unicode),
-        ('config', bytes)
-    ],
+    [('location', unicode), ('config', bytes)],
 )
 
 Config = typing.NamedTuple(
@@ -150,10 +147,11 @@ class WriteToJdbc(ExternalTransform):
               password='postgres',
           ))
 
-  table_name is a required paramater, and by default, the write_statement is generated
-  from it.
+  table_name is a required paramater, and by default, the write_statement is
+  generated from it.
 
-  The generated write_statement can be overridden by passing in a write_statment.
+  The generated write_statement can be overridden by passing in a
+  write_statment.
 
 
   Experimental; no backwards compatibility guarantees.
@@ -194,21 +192,20 @@ class WriteToJdbc(ExternalTransform):
         NamedTupleBasedPayloadBuilder(
             JdbcConfigSchema(
                 location=table_name,
-                config=RowCoder(typing_to_runner_api(Config).row_type.schema).encode(
-                    Config(
-                        driver_class_name=driver_class_name,
-                        jdbc_url=jdbc_url,
-                        username=username,
-                        password=password,
-                        connection_properties=connection_properties,
-                        connection_init_sqls=connection_init_sqls,
-                        write_statement=statement,
-                        read_query=None,
-                        fetch_size=None,
-                        output_parallelization=None,
-                    )
-                )
-            ),
+                config=RowCoder(
+                    typing_to_runner_api(Config).row_type.schema).encode(
+                        Config(
+                            driver_class_name=driver_class_name,
+                            jdbc_url=jdbc_url,
+                            username=username,
+                            password=password,
+                            connection_properties=connection_properties,
+                            connection_init_sqls=connection_init_sqls,
+                            write_statement=statement,
+                            read_query=None,
+                            fetch_size=None,
+                            output_parallelization=None,
+                        ))),
         ),
         expansion_service or default_io_expansion_service(),
     )
@@ -235,8 +232,8 @@ class ReadFromJdbc(ExternalTransform):
               password='postgres',
           ))
 
-  table_name is a required paramater, and by default, the read_query is generated
-  from it.
+  table_name is a required paramater, and by default, the read_query is
+  generated from it.
 
   The generated read_query can be overridden by passing in a read_query.
 
@@ -281,21 +278,20 @@ class ReadFromJdbc(ExternalTransform):
         NamedTupleBasedPayloadBuilder(
             JdbcConfigSchema(
                 location=table_name,
-                config=RowCoder(typing_to_runner_api(Config).row_type.schema).encode(
-                    Config(
-                        driver_class_name=driver_class_name,
-                        jdbc_url=jdbc_url,
-                        username=username,
-                        password=password,
-                        connection_properties=connection_properties,
-                        connection_init_sqls=connection_init_sqls,
-                        write_statement=None,
-                        read_query=query,
-                        fetch_size=fetch_size,
-                        output_parallelization=output_parallelization,
-                    )
-                )
-            ),
+                config=RowCoder(
+                    typing_to_runner_api(Config).row_type.schema).encode(
+                        Config(
+                            driver_class_name=driver_class_name,
+                            jdbc_url=jdbc_url,
+                            username=username,
+                            password=password,
+                            connection_properties=connection_properties,
+                            connection_init_sqls=connection_init_sqls,
+                            write_statement=None,
+                            read_query=query,
+                            fetch_size=fetch_size,
+                            output_parallelization=output_parallelization,
+                        ))),
         ),
         expansion_service or default_io_expansion_service(),
     )

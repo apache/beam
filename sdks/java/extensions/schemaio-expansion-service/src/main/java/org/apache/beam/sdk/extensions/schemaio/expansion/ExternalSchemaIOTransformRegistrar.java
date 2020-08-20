@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.schemaio.expansion;
 
-import avro.shaded.com.google.common.annotations.VisibleForTesting;
 import com.google.auto.service.AutoService;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 @Experimental(Experimental.Kind.PORTABILITY)
