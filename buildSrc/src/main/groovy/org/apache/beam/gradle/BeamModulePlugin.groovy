@@ -322,7 +322,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.24.0'
+    project.version = '2.25.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -2138,6 +2138,14 @@ class BeamModulePlugin implements Plugin<Project> {
         addPortableWordCountTask(false, "FlinkRunner")
         addPortableWordCountTask(true, "FlinkRunner")
         addPortableWordCountTask(false, "SparkRunner")
+      }
+
+      project.ext.getVersionSuffix = { String version ->
+        return version == '2.7' ? '2' : version.replace('.', '')
+      }
+
+      project.ext.getVersionsAsList = { String propertyName ->
+        return project.getProperty(propertyName).split(',')
       }
     }
   }

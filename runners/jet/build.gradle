@@ -77,6 +77,21 @@ task validatesRunnerBatch(type: Test) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse' //impulse doesn't cooperate properly with Jet when multiple cluster members are used
         exclude '**/SplittableDoFnTest.class' //Splittable DoFn functionality not yet in the runner
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+        
+        //Jet Runner doesn't current support @RequiresTimeSortedInput annotation.
+        excludeCategories 'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput'
+
+        //Event type not supported in TestStream: class org.apache.beam.sdk.testing.AutoValue_TestStream_ProcessingTimeEvent
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
+    }
+    filter {
+        // unbounded streams created from bounded sources not supported by Jet Runner
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInputUnbounded'
+
+        // timer output timestamps not supported by Jet Runner
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
+
+        excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testAssertionSiteIsCaptured*'
     }
 
     maxHeapSize = '4g'

@@ -253,6 +253,9 @@ public class TestPubsubSignal implements TestRule {
     do {
       try {
         signal = pubsub.pull(DateTime.now().getMillis(), signalSubscriptionPath, 1, false);
+        if (signal.isEmpty()) {
+          continue;
+        }
         pubsub.acknowledge(
             signalSubscriptionPath, signal.stream().map(IncomingMessage::ackId).collect(toList()));
         break;
@@ -267,7 +270,7 @@ public class TestPubsubSignal implements TestRule {
       }
     } while (DateTime.now().isBefore(endPolling));
 
-    if (signal == null) {
+    if (signal == null || signal.isEmpty()) {
       throw new AssertionError(
           String.format(
               "Did not receive signal on %s in %ss",

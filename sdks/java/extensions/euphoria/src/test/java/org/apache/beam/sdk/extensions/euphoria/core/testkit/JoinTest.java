@@ -48,8 +48,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test operator {@code Join}. */
+@RunWith(JUnit4.class)
 public class JoinTest extends AbstractOperatorTest {
 
   @Test

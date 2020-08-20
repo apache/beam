@@ -43,7 +43,7 @@ class S3TestUtils {
     options.setAwsServiceEndpoint("https://s3.custom.dns");
     options.setAwsRegion("no-matter");
     options.setS3UploadBufferSizeBytes(5_242_880);
-    options.setS3ClientFactoryClass(PathStyleAcccessS3ClientBuilderFactory.class);
+    options.setS3ClientFactoryClass(PathStyleAccessS3ClientBuilderFactory.class);
     return options;
   }
 
@@ -93,8 +93,7 @@ class S3TestUtils {
     return null;
   }
 
-  private static class PathStyleAcccessS3ClientBuilderFactory
-      extends DefaultS3ClientBuilderFactory {
+  private static class PathStyleAccessS3ClientBuilderFactory extends DefaultS3ClientBuilderFactory {
     @Override
     public AmazonS3ClientBuilder createBuilder(S3Options s3Options) {
       return super.createBuilder(s3Options).withPathStyleAccessEnabled(true);

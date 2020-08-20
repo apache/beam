@@ -392,7 +392,8 @@ def teststring(text, report=True, **runner_kwargs):
       '<string>',
       '<string>',
       0)
-  result = runner.run(test)
+  with expressions.allow_non_parallel_operations():
+    result = runner.run(test)
   if report:
     runner.summarize()
   return result

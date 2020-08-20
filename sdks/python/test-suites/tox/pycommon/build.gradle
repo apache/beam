@@ -27,7 +27,6 @@ toxTask "docs", "py38-docs"
 assemble.dependsOn docs
 
 task preCommitPyCommon() {
-  dependsOn "docs"
 }
 
 toxTask "dependency-check", "py3-dependency-check"

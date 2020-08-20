@@ -76,12 +76,15 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Contains all the examples from documentation page. Not all of them contains asserts, some do, but
  * the rest is often here just to confirm that they compile. Once something break or changes, the
  * documentation needs to change too.
  */
+@RunWith(JUnit4.class)
 public class DocumentationExamplesTest {
   private List<String> textLineByLine =
       Arrays.asList(

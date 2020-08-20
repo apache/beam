@@ -75,10 +75,13 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
+from apache_beam.testing.benchmarks.nexmark import nexmark_util
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import Command
 from apache_beam.testing.benchmarks.nexmark.queries import query0
 from apache_beam.testing.benchmarks.nexmark.queries import query1
 from apache_beam.testing.benchmarks.nexmark.queries import query2
+from apache_beam.testing.benchmarks.nexmark.queries import query9
+from apache_beam.transforms import window
 
 
 class NexmarkLauncher(object):
@@ -110,7 +113,7 @@ class NexmarkLauncher(object):
         type=int,
         action='append',
         required=True,
-        choices=[0, 1, 2],
+        choices=[0, 1, 2, 9],
         help='Query to run')
 
     parser.add_argument(
@@ -193,15 +196,27 @@ class NexmarkLauncher(object):
     else:
       raw_events = self.pipeline | 'ReadPubSub' >> beam.io.ReadFromPubSub(
           topic=topic.full_name)
-
+    raw_events = (
+        raw_events
+        | 'deserialization' >> beam.ParDo(nexmark_util.ParseJsonEvnetFn())
+        | 'timestamping' >>
+        beam.Map(lambda e: window.TimestampedValue(e, e.date_time)))
     return raw_events
 
   def run_query(self, query, query_args, query_errors):
     try:
       self.parse_args()
       self.pipeline = beam.Pipeline(options=self.pipeline_options)
-      raw_events = self.generate_events()
-      query.load(raw_events, query_args)
+      nexmark_util.setup_coder()
+      events = self.generate_events()
+      output = query.load(events, query_args)
+      # print results
+      (  # pylint: disable=expression-not-assigned
+          output | beam.Map(repr)
+          | beam.io.WriteToText(
+              "py-query-result", file_name_suffix='.json', num_shards=1))
+      output | nexmark_util.CountAndLog()  # pylint: disable=expression-not-assigned
+      # end of results output
       result = self.pipeline.run()
       job_duration = (
           self.pipeline_options.view_as(TestOptions).wait_until_finish_duration)
@@ -228,6 +243,7 @@ class NexmarkLauncher(object):
         0: query0,
         1: query1,
         2: query2,  # TODO(mariagh): Add more queries.
+        9: query9
     }
 
     # TODO(mariagh): Move to a config file.
