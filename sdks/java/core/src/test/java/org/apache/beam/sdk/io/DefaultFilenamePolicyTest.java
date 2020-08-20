@@ -19,10 +19,9 @@ package org.apache.beam.sdk.io;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,26 +48,6 @@ public class DefaultFilenamePolicyTest {
             paneStr,
             windowStr);
     return constructed.toString();
-  }
-
-  private static DefaultFilenamePolicy.Params encodeDecodeParams(
-      DefaultFilenamePolicy.Params params) throws IOException {
-    return decodeParams(encodeParams(params));
-  }
-
-  private static byte[] encodeParams(DefaultFilenamePolicy.Params params) throws IOException {
-    try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-      DefaultFilenamePolicy.ParamsCoder.of().encode(params, outputStream);
-      outputStream.flush();
-      return outputStream.toByteArray();
-    }
-  }
-
-  private static DefaultFilenamePolicy.Params decodeParams(byte[] encodedParams)
-      throws IOException {
-    try (ByteArrayInputStream inputStream = new ByteArrayInputStream(encodedParams)) {
-      return DefaultFilenamePolicy.ParamsCoder.of().decode(inputStream);
-    }
   }
 
   @Test
@@ -160,14 +139,16 @@ public class DefaultFilenamePolicyTest {
     assertEquals(
         new DefaultFilenamePolicy.Params()
             .withBaseFilename(FileSystems.matchNewResource("/tmp/file1", false)),
-        encodeDecodeParams(
+        CoderUtils.clone(
+            DefaultFilenamePolicy.ParamsCoder.of(),
             new DefaultFilenamePolicy.Params()
                 .withBaseFilename(FileSystems.matchNewResource("/tmp/file1", false))));
     assertEquals(
         new DefaultFilenamePolicy.Params()
             .withBaseFilename(FileSystems.matchNewResource("/tmp/file2", false))
             .withSuffix(".json"),
-        encodeDecodeParams(
+        CoderUtils.clone(
+            DefaultFilenamePolicy.ParamsCoder.of(),
             new DefaultFilenamePolicy.Params()
                 .withBaseFilename(FileSystems.matchNewResource("/tmp/file2", false))
                 .withSuffix(".json")));
@@ -175,14 +156,16 @@ public class DefaultFilenamePolicyTest {
     assertEquals(
         new DefaultFilenamePolicy.Params()
             .withBaseFilename(FileSystems.matchNewResource("/tmp/dir1/", true)),
-        encodeDecodeParams(
+        CoderUtils.clone(
+            DefaultFilenamePolicy.ParamsCoder.of(),
             new DefaultFilenamePolicy.Params()
                 .withBaseFilename(FileSystems.matchNewResource("/tmp/dir1/", true))));
     assertEquals(
         new DefaultFilenamePolicy.Params()
             .withBaseFilename(FileSystems.matchNewResource("/tmp/dir2/", true))
             .withSuffix(".json"),
-        encodeDecodeParams(
+        CoderUtils.clone(
+            DefaultFilenamePolicy.ParamsCoder.of(),
             new DefaultFilenamePolicy.Params()
                 .withBaseFilename(FileSystems.matchNewResource("/tmp/dir2/", true))
                 .withSuffix(".json")));
@@ -190,14 +173,16 @@ public class DefaultFilenamePolicyTest {
     assertEquals(
         new DefaultFilenamePolicy.Params()
             .withBaseFilename(FileSystems.matchNewResource("/tmp/dir3", true)),
-        encodeDecodeParams(
+        CoderUtils.clone(
+            DefaultFilenamePolicy.ParamsCoder.of(),
             new DefaultFilenamePolicy.Params()
                 .withBaseFilename(FileSystems.matchNewResource("/tmp/dir3", true))));
     assertEquals(
         new DefaultFilenamePolicy.Params()
             .withBaseFilename(FileSystems.matchNewResource("/tmp/dir4", true))
             .withSuffix(".json"),
-        encodeDecodeParams(
+        CoderUtils.clone(
+            DefaultFilenamePolicy.ParamsCoder.of(),
             new DefaultFilenamePolicy.Params()
                 .withBaseFilename(FileSystems.matchNewResource("/tmp/dir4", true))
                 .withSuffix(".json")));
