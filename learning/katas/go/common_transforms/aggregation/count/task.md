@@ -25,6 +25,6 @@ package that contains transforms for statistical processing.
 **Kata:** Count the number of elements from an input.
 
 <div class="hint">
-  Use <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/transforms/stats#Count">
+  Use <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/transforms/stats#CountElms">
   stats.CountElms</a>.
 </div>
