@@ -96,10 +96,10 @@ func main() {
 		nil,
 		*expansionAddr,
 		map[string]beam.PCollection{"xlang-in": col},
-		map[string]typex.FullType{"None": outputType},
+		map[string]typex.FullType{"output": outputType}, // Should be "None" when submitting to Python Expansion service
 	)
 
-	formatted := beam.ParDo(s, formatFn, counted["None"])
+	formatted := beam.ParDo(s, formatFn, counted["output"])
 	textio.Write(s, *output, formatted)
 
 	if err := beamx.Run(context.Background(), p); err != nil {
