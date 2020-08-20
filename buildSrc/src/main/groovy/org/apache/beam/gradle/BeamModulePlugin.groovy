@@ -1497,6 +1497,9 @@ class BeamModulePlugin implements Plugin<Project> {
       project.tasks.dockerPrepare.dependsOn project.tasks.copyLicenses
     }
 
+    project.ext.applyDockerRunNature = {
+      project.apply plugin: "com.palantir.docker-run"
+    }
     /** ***********************************************************************************************/
 
     project.ext.applyGroovyNature = {
