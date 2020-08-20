@@ -171,7 +171,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   /** A Coder for {@link Params}. */
   public static class ParamsCoder extends AtomicCoder<Params> {
     private static final ParamsCoder INSTANCE = new ParamsCoder();
-    private Coder<String> stringCoder = StringUtf8Coder.of();
+    private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
 
     public static ParamsCoder of() {
       return INSTANCE;
@@ -182,17 +182,17 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
       if (value == null) {
         throw new CoderException("cannot encode a null value");
       }
-      stringCoder.encode(value.baseFilename.get().toString(), outStream);
-      stringCoder.encode(value.shardTemplate, outStream);
-      stringCoder.encode(value.suffix, outStream);
+      STRING_CODER.encode(value.baseFilename.get().toString(), outStream);
+      STRING_CODER.encode(value.shardTemplate, outStream);
+      STRING_CODER.encode(value.suffix, outStream);
     }
 
     @Override
     public Params decode(InputStream inStream) throws IOException {
       ResourceId prefix =
-          FileBasedSink.convertToFileResourceIfPossible(stringCoder.decode(inStream));
-      String shardTemplate = stringCoder.decode(inStream);
-      String suffix = stringCoder.decode(inStream);
+          FileBasedSink.convertToFileResourceIfPossible(STRING_CODER.decode(inStream));
+      String shardTemplate = STRING_CODER.decode(inStream);
+      String suffix = STRING_CODER.decode(inStream);
       return new Params()
           .withBaseFilename(prefix)
           .withShardTemplate(shardTemplate)
