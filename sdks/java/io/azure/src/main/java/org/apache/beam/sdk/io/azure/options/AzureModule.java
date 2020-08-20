@@ -30,6 +30,11 @@ import com.google.auto.service.AutoService;
 @AutoService(Module.class)
 public class AzureModule extends SimpleModule {
 
+  private static final String AZURE_STORAGE_CONNECTION_STRING = "connectionString";
+  private static final String AZURE_CLIENT_ID = "azureClientId";
+  private static final String AZURE_TENANT_ID = "azureTenantId";
+  private static final String AZURE_CLIENT_SECRET = "azureClientSecret";
+
   public AzureModule() {
     super("AzureModule");
   }
