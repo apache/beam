@@ -38,9 +38,8 @@ from apache_beam.coders.coders import VarIntCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
-from apache_beam.typehints.schemas import named_fields_to_schema
 from apache_beam.typehints.schemas import named_tuple_from_schema
-from apache_beam.typehints.schemas import named_tuple_to_schema
+from apache_beam.typehints.schemas import schema_from_element_type
 from apache_beam.utils import proto_utils
 
 __all__ = ["RowCoder"]
@@ -90,14 +89,12 @@ class RowCoder(FastCoder):
 
   @staticmethod
   def from_type_hint(type_hint, registry):
-    if isinstance(type_hint, row_type.RowTypeConstraint):
-      try:
-        schema = named_fields_to_schema(type_hint._fields)
-      except ValueError:
-        # TODO(BEAM-10570): Consider a pythonsdk logical type.
-        return typecoders.registry.get_coder(object)
-    else:
-      schema = named_tuple_to_schema(type_hint)
+    try:
+      schema = schema_from_element_type(type_hint)
+    except ValueError:
+      # TODO(BEAM-10570): Consider a pythonsdk logical type.
+      return typecoders.registry.get_coder(object)
+
     return RowCoder(schema)
 
   @staticmethod
