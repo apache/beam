@@ -1023,10 +1023,11 @@ class TupleCoder(FastCoder):
     if self.is_kv_coder():
       return common_urns.coders.KV.urn, None, self.coders()
     else:
-      return super(TupleCoder, self).to_runner_api_parameter(context)
+      return python_urns.TUPLE_CODER, None, self.coders()
 
   @staticmethod
   @Coder.register_urn(common_urns.coders.KV.urn, None)
+  @Coder.register_urn(python_urns.TUPLE_CODER, None)
   def from_runner_api_parameter(unused_payload, components, unused_context):
     return TupleCoder(components)
 

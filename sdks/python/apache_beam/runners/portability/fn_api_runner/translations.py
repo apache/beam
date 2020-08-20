@@ -745,12 +745,12 @@ def pack_combiners(stages, context):
     else:
       raise ValueError
 
-  # Group stages by parent, yielding ineligible stages.
+  # Group stages by parent and environment, yielding ineligible stages.
   combine_stages_by_input_pcoll_id = collections.defaultdict(list)
   for stage in stages:
     is_packable_combine = False
 
-    if (len(stage.transforms) == 1 and 
+    if (len(stage.transforms) == 1 and
         stage.environment is not None and
         python_urns.PACKED_COMBINE_FN in
         context.components.environments[stage.environment].capabilities):
@@ -765,12 +765,13 @@ def pack_combiners(stages, context):
 
     if is_packable_combine:
       input_pcoll_id = only_element(transform.inputs.values())
-      combine_stages_by_input_pcoll_id[input_pcoll_id].append(stage)
+      stage_key = (input_pcoll_id, stage.environment)
+      combine_stages_by_input_pcoll_id[stage_key].append(stage)
     else:
       yield stage
 
-  for input_pcoll_id, packable_stages in combine_stages_by_input_pcoll_id.items(
-  ):
+  for stage_key, packable_stages in combine_stages_by_input_pcoll_id.items():
+    input_pcoll_id, _ = stage_key
     try:
       if not len(packable_stages) > 1:
         raise ValueError('Only one stage in this group: Skipping stage packing')
@@ -818,7 +819,7 @@ def pack_combiners(stages, context):
         for output_kv_coder_id in output_kv_coder_ids
     ]
     pack_output_value_coder = beam_runner_api_pb2.Coder(
-        spec=beam_runner_api_pb2.FunctionSpec(urn=common_urns.coders.KV.urn),
+        spec=beam_runner_api_pb2.FunctionSpec(urn=python_urns.tuple.KV.urn),
         component_coder_ids=output_value_coder_ids)
     pack_output_value_coder_id = context.add_or_get_coder_id(
         pack_output_value_coder)
