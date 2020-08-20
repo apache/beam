@@ -238,6 +238,7 @@ class OperationCounters(object):
       try:
         _check_instance_type(constraint, value, parameter_name, verbose=True)
       except TypeCheckError as e:
+        # TODO: Remove the 'ParDo' prefix for the label name (BEAM-10710)
         if not transform_label.startswith('ParDo'):
           transform_label = 'ParDo(%s)' % transform_label
         error_msg = (
