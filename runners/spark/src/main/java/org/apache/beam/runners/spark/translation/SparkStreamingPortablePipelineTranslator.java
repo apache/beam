@@ -177,6 +177,7 @@ public class SparkStreamingPortablePipelineTranslator
         new UnboundedDataset<>(
             emptyStream, Collections.singletonList(emptyStream.inputDStream().id()));
 
+    // Add watermark to holder and advance to infinity to ensure future watermarks can be updated
     GlobalWatermarkHolder.SparkWatermarks sparkWatermark =
         new GlobalWatermarkHolder.SparkWatermarks(
             GlobalWindow.INSTANCE.maxTimestamp(),
