@@ -32,6 +32,9 @@ from builtins import object
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apache_beam.io.azure import blobstorageio
+  from azure.storage.blob import (
+      BlobServiceClient,
+  )
 except ImportError:
   blobstorageio = None  # type: ignore[assignment]
 # pylint: enable=wrong-import-order, wrong-import-position
@@ -129,8 +132,14 @@ class TestBlobStorageIO(unittest.TestCase):
     return fake_file
 
   def setUp(self):
-    self.azfs = blobstorageio.BlobStorageIO()
-    self.TEST_DATA_PATH = 'azfs://gsoc2020/gsoc/'
+    connect_str = (
+        "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;"
+        + "AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFs"
+        + "uFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;"
+        + "BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;")
+    self.azurite_client = BlobServiceClient.from_connection_string(connect_str)
+    self.azfs = blobstorageio.BlobStorageIO(self.azurite_client)
+    self.TEST_DATA_PATH = 'azfs://devstoreaccount1/gsoc/'
 
   def test_file_mode(self):
     file_name = self.TEST_DATA_PATH + 'sloth/pictures/sleeping'
