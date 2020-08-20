@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.auto.value.AutoValue;
 import java.math.RoundingMode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
 import org.slf4j.Logger;
@@ -26,59 +27,32 @@ import org.slf4j.LoggerFactory;
 public class Histogram {
   private static final Logger LOG = LoggerFactory.getLogger(Histogram.class);
 
-  private static final int DEFAULT_NUM_OF_BUCKETS = 50;
-
-  private final double rangeFrom;
-  private final double rangeTo;
-  private final int numOfBuckets;
+  private final BucketType bucketType;
 
   private long[] buckets;
-  private final double bucketSize;
-  private long totalNumOfRecords;
+  private long numOfRecords;
+  private long numTopRecords;
+  private long numBottomRecords;
 
-  private final boolean ignoreOutOfRangeRecord;
-
-  private Histogram(
-      double rangeFrom, double rangeTo, int numOfBuckets, boolean ignoreOutOfRangeRecord) {
-    if (rangeFrom < 0) {
-      throw new RuntimeException(String.format("only positive range allowed: %f", rangeFrom));
-    }
-    if (rangeFrom >= rangeTo) {
-      throw new RuntimeException(
-          String.format("rangeTo should be larger than rangeFrom: [%f, %f)", rangeFrom, rangeTo));
-    }
-    if (numOfBuckets <= 0) {
-      throw new RuntimeException(
-          String.format("numOfBuckets should be greater than zero: %d", numOfBuckets));
-    }
-    this.rangeFrom = rangeFrom;
-    this.rangeTo = rangeTo;
-    this.numOfBuckets = numOfBuckets;
-    this.ignoreOutOfRangeRecord = ignoreOutOfRangeRecord;
-    this.buckets = new long[numOfBuckets];
-    this.bucketSize = (rangeTo - rangeFrom) / numOfBuckets;
-    this.totalNumOfRecords = 0;
+  private Histogram(BucketType bucketType) {
+    this.bucketType = bucketType;
+    this.buckets = new long[bucketType.getNumBuckets()];
+    this.numOfRecords = 0;
+    this.numTopRecords = 0;
+    this.numBottomRecords = 0;
   }
 
   /**
-   * Create a histogram.
+   * Create a histogram with linear buckets.
    *
-   * @param rangeFrom The minimum value that this histogram can record. Cannot be negative.
-   * @param rangeTo The maximum value that this histogram can record. Cannot be smaller than or
-   *     equal to rangeFrom.
-   * @param numOfBuckets The number of buckets. Larger number of buckets implies a better resolution
-   *     for percentile estimation.
-   * @param ignoreOutOfRangeRecord Whether the out-of-range records are discarded. It will throw
-   *     RuntimeException for the out-of-range records if this is set to false.
+   * @param start Lower bound of a starting bucket.
+   * @param width Bucket width. Smaller width implies a better resolution for percentile estimation.
+   * @param numBuckets The number of buckets. Upper bound of an ending bucket is defined by start +
+   *     width * numBuckets.
    * @return a new Histogram instance.
    */
-  public static Histogram of(
-      double rangeFrom, double rangeTo, int numOfBuckets, boolean ignoreOutOfRangeRecord) {
-    return new Histogram(rangeFrom, rangeTo, numOfBuckets, ignoreOutOfRangeRecord);
-  }
-
-  public static Histogram of(double rangeFrom, double rangeTo) {
-    return new Histogram(rangeFrom, rangeTo, DEFAULT_NUM_OF_BUCKETS, false);
+  public static Histogram linear(double start, double width, int numBuckets) {
+    return new Histogram(LinearBuckets.of(start, width, numBuckets));
   }
 
   public void record(double... values) {
@@ -88,26 +62,29 @@ public class Histogram {
   }
 
   public synchronized void clear() {
-    this.buckets = new long[numOfBuckets];
-    this.totalNumOfRecords = 0;
+    this.buckets = new long[bucketType.getNumBuckets()];
+    this.numOfRecords = 0;
+    this.numTopRecords = 0;
+    this.numBottomRecords = 0;
   }
 
   public synchronized void record(double value) {
-    if (value >= rangeTo || value < rangeFrom) {
-      if (ignoreOutOfRangeRecord) {
-        LOG.warn("record out of range value [{}, {}): {}", rangeFrom, rangeTo, value);
-        return;
-      }
-      throw new RuntimeException(
-          String.format("out of range: %f is not in [%f, %f)", value, rangeFrom, rangeTo));
+    double rangeTo = bucketType.getRangeTo();
+    double rangeFrom = bucketType.getRangeFrom();
+    if (value >= rangeTo) {
+      LOG.warn("record is out of upper bound {}: {}", rangeTo, value);
+      numTopRecords++;
+    } else if (value < rangeFrom) {
+      LOG.warn("record is out of lower bound {}: {}", rangeFrom, value);
+      numBottomRecords++;
+    } else {
+      buckets[bucketType.getBucketIndex(value)]++;
+      numOfRecords++;
     }
-    int index = DoubleMath.roundToInt((value - rangeFrom) / bucketSize, RoundingMode.FLOOR);
-    buckets[index]++;
-    totalNumOfRecords++;
   }
 
   public long getTotalCount() {
-    return totalNumOfRecords;
+    return numOfRecords + numTopRecords + numBottomRecords;
   }
 
   public long getCount(int bucketIndex) {
@@ -132,20 +109,89 @@ public class Histogram {
    * the elements in the bucket are uniformly distributed.
    */
   private double getLinearInterpolation(double percentile) {
+    long totalNumOfRecords = getTotalCount();
     if (totalNumOfRecords == 0) {
       throw new RuntimeException("histogram has no record.");
     }
     int index;
-    double recordSum = 0;
-    for (index = 0; index < numOfBuckets; index++) {
+    double recordSum = numBottomRecords;
+    if (recordSum / totalNumOfRecords >= percentile) {
+      return Double.NEGATIVE_INFINITY;
+    }
+    for (index = 0; index < bucketType.getNumBuckets(); index++) {
       recordSum += buckets[index];
       if (recordSum / totalNumOfRecords >= percentile) {
         break;
       }
     }
+    if (index == bucketType.getNumBuckets()) {
+      return Double.POSITIVE_INFINITY;
+    }
     double fracPercentile = percentile - (recordSum - buckets[index]) / totalNumOfRecords;
     double bucketPercentile = (double) buckets[index] / totalNumOfRecords;
-    double fracBucketSize = fracPercentile * bucketSize / bucketPercentile;
-    return rangeFrom + bucketSize * index + fracBucketSize;
+    double fracBucketSize = fracPercentile * bucketType.getBucketSize(index) / bucketPercentile;
+    return bucketType.getRangeFrom() + bucketType.getAccumulatedBucketSize(index) + fracBucketSize;
+  }
+
+  public interface BucketType {
+    // Lower bound of a starting bucket.
+    double getRangeFrom();
+    // Upper bound of an ending bucket.
+    double getRangeTo();
+    // The number of buckets.
+    int getNumBuckets();
+    // Get the bucket array index for the given value.
+    int getBucketIndex(double value);
+    // Get the bucket size for the given bucket array index.
+    double getBucketSize(int index);
+    // Get the accumulated bucket size from bucket index 0 until endIndex.
+    // Generally, this can be calculated as `sigma(0 <= i < endIndex) getBucketSize(i)`.
+    double getAccumulatedBucketSize(int endIndex);
+  }
+
+  @AutoValue
+  public abstract static class LinearBuckets implements BucketType {
+    public abstract double getStart();
+
+    public abstract double getWidth();
+
+    @Override
+    public abstract int getNumBuckets();
+
+    public static LinearBuckets of(double start, double width, int numBuckets) {
+      if (width <= 0) {
+        throw new RuntimeException(String.format("width should be greater than zero: %f", width));
+      }
+      if (numBuckets <= 0) {
+        throw new RuntimeException(
+            String.format("numBuckets should be greater than zero: %d", numBuckets));
+      }
+      return new AutoValue_Histogram_LinearBuckets(start, width, numBuckets);
+    }
+
+    @Override
+    public int getBucketIndex(double value) {
+      return DoubleMath.roundToInt((value - getStart()) / getWidth(), RoundingMode.FLOOR);
+    }
+
+    @Override
+    public double getBucketSize(int index) {
+      return getWidth();
+    }
+
+    @Override
+    public double getAccumulatedBucketSize(int endIndex) {
+      return getWidth() * endIndex;
+    }
+
+    @Override
+    public double getRangeFrom() {
+      return getStart();
+    }
+
+    @Override
+    public double getRangeTo() {
+      return getStart() + getNumBuckets() * getWidth();
+    }
   }
 }
