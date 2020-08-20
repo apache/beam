@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -45,7 +46,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -53,6 +53,7 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -60,6 +61,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -76,6 +78,8 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -455,6 +459,16 @@ public class SpannerIO {
       return withHost(ValueProvider.StaticValueProvider.of(host));
     }
 
+    /** Specifies the Cloud Spanner emulator host. */
+    public ReadAll withEmulatorHost(ValueProvider<String> emulatorHost) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withEmulatorHost(emulatorHost));
+    }
+
+    public ReadAll withEmulatorHost(String emulatorHost) {
+      return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
+    }
+
     /** Specifies the Cloud Spanner database. */
     public ReadAll withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
@@ -589,6 +603,16 @@ public class SpannerIO {
       return withHost(ValueProvider.StaticValueProvider.of(host));
     }
 
+    /** Specifies the Cloud Spanner emulator host. */
+    public Read withEmulatorHost(ValueProvider<String> emulatorHost) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withEmulatorHost(emulatorHost));
+    }
+
+    public Read withEmulatorHost(String emulatorHost) {
+      return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
+    }
+
     /** If true the uses Cloud Spanner batch API. */
     public Read withBatching(boolean batching) {
       return toBuilder().setBatching(batching).build();
@@ -666,7 +690,7 @@ public class SpannerIO {
                 + "columns to set with withColumns method");
         checkArgument(
             !getReadOperation().getColumns().isEmpty(),
-            "For a read operation SpannerIO.read() requires a"
+            "For a read operation SpannerIO.read() requires a non-empty"
                 + " list of columns to set with withColumns method");
       } else {
         throw new IllegalArgumentException(
@@ -680,6 +704,37 @@ public class SpannerIO {
               .withBatching(getBatching())
               .withTransaction(getTransaction());
       return input.apply(Create.of(getReadOperation())).apply("Execute query", readAll);
+    }
+
+    SerializableFunction<Struct, Row> getFormatFn() {
+      return (SerializableFunction<Struct, Row>)
+          input ->
+              Row.withSchema(Schema.builder().addInt64Field("Key").build())
+                  .withFieldValue("Key", 3L)
+                  .build();
+    }
+  }
+
+  static class ReadRows extends PTransform<PBegin, PCollection<Row>> {
+    Read read;
+    Schema schema;
+
+    public ReadRows(Read read, Schema schema) {
+      super("Read rows");
+      this.read = read;
+      this.schema = schema;
+    }
+
+    @Override
+    public PCollection<Row> expand(PBegin input) {
+      return input
+          .apply(read)
+          .apply(
+              MapElements.into(TypeDescriptor.of(Row.class))
+                  .via(
+                      (SerializableFunction<Struct, Row>)
+                          struct -> StructUtils.structToBeamRow(struct, schema)))
+          .setRowSchema(schema);
     }
   }
 
@@ -754,6 +809,16 @@ public class SpannerIO {
 
     public CreateTransaction withHost(String host) {
       return withHost(ValueProvider.StaticValueProvider.of(host));
+    }
+
+    /** Specifies the Cloud Spanner emulator host. */
+    public CreateTransaction withEmulatorHost(ValueProvider<String> emulatorHost) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withEmulatorHost(emulatorHost));
+    }
+
+    public CreateTransaction withEmulatorHost(String emulatorHost) {
+      return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
     }
 
     @VisibleForTesting
@@ -879,10 +944,20 @@ public class SpannerIO {
       return withHost(ValueProvider.StaticValueProvider.of(host));
     }
 
+    /** Specifies the Cloud Spanner emulator host. */
+    public Write withEmulatorHost(ValueProvider<String> emulatorHost) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withEmulatorHost(emulatorHost));
+    }
+
+    public Write withEmulatorHost(String emulatorHost) {
+      return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
+    }
+
     /**
      * Specifies the deadline for the Commit API call. Default is 15 secs. DEADLINE_EXCEEDED errors
      * will prompt a backoff/retry until the value of {@link #withMaxCumulativeBackoff(Duration)} is
-     * reached. DEADLINE_EXCEEDED errors are are reported with logging and counters.
+     * reached. DEADLINE_EXCEEDED errors are reported with logging and counters.
      */
     public Write withCommitDeadline(Duration commitDeadline) {
       SpannerConfig config = getSpannerConfig();
@@ -1002,6 +1077,28 @@ public class SpannerIO {
     }
   }
 
+  static class WriteRows extends PTransform<PCollection<Row>, PDone> {
+    private final Write write;
+
+    private WriteRows(Write write) {
+      this.write = write;
+    }
+
+    public static WriteRows of(Write write) {
+      return new WriteRows(write);
+    }
+
+    @Override
+    public PDone expand(PCollection<Row> input) {
+      input
+          .apply(
+              MapElements.into(TypeDescriptor.of(Mutation.class))
+                  .via(MutationUtils.beamRowToMutationFn()))
+          .apply(write);
+      return PDone.in(input.getPipeline());
+    }
+  }
+
   /** Same as {@link Write} but supports grouped mutations. */
   public static class WriteGrouped
       extends PTransform<PCollection<MutationGroup>, SpannerWriteResult> {
@@ -1037,8 +1134,7 @@ public class SpannerIO {
         LOG.info("Batching of mutationGroups is disabled");
         TypeDescriptor<Iterable<MutationGroup>> descriptor =
             new TypeDescriptor<Iterable<MutationGroup>>() {};
-        batches =
-            input.apply(MapElements.into(descriptor).via(element -> ImmutableList.of(element)));
+        batches = input.apply(MapElements.into(descriptor).via(ImmutableList::of));
       } else {
 
         // First, read the Cloud Spanner schema.
@@ -1272,7 +1368,7 @@ public class SpannerIO {
       out.output(
           mutationsToSort.subList(batchStart, batchEnd).stream()
               .map(o -> o.mutationGroup)
-              .collect(Collectors.toList()));
+              .collect(toList()));
     }
 
     @ProcessElement
