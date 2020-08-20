@@ -65,6 +65,7 @@ class StreamingWriteFn<ErrorT, ElementT>
   /** The list of unique ids for each BigQuery table row. */
   private transient Map<String, List<String>> uniqueIdsForTableRows;
 
+  private transient long lastReportedSystemClockMillis;
   private transient Histogram histogram;
 
   /** Tracks bytes written, exposed as "ByteCount" Counter. */
@@ -93,6 +94,7 @@ class StreamingWriteFn<ErrorT, ElementT>
   public void setup() {
     // record latency upto 60 seconds in the resolution of 20ms
     histogram = Histogram.linear(0, 20, 3000);
+    lastReportedSystemClockMillis = 0;
   }
 
   @Teardown
@@ -149,9 +151,13 @@ class StreamingWriteFn<ErrorT, ElementT>
       context.output(failedOutputTag, row.getValue(), row.getTimestamp(), row.getWindow());
     }
 
-    if (histogram.getTotalCount() > options.getLatencyLoggingFrequency()) {
+    long currentTimeMillis = System.currentTimeMillis();
+    if (histogram.getTotalCount() > 0
+        && (currentTimeMillis - lastReportedSystemClockMillis)
+            > options.getLatencyLoggingFrequency()) {
       logPercentiles();
       histogram.clear();
+      lastReportedSystemClockMillis = currentTimeMillis;
     }
   }
 

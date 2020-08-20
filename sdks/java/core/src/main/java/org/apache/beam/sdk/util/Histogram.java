@@ -88,11 +88,11 @@ public class Histogram {
     }
   }
 
-  public long getTotalCount() {
+  public synchronized long getTotalCount() {
     return numOfRecords + numTopRecords + numBottomRecords;
   }
 
-  public long getCount(int bucketIndex) {
+  public synchronized long getCount(int bucketIndex) {
     return buckets[bucketIndex];
   }
 
@@ -113,7 +113,7 @@ public class Histogram {
    * includes the target percentile and projects the estimated point in the bucket by assuming all
    * the elements in the bucket are uniformly distributed.
    */
-  private double getLinearInterpolation(double percentile) {
+  private synchronized double getLinearInterpolation(double percentile) {
     long totalNumOfRecords = getTotalCount();
     if (totalNumOfRecords == 0) {
       throw new RuntimeException("histogram has no record.");

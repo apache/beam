@@ -73,9 +73,9 @@ public interface BigQueryOptions
   void setMaxStreamingBatchSize(Long value);
 
   @Description(
-      "The number of streaming insert requests per logging percentile latencies. "
-          + "The set size could be bigger when one bundle has a large number of elements.")
-  @Default.Long(1000)
+      "The minimum duration in milliseconds between percentile latencies logging. The interval "
+          + "might be longer than the specified value due to each bundle processing time.")
+  @Default.Long(30000)
   Long getLatencyLoggingFrequency();
 
   void setLatencyLoggingFrequency(Long value);
