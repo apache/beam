@@ -18,6 +18,9 @@
 
 set -e
 
+# The files are gathered by the archiveFilesToLint then unpackFilesToLint tasks.
+# Currently all *.md (markdown) files and build.gradle (gradle build) files in
+# the Beam repo are included.
 pushd ../../../files-to-whitespacelint
 
 declare -a failed_files
