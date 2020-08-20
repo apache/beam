@@ -25,6 +25,7 @@ import com.google.api.client.http.HttpResponseInterceptor;
 import java.io.IOException;
 import org.apache.beam.sdk.util.Histogram;
 
+/** HttpRequestInitializer for recording request to response latency of Http-based API calls. */
 public class LatencyRecordingHttpRequestInitializer implements HttpRequestInitializer {
   private final Histogram histogram;
 

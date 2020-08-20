@@ -23,7 +23,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A histogram that supports estimated percentile with linear interpolation. */
+/**
+ * A histogram that supports estimated percentile with linear interpolation.
+ *
+ * <p>We may consider using Apache Commons or HdrHistogram library in the future for advanced
+ * features such as sparsely populated histograms.
+ */
 public class Histogram {
   private static final Logger LOG = LoggerFactory.getLogger(Histogram.class);
 
