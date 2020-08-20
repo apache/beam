@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -53,7 +52,6 @@ import java.io.ByteArrayOutputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData.Record;
@@ -81,7 +79,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -271,14 +268,6 @@ public class BigQueryIOStorageQueryTest {
     TypedRead<TableRow> typedRead = getDefaultTypedRead();
     DisplayData displayData = DisplayData.from(typedRead);
     assertThat(displayData, hasDisplayItem("query", DEFAULT_QUERY));
-  }
-
-  @Test
-  public void testEvaluatedDisplayData() throws Exception {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    TypedRead<TableRow> typedRead = getDefaultTypedRead();
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(typedRead);
-    assertThat(displayData, hasItem(hasDisplayItem("query")));
   }
 
   @Test

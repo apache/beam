@@ -154,8 +154,9 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
         throws CoderException, IOException {
 
       final TimerData timer = value.getTimerData();
-      // encode the timestamp first
+      // encode the timestamps first
       INSTANT_CODER.encode(timer.getTimestamp(), outStream);
+      INSTANT_CODER.encode(timer.getOutputTimestamp(), outStream);
       STRING_CODER.encode(timer.getTimerId(), outStream);
       STRING_CODER.encode(timer.getNamespace().stringKey(), outStream);
       STRING_CODER.encode(timer.getDomain().name(), outStream);
@@ -169,11 +170,12 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
     public KeyedTimerData<K> decode(InputStream inStream) throws CoderException, IOException {
       // decode the timestamp first
       final Instant timestamp = INSTANT_CODER.decode(inStream);
+      final Instant outputTimestamp = INSTANT_CODER.decode(inStream);
       final String timerId = STRING_CODER.decode(inStream);
       final StateNamespace namespace =
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       final TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      final TimerData timer = TimerData.of(timerId, namespace, timestamp, timestamp, domain);
+      final TimerData timer = TimerData.of(timerId, namespace, timestamp, outputTimestamp, domain);
 
       byte[] keyBytes = null;
       K key = null;

@@ -75,6 +75,26 @@ run categories. Here is a summary of the run categories with regards of the jobs
 Those jobs often have matrix run strategy which runs several different variations of the jobs
 (with different platform type / Python version to run for example)
 
+### Google Cloud Platform Credentials
+
+Some of the jobs require variables stored as [GitHub Secrets](https://docs.github.com/en/actions/configuring-and-managing-workflows/creating-and-storing-encrypted-secrets)
+to perform operations on Google Cloud Platform.
+These variables are:
+ * `GCP_PROJECT_ID` - ID of the Google Cloud project. For example: `apache-beam-testing`.
+ * `GCP_REGION` - Region of the bucket and dataflow jobs. For example: `us-central1`.
+ * `GCP_TESTING_BUCKET` - Name of the bucket where temporary files for Dataflow tests will be stored. For example: `beam-github-actions-tests`.
+ * `GCP_PYTHON_WHEELS_BUCKET` - Name of the bucket where python source distribution and wheels will be stored. For example: `beam-wheels-staging`.
+ * `GCP_SA_EMAIL` - Service account email address. This is usually of the format `<name>@<project-id>.iam.gserviceaccount.com`.
+ * `GCP_SA_KEY` - Service account key. This key should be created and encoded as a Base64 string (eg. `cat my-key.json | base64` on macOS).
+
+Service Account shall have following permissions ([IAM roles](https://cloud.google.com/iam/docs/understanding-roles)):
+ * Storage Admin (roles/storage.admin)
+ * Dataflow Admin (roles/dataflow.admin)
+
+### Workflows
+
+#### Build python source distribution and wheels - [build_wheels.yml](.github/workflows/build_wheels.yml)
+
 | Job                                             | Description                                                                                                                                                                                                                                                        | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
 |-------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
 | Check GCP variables                             | Checks that GCP variables are set. Jobs which required them depend on the output of this job.                                                                                                                                                                      | Yes              | Yes                   | Yes           | Yes/No                   |
@@ -86,16 +106,15 @@ Those jobs often have matrix run strategy which runs several different variation
 | List files on Google Cloud Storage Bucket       | Lists files on GCS for verification purpose.                                                                                                                                                                                                                       | -                | Yes                   | Yes           | Yes                      |
 | Tag repo nightly                                | Tag repo with `nightly-master` tag if build python source distribution and python wheels finished successfully.                                                                                                                                                    | -                | -                     | Yes           | -                        |
 
-### Google Cloud Platform Credentials
+#### Python tests - [python_tests.yml](.github/workflows/python_tests.yml)
 
-Some of the jobs require variables stored as [GitHub Secrets](https://docs.github.com/en/actions/configuring-and-managing-workflows/creating-and-storing-encrypted-secrets)
-to perform operations on Google Cloud Platform. Currently these jobs are limited to Apache repository only.
-These variables are:
- * `GCP_SA_EMAIL` - Service account email address. This is usually of the format `<name>@<project-id>.iam.gserviceaccount.com`.
- * `GCP_SA_KEY` - Service account key. This key should be created and encoded as a Base64 string (eg. `cat my-key.json | base64` on macOS).
-
-Service Account shall have following permissions:
- * Storage Object Admin (roles/storage.objectAdmin)
+| Job                              | Description                                                                                                           | Pull Request Run | Direct Push/Merge Run | Scheduled Run | Requires GCP Credentials |
+|----------------------------------|-----------------------------------------------------------------------------------------------------------------------|------------------|-----------------------|---------------|--------------------------|
+| Check GCP variables              | Checks that GCP variables are set. Jobs which required them depend on the output of this job.                         | Yes              | Yes                   | Yes           | Yes/No                   |
+| Build python source distribution | Builds python source distribution and uploads it to artifacts. Artifacts are used in `Python Wordcount Dataflow` job. | -                | Yes                   | Yes           | Yes                      |
+| Python Unit Tests                | Runs python unit tests.                                                                                               | Yes              | Yes                   | Yes           | -                        |
+| Python Wordcount Direct Runner   | Runs python WordCount example with Direct Runner.                                                                     | Yes              | Yes                   | Yes           | -                        |
+| Python Wordcount Dataflow        | Runs python WordCount example with DataFlow Runner.                                                                   | -                | Yes                   | Yes           | Yes                      |
 
 ### GitHub Action Tips
 

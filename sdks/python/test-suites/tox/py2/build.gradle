@@ -47,6 +47,5 @@ testPy2Cython.mustRunAfter testPython2, testPy2Cloud
 toxTask "cover", "cover"
 
 task preCommitPy2() {
-  dependsOn "testPy2Cython"
   dependsOn "testPy2Cloud"
 }

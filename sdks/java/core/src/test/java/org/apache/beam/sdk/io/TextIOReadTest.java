@@ -27,19 +27,15 @@ import static org.apache.beam.sdk.io.Compression.GZIP;
 import static org.apache.beam.sdk.io.Compression.UNCOMPRESSED;
 import static org.apache.beam.sdk.io.Compression.ZIP;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeFalse;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -53,14 +49,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -69,12 +63,10 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ToString;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
@@ -493,24 +485,6 @@ public class TextIOReadTest {
 
       assertThat(displayData, hasDisplayItem("filePattern", "foo.*"));
       assertThat(displayData, hasDisplayItem("compressionType", BZIP2.toString()));
-    }
-
-    @Test
-    @Category(ValidatesRunner.class)
-    public void testPrimitiveReadDisplayData() {
-      // Read is no longer a primitive transform when using the portability framework.
-      assumeFalse(
-          ExperimentalOptions.hasExperiment(
-              DisplayDataEvaluator.getDefaultOptions(), "beam_fn_api"));
-      DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-
-      TextIO.Read read = TextIO.read().from("foobar");
-
-      Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-      assertThat(
-          "TextIO.Read should include the file prefix in its primitive display data",
-          displayData,
-          hasItem(hasDisplayItem(hasValue(startsWith("foobar")))));
     }
 
     /** Options for testing. */
