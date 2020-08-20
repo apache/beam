@@ -355,6 +355,35 @@ public class BeamFnDataReadRunnerTest {
     }
 
     @Test
+    public void testSplittingBeforeStartBundle() throws Exception {
+      List<WindowedValue<String>> outputValues = new ArrayList<>();
+      BeamFnDataReadRunner<String> readRunner =
+          createReadRunner(outputValues::add, PTRANSFORM_ID, mockBeamFnDataClient);
+      // The split should happen at 5 since the allowedSplitPoints is empty.
+      assertEquals(
+          channelSplitResult(5),
+          executeSplit(readRunner, PTRANSFORM_ID, -1L, 0.5, 10, Collections.EMPTY_LIST));
+
+      readRunner.registerInputLocation();
+      // Ensure that we process the correct number of elements after splitting.
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("A"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("B"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("C"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("D"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("E"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("F"));
+      readRunner.forwardElementToConsumer(valueInGlobalWindow("G"));
+      assertThat(
+          outputValues,
+          contains(
+              valueInGlobalWindow("A"),
+              valueInGlobalWindow("B"),
+              valueInGlobalWindow("C"),
+              valueInGlobalWindow("D"),
+              valueInGlobalWindow("E")));
+    }
+
+    @Test
     public void testSplittingWhenNoElementsProcessed() throws Exception {
       List<WindowedValue<String>> outputValues = new ArrayList<>();
       BeamFnDataReadRunner<String> readRunner =
