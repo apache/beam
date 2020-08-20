@@ -45,10 +45,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 @AutoService(Module.class)
 public class AzureModule extends SimpleModule {
 
-  private static final String AZURE_STORAGE_CONNECTION_STRING = "connectionString";
   private static final String AZURE_CLIENT_ID = "azureClientId";
   private static final String AZURE_TENANT_ID = "azureTenantId";
   private static final String AZURE_CLIENT_SECRET = "azureClientSecret";
+  private static final String AZURE_CLIENT_CERTIFICATE_PATH = "azureClientCertificatePath";
+  private static final String AZURE_USERNAME = "azureUsername";
+  private static final String AZURE_PASSWORD = "azurePassword";
 
   public AzureModule() {
     super("AzureModule");
@@ -84,13 +86,6 @@ public class AzureModule extends SimpleModule {
             String.format("Azure credentials provider type name key '%s' not found", typeNameKey));
       }
 
-      ClientSecretCredential secondServicePrincipal =
-          new ClientSecretCredentialBuilder()
-              .clientId("<YOUR_CLIENT_ID>")
-              .clientSecret("<YOUR_CLIENT_SECRET>")
-              .tenantId("<YOUR_TENANT_ID>")
-              .build();
-
       if (typeName.equals(ClientSecretCredential.class.getSimpleName())) {
         return new ClientSecretCredentialBuilder()
             .clientId(asMap.get(AZURE_CLIENT_ID))
@@ -99,6 +94,22 @@ public class AzureModule extends SimpleModule {
             .build();
       } else if (typeName.equals(ManagedIdentityCredential.class.getSimpleName())) {
         return new ManagedIdentityCredentialBuilder().clientId(asMap.get(AZURE_CLIENT_ID)).build();
+      } else if (typeName.equals(EnvironmentCredential.class.getSimpleName())) {
+        return new EnvironmentCredentialBuilder().build();
+      } else if (typeName.equals(ClientCertificateCredential.class.getSimpleName())) {
+        return new ClientCertificateCredentialBuilder()
+            .clientId(asMap.get(AZURE_CLIENT_ID))
+            // This could be a PFX certificate instead...
+            // .pfxCertificate("<PATH TO PFX CERTIFICATE>", "PFX CERTIFICATE PASSWORD")
+            .pemCertificate(asMap.get(AZURE_CLIENT_CERTIFICATE_PATH))
+            .tenantId(asMap.get(AZURE_TENANT_ID))
+            .build();
+      } else if (typeName.equals(UsernamePasswordCredential.class.getSimpleName())) {
+        return new UsernamePasswordCredentialBuilder()
+            .clientId(asMap.get(AZURE_CLIENT_ID))
+            .username(asMap.get(AZURE_USERNAME))
+            .password(asMap.get(AZURE_PASSWORD))
+            .build();
         // Add other credentials...
       } else {
         throw new IOException(
@@ -170,7 +181,7 @@ public class AzureModule extends SimpleModule {
         throws IOException {
 
       jsonGenerator.writeStartObject();
-      // add...
+      // add options...
       jsonGenerator.writeEndObject();
     }
   }
