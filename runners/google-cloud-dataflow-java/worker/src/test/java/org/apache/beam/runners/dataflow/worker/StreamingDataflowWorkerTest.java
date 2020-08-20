@@ -2176,8 +2176,8 @@ public class StreamingDataflowWorkerTest {
             ImmutableMap.of(),
             null);
 
-    ShardedKey key1 = new ShardedKey(ByteString.copyFromUtf8("key1"), 1);
-    ShardedKey key2 = new ShardedKey(ByteString.copyFromUtf8("key2"), 2);
+    ShardedKey key1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
+    ShardedKey key2 = ShardedKey.create(ByteString.copyFromUtf8("key2"), 2);
 
     MockWork m1 = new MockWork(1);
     assertTrue(computationState.activateWork(key1, m1));
@@ -2226,33 +2226,33 @@ public class StreamingDataflowWorkerTest {
             ImmutableMap.of(),
             null);
 
-    ShardedKey key1_shard1 = new ShardedKey(ByteString.copyFromUtf8("key1"), 1);
-    ShardedKey key1_shard2 = new ShardedKey(ByteString.copyFromUtf8("key1"), 2);
+    ShardedKey key1Shard1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
+    ShardedKey key1Shard2 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 2);
 
     MockWork m1 = new MockWork(1);
-    assertTrue(computationState.activateWork(key1_shard1, m1));
+    assertTrue(computationState.activateWork(key1Shard1, m1));
     Mockito.verify(mockExecutor).execute(m1);
-    computationState.completeWork(key1_shard1, 1);
+    computationState.completeWork(key1Shard1, 1);
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify work queues.
     MockWork m2 = new MockWork(2);
-    assertTrue(computationState.activateWork(key1_shard1, m2));
+    assertTrue(computationState.activateWork(key1Shard1, m2));
     Mockito.verify(mockExecutor).execute(m2);
     MockWork m3 = new MockWork(3);
-    assertTrue(computationState.activateWork(key1_shard1, m3));
+    assertTrue(computationState.activateWork(key1Shard1, m3));
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify a different shard of key is a separate queue.
     MockWork m4 = new MockWork(3);
-    assertFalse(computationState.activateWork(key1_shard1, m4));
+    assertFalse(computationState.activateWork(key1Shard1, m4));
     Mockito.verifyNoMoreInteractions(mockExecutor);
-    assertTrue(computationState.activateWork(key1_shard2, m4));
+    assertTrue(computationState.activateWork(key1Shard2, m4));
     Mockito.verify(mockExecutor).execute(m4);
 
     // Verify duplicate work dropped
-    assertFalse(computationState.activateWork(key1_shard2, m4));
-    computationState.completeWork(key1_shard2, 3);
+    assertFalse(computationState.activateWork(key1Shard2, m4));
+    computationState.completeWork(key1Shard2, 3);
     Mockito.verifyNoMoreInteractions(mockExecutor);
   }
 

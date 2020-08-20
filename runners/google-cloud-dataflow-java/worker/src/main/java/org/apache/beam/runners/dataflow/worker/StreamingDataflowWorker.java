@@ -30,6 +30,7 @@ import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
@@ -44,7 +45,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Timer;
@@ -1099,40 +1099,27 @@ public class StreamingDataflowWorker {
           }
         };
     if (!computationState.activateWork(
-        new ShardedKey(workItem.getKey(), workItem.getShardingKey()), work)) {
+        ShardedKey.create(workItem.getKey(), workItem.getShardingKey()), work)) {
       // Free worker if the work was not activated.
       // This can happen if it's duplicate work or some other reason.
       sdkHarnessRegistry.completeWork(worker);
     }
   }
 
-  static class ShardedKey {
+  @AutoValue
+  abstract static class ShardedKey {
 
-    private final ByteString key;
-    private final long shardingKey;
-
-    ShardedKey(ByteString key, long shardingKey) {
-      this.key = key;
-      this.shardingKey = shardingKey;
+    public static ShardedKey create(ByteString key, long shardingKey) {
+      return new AutoValue_StreamingDataflowWorker_ShardedKey(key, shardingKey);
     }
 
-    @Override
-    public boolean equals(Object that) {
-      if (that instanceof ShardedKey) {
-        ShardedKey other = (ShardedKey) that;
-        return key.equals(other.key) && shardingKey == other.shardingKey;
-      }
-      return false;
-    }
+    public abstract ByteString key();
 
-    @Override
-    public int hashCode() {
-      return Objects.hash(key, shardingKey);
-    }
+    public abstract long shardingKey();
 
     @Override
     public String toString() {
-      return String.format("%s / %d", TextFormat.escapeBytes(key), shardingKey);
+      return String.format("%s-%d", TextFormat.escapeBytes(key()), shardingKey());
     }
   }
 
@@ -1502,7 +1489,7 @@ public class StreamingDataflowWorker {
         // Consider the item invalid. It will eventually be retried by Windmill if it still needs to
         // be processed.
         computationState.completeWork(
-            new ShardedKey(key, workItem.getShardingKey()), workItem.getWorkToken());
+            ShardedKey.create(key, workItem.getShardingKey()), workItem.getWorkToken());
       }
     } finally {
       // Update total processing time counters. Updating in finally clause ensures that
@@ -1578,7 +1565,7 @@ public class StreamingDataflowWorker {
         ComputationState computationState = entry.getKey();
         for (Windmill.WorkItemCommitRequest workRequest : entry.getValue().getRequestsList()) {
           computationState.completeWork(
-              new ShardedKey(workRequest.getKey(), workRequest.getShardingKey()),
+              ShardedKey.create(workRequest.getKey(), workRequest.getShardingKey()),
               workRequest.getWorkToken());
         }
       }
@@ -1606,7 +1593,8 @@ public class StreamingDataflowWorker {
           // This may throw an exception if the commit was not active, which is possible if it
           // was deemed stuck.
           state.completeWork(
-              new ShardedKey(request.getKey(), request.getShardingKey()), request.getWorkToken());
+              ShardedKey.create(request.getKey(), request.getShardingKey()),
+              request.getWorkToken());
         })) {
       return true;
     } else {
@@ -2287,7 +2275,7 @@ public class StreamingDataflowWorker {
         }
         for (Map.Entry<ShardedKey, Long> stuckCommit : stuckCommits.entrySet()) {
           computationStateCache.invalidate(
-              stuckCommit.getKey().key, stuckCommit.getKey().shardingKey);
+              stuckCommit.getKey().key(), stuckCommit.getKey().shardingKey());
           completeWork(stuckCommit.getKey(), stuckCommit.getValue());
         }
       }
@@ -2303,8 +2291,8 @@ public class StreamingDataflowWorker {
             if (work.getStartTime().isBefore(refreshDeadline)) {
               result.add(
                   Windmill.KeyedGetDataRequest.newBuilder()
-                      .setKey(shardedKey.key)
-                      .setShardingKey(shardedKey.shardingKey)
+                      .setKey(shardedKey.key())
+                      .setShardingKey(shardedKey.shardingKey())
                       .setWorkToken(work.getWorkItem().getWorkToken())
                       .build());
             }

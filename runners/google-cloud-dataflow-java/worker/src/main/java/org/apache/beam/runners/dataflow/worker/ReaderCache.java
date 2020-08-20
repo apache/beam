@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -59,37 +59,22 @@ class ReaderCache {
     }
   }
 
-  private static class CacheKey {
+  @AutoValue
+  abstract static class CacheKey {
 
-    private final String computationId;
-    private final ByteString splitId;
-    private final long shardId;
-
-    CacheKey(String computationId, ByteString splitId, long shardId) {
-      this.computationId = computationId;
-      this.splitId = splitId;
-      this.shardId = shardId;
+    public static CacheKey create(String computationId, ByteString splitId, long shardId) {
+      return new AutoValue_ReaderCache_CacheKey(computationId, splitId, shardId);
     }
 
-    @Override
-    public boolean equals(Object that) {
-      if (that instanceof ReaderCache.CacheKey) {
-        ReaderCache.CacheKey other = (ReaderCache.CacheKey) that;
-        return computationId.equals(other.computationId)
-            && splitId.equals(other.splitId)
-            && shardId == other.shardId;
-      }
-      return false;
-    }
+    public abstract String computationId();
 
-    @Override
-    public int hashCode() {
-      return Objects.hash(computationId, splitId, shardId);
-    }
+    public abstract ByteString splitId();
+
+    public abstract long shardId();
 
     @Override
     public String toString() {
-      return String.format("%s-%s-%d", computationId, splitId.toStringUtf8(), shardId);
+      return String.format("%s-%s-%d", computationId(), splitId().toStringUtf8(), shardId());
     }
   }
 
@@ -108,7 +93,7 @@ class ReaderCache {
             .removalListener(
                 (RemovalNotification<CacheKey, CacheEntry> notification) -> {
                   if (notification.getCause() != RemovalCause.EXPLICIT) {
-                    LOG.info("Closing idle reader for {}", notification.getKey().toString());
+                    LOG.info("Closing idle reader for {}", notification.getKey());
                     closeReader(notification.getKey(), notification.getValue());
                   }
                 })
@@ -120,7 +105,7 @@ class ReaderCache {
     try {
       entry.reader.close();
     } catch (IOException e) {
-      LOG.warn("Failed to close UnboundedReader for {}", key.toString(), e);
+      LOG.warn("Failed to close UnboundedReader for {}", key, e);
     }
   }
 
@@ -133,7 +118,7 @@ class ReaderCache {
    */
   UnboundedSource.UnboundedReader<?> acquireReader(
       String computationId, ByteString splitId, long shardId, long cacheToken) {
-    CacheKey key = new CacheKey(computationId, splitId, shardId);
+    CacheKey key = CacheKey.create(computationId, splitId, shardId);
     CacheEntry entry = cache.asMap().remove(key);
 
     cache.cleanUp();
@@ -159,7 +144,8 @@ class ReaderCache {
         cache
             .asMap()
             .putIfAbsent(
-                new CacheKey(computationId, splitId, shardId), new CacheEntry(reader, cacheToken));
+                CacheKey.create(computationId, splitId, shardId),
+                new CacheEntry(reader, cacheToken));
     Preconditions.checkState(existing == null, "Overwriting existing readers is not allowed");
     cache.cleanUp();
   }
