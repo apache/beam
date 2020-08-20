@@ -124,12 +124,14 @@ class BlobStorageIO(object):
       read_buffer_size=DEFAULT_READ_BUFFER_SIZE,
       mime_type='application/octet-stream'):
     """Open an Azure Blob Storage file path for reading or writing.
+
     Args:
       filename (str): Azure Blob Storage file path in the form
                       ``azfs://<storage-account>/<container>/<path>``.
       mode (str): ``'r'`` for reading or ``'w'`` for writing.
       read_buffer_size (int): Buffer size to use during read operations.
       mime_type (str): Mime type to set for write operations.
+
     Returns:
       Azure Blob Storage file object.
     Raises:
@@ -153,11 +155,13 @@ class BlobStorageIO(object):
       retry_filter=retry.retry_on_beam_io_error_filter)
   def copy(self, src, dest):
     """Copies a single Azure Blob Storage blob from src to dest.
+
     Args:
       src: Blob Storage file path pattern in the form
            azfs://<storage-account>/<container>/[name].
       dest: Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
+
     Raises:
       TimeoutError: on timeout.
     """
@@ -181,11 +185,13 @@ class BlobStorageIO(object):
   def copy_tree(self, src, dest):
     """Renames the given Azure Blob storage directory and its contents
     recursively from src to dest.
+
     Args:
       src: Blob Storage file path pattern in the form
            azfs://<storage-account>/<container>/[name].
       dest: Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
+
     Returns:
       List of tuples of (src, dest, exception) where exception is None if the
       operation succeeded or the relevant exception if the operation failed.
@@ -210,10 +216,12 @@ class BlobStorageIO(object):
   def copy_paths(self, src_dest_pairs):
     """Copies the given Azure Blob Storage blobs from src to dest. This can
     handle directory or file paths.
+
     Args:
       src_dest_pairs: List of (src, dest) tuples of
                       azfs://<storage-account>/<container>/[name] file paths
                       to copy from src to dest.
+
     Returns:
       List of tuples of (src, dest, exception) in the same order as the
       src_dest_pairs argument, where exception is None if the operation
@@ -255,6 +263,7 @@ class BlobStorageIO(object):
   # protected by retry decorators.
   def rename(self, src, dest):
     """Renames the given Azure Blob Storage blob from src to dest.
+
     Args:
       src: Blob Storage file path pattern in the form
            azfs://<storage-account>/<container>/[name].
@@ -269,6 +278,7 @@ class BlobStorageIO(object):
   # protected by retry decorators.
   def rename_files(self, src_dest_pairs):
     """Renames the given Azure Blob Storage blobs from src to dest.
+
     Args:
       src_dest_pairs: List of (src, dest) tuples of
                       azfs://<storage-account>/<container>/[name]
@@ -314,6 +324,7 @@ class BlobStorageIO(object):
       retry_filter=retry.retry_on_beam_io_error_filter)
   def exists(self, path):
     """Returns whether the given Azure Blob Storage blob exists.
+
     Args:
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
@@ -335,8 +346,10 @@ class BlobStorageIO(object):
       retry_filter=retry.retry_on_beam_io_error_filter)
   def size(self, path):
     """Returns the size of a single Blob Storage blob.
+
     This method does not perform glob expansion. Hence the
     given path must be for a single Blob Storage blob.
+
     Returns: size of the Blob Storage blob in bytes.
     """
     container, blob = parse_azfs_path(path)
@@ -355,8 +368,10 @@ class BlobStorageIO(object):
   def last_updated(self, path):
     """Returns the last updated epoch time of a single
     Azure Blob Storage blob.
+
     This method does not perform glob expansion. Hence the
     given path must be for a single Azure Blob Storage blob.
+
     Returns: last updated time of the Azure Blob Storage blob
     in seconds.
     """
@@ -378,6 +393,7 @@ class BlobStorageIO(object):
       retry_filter=retry.retry_on_beam_io_error_filter)
   def checksum(self, path):
     """Looks up the checksum of an Azure Blob Storage blob.
+
     Args:
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
@@ -397,6 +413,7 @@ class BlobStorageIO(object):
       retry_filter=retry.retry_on_beam_io_error_filter)
   def delete(self, path):
     """Deletes a single blob at the given Azure Blob Storage path.
+
     Args:
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
@@ -419,10 +436,12 @@ class BlobStorageIO(object):
   def delete_paths(self, paths):
     """Deletes the given Azure Blob Storage blobs from src to dest.
     This can handle directory or file paths.
+
     Args:
       paths: list of Azure Blob Storage paths in the form
              azfs://<storage-account>/<container>/[name] that give the
              file blobs to be deleted.
+
     Returns:
       List of tuples of (src, dest, exception) in the same order as the
       src_dest_pairs argument, where exception is 202 if the operation
@@ -454,10 +473,12 @@ class BlobStorageIO(object):
   def delete_tree(self, root):
     """Deletes all blobs under the given Azure BlobStorage virtual
     directory.
+
     Args:
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name]
             (ending with a "/").
+
     Returns:
       List of tuples of (path, exception), where each path is a blob
       under the given root. exception is 202 if the operation succeeded
@@ -475,10 +496,12 @@ class BlobStorageIO(object):
   # protected by retry decorators.
   def delete_files(self, paths):
     """Deletes the given Azure Blob Storage blobs from src to dest.
+
     Args:
       paths: list of Azure Blob Storage paths in the form
              azfs://<storage-account>/<container>/[name] that give the
              file blobs to be deleted.
+
     Returns:
       List of tuples of (src, dest, exception) in the same order as the
       src_dest_pairs argument, where exception is 202 if the operation
@@ -516,9 +539,11 @@ class BlobStorageIO(object):
   def _delete_batch(self, container, blobs):
     """A helper method. Azure Blob Storage Python Client allows batch
     deletions for blobs within the same container.
+
     Args:
       container: container name.
       blobs: list of blobs to be deleted.
+
     Returns:
       Dictionary of the form {(container, blob): error}, where error is
       202 if the operation succeeded.
@@ -543,9 +568,11 @@ class BlobStorageIO(object):
       retry_filter=retry.retry_on_beam_io_error_filter)
   def list_prefix(self, path):
     """Lists files matching the prefix.
+
     Args:
       path: Azure Blob Storage file path pattern in the form
             azfs://<storage-account>/<container>/[name].
+
     Returns:
       Dictionary of file name -> size.
     """
