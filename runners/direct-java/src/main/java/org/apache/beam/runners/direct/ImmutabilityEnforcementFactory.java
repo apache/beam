@@ -50,7 +50,7 @@ class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
     return new ImmutabilityCheckingEnforcement<>(input, consumer);
   }
 
-  private static boolean isReadTransform(AppliedPTransform<?, ?, ?> consumer) {
+  static boolean isReadTransform(AppliedPTransform<?, ?, ?> consumer) {
     IsReadVisitor visitor = new IsReadVisitor(consumer.getTransform());
     consumer.getPipeline().traverseTopologically(visitor);
     return visitor.isRead();
