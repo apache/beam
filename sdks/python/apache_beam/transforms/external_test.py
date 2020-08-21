@@ -176,8 +176,8 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
 
     # Verify we have not modified a cached type (BEAM-10766)
     # TODO(BEAM-7372): Remove when bytes coercion code is removed.
-    self.assertEqual(typehints.List[bytes],
-                     convert_to_beam_type(typing.List[bytes]))
+    self.assertEqual(
+        typehints.List[bytes], convert_to_beam_type(typing.List[bytes]))
 
 
 class ExternalTransformTest(unittest.TestCase):
