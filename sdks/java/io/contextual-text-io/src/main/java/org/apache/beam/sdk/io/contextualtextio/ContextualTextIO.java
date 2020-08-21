@@ -173,11 +173,10 @@ import org.slf4j.LoggerFactory;
  * option, a single reader will be used to process the file, rather than multiple readers which can
  * read from different offsets. For a large file this can result in lower performance.
  *
- * <p>NOTE: Use {@link Read#withoutRecordNumMetadata()} when recordNum metadata is not required or
- * when only metadata associated with filenames is required, Not using this option introduces a
- * shuffle step which increases the resources used by the pipeline. <b>This option is set to false
- * by default. Meaning that the shuffle step will be performed, set it to false to avoid the shuffle
- * step</b>
+ * <p>NOTE: Use {@link Read#withoutRecordNumMetadata()} when recordNum metadata is not required, for
+ * example, when when only filename metadata is required. Computing record positions currently
+ * introduces a shuffle step, which increases the resources used by the pipeline. <b> By default
+ * withoutRecordNumMetadata is set to false, so the shuffle step is performed.</b>
  *
  * <h3>Reading a very large number of files</h3>
  *
@@ -424,7 +423,7 @@ public class ContextualTextIO {
       public void processElement(
           @Element RecordWithMetadata record,
           OutputReceiver<KV<KV<String, Long>, RecordWithMetadata>> out) {
-        out.output(KV.of(KV.of(record.getFileName(), record.getStartingOffset()), record));
+        out.output(KV.of(KV.of(record.getFileName(), record.getRangeOffset()), record));
       }
     }
 
@@ -506,7 +505,7 @@ public class ContextualTextIO {
                 .setRecordOffset(record.getRecordOffset())
                 .setRecordNum(record.getRecordNumInOffset() + numRecordsLessThanThisRange)
                 .setFileName(record.getFileName())
-                .setStartingOffset(record.getStartingOffset())
+                .setRangeOffset(record.getRangeOffset())
                 .setRecordNumInOffset(record.getRecordNumInOffset())
                 .build();
         p.output(newLine);

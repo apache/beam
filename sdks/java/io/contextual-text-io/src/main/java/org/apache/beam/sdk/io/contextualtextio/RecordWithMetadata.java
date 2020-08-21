@@ -32,12 +32,11 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
  *   <li>recordOffset: The offset of a record (the byte at which the record begins) in a file. This
  *       information can be useful if you wish to reconstruct the file. {@link
  *       RecordWithMetadata#getRecordOffset()}
- *   <li>recordNum: The record number of the record from its ordinal file. {@link
+ *   <li>recordNum: The ordinal number of the record in its file. {@link
  *       RecordWithMetadata#getRecordNum()}
- *   <li>recordValue: The value / contents of the records {@link
- *       RecordWithMetadata#getRecordValue()}
- *   <li>startingOffset: The starting offset of the range to which the record belongs. {@link
- *       RecordWithMetadata#getStartingOffset()}
+ *   <li>recordValue: The value / contents of the record {@link RecordWithMetadata#getRecordValue()}
+ *   <li>rangeOffset: The starting offset of the range (split), which contained the record, when the
+ *       record was read. {@link RecordWithMetadata#getRangeOffset()}
  *   <li>recordNumInOffset: The record number relative to the Range. (line number within the range)
  *       {@link RecordWithMetadata#getRecordNumInOffset()}
  *   <li>fileName: Name of the file to which the record belongs (this is the full filename,
@@ -54,7 +53,7 @@ public abstract class RecordWithMetadata {
 
   public abstract String getRecordValue();
 
-  public abstract Long getStartingOffset();
+  public abstract Long getRangeOffset();
 
   public abstract Long getRecordNumInOffset();
 
@@ -78,7 +77,7 @@ public abstract class RecordWithMetadata {
 
     public abstract Builder setRecordNumInOffset(Long recordNumInOffset);
 
-    public abstract Builder setStartingOffset(Long startingOffset);
+    public abstract Builder setRangeOffset(Long startingOffset);
 
     public abstract RecordWithMetadata build();
   }

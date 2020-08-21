@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
 class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
   byte[] delimiter;
 
-  private final Logger LOG = LoggerFactory.getLogger(ContextualTextIOSource.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ContextualTextIOSource.class);
 
   // Used to Override isSplittable
   private boolean hasMultilineCSVRecords;
@@ -336,7 +336,7 @@ class ContextualTextIOSource extends FileBasedSource<RecordWithMetadata> {
       currentValue =
           RecordWithMetadata.newBuilder()
               .setRecordNumInOffset(recordUniqueNum)
-              .setStartingOffset(startingOffset)
+              .setRangeOffset(startingOffset)
               .setRecordOffset(startOfRecord)
               .setRecordNum(recordUniqueNum)
               .setFileName(fileName)
