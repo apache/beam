@@ -174,11 +174,14 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
       if (config.getString("writeStatement") != null) {
         return config.getString("writeStatement");
       } else {
-        String writeStatement = String.format("INSERT INTO %s VALUES(", location);
+        StringBuilder writeStatement = new StringBuilder("INSERT INTO ");
+        writeStatement.append(location);
+        writeStatement.append(" VALUES(");
         for (int i = 0; i < schema.getFieldCount() - 1; i++) {
-          writeStatement += "?, ";
+          writeStatement.append("?, ");
         }
-        return writeStatement + "?)";
+        writeStatement.append("?)");
+        return writeStatement.toString();
       }
     }
   }
