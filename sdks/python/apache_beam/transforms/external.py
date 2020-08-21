@@ -135,7 +135,7 @@ class ImplicitSchemaPayloadBuilder(SchemaBasedPayloadBuilder):
       if typ == str:
         return ByteString
 
-      elif hasattr(typ, '__args__'):
+      elif hasattr(typ, '__args__') and hasattr(typ, '__origin__'):
         # Create a new type rather than modifying the existing one
         typ = typ.__origin__[tuple(map(coerce_str_to_bytes, typ.__args__))]
 
