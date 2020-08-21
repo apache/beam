@@ -38,6 +38,8 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
+from apache_beam.typehints import typehints
+from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 
 
 def get_payload(args):
@@ -171,6 +173,11 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
         # ImplicitSchemaPayloadBuilder omits fields with valu=None since their
         # type cannot be inferred.
         self.assertEqual(getattr(decoded, key, None), value)
+
+    # Verify we have not modified a cached type (BEAM-10766)
+    # TODO(BEAM-7372): Remove when bytes coercion code is removed.
+    self.assertEqual(typehints.List[bytes],
+                     convert_to_beam_type(typing.List[bytes]))
 
 
 class ExternalTransformTest(unittest.TestCase):
