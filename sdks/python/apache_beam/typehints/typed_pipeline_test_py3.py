@@ -30,6 +30,10 @@ from apache_beam import typehints
 
 
 class MainInputTest(unittest.TestCase):
+  def assertStartswith(self, msg, prefix):
+    self.assertTrue(
+        msg.startswith(prefix), '"%s" does not start with "%s"' % (msg, prefix))
+
   def test_typed_dofn_method(self):
     class MyDoFn(beam.DoFn):
       def process(self, element: int) -> typehints.Tuple[str]:
@@ -164,7 +168,7 @@ class MainInputTest(unittest.TestCase):
       # TODO(BEAM-5878): A kwonly argument like
       #   timestamp=beam.DoFn.TimestampParam would not work here.
       def process(self, element: int, *, side_input: str) -> \
-          typehints.Generator[typehints.Optional[int]]:
+          typehints.Generator[typehints.Optional[str]]:
         yield str(element) if side_input else None
 
     my_do_fn = MyDoFn()
@@ -179,7 +183,7 @@ class MainInputTest(unittest.TestCase):
   def test_typed_dofn_var_kwargs(self):
     class MyDoFn(beam.DoFn):
       def process(self, element: int, **side_inputs: typehints.Dict[str, str]) \
-          -> typehints.Generator[typehints.Optional[int]]:
+          -> typehints.Generator[typehints.Optional[str]]:
         yield str(element) if side_inputs else None
 
     my_do_fn = MyDoFn()
