@@ -73,9 +73,9 @@ class MovingMeanSellingPriceFn(beam.CombineFn):
 
   def add_input(self, accumulator, element):
     accumulator.append(element)
-    new_accu = sorted(accumulator, key=lambda bid: (bid.date_time, bid.price))
+    new_accu = sorted(accumulator, key=lambda bid: (-bid.date_time, -bid.price))
     if len(new_accu) > self.max_num_bids:
-      del new_accu[0]
+      del new_accu[self.max_num_bids]
     return new_accu
 
   def merge_accumulators(self, accumulators):
@@ -83,7 +83,7 @@ class MovingMeanSellingPriceFn(beam.CombineFn):
     for accumulator in accumulators:
       new_accu += accumulator
     new_accu.sort(key=lambda bid: (bid.date_time, bid.price))
-    return new_accu[-10:]
+    return new_accu[-self.max_num_bids:]
 
   def extract_output(self, accumulator):
     if len(accumulator) == 0:
