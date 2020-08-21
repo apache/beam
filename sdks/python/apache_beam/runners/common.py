@@ -1341,12 +1341,8 @@ class _OutputProcessor(OutputProcessor):
         self.per_element_output_counter.add_input(0)
       return
 
-    if isinstance(results, (dict, str, unicode, bytes)):
-      results_type = type(results).__name__
-      raise TypeCheckError(
-          'Returning a %s from a ParDo or FlatMap is '
-          'discouraged. Please use list("%s") if you really '
-          'want this behavior.' % (results_type, results))
+    # TODO(BEAM-10782): Verify that the results object is a valid iterable type
+    #  if performance_runtime_type_check is active, without harming performance
 
     output_element_count = 0
     for result in results:
