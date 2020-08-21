@@ -70,6 +70,9 @@ public class BatchModeExecutionContext
       "org.apache.beam.sdk.io.gcp.datastore.DatastoreV1$DatastoreWriterFn";
   protected static final String HTTP_CLIENT_API_THROTTLE_TIME_NAMESPACE =
       "org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer$LoggingHttpBackOffHandler";
+  protected static final String BIGQUERY_STREAMING_INSERT_THROTTLE_TIME_NAMESPACE =
+      "org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl$DatasetServiceImpl";
+  protected static final String THROTTLE_TIME_COUNTER_NAME = "throttling-msecs";
 
   private BatchModeExecutionContext(
       CounterFactory counterFactory,
@@ -522,33 +525,38 @@ public class BatchModeExecutionContext
   }
 
   public Long extractThrottleTime() {
-    Long totalThrottleTime = 0L;
+    long totalThrottleMsecs = 0L;
     for (MetricsContainerImpl container : containerRegistry.getContainers()) {
       // TODO(BEAM-7863): Update throttling counters to use generic throttling-msecs metric.
       CounterCell dataStoreThrottlingTime =
           container.tryGetCounter(
-              MetricName.named(
-                  BatchModeExecutionContext.DATASTORE_THROTTLE_TIME_NAMESPACE,
-                  "cumulativeThrottlingSeconds"));
+              MetricName.named(DATASTORE_THROTTLE_TIME_NAMESPACE, THROTTLE_TIME_COUNTER_NAME));
       if (dataStoreThrottlingTime != null) {
-        totalThrottleTime += dataStoreThrottlingTime.getCumulative();
+        totalThrottleMsecs += dataStoreThrottlingTime.getCumulative();
       }
 
       CounterCell httpClientApiThrottlingTime =
           container.tryGetCounter(
               MetricName.named(
-                  BatchModeExecutionContext.HTTP_CLIENT_API_THROTTLE_TIME_NAMESPACE,
-                  "cumulativeThrottlingSeconds"));
+                  HTTP_CLIENT_API_THROTTLE_TIME_NAMESPACE, THROTTLE_TIME_COUNTER_NAME));
       if (httpClientApiThrottlingTime != null) {
-        totalThrottleTime += httpClientApiThrottlingTime.getCumulative();
+        totalThrottleMsecs += httpClientApiThrottlingTime.getCumulative();
+      }
+
+      CounterCell bigqueryStreamingInsertThrottleTime =
+          container.tryGetCounter(
+              MetricName.named(
+                  BIGQUERY_STREAMING_INSERT_THROTTLE_TIME_NAMESPACE, THROTTLE_TIME_COUNTER_NAME));
+      if (bigqueryStreamingInsertThrottleTime != null) {
+        totalThrottleMsecs += bigqueryStreamingInsertThrottleTime.getCumulative();
       }
 
       CounterCell throttlingMsecs =
           container.tryGetCounter(DataflowSystemMetrics.THROTTLING_MSECS_METRIC_NAME);
       if (throttlingMsecs != null) {
-        totalThrottleTime += TimeUnit.MILLISECONDS.toSeconds(throttlingMsecs.getCumulative());
+        totalThrottleMsecs += throttlingMsecs.getCumulative();
       }
     }
-    return totalThrottleTime;
+    return TimeUnit.MILLISECONDS.toSeconds(totalThrottleMsecs);
   }
 }
