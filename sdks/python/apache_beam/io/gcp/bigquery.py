@@ -1079,6 +1079,9 @@ class BigQueryWriteFn(DoFn):
 
     self.additional_bq_parameters = additional_bq_parameters or {}
 
+    # accumulate the total time spent in exponential backoff
+    self._throttled_secs = Metrics.counter(
+        BigQueryWriteFn, "cumulativeThrottlingSeconds")
     self.batch_size_metric = Metrics.distribution(self.__class__, "batch_size")
     self.batch_latency_metric = Metrics.distribution(
         self.__class__, "batch_latency_ms")
@@ -1257,6 +1260,7 @@ class BigQueryWriteFn(DoFn):
         _LOGGER.info(
             'Sleeping %s seconds before retrying insertion.', retry_backoff)
         time.sleep(retry_backoff)
+        self._throttled_secs.inc(retry_backoff)
 
     self._total_buffered_rows -= len(self._rows_buffer[destination])
     del self._rows_buffer[destination]
