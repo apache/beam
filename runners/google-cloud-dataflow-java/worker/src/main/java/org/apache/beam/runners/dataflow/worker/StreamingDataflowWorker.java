@@ -2244,7 +2244,7 @@ public class StreamingDataflowWorker {
           throw new IllegalStateException(
               String.format(
                   "Token mismatch for key %s: %s and %s",
-                  shardedKey.toString(), completedWork.getWorkItem().getWorkToken(), workToken));
+                  shardedKey, completedWork.getWorkItem().getWorkToken(), workToken));
         }
         queue.remove(); // We consumed the matching work item.
         nextWork = queue.peek();
