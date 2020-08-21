@@ -41,7 +41,7 @@ public class FileSystemUtilsTest {
     assertEquals("foo/[^/]*/[^/]*/[^/]*", wildcardToRegexp("foo/*/*/*"));
     assertEquals("foo/[^/]*/.*", wildcardToRegexp("foo/*/**"));
     assertEquals("foo.*baz", wildcardToRegexp("foo**baz"));
-    assertEquals("foo\\", wildcardToRegexp("foo\\"));
-    assertEquals("foo/bar\\baz[^/]*", wildcardToRegexp("foo/bar\\baz*"));
+    assertEquals("foo\\\\", wildcardToRegexp("foo\\"));
+    assertEquals("foo/bar\\\\baz[^/]*", wildcardToRegexp("foo/bar\\baz*"));
   }
 }

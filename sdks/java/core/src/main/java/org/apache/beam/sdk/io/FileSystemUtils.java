@@ -74,6 +74,7 @@ public class FileSystemUtils {
 
   private static int doubleSlashes(StringBuilder dst, char[] src, int i) {
     // Emit the next character without special interpretation
+    dst.append('\\');
     if ((i + 1) < src.length) {
       dst.append('\\');
       dst.append(src[i]);
