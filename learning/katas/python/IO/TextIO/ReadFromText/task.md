@@ -19,13 +19,13 @@
 ReadFromText
 ------------
 
-When you create a pipeline, you often need to read data from some external source, such as a file 
-or a database. Likewise, you may want your pipeline to output its result data to an external 
-storage system. Beam provides read and write transforms for a number of common data storage types. 
-If you want your pipeline to read from or write to a data storage format that isn’t supported by 
+When you create a pipeline, you often need to read data from some external source, such as a file
+or a database. Likewise, you may want your pipeline to output its result data to an external
+storage system. Beam provides read and write transforms for a number of common data storage types.
+If you want your pipeline to read from or write to a data storage format that isn’t supported by
 the built-in transforms, you can implement your own read and write transforms.
 
-To read a PCollection from one or more text files, use beam.io.ReadFromText to instantiate a 
+To read a PCollection from one or more text files, use beam.io.ReadFromText to instantiate a
 transform and specify the path of the file(s) to be read.
 
 **Kata:** Read the 'countries.txt' file and convert each country name into uppercase.

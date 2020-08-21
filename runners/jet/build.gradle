@@ -77,7 +77,7 @@ task validatesRunnerBatch(type: Test) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse' //impulse doesn't cooperate properly with Jet when multiple cluster members are used
         exclude '**/SplittableDoFnTest.class' //Splittable DoFn functionality not yet in the runner
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-        
+
         //Jet Runner doesn't current support @RequiresTimeSortedInput annotation.
         excludeCategories 'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput'
 

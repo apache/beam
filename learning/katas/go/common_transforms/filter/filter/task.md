@@ -21,7 +21,7 @@ Filter
 
 In the previous lesson we filtered numbers using a ParDo.  This lesson introduces the [filter](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/transforms/filter?tab=doc) package that contains transformations for removing pipeline elements based on various conditions.
 
-**Kata:** Implement a filter function that filters out the odd numbers by using a method from the [filter](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/transforms/filter?tab=doc) package. 
+**Kata:** Implement a filter function that filters out the odd numbers by using a method from the [filter](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/transforms/filter?tab=doc) package.
 
 <div class="hint">
   Use <a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam/transforms/filter?tab=doc#Exclude">

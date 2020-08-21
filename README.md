@@ -85,7 +85,7 @@ Have ideas for new Runners? See the [JIRA](https://issues.apache.org/jira/issues
 
 ## Getting Started
 
-To learn how to write Beam pipelines, read the Quickstart for [[Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), or 
+To learn how to write Beam pipelines, read the Quickstart for [[Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), or
 [Go](https://beam.apache.org/get-started/quickstart-go)] available on our website.
 
 ## Contact Us
