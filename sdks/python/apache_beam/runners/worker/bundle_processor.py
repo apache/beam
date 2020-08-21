@@ -189,7 +189,8 @@ class DataInputOperation(RunnerIOOperation):
             self.name_context.step_name,
             0,
             next(iter(itervalues(consumers))),
-            self.windowed_coder)
+            self.windowed_coder,
+            self._get_runtime_performance_hints())
     ]
     self.splitting_lock = threading.Lock()
     self.index = -1
