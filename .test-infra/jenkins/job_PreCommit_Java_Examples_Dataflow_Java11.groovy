@@ -39,7 +39,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     )
 builder.build {
   publishers {
-    properties.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
+    archiveJunit('**/build/test-results/**/*.xml')
   }
 
   steps {

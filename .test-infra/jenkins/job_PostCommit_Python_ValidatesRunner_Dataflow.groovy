@@ -29,7 +29,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow', 'Run Python
       commonJobProperties.setTopLevelMainJobProperties(delegate)
 
       publishers {
-        commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/nosetests*.xml')
+        archiveJunit('**/nosetests*.xml')
       }
 
       // Execute gradle task to test Python SDK.
