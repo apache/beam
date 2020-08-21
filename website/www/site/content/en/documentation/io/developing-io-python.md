@@ -42,15 +42,15 @@ multiple worker instances in parallel. As such, the code you provide for
      serializable.  The service may create multiple instances of your `Source`
      or `FileBasedSink` subclass to be sent to multiple remote workers to
      facilitate reading or writing in parallel. The *way* the source and sink
-     objects are serialized is runner specific.  
+     objects are serialized is runner specific.
 
   1. **Immutability:** Your `Source` or `FileBasedSink` subclass must be
      effectively immutable. You should only use mutable state in your `Source`
      or `FileBasedSink` subclass if you are using lazy evaluation of expensive
-     computations that you need to implement the source.  
+     computations that you need to implement the source.
 
   1. **Thread-Safety:** Your code must be thread-safe. The Beam SDK for Python
-     provides the `RangeTracker` class to make this easier.  
+     provides the `RangeTracker` class to make this easier.
 
   1. **Testability:** It is critical to exhaustively unit-test all of your
      `Source` and `FileBasedSink` subclasses. A minor implementation error can

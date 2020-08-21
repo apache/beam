@@ -80,7 +80,7 @@ Python:
 
 ### Non-goals
 
-*   Test problems in the external data store - this can lead to extremely complicated tests.  
+*   Test problems in the external data store - this can lead to extremely complicated tests.
 
 
 ### Implementing unit tests {#implementing-unit-tests}
@@ -145,10 +145,10 @@ You can always run the IO integration tests on your own machine. The high level 
 If you're using Kubernetes scripts to host data stores, make sure you can connect to your cluster locally using kubectl. If you have your own data stores already setup, you just need to execute step 3 from below list.
 
 1.  Set up the data store corresponding to the test you wish to run. You can find Kubernetes scripts for all currently supported data stores in [.test-infra/kubernetes](https://github.com/apache/beam/tree/master/.test-infra/kubernetes).
-    1.  In some cases, there is a dedicated setup script (*.sh). In other cases, you can just run ``kubectl create -f [scriptname]`` to create the data store. You can also let [kubernetes.sh](https://github.com/apache/beam/blob/master/.test-infra/kubernetes/kubernetes.sh) script perform some standard steps for you. 
+    1.  In some cases, there is a dedicated setup script (*.sh). In other cases, you can just run ``kubectl create -f [scriptname]`` to create the data store. You can also let [kubernetes.sh](https://github.com/apache/beam/blob/master/.test-infra/kubernetes/kubernetes.sh) script perform some standard steps for you.
     1.  Convention dictates there will be:
         1.  A yml script for the data store itself, plus a `NodePort` service. The `NodePort` service opens a port to the data store for anyone who connects to the Kubernetes cluster's machines from within same subnetwork. Such scripts are typically useful when running the scripts on Minikube Kubernetes Engine.
-        1.  A separate script, with LoadBalancer service. Such service will expose an _external ip_ for the datastore. Such scripts are needed when external access is required (eg. on Jenkins). 
+        1.  A separate script, with LoadBalancer service. Such service will expose an _external ip_ for the datastore. Such scripts are needed when external access is required (eg. on Jenkins).
     1.  Examples:
         1.  For JDBC, you can set up Postgres: `kubectl create -f .test-infra/kubernetes/postgres/postgres.yml`
         1.  For Elasticsearch, you can run the setup script: `bash .test-infra/kubernetes/elasticsearch/setup.sh`
@@ -162,20 +162,20 @@ If you're using Kubernetes scripts to host data stores, make sure you can connec
 
 #### Running a particular test {#running-a-test}
 
-`integrationTest` is a dedicated gradle task for running IO integration tests.    
+`integrationTest` is a dedicated gradle task for running IO integration tests.
 
-Example usage on Cloud Dataflow runner: 
+Example usage on Cloud Dataflow runner:
 
 ```
 ./gradlew integrationTest -p sdks/java/io/hadoop-format -DintegrationTestPipelineOptions='["--project=GOOGLE_CLOUD_PROJECT", "--tempRoot=GOOGLE_STORAGE_BUCKET", "--numberOfRecords=1000", "--postgresPort=5432", "--postgresServerName=SERVER_NAME", "--postgresUsername=postgres", "--postgresPassword=PASSWORD", "--postgresDatabaseName=postgres", "--postgresSsl=false", "--runner=TestDataflowRunner"]' -DintegrationTestRunner=dataflow --tests=org.apache.beam.sdk.io.hadoop.format.HadoopFormatIOIT
 ```
 
-Example usage on HDFS filesystem and Direct runner: 
+Example usage on HDFS filesystem and Direct runner:
 
 NOTE: Below setup will only work when /etc/hosts file contains entries with hadoop namenode and hadoop datanodes external IPs. Please see explanation in: [Small Cluster config file](https://github.com/apache/beam/blob/master/.test-infra/kubernetes/hadoop/SmallITCluster/pkb-config.yml) and [Large Cluster config file](https://github.com/apache/beam/blob/master/.test-infra/kubernetes/hadoop/LargeITCluster/pkb-config.yml).
 
 ```
-export HADOOP_USER_NAME=root 
+export HADOOP_USER_NAME=root
 
 ./gradlew integrationTest -p sdks/java/io/file-based-io-tests -DintegrationTestPipelineOptions='["--numberOfRecords=1000", "--filenamePrefix=hdfs://HDFS_NAMENODE:9000/XMLIOIT", "--hdfsConfiguration=[{\"fs.defaultFS\":\"hdfs://HDFS_NAMENODE:9000\",\"dfs.replication\":1,\"dfs.client.use.datanode.hostname\":\"true\" }]" ]' -DintegrationTestRunner=direct -Dfilesystem=hdfs --tests org.apache.beam.sdk.io.xml.XmlIOIT
 ```
@@ -216,13 +216,13 @@ Parameter descriptions:
     <tr>
      <td>-Dfilesystem
      </td>
-     <td>(optional, where applicable) Filesystem to be used to run the test. Currently possible options are: gcs, hdfs, s3. If not provided, local filesystem will be used. 
+     <td>(optional, where applicable) Filesystem to be used to run the test. Currently possible options are: gcs, hdfs, s3. If not provided, local filesystem will be used.
      </td>
     </tr>
     <tr>
      <td>--tests
      </td>
-     <td>Specifies the test to be run (fully qualified reference to class/test method). 
+     <td>Specifies the test to be run (fully qualified reference to class/test method).
      </td>
     </tr>
   </tbody>
@@ -230,7 +230,7 @@ Parameter descriptions:
 
 ### Running Integration Tests on Pull Requests {#running-integration-tests-on-pull-requests}
 
-Most of the IO integration tests have dedicated Jenkins jobs that run periodically to collect metrics and avoid regressions. Thanks to [ghprb](https://github.com/janinko/ghprb) plugin it is also possible to trigger these jobs on demand once a specific phrase is typed in a Github Pull Request's comment. This way tou can check if your contribution to a certain IO is an improvement or if it makes things worse (hopefully not!). 
+Most of the IO integration tests have dedicated Jenkins jobs that run periodically to collect metrics and avoid regressions. Thanks to [ghprb](https://github.com/janinko/ghprb) plugin it is also possible to trigger these jobs on demand once a specific phrase is typed in a Github Pull Request's comment. This way tou can check if your contribution to a certain IO is an improvement or if it makes things worse (hopefully not!).
 
 To run IO Integration Tests type the following comments in your Pull Request:
 
@@ -267,55 +267,55 @@ To run IO Integration Tests type the following comments in your Pull Request:
     <tr>
      <td>TextIO - local filesystem
      </td>
-     <td>Run Java TextIO Performance Test 
+     <td>Run Java TextIO Performance Test
      </td>
     </tr>
     <tr>
      <td>TextIO - HDFS
      </td>
-     <td>Run Java TextIO Performance Test HDFS 
+     <td>Run Java TextIO Performance Test HDFS
      </td>
     </tr>
     <tr>
      <td>Compressed TextIO - local filesystem
      </td>
-     <td>Run Java CompressedTextIO Performance Test 
+     <td>Run Java CompressedTextIO Performance Test
      </td>
     </tr>
     <tr>
      <td>Compressed TextIO - HDFS
      </td>
-     <td>Run Java CompressedTextIO Performance Test HDFS 
+     <td>Run Java CompressedTextIO Performance Test HDFS
      </td>
     </tr>
     <tr>
      <td>AvroIO - local filesystem
      </td>
-     <td>Run Java AvroIO Performance Test 
+     <td>Run Java AvroIO Performance Test
      </td>
     </tr>
     <tr>
      <td>AvroIO - HDFS
      </td>
-     <td>Run Java AvroIO Performance Test HDFS 
+     <td>Run Java AvroIO Performance Test HDFS
      </td>
     </tr>
     <tr>
      <td>TFRecordIO - local filesystem
      </td>
-     <td>Run Java TFRecordIO Performance Test 
+     <td>Run Java TFRecordIO Performance Test
      </td>
     </tr>
     <tr>
      <td>ParquetIO - local filesystem
      </td>
-     <td>Run Java ParquetIO Performance Test 
+     <td>Run Java ParquetIO Performance Test
      </td>
     </tr>
     <tr>
      <td>XmlIO - local filesystem
      </td>
-     <td>Run Java XmlIO Performance Test 
+     <td>Run Java XmlIO Performance Test
      </td>
     </tr>
     <tr>
@@ -327,12 +327,12 @@ To run IO Integration Tests type the following comments in your Pull Request:
   </tbody>
 </table>
 
-Every job definition can be found in [.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins). 
+Every job definition can be found in [.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins).
 If you modified/added new Jenkins job definitions in your Pull Request, run the seed job before running the integration test (comment: "Run seed job").
 
 ### Performance testing dashboard {#performance-testing-dashboard}
 
-As mentioned before, we measure the performance of IOITs by gathering test execution times from Jenkins jobs that run periodically. The consequent results are stored in a database (BigQuery), therefore we can display them in a form of plots. 
+As mentioned before, we measure the performance of IOITs by gathering test execution times from Jenkins jobs that run periodically. The consequent results are stored in a database (BigQuery), therefore we can display them in a form of plots.
 
 The dashboard gathering all the results is available here: [Performance Testing Dashboard](https://s.apache.org/io-test-dashboards)
 
@@ -389,12 +389,12 @@ Guidelines for creating a Beam data store Kubernetes script:
 
 #### Jenkins jobs {#jenkins-jobs}
 
-You can find examples of existing IOIT jenkins job definitions in [.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) directory. Look for files caled job_PerformanceTest_*.groovy. The most prominent examples are: 
+You can find examples of existing IOIT jenkins job definitions in [.test-infra/jenkins](https://github.com/apache/beam/tree/master/.test-infra/jenkins) directory. Look for files caled job_PerformanceTest_*.groovy. The most prominent examples are:
 * [JDBC](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_JDBC.groovy) IOIT job
 * [MongoDB](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_MongoDBIO_IT.groovy) IOIT job
 * [File-based](https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_FileBasedIO_IT.groovy) IOIT jobs
-    
-Notice that there is a utility class helpful in creating the jobs easily without forgetting important steps or repeating code. See [Kubernetes.groovy](https://github.com/apache/beam/blob/master/.test-infra/jenkins/Kubernetes.groovy) for more details.  
+
+Notice that there is a utility class helpful in creating the jobs easily without forgetting important steps or repeating code. See [Kubernetes.groovy](https://github.com/apache/beam/blob/master/.test-infra/jenkins/Kubernetes.groovy) for more details.
 
 ### Small Scale and Large Scale Integration Tests {#small-scale-and-large-scale-integration-tests}
 

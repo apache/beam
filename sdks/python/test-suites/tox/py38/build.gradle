@@ -33,3 +33,25 @@ apply from: "../common.gradle"
 
 // TODO(BEAM-8954): Remove this once tox uses isolated builds.
 testPy38Cython.mustRunAfter testPython38, testPy38CloudCoverage
+
+toxTask "whitespacelint", "whitespacelint"
+
+task archiveFilesToLint(type: Zip) {
+  archiveFileName = "files-to-whitespacelint.zip"
+  destinationDirectory = file("$buildDir/dist")
+
+  from ("$rootProject.projectDir") {
+    include "**/*.md"
+    include "**/build.gradle"
+    exclude "**/node_modules/*"
+  }
+}
+
+task unpackFilesToLint(type: Copy) {
+  from zipTree("$buildDir/dist/files-to-whitespacelint.zip")
+  into "$buildDir/files-to-whitespacelint"
+}
+
+whitespacelint.dependsOn archiveFilesToLint, unpackFilesToLint
+unpackFilesToLint.dependsOn archiveFilesToLint
+archiveFilesToLint.dependsOn cleanPython

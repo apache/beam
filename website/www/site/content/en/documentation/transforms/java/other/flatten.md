@@ -61,6 +61,6 @@ PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 The resulting collection now has all the elements: "Hello", "World",
 "Beam", "Is", and "Fun".
 
-## Related transforms 
+## Related transforms
 * [ParDo](/documentation/transforms/java/elementwise/pardo)
 * [Partition](/documentation/transforms/java/elementwise/partition)
