@@ -83,7 +83,8 @@
 
 ## Known Issues
 
-* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* (Python) Performance impact due to occasional erroneous conversions from bytes/str to
+  typing.ByteString weakening type checking. ([BEAM-10697](https://issues.apache.org/jira/browse/BEAM-10697)).
 
 # [2.23.0] - 2020-06-29
 
