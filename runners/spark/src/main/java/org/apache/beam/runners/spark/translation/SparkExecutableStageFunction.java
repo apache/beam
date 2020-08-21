@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.translation;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.List;
@@ -121,7 +122,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
     // Do not call processElements if there are no inputs
     // Otherwise, this may cause validation errors (e.g. ParDoTest)
     if (!inputs.hasNext()) {
-      return new ConcurrentLinkedQueue<RawUnionValue>().iterator();
+      return Collections.emptyIterator();
     }
 
     try (ExecutableStageContext stageContext = contextFactory.get(jobInfo)) {

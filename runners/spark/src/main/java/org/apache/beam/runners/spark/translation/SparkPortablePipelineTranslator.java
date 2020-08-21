@@ -25,7 +25,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 
 /**
  * Interface for portable Spark translators. This allows for a uniform invocation pattern for
- * pipeline translation between streaming and portable runners.
+ * pipeline translation between streaming and batch runners.
  */
 public interface SparkPortablePipelineTranslator<T extends SparkTranslationContext> {
 

@@ -104,9 +104,9 @@ public class SparkExecutableStageFunctionTest {
   public void sdkErrorsSurfaceOnClose() throws Exception {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
     doThrow(new Exception()).when(remoteBundle).close();
-    List<WindowedValue<Integer>> dummyList = new ArrayList<>();
-    dummyList.add(WindowedValue.valueInGlobalWindow(0));
-    function.call(dummyList.iterator());
+    List<WindowedValue<Integer>> inputs = new ArrayList<>();
+    inputs.add(WindowedValue.valueInGlobalWindow(0));
+    function.call(inputs.iterator());
   }
 
   @Test
@@ -210,9 +210,9 @@ public class SparkExecutableStageFunctionTest {
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
 
     SparkExecutableStageFunction<Integer, ?> function = getFunction(outputTagMap);
-    List<WindowedValue<Integer>> dummyList = new ArrayList<>();
-    dummyList.add(WindowedValue.valueInGlobalWindow(0));
-    Iterator<RawUnionValue> iterator = function.call(dummyList.iterator());
+    List<WindowedValue<Integer>> inputs = new ArrayList<>();
+    inputs.add(WindowedValue.valueInGlobalWindow(0));
+    Iterator<RawUnionValue> iterator = function.call(inputs.iterator());
     Iterable<RawUnionValue> iterable = () -> iterator;
 
     assertThat(
@@ -224,9 +224,9 @@ public class SparkExecutableStageFunctionTest {
   @Test
   public void testStageBundleClosed() throws Exception {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
-    List<WindowedValue<Integer>> dummyList = new ArrayList<>();
-    dummyList.add(WindowedValue.valueInGlobalWindow(0));
-    function.call(dummyList.iterator());
+    List<WindowedValue<Integer>> inputs = new ArrayList<>();
+    inputs.add(WindowedValue.valueInGlobalWindow(0));
+    function.call(inputs.iterator());
     verify(stageBundleFactory).getBundle(any(), any(), any(), any());
     verify(stageBundleFactory).getProcessBundleDescriptor();
     verify(stageBundleFactory).close();

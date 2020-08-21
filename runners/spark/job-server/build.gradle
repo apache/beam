@@ -107,7 +107,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-      // SplittableDoFnTests
+      // TODO (BEAM-7222) SplittableDoFnTests
       excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
       excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
@@ -123,9 +123,9 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
     }
 
     testFilter = {
-      // TODO(BEAM-10094)
+      // TODO (BEAM-10094)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
-      // Currently unsupported in portable streaming:
+      // TODO (BEAM-10784) Currently unsupported in portable streaming:
       // // Timeout error
       excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedContainsInAnyOrder'
       excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedSerializablePredicate'
@@ -159,7 +159,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-      // SplittableDoFnTests
+      // TODO (BEAM-7222) SplittableDoFnTests
       excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
       excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
@@ -167,7 +167,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     }
     testFilter = {
-      // TODO(BEAM-10094)
+      // TODO (BEAM-10094)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
     }
   }
