@@ -276,21 +276,25 @@ class RecordingManagerTest(unittest.TestCase):
   def test_basic_wordcount(self):
     """A wordcount to be used as a smoke test."""
 
+    # Create the pipeline that will emit 0, 1, 2.
     p = beam.Pipeline(InteractiveRunner())
     elems = p | beam.Create([0, 1, 2])
 
+    # Watch the pipeline and PCollections. This is normally done in a notebook
+    # environment automatically, but we have to do it manually here.
     ib.watch(locals())
     ie.current_env().track_user_pipelines()
 
+    # Create the recording objects. By calling `record` a new PipelineFragment
+    # is started to compute the given PCollections and cache to disk.
     rm = RecordingManager(p)
-
     recording = rm.record([elems], max_n=3, max_duration_secs=500)
     stream = recording.stream(elems)
-
     recording.wait_until_finish()
 
+    # Once the pipeline fragment completes, we can read from the stream and know
+    # that all elements were written to cache.
     elems = list(stream.read())
-
     expected_elems = [
         WindowedValue(i, MIN_TIMESTAMP, [GlobalWindow()]) for i in range(3)
     ]

@@ -31,10 +31,9 @@ from apache_beam.runners.interactive import pipeline_instrument as pi
 from apache_beam.runners.interactive import utils
 from apache_beam.runners.interactive.options.capture_limiters import CountLimiter
 from apache_beam.runners.interactive.options.capture_limiters import ProcessingTimeLimiter
+from apache_beam.runners.runner import PipelineState
 
 _LOGGER = logging.getLogger(__name__)
-
-PipelineState = beam.runners.runner.PipelineState
 
 
 class ElementStream:
@@ -89,8 +88,6 @@ class ElementStream:
 
     # Get the cache manager and wait until the file exists.
     cache_manager = ie.current_env().get_cache_manager(self._pipeline)
-    while not cache_manager.exists('full', self._cache_key):
-      time.sleep(0.5)
 
     # Retrieve the coder for the particular PCollection which will be used to
     # decode elements read from cache.
