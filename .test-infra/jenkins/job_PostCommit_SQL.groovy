@@ -31,7 +31,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_SQL', 'Run SQL PostCommit',
 
       // Publish all test results to Jenkins
       publishers {
-        commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
+        archiveJunit('**/build/test-results/**/*.xml')
       }
 
       // Gradle goals for this job.
