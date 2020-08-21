@@ -148,14 +148,14 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
           new JavaStreamingListenerWrapper(
               new MetricsAccumulator.AccumulatorCheckpointingSparkListener()));
 
-      // register user-defined listeners.
+      // Register user-defined listeners.
       for (JavaStreamingListener listener :
           pipelineOptions.as(SparkContextOptions.class).getListeners()) {
         LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
         jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
       }
 
-      // register Watermarks listener to broadcast the advanced WMs.
+      // Register Watermarks listener to broadcast the advanced WMs.
       jssc.addStreamingListener(
           new JavaStreamingListenerWrapper(
               new GlobalWatermarkHolder.WatermarkAdvancingStreamingListener()));
