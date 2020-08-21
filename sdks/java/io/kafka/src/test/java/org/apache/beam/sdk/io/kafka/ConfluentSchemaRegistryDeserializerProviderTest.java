@@ -45,7 +45,6 @@ public class ConfluentSchemaRegistryDeserializerProviderTest {
     assertEquals(AVRO_SCHEMA, coderV0.getSchema());
 
     try {
-      mockRegistryClient.register(subject, AVRO_SCHEMA_V1);
       Integer version = mockRegistryClient.getVersion(subject, AVRO_SCHEMA_V1);
       AvroCoder coderV1 =
           (AvroCoder)
@@ -71,6 +70,7 @@ public class ConfluentSchemaRegistryDeserializerProviderTest {
     SchemaRegistryClient mockRegistryClient =
         MockSchemaRegistry.getClientForScope(schemaRegistryUrl);
     try {
+      mockRegistryClient.register(subject, AVRO_SCHEMA_V1);
       mockRegistryClient.register(subject, AVRO_SCHEMA);
     } catch (IOException | RestClientException e) {
       throw new RuntimeException("Unable to register schema for subject: " + subject, e);
@@ -103,6 +103,6 @@ public class ConfluentSchemaRegistryDeserializerProviderTest {
           + "     {\"name\": \"favorite_color\", \"type\": [\"string\", \"null\"]}\n"
           + " ]\n"
           + "}";
-  private static final org.apache.avro.Schema AVRO_SCHEMA_V1 =
+  static final org.apache.avro.Schema AVRO_SCHEMA_V1 =
       new org.apache.avro.Schema.Parser().parse(AVRO_SCHEMA_V1_STRING);
 }

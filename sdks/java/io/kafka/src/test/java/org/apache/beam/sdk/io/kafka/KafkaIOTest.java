@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.sdk.io.kafka.ConfluentSchemaRegistryDeserializerProviderTest.AVRO_SCHEMA_V1;
 import static org.apache.beam.sdk.io.kafka.ConfluentSchemaRegistryDeserializerProviderTest.mockDeserializerProvider;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
@@ -58,6 +59,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -1807,9 +1809,13 @@ public class KafkaIOTest {
     }
   }
 
+  /**
+   * Mock records with a different schema to test deserializing evolved schema using
+   * ConfluentSchemaRegistryDeserializerProvider
+   */
   private abstract static class BaseAvroSerializableFunction
       implements SerializableFunction<Integer, byte[]> {
-    static transient Serializer<AvroGeneratedUser> serializer = null;
+    static transient Serializer<GenericRecord> serializer = null;
     final String topic;
     final String schemaRegistryUrl;
     final boolean isKey;
@@ -1820,7 +1826,7 @@ public class KafkaIOTest {
       this.isKey = isKey;
     }
 
-    static Serializer<AvroGeneratedUser> getSerializer(boolean isKey, String schemaRegistryUrl) {
+    static Serializer<GenericRecord> getSerializer(boolean isKey, String schemaRegistryUrl) {
       if (serializer == null) {
         SchemaRegistryClient mockRegistryClient =
             MockSchemaRegistry.getClientForScope(schemaRegistryUrl);
@@ -1842,7 +1848,14 @@ public class KafkaIOTest {
     @Override
     public byte[] apply(Integer i) {
       return getSerializer(isKey, schemaRegistryUrl)
-          .serialize(topic, new AvroGeneratedUser("KeyName" + i, i, "color" + i));
+          .serialize(
+              topic,
+              new GenericRecordBuilder(AVRO_SCHEMA_V1)
+                  .set("name", "KeyName" + i)
+                  .set("age", i)
+                  .set("favorite_number", i)
+                  .set("favorite_color", "color" + i)
+                  .build());
     }
   }
 
@@ -1854,7 +1867,14 @@ public class KafkaIOTest {
     @Override
     public byte[] apply(Integer i) {
       return getSerializer(isKey, schemaRegistryUrl)
-          .serialize(topic, new AvroGeneratedUser("ValueName" + i, i, "color" + i));
+          .serialize(
+              topic,
+              new GenericRecordBuilder(AVRO_SCHEMA_V1)
+                  .set("name", "ValueName" + i)
+                  .set("age", i)
+                  .set("favorite_number", i)
+                  .set("favorite_color", "color" + i)
+                  .build());
     }
   }
 }
