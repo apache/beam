@@ -415,7 +415,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
-  public Operation exportFhirResourceToGcs(String fhirStore, String gcsDestinationPrefix)
+  public Operation exportFhirResourceToGcs(
+      String fhirStore, String gcsDestinationPrefix)
       throws IOException {
     GoogleCloudHealthcareV1beta1FhirRestGcsDestination gcsDst =
         new GoogleCloudHealthcareV1beta1FhirRestGcsDestination();
