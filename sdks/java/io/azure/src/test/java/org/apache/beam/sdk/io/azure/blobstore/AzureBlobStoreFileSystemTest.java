@@ -128,22 +128,6 @@ public class AzureBlobStoreFileSystemTest {
   }
 
   @Test
-  public void testGlobTranslation() {
-    assertEquals("foo", AzureBlobStoreFileSystem.wildcardToRegexp("foo"));
-    assertEquals("fo[^/]*o", AzureBlobStoreFileSystem.wildcardToRegexp("fo*o"));
-    assertEquals("f[^/]*o\\.[^/]", AzureBlobStoreFileSystem.wildcardToRegexp("f*o.?"));
-    assertEquals("foo-[0-9][^/]*", AzureBlobStoreFileSystem.wildcardToRegexp("foo-[0-9]*"));
-    assertEquals("foo-[0-9].*", AzureBlobStoreFileSystem.wildcardToRegexp("foo-[0-9]**"));
-    assertEquals(".*foo", AzureBlobStoreFileSystem.wildcardToRegexp("**/*foo"));
-    assertEquals(".*foo", AzureBlobStoreFileSystem.wildcardToRegexp("**foo"));
-    assertEquals("foo/[^/]*", AzureBlobStoreFileSystem.wildcardToRegexp("foo/*"));
-    assertEquals("foo[^/]*", AzureBlobStoreFileSystem.wildcardToRegexp("foo*"));
-    assertEquals("foo/[^/]*/[^/]*/[^/]*", AzureBlobStoreFileSystem.wildcardToRegexp("foo/*/*/*"));
-    assertEquals("foo/[^/]*/.*", AzureBlobStoreFileSystem.wildcardToRegexp("foo/*/**"));
-    assertEquals("foo.*baz", AzureBlobStoreFileSystem.wildcardToRegexp("foo**baz"));
-  }
-
-  @Test
   @SuppressWarnings("CheckReturnValue")
   public void testCopy() throws IOException {
     List<AzfsResourceId> src =
