@@ -5,6 +5,7 @@ import org.apache.beam.sdk.extensions.sql.impl.cep.CEPFieldRef;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPKind;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPLiteral;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPOperation;
+import org.apache.beam.sdk.extensions.sql.impl.cep.CEPOperator;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPPattern;
 import org.apache.beam.sdk.extensions.sql.impl.cep.Quantifier;
 import org.apache.beam.sdk.schemas.Schema;
@@ -37,26 +38,68 @@ public class NFA implements Serializable {
     return new NFA(patterns, outSchema);
   }
 
+  // represents the PREV operation
+  private CEPLiteral prev(CEPOperation opr1,
+                          CEPLiteral opr2,
+                          EventPointer curPointer,
+                          Event curEvent) {
+    if(opr1.getClass() != CEPFieldRef.class) {
+      throw new IllegalStateException("the first argument of the PREV operation should be a field reference. Provided: "
+      + opr1.getClass().toString());
+    }
+    if(opr2.getTypeName() != Schema.TypeName.DECIMAL) {
+      throw new IllegalStateException("the second argument of the prev operation should be a decimal. Provided: "
+          + opr2.getClass().toString());
+    }
+    CEPFieldRef fieldRef = (CEPFieldRef) opr1;
+    String alpha = fieldRef.getAlpha(); // the patternVar
+    int lastNumber = opr2.getDecimal().intValue();
+
+    while(curEvent != null &&
+        curPointer.getPatternVar().equals(alpha) &&
+        lastNumber > 0) {
+      curEvent = curEvent.getPrevEvent(curPointer);
+    }
+    if(curEvent != null) {
+      return curEvent.toCEPLiteral(fieldRef);
+    } else {
+      throw new IllegalStateException("the PREV function failed to execute.");
+    }
+  }
+
+  // represents the LAST operation
+  private CEPLiteral last(CEPOperation opr1, CEPLiteral opr2, Event inputEvent) {
+    if(opr1.getClass() != CEPFieldRef.class) {
+      throw new IllegalStateException("the first argument of the PREV operation should be a field reference. Provided: "
+          + opr1.getClass().toString());
+    }
+    if(opr2.getTypeName() != Schema.TypeName.DECIMAL) {
+      throw new IllegalStateException("the second argument of the prev operation should be a decimal. Provided: "
+          + opr2.getClass().toString());
+    }
+    return inputEvent.toCEPLiteral((CEPFieldRef) opr1);
+  }
+
   // represents the PLUS operation
-  private Number plus(CEPLiteral opr1, CEPLiteral opr2) {
+  private CEPLiteral plus(CEPLiteral opr1, CEPLiteral opr2) {
     Schema.TypeName type1 = opr1.getTypeName();
     Schema.TypeName type2 = opr2.getTypeName();
     if(type1.isNumericType() && type1 == type2) {
       switch(type1) {
         case BYTE:
-          return opr1.getByte() + opr2.getByte();
+          return CEPLiteral.of(opr1.getByte() + opr2.getByte());
         case INT16:
-          return opr1.getInt16() + opr2.getInt16();
+          return CEPLiteral.of(opr1.getInt16() + opr2.getInt16());
         case INT32:
-          return opr1.getInt32() + opr2.getInt32();
+          return CEPLiteral.of(opr1.getInt32() + opr2.getInt32());
         case INT64:
-          return opr1.getInt64() + opr2.getInt64();
+          return CEPLiteral.of(opr1.getInt64() + opr2.getInt64());
         case DECIMAL:
-          return opr1.getDecimal().add(opr2.getDecimal());
+          return CEPLiteral.of(opr1.getDecimal().add(opr2.getDecimal()));
         case FLOAT:
-          return opr1.getFloat() + opr2.getFloat();
+          return CEPLiteral.of(opr1.getFloat() + opr2.getFloat());
         case DOUBLE:
-          return opr1.getDouble() + opr2.getDouble();
+          return CEPLiteral.of(opr1.getDouble() + opr2.getDouble());
         default:
           throw new UnsupportedOperationException("Type is not supported: " + type1.toString());
       }
@@ -65,12 +108,44 @@ public class NFA implements Serializable {
     }
   }
 
-  public boolean processNewEvent(Row inputRow) {
+  // process a new row,
+  // return the row (with the output schema) to output in the DoFn if there is a match
+  // return null if none of locators reached the final state
+  public Row processNewRow(Row inputRow) {
+    // wrap the input row as an event
+    Event inputEvent = new Event(inputRow);
+    ArrayList<StateLocator> nextStateLocators = new ArrayList<>();
+    // add a start state locator to the array
+    EventPointer nullPtr = new EventPointer(new ArrayList<>(), "");
+    currentRuns.add(new StateLocator(nullPtr, startState, 0, null));
     // decide next possible states
-    for(StateLocator i : currentRuns) {
-      State nextTakeState = i.take(inputRow);
+    for(StateLocator currentLocator : currentRuns) {
+      boolean split = false;
+      StateLocator proceedLocator = currentLocator.proceed(inputEvent);
+      if(proceedLocator != null) {
+        // TODO: add support for after match strategy
+        // if the locator is at the final state
+        // clear current runs
+        // then return the output
+        if(proceedLocator.atFinal()) {
+          this.currentRuns.clear();
+          return processOutput(proceedLocator);
+        } else {
+          // add the new locator to the array
+          nextStateLocators.add(proceedLocator);
+        }
+        split = true;
+      }
+      StateLocator takeLocator = currentLocator.take(inputEvent, split);
+      if(takeLocator != null) {
+        nextStateLocators.add(takeLocator);
+      }
     }
+    this.currentRuns = nextStateLocators;
+    return null;
   }
+
+  private Row processOutput(StateLocator locator) {}
 
   // extracts the field reference from one side of the condition
   private static CEPFieldRef getFieldRefFromSideCondition(CEPCall sidedCondition) {
@@ -90,41 +165,70 @@ public class NFA implements Serializable {
 
   private class Event implements Serializable {
     private HashMap<EventPointer, Event> prevEvents = new HashMap<>(); // a mapping from the runIndex to the previous events
-    private CEPLiteral content;
+    private Row row;
 
     // store an input row as a literal
-    private CEPLiteral rowToCEPLiteral(Row inputRow, CEPFieldRef fieldRef) {
+    public CEPLiteral toCEPLiteral(CEPFieldRef fieldRef) {
       int fieldIndex = fieldRef.getIndex();
       Schema.Field field = outSchema.getField(fieldIndex);
       Schema.FieldType type = field.getType();
       switch(type.getTypeName()) {
         case BYTE:
-          return CEPLiteral.of(inputRow.getByte(fieldIndex));
+          return CEPLiteral.of(row.getByte(fieldIndex));
         case INT16:
-          return CEPLiteral.of(inputRow.getInt16(fieldIndex));
+          return CEPLiteral.of(row.getInt16(fieldIndex));
         case INT32:
-          return CEPLiteral.of(inputRow.getInt32(fieldIndex));
+          return CEPLiteral.of(row.getInt32(fieldIndex));
         case INT64:
-          return CEPLiteral.of(inputRow.getInt64(fieldIndex));
+          return CEPLiteral.of(row.getInt64(fieldIndex));
         case DECIMAL:
-          return CEPLiteral.of(inputRow.getDecimal(fieldIndex));
+          return CEPLiteral.of(row.getDecimal(fieldIndex));
         case FLOAT:
-          return CEPLiteral.of(inputRow.getFloat(fieldIndex));
+          return CEPLiteral.of(row.getFloat(fieldIndex));
         case DOUBLE:
-          return CEPLiteral.of(inputRow.getDouble(fieldIndex));
+          return CEPLiteral.of(row.getDouble(fieldIndex));
         case DATETIME:
-          return CEPLiteral.of(inputRow.getDateTime(fieldIndex));
+          return CEPLiteral.of(row.getDateTime(fieldIndex));
         case BOOLEAN:
-          return CEPLiteral.of(inputRow.getBoolean(fieldIndex));
+          return CEPLiteral.of(row.getBoolean(fieldIndex));
         case STRING:
-          return CEPLiteral.of(inputRow.getString(fieldIndex));
+          return CEPLiteral.of(row.getString(fieldIndex));
         default:
           throw new UnsupportedOperationException("The type is not supported: " + type.getTypeName().toString());
       }
     }
 
-    Event(Row inputRow, CEPFieldRef fieldRef) {
-      this.content = rowToCEPLiteral(inputRow, fieldRef);
+    private Event findEvent(EventPointer eventPointer) {
+      for(EventPointer i : prevEvents.keySet()) {
+        if(i.equals(eventPointer)) {
+          return prevEvents.get(i);
+        }
+      }
+      return null;
+    }
+
+    public Event getPrevEvent(EventPointer eventPointer) {
+      // if the last digit of a pointer is 0,
+      // then for sure, we should follow a proceed edge
+      if(eventPointer.isProceedPointer()) {
+        eventPointer.trim();
+        return findEvent(eventPointer);
+      } else {
+        // follow a take edge
+        Event preEvent = null;
+        while((preEvent = findEvent(eventPointer)) == null) {
+          eventPointer.decrement();
+        }
+        return preEvent;
+      }
+    }
+
+    Event(Row inputRow) {
+      this.row = inputRow;
+    }
+
+    public Row getRow() {
+      return row;
     }
 
     public void addPrevEvent(EventPointer ptr, @Nullable Event prevEvent) {
@@ -134,28 +238,81 @@ public class NFA implements Serializable {
 
   // shared buffer versioned pointer: see the UMASS paper for description
   private class EventPointer implements Serializable {
-    private final List<Integer> ptrValues;
+    private List<Integer> ptrValues;
+    // labels the event that was pointed to
+    private final String patternVar;
 
-    EventPointer(List<Integer> ptrValues) {
+    EventPointer(List<Integer> ptrValues, String patternVar) {
       this.ptrValues = ptrValues;
+      this.patternVar = patternVar;
+    }
+
+    // for following a proceed edge
+    // trim the last digit
+    public void trim() {
+      if(isProceedPointer()) {
+        ptrValues = ptrValues.subList(0, ptrValues.size() - 2);
+      } else {
+        throw new IllegalStateException("the null event pointer cannot be trimmed.");
+      }
+    }
+
+    // for following the take edge
+    // decrement the last digit
+    public void decrement() {
+      if(!isProceedPointer()) {
+        ArrayList<Integer> newPtrValue =
+            new ArrayList<>(ptrValues.subList(0, ptrValues.size() - 2));
+        int lastValue = ptrValues.get(ptrValues.size() - 1) - 1;
+        newPtrValue.add(lastValue);
+        ptrValues = newPtrValue;
+      } else {
+        throw new IllegalStateException("the event pointer cannot be decremented.");
+      }
+    }
+
+    public boolean equals(EventPointer other) {
+      return ptrValues.equals(other.ptrValues);
+    }
+
+    public boolean isProceedPointer() {
+      // if the last digit of the pointer is 0,
+      // then it is a proceed pointer
+      if(ptrValues.isEmpty()) {
+        return false;
+      }
+      int lastPtrValue = ptrValues.get(ptrValues.size() - 1);
+      if(lastPtrValue == 0) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+
+    public boolean isNull() {
+      return ptrValues.isEmpty() && patternVar.equals("");
+    }
+
+    public String getPatternVar() {
+      return patternVar;
     }
 
     public EventPointer copy() {
       ArrayList<Integer> newPtrValue = new ArrayList<>(ptrValues);
-      return new EventPointer(newPtrValue);
+      return new EventPointer(newPtrValue, patternVar);
     }
 
-    public EventPointer getNewProceedPointer(int value) {
+    public EventPointer getNewProceedPointer(int value, String patternVar) {
       ArrayList<Integer> newPtrValue = new ArrayList<>(ptrValues);
       newPtrValue.add(value);
-      return new EventPointer(newPtrValue);
+      return new EventPointer(newPtrValue, patternVar);
     }
 
     // for taking the take edge with splitting, set last pointer digit to the desired value
     public EventPointer getNewTakePointer(int value) {
       ArrayList<Integer> newPtrValue = new ArrayList<>(ptrValues);
       newPtrValue.set(newPtrValue.size() - 1, value);
-      return new EventPointer(newPtrValue);
+      return new EventPointer(newPtrValue, patternVar);
     }
 
     @Override
@@ -183,6 +340,11 @@ public class NFA implements Serializable {
       this.curEvent = curEvent;
     }
 
+    // check if the current state is the final state
+    public boolean atFinal() {
+      return curState.isFinal;
+    }
+
     // represents the "proceed"/"begin" edge: transfer to a new state,
     // write the new event in the new state's buffer.
     // returns a "new" state locator
@@ -191,6 +353,7 @@ public class NFA implements Serializable {
       if(curState.hasProceed()) {
         // try to proceed
         CEPCall condition = (CEPCall) curState.getProceedCondition();
+        String patternVar = curState.getPatternVar();
         if(evalCondition(inputEvent, condition)) {
           // special case: for an event that starts a match,
           // assign a new index as the pointer value
@@ -198,12 +361,12 @@ public class NFA implements Serializable {
             int ptrValue = curState.assignIndex();
             ArrayList<Integer> ptrArray = new ArrayList<>();
             ptrArray.add(ptrValue);
-            EventPointer eventPointer = new EventPointer(ptrArray);
+            EventPointer eventPointer = new EventPointer(ptrArray, patternVar);
             inputEvent.addPrevEvent(eventPointer, null);
             return new StateLocator(eventPointer, curState.getNextState(), 0, inputEvent);
           }
           // for the other cases, add a zero in the event pointer
-          EventPointer newPtr = ptr.getNewProceedPointer(0);
+          EventPointer newPtr = ptr.getNewProceedPointer(0, patternVar);
           inputEvent.addPrevEvent(newPtr, curEvent);
           return new StateLocator(newPtr, curState.getNextState(), 0, inputEvent);
         } else {
@@ -219,16 +382,20 @@ public class NFA implements Serializable {
     // returns null if not a match
     public StateLocator take(Event inputEvent, boolean split) {
       if(curState.hasTake()) {
-        if(split) {
-          // get another unique pointer value
-          int ptrValue = curState.assignIndex();
-          EventPointer newPtr = ptr.getNewTakePointer(ptrValue);
-          inputEvent.addPrevEvent(newPtr, curEvent);
-          return new StateLocator(newPtr, curState, takeCount + 1, inputEvent);
+        if(evalCondition(inputEvent, curState.getTakeCondition())) {
+          if (split) {
+            // get another unique pointer value
+            int ptrValue = curState.assignIndex();
+            EventPointer newPtr = ptr.getNewTakePointer(ptrValue);
+            inputEvent.addPrevEvent(newPtr, curEvent);
+            return new StateLocator(newPtr, curState, takeCount + 1, inputEvent);
+          } else {
+            EventPointer newPtr = ptr.copy();
+            inputEvent.addPrevEvent(newPtr, curEvent);
+            return new StateLocator(newPtr, curState, takeCount + 1, inputEvent);
+          }
         } else {
-          EventPointer newPtr = ptr.copy();
-          inputEvent.addPrevEvent(newPtr, curEvent);
-          return new StateLocator(newPtr, curState, takeCount + 1, inputEvent);
+          return null;
         }
       } else {
         return null;
@@ -267,6 +434,21 @@ public class NFA implements Serializable {
 
     // evaluates the condition value (left) given an input event
     private CEPLiteral evalLeftSideCondition(CEPOperation inputOperation, Event inputEvent) {
+      if(inputOperation.getClass() == CEPLiteral.class) {
+        return (CEPLiteral) inputOperation;
+      } else if(inputOperation.getClass() == CEPFieldRef.class) {
+        return inputEvent.toCEPLiteral((CEPFieldRef) inputOperation);
+      } else if(inputOperation.getClass() == CEPCall.class) {
+        CEPCall call = (CEPCall) inputOperation;
+        CEPOperator operator = call.getOperator();
+        List<CEPOperation> operands = call.getOperands();
+        switch(operator.getCepKind()) {
+          case LAST:
+            return last(operands.get(0),
+                evalLeftSideCondition(operands.get(1), inputEvent),
+                curEvent);
+        }
+      }
     }
 
     // evaluates the condition value (right) given an input event
@@ -283,10 +465,9 @@ public class NFA implements Serializable {
     private final Quantifier quant;
     private final CEPOperation condition; // condition to evaluate when taking the "begin" action and "proceed" action
     private State nextState = null;
-    private final boolean isStart;
-    private final boolean isFinal;
+    public final boolean isStart;
+    public final boolean isFinal;
     private final boolean isKleenePlusSecondary; // whether is the second state for a Kleene Plus pattern variable
-    private ArrayList<Event> sharedBuffer; // shared buffer for simoutaneous runs
 
     State(String patternVar, Quantifier quant, CEPOperation condition, boolean isStart, boolean isFinal, boolean isKleenePlusSecondary) {
       this.patternVar = patternVar;
@@ -295,6 +476,10 @@ public class NFA implements Serializable {
       this.isStart = isStart;
       this.isFinal = isFinal;
       this.isKleenePlusSecondary = isKleenePlusSecondary;
+    }
+
+    public String getPatternVar() {
+      return patternVar;
     }
 
     public void setIndex(int indexToAssign) {
@@ -325,7 +510,7 @@ public class NFA implements Serializable {
       if(!hasTake()) {
         throw new IllegalStateException("The state does not have a take edge.");
       }
-      return null;
+      return condition;
     }
 
     // get the condition for the `proceed` or the `begin` edge
