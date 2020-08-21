@@ -7,6 +7,8 @@ public class FileSystemUtils {
     /**
      * Expands glob expressions to regular expressions.
      *
+     * This method is intended for internal usage and does not guarantee backwards compatibility.
+     *
      * @param globExp the glob expression to expand
      * @return a string with the regular expression this glob expands to
      */
@@ -55,8 +57,7 @@ public class FileSystemUtils {
 
     private static int doubleSlashes(StringBuilder dst, char[] src, int i) {
         // Emit the next character without special interpretation
-        dst.append("\\\\");
-        if ((i - 1) != src.length) {
+        if ((i + 1) < src.length) {
             dst.append(src[i]);
             i++;
         } else {
