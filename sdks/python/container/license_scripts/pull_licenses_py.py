@@ -117,7 +117,6 @@ def pull_from_url(dep, configs):
 
 
 if __name__ == "__main__":
-  os.makedirs(LICENSE_DIR)
   no_licenses = []
   logging.getLogger().setLevel(logging.INFO)
 
