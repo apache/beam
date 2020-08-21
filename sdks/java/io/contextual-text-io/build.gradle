@@ -1,0 +1,41 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.sdk.io.contextual-text-io',
+        enableChecker: false,
+        ignoreRawtypeErrors: true)
+
+description = "Apache Beam :: SDKs :: Java :: Contextual-Text-IO"
+ext.summary = "Context-aware Text IO."
+
+dependencies {
+
+    compile library.java.vendored_guava_26_0_jre
+    compile library.java.protobuf_java
+    compile project(path: ":sdks:java:core", configuration: "shadow")
+    testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+
+    testCompile library.java.guava_testlib
+    testCompile library.java.junit
+    testCompile library.java.hamcrest_core
+    testRuntimeOnly library.java.slf4j_jdk14
+    testCompile project(path: ":runners:direct-java", configuration: "shadow")
+
+}
