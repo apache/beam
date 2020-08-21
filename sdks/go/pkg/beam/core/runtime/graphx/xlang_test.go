@@ -1,3 +1,18 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package graphx
 
 import (
@@ -9,6 +24,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func newNode(g *graph.Graph) *graph.Node {
@@ -128,13 +145,10 @@ func newComponents(ts []string) *pipepb.Components {
 	return components
 }
 
-func assertPanic(t *testing.T, f func(), err string) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("expected panic; %v", err)
-		}
-	}()
-	f()
+func expectPanic(t *testing.T, err string) {
+	if r := recover(); r == nil {
+		t.Errorf("expected panic; %v", err)
+	}
 }
 
 func TestExpandedTransform(t *testing.T) {
@@ -144,19 +158,16 @@ func TestExpandedTransform(t *testing.T) {
 
 		got := ExpandedTransform(exp)
 
-		if got.UniqueName != want.UniqueName {
-			t.Errorf("incorrect type assertion; wanted %v as name but got %v", want.UniqueName, got.UniqueName)
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Errorf("diff (-want, +got): %v", d)
 		}
+
 	})
 
 	t.Run("Malformed PTransform", func(t *testing.T) {
+		defer expectPanic(t, "string can't be type asserted into a pipeline PTransform")
 		exp := &graph.ExpandedTransform{Transform: "gibberish"}
-
-		testPanic := func() {
-			ExpandedTransform(exp)
-		}
-
-		assertPanic(t, testPanic, "string can't be type asserted into a pipeline PTransform")
+		ExpandedTransform(exp)
 	})
 }
 
@@ -167,30 +178,15 @@ func TestExpandedComponents(t *testing.T) {
 
 		got := ExpandedComponents(exp)
 
-		if len(got.Transforms) != len(want.Transforms) {
-			t.Errorf("incorrect type assertion; wanted %v transform but got %v", len(want.Transforms), len(got.Transforms))
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Errorf("diff (-want, +got): %v", d)
 		}
 
-		for wantID, wantT := range want.Transforms {
-			gotT, exists := got.Transforms[wantID]
-
-			if !exists {
-				t.Errorf("incorrect type assertion; key %v absent in transforms map %v", wantID, got.Transforms)
-			}
-
-			if wantT.UniqueName != gotT.UniqueName {
-				t.Errorf("incorrect type assertion; wanted %v as name but got %v", wantT.UniqueName, gotT.UniqueName)
-			}
-		}
 	})
 
 	t.Run("Malformed Components", func(t *testing.T) {
-		exp := &graph.ExpandedTransform{Components: "gibberish"}
-
-		testPanic := func() {
-			ExpandedComponents(exp)
-		}
-
-		assertPanic(t, testPanic, "string can't be type asserted into a pipeline Components")
+		defer expectPanic(t, "string can't be type asserted into a pipeline Components")
+		exp := &graph.ExpandedTransform{Transform: "gibberish"}
+		ExpandedComponents(exp)
 	})
 }

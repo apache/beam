@@ -19,24 +19,19 @@ import (
 	"testing"
 )
 
-func assertPanic(t *testing.T, f func(), err string) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("expected panic; %v", err)
-		}
-	}()
-	f()
+func expectPanic(t *testing.T, err string) {
+	if r := recover(); r == nil {
+		t.Errorf("expected panic; %v", err)
+	}
 }
 
 func TestWithInputs(t *testing.T) {
 	inputsMap := map[string]int{"x": 1}
 
 	t.Run("InputsMap initialized", func(t *testing.T) {
+		defer expectPanic(t, "inserting into initialized map should fail")
 		e := ExternalTransform{InputsMap: make(map[string]int)}
-		testPanic := func() {
-			e.WithNamedInputs(inputsMap)
-		}
-		assertPanic(t, testPanic, "inserting into initialized map should fail")
+		e.WithNamedInputs(inputsMap)
 	})
 
 	t.Run("InputsMap nil", func(t *testing.T) {
@@ -54,11 +49,9 @@ func TestWithOutputs(t *testing.T) {
 	outputsMap := map[string]int{"x": 1}
 
 	t.Run("OutputsMap initialized", func(t *testing.T) {
+		defer expectPanic(t, "inserting into initialized map should fail")
 		e := ExternalTransform{OutputsMap: make(map[string]int)}
-		testPanic := func() {
-			e.WithNamedOutputs(outputsMap)
-		}
-		assertPanic(t, testPanic, "inserting into initialized map should fail")
+		e.WithNamedOutputs(outputsMap)
 	})
 
 	t.Run("OutputsMap nil", func(t *testing.T) {
@@ -91,26 +84,3 @@ func TestNewNamespaceGenerator(t *testing.T) {
 		t.Errorf("repeated random strings generated; could cause namespace collision")
 	}
 }
-
-// func TestNewNamespaceGenerator(t *testing.T) {
-// 	var tests = []struct {
-// 		a, b int
-// 		want int
-// 	}{
-// 		{0, 1, 0},
-// 		{1, 0, 0},
-// 		{2, -2, -2},
-// 		{0, -1, -1},
-// 		{-1, 0, -1},
-// 	}
-
-// 	for _, tt := range tests {
-// 		testname := fmt.Sprintf("%d,%d", tt.a, tt.b)
-// 		t.Run(testname, func(t *testing.T) {
-// 			ans := IntMin(tt.a, tt.b)
-// 			if ans != tt.want {
-// 				t.Errorf("got %d, want %d", ans, tt.want)
-// 			}
-// 		})
-// 	}
-// }
