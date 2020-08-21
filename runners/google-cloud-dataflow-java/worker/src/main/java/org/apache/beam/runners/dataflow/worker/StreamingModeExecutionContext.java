@@ -182,6 +182,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    * ExecutionState.
    */
   public static class StreamingModeExecutionStateRegistry extends DataflowExecutionStateRegistry {
+
     private final StreamingDataflowWorker worker;
 
     public StreamingModeExecutionStateRegistry(StreamingDataflowWorker worker) {
@@ -336,7 +337,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    * The caller is responsible for the reader and should appropriately close it as required.
    */
   public UnboundedSource.UnboundedReader<?> getCachedReader() {
-    return readerCache.acquireReader(computationId, getSerializedKey(), getWork().getCacheToken());
+    return readerCache.acquireReader(
+        computationId, getSerializedKey(), getWork().getShardingKey(), getWork().getCacheToken());
   }
 
   public void setActiveReader(UnboundedSource.UnboundedReader<?> reader) {
@@ -348,7 +350,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   public void invalidateCache() {
     ByteString key = getSerializedKey();
     if (key != null) {
-      readerCache.invalidateReader(computationId, key);
+      readerCache.invalidateReader(computationId, key, getWork().getShardingKey());
       if (activeReader != null) {
         try {
           activeReader.close();
@@ -357,7 +359,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         }
       }
       activeReader = null;
-      stateCache.invalidate(key);
+      stateCache.invalidate(key, getWork().getShardingKey());
     }
   }
 
@@ -422,13 +424,18 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       outputBuilder.setSourceBacklogBytes(backlogBytes);
 
       readerCache.cacheReader(
-          computationId, getSerializedKey(), getWork().getCacheToken(), activeReader);
+          computationId,
+          getSerializedKey(),
+          getWork().getShardingKey(),
+          getWork().getCacheToken(),
+          activeReader);
       activeReader = null;
     }
     return callbacks;
   }
 
   interface StreamingModeStepContext {
+
     boolean issueSideInputFetch(
         PCollectionView<?> view, BoundedWindow w, StateFetcher.SideInputState s);
 
@@ -499,7 +506,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               stateReader,
               work.getIsNewKey(),
               stateCache.forKey(
-                  getSerializedKey(), stateFamily, getWork().getCacheToken(), getWorkToken()),
+                  getSerializedKey(),
+                  getWork().getShardingKey(),
+                  stateFamily,
+                  getWork().getCacheToken(),
+                  getWorkToken()),
               scopedReadStateSupplier);
 
       this.systemTimerInternals =
@@ -824,6 +835,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
   /** A {@link SideInputReader} that fetches side inputs from the streaming worker's cache. */
   public static class StreamingModeSideInputReader implements SideInputReader {
+
     private StreamingModeExecutionContext context;
     private Set<PCollectionView<?>> viewSet;
 
