@@ -62,7 +62,6 @@ from apache_beam.transforms.core import WatermarkEstimatorProvider
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
-from apache_beam.typehints import TypeCheckError
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 from apache_beam.utils.timestamp import Timestamp
