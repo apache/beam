@@ -172,7 +172,7 @@ public class WordCount {
     void setOutput(String value);
   }
 
-  static void runWordCount(WordCountOptions options) {
+  public static void runWordCount(WordCountOptions options) {
     Pipeline p = Pipeline.create(options);
 
     // Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
