@@ -142,7 +142,7 @@ class TestBlobStorageIO(unittest.TestCase):
     try:
       self.azurite_client.create_container("gsoc")
     except:
-      print("Container already exists.")
+      pass
     self.TEST_DATA_PATH = 'azfs://devstoreaccount1/gsoc/'
 
   def test_file_mode(self):

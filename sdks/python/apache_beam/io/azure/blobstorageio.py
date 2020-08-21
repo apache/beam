@@ -83,7 +83,7 @@ def get_azfs_url(storage_account, container, blob='', azurite=False):
   # it would be best to receive an azurite_endpoint variable to customize the
   # endpoint in case 127.0.0.1:10000 is not the correct one.
   if azurite:
-    return "http://127.0.0.1:10000" + storage_account + '/' + container \
+    return "http://127.0.0.1:10000/" + storage_account + '/' + container \
         + '/' + blob
   else:
     return 'https://' + storage_account + '.blob.core.windows.net/' + \
@@ -179,6 +179,7 @@ class BlobStorageIO(object):
 
     source_blob = get_azfs_url(
         src_storage_account, src_container, src_blob, azurite=self.azurite)
+    print(source_blob)
     copied_blob = self.client.get_blob_client(dest_container, dest_blob)
 
     try:
