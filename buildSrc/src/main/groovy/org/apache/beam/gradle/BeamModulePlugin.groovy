@@ -497,7 +497,8 @@ class BeamModulePlugin implements Plugin<Project> {
         google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf:$google_http_clients_version",
         google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_oauth_clients_version",
         google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_oauth_clients_version",
-        grpc_all                                    : "io.grpc:grpc-all:$grpc_version",
+        // Don't use grpc_all, it can cause issues in Bazel builds. Reference the gRPC libraries you need individually instead.
+        grpc_api                                    : "io.grpc:grpc-api:$grpc_version",
         grpc_alts                                   : "io.grpc:grpc-alts:$grpc_version",
         grpc_auth                                   : "io.grpc:grpc-auth:$grpc_version",
         grpc_core                                   : "io.grpc:grpc-core:$grpc_version",
