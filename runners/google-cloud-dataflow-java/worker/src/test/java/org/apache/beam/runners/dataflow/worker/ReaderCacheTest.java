@@ -47,6 +47,9 @@ public class ReaderCacheTest {
   private static final ByteString KEY_2 = ByteString.copyFromUtf8("0000000000000002");
   private static final ByteString KEY_3 = ByteString.copyFromUtf8("0000000000000003");
 
+  private static final long SHARDING_KEY = 12345;
+  private static final long SHARDING_KEY_1 = 54321;
+
   private ReaderCache readerCache = null;
 
   @Mock private UnboundedSource.UnboundedReader<?> reader1;
@@ -63,48 +66,55 @@ public class ReaderCacheTest {
   public void testReaderCache() throws IOException {
     // Test basic caching expectations
 
-    readerCache.cacheReader(C_ID, KEY_1, 1, reader1);
-    readerCache.cacheReader(C_ID, KEY_2, 2, reader2);
+    readerCache.cacheReader(C_ID, KEY_1, SHARDING_KEY, 1, reader1);
+    readerCache.cacheReader(C_ID, KEY_2, SHARDING_KEY, 2, reader2);
 
-    assertEquals(reader1, readerCache.acquireReader(C_ID, KEY_1, 1));
+    assertEquals(reader1, readerCache.acquireReader(C_ID, KEY_1, SHARDING_KEY, 1));
+    assertNull(readerCache.acquireReader(C_ID_1, KEY_1, SHARDING_KEY, 1));
+    assertNull(readerCache.acquireReader(C_ID, KEY_1, SHARDING_KEY_1, 1));
 
     // Trying to override existing reader should throw
     try {
-      readerCache.cacheReader(C_ID, KEY_2, 2, reader1);
+      readerCache.cacheReader(C_ID, KEY_2, SHARDING_KEY, 2, reader1);
       fail("Exception should have been thrown");
     } catch (RuntimeException expected) {
       // expected
     }
 
     // And it should not have overwritten the old value
-    assertEquals(reader2, readerCache.acquireReader(C_ID, KEY_2, 2));
+    assertEquals(reader2, readerCache.acquireReader(C_ID, KEY_2, SHARDING_KEY, 2));
 
     assertNull(
-        "acquireReader() should remove matching entry", readerCache.acquireReader(C_ID, KEY_2, 2));
+        "acquireReader() should remove matching entry",
+        readerCache.acquireReader(C_ID, KEY_2, SHARDING_KEY, 2));
 
-    // Make sure computationId is part of the key
-    readerCache.cacheReader(C_ID_1, KEY_1, 1, reader2);
-    assertEquals(reader2, readerCache.acquireReader(C_ID_1, KEY_1, 1));
+    // Make sure computationId is part of the cache key
+    readerCache.cacheReader(C_ID_1, KEY_1, SHARDING_KEY, 1, reader2);
+    assertEquals(reader2, readerCache.acquireReader(C_ID_1, KEY_1, SHARDING_KEY, 1));
+
+    // Make sure sharding key is part of the cache key
+    readerCache.cacheReader(C_ID, KEY_1, SHARDING_KEY_1, 1, reader3);
+    assertEquals(reader3, readerCache.acquireReader(C_ID, KEY_1, SHARDING_KEY_1, 1));
   }
 
   @Test
   public void testInvalidation() throws IOException {
 
-    readerCache.cacheReader(C_ID, KEY_1, 1, reader1);
-    readerCache.cacheReader(C_ID, KEY_2, 2, reader2);
-    readerCache.cacheReader(C_ID, KEY_3, 2, reader3);
+    readerCache.cacheReader(C_ID, KEY_1, SHARDING_KEY, 1, reader1);
+    readerCache.cacheReader(C_ID, KEY_2, SHARDING_KEY, 2, reader2);
+    readerCache.cacheReader(C_ID, KEY_2, SHARDING_KEY_1, 2, reader3);
 
-    readerCache.invalidateReader(C_ID, KEY_1);
+    readerCache.invalidateReader(C_ID, KEY_1, SHARDING_KEY);
     verify(reader1).close();
 
     // Verify IOException during close is not thrown (it is logged).
     doThrow(new IOException("swallowed")).when(reader2).close();
-    readerCache.invalidateReader(C_ID, KEY_2);
+    readerCache.invalidateReader(C_ID, KEY_2, SHARDING_KEY);
 
     // Make sure a runtime exception is not swallowed
     doThrow(new RuntimeException("expected")).when(reader3).close();
     try {
-      readerCache.invalidateReader(C_ID, KEY_3);
+      readerCache.invalidateReader(C_ID, KEY_2, SHARDING_KEY_1);
       fail("Exception should have been thrown");
     } catch (RuntimeException e) {
       assertEquals("expected", e.getMessage());
@@ -119,8 +129,8 @@ public class ReaderCacheTest {
     // Create a cache with short expiry period.
     ReaderCache readerCache = new ReaderCache(cacheDuration);
 
-    readerCache.cacheReader(C_ID, KEY_1, 1, reader1);
-    readerCache.cacheReader(C_ID, KEY_2, 2, reader2);
+    readerCache.cacheReader(C_ID, KEY_1, SHARDING_KEY, 1, reader1);
+    readerCache.cacheReader(C_ID, KEY_2, SHARDING_KEY, 2, reader2);
 
     Stopwatch stopwatch = Stopwatch.createStarted();
     while (stopwatch.elapsed(TimeUnit.MILLISECONDS) < 2 * cacheDuration.getMillis()) {
@@ -128,7 +138,7 @@ public class ReaderCacheTest {
     }
 
     // Trigger clean up with a lookup, non-existing key is ok.
-    readerCache.acquireReader(C_ID, KEY_3, 3);
+    readerCache.acquireReader(C_ID, KEY_3, SHARDING_KEY, 3);
 
     verify(reader1).close();
   }

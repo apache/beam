@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
@@ -59,7 +59,26 @@ class ReaderCache {
     }
   }
 
-  private final Cache<KV<String, ByteString>, CacheEntry> cache;
+  @AutoValue
+  abstract static class CacheKey {
+
+    public static CacheKey create(String computationId, ByteString splitId, long shardId) {
+      return new AutoValue_ReaderCache_CacheKey(computationId, splitId, shardId);
+    }
+
+    public abstract String computationId();
+
+    public abstract ByteString splitId();
+
+    public abstract long shardId();
+
+    @Override
+    public String toString() {
+      return String.format("%s-%s-%d", computationId(), splitId().toStringUtf8(), shardId());
+    }
+  }
+
+  private final Cache<CacheKey, CacheEntry> cache;
 
   /** ReaderCache with default 1 minute expiration for readers. */
   ReaderCache() {
@@ -72,25 +91,21 @@ class ReaderCache {
         CacheBuilder.newBuilder()
             .expireAfterWrite(cacheDuration.getMillis(), TimeUnit.MILLISECONDS)
             .removalListener(
-                (RemovalNotification<KV<String, ByteString>, CacheEntry> notification) -> {
+                (RemovalNotification<CacheKey, CacheEntry> notification) -> {
                   if (notification.getCause() != RemovalCause.EXPLICIT) {
-                    LOG.info("Closing idle reader for {}", keyToString(notification.getKey()));
+                    LOG.info("Closing idle reader for {}", notification.getKey());
                     closeReader(notification.getKey(), notification.getValue());
                   }
                 })
             .build();
   }
 
-  private static String keyToString(KV<String, ByteString> key) {
-    return key.getKey() + "-" + key.getValue().toStringUtf8();
-  }
-
   /** Close the reader and log a warning if close fails. */
-  private void closeReader(KV<String, ByteString> key, CacheEntry entry) {
+  private void closeReader(CacheKey key, CacheEntry entry) {
     try {
       entry.reader.close();
     } catch (IOException e) {
-      LOG.warn("Failed to close UnboundedReader for {}", keyToString(key), e);
+      LOG.warn("Failed to close UnboundedReader for {}", key, e);
     }
   }
 
@@ -102,8 +117,8 @@ class ReaderCache {
    * Return null in case of a cache miss.
    */
   UnboundedSource.UnboundedReader<?> acquireReader(
-      String computationId, ByteString splitId, long cacheToken) {
-    KV<String, ByteString> key = KV.of(computationId, splitId);
+      String computationId, ByteString splitId, long shardId, long cacheToken) {
+    CacheKey key = CacheKey.create(computationId, splitId, shardId);
     CacheEntry entry = cache.asMap().remove(key);
 
     cache.cleanUp();
@@ -122,19 +137,22 @@ class ReaderCache {
   void cacheReader(
       String computationId,
       ByteString splitId,
+      long shardId,
       long cacheToken,
       UnboundedSource.UnboundedReader<?> reader) {
     CacheEntry existing =
         cache
             .asMap()
-            .putIfAbsent(KV.of(computationId, splitId), new CacheEntry(reader, cacheToken));
+            .putIfAbsent(
+                CacheKey.create(computationId, splitId, shardId),
+                new CacheEntry(reader, cacheToken));
     Preconditions.checkState(existing == null, "Overwriting existing readers is not allowed");
     cache.cleanUp();
   }
 
   /** If a reader is cached for this key, remove and close it. */
-  void invalidateReader(String computationId, ByteString splitId) {
+  void invalidateReader(String computationId, ByteString splitId, long shardId) {
     // use an invalid cache token that will trigger close.
-    acquireReader(computationId, splitId, -1L);
+    acquireReader(computationId, splitId, shardId, -1L);
   }
 }

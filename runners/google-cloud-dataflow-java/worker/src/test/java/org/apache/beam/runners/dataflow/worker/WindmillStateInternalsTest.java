@@ -72,6 +72,7 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link WindmillStateInternals}. */
 @RunWith(JUnit4.class)
 public class WindmillStateInternalsTest {
+
   private static final StateNamespace NAMESPACE = new StateNamespaceForTest("ns");
   private static final String STATE_FAMILY = "family";
 
@@ -116,7 +117,9 @@ public class WindmillStateInternalsTest {
             STATE_FAMILY,
             mockReader,
             false,
-            cache.forComputation("comp").forKey(ByteString.EMPTY, STATE_FAMILY, 17L, workToken),
+            cache
+                .forComputation("comp")
+                .forKey(ByteString.EMPTY, 123, STATE_FAMILY, 17L, workToken),
             readStateSupplier);
     underTestNewKey =
         new WindmillStateInternals<String>(
@@ -124,7 +127,9 @@ public class WindmillStateInternalsTest {
             STATE_FAMILY,
             mockReader,
             true,
-            cache.forComputation("comp").forKey(ByteString.EMPTY, STATE_FAMILY, 17L, workToken),
+            cache
+                .forComputation("comp")
+                .forKey(ByteString.EMPTY, 123, STATE_FAMILY, 17L, workToken),
             readStateSupplier);
   }
 
