@@ -124,7 +124,7 @@ class ConfluentSchemaRegistryDeserializer extends KafkaAvroDeserializer {
   Schema readerSchema;
 
   ConfluentSchemaRegistryDeserializer(SchemaRegistryClient client, Schema readerSchema) {
-    this.schemaRegistry = client;
+    super(client);
     this.readerSchema = readerSchema;
   }
 
