@@ -395,6 +395,7 @@ func (m *marshaller) expandCrossLanguage(namedEdge NamedEdge) string {
 
 	for tag, n := range ExternalInputs(edge) {
 		m.addNode(n)
+		// Ignore tag if it is a dummy SourceInputTag
 		if tag == graph.SourceInputTag {
 			tag = fmt.Sprintf("i%v", edge.External.InputsMap[tag])
 		}

@@ -13,6 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// cogroup_by exemplifies using a cross-language cogroup by key transform from a test expansion service.
+//
+// Prerequisites to run wordcount:
+// –> [Required] Job needs to be submitted to a portable runner (--runner=universal)
+// –> [Required] Endpoint of job service needs to be passed (--endpoint=<ip:port>)
+// –> [Required] Endpoint of expansion service needs to be passed (--expansion_addr=<ip:port>)
+// –> [Optional] Environment type can be LOOPBACK. Defaults to DOCKER. (--environment_type=LOOPBACK|DOCKER)
 package main
 
 import (
@@ -48,6 +55,7 @@ func formatFn(w int64, c []string) string {
 	return fmt.Sprintf("%v:%v", w, c)
 }
 
+// KV used to represent KV PCollection values
 type KV struct {
 	X int64
 	Y string
@@ -86,28 +94,17 @@ func main() {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	// Using Cross-language Count from Python's test expansion service
-
-	x := beam.Create(s, KV{X: 0, Y: "1"}, KV{X: 0, Y: "2"}, KV{X: 1, Y: "3"})
-	col1 := beam.ParDo(s, getKV, x)
-
-	y := beam.Create(s, KV{X: 0, Y: "4"}, KV{X: 1, Y: "5"}, KV{X: 1, Y: "6"})
-	col2 := beam.ParDo(s, getKV, y)
+	// Using the cross-language transform
+	col1 := beam.ParDo(s, getKV, beam.Create(s, KV{X: 0, Y: "1"}, KV{X: 0, Y: "2"}, KV{X: 1, Y: "3"}))
+	col2 := beam.ParDo(s, getKV, beam.Create(s, KV{X: 0, Y: "4"}, KV{X: 1, Y: "5"}, KV{X: 1, Y: "6"}))
 	namedInputs := map[string]beam.PCollection{"col1": col1, "col2": col2}
-
 	outputType := typex.NewCoGBK(typex.New(reflectx.Int64), typex.New(reflectx.String))
-
-	c := beam.CrossLanguageWithSink(s,
-		"beam:transforms:xlang:test:cgbk",
-		nil,
-		*expansionAddr,
-		namedInputs,
-		outputType,
-	)
+	c := beam.CrossLanguageWithSink(s, "beam:transforms:xlang:test:cgbk", nil, *expansionAddr, namedInputs, outputType)
 
 	sums := beam.ParDo(s, sumCounts, c)
 	formatted := beam.ParDo(s, formatFn, sums)
 	passert.Equals(s, formatted, "0:[1 2 4]", "1:[3 5 6]")
+
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}

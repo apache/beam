@@ -24,8 +24,7 @@ import (
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
-// TODO(BEAM-9919): add documentation to all helper methods
-
+// MergeExpandedWithPipeline adds expanded components of all ExternalTransforms to the exisiting pipeline
 func MergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 	// Adding Expanded transforms to their counterparts in the Pipeline
 
@@ -52,6 +51,10 @@ func MergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 			}
 			for k, v := range components.GetEnvironments() {
 				if k == "go" {
+					// This case is not an anomaly. It is expected to be always
+					// present. Any initial ExpansionRequest will have a
+					// component which requires the "go" environment. Scoping
+					// using unique namespace prevents collision.
 					continue
 				}
 				p.Components.Environments[k] = v
@@ -63,11 +66,14 @@ func MergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 	}
 }
 
+// PurgeOutputInput remaps outputs from edge corresponding to an
+// ExternalTransform with the correct expanded outputs. All consumers of the
+// previous outputs are updated with new inputs.
 func PurgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
-
 	idxMap := make(map[string]string)
 	components := p.GetComponents()
 
+	// Generating map (oldID -> newID) of outputs to be purged
 	for _, e := range edges {
 		if e.Op == graph.External {
 			for tag, n := range graphx.ExternalOutputs(e) {
@@ -89,6 +95,7 @@ func PurgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 		}
 	}
 
+	// Updating all input ids to reflect the correct sources
 	for _, t := range components.GetTransforms() {
 		inputs := t.GetInputs()
 		for tag, nodeID := range inputs {
@@ -100,6 +107,7 @@ func PurgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 
 }
 
+// VerifyNamedOutputs ensures the expanded outputs correspond to the correct and expected named outputs
 func VerifyNamedOutputs(ext *graph.ExternalTransform) {
 	expandedOutputs := graphx.ExpandedTransform(ext.Expanded).GetOutputs()
 
@@ -118,6 +126,8 @@ func VerifyNamedOutputs(ext *graph.ExternalTransform) {
 	}
 }
 
+// ResolveOutputIsBounded updates each Output node with respect to the received
+// expanded components to reflect if it is bounded or not
 func ResolveOutputIsBounded(e *graph.MultiEdge, isBoundedUpdater func(*graph.Node, bool)) {
 	ext := e.External
 	exp := ext.Expanded
@@ -149,6 +159,8 @@ func ResolveOutputIsBounded(e *graph.MultiEdge, isBoundedUpdater func(*graph.Nod
 	}
 }
 
+// AddFakeImpulses adds an impulse transform as the producer for each input to
+// the root transform. Inputs need producers to form a correct pipeline.
 func AddFakeImpulses(p *pipepb.Pipeline) {
 	// For a pipeline consisting of only the external node edge, there will be
 	// single root transform which will be the external transform.
@@ -173,11 +185,13 @@ func AddFakeImpulses(p *pipepb.Pipeline) {
 
 }
 
+// RemoveFakeImpulses removes each fake impulse per input to the the transform.
+// Multiple producers for one Input cannot be present.
 func RemoveFakeImpulses(c *pipepb.Components, ext *pipepb.PTransform) {
 	transforms := c.GetTransforms()
 	var impulseIDs []string
 
-	for tag, _ := range ext.GetInputs() {
+	for tag := range ext.GetInputs() {
 		id := fmt.Sprintf("%s_%s", "impulse", tag)
 		impulseIDs = append(impulseIDs, id)
 	}

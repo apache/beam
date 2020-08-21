@@ -13,6 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// group_by exemplifies using a cross-language group by key transform from a test expansion service.
+//
+// Prerequisites to run wordcount:
+// –> [Required] Job needs to be submitted to a portable runner (--runner=universal)
+// –> [Required] Endpoint of job service needs to be passed (--endpoint=<ip:port>)
+// –> [Required] Endpoint of expansion service needs to be passed (--expansion_addr=<ip:port>)
+// –> [Optional] Environment type can be LOOPBACK. Defaults to DOCKER. (--environment_type=LOOPBACK|DOCKER)
 package main
 
 import (
@@ -48,6 +55,7 @@ func formatFn(w string, c []int) string {
 	return fmt.Sprintf("%v:%v", w, c)
 }
 
+// KV used to represent KV PCollection values
 type KV struct {
 	X string
 	Y int64
@@ -57,7 +65,7 @@ func getKV(kv KV, emit func(string, int64)) {
 	emit(kv.X, kv.Y)
 }
 
-func sumCounts(key string, iter func(*int64) bool) (string, []int) {
+func collectValues(key string, iter func(*int64) bool) (string, []int) {
 	var count int64
 	var values []int
 	for iter(&count) {
@@ -70,7 +78,7 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*KV)(nil)).Elem())
 	beam.RegisterFunction(formatFn)
 	beam.RegisterFunction(getKV)
-	beam.RegisterFunction(sumCounts)
+	beam.RegisterFunction(collectValues)
 
 }
 
@@ -85,20 +93,14 @@ func main() {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	// Using Cross-language Count from Python's test expansion service
-
-	x := KV{X: "0", Y: 1}
-	y := KV{X: "0", Y: 2}
-	z := KV{X: "1", Y: 3}
-	l := beam.Create(s, x, y, z)
-	ins := beam.ParDo(s, getKV, l)
-
+	// Using the cross-language transform
+	kvs := beam.Create(s, KV{X: "0", Y: 1}, KV{X: "0", Y: 2}, KV{X: "1", Y: 3})
+	ins := beam.ParDo(s, getKV, kvs)
 	outputType := typex.NewCoGBK(typex.New(reflectx.String), typex.New(reflectx.Int64))
+	outs := beam.CrossLanguageWithSingleInputOutput(s, "beam:transforms:xlang:test:gbk", nil, *expansionAddr, ins, outputType)
 
-	c := beam.CrossLanguageWithSingleInputOutput(s, "beam:transforms:xlang:test:gbk", nil, *expansionAddr, ins, outputType)
-
-	sums := beam.ParDo(s, sumCounts, c)
-	formatted := beam.ParDo(s, formatFn, sums)
+	vals := beam.ParDo(s, collectValues, outs)
+	formatted := beam.ParDo(s, formatFn, vals)
 	passert.Equals(s, formatted, "0:[1 2]", "1:[3]")
 
 	if err := beamx.Run(context.Background(), p); err != nil {

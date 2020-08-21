@@ -13,6 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// combine_globally exemplifies using a cross-language combine global transform from a test expansion service.
+//
+// Prerequisites to run wordcount:
+// –> [Required] Job needs to be submitted to a portable runner (--runner=universal)
+// –> [Required] Endpoint of job service needs to be passed (--endpoint=<ip:port>)
+// –> [Required] Endpoint of expansion service needs to be passed (--expansion_addr=<ip:port>)
+// –> [Optional] Environment type can be LOOPBACK. Defaults to DOCKER. (--environment_type=LOOPBACK|DOCKER)
 package main
 
 import (
@@ -60,9 +67,9 @@ func main() {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	// Using Cross-language Count from Python's test expansion service
-
 	in := beam.CreateList(s, []int64{1, 2, 3})
+
+	// Using the cross-language transform
 	outputType := typex.New(reflectx.Int64)
 	c := beam.CrossLanguageWithSingleInputOutput(s, "beam:transforms:xlang:test:comgl", nil, *expansionAddr, in, outputType)
 

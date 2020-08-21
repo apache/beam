@@ -13,6 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// multi exemplifies using a cross-language transform with multiple inputs and
+// outputs from a test expansion service.
+//
+// Prerequisites to run wordcount:
+// –> [Required] Job needs to be submitted to a portable runner (--runner=universal)
+// –> [Required] Endpoint of job service needs to be passed (--endpoint=<ip:port>)
+// –> [Required] Endpoint of expansion service needs to be passed (--expansion_addr=<ip:port>)
+// –> [Optional] Environment type can be LOOPBACK. Defaults to DOCKER. (--environment_type=LOOPBACK|DOCKER)
 package main
 
 import (
@@ -57,11 +65,9 @@ func main() {
 	side := beam.CreateList(s, []string{"s"})
 	namedInputs := map[string]beam.PCollection{"main1": main1, "main2": main2, "side": side}
 
+	// Using the cross-language transform
 	outputType := typex.New(reflectx.String)
 	namedOutputs := map[string]typex.FullType{"main": outputType, "side": outputType}
-
-	// Using Cross-language Count from Python's test expansion service
-
 	multi := beam.CrossLanguage(s, "beam:transforms:xlang:test:multi", nil, *expansionAddr, namedInputs, namedOutputs)
 
 	passert.Equals(s, multi["main"], "as", "bbs", "xs", "yys", "zzzs")

@@ -13,7 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// xlang_wordcount exemplifies using a cross language transform from Python to count words
+// wordcount exemplifies using a cross-language Count transform from a test
+// expansion service to count words.
+//
+// Prerequisites to run wordcount:
+// –> [Required] Job needs to be submitted to a portable runner (--runner=universal)
+// –> [Required] Endpoint of job service needs to be passed (--endpoint=<ip:port>)
+// –> [Required] Endpoint of expansion service needs to be passed (--expansion_addr=<ip:port>)
+// –> [Optional] Environment type can be LOOPBACK. Defaults to DOCKER. (--environment_type=LOOPBACK|DOCKER)
 package main
 
 import (
@@ -82,15 +89,9 @@ func main() {
 	lines := beam.CreateList(s, strings.Split(lorem, "\n"))
 	col := beam.ParDo(s, extractFn, lines)
 
-	// Using Cross-language Count from Python's test expansion service
+	// Using the cross-language transform
 	outputType := typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int64))
-	counted := beam.CrossLanguageWithSingleInputOutput(s,
-		"beam:transforms:xlang:count",
-		nil,
-		*expansionAddr,
-		col,
-		outputType,
-	)
+	counted := beam.CrossLanguageWithSingleInputOutput(s, "beam:transforms:xlang:count", nil, *expansionAddr, col, outputType)
 
 	formatted := beam.ParDo(s, formatFn, counted)
 	passert.Equals(s, formatted, "a:4", "b:4", "c:5")

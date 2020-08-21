@@ -15,6 +15,13 @@
 
 package main
 
+// flatten exemplifies using a cross-language flatten transform from a test expansion service.
+//
+// Prerequisites to run wordcount:
+// –> [Required] Job needs to be submitted to a portable runner (--runner=universal)
+// –> [Required] Endpoint of job service needs to be passed (--endpoint=<ip:port>)
+// –> [Required] Endpoint of expansion service needs to be passed (--expansion_addr=<ip:port>)
+// –> [Optional] Environment type can be LOOPBACK. Defaults to DOCKER. (--environment_type=LOOPBACK|DOCKER)
 import (
 	"fmt"
 
@@ -62,10 +69,9 @@ func main() {
 
 	col1 := beam.CreateList(s, []int64{1, 2, 3})
 	col2 := beam.CreateList(s, []int64{4, 5, 6})
+
+	// Using the cross-language transform
 	namedInputs := map[string]beam.PCollection{"col1": col1, "col2": col2}
-
-	// Using Cross-language Count from Python's test expansion service
-
 	outputType := typex.New(reflectx.Int64)
 	c := beam.CrossLanguageWithSink(s, "beam:transforms:xlang:test:flatten", nil, *expansionAddr, namedInputs, outputType)
 

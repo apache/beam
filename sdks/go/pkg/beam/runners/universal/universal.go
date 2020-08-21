@@ -83,27 +83,14 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return errors.WithContextf(err, "generating model pipeline")
 	}
 
+	// Fetch all dependencies for cross-language transforms
 	xlangx.ResolveArtifacts(ctx, edges, pipeline)
 
+	// Remap outputs of expanded transforms to be the inputs for all downstream consumers
 	xlangx.PurgeOutputInput(edges, pipeline)
 
+	// Merge the expanded components into the existing pipeline
 	xlangx.MergeExpandedWithPipeline(edges, pipeline)
-
-	// var ext *graph.ExternalTransform
-
-	// for _, e := range edges {
-	// 	if e.Op == graph.External {
-	// 		ext = e.External
-	// 		break
-	// 	}
-	// }
-
-	// External/MapElements/Map/ParMultiDo
-
-	// s := cmp.Diff(graphx.ExpandedComponents(ext.Expanded), pipeline.Components, protocmp.Transform())
-	// fmt.Println(prototext.Format(proto.MessageV2(graphx.ExpandedComponents(ext.Expanded))))
-	// fmt.Println(prototext.Format(proto.MessageV2(pipeline.Components)))
-	// fmt.Println(prototext.Format(proto.MessageV2(res)))
 
 	log.Info(ctx, proto.MarshalTextString(pipeline))
 

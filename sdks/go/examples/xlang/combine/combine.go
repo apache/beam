@@ -13,6 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// combine exemplifies using a cross-language combine per key transform from a test expansion service.
+//
+// Prerequisites to run wordcount:
+// –> [Required] Job needs to be submitted to a portable runner (--runner=universal)
+// –> [Required] Endpoint of job service needs to be passed (--endpoint=<ip:port>)
+// –> [Required] Endpoint of expansion service needs to be passed (--expansion_addr=<ip:port>)
+// –> [Optional] Environment type can be LOOPBACK. Defaults to DOCKER. (--environment_type=LOOPBACK|DOCKER)
 package main
 
 import (
@@ -46,6 +53,7 @@ func formatFn(w string, c int64) string {
 	return fmt.Sprintf("%s:%v", w, c)
 }
 
+// KV used to represent KV PCollection values
 type KV struct {
 	X string
 	Y int64
@@ -82,20 +90,13 @@ func main() {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	// Using Cross-language Count from Python's test expansion service
-
-	x := KV{X: "a", Y: 1}
-	y := KV{X: "a", Y: 2}
-	z := KV{X: "b", Y: 3}
-	l := beam.Create(s, x, y, z)
-	ins := beam.ParDo(s, getKV, l)
-
+	// Using the cross-language transform
+	kvs := beam.Create(s, KV{X: "a", Y: 1}, KV{X: "a", Y: 2}, KV{X: "b", Y: 3})
+	ins := beam.ParDo(s, getKV, kvs)
 	outputType := typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int64))
-
 	c := beam.CrossLanguageWithSingleInputOutput(s, "beam:transforms:xlang:test:compk", nil, *expansionAddr, ins, outputType)
 
 	formatted := beam.ParDo(s, formatFn, c)
-
 	passert.Equals(s, formatted, "a:3", "b:3")
 
 	if err := beamx.Run(context.Background(), p); err != nil {

@@ -18,6 +18,7 @@ package graph
 import (
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
@@ -282,7 +283,7 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 	return edge, nil
 }
 
-// NewCrossLanguage inserts a Cross-langugae External transform.
+// NewCrossLanguage inserts a Cross-langugae External transform using initialized input and output nodes
 func NewCrossLanguage(g *Graph, s *Scope, ext *ExternalTransform, ins []*Inbound, outs []*Outbound) (*MultiEdge, func(*Node, bool)) {
 	edge := g.NewEdge(s)
 	edge.Op = External
@@ -303,11 +304,22 @@ func NewCrossLanguage(g *Graph, s *Scope, ext *ExternalTransform, ins []*Inbound
 	return edge, isBoundedUpdater
 }
 
+// NewNamedInboundLinks returns an array of new Inbound links and a map (tag ->
+// index of Inbound in MultiEdge.Input) of corresponding indices with respect to
+// their names.
 func NewNamedInboundLinks(ins map[string]*Node) (map[string]int, []*Inbound) {
 	inputsMap := make(map[string]int)
 	var inboundLinks []*Inbound
 
-	for tag, node := range ins {
+	// Ensuring deterministic order of Nodes
+	var tags []string
+	for tag := range ins {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+
+	for _, tag := range tags {
+		node := ins[tag]
 		id := len(inboundLinks)
 		inputsMap[tag] = id
 		inboundLinks = append(inboundLinks, &Inbound{Kind: Main, From: node, Type: node.Type()})
@@ -316,11 +328,22 @@ func NewNamedInboundLinks(ins map[string]*Node) (map[string]int, []*Inbound) {
 	return inputsMap, inboundLinks
 }
 
+// NewNamedOutboundLinks returns an array of new Outbound links and a map (tag ->
+// index of Outbound in MultiEdge.Output) of corresponding indices with respect to
+// their names.
 func NewNamedOutboundLinks(g *Graph, outs map[string]typex.FullType) (map[string]int, []*Outbound) {
 	outputsMap := make(map[string]int)
 	var outboundLinks []*Outbound
 
-	for tag, fullType := range outs {
+	// Ensuring deterministic order of Nodes
+	var tags []string
+	for tag := range outs {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+
+	for _, tag := range tags {
+		fullType := outs[tag]
 		node := g.NewNode(fullType, nil, true)
 		id := len(outboundLinks)
 		outputsMap[tag] = id
