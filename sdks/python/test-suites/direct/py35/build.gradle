@@ -22,34 +22,3 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.5'
 apply from: '../common.gradle'
-
-task mongodbioIT {
-  dependsOn 'setupVirtualenv'
-
-  Random r = new Random()
-  def port = r.nextInt(1000) + 27017
-  def containerName = "mongoioit" + port
-
-  def options = [
-          "--mongo_uri=mongodb://localhost:" + port
-  ]
-
-  // Pull the latest mongodb docker image and run
-  doFirst {
-    exec {
-      executable 'sh'
-      args '-c', "docker pull mongo && docker run --name ${containerName} -p ${port}:27017 -d mongo:latest"
-    }
-  }
-
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install -e ${rootDir}/sdks/python/[test] && python -m apache_beam.io.mongodbio_it_test ${options.join(' ')}"
-    }
-    exec {
-      executable 'sh'
-      args '-c', "docker stop ${containerName} && docker rm ${containerName}"
-    }
-  }
-}

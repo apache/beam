@@ -31,11 +31,13 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubJsonTablePr
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
+import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -50,6 +52,7 @@ public class PubsubToBigqueryIT implements Serializable {
       Schema.builder().addNullableField("id", INT64).addNullableField("name", STRING).build();
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
   @Rule public transient TestPubsub pubsub = TestPubsub.create();
   @Rule public transient TestBigQuery bigQuery = TestBigQuery.create(SOURCE_SCHEMA);
 
@@ -94,7 +97,13 @@ public class PubsubToBigqueryIT implements Serializable {
 
     BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
 
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    pipeline.apply(signal.signalStart());
+
     pipeline.run();
+
+    // Wait for pipeline to start before publishing data
+    start.get();
 
     List<PubsubMessage> messages =
         ImmutableList.of(
@@ -145,7 +154,13 @@ public class PubsubToBigqueryIT implements Serializable {
 
     BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
 
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    pipeline.apply(signal.signalStart());
+
     pipeline.run();
+
+    // Wait for pipeline to start before publishing data
+    start.get();
 
     List<PubsubMessage> messages =
         ImmutableList.of(

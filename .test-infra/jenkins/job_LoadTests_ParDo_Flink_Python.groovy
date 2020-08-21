@@ -53,12 +53,15 @@ String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
  *     GROUP BY test_id, timestamp
  *     ORDER BY timestamp
  *   );
+ *
+ * Subsumed by the new Grafana dashboard:
+ * http://metrics.beam.apache.org/d/MOi-kf3Zk/pardo-load-tests?orgId=1&var-processingType=streaming&var-sdk=python
  */
 
 def batchScenarios = { datasetName ->
   [
     [
-      title          : 'ParDo Python Load test: 20M 100 byte records 10 times',
+      title          : 'ParDo Python Load test: 20M 100 byte records 10 iterations',
       test           : 'apache_beam.testing.load_tests.pardo_test',
       runner         : CommonTestProperties.Runner.PORTABLE,
       pipelineOptions: [
@@ -161,19 +164,20 @@ def streamingScenarios = { datasetName ->
       test           : 'apache_beam.testing.load_tests.pardo_test',
       runner         : CommonTestProperties.Runner.PORTABLE,
       pipelineOptions: [
-        job_name             : 'load-tests-python-flink-streaming-pardo-5-' + now,
+        job_name             : 'load-tests-python-flink-streaming-pardo-1-' + now,
         project              : 'apache-beam-testing',
         publish_to_big_query : true,
         metrics_dataset      : datasetName,
+        // Keep the old name to not break the legacy dashboard
         metrics_table        : 'python_flink_streaming_pardo_5',
-        influx_measurement   : 'python_streaming_pardo_5',
+        influx_measurement   : 'python_streaming_pardo_1',
         input_options        : '\'{' +
         '"num_records": 2000000,' +
         '"key_size": 10,' +
         '"value_size": 90}\'',
-        iterations           : 5,
-        number_of_counter_operations: 10,
-        number_of_counters   : 3,
+        iterations           : 10,
+        number_of_counter_operations: 0,
+        number_of_counters   : 0,
         parallelism          : 5,
         // Turn on streaming mode (flags are indicated with null values)
         streaming            : null,

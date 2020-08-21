@@ -25,3 +25,4 @@ programming_language: Go
 content:
 - introduction
 - core_transforms
+- common_transforms

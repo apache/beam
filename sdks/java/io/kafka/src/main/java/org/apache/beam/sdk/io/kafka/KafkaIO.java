@@ -572,8 +572,6 @@ public class KafkaIO {
         // Set required defaults
         setTopicPartitions(Collections.emptyList());
         setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN);
-        setMaxNumRecords(Long.MAX_VALUE);
-        setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN);
         if (config.maxReadTime != null) {
           setMaxReadTime(Duration.standardSeconds(config.maxReadTime));
         }
@@ -1047,7 +1045,9 @@ public class KafkaIO {
       // "beam_fn_api_use_deprecated_read" is not enabled.
       if (!ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
           || ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
+              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
+          || !ExperimentalOptions.hasExperiment(
+              input.getPipeline().getOptions(), "use_sdf_kafka_read")) {
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
         Unbounded<KafkaRecord<K, V>> unbounded =
             org.apache.beam.sdk.io.Read.from(
@@ -1388,8 +1388,8 @@ public class KafkaIO {
 
     /**
      * Updates configuration for the main consumer. This method merges updates from the provided map
-     * with with any prior updates using {@link KafkaIOUtils#DEFAULT_CONSUMER_PROPERTIES} as the
-     * starting configuration.
+     * with any prior updates using {@link KafkaIOUtils#DEFAULT_CONSUMER_PROPERTIES} as the starting
+     * configuration.
      *
      * <p>In {@link ReadFromKafkaDoFn}, there're two consumers running in the backend:
      *

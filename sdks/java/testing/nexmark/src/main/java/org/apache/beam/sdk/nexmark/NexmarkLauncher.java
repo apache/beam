@@ -25,6 +25,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.nexmark.NexmarkUtils.PubSubMode;
+import org.apache.beam.sdk.nexmark.NexmarkUtils.PubsubMessageSerializationMethod;
 import org.apache.beam.sdk.nexmark.NexmarkUtils.SourceType;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
@@ -765,7 +767,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     }
 
     events
-        .apply(queryName + ".EventToPubsubMessage", ParDo.of(new EventPubsubMessageDoFn()))
+        .apply(
+            queryName + ".EventToPubsubMessage",
+            ParDo.of(new EventPubsubMessageDoFn(configuration.pubsubMessageSerializationMethod)))
         .apply(queryName + ".WritePubsubEvents", io);
   }
 
@@ -1375,9 +1379,25 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private static class EventPubsubMessageDoFn extends DoFn<Event, PubsubMessage> {
+    private final PubsubMessageSerializationMethod serializationMethod;
+
+    public EventPubsubMessageDoFn(PubsubMessageSerializationMethod serializationMethod) {
+      this.serializationMethod = serializationMethod;
+    }
+
     @ProcessElement
     public void processElement(ProcessContext c) throws IOException {
-      byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+      byte[] payload;
+      switch (serializationMethod) {
+        case CODER:
+          payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+          break;
+        case TO_STRING:
+          payload = c.element().toString().getBytes(StandardCharsets.UTF_8);
+          break;
+        default:
+          throw new IllegalArgumentException("Unsupported serialization method used.");
+      }
       c.output(new PubsubMessage(payload, Collections.emptyMap()));
     }
   }

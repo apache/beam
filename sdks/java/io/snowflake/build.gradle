@@ -36,6 +36,7 @@ dependencies {
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testCompile 'com.google.cloud:google-cloud-storage:1.102.0'
   testCompile library.java.avro
   testCompile library.java.junit
   testCompile library.java.hamcrest_core

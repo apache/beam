@@ -25,6 +25,7 @@ See additional runtime_type_check=True tests in ptransform_test.py.
 
 from __future__ import absolute_import
 
+import os
 import tempfile
 import unittest
 from typing import Iterable
@@ -35,6 +36,8 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import decorators
+# TODO(BEAM-8371): Use tempfile.TemporaryDirectory.
+from apache_beam.utils.subprocess_server_test import TemporaryDirectory
 
 decorators._enable_from_callable = True
 
@@ -92,23 +95,24 @@ class TypecheckTest(unittest.TestCase):
     # We use a file to check the result because the MyDoFn instance passed is
     # not the same one that actually runs in the pipeline (it is serialized
     # here and deserialized in the worker).
-    with tempfile.NamedTemporaryFile(mode='w+t') as f:
-      dofn = MyDoFn(f.name)
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname + "tmp_filename")
+      dofn = MyDoFn(path)
       result = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
       assert_that(result, equal_to([1, 2, 3]))
       self.p.run()
-      f.seek(0)
-      lines = [line.strip() for line in f]
-      self.assertListEqual([
-          'setup',
-          'start_bundle',
-          'process',
-          'process',
-          'process',
-          'finish_bundle',
-          'teardown',
-      ],
-                           lines)
+      with open(path, mode="r") as ft:
+        lines = [line.strip() for line in ft]
+        self.assertListEqual([
+            'setup',
+            'start_bundle',
+            'process',
+            'process',
+            'process',
+            'finish_bundle',
+            'teardown',
+        ],
+                             lines)
 
   def test_wrapper_pipeline_type_check(self):
     # Verifies that type hints are not masked by the wrapper. What actually

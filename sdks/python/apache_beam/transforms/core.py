@@ -436,23 +436,30 @@ class RunnerAPIPTransformHolder(PTransform):
             '%r and %r',
             env1.payload, env2.to_runner_api(context).payload)
 
+    def recursively_add_coder_protos(coder_id, old_context, new_context):
+      coder_proto = old_context.coders.get_proto_from_id(coder_id)
+      new_context.coders.put_proto(coder_id, coder_proto, True)
+      for component_coder_id in coder_proto.component_coder_ids:
+        recursively_add_coder_protos(
+            component_coder_id, old_context, new_context)
+
     if common_urns.primitives.PAR_DO.urn == self._proto.urn:
       # If a restriction coder has been set by an external SDK, we have to
       # explicitly add it (and all component coders recursively) to the context
       # to make sure that it does not get dropped by Python SDK.
-
-      def recursively_add_coder_protos(coder_id, old_context, new_context):
-        coder_proto = old_context.coders.get_proto_from_id(coder_id)
-        new_context.coders.put_proto(coder_id, coder_proto, True)
-        for component_coder_id in coder_proto.component_coder_ids:
-          recursively_add_coder_protos(
-              component_coder_id, old_context, new_context)
-
       par_do_payload = proto_utils.parse_Bytes(
           self._proto.payload, beam_runner_api_pb2.ParDoPayload)
       if par_do_payload.restriction_coder_id:
         recursively_add_coder_protos(
             par_do_payload.restriction_coder_id, self._context, context)
+    elif (common_urns.composites.COMBINE_PER_KEY.urn == self._proto.urn or
+          common_urns.composites.COMBINE_GLOBALLY.urn == self._proto.urn):
+      # We have to include coders embedded in `CombinePayload`.
+      combine_payload = proto_utils.parse_Bytes(
+          self._proto.payload, beam_runner_api_pb2.CombinePayload)
+      if combine_payload.accumulator_coder_id:
+        recursively_add_coder_protos(
+            combine_payload.accumulator_coder_id, self._context, context)
 
     return self._proto
 

@@ -157,7 +157,8 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null, /* tearDownRegistry */
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
@@ -235,7 +236,8 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null, /* tearDownRegistry */
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
@@ -301,7 +303,8 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null, /* tearDownRegistry */
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
@@ -367,7 +370,8 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null, /* tearDownRegistry */
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
@@ -432,7 +436,8 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null, /* tearDownRegistry */
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
             null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
