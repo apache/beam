@@ -2237,8 +2237,7 @@ public class StreamingDataflowWorker {
         if (completedWork == null) {
           throw new NullPointerException(
               String.format(
-                  "No active state for key %s, expected token %s",
-                  shardedKey, workToken));
+                  "No active state for key %s, expected token %s", shardedKey, workToken));
         }
         if (completedWork.getWorkItem().getWorkToken() != workToken) {
           throw new IllegalStateException(
