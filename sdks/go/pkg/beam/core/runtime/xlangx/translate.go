@@ -37,20 +37,20 @@ func MergeExpandedWithPipeline(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 			p.Requirements = append(p.Requirements, exp.Requirements...)
 
 			// Adding components of the Expanded Transforms to the current Pipeline
-			for k, v := range graphx.ExpandedComponents(exp).GetTransforms() {
+			components := graphx.ExpandedComponents(exp)
+			for k, v := range components.GetTransforms() {
 				p.Components.Transforms[k] = v
 			}
-			for k, v := range graphx.ExpandedComponents(exp).GetPcollections() {
+			for k, v := range components.GetPcollections() {
 				p.Components.Pcollections[k] = v
 			}
-			for k, v := range graphx.ExpandedComponents(exp).GetWindowingStrategies() {
+			for k, v := range components.GetWindowingStrategies() {
 				p.Components.WindowingStrategies[k] = v
 			}
-			for k, v := range graphx.ExpandedComponents(exp).GetCoders() {
+			for k, v := range components.GetCoders() {
 				p.Components.Coders[k] = v
 			}
-			for k, v := range graphx.ExpandedComponents(exp).GetEnvironments() {
-				// TODO(pskevin): Resolve temporary hack to enable LOOPBACK mode
+			for k, v := range components.GetEnvironments() {
 				if k == "go" {
 					continue
 				}
@@ -72,9 +72,19 @@ func PurgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 		if e.Op == graph.External {
 			for tag, n := range graphx.ExternalOutputs(e) {
 				nodeID := fmt.Sprintf("n%v", n.ID())
-				pcolID := graphx.ExpandedTransform(e.External.Expanded).GetOutputs()[tag]
+
+				expandedOutputs := graphx.ExpandedTransform(e.External.Expanded).GetOutputs()
+				var pcolID string
+				if tag == graph.SinkOutputTag {
+					for _, pcolID = range expandedOutputs {
+						// easiest way to access map with one entry (key,value)
+					}
+				} else {
+					pcolID = expandedOutputs[tag]
+				}
+
 				idxMap[nodeID] = pcolID
-				components.GetPcollections()[nodeID] = nil // Will get purged while using pipelinex.Update
+				delete(components.Pcollections, nodeID)
 			}
 		}
 	}
@@ -87,19 +97,23 @@ func PurgeOutputInput(edges []*graph.MultiEdge, p *pipepb.Pipeline) {
 			}
 		}
 	}
+
 }
 
-// TODO(pskevin): handle sourceInput and sinkOutput
 func VerifyNamedOutputs(ext *graph.ExternalTransform) {
 	expandedOutputs := graphx.ExpandedTransform(ext.Expanded).GetOutputs()
 
 	if len(expandedOutputs) != len(ext.OutputsMap) {
-		panic(errors.Errorf("mismatched number of outputs:\nreceived - %v\nexpected - %v", len(expandedOutputs), len(ext.OutputsMap)))
+		panic(errors.Errorf("mismatched number of named outputs:\nreceived - %v\nexpected - %v", len(expandedOutputs), len(ext.OutputsMap)))
 	}
 
 	for tag := range ext.OutputsMap {
-		if _, exists := expandedOutputs[tag]; tag != "sinkOutput" && !exists {
+		_, exists := expandedOutputs[tag]
+		if tag != graph.SinkOutputTag && !exists {
 			panic(errors.Errorf("missing named output in expanded transform: %v is expected in %v", tag, expandedOutputs))
+		}
+		if tag == graph.SinkOutputTag && len(expandedOutputs) > 1 {
+			panic(errors.Errorf("mismatched number of unnamed outputs:\nreceived - %v\nexpected - 1", len(expandedOutputs)))
 		}
 	}
 }
@@ -115,7 +129,7 @@ func ResolveOutputIsBounded(e *graph.MultiEdge, isBoundedUpdater func(*graph.Nod
 		isBounded := true
 
 		switch tag {
-		case "sinkOutput":
+		case graph.SinkOutputTag:
 			for _, id = range expandedOutputs {
 				// easiest way to access map with one entry (key,value)
 			}

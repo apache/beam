@@ -21,20 +21,19 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/xlangx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 )
 
 // This is an experimetnal API and subject to change
-func CrossLanguage(s Scope, urn string, payload []byte, expansionAddr string, inputs map[string]PCollection, outputTypes map[string]FullType) map[string]PCollection {
+func CrossLanguage(s Scope, urn string, payload []byte, expansionAddr string, namedInputs map[string]PCollection, namedOutputTypes map[string]FullType) map[string]PCollection {
 	if !s.IsValid() {
 		panic(errors.New("invalid scope"))
 	}
 
-	namedInputNodes := mapPCollectionToNode(inputs)
-
-	inputsMap, inboundLinks := graph.NewNamedInboundLinks(namedInputNodes)
-	outputsMap, outboundLinks := graph.NewNamedOutboundLinks(s.real, outputTypes)
+	inputsMap, inboundLinks := graph.NewNamedInboundLinks(mapPCollectionToNode(namedInputs))
+	outputsMap, outboundLinks := graph.NewNamedOutboundLinks(s.real, namedOutputTypes)
 
 	ext := graph.ExternalTransform{
 		Urn:           urn,
@@ -42,62 +41,82 @@ func CrossLanguage(s Scope, urn string, payload []byte, expansionAddr string, in
 		ExpansionAddr: expansionAddr,
 	}.WithNamedInputs(inputsMap).WithNamedOutputs(outputsMap)
 
-	outputNodes, err := TryCrossLanguage(s, &ext, inboundLinks, outboundLinks)
+	namedOutputs, err := TryCrossLanguage(s, &ext, inboundLinks, outboundLinks)
 	if err != nil {
 		panic(errors.WithContextf(err, "tried cross-language and failed"))
 	}
-	return mapNodeToPCollection(outputNodes)
+	return mapNodeToPCollection(namedOutputs)
 }
 
-/*
-func CrossLanguageWithSink(s Scope, urn string, payload []byte, expansionAddr string, inputs map[string]PCollection, outputType FullType) PCollection {
-	inputNodes := mapPCollectionToNode(inputs)
+func CrossLanguageWithSingleInputOutput(s Scope, urn string, payload []byte, expansionAddr string, input PCollection, outputType FullType) PCollection {
+	if !s.IsValid() {
+		panic(errors.New("invalid scope"))
+	}
 
-	inputsMap, inboundLinks := graph.NewNamedInboundLinks(inputNodes)
-	outputsMap, outboundLinks := graph.NewNamedOutboundLinks(s.real, map[string]typex.FullType{graph.SinkOutputTag: outputType})
+	namedInput := mapPCollectionToNode(map[string]PCollection{graph.SourceInputTag: input})
+	namedOutputType := map[string]typex.FullType{graph.SinkOutputTag: outputType}
+
+	inputsMap, inboundLinks := graph.NewNamedInboundLinks(namedInput)
+	outputsMap, outboundLinks := graph.NewNamedOutboundLinks(s.real, namedOutputType)
 
 	ext := graph.ExternalTransform{
 		Urn:           urn,
 		Payload:       payload,
 		ExpansionAddr: expansionAddr,
-	}.WithNamedInputs(inputNodes).WithNamedOutputs(outputTypes)
+	}.WithNamedInputs(inputsMap).WithNamedOutputs(outputsMap)
 
-	outputNodes, err := TryCrossLanguage(s, &ext, inboundLinks, outboundLinks)
+	namedOutput, err := TryCrossLanguage(s, &ext, inboundLinks, outboundLinks)
 	if err != nil {
 		panic(errors.WithContextf(err, "tried cross-language and failed"))
 	}
-	namedOutputNode := mapNodeToPCollection(outputNodes)
+	return nodeToPCollection(namedOutput[graph.SinkOutputTag])
+}
 
-	outputNode, exists := namedOutputNode[graph.SinkOutputTag]
-	if !exists {
-		panic("a")
+func CrossLanguageWithSink(s Scope, urn string, payload []byte, expansionAddr string, namedInputs map[string]PCollection, outputType FullType) PCollection {
+	if !s.IsValid() {
+		panic(errors.New("invalid scope"))
 	}
-	return outputNode
+
+	namedOutputType := map[string]typex.FullType{graph.SinkOutputTag: outputType}
+
+	inputsMap, inboundLinks := graph.NewNamedInboundLinks(mapPCollectionToNode(namedInputs))
+	outputsMap, outboundLinks := graph.NewNamedOutboundLinks(s.real, namedOutputType)
+
+	ext := graph.ExternalTransform{
+		Urn:           urn,
+		Payload:       payload,
+		ExpansionAddr: expansionAddr,
+	}.WithNamedInputs(inputsMap).WithNamedOutputs(outputsMap)
+
+	namedOutput, err := TryCrossLanguage(s, &ext, inboundLinks, outboundLinks)
+	if err != nil {
+		panic(errors.WithContextf(err, "tried cross-language and failed"))
+	}
+	return nodeToPCollection(namedOutput[graph.SinkOutputTag])
 }
 
-func CrossLanguageWithSource(s Scope, urn string, payload []byte, expansionAddr string, input PCollection, outputs map[string]FullType) map[string]PCollection {
-	return MustN(
-		TryCrossLanguage(
-			&ExternalTransform{
-				Urn:           urn,
-				Payload:       payload,
-				ExpansionAddr: expansionAddr,
-			}.
-				withSource(input).
-				withNamedOutputs(outputs)))
-}
+func CrossLanguageWithSource(s Scope, urn string, payload []byte, expansionAddr string, input PCollection, namedOutputTypes map[string]FullType) map[string]PCollection {
+	if !s.IsValid() {
+		panic(errors.New("invalid scope"))
+	}
 
-func CrossLanguageWithSingleInputOutput(s Scope, urn string, payload []byte, expansionAddr string, input PCollection, output FullType) PCollection {
-	return MustN(TryCrossLanguage(
-		&ExternalTransform{
-			Urn:           urn,
-			Payload:       payload,
-			ExpansionAddr: expansionAddr,
-		}.
-			withSource(input).
-			withSink(output)))
+	namedInput := mapPCollectionToNode(map[string]PCollection{graph.SourceInputTag: input})
+
+	inputsMap, inboundLinks := graph.NewNamedInboundLinks(namedInput)
+	outputsMap, outboundLinks := graph.NewNamedOutboundLinks(s.real, namedOutputTypes)
+
+	ext := graph.ExternalTransform{
+		Urn:           urn,
+		Payload:       payload,
+		ExpansionAddr: expansionAddr,
+	}.WithNamedInputs(inputsMap).WithNamedOutputs(outputsMap)
+
+	namedOutputs, err := TryCrossLanguage(s, &ext, inboundLinks, outboundLinks)
+	if err != nil {
+		panic(errors.WithContextf(err, "tried cross-language and failed"))
+	}
+	return mapNodeToPCollection(namedOutputs)
 }
-*/
 
 func TryCrossLanguage(s Scope, ext *graph.ExternalTransform, ins []*graph.Inbound, outs []*graph.Outbound) (map[string]*graph.Node, error) {
 	// Add ExternalTransform to the Graph
@@ -137,6 +156,8 @@ func TryCrossLanguage(s Scope, ext *graph.ExternalTransform, ins []*graph.Inboun
 	if err != nil {
 		return nil, errors.WithContextf(err, "failed to expand external transform with error [%v] for ExpansionRequest: %v", res.GetError(), req)
 	}
+
+	// fmt.Println(prototext.Format(proto.MessageV2(res.Components)))
 
 	xlangx.RemoveFakeImpulses(res.GetComponents(), res.GetTransform())
 

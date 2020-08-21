@@ -13,22 +13,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// xlang_wordcount exemplifies using a cross language transform from Python to count words
 package main
 
 import (
-	"context"
-	"flag"
 	"fmt"
-	"log"
-	"regexp"
-	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 
+	"context"
+	"flag"
+	"log"
+
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 
 	// Imports to enable correct filesystem access and runner setup in LOOPBACK mode
@@ -41,30 +40,12 @@ var (
 	expansionAddr = flag.String("expansion_addr", "", "Address of Expansion Service")
 )
 
-var (
-	wordRE  = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
-	empty   = beam.NewCounter("extract", "emptyLines")
-	lineLen = beam.NewDistribution("extract", "lineLenDistro")
-)
-
-// extractFn is a DoFn that emits the words in a given line.
-func extractFn(ctx context.Context, line string, emit func(string)) {
-	lineLen.Update(ctx, int64(len(line)))
-	if len(strings.TrimSpace(line)) == 0 {
-		empty.Inc(ctx, 1)
-	}
-	for _, word := range wordRE.FindAllString(line, -1) {
-		emit(word)
-	}
-}
-
 // formatFn is a DoFn that formats a word and its count as a string.
-func formatFn(w string, c int64) string {
-	return fmt.Sprintf("%s:%v", w, c)
+func formatFn(c int64) string {
+	return fmt.Sprintf("%v", c)
 }
 
 func init() {
-	beam.RegisterFunction(extractFn)
 	beam.RegisterFunction(formatFn)
 }
 
@@ -79,31 +60,19 @@ func main() {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	lines := beam.CreateList(s, strings.Split(lorem, "\n"))
-	col := beam.ParDo(s, extractFn, lines)
+	col1 := beam.CreateList(s, []int64{1, 2, 3})
+	col2 := beam.CreateList(s, []int64{4, 5, 6})
+	namedInputs := map[string]beam.PCollection{"col1": col1, "col2": col2}
 
 	// Using Cross-language Count from Python's test expansion service
-	outputType := typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int64))
-	counted := beam.CrossLanguageWithSingleInputOutput(s,
-		"beam:transforms:xlang:count",
-		nil,
-		*expansionAddr,
-		col,
-		outputType,
-	)
 
-	formatted := beam.ParDo(s, formatFn, counted)
-	passert.Equals(s, formatted, "a:4", "b:4", "c:5")
+	outputType := typex.New(reflectx.Int64)
+	c := beam.CrossLanguageWithSink(s, "beam:transforms:xlang:test:flatten", nil, *expansionAddr, namedInputs, outputType)
+
+	formatted := beam.ParDo(s, formatFn, c)
+	passert.Equals(s, formatted, "1", "2", "3", "4", "5", "6")
 
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }
-
-var lorem = `a b b c
-b c a
-a b c
-c
-a
-c
-`
