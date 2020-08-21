@@ -275,10 +275,9 @@ public class TestPubsub implements TestRule {
   /**
    * Check if topics exist.
    *
-   * <p>{@Deprecated prefer {@link #assertSubscriptionEventuallyCreated}}.
-   *
    * @param project GCP project identifier.
    * @param timeoutDuration Joda duration that sets a period of time before checking times out.
+   * @deprecated Use {@link #assertSubscriptionEventuallyCreated}.
    */
   @Deprecated
   public void checkIfAnySubscriptionExists(String project, Duration timeoutDuration)
