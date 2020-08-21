@@ -89,7 +89,7 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
     try:
       result = method(*args, **kwargs)
     except TypeCheckError as e:
-      # TODO: Remove the 'ParDo' prefix for the label name (BEAM-10710)
+      # TODO(BEAM-10710): Remove the 'ParDo' prefix for the label name
       error_msg = (
           'Runtime type violation detected within ParDo(%s): '
           '%s' % (self.full_label, e))
