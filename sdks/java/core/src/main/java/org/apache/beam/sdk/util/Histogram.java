@@ -92,6 +92,16 @@ public class Histogram {
     return numOfRecords + numTopRecords + numBottomRecords;
   }
 
+  /**
+   * Get the bucket count for the given bucketIndex.
+   *
+   * <p>This method does not guarantee the atomicity when sequentially accessing the multiple
+   * buckets i.e. other threads may alter the value between consecutive invocations. For summing the
+   * total number of elements in the histogram, use `getTotalCount()` instead.
+   *
+   * @param bucketIndex index of the bucket
+   * @return The number of elements in the specified bucket
+   */
   public synchronized long getCount(int bucketIndex) {
     return buckets[bucketIndex];
   }
