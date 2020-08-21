@@ -92,17 +92,18 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
             .build();
     Deserializer<T> deserializer =
         (Deserializer<T>)
-            new ConfluentSchemaRegistryDeserializer(
-                getSchemaRegistryClient(),
-                new Schema.Parser().parse(getSchemaMetadata().getSchema()));
+            new ConfluentSchemaRegistryDeserializer(getSchemaRegistryClient(), getAvroSchema());
     deserializer.configure(csrConfig, isKey);
     return deserializer;
   }
 
   @Override
   public Coder<T> getCoder(CoderRegistry coderRegistry) {
-    final Schema avroSchema = new Schema.Parser().parse(getSchemaMetadata().getSchema());
-    return (Coder<T>) AvroCoder.of(avroSchema);
+    return (Coder<T>) AvroCoder.of(getAvroSchema());
+  }
+
+  private Schema getAvroSchema() {
+    return new Schema.Parser().parse(getSchemaMetadata().getSchema());
   }
 
   private SchemaMetadata getSchemaMetadata() {
