@@ -76,8 +76,10 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     IMMUTABILITY {
       @Override
       public boolean appliesTo(PCollection<?> collection, DirectGraph graph) {
-        return CONTAINS_UDF.contains(
-            PTransformTranslation.urnForTransform(graph.getProducer(collection).getTransform()));
+        return !ImmutabilityEnforcementFactory.isReadTransform(graph.getProducer(collection))
+            && CONTAINS_UDF.contains(
+                PTransformTranslation.urnForTransform(
+                    graph.getProducer(collection).getTransform()));
       }
     };
 
