@@ -27,25 +27,25 @@ import org.apache.beam.sdk.util.Histogram;
 
 /** HttpRequestInitializer for recording request to response latency of Http-based API calls. */
 public class LatencyRecordingHttpRequestInitializer implements HttpRequestInitializer {
-  private final Histogram histogram;
+  private final Histogram requestLatencies;
 
-  public LatencyRecordingHttpRequestInitializer(Histogram histogram) {
-    this.histogram = histogram;
+  public LatencyRecordingHttpRequestInitializer(Histogram requestLatencies) {
+    this.requestLatencies = requestLatencies;
   }
 
   private static class LoggingInterceptor
       implements HttpResponseInterceptor, HttpExecuteInterceptor {
-    private final Histogram histogram;
+    private final Histogram requestLatencies;
     private long startTime;
 
-    public LoggingInterceptor(Histogram histogram) {
-      this.histogram = histogram;
+    public LoggingInterceptor(Histogram requestLatencies) {
+      this.requestLatencies = requestLatencies;
     }
 
     @Override
     public void interceptResponse(HttpResponse response) throws IOException {
       long timeToResponse = System.currentTimeMillis() - startTime;
-      histogram.record(timeToResponse);
+      requestLatencies.record(timeToResponse);
     }
 
     @Override
@@ -56,7 +56,7 @@ public class LatencyRecordingHttpRequestInitializer implements HttpRequestInitia
 
   @Override
   public void initialize(HttpRequest request) throws IOException {
-    LoggingInterceptor interceptor = new LoggingInterceptor(histogram);
+    LoggingInterceptor interceptor = new LoggingInterceptor(requestLatencies);
     request.setInterceptor(interceptor);
     request.setResponseInterceptor(interceptor);
   }

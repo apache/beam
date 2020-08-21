@@ -53,7 +53,7 @@ public interface BigQueryServices extends Serializable {
   DatasetService getDatasetService(BigQueryOptions bqOptions);
 
   /** Returns a real, mock, or fake {@link DatasetService}. */
-  DatasetService getDatasetService(BigQueryOptions bqOptions, Histogram histogram);
+  DatasetService getDatasetService(BigQueryOptions bqOptions, Histogram requestLatencies);
 
   /** Returns a real, mock, or fake {@link StorageClient}. */
   @Experimental(Kind.SOURCE_SINK)

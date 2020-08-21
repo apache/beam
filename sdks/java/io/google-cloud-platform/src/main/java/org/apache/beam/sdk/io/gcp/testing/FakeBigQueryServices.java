@@ -70,7 +70,7 @@ public class FakeBigQueryServices implements BigQueryServices {
   }
 
   @Override
-  public DatasetService getDatasetService(BigQueryOptions bqOptions, Histogram histogram) {
+  public DatasetService getDatasetService(BigQueryOptions bqOptions, Histogram requestLatencies) {
     return datasetService;
   }
 

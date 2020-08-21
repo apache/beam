@@ -137,8 +137,8 @@ class BigQueryServicesImpl implements BigQueryServices {
   }
 
   @Override
-  public DatasetService getDatasetService(BigQueryOptions options, Histogram histogram) {
-    return new DatasetServiceImpl(options, histogram);
+  public DatasetService getDatasetService(BigQueryOptions options, Histogram requestLatencies) {
+    return new DatasetServiceImpl(options, requestLatencies);
   }
 
   @Override
@@ -456,9 +456,9 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.executor = null;
     }
 
-    private DatasetServiceImpl(BigQueryOptions bqOptions, @Nullable Histogram histogram) {
+    private DatasetServiceImpl(BigQueryOptions bqOptions, @Nullable Histogram requestLatencies) {
       this.errorExtractor = new ApiErrorExtractor();
-      this.client = newBigQueryClient(bqOptions, histogram).build();
+      this.client = newBigQueryClient(bqOptions, requestLatencies).build();
       this.options = bqOptions;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
@@ -1022,7 +1022,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   /** Returns a BigQuery client builder using the specified {@link BigQueryOptions}. */
   private static Bigquery.Builder newBigQueryClient(
-      BigQueryOptions options, @Nullable Histogram histogram) {
+      BigQueryOptions options, @Nullable Histogram requestLatencies) {
     RetryHttpRequestInitializer httpRequestInitializer =
         new RetryHttpRequestInitializer(ImmutableList.of(404));
     httpRequestInitializer.setCustomErrors(createBigQueryClientCustomErrors());
@@ -1036,8 +1036,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     // Do not log 404. It clutters the output and is possibly even required by the
     // caller.
     initBuilder.add(httpRequestInitializer);
-    if (histogram != null) {
-      initBuilder.add(new LatencyRecordingHttpRequestInitializer(histogram));
+    if (requestLatencies != null) {
+      initBuilder.add(new LatencyRecordingHttpRequestInitializer(requestLatencies));
     }
     HttpRequestInitializer chainInitializer =
         new ChainingHttpRequestInitializer(
