@@ -233,10 +233,10 @@ public class BatchModeExecutionContextTest {
             .getCounter(
                 MetricName.named(
                     BatchModeExecutionContext.DATASTORE_THROTTLE_TIME_NAMESPACE,
-                    "cumulativeThrottlingSeconds"));
-    counter.inc(12);
-    counter.inc(17);
-    counter.inc(1);
+                    BatchModeExecutionContext.THROTTLE_TIME_COUNTER_NAME));
+    counter.inc(12000);
+    counter.inc(17000);
+    counter.inc(1000);
 
     assertEquals(30L, (long) executionContext.extractThrottleTime());
   }

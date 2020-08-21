@@ -123,6 +123,7 @@ import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -203,6 +204,12 @@ public class StreamingDataflowWorker {
 
   /** Maximum number of failure stacktraces to report in each update sent to backend. */
   private static final int MAX_FAILURES_TO_REPORT_IN_UPDATE = 1000;
+
+  // TODO(BEAM-7863): Update throttling counters to use generic throttling-msecs metric.
+  public static final MetricName BIGQUERY_STREAMING_INSERT_THROTTLE_TIME =
+      MetricName.named(
+          "org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl$DatasetServiceImpl",
+          "throttling-msecs");
 
   private final AtomicLong counterAggregationErrorCount = new AtomicLong();
 
@@ -520,8 +527,14 @@ public class StreamingDataflowWorker {
     private void translateKnownStepCounters(CounterUpdate stepCounterUpdate) {
       CounterStructuredName structuredName =
           stepCounterUpdate.getStructuredNameAndMetadata().getName();
-      if (THROTTLING_MSECS_METRIC_NAME.getNamespace().equals(structuredName.getOriginNamespace())
-          && THROTTLING_MSECS_METRIC_NAME.getName().equals(structuredName.getName())) {
+      if ((THROTTLING_MSECS_METRIC_NAME.getNamespace().equals(structuredName.getOriginNamespace())
+              && THROTTLING_MSECS_METRIC_NAME.getName().equals(structuredName.getName()))
+          || (BIGQUERY_STREAMING_INSERT_THROTTLE_TIME
+                  .getNamespace()
+                  .equals(structuredName.getOriginNamespace())
+              && BIGQUERY_STREAMING_INSERT_THROTTLE_TIME
+                  .getName()
+                  .equals(structuredName.getName()))) {
         long msecs = DataflowCounterUpdateExtractor.splitIntToLong(stepCounterUpdate.getInteger());
         if (msecs > 0) {
           throttledMsecs.addValue(msecs);
