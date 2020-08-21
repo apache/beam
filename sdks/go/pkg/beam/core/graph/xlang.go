@@ -24,18 +24,42 @@ import (
 )
 
 var (
+	// SourceInputTag is a constant random string used when an ExternalTransform
+	// expects a single unnamed input. xlangx and graphx use it to explicitly
+	// bypass steps in pipeline construction meant for named inputs
 	SourceInputTag string
-	SinkOutputTag  string
-	NewNamespace   func() string
+
+	// SinkOutputTag is a constant random string used when an ExternalTransform
+	// expects a single unnamed output. xlangx and graphx use it to explicitly
+	// bypass steps in pipeline construction meant for named outputs.
+	SinkOutputTag string
+
+	// NewNamespace is a utility random string generator used by the xlang to
+	// scope individual ExternalTransforms by a unique namespace
+	NewNamespace func() string
 )
 
+func init() {
+	NewNamespace = NewNamespaceGenerator(10)
+	SourceInputTag = NewNamespace()
+	SinkOutputTag = NewNamespace()
+}
+
+// ExpandedTransform stores the expansion response associated to each
+// ExternalTransform.
+//
+// Components and Transform fields are purposely typed as interface{} to avoid
+// unnecesary proto related imports into graph.
 type ExpandedTransform struct {
 	Components   interface{} // *pipepb.Components
 	Transform    interface{} //*pipepb.PTransform
 	Requirements []string
 }
 
-// ExternalTransform represents the cross-language transform in and out of the Pipeline as a MultiEdge and Expanded proto respectively
+// ExternalTransform represents the cross-language transform in and out of
+// pipeline graph. It is associated with each MultiEdge and it's Inbound and
+// Outbound links. It also stores the associated expansion response within the
+// Expanded field.
 type ExternalTransform struct {
 	Namespace string
 
@@ -49,12 +73,8 @@ type ExternalTransform struct {
 	Expanded *ExpandedTransform
 }
 
-func init() {
-	NewNamespace = NewNamespaceGenerator(10)
-	SourceInputTag = NewNamespace()
-	SinkOutputTag = NewNamespace()
-}
-
+// WithNamedInputs adds a map (tag -> index of Inbound in MultiEdge.Input)
+// of named inputs corresponsing to ExternalTransform's InputsMap
 func (ext ExternalTransform) WithNamedInputs(inputsMap map[string]int) ExternalTransform {
 	if ext.InputsMap != nil {
 		panic(errors.Errorf("inputs already set as: \n%v", ext.InputsMap))
@@ -63,6 +83,8 @@ func (ext ExternalTransform) WithNamedInputs(inputsMap map[string]int) ExternalT
 	return ext
 }
 
+// WithNamedOutputs adds a map (tag -> index of Outbound in MultiEdge.Output)
+// of named outputs corresponsing to ExternalTransform's OutputsMap
 func (ext ExternalTransform) WithNamedOutputs(outputsMap map[string]int) ExternalTransform {
 	if ext.OutputsMap != nil {
 		panic(errors.Errorf("outputTypes already set as: \n%v", ext.OutputsMap))
@@ -71,8 +93,10 @@ func (ext ExternalTransform) WithNamedOutputs(outputsMap map[string]int) Externa
 	return ext
 }
 
-// TODO(pskevin): Credit one of the best stackoverflow answers @ https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-go
-
+// NewNamespaceGenerator returns a functions that generates a random string of n alphabets
+//
+// Adopted from icza's stackoverflow answer @
+// https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-go
 func NewNamespaceGenerator(n int) func() string {
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	const (
