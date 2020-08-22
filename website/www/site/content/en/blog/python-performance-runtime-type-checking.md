@@ -3,8 +3,8 @@ layout: post
 title:  "Performance-Driven Runtime Type Checking for the Python SDK"
 date:   2020-08-21 00:00:01 -0800
 categories:
-  - blog 
-  - python 
+  - blog
+  - python
   - typing
 authors:
   - saavan
@@ -23,11 +23,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-In this blog post, we're announcing the upcoming release of a new, opt-in 
-runtime type checking system for Beam's Python SDK that's optimized for performance 
+In this blog post, we're announcing the upcoming release of a new, opt-in
+runtime type checking system for Beam's Python SDK that's optimized for performance
 in both development and production environments.
 
-But let's take a step back - why do we even care about runtime type checking 
+But let's take a step back - why do we even care about runtime type checking
 in the first place? Let's look at an example.
 
 ```
@@ -44,12 +44,12 @@ integers. Luckily, this code will throw an error during pipeline construction be
 the inferred output type of `beam.Create(['1', '2'])` is `str` which is incompatible with
 the declared input type hint of `MultiplyNumberByTwo.process` which is `int`.
 
-However, what if we turned the pipeline type check off using the `no_pipeline_type_check` 
-flag? Or more realistically, what if the input PCollection to MultiplyNumberByTwo came 
+However, what if we turned the pipeline type check off using the `no_pipeline_type_check`
+flag? Or more realistically, what if the input PCollection to MultiplyNumberByTwo came
 from a database, preventing inference of the output data type?
 
-In either case, no error would be thrown during pipeline construction. 
-And even at runtime, this code works. Each string would be multiplied by 2, 
+In either case, no error would be thrown during pipeline construction.
+And even at runtime, this code works. Each string would be multiplied by 2,
 yielding a result of `['11', '22']`, but that's certainly not the outcome we want.
 
 So how do you debug this breed of "hidden" errors? More broadly speaking, how do you
@@ -59,14 +59,14 @@ The answer is to use runtime type checking.
 
 # Runtime Type Checking (RTC)
 This feature works by checking that actual input and output values satisfy the declared
-type constraints during pipeline execution. If you ran the code from before with 
+type constraints during pipeline execution. If you ran the code from before with
 `runtime_type_check` on, you would receive the following error message:
 
 ```
 Type hint violation for 'ParDo(MultiplyByTwo)': requires <class 'int'> but got <class 'str'> for element
 ```
 
-This is an actionable error message - it tells you that either your code has a bug 
+This is an actionable error message - it tells you that either your code has a bug
 or that your declared type hints are incorrect. Sounds simple enough, so what's the catch?
 
 _It is soooo slowwwwww._ See for yourself.
@@ -79,7 +79,7 @@ _It is soooo slowwwwww._ See for yourself.
 | 10,001       | 24.5 sec        | 259.8 sec
 | 18,001       | 38.7 sec        | 450.5 sec
 
-In this micro-benchmark, the pipeline with runtime type checking was over 10x slower, 
+In this micro-benchmark, the pipeline with runtime type checking was over 10x slower,
 with the gap only increasing as our input PCollection increased in size.
 
 So, is there any production-friendly alternative?
@@ -109,19 +109,19 @@ impact on the overall pipeline. With 18,001 elements, the difference is less tha
 There are three key factors responsible for this upgrade in performance.
 
 1. Instead of type checking all values, we only type check a subset of values, known as
-a sample in statistics. Initially, we sample a substantial number of elements, but as our 
-confidence that the element type won't change over time increases, we reduce our 
+a sample in statistics. Initially, we sample a substantial number of elements, but as our
+confidence that the element type won't change over time increases, we reduce our
 sampling rate (up to a fixed minimum).
 
 2. Whereas the old RTC system used heavy decorators to perform the type check, the new RTC system
-moves the type check to a Cython-optimized, non-decorated portion of the codebase. For reference, 
+moves the type check to a Cython-optimized, non-decorated portion of the codebase. For reference,
 Cython is a programming language that gives C-like performance to Python code.
 
 3. Finally, we use a single mega type hint to type-check only the output values of transforms
 instead of type-checking both the input and output values separately. This mega typehint is composed of
-the original transform's output type constraints along with all consumer transforms' input type 
+the original transform's output type constraints along with all consumer transforms' input type
 constraints. Using this mega type hint allows us to reduce overhead while simultaneously allowing
-us to throw _more actionable errors_. For instance, consider the following error (which was 
+us to throw _more actionable errors_. For instance, consider the following error (which was
 generated from the old RTC system):
 ```
 Runtime type violation detected within ParDo(DownstreamDoFn): Type-hint for argument: 'element' violated. Expected an instance of <class ‘str’>, instead found 9, an instance of <class ‘int’>.
@@ -130,18 +130,18 @@ Runtime type violation detected within ParDo(DownstreamDoFn): Type-hint for argu
 This error tells us that the `DownstreamDoFn` received an `int` when it was expecting a `str`, but doesn't tell us
 who created that `int` in the first place. Who is the offending upstream transform that's responsible for
 this `int`? Presumably, _that_ transform's output type hints were too expansive (e.g. `any`) or otherwise non-existent because
-no error was thrown during the runtime type check of its output. 
+no error was thrown during the runtime type check of its output.
 
 The problem here boils down to a lack of context. If we knew who our consumers were when type
 checking our output, we could simultaneously type check our output value against our output type
 constraints and every consumers' input type constraints to know whether there is _any_ possibility
-for a mismatch. This is exactly what the mega type hint does, and it allows us to throw errors 
-at the point of declaration rather than the point of exception, saving you valuable time 
+for a mismatch. This is exactly what the mega type hint does, and it allows us to throw errors
+at the point of declaration rather than the point of exception, saving you valuable time
 while providing higher quality error messages.
 
 So what would the same error look like using Performance RTC? It's the exact same string but with one additional line:
 ```
-[while running 'ParDo(UpstreamDoFn)'] 
+[while running 'ParDo(UpstreamDoFn)']
 ```
 
 And that's much more actionable for an investigation :)
@@ -149,6 +149,6 @@ And that's much more actionable for an investigation :)
 # Next Steps
 Go play with the new `performance_runtime_type_check` feature!
 
-It's in an experimental state so please 
-[let us know](https://beam.apache.org/community/contact-us/) 
-if you encounter any issues. 
+It's in an experimental state so please
+[let us know](https://beam.apache.org/community/contact-us/)
+if you encounter any issues.
