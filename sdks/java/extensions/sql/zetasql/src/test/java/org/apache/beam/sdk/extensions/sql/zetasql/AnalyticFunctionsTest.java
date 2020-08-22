@@ -48,7 +48,7 @@ public class AnalyticFunctionsTest extends ZetaSqlTestBase {
   // Tests for Numbering Functions
 
   @Test
-  public void RowNumberTest() {
+  public void rowNumberTest() {
     String sql = "SELECT x, ROW_NUMBER() over (ORDER BY x ) as agg  FROM analytic_table2";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -67,7 +67,7 @@ public class AnalyticFunctionsTest extends ZetaSqlTestBase {
   }
 
   @Test
-  public void DenseRankTest() {
+  public void denseRankTest() {
     String sql = "SELECT x, DENSE_RANK() over (ORDER BY x ) as agg  FROM analytic_table2";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -86,7 +86,7 @@ public class AnalyticFunctionsTest extends ZetaSqlTestBase {
   }
 
   @Test
-  public void RankTest() {
+  public void rankTest() {
     String sql = "SELECT x, RANK() over (ORDER BY x ) as agg  FROM analytic_table2";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -105,7 +105,7 @@ public class AnalyticFunctionsTest extends ZetaSqlTestBase {
   }
 
   @Test
-  public void PercentRankTest() {
+  public void percentRankTest() {
     String sql = "SELECT x, PERCENT_RANK() over (ORDER BY x ) as agg  FROM analytic_table2";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
