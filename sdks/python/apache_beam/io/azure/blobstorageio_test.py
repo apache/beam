@@ -24,9 +24,7 @@ from __future__ import absolute_import
 import logging
 import unittest
 import os
-import datetime
 import time
-from builtins import object
 
 # Protect against environments where azure library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -39,30 +37,6 @@ except ImportError:
   blobstorageio = None  # type: ignore[assignment]
 # pylint: enable=wrong-import-order, wrong-import-position
 
-class FakeFile(object):
-  def __init__(self, container, blob, contents, last_updated=None, etag=None):
-    self.container = container
-    self.blob = blob
-    self.contents = contents
-    self.last_updated = last_updated
-
-    if not etag:
-      self.etag = '"%s-1"' % ('x' * 32)
-    else:
-      self.etag = etag
-
-  def get_metadata(self):
-    last_updated_datetime = None
-    if self.last_updated:
-      last_updated_datetime = datetime.datetime.utcfromtimestamp(
-          self.last_updated)
-
-    return blobstorageio.Blob(
-        self.etag,
-        self.blob,
-        last_updated_datetime,
-        len(self.contents),
-        mime_type=None)
 
 @unittest.skipIf(blobstorageio is None, 'Azure dependencies are not installed')
 class TestAZFSPathParser(unittest.TestCase):
@@ -120,16 +94,15 @@ class TestAZFSPathParser(unittest.TestCase):
 
 
 class TestBlobStorageIO(unittest.TestCase):
-  def _insert_random_file(self, path, size, last_updated=None):
-    container, blob = blobstorageio.parse_azfs_path(path)
+  def _insert_random_file(self, path, size):
     contents = os.urandom(size)
-    fake_file = FakeFile(container, blob, contents, last_updated=last_updated)
 
+    # Insert file.
     f = self.azfs.open(path, 'w')
     f.write(contents)
     f.close()
 
-    return fake_file
+    return contents
 
   def setUp(self):
     connect_str = (
@@ -159,8 +132,7 @@ class TestBlobStorageIO(unittest.TestCase):
     file_name = self.TEST_DATA_PATH + 'test_file_read'
     file_size = 1024
 
-    test_file = self._insert_random_file(file_name, file_size)
-    contents = test_file.contents
+    test_file_contents = self._insert_random_file(file_name, file_size)
 
     test_file = self.azfs.open(file_name)
     self.assertEqual(test_file.mode, 'r')
@@ -168,7 +140,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertEqual(test_file.tell(), file_size)
     self.assertEqual(test_file.read(), b'')
     test_file.seek(0)
-    self.assertEqual(test_file.read(), contents)
+    self.assertEqual(test_file.read(), test_file_contents)
 
     # Clean up.
     self.azfs.delete(file_name)
@@ -426,12 +398,12 @@ class TestBlobStorageIO(unittest.TestCase):
     file_name = self.TEST_DATA_PATH + 'test_checksum'
     file_size = 1024
 
-    test_file = self._insert_random_file(file_name, file_size)
-    original_etag = self.azfs.checksum(file_name)    
+    test_file_contents = self._insert_random_file(file_name, file_size)
+    original_etag = self.azfs.checksum(file_name)
 
     f = self.azfs.open(file_name, 'w')
     self.assertEqual(f.mode, 'w')
-    f.write(test_file.contents)
+    f.write(test_file_contents)
     f.close()
     rewritten_etag = self.azfs.checksum(file_name)
 
@@ -532,8 +504,9 @@ class TestBlobStorageIO(unittest.TestCase):
     real_file = self.TEST_DATA_PATH + 'test_delete_files/file'
     fake_file = 'azfs://fake/fake-container/test_fake_file'
     filenames = [real_file, fake_file]
+    file_size = 1024
 
-    self._insert_random_file(real_file, 1024)
+    self._insert_random_file(real_file, file_size)
 
     result = self.azfs.delete_files(filenames)
 
