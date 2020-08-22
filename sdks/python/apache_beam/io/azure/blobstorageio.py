@@ -60,8 +60,9 @@ def parse_azfs_path(azfs_path, blob_optional=False, get_account=False):
   """Return the storage account, the container and
   blob names of the given azfs:// path.
   """
-  regex = ('^azfs://([a-z0-9.]{3,24})/([a-z0-9](?![a-z0-9-]*--[a-z0-9-]*)'
-           '[a-z0-9-]{1,61}[a-z0-9])/(.*)$')
+  regex = (
+      '^azfs://([a-z0-9.]{3,24})/([a-z0-9](?![a-z0-9-]*--[a-z0-9-]*)'
+      '[a-z0-9-]{1,61}[a-z0-9])/(.*)$')
   match = re.match(regex, azfs_path)
   if match is None or (match.group(3) == '' and not blob_optional):
     raise ValueError(

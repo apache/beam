@@ -30,8 +30,7 @@ import unittest
 try:
   from apache_beam.io.azure import blobstorageio
   from azure.storage.blob import (
-      BlobServiceClient,
-  )
+      BlobServiceClient, )
 except ImportError:
   blobstorageio = None  # type: ignore[assignment]
 # pylint: enable=wrong-import-order, wrong-import-position
@@ -105,10 +104,10 @@ class TestBlobStorageIO(unittest.TestCase):
 
   def setUp(self):
     connect_str = (
-        "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;"
-        + "AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFs"
-        + "uFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;"
-        + "BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;")
+        "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;" +
+        "AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFs" +
+        "uFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;" +
+        "BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;")
     self.azurite_client = BlobServiceClient.from_connection_string(connect_str)
     self.azfs = blobstorageio.BlobStorageIO(self.azurite_client)
     try:
@@ -167,15 +166,13 @@ class TestBlobStorageIO(unittest.TestCase):
     file_size = 1024
     self._insert_random_file(src_file_name, file_size)
 
-    self.assertTrue(
-        src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
     self.assertFalse(
         dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
 
     self.azfs.copy(src_file_name, dest_file_name)
 
-    self.assertTrue(
-        src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
     self.assertTrue(
         dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
 
@@ -278,8 +275,7 @@ class TestBlobStorageIO(unittest.TestCase):
     file_size = 1024
 
     self._insert_random_file(src_file_name, file_size)
-    self.assertTrue(
-        src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
     self.assertFalse(
         dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
 
