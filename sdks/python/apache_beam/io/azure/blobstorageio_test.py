@@ -22,12 +22,11 @@
 from __future__ import absolute_import
 
 import logging
-import unittest
 import os
 import time
+import unittest
 
 # Protect against environments where azure library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apache_beam.io.azure import blobstorageio
   from azure.storage.blob import (
@@ -114,7 +113,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.azfs = blobstorageio.BlobStorageIO(self.azurite_client)
     try:
       self.azurite_client.create_container("gsoc")
-    except:
+    except blobstorageio.BlobStorageError:
       pass
     self.TEST_DATA_PATH = 'azfs://devstoreaccount1/gsoc/'
 
@@ -215,10 +214,10 @@ class TestBlobStorageIO(unittest.TestCase):
       self.assertIsNone(err)
 
       self.assertTrue(
-        src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+          src_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
       self.assertTrue(
-        dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
-    
+          dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
+
     # Clean up.
     for path in paths:
       src_file_name = src_dir_name + path
@@ -434,7 +433,7 @@ class TestBlobStorageIO(unittest.TestCase):
     file_size = 1024
     for file_name in file_names:
       self._insert_random_file(file_name, file_size)
- 
+
     self.assertTrue(self.azfs.exists(file_names[0]))
     self.assertTrue(self.azfs.exists(file_names[1]))
 
@@ -444,7 +443,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
     self.assertFalse(self.azfs.exists(file_names[0]))
     self.assertFalse(self.azfs.exists(file_names[1]))
-  
+
   def test_delete_tree(self):
     self.skipTest('Azurite does not support this operation.')
     root_path = self.TEST_DATA_PATH + 'test_delete_tree/'
