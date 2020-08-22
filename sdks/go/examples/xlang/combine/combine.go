@@ -13,8 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// wordcount exemplifies using a cross-language Count transform from a test
-// expansion service to count words.
+// combine exemplifies using a cross-language combine per key transform from a test expansion service.
 //
 // Prerequisites to run wordcount:
 // –> [Required] Job needs to be submitted to a portable runner (--runner=universal)
@@ -28,8 +27,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"regexp"
-	"strings"
+	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -47,31 +45,34 @@ var (
 	expansionAddr = flag.String("expansion_addr", "", "Address of Expansion Service")
 )
 
-var (
-	wordRE  = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
-	empty   = beam.NewCounter("extract", "emptyLines")
-	lineLen = beam.NewDistribution("extract", "lineLenDistro")
-)
-
-// extractFn is a DoFn that emits the words in a given line.
-func extractFn(ctx context.Context, line string, emit func(string)) {
-	lineLen.Update(ctx, int64(len(line)))
-	if len(strings.TrimSpace(line)) == 0 {
-		empty.Inc(ctx, 1)
-	}
-	for _, word := range wordRE.FindAllString(line, -1) {
-		emit(word)
-	}
-}
-
 // formatFn is a DoFn that formats a word and its count as a string.
 func formatFn(w string, c int64) string {
 	return fmt.Sprintf("%s:%v", w, c)
 }
 
+// KV used to represent KV PCollection values
+type KV struct {
+	X string
+	Y int64
+}
+
+func getKV(kv KV, emit func(string, int64)) {
+	emit(kv.X, kv.Y)
+}
+
+func sumCounts(key string, iter func(*int64) bool) (string, int64) {
+	var count, sum int64
+	for iter(&count) {
+		sum += count
+	}
+	return key, sum
+}
+
 func init() {
-	beam.RegisterFunction(extractFn)
+	beam.RegisterType(reflect.TypeOf((*KV)(nil)).Elem())
 	beam.RegisterFunction(formatFn)
+	beam.RegisterFunction(getKV)
+	beam.RegisterFunction(sumCounts)
 }
 
 func main() {
@@ -85,25 +86,16 @@ func main() {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	lines := beam.CreateList(s, strings.Split(lorem, "\n"))
-	col := beam.ParDo(s, extractFn, lines)
-
 	// Using the cross-language transform
+	kvs := beam.Create(s, KV{X: "a", Y: 1}, KV{X: "a", Y: 2}, KV{X: "b", Y: 3})
+	ins := beam.ParDo(s, getKV, kvs)
 	outputType := typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int64))
-	counted := beam.CrossLanguageWithSingleInputOutput(s, "beam:transforms:xlang:count", nil, *expansionAddr, col, outputType)
+	c := beam.CrossLanguageWithSingleInputOutput(s, "beam:transforms:xlang:test:compk", nil, *expansionAddr, ins, outputType)
 
-	formatted := beam.ParDo(s, formatFn, counted)
-	passert.Equals(s, formatted, "a:4", "b:4", "c:5")
+	formatted := beam.ParDo(s, formatFn, c)
+	passert.Equals(s, formatted, "a:3", "b:3")
 
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }
-
-var lorem = `a b b c
-b c a
-a b c
-c
-a
-c
-`
