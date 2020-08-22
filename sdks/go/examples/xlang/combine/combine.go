@@ -23,19 +23,16 @@
 package main
 
 import (
-	"fmt"
-	"reflect"
-
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-
 	"context"
 	"flag"
+	"fmt"
 	"log"
+	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 
 	// Imports to enable correct filesystem access and runner setup in LOOPBACK mode
@@ -76,7 +73,6 @@ func init() {
 	beam.RegisterFunction(formatFn)
 	beam.RegisterFunction(getKV)
 	beam.RegisterFunction(sumCounts)
-
 }
 
 func main() {

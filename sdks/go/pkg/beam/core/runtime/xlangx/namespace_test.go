@@ -24,13 +24,10 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-func assertPanic(t *testing.T, f func(), err string) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("expected panic; %v", err)
-		}
-	}()
-	f()
+func expectPanic(t *testing.T, err string) {
+	if r := recover(); r == nil {
+		t.Errorf("expected panic; %v", err)
+	}
 }
 
 func TestAddNamespace(t *testing.T) {
@@ -572,11 +569,9 @@ func TestAddNamespace(t *testing.T) {
 			}
 
 			if strings.Contains(tt.name, "Consistency") {
+				defer expectPanic(t, tt.err)
 				transform := tt.init.Transforms[tt.transformID]
-				testPanic := func() {
-					AddNamespace(transform, tt.init, tt.namespace)
-				}
-				assertPanic(t, testPanic, tt.err)
+				AddNamespace(transform, tt.init, tt.namespace)
 			}
 
 		})

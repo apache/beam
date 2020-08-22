@@ -45,8 +45,8 @@ func CrossLanguage(
 		panic(errors.New("invalid scope"))
 	}
 
-	inputsMap, inboundLinks := graph.NewNamedInboundLinks(mapPCollectionToNode(namedInputs))
-	outputsMap, outboundLinks := graph.NewNamedOutboundLinks(s.real, namedOutputTypes)
+	inputsMap, inboundLinks := graph.NamedInboundLinks(mapPCollectionToNode(namedInputs))
+	outputsMap, outboundLinks := graph.NamedOutboundLinks(s.real, namedOutputTypes)
 
 	ext := graph.ExternalTransform{
 		Urn:           urn,
@@ -80,8 +80,8 @@ func CrossLanguageWithSingleInputOutput(
 	// Adding dummy SinkOutputTag to process it as a named output
 	namedOutputType := map[string]typex.FullType{graph.SinkOutputTag: outputType}
 
-	inputsMap, inboundLinks := graph.NewNamedInboundLinks(namedInput)
-	outputsMap, outboundLinks := graph.NewNamedOutboundLinks(s.real, namedOutputType)
+	inputsMap, inboundLinks := graph.NamedInboundLinks(namedInput)
+	outputsMap, outboundLinks := graph.NamedOutboundLinks(s.real, namedOutputType)
 
 	ext := graph.ExternalTransform{
 		Urn:           urn,
@@ -113,8 +113,8 @@ func CrossLanguageWithSink(
 	// Adding dummy SinkOutputTag to process it as a named output
 	namedOutputType := map[string]typex.FullType{graph.SinkOutputTag: outputType}
 
-	inputsMap, inboundLinks := graph.NewNamedInboundLinks(mapPCollectionToNode(namedInputs))
-	outputsMap, outboundLinks := graph.NewNamedOutboundLinks(s.real, namedOutputType)
+	inputsMap, inboundLinks := graph.NamedInboundLinks(mapPCollectionToNode(namedInputs))
+	outputsMap, outboundLinks := graph.NamedOutboundLinks(s.real, namedOutputType)
 
 	ext := graph.ExternalTransform{
 		Urn:           urn,
@@ -146,8 +146,8 @@ func CrossLanguageWithSource(
 	// Adding dummy SourceInputTag to process it as a named input
 	namedInput := mapPCollectionToNode(map[string]PCollection{graph.SourceInputTag: input})
 
-	inputsMap, inboundLinks := graph.NewNamedInboundLinks(namedInput)
-	outputsMap, outboundLinks := graph.NewNamedOutboundLinks(s.real, namedOutputTypes)
+	inputsMap, inboundLinks := graph.NamedInboundLinks(namedInput)
+	outputsMap, outboundLinks := graph.NamedOutboundLinks(s.real, namedOutputTypes)
 
 	ext := graph.ExternalTransform{
 		Urn:           urn,

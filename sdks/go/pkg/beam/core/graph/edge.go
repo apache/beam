@@ -304,10 +304,10 @@ func NewCrossLanguage(g *Graph, s *Scope, ext *ExternalTransform, ins []*Inbound
 	return edge, isBoundedUpdater
 }
 
-// NewNamedInboundLinks returns an array of new Inbound links and a map (tag ->
+// NamedInboundLinks returns an array of new Inbound links and a map (tag ->
 // index of Inbound in MultiEdge.Input) of corresponding indices with respect to
 // their names.
-func NewNamedInboundLinks(ins map[string]*Node) (map[string]int, []*Inbound) {
+func NamedInboundLinks(ins map[string]*Node) (map[string]int, []*Inbound) {
 	inputsMap := make(map[string]int)
 	var inboundLinks []*Inbound
 
@@ -328,10 +328,10 @@ func NewNamedInboundLinks(ins map[string]*Node) (map[string]int, []*Inbound) {
 	return inputsMap, inboundLinks
 }
 
-// NewNamedOutboundLinks returns an array of new Outbound links and a map (tag ->
-// index of Outbound in MultiEdge.Output) of corresponding indices with respect to
-// their names.
-func NewNamedOutboundLinks(g *Graph, outs map[string]typex.FullType) (map[string]int, []*Outbound) {
+// NamedOutboundLinks returns an array of new Outbound links and a map (tag ->
+// index of Outbound in MultiEdge.Output) of corresponding indices with respect
+// to their names.
+func NamedOutboundLinks(g *Graph, outs map[string]typex.FullType) (map[string]int, []*Outbound) {
 	outputsMap := make(map[string]int)
 	var outboundLinks []*Outbound
 

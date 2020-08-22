@@ -94,9 +94,6 @@ func (ext ExternalTransform) WithNamedOutputs(outputsMap map[string]int) Externa
 }
 
 // NewNamespaceGenerator returns a functions that generates a random string of n alphabets
-//
-// Adopted from icza's stackoverflow answer @
-// https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-go
 func NewNamespaceGenerator(n int) func() string {
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	const (
