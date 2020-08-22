@@ -237,7 +237,7 @@ public final class StreamingTransformTranslator {
             // create a single RDD stream.
             Queue<JavaRDD<WindowedValue<T>>> q = new LinkedBlockingQueue<>();
             q.offer(((BoundedDataset) dataset).getRDD());
-            // TODO: this is not recoverable from checkpoint!
+            // TODO (BEAM-10789): this is not recoverable from checkpoint!
             JavaDStream<WindowedValue<T>> dStream = context.getStreamingContext().queueStream(q);
             dStreams.add(dStream);
           }
