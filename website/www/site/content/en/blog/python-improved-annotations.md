@@ -81,7 +81,7 @@ So how does this work?
 ## Typed PCollections
 You guessed it! The PCollection class inherits from `typing.Generic`, allowing it to be
 parameterized with either zero types (denoted `PCollection`) or one type (denoted `PCollection[T]`).
-- A PCollection with zero types is implicitly converted to `PCollection[any]`.
+- A PCollection with zero types is implicitly converted to `PCollection[Any]`.
 - A PCollection with one type can have any nested type (e.g. `Union[int, str]`).
 
 Internally, Beam's typing system makes these annotations compatible with other
@@ -89,9 +89,10 @@ type hints by removing the outer PCollection container.
 
 ## PBegin, PDone, None
 Finally, besides PCollection, a valid annotation on the `expand(...)` method of a PTransform is
-`PBegin`, `PDone`, and `None`. These are generally used for I/O operations.
+`PBegin` or `None`. These are generally used for PTransforms that begin or end with an I/O operation.
 
 For instance, when saving data, your transform's output type should be `None`.
+
 ```
 class SaveResults(beam.PTransform):
     def expand(self, pcoll: PCollection[str]) -> None:

@@ -42,18 +42,18 @@ p | beam.Create(['1', '2'] | beam.ParDo(MultiplyNumberByTwo())
 In this code, we passed a list of strings to a DoFn that's clearly intended for use with
 integers. Luckily, this code will throw an error during pipeline construction because
 the inferred output type of `beam.Create(['1', '2'])` is `str` which is incompatible with
-the declared input type hint of `MultiplyNumberByTwo.process` which is `int`.
+the declared input type of `MultiplyNumberByTwo.process` which is `int`.
 
-However, what if we turned the pipeline type check off using the `no_pipeline_type_check`
-flag? Or more realistically, what if the input PCollection to MultiplyNumberByTwo came
-from a database, preventing inference of the output data type?
+However, what if we turned pipeline type checking off using the `no_pipeline_type_check`
+flag? Or more realistically, what if the input PCollection to `MultiplyNumberByTwo` arrived
+from a database, meaning that the output data type can only be known at runtime?
 
 In either case, no error would be thrown during pipeline construction.
 And even at runtime, this code works. Each string would be multiplied by 2,
 yielding a result of `['11', '22']`, but that's certainly not the outcome we want.
 
-So how do you debug this breed of "hidden" errors? More broadly speaking, how do you
-debug any error message in Beam that's complex or confusing (e.g. serialization errors)?
+So how do you debug this breed of "hidden" errors? More broadly speaking, how do you debug
+any typing or serialization error in Beam?
 
 The answer is to use runtime type checking.
 
@@ -113,7 +113,7 @@ a sample in statistics. Initially, we sample a substantial number of elements, b
 confidence that the element type won't change over time increases, we reduce our
 sampling rate (up to a fixed minimum).
 
-2. Whereas the old RTC system used heavy decorators to perform the type check, the new RTC system
+2. Whereas the old RTC system used heavy wrappers to perform the type check, the new RTC system
 moves the type check to a Cython-optimized, non-decorated portion of the codebase. For reference,
 Cython is a programming language that gives C-like performance to Python code.
 
@@ -129,7 +129,7 @@ Runtime type violation detected within ParDo(DownstreamDoFn): Type-hint for argu
 
 This error tells us that the `DownstreamDoFn` received an `int` when it was expecting a `str`, but doesn't tell us
 who created that `int` in the first place. Who is the offending upstream transform that's responsible for
-this `int`? Presumably, _that_ transform's output type hints were too expansive (e.g. `any`) or otherwise non-existent because
+this `int`? Presumably, _that_ transform's output type hints were too expansive (e.g. `Any`) or otherwise non-existent because
 no error was thrown during the runtime type check of its output.
 
 The problem here boils down to a lack of context. If we knew who our consumers were when type
