@@ -13,8 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// wordcount exemplifies using a cross-language Count transform from a test
-// expansion service to count words.
+// cogroup_by exemplifies using a cross-language cogroup by key transform from a test expansion service.
 //
 // Prerequisites to run wordcount:
 // –> [Required] Job needs to be submitted to a portable runner (--runner=universal)
@@ -28,8 +27,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"regexp"
-	"strings"
+	"reflect"
+	"sort"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -47,31 +46,37 @@ var (
 	expansionAddr = flag.String("expansion_addr", "", "Address of Expansion Service")
 )
 
-var (
-	wordRE  = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
-	empty   = beam.NewCounter("extract", "emptyLines")
-	lineLen = beam.NewDistribution("extract", "lineLenDistro")
-)
-
-// extractFn is a DoFn that emits the words in a given line.
-func extractFn(ctx context.Context, line string, emit func(string)) {
-	lineLen.Update(ctx, int64(len(line)))
-	if len(strings.TrimSpace(line)) == 0 {
-		empty.Inc(ctx, 1)
-	}
-	for _, word := range wordRE.FindAllString(line, -1) {
-		emit(word)
-	}
+// formatFn is a DoFn that formats a word and its count as a string.
+func formatFn(w int64, c []string) string {
+	sort.Strings(c)
+	return fmt.Sprintf("%v:%v", w, c)
 }
 
-// formatFn is a DoFn that formats a word and its count as a string.
-func formatFn(w string, c int64) string {
-	return fmt.Sprintf("%s:%v", w, c)
+// KV used to represent KV PCollection values
+type KV struct {
+	X int64
+	Y string
+}
+
+func getKV(kv KV, emit func(int64, string)) {
+	emit(kv.X, kv.Y)
+}
+
+func sumCounts(key int64, iter1 func(*string) bool) (int64, []string) {
+	var val string
+	var values []string
+
+	for iter1(&val) {
+		values = append(values, val)
+	}
+	return key, values
 }
 
 func init() {
-	beam.RegisterFunction(extractFn)
+	beam.RegisterType(reflect.TypeOf((*KV)(nil)).Elem())
 	beam.RegisterFunction(formatFn)
+	beam.RegisterFunction(getKV)
+	beam.RegisterFunction(sumCounts)
 }
 
 func main() {
@@ -85,25 +90,18 @@ func main() {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	lines := beam.CreateList(s, strings.Split(lorem, "\n"))
-	col := beam.ParDo(s, extractFn, lines)
-
 	// Using the cross-language transform
-	outputType := typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int64))
-	counted := beam.CrossLanguageWithSingleInputOutput(s, "beam:transforms:xlang:count", nil, *expansionAddr, col, outputType)
+	col1 := beam.ParDo(s, getKV, beam.Create(s, KV{X: 0, Y: "1"}, KV{X: 0, Y: "2"}, KV{X: 1, Y: "3"}))
+	col2 := beam.ParDo(s, getKV, beam.Create(s, KV{X: 0, Y: "4"}, KV{X: 1, Y: "5"}, KV{X: 1, Y: "6"}))
+	namedInputs := map[string]beam.PCollection{"col1": col1, "col2": col2}
+	outputType := typex.NewCoGBK(typex.New(reflectx.Int64), typex.New(reflectx.String))
+	c := beam.CrossLanguageWithSink(s, "beam:transforms:xlang:test:cgbk", nil, *expansionAddr, namedInputs, outputType)
 
-	formatted := beam.ParDo(s, formatFn, counted)
-	passert.Equals(s, formatted, "a:4", "b:4", "c:5")
+	sums := beam.ParDo(s, sumCounts, c)
+	formatted := beam.ParDo(s, formatFn, sums)
+	passert.Equals(s, formatted, "0:[1 2 4]", "1:[3 5 6]")
 
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }
-
-var lorem = `a b b c
-b c a
-a b c
-c
-a
-c
-`

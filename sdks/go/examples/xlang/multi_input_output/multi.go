@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// wordcount exemplifies using a cross-language Count transform from a test
-// expansion service to count words.
+// multi exemplifies using a cross-language transform with multiple inputs and
+// outputs from a test expansion service.
 //
 // Prerequisites to run wordcount:
 // –> [Required] Job needs to be submitted to a portable runner (--runner=universal)
@@ -26,10 +26,7 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
-	"regexp"
-	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -47,33 +44,6 @@ var (
 	expansionAddr = flag.String("expansion_addr", "", "Address of Expansion Service")
 )
 
-var (
-	wordRE  = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
-	empty   = beam.NewCounter("extract", "emptyLines")
-	lineLen = beam.NewDistribution("extract", "lineLenDistro")
-)
-
-// extractFn is a DoFn that emits the words in a given line.
-func extractFn(ctx context.Context, line string, emit func(string)) {
-	lineLen.Update(ctx, int64(len(line)))
-	if len(strings.TrimSpace(line)) == 0 {
-		empty.Inc(ctx, 1)
-	}
-	for _, word := range wordRE.FindAllString(line, -1) {
-		emit(word)
-	}
-}
-
-// formatFn is a DoFn that formats a word and its count as a string.
-func formatFn(w string, c int64) string {
-	return fmt.Sprintf("%s:%v", w, c)
-}
-
-func init() {
-	beam.RegisterFunction(extractFn)
-	beam.RegisterFunction(formatFn)
-}
-
 func main() {
 	flag.Parse()
 	beam.Init()
@@ -85,25 +55,20 @@ func main() {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	lines := beam.CreateList(s, strings.Split(lorem, "\n"))
-	col := beam.ParDo(s, extractFn, lines)
+	main1 := beam.CreateList(s, []string{"a", "bb"})
+	main2 := beam.CreateList(s, []string{"x", "yy", "zzz"})
+	side := beam.CreateList(s, []string{"s"})
+	namedInputs := map[string]beam.PCollection{"main1": main1, "main2": main2, "side": side}
 
 	// Using the cross-language transform
-	outputType := typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int64))
-	counted := beam.CrossLanguageWithSingleInputOutput(s, "beam:transforms:xlang:count", nil, *expansionAddr, col, outputType)
+	outputType := typex.New(reflectx.String)
+	namedOutputs := map[string]typex.FullType{"main": outputType, "side": outputType}
+	multi := beam.CrossLanguage(s, "beam:transforms:xlang:test:multi", nil, *expansionAddr, namedInputs, namedOutputs)
 
-	formatted := beam.ParDo(s, formatFn, counted)
-	passert.Equals(s, formatted, "a:4", "b:4", "c:5")
+	passert.Equals(s, multi["main"], "as", "bbs", "xs", "yys", "zzzs")
+	passert.Equals(s, multi["side"], "ss")
 
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }
-
-var lorem = `a b b c
-b c a
-a b c
-c
-a
-c
-`
