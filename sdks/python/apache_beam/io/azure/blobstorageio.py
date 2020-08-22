@@ -179,7 +179,6 @@ class BlobStorageIO(object):
 
     source_blob = get_azfs_url(
         src_storage_account, src_container, src_blob, azurite=self.azurite)
-    print(source_blob)
     copied_blob = self.client.get_blob_client(dest_container, dest_blob)
 
     try:

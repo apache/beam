@@ -208,9 +208,8 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertTrue(
         dest_file_name in self.azfs.list_prefix(self.TEST_DATA_PATH))
 
-    # TODO : Add delete_files functionality
-    self.azfs.delete(self.TEST_DATA_PATH + 'mysource')
-    self.azfs.delete(self.TEST_DATA_PATH + 'mydest')
+    self.azfs.delete(src_file_name)
+    self.azfs.delete(dest_file_name)
 
     # Test copy of non-existent files.
     with self.assertRaises(blobstorageio.BlobStorageError) as err:
@@ -252,7 +251,6 @@ class TestBlobStorageIO(unittest.TestCase):
     for path in paths:
       src_file_name = src_dir_name + path
       dest_file_name = dest_dir_name + path
-      # TODO : Add delete_files functionality
       self.azfs.delete(src_file_name)
       self.azfs.delete(dest_file_name)
 
@@ -299,8 +297,9 @@ class TestBlobStorageIO(unittest.TestCase):
       self.assertEqual(exception, None)
 
     # Clean up.
-    all_files = set().union(*[set(pair) for pair in src_dest_pairs])
-    self.azfs.delete_files(all_files)
+    for src, dest in src_dest_pairs:
+      self.azfs.delete(src)
+      self.azfs.delete(dest)
 
   def test_rename(self):
     src_file_name = self.TEST_DATA_PATH + 'mysource'
