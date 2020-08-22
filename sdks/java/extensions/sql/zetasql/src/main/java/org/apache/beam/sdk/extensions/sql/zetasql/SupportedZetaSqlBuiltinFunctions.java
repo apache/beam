@@ -386,7 +386,7 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_SUM_BIGNUMERIC, // sum
           // JIRA link: https://issues.apache.org/jira/browse/BEAM-10379
           // FunctionSignatureId.FN_BIT_AND_INT64, // bit_and
-          FunctionSignatureId.FN_BIT_OR_INT64 // bit_or
+          FunctionSignatureId.FN_BIT_OR_INT64, // bit_or
           // FunctionSignatureId.FN_BIT_XOR_INT64, // bit_xor
           // FunctionSignatureId.FN_LOGICAL_AND, // logical_and
           // FunctionSignatureId.FN_LOGICAL_OR, // logical_or
@@ -443,16 +443,16 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_KLL_QUANTILES_EXTRACT_POINT_DOUBLE, // scalar
 
           // Analytic functions.
-          // FunctionSignatureId.FN_DENSE_RANK, // dense_rank
-          // FunctionSignatureId.FN_RANK, // rank
-          // FunctionSignatureId.FN_ROW_NUMBER, // row_number
-          // FunctionSignatureId.FN_PERCENT_RANK, // percent_rank
+          FunctionSignatureId.FN_DENSE_RANK, // dense_rank
+          FunctionSignatureId.FN_RANK, // rank
+          FunctionSignatureId.FN_ROW_NUMBER, // row_number
+          FunctionSignatureId.FN_PERCENT_RANK, // percent_rank
           // FunctionSignatureId.FN_CUME_DIST, // cume_dist
           // FunctionSignatureId.FN_NTILE, // ntile
           // FunctionSignatureId.FN_LEAD, // lead
           // FunctionSignatureId.FN_LAG, // lag
-          // FunctionSignatureId.FN_FIRST_VALUE, // first_value
-          // FunctionSignatureId.FN_LAST_VALUE, // last_value
+          FunctionSignatureId.FN_FIRST_VALUE, // first_value
+          FunctionSignatureId.FN_LAST_VALUE // last_value
           // FunctionSignatureId.FN_NTH_VALUE, // nth_value
           // FunctionSignatureId.FN_PERCENTILE_CONT, // percentile_cont
           // FunctionSignatureId.FN_PERCENTILE_CONT_NUMERIC, // percentile_cont

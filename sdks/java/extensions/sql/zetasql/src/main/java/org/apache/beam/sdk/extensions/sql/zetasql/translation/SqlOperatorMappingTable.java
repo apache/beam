@@ -70,6 +70,12 @@ class SqlOperatorMappingTable {
           .put("avg", SqlStdOperatorTable.AVG)
           .put("sum", SqlStdOperatorTable.SUM)
           .put("any_value", SqlStdOperatorTable.ANY_VALUE)
+          .put("first_value", SqlStdOperatorTable.FIRST_VALUE)
+          .put("last_value", SqlStdOperatorTable.LAST_VALUE)
+          .put("row_number", SqlStdOperatorTable.ROW_NUMBER)
+          .put("dense_rank", SqlStdOperatorTable.DENSE_RANK)
+          .put("rank", SqlStdOperatorTable.RANK)
+          .put("percent_rank", SqlStdOperatorTable.PERCENT_RANK)
           .put("count", SqlStdOperatorTable.COUNT)
           // .put("bit_and", SqlStdOperatorTable.BIT_AND) //JIRA link:
           // https://issues.apache.org/jira/browse/BEAM-10379

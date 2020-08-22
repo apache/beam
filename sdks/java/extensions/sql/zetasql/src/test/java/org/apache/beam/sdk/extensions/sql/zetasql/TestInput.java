@@ -338,4 +338,11 @@ class TestInput {
               "lettuce",
               "vegetable",
               10L);
+  /**
+   * Table schema and data taken from.
+   * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#numbering_function_concepts
+   */
+  public static final TestBoundedTable ANALYTIC_TABLE2 =
+      TestBoundedTable.of(Schema.builder().addInt64Field("x").build())
+          .addRows(1L, 2L, 2L, 5L, 8L, 10L, 10L);
 }

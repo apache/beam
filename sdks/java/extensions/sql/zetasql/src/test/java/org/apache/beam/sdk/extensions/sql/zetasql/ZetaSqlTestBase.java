@@ -67,6 +67,7 @@ public abstract class ZetaSqlTestBase {
     testBoundedTableMap.put("streaming_sql_test_table_a", TestInput.STREAMING_SQL_TABLE_A);
     testBoundedTableMap.put("streaming_sql_test_table_b", TestInput.STREAMING_SQL_TABLE_B);
     testBoundedTableMap.put("analytic_table", TestInput.ANALYTIC_TABLE);
+    testBoundedTableMap.put("analytic_table2", TestInput.ANALYTIC_TABLE2);
 
     return new ReadOnlyTableProvider("test_table_provider", testBoundedTableMap);
   }

@@ -49,6 +49,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexWindowBo
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlAggFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlRankFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlWindow;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
@@ -82,14 +83,16 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
         zetaNode.getFunctionGroupList()) {
       ImmutableBitSet partitionKeys =
           ImmutableBitSet.of(
-              analyticGroup.getPartitionBy().getPartitionByList().stream()
-                  .map(
-                      keyColumn -> {
-                        return getExpressionConverter()
-                            .indexOfProjectionColumnRef(
-                                keyColumn.getColumn().getId(), zetaNode.getColumnList());
-                      })
-                  .collect(Collectors.toList()));
+              analyticGroup.getPartitionBy() != null
+                  ? analyticGroup.getPartitionBy().getPartitionByList().stream()
+                      .map(
+                          keyColumn -> {
+                            return getExpressionConverter()
+                                .indexOfProjectionColumnRef(
+                                    keyColumn.getColumn().getId(), zetaNode.getColumnList());
+                          })
+                      .collect(Collectors.toList())
+                  : Lists.newArrayList());
       RelCollation relCollation =
           RelCollations.of(
               analyticGroup.getOrderBy().getOrderByItemList().stream()
@@ -156,10 +159,11 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
         RexNode rexPreceding = null;
         RexNode rexFollowing = null;
 
-        if (aggCall.getWindowFrame().getStartExpr().getBoundaryType()
-                == ResolvedWindowFrameExprEnums.BoundaryType.OFFSET_PRECEDING
-            || aggCall.getWindowFrame().getStartExpr().getBoundaryType()
-                == ResolvedWindowFrameExprEnums.BoundaryType.OFFSET_FOLLOWING) {
+        if (aggCall.getWindowFrame() != null
+            && (aggCall.getWindowFrame().getStartExpr().getBoundaryType()
+                    == ResolvedWindowFrameExprEnums.BoundaryType.OFFSET_PRECEDING
+                || aggCall.getWindowFrame().getStartExpr().getBoundaryType()
+                    == ResolvedWindowFrameExprEnums.BoundaryType.OFFSET_FOLLOWING)) {
           constants.add(
               RexLiteral.fromJdbcString(
                   SqlOperators.BIGINT,
@@ -178,10 +182,11 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
                           inputTable.getRowType().getFieldCount() + constants.size() - 1,
                           SqlOperators.BIGINT));
         }
-        if (aggCall.getWindowFrame().getEndExpr().getBoundaryType()
-                == ResolvedWindowFrameExprEnums.BoundaryType.OFFSET_PRECEDING
-            || aggCall.getWindowFrame().getEndExpr().getBoundaryType()
-                == ResolvedWindowFrameExprEnums.BoundaryType.OFFSET_FOLLOWING) {
+        if (aggCall.getWindowFrame() != null
+            && (aggCall.getWindowFrame().getEndExpr().getBoundaryType()
+                    == ResolvedWindowFrameExprEnums.BoundaryType.OFFSET_PRECEDING
+                || aggCall.getWindowFrame().getEndExpr().getBoundaryType()
+                    == ResolvedWindowFrameExprEnums.BoundaryType.OFFSET_FOLLOWING)) {
           constants.add(
               RexLiteral.fromJdbcString(
                   SqlOperators.BIGINT,
@@ -202,14 +207,29 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
         }
         RexWindowBound rexWindowPreceding =
             RexWindowBound.create(
-                obtainNode(aggCall.getWindowFrame().getStartExpr()), rexPreceding);
+                aggCall.getWindowFrame() != null
+                    ? obtainNode(aggCall.getWindowFrame().getStartExpr())
+                    : SqlWindow.createUnboundedPreceding(SqlParserPos.ZERO),
+                rexPreceding);
+
+        // Numbering functions use currentRow instead of unboundedFollowing in Calcite
+        boolean isNumbering = sqlAggFunction instanceof SqlRankFunction;
         RexWindowBound rexWindowFollowing =
-            RexWindowBound.create(obtainNode(aggCall.getWindowFrame().getEndExpr()), rexFollowing);
+            RexWindowBound.create(
+                aggCall.getWindowFrame() != null
+                    ? obtainNode(aggCall.getWindowFrame().getEndExpr())
+                    : isNumbering
+                        ? SqlWindow.createCurrentRow(SqlParserPos.ZERO)
+                        : SqlWindow.createUnboundedFollowing(SqlParserPos.ZERO),
+                rexFollowing);
 
         groups.add(
             new Window.Group(
                 partitionKeys,
-                aggCall.getWindowFrame().getFrameUnit() == ResolvedWindowFrameEnums.FrameUnit.ROWS,
+                aggCall.getWindowFrame() != null
+                    ? aggCall.getWindowFrame().getFrameUnit()
+                        == ResolvedWindowFrameEnums.FrameUnit.ROWS
+                    : false,
                 rexWindowPreceding,
                 rexWindowFollowing,
                 relCollation,
