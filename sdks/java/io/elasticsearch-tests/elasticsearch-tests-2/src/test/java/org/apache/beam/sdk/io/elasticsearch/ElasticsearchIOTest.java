@@ -224,4 +224,18 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteRetryValidRequest();
   }
+
+  @Test
+  public void testWriteWithIsDeleteFn() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithPartialUpdates();
+    elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithoutPartialUpdate();
+  }
+
+  @Test
+  public void testInvalidWriteWithIsDeleteFn() throws Throwable {
+    elasticsearchIOTestCommon.setExpectedException(expectedException);
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testInvalidWriteWithIsDeletedFn();
+  }
 }
