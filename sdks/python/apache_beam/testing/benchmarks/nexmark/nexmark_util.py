@@ -43,7 +43,6 @@ import threading
 
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import auction_bid
-from apache_beam.testing.benchmarks.nexmark.models import auction_price
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.models.field_name import FieldNames
 from apache_beam.transforms import window
@@ -82,8 +81,6 @@ def setup_coder():
   beam.coders.registry.register_coder(nexmark_model.Bid, nexmark_model.BidCoder)
   beam.coders.registry.register_coder(
       auction_bid.AuctionBid, auction_bid.AuctionBidCoder)
-  beam.coders.registry.register_coder(
-      auction_price.AuctionPrice, auction_price.AuctionPriceCoder)
 
 
 class ParseEventFn(beam.DoFn):

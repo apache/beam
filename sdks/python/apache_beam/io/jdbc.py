@@ -85,9 +85,11 @@ import typing
 
 from past.builtins import unicode
 
+from apache_beam.coders import RowCoder
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
+from apache_beam.typehints.schemas import typing_to_runner_api
 
 __all__ = [
     'WriteToJdbc',
@@ -96,11 +98,17 @@ __all__ = [
 
 
 def default_io_expansion_service():
-  return BeamJarExpansionService('sdks:java:io:expansion-service:shadowJar')
+  return BeamJarExpansionService(
+      ':sdks:java:extensions:schemaio-expansion-service:shadowJar')
 
 
-WriteToJdbcSchema = typing.NamedTuple(
-    'WriteToJdbcSchema',
+JdbcConfigSchema = typing.NamedTuple(
+    'JdbcConfigSchema',
+    [('location', unicode), ('config', bytes)],
+)
+
+Config = typing.NamedTuple(
+    'Config',
     [
         ('driver_class_name', unicode),
         ('jdbc_url', unicode),
@@ -108,7 +116,10 @@ WriteToJdbcSchema = typing.NamedTuple(
         ('password', unicode),
         ('connection_properties', typing.Optional[unicode]),
         ('connection_init_sqls', typing.Optional[typing.List[unicode]]),
-        ('statement', unicode),
+        ('write_statement', typing.Optional[unicode]),
+        ('read_query', typing.Optional[unicode]),
+        ('fetch_size', typing.Optional[int]),
+        ('output_parallelization', typing.Optional[bool]),
     ],
 )
 
@@ -129,25 +140,33 @@ class WriteToJdbc(ExternalTransform):
           | beam.Create([ExampleRow(1, 'abc')])
               .with_output_types(ExampleRow)
           | 'Write to jdbc' >> WriteToJdbc(
+              table_name='jdbc_external_test_write'
               driver_class_name='org.postgresql.Driver',
               jdbc_url='jdbc:postgresql://localhost:5432/example',
               username='postgres',
               password='postgres',
-              statement='INSERT INTO example_table VALUES(?, ?)',
           ))
+
+  table_name is a required paramater, and by default, the write_statement is
+  generated from it.
+
+  The generated write_statement can be overridden by passing in a
+  write_statment.
+
 
   Experimental; no backwards compatibility guarantees.
   """
 
-  URN = 'beam:external:java:jdbc:write:v1'
+  URN = 'beam:external:java:schemaio:jdbc:write:v1'
 
   def __init__(
       self,
+      table_name,
       driver_class_name,
       jdbc_url,
       username,
       password,
-      statement,
+      statement=None,
       connection_properties=None,
       connection_init_sqls=None,
       expansion_service=None,
@@ -171,34 +190,25 @@ class WriteToJdbc(ExternalTransform):
     super(WriteToJdbc, self).__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
-            WriteToJdbcSchema(
-                driver_class_name=driver_class_name,
-                jdbc_url=jdbc_url,
-                username=username,
-                password=password,
-                statement=statement,
-                connection_properties=connection_properties,
-                connection_init_sqls=connection_init_sqls,
-            ),
+            JdbcConfigSchema(
+                location=table_name,
+                config=RowCoder(
+                    typing_to_runner_api(Config).row_type.schema).encode(
+                        Config(
+                            driver_class_name=driver_class_name,
+                            jdbc_url=jdbc_url,
+                            username=username,
+                            password=password,
+                            connection_properties=connection_properties,
+                            connection_init_sqls=connection_init_sqls,
+                            write_statement=statement,
+                            read_query=None,
+                            fetch_size=None,
+                            output_parallelization=None,
+                        ))),
         ),
         expansion_service or default_io_expansion_service(),
     )
-
-
-ReadFromJdbcSchema = typing.NamedTuple(
-    'ReadFromJdbcSchema',
-    [
-        ('driver_class_name', unicode),
-        ('jdbc_url', unicode),
-        ('username', unicode),
-        ('password', unicode),
-        ('connection_properties', typing.Optional[unicode]),
-        ('connection_init_sqls', typing.Optional[typing.List[unicode]]),
-        ('query', unicode),
-        ('fetch_size', typing.Optional[int]),
-        ('output_parallelization', typing.Optional[bool]),
-    ],
-)
 
 
 class ReadFromJdbc(ExternalTransform):
@@ -215,25 +225,31 @@ class ReadFromJdbc(ExternalTransform):
       result = (
           p
           | 'Read from jdbc' >> ReadFromJdbc(
+              table_name='jdbc_external_test_read'
               driver_class_name='org.postgresql.Driver',
               jdbc_url='jdbc:postgresql://localhost:5432/example',
               username='postgres',
               password='postgres',
-              query='SELECT * FROM example_table',
           ))
+
+  table_name is a required paramater, and by default, the read_query is
+  generated from it.
+
+  The generated read_query can be overridden by passing in a read_query.
 
   Experimental; no backwards compatibility guarantees.
   """
 
-  URN = 'beam:external:java:jdbc:read_rows:v1'
+  URN = 'beam:external:java:schemaio:jdbc:read:v1'
 
   def __init__(
       self,
+      table_name,
       driver_class_name,
       jdbc_url,
       username,
       password,
-      query,
+      query=None,
       output_parallelization=None,
       fetch_size=None,
       connection_properties=None,
@@ -260,17 +276,22 @@ class ReadFromJdbc(ExternalTransform):
     super(ReadFromJdbc, self).__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
-            ReadFromJdbcSchema(
-                driver_class_name=driver_class_name,
-                jdbc_url=jdbc_url,
-                username=username,
-                password=password,
-                query=query,
-                output_parallelization=output_parallelization,
-                fetch_size=fetch_size,
-                connection_properties=connection_properties,
-                connection_init_sqls=connection_init_sqls,
-            ),
+            JdbcConfigSchema(
+                location=table_name,
+                config=RowCoder(
+                    typing_to_runner_api(Config).row_type.schema).encode(
+                        Config(
+                            driver_class_name=driver_class_name,
+                            jdbc_url=jdbc_url,
+                            username=username,
+                            password=password,
+                            connection_properties=connection_properties,
+                            connection_init_sqls=connection_init_sqls,
+                            write_statement=None,
+                            read_query=query,
+                            fetch_size=fetch_size,
+                            output_parallelization=output_parallelization,
+                        ))),
         ),
         expansion_service or default_io_expansion_service(),
     )

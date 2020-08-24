@@ -21,6 +21,8 @@ import (
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
+// ExpandedComponents type asserts the Components field with interface{} type
+// and returns its pipeline component proto representation
 func ExpandedComponents(exp *graph.ExpandedTransform) *pipepb.Components {
 	if c, ok := exp.Components.(*pipepb.Components); ok {
 		return c
@@ -28,6 +30,8 @@ func ExpandedComponents(exp *graph.ExpandedTransform) *pipepb.Components {
 	panic(errors.Errorf("malformed components; %v lacks a conforming pipeline component", exp))
 }
 
+// ExpandedTransform type asserts the Transform field with interface{} type
+// and returns its pipeline ptransform proto representation
 func ExpandedTransform(exp *graph.ExpandedTransform) *pipepb.PTransform {
 	if t, ok := exp.Transform.(*pipepb.PTransform); ok {
 		return t
@@ -35,6 +39,9 @@ func ExpandedTransform(exp *graph.ExpandedTransform) *pipepb.PTransform {
 	panic(errors.Errorf("malformed transform; %v lacks a conforming pipeline ptransform", exp))
 }
 
+// ExternalInputs returns the map (tag -> graph node representing the
+// pcollection) of input nodes with respect to the map (tag -> index of Inbound
+// in MultiEdge.Input) of named inputs
 func ExternalInputs(e *graph.MultiEdge) map[string]*graph.Node {
 	inputs := make(map[string]*graph.Node)
 
@@ -44,6 +51,9 @@ func ExternalInputs(e *graph.MultiEdge) map[string]*graph.Node {
 	return inputs
 }
 
+// ExternalOutputs returns the map (tag -> graph node representing the
+// pcollection) of output nodes with respect to the map (tag -> index of
+// Outbound in MultiEdge.Output) of named outputs
 func ExternalOutputs(e *graph.MultiEdge) map[string]*graph.Node {
 	outputs := make(map[string]*graph.Node)
 

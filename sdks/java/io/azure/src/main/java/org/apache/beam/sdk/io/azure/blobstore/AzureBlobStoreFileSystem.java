@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.azure.blobstore;
 
 import static java.nio.channels.Channels.newChannel;
+import static org.apache.beam.sdk.io.FileSystemUtils.wildcardToRegexp;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
@@ -153,68 +154,6 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
         "Internal error encountered in AzureBlobStoreFileSystem: expected no more elements in nonGlobMatches.");
 
     return matchResults.build();
-  }
-
-  /**
-   * Expands glob expressions to regular expressions.
-   *
-   * @param globExp the glob expression to expand
-   * @return a string with the regular expression this glob expands to
-   */
-  @VisibleForTesting
-  static String wildcardToRegexp(String globExp) {
-    StringBuilder dst = new StringBuilder();
-    char[] src = globExp.replace("**/*", "**").toCharArray();
-    int i = 0;
-    while (i < src.length) {
-      char c = src[i++];
-      switch (c) {
-        case '*':
-          // One char lookahead for **
-          if (i < src.length && src[i] == '*') {
-            dst.append(".*");
-            ++i;
-          } else {
-            dst.append("[^/]*");
-          }
-          break;
-        case '?':
-          dst.append("[^/]");
-          break;
-        case '.':
-        case '+':
-        case '{':
-        case '}':
-        case '(':
-        case ')':
-        case '|':
-        case '^':
-        case '$':
-          // These need to be escaped in regular expressions
-          dst.append('\\').append(c);
-          break;
-        case '\\':
-          i = doubleSlashes(dst, src, i);
-          break;
-        default:
-          dst.append(c);
-          break;
-      }
-    }
-    return dst.toString();
-  }
-
-  private static int doubleSlashes(StringBuilder dst, char[] src, int i) {
-    // Emit the next character without special interpretation
-    dst.append("\\\\");
-    if ((i - 1) != src.length) {
-      dst.append(src[i]);
-      i++;
-    } else {
-      // A backslash at the very end is treated like an escaped backslash
-      dst.append('\\');
-    }
-    return i;
   }
 
   private List<MatchResult> matchGlobPaths(List<AzfsResourceId> globs) {
