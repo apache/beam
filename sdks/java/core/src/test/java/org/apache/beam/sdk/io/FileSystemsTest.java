@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.Writer;
 import java.nio.channels.Channels;
@@ -57,6 +58,8 @@ public class FileSystemsTest {
 
   @Test
   public void testGetLocalFileSystem() throws Exception {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10740
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     assertTrue(
         FileSystems.getFileSystemInternal(toLocalResourceId("~/home/").getScheme())
             instanceof LocalFileSystem);

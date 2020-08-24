@@ -36,5 +36,6 @@ GitHub Actions Tests Status (on master branch)
 ------------------------------------------------------------------------------------------------
 ![Build python source distribution and wheels](https://github.com/apache/beam/workflows/Build%20python%20source%20distribution%20and%20wheels/badge.svg)
 ![Python tests](https://github.com/apache/beam/workflows/Python%20tests/badge.svg)
+![Java tests](https://github.com/apache/beam/workflows/Java%20Tests/badge.svg)
 
 See [CI.md](https://github.com/apache/beam/blob/master/CI.md) for more information about GitHub Actions CI.

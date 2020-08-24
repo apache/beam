@@ -34,6 +34,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -75,6 +76,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -1858,6 +1860,8 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testAllFromPipelineOptions() {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10724
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "All inherited interfaces of"
