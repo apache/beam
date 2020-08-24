@@ -37,6 +37,7 @@ import org.apache.beam.sdk.extensions.sql.impl.cep.CEPOperation;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPPattern;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPUtils;
 import org.apache.beam.sdk.extensions.sql.impl.cep.OrderKey;
+import org.apache.beam.sdk.extensions.sql.impl.nfa.NFA;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -199,10 +200,6 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       // apply the pattern match in each partition
       ArrayList<CEPPattern> cepPattern =
           CEPUtils.getCEPPatternFromPattern(upstreamSchema, pattern, patternDefs);
-      for(CEPPattern i : cepPattern) {
-        CEPCall j = i.getPatternCondition();
-        LOG.info(j.toString());
-      }
       String regexPattern = CEPUtils.getRegexFromPattern(pattern);
       List<CEPMeasure> cepMeasures = new ArrayList<>();
       for (Map.Entry<String, RexNode> i : measures.entrySet()) {
@@ -274,65 +271,28 @@ public class BeamMatchRel extends Match implements BeamRelNode {
 
     @ProcessElement
     public void processElement(@Element KV<Row, Iterable<Row>> keyRows, OutputReceiver<Row> out) {
-      ArrayList<Row> rows = new ArrayList<>();
-      StringBuilder patternStringBuilder = new StringBuilder();
-      for (Row i : keyRows.getValue()) {
-        rows.add(i);
-        // check pattern of row i
-        String patternOfRow = " "; // a row with no matched pattern is marked by a space
-        for (int j = 0; j < pattern.size(); ++j) {
-          CEPPattern tryPattern = pattern.get(j);
-          if (tryPattern.evalRow(i)) {
-            patternOfRow = tryPattern.getPatternVar();
-          }
+      NFA partNFA = NFA.compile(pattern, upstreamSchema);
+      Iterable<Row> partRows = keyRows.getValue();
+      Map<String, ArrayList<Row>> result;
+
+      for(Row singleRow : partRows) {
+        // output each matched sequence as specified by the Measure clause
+        result = partNFA.processNewRow(singleRow);
+        if(result == null) {
+          // if there isn't match
+          continue;
         }
-        patternStringBuilder.append(patternOfRow);
-      }
 
-      String patternString = patternStringBuilder.toString();
-
-      Pattern p = Pattern.compile(regexPattern);
-      Matcher m = p.matcher(patternString);
-
-      while (m.find()) {
-        // out put each matched sequence as specified by the Measure clause
-        // TODO: for now (regex implementation), assume deterministic pattern match
-        // (i.e. each row match to exactly one pattern or none)
+        LOG.info("Finds a MATCH!!");
+        LOG.info(result.toString());
 
         if (allRows) {
-          Iterable<Row> outRows = rows.subList(m.start(), m.end());
-          for (Row i : outRows) {
-            out.output(i);
-          }
-        } else { // one row per match
-          List<Row> matchedRows = rows.subList(m.start(), m.end());
-
-          // a mapping from a pattern variable to a list of rows that match it
-          // this part should be replaced by an NFA
-          ImmutableMap.Builder<String, List<Row>> patternMappedRowsBuilder =
-              ImmutableMap.<String, List<Row>>builder();
-          int patternIndex = 0;
-          for (int i = 0; i < matchedRows.size(); ) {
-            ArrayList<Row> rowsOfAPattern = new ArrayList<>();
-            CEPPattern patternToTest;
-            if (patternIndex < pattern.size()) {
-              patternToTest = pattern.get(patternIndex);
-            } else {
-              break;
+          for(ArrayList<Row> i : result.values()) {
+            for(Row j : i) {
+              out.output(j);
             }
-            String patternStr = patternToTest.getPatternVar();
-            Row rowToTest = matchedRows.get(i);
-            while (patternToTest.evalRow(rowToTest) && i < matchedRows.size()) {
-              rowsOfAPattern.add(rowToTest);
-              ++i;
-              if (i < matchedRows.size()) {
-                rowToTest = matchedRows.get(i);
-              }
-            }
-            patternMappedRowsBuilder.put(patternStr, rowsOfAPattern);
-            ++patternIndex;
           }
-          Map<String, List<Row>> patternMappedRows = patternMappedRowsBuilder.build();
+        } else {
 
           // output corresponding columns according to the measures schema
           Row.Builder newRowBuilder = Row.withSchema(outSchema);
@@ -343,7 +303,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
             int colIndex = i.getIndex();
             Schema.Field parSchema = upstreamSchema.getField(colIndex);
             String fieldName = parSchema.getName();
-            if (!matchedRows.isEmpty()) {
+            if (!result.isEmpty()) {
               Row parKeyRow = keyRows.getKey();
               if (newFieldBuilder == null) {
                 newFieldBuilder =
@@ -364,10 +324,9 @@ public class BeamMatchRel extends Match implements BeamRelNode {
             String outName = i.getName();
             CEPFieldRef patternRef = i.getField();
             String patternVar = patternRef.getAlpha();
-            List<Row> patternRows = patternMappedRows.get(patternVar);
+            List<Row> patternRows = result.get(patternVar);
 
             // implement CEPOperation as functions
-            // TODO: change this part to Calcite MatchImplementor
             CEPOperation opr = i.getOperation();
             if (opr.getClass() == CEPCall.class) {
               CEPCall call = (CEPCall) opr;

@@ -145,7 +145,7 @@ public class BeamMatchRelTest {
             + "C.proctime AS ctime "
             + "PATTERN (A+ B C) "
             + "DEFINE "
-            + "A AS id + 1 > 1, "
+            + "A AS name = 'a', "
             + "B AS name = 'b', "
             + "C AS name = 'c' "
             + ") AS T " +

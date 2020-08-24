@@ -16,6 +16,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 // TODO: add support for more quantifiers: `?`, `{19, }` ... for now, support `+` and singletons
 // TODO: sort conditions based on "the last identifier" during compilation
@@ -26,12 +27,12 @@ public class NFA implements Serializable {
 
   private final State startState;
   private ArrayList<StateLocator> currentRuns;
-  private final Schema outSchema;
+  private final Schema upstreamSchema;
 
-  private NFA(List<CEPPattern> patterns, Schema outSchema) {
+  private NFA(List<CEPPattern> patterns, Schema upstreamSchema) {
     this.startState = loadStates(patterns);
     this.currentRuns = new ArrayList<>();
-    this.outSchema = outSchema;
+    this.upstreamSchema = upstreamSchema;
   }
 
   public static NFA compile(List<CEPPattern> patterns, Schema outSchema) {
@@ -54,20 +55,22 @@ public class NFA implements Serializable {
     CEPFieldRef fieldRef = (CEPFieldRef) opr1;
     String alpha = fieldRef.getAlpha(); // the patternVar
     int lastNumber = opr2.getDecimal().intValue();
+    EventPointer iterPointer = curPointer.copy();
 
     while(curEvent != null &&
-        curPointer.getPatternVar().equals(alpha) &&
+        iterPointer.getPatternVar().equals(alpha) &&
         lastNumber > 0) {
-      curEvent = curEvent.getPrevEvent(curPointer);
+      curEvent = curEvent.getPrevEvent(iterPointer);
     }
     if(curEvent != null) {
       return curEvent.toCEPLiteral(fieldRef);
     } else {
-      throw new IllegalStateException("the PREV function failed to execute.");
+      return null;
     }
   }
 
   // represents the LAST operation
+  // TODO: add implementation. for now, return the current row
   private CEPLiteral last(CEPOperation opr1, CEPLiteral opr2, Event inputEvent) {
     if(opr1.getClass() != CEPFieldRef.class) {
       throw new IllegalStateException("the first argument of the PREV operation should be a field reference. Provided: "
@@ -109,9 +112,9 @@ public class NFA implements Serializable {
   }
 
   // process a new row,
-  // return the row (with the output schema) to output in the DoFn if there is a match
+  // return a mapping of pattern variable to row to output in the DoFn if there is a match
   // return null if none of locators reached the final state
-  public Row processNewRow(Row inputRow) {
+  public Map<String, ArrayList<Row>> processNewRow(Row inputRow) {
     // wrap the input row as an event
     Event inputEvent = new Event(inputRow);
     ArrayList<StateLocator> nextStateLocators = new ArrayList<>();
@@ -145,22 +148,26 @@ public class NFA implements Serializable {
     return null;
   }
 
-  private Row processOutput(StateLocator locator) {}
+  // returns a row with the output schema once a locator reaches the final state
+  private Map<String, ArrayList<Row>> processOutput(StateLocator locator) {
+    HashMap<String, ArrayList<Row>> rows = new HashMap<>();
+    EventPointer iterPointer = locator.getPointer().copy();
+    Event curEvent = locator.getCurrentEvent();
 
-  // extracts the field reference from one side of the condition
-  private static CEPFieldRef getFieldRefFromSideCondition(CEPCall sidedCondition) {
-    List<CEPOperation> operands = sidedCondition.getOperands();
-    for(CEPOperation operation : operands) {
-      if(operation.getClass() == CEPFieldRef.class) {
-        return (CEPFieldRef) operation;
-      } else if(operation.getClass() == CEPCall.class) {
-        CEPFieldRef tryRef = getFieldRefFromSideCondition((CEPCall) operation);
-        if(tryRef != null) {
-          return tryRef;
-        }
+    while(curEvent != null) {
+      String patternVar = iterPointer.getPatternVar();
+      if(rows.containsKey(patternVar)) {
+        ArrayList<Row> patternArray = rows.get(patternVar);
+        patternArray.add(curEvent.getRow());
+      } else {
+        ArrayList<Row> newPatternArray = new ArrayList<>();
+        newPatternArray.add(curEvent.getRow());
+        rows.put(patternVar, newPatternArray);
       }
+      curEvent = curEvent.getPrevEvent(iterPointer);
     }
-    return null;
+
+    return rows;
   }
 
   private class Event implements Serializable {
@@ -170,7 +177,7 @@ public class NFA implements Serializable {
     // store an input row as a literal
     public CEPLiteral toCEPLiteral(CEPFieldRef fieldRef) {
       int fieldIndex = fieldRef.getIndex();
-      Schema.Field field = outSchema.getField(fieldIndex);
+      Schema.Field field = upstreamSchema.getField(fieldIndex);
       Schema.FieldType type = field.getType();
       switch(type.getTypeName()) {
         case BYTE:
@@ -200,7 +207,7 @@ public class NFA implements Serializable {
 
     private Event findEvent(EventPointer eventPointer) {
       for(EventPointer i : prevEvents.keySet()) {
-        if(i.equals(eventPointer)) {
+        if(i.isEqual(eventPointer)) {
           return prevEvents.get(i);
         }
       }
@@ -215,7 +222,7 @@ public class NFA implements Serializable {
         return findEvent(eventPointer);
       } else {
         // follow a take edge
-        Event preEvent = null;
+        Event preEvent;
         while((preEvent = findEvent(eventPointer)) == null) {
           eventPointer.decrement();
         }
@@ -271,8 +278,12 @@ public class NFA implements Serializable {
       }
     }
 
-    public boolean equals(EventPointer other) {
-      return ptrValues.equals(other.ptrValues);
+    public boolean isEqual(Object other) {
+      if(!(other instanceof EventPointer)) {
+        return false;
+      }
+      EventPointer otherPointer = (EventPointer) other;
+      return ptrValues.equals(otherPointer.ptrValues);
     }
 
     public boolean isProceedPointer() {
@@ -321,8 +332,7 @@ public class NFA implements Serializable {
       for(Integer i : ptrValues) {
         ptrValuesCopy.add(i.toString());
       }
-      String output = String.join(".", ptrValuesCopy);
-      return output;
+      return String.join(".", ptrValuesCopy);
     }
   }
 
@@ -340,13 +350,21 @@ public class NFA implements Serializable {
       this.curEvent = curEvent;
     }
 
+    public EventPointer getPointer() {
+      return ptr;
+    }
+
+    public Event getCurrentEvent() {
+      return curEvent;
+    }
+
     // check if the current state is the final state
     public boolean atFinal() {
       return curState.isFinal;
     }
 
     // represents the "proceed"/"begin" edge: transfer to a new state,
-    // write the new event in the new state's buffer.
+    // writes the new event in the new state's buffer.
     // returns a "new" state locator
     // returns null if not a match
     public StateLocator proceed(Event inputEvent) {
@@ -414,6 +432,9 @@ public class NFA implements Serializable {
       CEPOperation rightSide = condition.getOperands().get(1);
       CEPLiteral leftSideValue = evalLeftSideCondition(leftSide, inputEvent);
       CEPLiteral rightSideValue = evalRightSideCondition(rightSide);
+      if(leftSideValue == null || rightSideValue == null) {
+        return false;
+      }
       switch(comparator) {
         case EQUALS:
           return leftSideValue.compareTo(rightSideValue) == 0;
@@ -434,7 +455,7 @@ public class NFA implements Serializable {
 
     // evaluates the condition value (left) given an input event
     private CEPLiteral evalLeftSideCondition(CEPOperation inputOperation, Event inputEvent) {
-      if(inputOperation.getClass() == CEPLiteral.class) {
+      if(inputOperation instanceof CEPLiteral) {
         return (CEPLiteral) inputOperation;
       } else if(inputOperation.getClass() == CEPFieldRef.class) {
         return inputEvent.toCEPLiteral((CEPFieldRef) inputOperation);
@@ -446,13 +467,42 @@ public class NFA implements Serializable {
           case LAST:
             return last(operands.get(0),
                 evalLeftSideCondition(operands.get(1), inputEvent),
-                curEvent);
+                inputEvent);
+          case PLUS:
+            return plus(evalLeftSideCondition(operands.get(0), inputEvent),
+                evalLeftSideCondition(operands.get(1), inputEvent));
+          default:
+            throw new UnsupportedOperationException("the function is not supported for now: " +
+                operator.getCepKind().toString());
         }
+      } else {
+        throw new IllegalStateException("the left side CEP operation is not legal: " +
+            inputOperation.getClass().toString());
       }
     }
 
     // evaluates the condition value (right) given an input event
     private CEPLiteral evalRightSideCondition(CEPOperation inputOperation) {
+      if(inputOperation instanceof CEPLiteral) {
+        return (CEPLiteral) inputOperation;
+      } else if(inputOperation.getClass() == CEPCall.class) {
+        CEPCall call = (CEPCall) inputOperation;
+        CEPOperator operator = call.getOperator();
+        List<CEPOperation> operands = call.getOperands();
+        switch(operator.getCepKind()) {
+          case PLUS:
+            return plus(evalRightSideCondition(operands.get(0)),
+                evalRightSideCondition(operands.get(1)));
+          case PREV:
+            return prev(operands.get(0), (CEPLiteral) operands.get(1), ptr, curEvent);
+          default:
+            throw new UnsupportedOperationException("the function is not supported for now: " +
+                operator.getCepKind().toString());
+        }
+      } else {
+        throw new IllegalStateException("the right side CEP operation is not legal: " +
+            inputOperation.getClass().toString());
+      }
     }
 
   }
