@@ -407,6 +407,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def jackson_version = "2.10.2"
     def jaxb_api_version = "2.3.3"
     def kafka_version = "1.0.0"
+    def mysql_version = "8.0.21"
     def nemo_version = "0.1"
     def netty_version = "4.1.30.Final"
     def postgres_version = "42.2.2"
@@ -539,6 +540,7 @@ class BeamModulePlugin implements Plugin<Project> {
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         mockito_core                                : "org.mockito:mockito-core:3.0.0",
+        mysql                                       : "mysql:mysql-connector-java:$mysql_version",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.17.Final",
