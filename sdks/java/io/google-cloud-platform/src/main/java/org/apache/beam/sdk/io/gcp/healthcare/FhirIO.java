@@ -1269,7 +1269,6 @@ public class FhirIO {
 
     /** A function that schedules an export operation and monitors the status. */
     public static class ExportResourcesToGcsFn extends DoFn<String, String> {
-
       private HealthcareApiClient client;
       private final ValueProvider<String> exportGcsUriPrefix;
 
