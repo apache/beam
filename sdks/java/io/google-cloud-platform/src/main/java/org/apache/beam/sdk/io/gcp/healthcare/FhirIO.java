@@ -20,10 +20,16 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
+import com.google.api.services.healthcare.v1beta1.CloudHealthcare.Projects.Locations.Datasets.FhirStores.Fhir;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -36,8 +42,11 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -53,6 +62,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.fs.ResourceIdCoder;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -67,9 +77,12 @@ import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
@@ -218,6 +231,26 @@ public class FhirIO {
       ValueProvider<String> deadLetterDir,
       FhirIO.Import.@Nullable ContentStructure contentStructure) {
     return new Import(fhirStore, tempDir, deadLetterDir, contentStructure);
+  }
+
+  /**
+   * Export resources to GCS. Intended for use on non-empty FHIR stores
+   *
+   * @return the export
+   * @see ExportGcs
+   */
+  public static ExportGcs exportResourcesToGcs(ExportGcs.Options exportOptions) {
+    return new ExportGcs(StaticValueProvider.of(exportOptions));
+  }
+
+  /**
+   * Export resources to GCS. Intended for use on non-empty FHIR stores
+   *
+   * @return the export
+   * @see ExportGcs
+   */
+  public static ExportGcs exportResourcesToGcs(ValueProvider<ExportGcs.Options> exportOptions) {
+    return new ExportGcs(exportOptions);
   }
 
   /** The type Read. */
@@ -1172,6 +1205,142 @@ public class FhirIO {
           failedBundles.inc();
           context.output(HealthcareIOError.of(body, e));
         }
+      }
+    }
+  }
+
+  /** Export FHIR resources from a FHIR store to new line delimited json files on GCS. */
+  public static class ExportGcs extends PTransform<PBegin, ExportGcs.Result> {
+    public static final TupleTag<String> OUT = new TupleTag<String>() {};
+
+    /**
+     * Options contain parameters for the export resources to GCS call.
+     */
+    @AutoValue
+    @JsonDeserialize(builder = AutoValue_FhirIO_ExportGcs_Options.Builder.class)
+    public abstract static class Options implements Serializable {
+      private static final long serialVersionUID = 281314372806434554L;
+
+      public abstract String getFhirStore();
+      public abstract String getExportGcsUriPrefix();
+
+      public static Builder builder() {
+        return new AutoValue_FhirIO_ExportGcs_Options.Builder();
+      }
+
+      /**
+       * Builder class for creating an {@code Options} object.
+       */
+      @AutoValue.Builder
+      @JsonPOJOBuilder(withPrefix = "")
+      public abstract static class Builder {
+        public abstract Builder setFhirStore(String fhirStore);
+        public abstract Builder setExportGcsUriPrefix(String exportGcsUriPrefix);
+        public abstract Options build();
+      }
+    }
+
+    /**
+     * Internally used {@link CustomCoder} for {@link Options}.
+     */
+    static class OptionsCoder extends CustomCoder<Options> {
+
+      private static final NullableCoder<String> CODER = NullableCoder.of(StringUtf8Coder.of());
+
+      static OptionsCoder of() {
+        return new OptionsCoder();
+      }
+
+      private OptionsCoder() {
+      }
+
+      @Override
+      public void encode(Options value, OutputStream outStream) throws CoderException, IOException {
+        CODER.encode(value.getFhirStore(), outStream);
+        CODER.encode(value.getExportGcsUriPrefix(), outStream);
+      }
+
+      @Override
+      public Options decode(InputStream inStream) throws CoderException, IOException {
+        return Options.builder()
+            .setFhirStore(CODER.decode(inStream))
+            .setExportGcsUriPrefix(CODER.decode(inStream))
+            .build();
+      }
+    }
+
+    /**
+     * Represents the result of an export, including both the successful parsed messages, and
+     * invalid ones.
+     */
+    public static class Result implements POutput, PInput {
+      private PCollection<String> resources;
+
+      public static Result of(PCollection<String> resources) {
+        return new Result(resources);
+      }
+
+      private Result(PCollection<String> resources) {
+        this.resources = resources;
+      }
+
+      public PCollection<String> getResources() {
+        return resources;
+      }
+
+      @Override
+      public Pipeline getPipeline() { return this.getPipeline(); }
+
+      @Override
+      public Map<TupleTag<?>, PValue> expand() {
+        return ImmutableMap.of(OUT, resources);
+      }
+
+      @Override
+      public void finishSpecifyingOutput(
+          String transformName, PInput input, PTransform<?, ?> transform) {}
+    }
+
+    private final ValueProvider<Options> options;
+
+    public ExportGcs(ValueProvider<Options> options) {
+      this.options = options;
+    }
+
+    @Override
+    public ExportGcs.Result expand(PBegin input) {
+      return ExportGcs.Result.of(input
+          .apply(Create.ofProvider(options, OptionsCoder.of()))
+          .apply("ScheduleExportOperations", ParDo.of(new ExportResourcesToGcsFn()))
+          .apply(FileIO.matchAll())
+          .apply(FileIO.readMatches())
+          .apply("ReadResourcesFromFiles", TextIO.readFiles()));
+    }
+
+    /**
+     * A function that schedules an export operation and monitors the status.
+     */
+    public static class ExportResourcesToGcsFn extends DoFn<Options, String> {
+
+      private HealthcareApiClient client;
+
+      @Setup
+      public void initClient() throws IOException {
+        this.client = new HttpHealthcareApiClient();
+      }
+
+      @ProcessElement
+      public void exportResourcesToGcs(ProcessContext context) throws IOException, InterruptedException,
+          HealthcareHttpException {
+        Options options = context.element();
+        String gcsPrefix = options.getExportGcsUriPrefix();
+        Operation operation = client.exportFhirResourceToGcs(options.getFhirStore(), gcsPrefix);
+        operation = client.pollOperation(operation, 1000L);
+        if (operation.getError() != null) {
+          throw new RuntimeException(String.format("Export operation (%s) failed.",
+              operation.getName()));
+        }
+        context.output(String.format("%s/*", gcsPrefix.replaceAll("/+$", "")));
       }
     }
   }
