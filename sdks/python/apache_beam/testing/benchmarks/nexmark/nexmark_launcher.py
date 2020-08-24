@@ -60,6 +60,7 @@ Usage
 # pytype: skip-file
 
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import argparse
@@ -67,7 +68,6 @@ import logging
 import sys
 import uuid
 
-from apache_beam.testing.benchmarks.nexmark.monitor import Monitor
 from google.cloud import pubsub
 
 import apache_beam as beam
@@ -77,6 +77,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.testing.benchmarks.nexmark import nexmark_util
+from apache_beam.testing.benchmarks.nexmark.monitor import Monitor
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import Command
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import MonitorSuffix
 from apache_beam.testing.benchmarks.nexmark.queries import query0
@@ -224,7 +225,7 @@ class NexmarkLauncher(object):
       events = self.generate_events()
       events = events | 'event_monitor' >> beam.ParDo(event_monitor.doFn)
       output = query.load(events, query_args)
-      output | 'result_monitor' >> beam.ParDo(result_monitor.doFn)
+      output | 'result_monitor' >> beam.ParDo(result_monitor.doFn)  # pylint: disable=expression-not-assigned
 
       result = self.pipeline.run()
       job_duration = (
