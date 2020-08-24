@@ -23,7 +23,12 @@ import InfluxDBCredentialsHelper
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 // TODO(BEAM-10774): Skipping some cases because they are too slow.
-def STREAMING_TESTS_TO_SKIP = [1, 2, 4, 5]
+def TESTS_TO_SKIP = [
+  'load-tests-python-dataflow-streaming-gbk-1',
+  'load-tests-python-dataflow-streaming-gbk-2',
+  'load-tests-python-dataflow-streaming-gbk-4',
+  'load-tests-python-dataflow-streaming-gbk-5',
+]
 
 def loadTestConfigurations = { mode, datasetName ->
   [
@@ -54,14 +59,14 @@ def loadTestConfigurations = { mode, datasetName ->
       test           : 'apache_beam.testing.load_tests.group_by_key_test',
       runner         : CommonTestProperties.Runner.DATAFLOW,
       pipelineOptions: [
-        job_name             : 'load-tests-python-dataflow-${mode}-gbk-2-' + now,
+        job_name             : "load-tests-python-dataflow-${mode}-gbk-2-${now}",
         project              : 'apache-beam-testing',
         region               : 'us-central1',
         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
         publish_to_big_query : true,
         metrics_dataset      : datasetName,
-        metrics_table        : 'python_dataflow_${mode}_gbk_2',
-        influx_measurement   : 'python_${mode}_gbk_2',
+        metrics_table        : "python_dataflow_${mode}_gbk_2",
+        influx_measurement   : "python_${mode}_gbk_2",
         input_options        : '\'{"num_records": 20000000,' +
         '"key_size": 10,' +
         '"value_size": 90}\'',
@@ -140,14 +145,23 @@ def loadTestConfigurations = { mode, datasetName ->
   ]
   .each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
   .each { test -> (mode != 'streaming') ?: addStreamingOptions(test) }
-  .withIndex().collectMany { test, i ->
-    mode == 'streaming' && STREAMING_TESTS_TO_SKIP.contains(i + 1) ? []: [test]
+  .collectMany { test ->
+    TESTS_TO_SKIP.any { element -> test.pipelineOptions.job_name.startsWith(element) } ? []: [test]
   }
 }
 
 def addStreamingOptions(test) {
-  test.pipelineOptions << [streaming: null, experiments: 'use_runner_v2',
-    enable_streaming_engine: null ]
+  test.pipelineOptions << [
+    streaming: null,
+    // Use the new Dataflow runner, which offers improved efficiency of Dataflow jobs.
+    // See https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2
+    // for more details.
+    experiments: 'use_runner_v2',
+    // Enable streaming engine for less resource and quota consumption.
+    // See https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#streaming-engine
+    // for more details
+    enable_streaming_engine: null,
+  ]
 }
 
 def loadTestJob = { scope, triggeringContext, mode ->

@@ -81,8 +81,17 @@ def loadTestConfigurations = { mode, datasetName ->
 }
 
 def addStreamingOptions(test) {
-  test.pipelineOptions << [streaming: null, experiments: 'use_runner_v2',
-    enable_streaming_engine: null ]
+  test.pipelineOptions << [
+    streaming: null,
+    // Use the new Dataflow runner, which offers improved efficiency of Dataflow jobs.
+    // See https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2
+    // for more details.
+    experiments: 'use_runner_v2',
+    // Enable streaming engine for less resource and quota consumption.
+    // See https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#streaming-engine
+    // for more details
+    enable_streaming_engine: null,
+  ]
 }
 
 def loadTestJob = { scope, triggeringContext, mode ->
