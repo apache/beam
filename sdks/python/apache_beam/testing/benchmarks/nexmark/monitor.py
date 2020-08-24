@@ -21,12 +21,18 @@ from time import time
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
-from apache_beam.testing.benchmarks.nexmark.nexmark_util import MonitorSuffix
 
 
 class Monitor(object):
   """
   A monitor of elements with support for later retrieving their metrics
+
+  monitor objects contains a doFn to record metrics
+
+  Args:
+    namespace: the namespace all metrics within this Monitor uses
+    name_prefix: a prefix for this Monitor's metrics' names, intended to
+      be unique in per-monitor basis in pipeline
   """
   def __init__(self, namespace, name_prefix):
     # type: (str, str) -> None
@@ -46,3 +52,8 @@ class MonitorDoFn(beam.DoFn):
     self.element_count.inc()
     self.event_time.update(int(time() * 1000))
     yield element
+
+
+class MonitorSuffix:
+  ELEMENT_COUNTER = '.elements'
+  EVENT_TIME = '.event_time'

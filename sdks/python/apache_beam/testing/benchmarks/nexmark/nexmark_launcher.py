@@ -78,8 +78,8 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.testing.benchmarks.nexmark import nexmark_util
 from apache_beam.testing.benchmarks.nexmark.monitor import Monitor
+from apache_beam.testing.benchmarks.nexmark.monitor import MonitorSuffix
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import Command
-from apache_beam.testing.benchmarks.nexmark.nexmark_util import MonitorSuffix
 from apache_beam.testing.benchmarks.nexmark.queries import query0
 from apache_beam.testing.benchmarks.nexmark.queries import query1
 from apache_beam.testing.benchmarks.nexmark.queries import query2

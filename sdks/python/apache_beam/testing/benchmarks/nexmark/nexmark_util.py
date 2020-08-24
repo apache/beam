@@ -194,11 +194,6 @@ class CountAndLog(beam.PTransform):
         | "Log" >> beam.Map(log_count_info))
 
 
-class MonitorSuffix:
-  ELEMENT_COUNTER = '.elements'
-  EVENT_TIME = '.event_time'
-
-
 def log_count_info(count):
   logging.info('Query resulted in %d results', count)
   return count
@@ -239,7 +234,7 @@ def get_counter_metric(result, namespace, name):
       MetricsFilter().with_namespace(namespace).with_name(name))
   counters = metrics['counters']
   if len(counters) > 1:
-    raise ValueError(
+    raise RuntimeError(
         '%d instead of one metric result matches name: %s in namespace %s' %
         (len(counters), name, namespace))
   return counters[0].result if len(counters) > 0 else -1
