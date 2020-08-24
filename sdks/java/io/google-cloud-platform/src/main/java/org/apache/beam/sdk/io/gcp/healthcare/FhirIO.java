@@ -1289,7 +1289,7 @@ public class FhirIO {
       }
 
       @Override
-      public Pipeline getPipeline() { return this.getPipeline(); }
+      public Pipeline getPipeline() { return this.resources.getPipeline(); }
 
       @Override
       public Map<TupleTag<?>, PValue> expand() {
