@@ -1378,9 +1378,15 @@ class BeamModulePlugin implements Plugin<Project> {
         include "**/*IT.class"
 
         def pipelineOptionsString = configuration.integrationTestPipelineOptions
+        def pipelineOptionsStringFormatted
+        def allOptionsList
+
+        if(pipelineOptionsString) {
+          allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
+        }
+
         if(pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
           project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
-          def allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
           def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
               project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
           def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
@@ -1389,11 +1395,17 @@ class BeamModulePlugin implements Plugin<Project> {
             "--dataflowWorkerJar=${dataflowWorkerJar}",
             "--region=${dataflowRegion}"
           ])
-
-          pipelineOptionsString = JsonOutput.toJson(allOptionsList)
         }
 
-        systemProperties.beamTestPipelineOptions = pipelineOptionsString
+        // Windows handles quotation marks differently
+        if (pipelineOptionsString && System.properties['os.name'].toLowerCase().contains('windows')) {
+          def allOptionsListFormatted = allOptionsList.collect{ "\"$it\"" }
+          pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsListFormatted)
+        } else if (pipelineOptionsString) {
+          pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsList)
+        }
+
+        systemProperties.beamTestPipelineOptions = pipelineOptionsStringFormatted ?: pipelineOptionsString
       }
     }
 
