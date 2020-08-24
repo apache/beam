@@ -157,10 +157,6 @@ def addStreamingOptions(test) {
     // See https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2
     // for more details.
     experiments: 'use_runner_v2',
-    // Enable streaming engine for less resource and quota consumption.
-    // See https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#streaming-engine
-    // for more details
-    enable_streaming_engine: null,
   ]
 }
 
