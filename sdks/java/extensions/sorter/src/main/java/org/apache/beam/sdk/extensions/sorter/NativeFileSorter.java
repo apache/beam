@@ -139,6 +139,7 @@ class NativeFileSorter {
       }
     } finally {
       inputStream.close();
+      Preconditions.checkArgument(dataFile.delete());
     }
     return files;
   }
