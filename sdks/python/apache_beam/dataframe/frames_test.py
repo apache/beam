@@ -35,7 +35,10 @@ class DeferredFrameTest(unittest.TestCase):
             expressions.ConstantExpression(arg, arg[0:0])) for arg in args
     ]
     expected = func(*args)
-    actual = expressions.Session({}).evaluate(func(*deferred_args)._expr)
+    actual = expressions.PartitioningSession({}).evaluate(func(*deferred_args)._expr)
+    if isinstance(actual, pd.core.generic.NDFrame):
+      actual = actual.sort_index()
+      expected = expected.sort_index()
     self.assertTrue(
         getattr(expected, 'equals', expected.__eq__)(actual),
         'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
@@ -129,6 +132,7 @@ class DeferredFrameTest(unittest.TestCase):
       self._run_test(lambda df: df.agg({'A': 'sum', 'B': 'mean'}), df)
       self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
       self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
+
 
 
 class AllowNonParallelTest(unittest.TestCase):
