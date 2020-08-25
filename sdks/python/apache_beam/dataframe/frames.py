@@ -261,15 +261,21 @@ class DeferredDataFrame(frame_base.DeferredFrame):
     else:
       raise NotImplementedError(key)
 
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
   def set_index(self, keys, **kwargs):
     if isinstance(keys, str):
       keys = [keys]
     if not set(keys).issubset(self._expr.proxy().columns):
       raise NotImplementedError(keys)
-    return self._elementwise(
-        lambda df: df.set_index(keys, **kwargs),
-        'set_index',
-        inplace=kwargs.get('inplace', False))
+    return frame_base.DeferredFrame.wrap(
+      expressions.ComputedExpression(
+          'set_index',
+          lambda df: df.set_index(keys, **kwargs),
+          [self._expr],
+          requires_partition_by=partitionings.Nothing(),
+          preserves_partition_by=partitionings.Nothing()))
 
   def at(self, *args, **kwargs):
     raise NotImplementedError()
