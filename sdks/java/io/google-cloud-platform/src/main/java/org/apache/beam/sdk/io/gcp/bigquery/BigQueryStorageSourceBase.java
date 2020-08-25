@@ -17,16 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionRequest;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ShardingStrategy;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
+import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1.DataFormat;
+import com.google.cloud.bigquery.storage.v1.ReadSession;
+import com.google.cloud.bigquery.storage.v1.ReadStream;
 import java.io.IOException;
 import java.util.List;
 import org.apache.avro.Schema;
@@ -66,7 +64,6 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
    */
   private static final int MIN_SPLIT_COUNT = 10;
 
-  protected final TableReadOptions tableReadOptions;
   protected final ValueProvider<List<String>> selectedFieldsProvider;
   protected final ValueProvider<String> rowRestrictionProvider;
   protected final SerializableFunction<SchemaAndRecord, T> parseFn;
@@ -74,17 +71,11 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   protected final BigQueryServices bqServices;
 
   BigQueryStorageSourceBase(
-      @Nullable TableReadOptions tableReadOptions,
       @Nullable ValueProvider<List<String>> selectedFieldsProvider,
       @Nullable ValueProvider<String> rowRestrictionProvider,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
-    checkArgument(
-        tableReadOptions == null
-            || (selectedFieldsProvider == null && rowRestrictionProvider == null),
-        "tableReadOptions is mutually exclusive with selectedFieldsProvider and rowRestrictionProvider");
-    this.tableReadOptions = tableReadOptions;
     this.selectedFieldsProvider = selectedFieldsProvider;
     this.rowRestrictionProvider = rowRestrictionProvider;
     this.parseFn = checkNotNull(parseFn, "parseFn");
@@ -108,6 +99,24 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     Table targetTable = getTargetTable(bqOptions);
+
+    ReadSession.Builder readSessionBuilder =
+        ReadSession.newBuilder()
+            .setTable(BigQueryHelpers.toTableResourceName(targetTable.getTableReference()))
+            .setDataFormat(DataFormat.AVRO);
+
+    if (selectedFieldsProvider != null || rowRestrictionProvider != null) {
+      ReadSession.TableReadOptions.Builder tableReadOptionsBuilder =
+          ReadSession.TableReadOptions.newBuilder();
+      if (selectedFieldsProvider != null) {
+        tableReadOptionsBuilder.addAllSelectedFields(selectedFieldsProvider.get());
+      }
+      if (rowRestrictionProvider != null) {
+        tableReadOptionsBuilder.setRowRestriction(rowRestrictionProvider.get());
+      }
+      readSessionBuilder.setReadOptions(tableReadOptionsBuilder);
+    }
+
     int streamCount = 0;
     if (desiredBundleSizeBytes > 0) {
       long tableSizeBytes = (targetTable != null) ? targetTable.getNumBytes() : 0;
@@ -116,33 +125,19 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
     streamCount = Math.max(streamCount, MIN_SPLIT_COUNT);
 
-    CreateReadSessionRequest.Builder requestBuilder =
+    CreateReadSessionRequest createReadSessionRequest =
         CreateReadSessionRequest.newBuilder()
-            .setParent("projects/" + bqOptions.getProject())
-            .setTableReference(BigQueryHelpers.toTableRefProto(targetTable.getTableReference()))
-            .setRequestedStreams(streamCount)
-            .setShardingStrategy(ShardingStrategy.BALANCED);
-
-    if (selectedFieldsProvider != null || rowRestrictionProvider != null) {
-      TableReadOptions.Builder builder = TableReadOptions.newBuilder();
-      if (selectedFieldsProvider != null) {
-        builder.addAllSelectedFields(selectedFieldsProvider.get());
-      }
-      if (rowRestrictionProvider != null) {
-        builder.setRowRestriction(rowRestrictionProvider.get());
-      }
-      requestBuilder.setReadOptions(builder);
-    } else if (tableReadOptions != null) {
-      requestBuilder.setReadOptions(tableReadOptions);
-    }
+            .setParent(BigQueryHelpers.toProjectResourceName(bqOptions.getProject()))
+            .setReadSession(readSessionBuilder)
+            .setMaxStreamCount(streamCount)
+            .build();
 
     ReadSession readSession;
     try (StorageClient client = bqServices.getStorageClient(bqOptions)) {
-      CreateReadSessionRequest request = requestBuilder.build();
-      readSession = client.createReadSession(request);
+      readSession = client.createReadSession(createReadSessionRequest);
       LOG.info(
           "Sent BigQuery Storage API CreateReadSession request '{}'; received response '{}'.",
-          request,
+          createReadSessionRequest,
           readSession);
     }
 
@@ -155,10 +150,10 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     TableSchema trimmedSchema =
         BigQueryAvroUtils.trimBigQueryTableSchema(targetTable.getSchema(), sessionSchema);
     List<BigQueryStorageStreamSource<T>> sources = Lists.newArrayList();
-    for (Stream stream : readSession.getStreamsList()) {
+    for (ReadStream readStream : readSession.getStreamsList()) {
       sources.add(
           BigQueryStorageStreamSource.create(
-              readSession, stream, trimmedSchema, parseFn, outputCoder, bqServices));
+              readSession, readStream, trimmedSchema, parseFn, outputCoder, bqServices));
     }
 
     return ImmutableList.copyOf(sources);
