@@ -271,7 +271,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       raise NotImplementedError(keys)
     return frame_base.DeferredFrame.wrap(
       expressions.ComputedExpression(
-          'aggregate',
+          'set_index',
           lambda df: df.set_index(keys, **kwargs),
           [self._expr],
           requires_partition_by=partitionings.Nothing(),
