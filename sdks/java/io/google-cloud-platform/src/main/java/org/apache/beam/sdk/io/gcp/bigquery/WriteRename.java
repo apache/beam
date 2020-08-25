@@ -154,7 +154,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
 
     // Make sure each destination table gets a unique job id.
     String jobIdPrefix =
-        BigQueryHelpers.createJobId(
+        BigQueryResourceNaming.createJobIdWithDestination(
             c.sideInput(jobIdToken), finalTableDestination, -1, c.pane().getIndex());
 
     BigQueryHelpers.PendingJob retryJob =

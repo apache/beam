@@ -35,7 +35,7 @@ Here is an example of a pipeline that creates in-memory PCollection of strings, 
 {{< /highlight >}}
 
 {{< highlight java >}}
-// Java examples will be available on Beam 2.23 release.
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" NlpAnalyzeText >}}
 {{< /highlight >}}
 
 
@@ -79,7 +79,7 @@ The function for extracting information about sentence-level and document-level 
 {{< /highlight >}}
 
 {{< highlight java >}}
-// Java examples will be available on Beam 2.23 release.
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" NlpExtractSentiments >}}
 {{< /highlight >}}
 
 The snippet loops over `sentences` and, for each sentence, extracts the sentiment score. 
@@ -99,7 +99,7 @@ The next function inspects the response for entities and returns the names and t
 {{< /highlight >}}
 
 {{< highlight java >}}
-// Java examples will be available on Beam 2.23 release.
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" NlpExtractEntities >}}
 {{< /highlight >}}
 
 Entities can be found in `entities` attribute. Just like before, `entities` is a sequence, that's why list comprehension is a viable choice. The most tricky part is interpreting the types of entities. Natural Language API defines entity types as enum. In a response object, entity types are returned as integers. That's why a user has to instantiate `naturallanguageml.enums.Entity.Type` to access a human-readable name.
@@ -119,7 +119,7 @@ The following code loops over the sentences and, for each sentence, builds an ad
 {{< /highlight >}}
 
 {{< highlight java >}}
-// Java examples will be available on Beam 2.23 release.
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" NlpAnalyzeDependencyTree >}}
 {{< /highlight >}}
 
 The output is below. For better readability, indexes are replaced by text which they refer to:

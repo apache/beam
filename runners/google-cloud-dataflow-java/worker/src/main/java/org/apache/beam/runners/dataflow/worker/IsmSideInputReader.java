@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
@@ -85,6 +86,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A side input reader over a set of {@link IsmFormat} files constructed by Dataflow. This reader
@@ -613,6 +615,7 @@ public class IsmSideInputReader implements SideInputReader {
 
     @Override
     public Iterable<V> get(K k) {
+      k = checkArgumentNotNull(k);
       try {
         return new ListOverReaderIterators<>(
             findAndStartReaders(readers, ImmutableList.of(k, window)), (V value) -> value);
@@ -1065,7 +1068,7 @@ public class IsmSideInputReader implements SideInputReader {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (!(o instanceof Map.Entry)) {
         return false;
       }

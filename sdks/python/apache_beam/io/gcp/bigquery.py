@@ -65,18 +65,19 @@ Users may provide a query to read from rather than reading all of a BigQuery
 table. If specified, the result obtained by executing the specified query will
 be used as the data of the input transform.::
 
-  query_results = pipeline | beam.io.Read(beam.io.BigQuerySource(
-      query='SELECT year, mean_temp FROM samples.weather_stations'))
+  query_results = pipeline | beam.io.gcp.bigquery.ReadFromBigQuery(
+      query='SELECT year, mean_temp FROM samples.weather_stations')
 
 When creating a BigQuery input transform, users should provide either a query
 or a table. Pipeline construction will fail with a validation error if neither
 or both are specified.
 
-When reading from BigQuery using `BigQuerySource`, bytes are returned as
-base64-encoded bytes. When reading via `ReadFromBigQuery`, bytes are returned
-as bytes without base64 encoding. This is due to the fact that ReadFromBigQuery
-uses Avro expors by default. To get base64-encoded bytes, you can use the flag
-`use_json_exports` to export data as JSON, and receive base64-encoded bytes.
+When reading via `ReadFromBigQuery`, bytes are returned decoded as bytes.
+This is due to the fact that ReadFromBigQuery uses Avro exports by default.
+When reading from BigQuery using `apache_beam.io.BigQuerySource`, bytes are
+returned as base64-encoded bytes. To get base64-encoded bytes using
+`ReadFromBigQuery`, you can use the flag `use_json_exports` to export
+data as JSON, and receive base64-encoded bytes.
 
 Writing Data to BigQuery
 ========================
@@ -289,6 +290,20 @@ __all__ = [
 ]
 
 _LOGGER = logging.getLogger(__name__)
+"""
+Template for BigQuery jobs created by BigQueryIO. This template is:
+`"beam_bq_job_{job_type}_{job_id}_{step_id}_{random}"`, where:
+
+- `job_type` represents the BigQuery job type (e.g. extract / copy / load /
+    query).
+- `job_id` is the Beam job name.
+- `step_id` is a UUID representing the the Dataflow step that created the
+    BQ job.
+- `random` is a random string.
+
+NOTE: This job name template does not have backwards compatibility guarantees.
+"""
+BQ_JOB_NAME_TEMPLATE = "beam_bq_job_{job_type}_{job_id}_{step_id}{random}"
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
@@ -977,6 +992,9 @@ bigquery_v2_messages.TableSchema` object.
         buffer_size=buffer_size)
 
 
+_KNOWN_TABLES = set()
+
+
 class BigQueryWriteFn(DoFn):
   """A ``DoFn`` that streams writes to BigQuery once the table is created."""
 
@@ -1037,7 +1055,6 @@ class BigQueryWriteFn(DoFn):
     self.write_disposition = write_disposition
     self._rows_buffer = []
     self._reset_rows_buffer()
-    self._observed_tables = set()
 
     self._total_buffered_rows = 0
     self.kms_key = kms_key
@@ -1089,8 +1106,6 @@ class BigQueryWriteFn(DoFn):
     self.bigquery_wrapper = bigquery_tools.BigQueryWrapper(
         client=self.test_client)
 
-    self._observed_tables = set()
-
     self._backoff_calculator = iter(
         retry.FuzzedExponentialIntervals(
             initial_delay_secs=0.2, num_retries=10000, max_delay_secs=1500))
@@ -1100,7 +1115,7 @@ class BigQueryWriteFn(DoFn):
         table_reference.projectId,
         table_reference.datasetId,
         table_reference.tableId)
-    if str_table_reference in self._observed_tables:
+    if str_table_reference in _KNOWN_TABLES:
       return
 
     if self.create_disposition == BigQueryDisposition.CREATE_NEVER:
@@ -1124,7 +1139,7 @@ class BigQueryWriteFn(DoFn):
         self.create_disposition,
         self.write_disposition,
         additional_create_parameters=self.additional_bq_parameters)
-    self._observed_tables.add(str_table_reference)
+    _KNOWN_TABLES.add(str_table_reference)
 
   def process(self, element, *schema_side_inputs):
     destination = element[0]
@@ -1473,9 +1488,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
   def _compute_method(self, experiments, is_streaming_pipeline):
     # If the new BQ sink is not activated for experiment flags, then we use
     # streaming inserts by default (it gets overridden in dataflow_runner.py).
-    if 'use_beam_bq_sink' not in experiments:
-      return self.Method.STREAMING_INSERTS
-    elif self.method == self.Method.DEFAULT and is_streaming_pipeline:
+    if self.method == self.Method.DEFAULT and is_streaming_pipeline:
       return self.Method.STREAMING_INSERTS
     elif self.method == self.Method.DEFAULT and not is_streaming_pipeline:
       return self.Method.FILE_LOADS

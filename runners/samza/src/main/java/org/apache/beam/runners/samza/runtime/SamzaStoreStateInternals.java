@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespace;
@@ -49,6 +48,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
@@ -73,6 +73,7 @@ import org.apache.samza.serializers.SerdeFactory;
 import org.apache.samza.storage.kv.Entry;
 import org.apache.samza.storage.kv.KeyValueIterator;
 import org.apache.samza.storage.kv.KeyValueStore;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** {@link StateInternals} that uses Samza local {@link KeyValueStore} to manage state. */
@@ -92,7 +93,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   private SamzaStoreStateInternals(
       Map<String, KeyValueStore<ByteArray, byte[]>> stores,
       @Nullable K key,
-      @Nullable byte[] keyBytes,
+      byte @Nullable [] keyBytes,
       String stageId,
       int batchGetSize) {
     this.stores = stores;
@@ -169,6 +170,13 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
               Coder<KeyT> mapKeyCoder,
               Coder<ValueT> mapValueCoder) {
             return new SamzaMapStateImpl<>(namespace, address, mapKeyCoder, mapValueCoder);
+          }
+
+          @Override
+          public <T> OrderedListState<T> bindOrderedList(
+              StateTag<OrderedListState<T>> spec, Coder<T> elemCoder) {
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", OrderedListState.class.getSimpleName()));
           }
 
           @Override
@@ -344,7 +352,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -493,8 +501,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    @Nullable
-    public ReadableState<Boolean> addIfAbsent(T t) {
+    public @Nullable ReadableState<Boolean> addIfAbsent(T t) {
       return mapState.putIfAbsent(t, true);
     }
 
@@ -603,8 +610,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    @Nullable
-    public ReadableState<ValueT> putIfAbsent(KeyT key, ValueT value) {
+    public @Nullable ReadableState<ValueT> putIfAbsent(KeyT key, ValueT value) {
       final ByteArray encodedKey = encodeKey(key);
       final ValueT current = decodeValue(store.get(encodedKey));
       if (current == null) {
@@ -923,7 +929,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (o == null || getClass() != o.getClass()) {
         return false;
       }

@@ -16,7 +16,7 @@
 # under the License.
 #
 
-name: Build python wheels
+name: Build python source distribution and wheels
 
 on:
   schedule:
@@ -36,8 +36,24 @@ env:
 
 jobs:
 
+  check_gcp_variables:
+    timeout-minutes: 5
+    name: "Check are GCP variables set"
+    runs-on: ubuntu-latest
+    outputs:
+      are-gcp-variables-set: ${{ steps.check_gcp_variables.outputs.are-gcp-variables-set }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: "Check are GCP variables set"
+        run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
+        id: check_gcp_variables
+        env:
+          GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+
   build_source:
     runs-on: ubuntu-latest
+    name: Build python source distribution
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -52,7 +68,12 @@ jobs:
         run: python -m pip install wheel
       - name: Build source
         working-directory: ./sdks/python
-        run: python setup.py sdist --formats=gztar,zip
+        run: python setup.py sdist --formats=zip
+      - name: Add checksums
+        working-directory: ./sdks/python/dist
+        run: |
+          file=$(ls | grep .zip | head -n 1)
+          sha512sum $file > ${file}.sha512
       - name: Unzip source
         working-directory: ./sdks/python
         run: unzip dist/$(ls dist | grep .zip | head -n 1)
@@ -67,14 +88,16 @@ jobs:
       - name: Upload compressed sources as artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: source_gztar_zip
+          name: source_zip
           path: sdks/python/dist
 
   prepare_gcs:
     name: Prepare GCS
-    needs: build_source
+    needs:
+      - build_source
+      - check_gcp_variables
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
       - name: Authenticate on GCP
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -85,14 +108,17 @@ jobs:
         run: gsutil rm -r ${{ env.GCP_PATH }} || true
 
   upload_source_to_gcs:
-    name: Upload source to GCS bucket
-    needs: prepare_gcs
+    name: Upload python source distribution to GCS bucket
+    needs:
+      - prepare_gcs
+      - check_gcp_variables
     runs-on: ubuntu-latest
+    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
         uses: actions/download-artifact@v2
         with:
-          name: source_gztar_zip
+          name: source_zip
           path: source/
       - name: Authenticate on GCP
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -103,14 +129,18 @@ jobs:
         run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
 
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
+    name: Build python wheels on ${{ matrix.os_python.os }}
     needs: build_source
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os_python.os }}
     strategy:
       matrix:
-        os : [ubuntu-latest, macos-latest]
+        os_python: [
+          {"os": "ubuntu-latest", "python": "cp27-* cp35-* cp36-* cp37-* cp38-*"},
+          {"os": "macos-latest", "python": "cp27-* cp35-* cp36-* cp37-* cp38-*"},
+          {"os": "windows-latest", "python": "cp35-* cp36-* cp37-* cp38-*"},
+        ]
     steps:
-    - name: Download source from artifacts
+    - name: Download python source distribution from artifacts
       uses: actions/download-artifact@v2
       with:
         name: source
@@ -124,24 +154,36 @@ jobs:
     - name: Build wheel
       working-directory: apache-beam-source
       env:
-        CIBW_BUILD: cp27-* cp35-* cp36-* cp37-* cp38-*
+        CIBW_BUILD: ${{ matrix.os_python.python }}
         CIBW_BEFORE_BUILD: pip install cython
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
+      shell: bash
+    - name: install sha512sum on MacOS
+      if: startsWith(matrix.os_python.os, 'macos')
+      run: brew install coreutils
+    - name: Add checksums
+      working-directory: apache-beam-source/wheelhouse/
+      run: |
+        for file in *.whl; do
+          sha512sum $file > ${file}.sha512
+        done
       shell: bash
     - name: Upload wheels as artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: wheelhouse-${{ matrix.os }}
+        name: wheelhouse-${{ matrix.os_python.os }}
         path: apache-beam-source/wheelhouse/
 
   upload_wheels_to_gcs:
     name: Upload wheels to GCS bucket
-    needs: build_wheels
+    needs:
+      - build_wheels
+      - check_gcp_variables
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
-        os : [ubuntu-latest, macos-latest]
+        os : [ubuntu-latest, macos-latest, windows-latest]
     steps:
     - name: Download wheels from artifacts
       uses: actions/download-artifact@v2
@@ -178,9 +220,11 @@ jobs:
 
   list_files_on_gcs:
     name: List files on Google Cloud Storage Bucket
-    needs: upload_wheels_to_gcs
+    needs:
+     - upload_wheels_to_gcs
+     - check_gcp_variables
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Authenticate on GCP
       uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -197,7 +241,7 @@ jobs:
       - build_wheels
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: github.event_name == 'schedule'
+    if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
       - name: Checkout code on master branch
         uses: actions/checkout@master

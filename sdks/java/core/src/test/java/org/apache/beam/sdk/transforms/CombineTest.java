@@ -84,6 +84,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -239,7 +240,7 @@ public class CombineTest implements Serializable {
         }
 
         @Override
-        public boolean equals(Object otherObj) {
+        public boolean equals(@Nullable Object otherObj) {
           if (otherObj instanceof Counter) {
             Counter other = (Counter) otherObj;
             return (sum == other.sum
@@ -550,7 +551,7 @@ public class CombineTest implements Serializable {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(@Nullable Object obj) {
           if (obj == this) {
             return true;
           }

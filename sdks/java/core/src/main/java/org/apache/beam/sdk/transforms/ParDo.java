@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Internal;
@@ -66,6 +65,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link ParDo} is the core element-wise transform in Apache Beam, invoking a user-specified
@@ -1028,6 +1028,11 @@ public class ParDo {
           @Override
           public String dispatchBag(Coder<?> elementCoder) {
             return "BagState<" + elementCoder + ">";
+          }
+
+          @Override
+          public String dispatchOrderedList(Coder<?> elementCoder) {
+            return "OrderedListState<" + elementCoder + ">";
           }
 
           @Override

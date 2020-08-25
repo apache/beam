@@ -115,6 +115,11 @@ public class SplittableParDoProcessFnTest {
 
     @Override
     public void checkDone() {}
+
+    @Override
+    public RestrictionTracker.IsBounded isBounded() {
+      return RestrictionTracker.IsBounded.BOUNDED;
+    }
   }
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
@@ -131,6 +136,7 @@ public class SplittableParDoProcessFnTest {
 
     private InMemoryTimerInternals timerInternals;
     private TestInMemoryStateInternals<String> stateInternals;
+    private InMemoryBundleFinalizer bundleFinalizer;
 
     ProcessFnTester(
         Instant currentProcessingTime,
@@ -181,7 +187,8 @@ public class SplittableParDoProcessFnTest {
               },
               Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
               maxOutputsPerBundle,
-              maxBundleDuration));
+              maxBundleDuration,
+              () -> bundleFinalizer));
       // Do not clone since ProcessFn references non-serializable DoFnTester itself
       // through the state/timer/output callbacks.
       this.tester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);

@@ -79,6 +79,13 @@ func TestCountElms(t *testing.T) {
 		count int
 	}{
 		{
+			name: "empty",
+			in: func(s beam.Scope) beam.PCollection {
+				return beam.CreateList(s, []int{})
+			},
+			count: 0,
+		},
+		{
 			name: "single",
 			in: func(s beam.Scope) beam.PCollection {
 				return beam.Create(s, 1)

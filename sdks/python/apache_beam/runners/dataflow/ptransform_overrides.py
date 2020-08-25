@@ -236,7 +236,10 @@ class WriteToBigQueryPTransformOverride(PTransformOverride):
         self.visit_transform(transform_node)
 
       def visit_transform(self, transform_node):
-        if [o for o in self.outputs if o in transform_node.inputs]:
+        # Internal consumers of the outputs we're overriding are expected.
+        # We only error out on non-internal consumers.
+        if ('BigQueryBatchFileLoads' not in transform_node.full_label and
+            [o for o in self.outputs if o in transform_node.inputs]):
           raise ValueError(
               'WriteToBigQuery was being replaced with the native '
               'BigQuerySink, but the transform "{}" has an input which will be '
@@ -250,16 +253,13 @@ class WriteToBigQueryPTransformOverride(PTransformOverride):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam import io
-    from apache_beam.runners.dataflow.internal import apiclient
-
     transform = applied_ptransform.transform
     if (not isinstance(transform, io.WriteToBigQuery) or
         getattr(transform, 'override', False)):
       return False
 
-    use_fnapi = apiclient._use_fnapi(self.options)
     experiments = self.options.view_as(DebugOptions).experiments or []
-    if (use_fnapi or 'use_beam_bq_sink' in experiments):
+    if 'use_legacy_bq_sink' not in experiments:
       return False
 
     if transform.schema == io.gcp.bigquery.SCHEMA_AUTODETECT:

@@ -82,7 +82,10 @@ DEFAULT_LOG_LULL_TIMEOUT_NS = 5 * 60 * 1000 * 1000 * 1000
 DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S = 60
 
 # Full thread dump is performed at most every 20 minutes.
-LOG_LULL_FULL_THREAD_DUMP_S = 20 * 60
+LOG_LULL_FULL_THREAD_DUMP_INTERVAL_S = 20 * 60
+
+# Full thread dump is performed if the lull is more than 20 minutes.
+LOG_LULL_FULL_THREAD_DUMP_LULL_S = 20 * 60
 
 
 class ShortIdCache(object):
@@ -558,9 +561,10 @@ class SdkWorker(object):
         sampler_info.time_since_transition > self.log_lull_timeout_ns):
       step_name = sampler_info.state_name.step_name
       state_name = sampler_info.state_name.name
+      lull_seconds = sampler_info.time_since_transition / 1e9
       state_lull_log = (
           'Operation ongoing for over %.2f seconds in state %s' %
-          (sampler_info.time_since_transition / 1e9, state_name))
+          (lull_seconds, state_name))
       step_name_log = (' in step %s ' % step_name) if step_name else ''
 
       exec_thread = getattr(sampler_info, 'tracked_thread', None)
@@ -577,12 +581,15 @@ class SdkWorker(object):
           step_name_log,
           stack_trace)
 
-      if self._should_log_full_thread_dump():
+      if self._should_log_full_thread_dump(lull_seconds):
         self._log_full_thread_dump()
 
-  def _should_log_full_thread_dump(self):
+  def _should_log_full_thread_dump(self, lull_seconds):
+    if lull_seconds < LOG_LULL_FULL_THREAD_DUMP_LULL_S:
+      return False
     now = time.time()
-    if self._last_full_thread_dump_secs + LOG_LULL_FULL_THREAD_DUMP_S < now:
+    if (self._last_full_thread_dump_secs + LOG_LULL_FULL_THREAD_DUMP_INTERVAL_S
+        < now):
       self._last_full_thread_dump_secs = now
       return True
     return False

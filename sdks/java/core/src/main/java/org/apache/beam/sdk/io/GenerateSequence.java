@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -75,16 +75,13 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
 
   abstract long getTo();
 
-  @Nullable
-  abstract SerializableFunction<Long, Instant> getTimestampFn();
+  abstract @Nullable SerializableFunction<Long, Instant> getTimestampFn();
 
   abstract long getElementsPerPeriod();
 
-  @Nullable
-  abstract Duration getPeriod();
+  abstract @Nullable Duration getPeriod();
 
-  @Nullable
-  abstract Duration getMaxReadTime();
+  abstract @Nullable Duration getMaxReadTime();
 
   abstract Builder toBuilder();
 
@@ -137,7 +134,7 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
     public static final String URN = "beam:external:java:generate_sequence:v1";
 
     @Override
-    public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+    public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
       return ImmutableMap.of(URN, AutoValue_GenerateSequence.Builder.class);
     }
 
@@ -145,10 +142,10 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
     @Experimental
     public static class ExternalConfiguration {
       private Long start;
-      @Nullable private Long stop;
-      @Nullable private Long period;
-      @Nullable private Long maxReadTime;
-      @Nullable private Long elementsPerPeriod;
+      private @Nullable Long stop;
+      private @Nullable Long period;
+      private @Nullable Long maxReadTime;
+      private @Nullable Long elementsPerPeriod;
 
       public void setStart(Long start) {
         this.start = start;

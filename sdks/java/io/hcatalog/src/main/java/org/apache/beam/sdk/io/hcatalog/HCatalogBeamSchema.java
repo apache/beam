@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.hcatalog;
 
-import com.sun.istack.Nullable;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -30,6 +29,7 @@ import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Adapter from HCatalog table schema to Beam {@link org.apache.beam.sdk.schemas.Schema}.
@@ -42,7 +42,7 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 @Experimental(Kind.SCHEMAS)
 public class HCatalogBeamSchema {
 
-  private @Nullable final IMetaStoreClient metastore;
+  private final @Nullable IMetaStoreClient metastore;
 
   private HCatalogBeamSchema(IMetaStoreClient metastore) {
     this.metastore = metastore;

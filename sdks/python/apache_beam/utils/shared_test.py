@@ -236,6 +236,28 @@ class SharedTest(unittest.TestCase):
     self.assertEqual('sequence3', f3.get_name())
     self.assertEqual('sequence4', s3.get_name())
 
+  def testTagCacheEviction(self):
+    shared1 = shared.Shared()
+    shared2 = shared.Shared()
+
+    def acquire_fn_1():
+      return NamedObject('obj_1')
+
+    def acquire_fn_2():
+      return NamedObject('obj_2')
+
+    # with no tag, shared handle does not know when to evict objects
+    p1 = shared1.acquire(acquire_fn_1)
+    assert p1.get_name() == 'obj_1'
+    p2 = shared1.acquire(acquire_fn_2)
+    assert p2.get_name() == 'obj_1'
+
+    # cache eviction can be forced by specifying different tags
+    p1 = shared2.acquire(acquire_fn_1, tag='1')
+    assert p1.get_name() == 'obj_1'
+    p2 = shared2.acquire(acquire_fn_2, tag='2')
+    assert p2.get_name() == 'obj_2'
+
 
 if __name__ == '__main__':
   unittest.main()

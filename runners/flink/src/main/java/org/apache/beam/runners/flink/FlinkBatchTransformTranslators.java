@@ -27,7 +27,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
@@ -101,6 +100,7 @@ import org.apache.flink.api.java.operators.SingleInputUdfOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.Optimizer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -140,7 +140,7 @@ class FlinkBatchTransformTranslators {
   @SuppressWarnings("unchecked")
   static FlinkBatchPipelineTranslator.BatchTransformTranslator<?> getTranslator(
       PTransform<?, ?> transform, FlinkBatchTranslationContext context) {
-    @Nullable final String urn = PTransformTranslation.urnForTransformOrNull(transform);
+    final @Nullable String urn = PTransformTranslation.urnForTransformOrNull(transform);
     if (urn != null && TRANSLATORS.containsKey(urn)) {
       for (FlinkBatchPipelineTranslator.BatchTransformTranslator<PTransform<?, ?>> translator :
           TRANSLATORS.get(urn)) {

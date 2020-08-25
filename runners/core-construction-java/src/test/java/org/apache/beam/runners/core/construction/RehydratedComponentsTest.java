@@ -91,7 +91,13 @@ public class RehydratedComponentsTest {
         RehydratedComponents.forComponents(sdkComponents.toComponents());
 
     WindowingStrategy<?, ?> rehydratedStrategy = rehydratedComponents.getWindowingStrategy(id);
-    assertThat(rehydratedStrategy, equalTo((WindowingStrategy) windowingStrategy.fixDefaults()));
+    assertThat(
+        rehydratedStrategy,
+        equalTo(
+            (WindowingStrategy)
+                windowingStrategy
+                    .withEnvironmentId(sdkComponents.getOnlyEnvironmentId())
+                    .fixDefaults()));
     assertThat(
         rehydratedComponents.getWindowingStrategy(id),
         theInstance((WindowingStrategy) rehydratedStrategy));

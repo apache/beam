@@ -19,7 +19,11 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false, enableChecker:false, automaticModuleName: 'org.apache.beam.examples')
+applyJavaNature(
+  exportJavadoc: false,
+  enableChecker: false,
+  ignoreRawtypeErrors: true,
+  automaticModuleName: 'org.apache.beam.examples')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -48,6 +52,7 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:io:google-cloud-platform")
+  compile project(":sdks:java:extensions:ml")
   compile library.java.avro
   compile library.java.bigdataoss_util
   compile library.java.google_api_client
@@ -56,6 +61,7 @@ dependencies {
   compile library.java.google_auth_library_credentials
   compile library.java.google_auth_library_oauth2_http
   compile library.java.google_cloud_datastore_v1_proto_client
+  compile library.java.google_code_gson
   compile library.java.google_http_client
   compile library.java.joda_time
   compile library.java.proto_google_cloud_datastore_v1
@@ -63,6 +69,7 @@ dependencies {
   compile library.java.slf4j_jdk14
   runtime project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(":sdks:java:io:google-cloud-platform")
+  testCompile project(":sdks:java:extensions:ml")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit

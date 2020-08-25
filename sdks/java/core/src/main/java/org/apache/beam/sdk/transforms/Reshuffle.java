@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -30,14 +29,15 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
  * <b>For internal use only; no backwards compatibility guarantees.</b>
  *
  * <p>A {@link PTransform} that returns a {@link PCollection} equivalent to its input but
- * operationally provides some of the side effects of a {@link GroupByKey}, in particular preventing
- * fusion of the surrounding transforms, checkpointing and deduplication by id.
+ * operationally provides some of the side effects of a {@link GroupByKey}, in particular
+ * checkpointing, and preventing fusion of the surrounding transforms.
  *
  * <p>Performs a {@link GroupByKey} so that the data is key-partitioned. Configures the {@link
  * WindowingStrategy} so that no data is dropped, but doesn't affect the need for the user to

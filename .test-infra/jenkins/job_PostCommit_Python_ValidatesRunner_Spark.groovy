@@ -21,18 +21,18 @@ import PostcommitJobBuilder
 
 // This job runs the suite of Python ValidatesRunner tests against the Spark runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_VR_Spark',
-  'Run Python Spark ValidatesRunner', 'Python Spark ValidatesRunner Tests', this) {
-  description('Runs the Python ValidatesRunner suite on the Spark runner.')
+    'Run Python Spark ValidatesRunner', 'Python Spark ValidatesRunner Tests', this) {
+      description('Runs the Python ValidatesRunner suite on the Spark runner.')
 
-  // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  // Gradle goals for this job.
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':pythonSparkPostCommit')
-      commonJobProperties.setGradleSwitches(delegate)
+      // Gradle goals for this job.
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':pythonSparkPostCommit')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}

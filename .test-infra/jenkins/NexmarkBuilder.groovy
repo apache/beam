@@ -27,8 +27,8 @@ import NexmarkDatabaseProperties
 class NexmarkBuilder {
 
   private static Map<String, Object> defaultOptions = [
-          'manageResources': false,
-          'monitorJobs'    : true,
+    'manageResources': false,
+    'monitorJobs'    : true,
   ] << NexmarkDatabaseProperties.nexmarkBigQueryArgs << NexmarkDatabaseProperties.nexmarkInfluxDBArgs
 
   static void standardJob(context, Runner runner, SDK sdk, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {

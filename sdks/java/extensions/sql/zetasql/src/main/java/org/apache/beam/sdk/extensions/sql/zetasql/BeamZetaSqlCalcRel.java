@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.PreparedExpression;
 import com.google.zetasql.Value;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.IntFunction;
@@ -42,7 +41,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptClus
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
@@ -61,7 +60,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
   private static final SqlDialect DIALECT = BeamBigQuerySqlDialect.DEFAULT;
-  private final SqlImplementor.Context context;
+  private final BeamSqlUnparseContext context;
 
   private static String columnName(int i) {
     return "_" + i;
@@ -110,6 +109,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       CalcFn calcFn =
           new CalcFn(
               context.toSql(getProgram(), rex).toSqlString(DIALECT).getSql(),
+              createNullParams(context.getNullParams()),
               upstream.getSchema(),
               outputSchema,
               options.getZetaSqlDefaultTimezone(),
@@ -122,12 +122,23 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     }
   }
 
+  private static Map<String, Value> createNullParams(Map<String, RelDataType> input) {
+    Map<String, Value> result = new HashMap<>();
+    for (Map.Entry<String, RelDataType> entry : input.entrySet()) {
+      result.put(
+          entry.getKey(),
+          Value.createNullValue(ZetaSqlCalciteTranslationUtils.toZetaType(entry.getValue())));
+    }
+    return result;
+  }
+
   /**
    * {@code CalcFn} is the executor for a {@link BeamZetaSqlCalcRel} step. The implementation is
    * based on the {@code ZetaSQL} expression evaluator.
    */
   private static class CalcFn extends DoFn<Row, Row> {
     private final String sql;
+    private final Map<String, Value> nullParams;
     private final Schema inputSchema;
     private final Schema outputSchema;
     private final String defaultTimezone;
@@ -136,11 +147,13 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
     CalcFn(
         String sql,
+        Map<String, Value> nullParams,
         Schema inputSchema,
         Schema outputSchema,
         String defaultTimezone,
         boolean verifyRowValues) {
       this.sql = sql;
+      this.nullParams = nullParams;
       this.inputSchema = inputSchema;
       this.outputSchema = outputSchema;
       this.defaultTimezone = defaultTimezone;
@@ -149,10 +162,8 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
     @Setup
     public void setup() {
-      // TODO[BEAM-9182]: support parameters in expression evaluation
-      // Query parameters are not set because they have already been substituted.
       AnalyzerOptions options =
-          SqlAnalyzer.getAnalyzerOptions(QueryParameters.ofNone(), defaultTimezone);
+          SqlAnalyzer.getAnalyzerOptions(QueryParameters.ofNamed(nullParams), defaultTimezone);
       for (int i = 0; i < inputSchema.getFieldCount(); i++) {
         options.addExpressionColumn(
             columnName(i),
@@ -175,11 +186,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
                 row.getBaseValue(i, Object.class), inputSchema.getField(i).getType()));
       }
 
-      // TODO[BEAM-9182]: support parameters in expression evaluation
-      // The map is empty because parameters in the query string have already been substituted.
-      Map<String, Value> params = Collections.emptyMap();
-
-      Value v = exp.execute(columns, params);
+      Value v = exp.execute(columns, nullParams);
       if (!v.isNull()) {
         Row outputRow =
             ZetaSqlBeamTranslationUtils.zetaSqlStructValueToBeamRow(

@@ -118,7 +118,10 @@ rat {
 
     // Mockito extensions
     "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
-    "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker"
+    "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
+
+    // JupyterLab extensions
+    "sdks/python/apache_beam/runners/interactive/extensions/apache-beam-jupyterlab-sidepanel/yarn.lock"
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -244,7 +247,6 @@ task pythonFormatterPreCommit() {
 }
 
 task python2PostCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py2:crossLanguagePythonJavaKafkaIOFlink"
   dependsOn ":sdks:python:test-suites:portable:py2:crossLanguageTests"
   dependsOn ":sdks:python:test-suites:dataflow:py2:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py2:directRunnerIT"
@@ -272,7 +274,6 @@ task python37PostCommit() {
 }
 
 task python38PostCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py38:crossLanguagePythonJavaKafkaIOFlink"
   dependsOn ":sdks:python:test-suites:dataflow:py38:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py38:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py38:hdfsIntegrationTest"

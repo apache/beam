@@ -27,7 +27,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.coders.Coder;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
@@ -56,6 +56,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Provides access to side inputs and state via a {@link BeamFnStateClient}. */
 public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
@@ -140,8 +141,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
-  @Nullable
-  public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+  public @Nullable <T> T get(PCollectionView<T> view, BoundedWindow window) {
     TupleTag<?> tag = view.getTagInternal();
 
     SideInputSpec sideInputSpec = sideInputSpecMap.get(tag);
@@ -332,6 +332,13 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       Coder<KeyT> mapKeyCoder,
       Coder<ValueT> mapValueCoder) {
     throw new UnsupportedOperationException("TODO: Add support for a map state to the Fn API.");
+  }
+
+  @Override
+  public <T> OrderedListState<T> bindOrderedList(
+      String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
+    throw new UnsupportedOperationException(
+        "TODO: Add support for a sorted-list state to the Fn API.");
   }
 
   @Override

@@ -20,9 +20,11 @@ package org.apache.beam.sdk.io.snowflake;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.options.ValueProvider;
 
-public interface SnowflakePipelineOptions extends PipelineOptions {
+public interface SnowflakePipelineOptions extends PipelineOptions, StreamingOptions {
   String BASIC_CONNECTION_INFO_VALIDATION_GROUP = "BASIC_CONNECTION_INFO_GROUP";
   String AUTH_VALIDATION_GROUP = "AUTH_VALIDATION_GROUP";
 
@@ -120,4 +122,9 @@ public interface SnowflakePipelineOptions extends PipelineOptions {
   String getStorageIntegrationName();
 
   void setStorageIntegrationName(String storageIntegrationName);
+
+  @Description("SnowPipe name. Optional.")
+  ValueProvider<String> getSnowPipe();
+
+  void setSnowPipe(ValueProvider<String> snowPipe);
 }

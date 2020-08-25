@@ -38,7 +38,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -50,6 +49,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -230,8 +230,8 @@ class BigQueryAvroUtils {
     return row;
   }
 
-  @Nullable
-  private static Object getTypedCellValue(Schema schema, TableFieldSchema fieldSchema, Object v) {
+  private static @Nullable Object getTypedCellValue(
+      Schema schema, TableFieldSchema fieldSchema, Object v) {
     // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the mode field
     // is optional (and so it may be null), but defaults to "NULLABLE".
     String mode = firstNonNull(fieldSchema.getMode(), "NULLABLE");
@@ -362,8 +362,7 @@ class BigQueryAvroUtils {
     }
   }
 
-  @Nullable
-  private static Object convertNullableField(
+  private static @Nullable Object convertNullableField(
       Schema avroSchema, TableFieldSchema fieldSchema, Object v) {
     // NULLABLE fields are represented as an Avro Union of the corresponding type and "null".
     verify(

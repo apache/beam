@@ -30,6 +30,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Contexts;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Common setup for ZetaSQL tests. */
@@ -59,6 +60,8 @@ public abstract class ZetaSqlTestBase {
     testBoundedTableMap.put("table_with_map", TestInput.TABLE_WITH_MAP);
     testBoundedTableMap.put("table_with_date", TestInput.TABLE_WITH_DATE);
     testBoundedTableMap.put("table_with_time", TestInput.TABLE_WITH_TIME);
+    testBoundedTableMap.put("table_with_numeric", TestInput.TABLE_WITH_NUMERIC);
+    testBoundedTableMap.put("table_with_datetime", TestInput.TABLE_WITH_DATETIME);
     testBoundedTableMap.put(
         "table_with_struct_ts_string", TestInput.TABLE_WITH_STRUCT_TIMESTAMP_STRING);
     testBoundedTableMap.put("streaming_sql_test_table_a", TestInput.STREAMING_SQL_TABLE_A);
@@ -76,7 +79,7 @@ public abstract class ZetaSqlTestBase {
             .defaultSchema(jdbcConnection.getCurrentSchemaPlus())
             .traitDefs(ImmutableList.of(ConventionTraitDef.INSTANCE))
             .context(Contexts.of(jdbcConnection.config()))
-            .ruleSets(ZetaSQLQueryPlanner.getZetaSqlRuleSets())
+            .ruleSets(ZetaSQLQueryPlanner.getZetaSqlRuleSets().toArray(new RuleSet[0]))
             .costFactory(BeamCostModel.FACTORY)
             .typeSystem(jdbcConnection.getTypeFactory().getTypeSystem())
             .build();

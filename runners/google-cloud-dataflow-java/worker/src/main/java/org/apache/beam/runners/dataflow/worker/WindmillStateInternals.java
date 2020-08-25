@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -37,12 +36,14 @@ import org.apache.beam.runners.core.StateTable;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTag.StateBinder;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.dataflow.worker.WindmillStateCache.ForKey;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
@@ -55,6 +56,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.Weighted;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
@@ -62,6 +64,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Implementation of {@link StateInternals} using Windmill to manage the underlying data. */
@@ -71,16 +74,15 @@ class WindmillStateInternals<K> implements StateInternals {
    * The key will be null when not in a keyed context, from the users perspective. There is still a
    * "key" for the Windmill computation, but it cannot be meaningfully deserialized.
    */
-  @Nullable private final K key;
+  private final @Nullable K key;
 
   @Override
-  @Nullable
-  public K getKey() {
+  public @Nullable K getKey() {
     return key;
   }
 
   private static class CachingStateTable<K> extends StateTable {
-    @Nullable private final K key;
+    private final @Nullable K key;
     private final String stateFamily;
     private final WindmillStateReader reader;
     private final WindmillStateCache.ForKey cache;
@@ -130,7 +132,18 @@ class WindmillStateInternals<K> implements StateInternals {
             Coder<KeyT> mapKeyCoder,
             Coder<ValueT> mapValueCoder) {
           throw new UnsupportedOperationException(
-              String.format("%s is not supported", MapState.class.getSimpleName()));
+              String.format("%s is not supported", SetState.class.getSimpleName()));
+        }
+
+        @Override
+        public <T> OrderedListState<T> bindOrderedList(
+            StateTag<OrderedListState<T>> spec, Coder<T> elemCoder) {
+          WindmillOrderedList<T> result = (WindmillOrderedList<T>) cache.get(namespace, spec);
+          if (result == null) {
+            result = new WindmillOrderedList<>(namespace, spec, stateFamily, elemCoder, isNewKey);
+          }
+          result.initializeForWorkItem(reader, scopedReadStateSupplier);
+          return result;
         }
 
         @Override
@@ -454,6 +467,83 @@ class WindmillStateInternals<K> implements StateInternals {
       return valueIsKnown
           ? Futures.immediateFuture(value)
           : reader.valueFuture(stateKey, stateFamily, coder);
+    }
+  }
+
+  private static class WindmillOrderedList<T> extends SimpleWindmillState
+      implements OrderedListState<T> {
+
+    private final StateNamespace namespace;
+    private final StateTag<OrderedListState<T>> spec;
+    private final ByteString stateKey;
+    private final String stateFamily;
+    private final Coder<T> elemCoder;
+
+    private WindmillOrderedList(
+        StateNamespace namespace,
+        StateTag<OrderedListState<T>> spec,
+        String stateFamily,
+        Coder<T> elemCoder,
+        boolean isNewKey) {
+      this.namespace = namespace;
+      this.spec = spec;
+      this.stateKey = encodeKey(namespace, spec);
+      this.stateFamily = stateFamily;
+      this.elemCoder = elemCoder;
+    }
+
+    @Override
+    public Iterable<TimestampedValue<T>> read() {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
+    }
+
+    @Override
+    public Iterable<TimestampedValue<T>> readRange(Instant minTimestamp, Instant limitTimestamp) {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
+    }
+
+    @Override
+    public void clear() {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
+    }
+
+    @Override
+    public void clearRange(Instant minTimestamp, Instant limitTimestamp) {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
+    }
+
+    @Override
+    public void add(TimestampedValue<T> value) {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
+    }
+
+    @Override
+    public ReadableState<Boolean> isEmpty() {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
+    }
+
+    @Override
+    public OrderedListState<T> readLater() {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
+    }
+
+    @Override
+    public OrderedListState<T> readRangeLater(Instant minTimestamp, Instant limitTimestamp) {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
+    }
+
+    @Override
+    public WorkItemCommitRequest persistDirectly(ForKey cache) throws IOException {
+      WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
+      return commitBuilder.buildPartial();
     }
   }
 

@@ -82,8 +82,8 @@ class CodersTest(unittest.TestCase):
         coders.ToBytesCoder
     ])
     cls.seen_nested -= set([coders.ProtoCoder, CustomCoder])
-    assert not standard - cls.seen
-    assert not cls.seen_nested - standard
+    assert not standard - cls.seen, str(standard - cls.seen)
+    assert not cls.seen_nested - standard, str(cls.seen_nested - standard)
 
   @classmethod
   def _observe(cls, coder):
@@ -559,6 +559,16 @@ class CodersTest(unittest.TestCase):
         coders.TupleCoder((coder, coder)), ([1], [2, 3]),
         context=context,
         test_size_estimation=False)
+
+  def test_nullable_coder(self):
+    self.check_coder(coders.NullableCoder(coders.VarIntCoder()), None, 2 * 64)
+
+  def test_map_coder(self):
+    self.check_coder(
+        coders.MapCoder(coders.VarIntCoder(), coders.StrUtf8Coder()), {
+            1: "one", 300: "three hundred"
+        }, {}, {i: str(i)
+                for i in range(5000)})
 
 
 if __name__ == '__main__':

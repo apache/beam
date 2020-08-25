@@ -20,8 +20,10 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BOOL;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_BYTES;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DATE;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DATETIME;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DOUBLE;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_INT64;
+import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_NUMERIC;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIME;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
@@ -45,7 +47,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * Utility methods for ZetaSQL <=> Calcite translation.
  *
  * <p>Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
- * TODO[BEAM-10238]: support ZetaSQL types: TIME, DATETIME, NUMERIC
  */
 @Internal
 public final class ZetaSqlCalciteTranslationUtils {
@@ -65,10 +66,14 @@ public final class ZetaSqlCalciteTranslationUtils {
         return TypeFactory.createSimpleType(TYPE_STRING);
       case VARBINARY:
         return TypeFactory.createSimpleType(TYPE_BYTES);
+      case DECIMAL:
+        return TypeFactory.createSimpleType(TYPE_NUMERIC);
       case DATE:
         return TypeFactory.createSimpleType(TYPE_DATE);
       case TIME:
         return TypeFactory.createSimpleType(TYPE_TIME);
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+        return TypeFactory.createSimpleType(TYPE_DATETIME);
       case TIMESTAMP:
         return TypeFactory.createSimpleType(TYPE_TIMESTAMP);
       case ARRAY:
@@ -98,10 +103,14 @@ public final class ZetaSqlCalciteTranslationUtils {
         return SqlTypeName.VARCHAR;
       case TYPE_BYTES:
         return SqlTypeName.VARBINARY;
+      case TYPE_NUMERIC:
+        return SqlTypeName.DECIMAL;
       case TYPE_DATE:
         return SqlTypeName.DATE;
       case TYPE_TIME:
         return SqlTypeName.TIME;
+      case TYPE_DATETIME:
+        return SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
       case TYPE_TIMESTAMP:
         // TODO: handle timestamp with time zone.
         return SqlTypeName.TIMESTAMP;
@@ -127,9 +136,12 @@ public final class ZetaSqlCalciteTranslationUtils {
     // -1 cardinality means unlimited array size.
     // TODO: is unlimited array size right for general case?
     // TODO: whether isNullable should be ArrayType's nullablity (not its element type's?)
-    return rexBuilder
-        .getTypeFactory()
-        .createArrayType(toRelDataType(rexBuilder, arrayType.getElementType(), isNullable), -1);
+    return nullable(
+        rexBuilder,
+        rexBuilder
+            .getTypeFactory()
+            .createArrayType(toRelDataType(rexBuilder, arrayType.getElementType(), isNullable), -1),
+        isNullable);
   }
 
   private static List<String> toNameList(List<StructField> fields) {
