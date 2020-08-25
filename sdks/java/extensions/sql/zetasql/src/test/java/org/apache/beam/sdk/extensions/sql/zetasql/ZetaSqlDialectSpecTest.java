@@ -4457,9 +4457,9 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     final Schema schema = Schema.builder().addDoubleField("field1").build();
     PAssert.that(stream)
-            .containsInAnyOrder(
-                    Row.withSchema(schema).addValues(1.4142135623730951).build(),
-                    Row.withSchema(schema).addValue(1.5275252315428378).build());
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(1.4142135623730951).build(),
+            Row.withSchema(schema).addValue(1.5275252315428378).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

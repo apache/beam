@@ -386,7 +386,7 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_SUM_BIGNUMERIC, // sum
           // JIRA link: https://issues.apache.org/jira/browse/BEAM-10379
           // FunctionSignatureId.FN_BIT_AND_INT64, // bit_and
-          FunctionSignatureId.FN_BIT_OR_INT64 // bit_or
+          FunctionSignatureId.FN_BIT_OR_INT64, // bit_or
           // FunctionSignatureId.FN_BIT_XOR_INT64, // bit_xor
           // FunctionSignatureId.FN_LOGICAL_AND, // logical_and
           // FunctionSignatureId.FN_LOGICAL_OR, // logical_or
@@ -417,10 +417,10 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_COVAR_POP_NUMERIC, // covar_pop
           // FunctionSignatureId.FN_COVAR_SAMP, // covar_samp
           // FunctionSignatureId.FN_COVAR_SAMP_NUMERIC, // covar_samp
-          // FunctionSignatureId.FN_STDDEV_POP, // stddev_pop
-          // FunctionSignatureId.FN_STDDEV_POP_NUMERIC, // stddev_pop
-          // FunctionSignatureId.FN_STDDEV_SAMP, // stddev_samp
-          // FunctionSignatureId.FN_STDDEV_SAMP_NUMERIC, // stddev_samp
+          FunctionSignatureId.FN_STDDEV_POP, // stddev_pop
+          FunctionSignatureId.FN_STDDEV_POP_NUMERIC, // stddev_pop
+          FunctionSignatureId.FN_STDDEV_SAMP, // stddev_samp
+          FunctionSignatureId.FN_STDDEV_SAMP_NUMERIC // stddev_samp
           // FunctionSignatureId.FN_VAR_POP, // var_pop
           // FunctionSignatureId.FN_VAR_POP_NUMERIC, // var_pop
           // FunctionSignatureId.FN_VAR_SAMP, // var_samp

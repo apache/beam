@@ -359,8 +359,6 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     Schema schemaInTableA =
         Schema.builder().addDoubleField("f_double").addInt32Field("f_int2").build();
 
-    Schema resultType = Schema.builder().addDoubleField("finalAnswer").build();
-
     List<Row> rowsInTableA =
         TestUtils.RowsBuilder.of(schemaInTableA)
             .addRows(
@@ -457,36 +455,33 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     pipeline.enableAbandonedNodeEnforcement(false);
 
     Schema schemaInTableA =
-            Schema.builder().addDoubleField("f_double").addInt32Field("f_int2").build();
+        Schema.builder().addDoubleField("f_double").addInt32Field("f_int2").build();
 
     List<Row> rowsInTableA =
-            TestUtils.RowsBuilder.of(schemaInTableA)
-                    .addRows(
-                            15.0, 0,
-                            3.0, 0,
-                            98.9, 0)
-                    .getRows();
+        TestUtils.RowsBuilder.of(schemaInTableA)
+            .addRows(
+                15.0, 0,
+                3.0, 0,
+                98.9, 0)
+            .getRows();
 
     String sql = "SELECT stddev(f_double) as stddev " + "FROM PCOLLECTION GROUP BY f_int2";
 
     PCollection<Row> inputRows =
-            pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
     PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
 
     PAssert.that(result)
-            .satisfies(
-                    input -> {
-                      Row row = Iterables.getOnlyElement(input);
-                      assertNotNull(row);
-                      assertEquals(52.24943380873456, row.getDouble(0), 1e-7);
-                      return null;
-                    });
+        .satisfies(
+            input -> {
+              Row row = Iterables.getOnlyElement(input);
+              assertNotNull(row);
+              assertEquals(52.24943380873456, row.getDouble(0), 1e-7);
+              return null;
+            });
 
     pipeline.run().waitUntilFinish();
   }
-
-
-
 
   /**
    * NULL values don't work correctly. (https://issues.apache.org/jira/browse/BEAM-10379)
