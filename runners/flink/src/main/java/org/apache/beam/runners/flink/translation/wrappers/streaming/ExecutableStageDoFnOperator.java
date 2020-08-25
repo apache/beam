@@ -40,7 +40,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
@@ -102,6 +101,7 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -288,9 +288,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     /** Lock to hold whenever accessing the state backend. */
     private final Lock stateBackendLock;
     /** For debugging: The key coder used by the Runner. */
-    @Nullable private final Coder runnerKeyCoder;
+    private final @Nullable Coder runnerKeyCoder;
     /** For debugging: Same as keyedStateBackend but upcasted, to access key group meta info. */
-    @Nullable private final AbstractKeyedStateBackend<ByteBuffer> keyStateBackendWithKeyGroupInfo;
+    private final @Nullable AbstractKeyedStateBackend<ByteBuffer> keyStateBackendWithKeyGroupInfo;
 
     BagUserStateFactory(
         StateInternals stateInternals,

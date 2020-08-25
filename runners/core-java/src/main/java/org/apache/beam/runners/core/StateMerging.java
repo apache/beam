@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -46,6 +47,7 @@ public class StateMerging {
    * Prefetch all bag state in {@code address} across all windows under merge in {@code context},
    * except for the bag state in the final state address window which we can blindly append to.
    */
+  @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT") // just prefetch calls to readLater
   public static <K, T, W extends BoundedWindow> void prefetchBags(
       MergingStateAccessor<K, W> context, StateTag<BagState<T>> address) {
     Map<W, BagState<T>> map = context.accessInEachMergingWindow(address);

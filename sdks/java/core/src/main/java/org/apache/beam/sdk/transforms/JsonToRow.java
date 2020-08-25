@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
+import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.NullBehavior;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
@@ -42,6 +42,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * <i>Experimental</i>
@@ -76,30 +77,35 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * <p>Only JSON string values can be parsed into {@link TypeName#STRING}. Numbers, booleans are not
  * automatically converted, exceptions are thrown in these cases.
  *
- * <p>If a schema field is missing from the JSON value, an exception will be thrown.
- *
- * <p>Explicit {@code null} literals are allowed in JSON objects. No other values are parsed into
- * {@code null}.
+ * <p>If a schema field is missing from the JSON value, by default the field will be assumed to have
+ * a null value, and will be converted into a null in the row if the schema has this field being
+ * nullable. This behavior can be changed by setting the {@link NullBehavior} using the {@link
+ * JsonToRow#withSchemaAndNullBehavior}. For example, setting it with {@link
+ * NullBehavior#REQUIRE_NULL} means that JSON values must be null to be parsed as null, otherwise an
+ * error will be thrown, as with previous versions of Beam.
  */
 @Experimental(Kind.SCHEMAS)
 public class JsonToRow {
 
   public static PTransform<PCollection<String>, PCollection<Row>> withSchema(Schema rowSchema) {
-    return JsonToRowFn.forSchema(rowSchema);
+    RowJson.verifySchemaSupported(rowSchema);
+    return new JsonToRowFn(rowSchema, NullBehavior.ACCEPT_MISSING_OR_NULL);
+  }
+
+  public static PTransform<PCollection<String>, PCollection<Row>> withSchemaAndNullBehavior(
+      Schema rowSchema, NullBehavior nullBehavior) {
+    RowJson.verifySchemaSupported(rowSchema);
+    return new JsonToRowFn(rowSchema, nullBehavior);
   }
 
   static class JsonToRowFn extends PTransform<PCollection<String>, PCollection<Row>> {
     private transient volatile @Nullable ObjectMapper objectMapper;
-    private Schema schema;
+    private final Schema schema;
+    private final NullBehavior nullBehavior;
 
-    static JsonToRowFn forSchema(Schema rowSchema) {
-      // Throw exception if this schema is not supported by RowJson
-      RowJson.verifySchemaSupported(rowSchema);
-      return new JsonToRowFn(rowSchema);
-    }
-
-    private JsonToRowFn(Schema schema) {
+    private JsonToRowFn(Schema schema, NullBehavior nullBehavior) {
       this.schema = schema;
+      this.nullBehavior = nullBehavior;
     }
 
     @Override
@@ -120,7 +126,9 @@ public class JsonToRow {
       if (this.objectMapper == null) {
         synchronized (this) {
           if (this.objectMapper == null) {
-            this.objectMapper = newObjectMapperWith(RowJsonDeserializer.forSchema(this.schema));
+            this.objectMapper =
+                newObjectMapperWith(
+                    RowJsonDeserializer.forSchema(this.schema).withNullBehavior(this.nullBehavior));
           }
         }
       }
@@ -163,7 +171,8 @@ public class JsonToRow {
   }
 
   @AutoValue
-  abstract static class JsonToRowWithErrFn extends PTransform<PCollection<String>, ParseResult> {
+  public abstract static class JsonToRowWithErrFn
+      extends PTransform<PCollection<String>, ParseResult> {
 
     private static final String LINE_FIELD_NAME = "line";
     private static final String ERROR_FIELD_NAME = "err";
@@ -179,34 +188,39 @@ public class JsonToRow {
     static final TupleTag<Row> PARSED_LINE = new TupleTag<Row>() {};
     static final TupleTag<Row> PARSE_ERROR = new TupleTag<Row>() {};
 
-    public abstract Schema getSchema();
+    abstract Schema getSchema();
 
-    public abstract String getLineFieldName();
+    abstract String getLineFieldName();
 
-    public abstract String getErrorFieldName();
+    abstract String getErrorFieldName();
 
-    public abstract boolean getExtendedErrorInfo();
+    abstract boolean getExtendedErrorInfo();
 
-    public abstract Builder toBuilder();
+    abstract NullBehavior getNullBehavior();
+
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setSchema(Schema value);
+      abstract Builder setSchema(Schema value);
 
-      public abstract Builder setLineFieldName(String value);
+      abstract Builder setLineFieldName(String value);
 
-      public abstract Builder setErrorFieldName(String value);
+      abstract Builder setErrorFieldName(String value);
 
-      public abstract Builder setExtendedErrorInfo(boolean value);
+      abstract Builder setExtendedErrorInfo(boolean value);
 
-      public abstract JsonToRowWithErrFn build();
+      abstract Builder setNullBehavior(NullBehavior nullBehavior);
+
+      abstract JsonToRowWithErrFn build();
     }
 
-    public static JsonToRowWithErrFn forSchema(Schema rowSchema) {
+    static JsonToRowWithErrFn forSchema(Schema rowSchema) {
       // Throw exception if this schema is not supported by RowJson
       RowJson.verifySchemaSupported(rowSchema);
       return new AutoValue_JsonToRow_JsonToRowWithErrFn.Builder()
           .setSchema(rowSchema)
+          .setNullBehavior(NullBehavior.ACCEPT_MISSING_OR_NULL)
           .setExtendedErrorInfo(false)
           .setLineFieldName(LINE_FIELD_NAME)
           .setErrorFieldName(ERROR_FIELD_NAME)
@@ -242,6 +256,15 @@ public class JsonToRow {
             "This option is only available with Extended Error Info.");
       }
       return this.toBuilder().setErrorFieldName(errorField).build();
+    }
+
+    /**
+     * Sets the behavior of the deserializer according to {@link NullBehavior}.
+     *
+     * @return {@link JsonToRow}
+     */
+    public JsonToRowWithErrFn withNullBehavior(NullBehavior nullBehavior) {
+      return this.toBuilder().setNullBehavior(nullBehavior).build();
     }
 
     @Override
@@ -320,7 +343,8 @@ public class JsonToRow {
             if (this.objectMapper == null) {
               this.objectMapper =
                   newObjectMapperWith(
-                      RowJsonDeserializer.forSchema(getJsonToRowWithErrFn().getSchema()));
+                      RowJsonDeserializer.forSchema(getJsonToRowWithErrFn().getSchema())
+                          .withNullBehavior(getJsonToRowWithErrFn().getNullBehavior()));
             }
           }
         }
@@ -334,27 +358,27 @@ public class JsonToRow {
   @AutoValue
   public abstract static class ParseResult implements POutput {
 
-    public abstract JsonToRowWithErrFn getJsonToRowWithErrFn();
+    abstract JsonToRowWithErrFn getJsonToRowWithErrFn();
 
-    public abstract PCollection<Row> getParsedLine();
+    abstract PCollection<Row> getParsedLine();
 
-    public abstract PCollection<Row> getFailedParse();
+    abstract PCollection<Row> getFailedParse();
 
-    public abstract ParseResult.Builder toBuilder();
+    abstract ParseResult.Builder toBuilder();
 
-    public abstract Pipeline getCallingPipeline();
+    abstract Pipeline getCallingPipeline();
 
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setJsonToRowWithErrFn(JsonToRowWithErrFn value);
+      abstract Builder setJsonToRowWithErrFn(JsonToRowWithErrFn value);
 
-      public abstract Builder setParsedLine(PCollection<Row> value);
+      abstract Builder setParsedLine(PCollection<Row> value);
 
-      public abstract Builder setFailedParse(PCollection<Row> value);
+      abstract Builder setFailedParse(PCollection<Row> value);
 
-      public abstract Builder setCallingPipeline(Pipeline value);
+      abstract Builder setCallingPipeline(Pipeline value);
 
-      public abstract ParseResult build();
+      abstract ParseResult build();
     }
 
     public static ParseResult.Builder resultBuilder() {

@@ -83,6 +83,8 @@ __all__ = [
     'FastPrimitivesCoder',
     'FloatCoder',
     'IterableCoder',
+    'MapCoder',
+    'NullableCoder',
     'PickleCoder',
     'ProtoCoder',
     'SingletonCoder',
@@ -520,6 +522,57 @@ class BooleanCoder(FastCoder):
 Coder.register_structured_urn(common_urns.coders.BOOL.urn, BooleanCoder)
 
 
+class MapCoder(FastCoder):
+  def __init__(self, key_coder, value_coder):
+    # type: (Coder, Coder) -> None
+    self._key_coder = key_coder
+    self._value_coder = value_coder
+
+  def _create_impl(self):
+    return coder_impl.MapCoderImpl(
+        self._key_coder.get_impl(), self._value_coder.get_impl())
+
+  def to_type_hint(self):
+    return typehints.Dict[self._key_coder.to_type_hint(),
+                          self._value_coder.to_type_hint()]
+
+  def is_deterministic(self):
+    # () -> bool
+    # Map ordering is non-deterministic
+    return False
+
+  def __eq__(self, other):
+    return (
+        type(self) == type(other) and self._key_coder == other._key_coder and
+        self._value_coder == other._value_coder)
+
+  def __hash__(self):
+    return hash(type(self)) + hash(self._key_coder) + hash(self._value_coder)
+
+
+class NullableCoder(FastCoder):
+  def __init__(self, value_coder):
+    # type: (Coder) -> None
+    self._value_coder = value_coder
+
+  def _create_impl(self):
+    return coder_impl.NullableCoderImpl(self._value_coder.get_impl())
+
+  def to_type_hint(self):
+    return typehints.Optional[self._value_coder.to_type_hint()]
+
+  def is_deterministic(self):
+    # () -> bool
+    return self._value_coder.is_deterministic()
+
+  def __eq__(self, other):
+    return (
+        type(self) == type(other) and self._value_coder == other._value_coder)
+
+  def __hash__(self):
+    return hash(type(self)) + hash(self._value_coder)
+
+
 class VarIntCoder(FastCoder):
   """Variable-length integer coder."""
   def _create_impl(self):
@@ -706,9 +759,9 @@ class PickleCoder(_PickleCoderBase):
   """Coder using Python's pickle functionality."""
   def _create_impl(self):
     dumps = pickle.dumps
-    HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
+    protocol = pickle.HIGHEST_PROTOCOL
     return coder_impl.CallbackCoderImpl(
-        lambda x: dumps(x, HIGHEST_PROTOCOL), pickle.loads)
+        lambda x: dumps(x, protocol), pickle.loads)
 
   def as_deterministic_coder(self, step_label, error_message=None):
     return DeterministicFastPrimitivesCoder(self, step_label)

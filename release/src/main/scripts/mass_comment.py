@@ -47,6 +47,7 @@ COMMENTS_TO_ADD = [
     "Run Python 3.5 PostCommit",
     "Run Python 3.6 PostCommit",
     "Run Python 3.7 PostCommit",
+    "Run Python 3.8 PostCommit",
     "Run SQL PostCommit",
     "Run Go PreCommit",
     "Run Java PreCommit",

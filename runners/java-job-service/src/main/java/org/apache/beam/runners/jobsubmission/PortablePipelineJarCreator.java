@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.jobsubmission;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -90,7 +92,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
             .as(PortablePipelineOptions.class);
 
     final String jobName = jobInfo.jobName();
-    File outputFile = new File(pipelineOptions.getOutputExecutablePath());
+    File outputFile = new File(checkArgumentNotNull(pipelineOptions.getOutputExecutablePath()));
     LOG.info("Creating jar {} for job {}", outputFile.getAbsolutePath(), jobName);
     outputStream =
         new JarOutputStream(new FileOutputStream(outputFile), createManifest(mainClass, jobName));

@@ -41,7 +41,6 @@ import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
@@ -72,6 +71,7 @@ import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStrea
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 import org.apache.commons.compress.utils.CountingInputStream;
 import org.apache.commons.compress.utils.IOUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 // CHECKSTYLE.OFF: JavadocStyle
 /**
@@ -161,13 +161,13 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     private final Class<?> type;
 
     // The JSON schema used to decode records.
-    @Nullable private String readerSchemaString;
+    private @Nullable String readerSchemaString;
 
-    @Nullable private final SerializableFunction<GenericRecord, T> parseFn;
+    private final @Nullable SerializableFunction<GenericRecord, T> parseFn;
 
-    @Nullable private final Coder<T> outputCoder;
+    private final @Nullable Coder<T> outputCoder;
 
-    @Nullable private final DatumReaderFactory<?> readerFactory;
+    private final @Nullable DatumReaderFactory<?> readerFactory;
 
     private Mode(
         Class<?> type,
@@ -564,7 +564,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     private final long numRecords;
 
     // The current record in the block. Initialized in readNextRecord.
-    @Nullable private T currentRecord;
+    private @Nullable T currentRecord;
 
     // The index of the current record in the block.
     private long currentRecordIndex = 0;
@@ -667,11 +667,11 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   @Experimental(Kind.SOURCE_SINK)
   public static class AvroReader<T> extends BlockBasedReader<T> {
     // Initialized in startReading.
-    @Nullable private AvroMetadata metadata;
+    private @Nullable AvroMetadata metadata;
 
     // The current block.
     // Initialized in readNextRecord.
-    @Nullable private AvroBlock<T> currentBlock;
+    private @Nullable AvroBlock<T> currentBlock;
 
     // A lock used to synchronize block offsets for getRemainingParallelism
     private final Object progressLock = new Object();
@@ -687,16 +687,16 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     // Stream used to read from the underlying file.
     // A pushback stream is used to restore bytes buffered during seeking.
     // Initialized in startReading.
-    @Nullable private PushbackInputStream stream;
+    private @Nullable PushbackInputStream stream;
 
     // Counts the number of bytes read. Used only to tell how many bytes are taken up in
     // a block's variable-length header.
     // Initialized in startReading.
-    @Nullable private CountingInputStream countStream;
+    private @Nullable CountingInputStream countStream;
 
     // Caches the Avro DirectBinaryDecoder used to decode binary-encoded values from the buffer.
     // Initialized in readNextBlock.
-    @Nullable private BinaryDecoder decoder;
+    private @Nullable BinaryDecoder decoder;
 
     /** Reads Avro records of type {@code T} from the specified source. */
     public AvroReader(AvroSource<T> source) {

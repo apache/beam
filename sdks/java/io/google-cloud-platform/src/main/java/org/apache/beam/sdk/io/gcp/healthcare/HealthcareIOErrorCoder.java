@@ -39,7 +39,7 @@ public class HealthcareIOErrorCoder<T> extends CustomCoder<HealthcareIOError<T>>
     this.originalCoder = NullableCoder.of(originalCoder);
   }
 
-  public static <T> HealthcareIOErrorCoder of(Coder<T> originalCoder) {
+  public static <T> HealthcareIOErrorCoder<T> of(Coder<T> originalCoder) {
     return new HealthcareIOErrorCoder<>(originalCoder);
   }
 

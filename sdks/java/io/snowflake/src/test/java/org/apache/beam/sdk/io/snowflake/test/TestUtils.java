@@ -26,12 +26,20 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
+import javax.sql.DataSource;
+import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
+import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
@@ -43,6 +51,26 @@ public class TestUtils {
 
   private static final String PRIVATE_KEY_FILE_NAME = "test_rsa_key.p8";
   private static final String PRIVATE_KEY_PASSPHRASE = "snowflake";
+
+  public interface SnowflakeIOITPipelineOptions
+      extends IOTestPipelineOptions, SnowflakePipelineOptions {}
+
+  public static ResultSet runConnectionWithStatement(DataSource dataSource, String query)
+      throws SQLException {
+
+    Connection connection = dataSource.getConnection();
+    return runStatement(query, connection);
+  }
+
+  public static ResultSet runStatement(String query, Connection connection) throws SQLException {
+    PreparedStatement statement = connection.prepareStatement(query);
+    try {
+      return statement.executeQuery();
+    } finally {
+      statement.close();
+      connection.close();
+    }
+  }
 
   public static String getPrivateKeyPath(Class klass) {
     ClassLoader classLoader = klass.getClassLoader();
@@ -69,6 +97,24 @@ public class TestUtils {
         && actual.containsAll(expected);
   }
 
+  public static String toSnowflakeRow(String[] strings) {
+    int iMax = strings.length - 1;
+    StringBuilder b = new StringBuilder();
+    for (int i = 0; ; i++) {
+      if (strings[i] != null) {
+        b.append(String.format("'%s'", strings[i]));
+      }
+      if (i == iMax) {
+        return b.toString();
+      }
+      b.append(",");
+    }
+  }
+
+  public static SnowflakeIO.UserDataMapper<Long> getCsvMapper() {
+    return (SnowflakeIO.UserDataMapper<Long>) recordLine -> new String[] {recordLine.toString()};
+  }
+
   public static SnowflakeIO.UserDataMapper<KV<String, Long>> getLongCsvMapperKV() {
     return (SnowflakeIO.UserDataMapper<KV<String, Long>>)
         recordLine -> new Long[] {recordLine.getValue()};
@@ -76,6 +122,24 @@ public class TestUtils {
 
   public static SnowflakeIO.UserDataMapper<Long> getLongCsvMapper() {
     return (SnowflakeIO.UserDataMapper<Long>) recordLine -> new Long[] {recordLine};
+  }
+
+  public static SnowflakeIO.CsvMapper<TestRow> getTestRowCsvMapper() {
+    return (SnowflakeIO.CsvMapper<TestRow>)
+        parts -> TestRow.create(Integer.valueOf(parts[0]), parts[1]);
+  }
+
+  public static SnowflakeIO.UserDataMapper<TestRow> getTestRowDataMapper() {
+    return (SnowflakeIO.UserDataMapper<TestRow>)
+        (TestRow element) -> new Object[] {element.id(), element.name()};
+  }
+
+  public static SnowflakeIO.UserDataMapper<String[]> getLStringCsvMapper() {
+    return (SnowflakeIO.UserDataMapper<String[]>) recordLine -> recordLine;
+  }
+
+  public static SnowflakeIO.UserDataMapper<String> getStringCsvMapper() {
+    return (SnowflakeIO.UserDataMapper<String>) recordLine -> new String[] {recordLine};
   }
 
   public static class ParseToKv extends DoFn<Long, KV<String, Long>> {

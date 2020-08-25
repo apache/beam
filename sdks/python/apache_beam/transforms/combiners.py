@@ -22,6 +22,7 @@
 from __future__ import absolute_import
 from __future__ import division
 
+import copy
 import heapq
 import operator
 import random
@@ -62,25 +63,29 @@ V = TypeVar('V')
 TimestampType = Union[int, float, Timestamp, Duration]
 
 
+class CombinerWithoutDefaults(ptransform.PTransform):
+  """Super class to inherit without_defaults to built-in Combiners."""
+  def __init__(self, has_defaults=True):
+    self.has_defaults = has_defaults
+
+  def with_defaults(self, has_defaults=True):
+    new = copy.copy(self)
+    new.has_defaults = has_defaults
+    return new
+
+  def without_defaults(self):
+    return self.with_defaults(False)
+
+
 class Mean(object):
   """Combiners for computing arithmetic means of elements."""
-  class Globally(ptransform.PTransform):
+  class Globally(CombinerWithoutDefaults):
     """combiners.Mean.Globally computes the arithmetic mean of the elements."""
-    def __init__(self, has_defaults=True):
-      super(Mean.Globally, self).__init__()
-      self.has_defaults = has_defaults
-
     def expand(self, pcoll):
       if self.has_defaults:
         return pcoll | core.CombineGlobally(MeanCombineFn())
       else:
         return pcoll | core.CombineGlobally(MeanCombineFn()).without_defaults()
-
-    def with_defaults(self, has_defaults=True):
-      return Mean.Globally(has_defaults=has_defaults)
-
-    def without_defaults(self):
-      return self.with_defaults(False)
 
   class PerKey(ptransform.PTransform):
     """combiners.Mean.PerKey finds the means of the values for each key."""
@@ -121,10 +126,13 @@ class MeanCombineFn(core.CombineFn):
 
 class Count(object):
   """Combiners for counting elements."""
-  class Globally(ptransform.PTransform):
+  class Globally(CombinerWithoutDefaults):
     """combiners.Count.Globally counts the total number of elements."""
     def expand(self, pcoll):
-      return pcoll | core.CombineGlobally(CountCombineFn())
+      if self.has_defaults:
+        return pcoll | core.CombineGlobally(CountCombineFn())
+      else:
+        return pcoll | core.CombineGlobally(CountCombineFn()).without_defaults()
 
   class PerKey(ptransform.PTransform):
     """combiners.Count.PerKey counts how many elements each unique key has."""
@@ -169,7 +177,7 @@ class Top(object):
 
   # pylint: disable=no-self-argument
 
-  class Of(ptransform.PTransform):
+  class Of(CombinerWithoutDefaults):
     """Obtain a list of the compare-most N elements in a PCollection.
 
     This transform will retrieve the n greatest elements in the PCollection
@@ -193,6 +201,7 @@ class Top(object):
         *args: as described above.
         **kwargs: as described above.
       """
+      super(Top.Of, self).__init__()
       if compare:
         warnings.warn(
             'Compare not available in Python 3, use key instead.',
@@ -252,10 +261,16 @@ class Top(object):
                 | core.GroupByKey()
                 | core.ParDo(_MergeTopPerBundle(self._n, compare, self._key)))
       else:
-        return pcoll | core.CombineGlobally(
-            TopCombineFn(self._n, compare, self._key, self._reverse),
-            *self._args,
-            **self._kwargs)
+        if self.has_defaults:
+          return pcoll | core.CombineGlobally(
+              TopCombineFn(self._n, compare, self._key, self._reverse),
+              *self._args,
+              **self._kwargs)
+        else:
+          return pcoll | core.CombineGlobally(
+              TopCombineFn(self._n, compare, self._key, self._reverse),
+              *self._args,
+              **self._kwargs).without_defaults()
 
   class PerKey(ptransform.PTransform):
     """Identifies the compare-most N elements associated with each key.
@@ -338,15 +353,21 @@ class Top(object):
 
   @staticmethod
   @ptransform.ptransform_fn
-  def Largest(pcoll, n):
+  def Largest(pcoll, n, has_defaults=True):
     """Obtain a list of the greatest N elements in a PCollection."""
-    return pcoll | Top.Of(n)
+    if has_defaults:
+      return pcoll | Top.Of(n)
+    else:
+      return pcoll | Top.Of(n).without_defaults()
 
   @staticmethod
   @ptransform.ptransform_fn
-  def Smallest(pcoll, n):
+  def Smallest(pcoll, n, has_defaults=True):
     """Obtain a list of the least N elements in a PCollection."""
-    return pcoll | Top.Of(n, reverse=True)
+    if has_defaults:
+      return pcoll | Top.Of(n, reverse=True)
+    else:
+      return pcoll | Top.Of(n, reverse=True).without_defaults()
 
   @staticmethod
   @ptransform.ptransform_fn
@@ -633,13 +654,18 @@ class Sample(object):
 
   # pylint: disable=no-self-argument
 
-  class FixedSizeGlobally(ptransform.PTransform):
+  class FixedSizeGlobally(CombinerWithoutDefaults):
     """Sample n elements from the input PCollection without replacement."""
     def __init__(self, n):
+      super(Sample.FixedSizeGlobally, self).__init__()
       self._n = n
 
     def expand(self, pcoll):
-      return pcoll | core.CombineGlobally(SampleCombineFn(self._n))
+      if self.has_defaults:
+        return pcoll | core.CombineGlobally(SampleCombineFn(self._n))
+      else:
+        return pcoll | core.CombineGlobally(SampleCombineFn(
+            self._n)).without_defaults()
 
     def display_data(self):
       return {'n': self._n}
@@ -754,13 +780,17 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
     ]
 
 
-class ToList(ptransform.PTransform):
+class ToList(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a single list."""
   def __init__(self, label='ToList'):  # pylint: disable=useless-super-delegation
     super(ToList, self).__init__(label)
 
   def expand(self, pcoll):
-    return pcoll | self.label >> core.CombineGlobally(ToListCombineFn())
+    if self.has_defaults:
+      return pcoll | self.label >> core.CombineGlobally(ToListCombineFn())
+    else:
+      return pcoll | self.label >> core.CombineGlobally(
+          ToListCombineFn()).without_defaults()
 
 
 @with_input_types(T)
@@ -781,7 +811,7 @@ class ToListCombineFn(core.CombineFn):
     return accumulator
 
 
-class ToDict(ptransform.PTransform):
+class ToDict(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a single dict.
 
   PCollections should consist of 2-tuples, notionally (key, value) pairs.
@@ -792,7 +822,11 @@ class ToDict(ptransform.PTransform):
     super(ToDict, self).__init__(label)
 
   def expand(self, pcoll):
-    return pcoll | self.label >> core.CombineGlobally(ToDictCombineFn())
+    if self.has_defaults:
+      return pcoll | self.label >> core.CombineGlobally(ToDictCombineFn())
+    else:
+      return pcoll | self.label >> core.CombineGlobally(
+          ToDictCombineFn()).without_defaults()
 
 
 @with_input_types(Tuple[K, V])
@@ -817,13 +851,17 @@ class ToDictCombineFn(core.CombineFn):
     return accumulator
 
 
-class ToSet(ptransform.PTransform):
+class ToSet(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a set."""
   def __init__(self, label='ToSet'):  # pylint: disable=useless-super-delegation
     super(ToSet, self).__init__(label)
 
   def expand(self, pcoll):
-    return pcoll | self.label >> core.CombineGlobally(ToSetCombineFn())
+    if self.has_defaults:
+      return pcoll | self.label >> core.CombineGlobally(ToSetCombineFn())
+    else:
+      return pcoll | self.label >> core.CombineGlobally(
+          ToSetCombineFn()).without_defaults()
 
 
 @with_input_types(T)
@@ -918,7 +956,7 @@ class Latest(object):
   """Combiners for computing the latest element"""
   @with_input_types(T)
   @with_output_types(T)
-  class Globally(ptransform.PTransform):
+  class Globally(CombinerWithoutDefaults):
     """Compute the element with the latest timestamp from a
     PCollection."""
     @staticmethod
@@ -926,11 +964,18 @@ class Latest(object):
       return [(element, timestamp)]
 
     def expand(self, pcoll):
-      return (
-          pcoll
-          | core.ParDo(self.add_timestamp).with_output_types(
-              Tuple[T, TimestampType])  # type: ignore[misc]
-          | core.CombineGlobally(LatestCombineFn()))
+      if self.has_defaults:
+        return (
+            pcoll
+            | core.ParDo(self.add_timestamp).with_output_types(
+                Tuple[T, TimestampType])  # type: ignore[misc]
+            | core.CombineGlobally(LatestCombineFn()))
+      else:
+        return (
+            pcoll
+            | core.ParDo(self.add_timestamp).with_output_types(
+                Tuple[T, TimestampType])  # type: ignore[misc]
+            | core.CombineGlobally(LatestCombineFn()).without_defaults())
 
   @with_input_types(Tuple[K, V])
   @with_output_types(Tuple[K, V])

@@ -36,10 +36,8 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
@@ -50,7 +48,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,7 +89,7 @@ public class BigQueryHelpers {
   static class PendingJobManager {
     private static class JobInfo {
       private final PendingJob pendingJob;
-      @Nullable private final SerializableFunction<PendingJob, Exception> onSuccess;
+      private final @Nullable SerializableFunction<PendingJob, Exception> onSuccess;
 
       public JobInfo(PendingJob pendingJob, SerializableFunction<PendingJob, Exception> onSuccess) {
         this.pendingJob = pendingJob;
@@ -369,8 +367,8 @@ public class BigQueryHelpers {
   }
 
   /** Return a displayable string representation for a {@link TableReference}. */
-  @Nullable
-  static ValueProvider<String> displayTable(@Nullable ValueProvider<TableReference> table) {
+  static @Nullable ValueProvider<String> displayTable(
+      @Nullable ValueProvider<TableReference> table) {
     if (table == null) {
       return null;
     }
@@ -389,8 +387,7 @@ public class BigQueryHelpers {
     return sb.toString();
   }
 
-  @Nullable
-  static ValueProvider<String> displayTableRefProto(
+  static @Nullable ValueProvider<String> displayTableRefProto(
       @Nullable ValueProvider<TableReferenceProto.TableReference> table) {
     if (table == null) {
       return null;
@@ -547,8 +544,7 @@ public class BigQueryHelpers {
    *
    * @return The number of rows in the table or null if it cannot get any estimate.
    */
-  @Nullable
-  public static BigInteger getNumRows(BigQueryOptions options, TableReference tableRef)
+  public static @Nullable BigInteger getNumRows(BigQueryOptions options, TableReference tableRef)
       throws InterruptedException, IOException {
 
     DatasetService datasetService = new BigQueryServicesImpl().getDatasetService(options);
@@ -593,22 +589,6 @@ public class BigQueryHelpers {
             e);
       }
     }
-  }
-
-  // Create a unique job id for a table load.
-  static String createJobId(
-      String prefix, TableDestination tableDestination, int partition, long index) {
-    // Job ID must be different for each partition of each table.
-    String destinationHash =
-        Hashing.murmur3_128().hashUnencodedChars(tableDestination.toString()).toString();
-    String jobId = String.format("%s_%s", prefix, destinationHash);
-    if (partition >= 0) {
-      jobId += String.format("_%05d", partition);
-    }
-    if (index >= 0) {
-      jobId += String.format("_%05d", index);
-    }
-    return jobId;
   }
 
   @VisibleForTesting
@@ -683,24 +663,6 @@ public class BigQueryHelpers {
     public String apply(TimePartitioning partitioning) {
       return toJsonString(partitioning);
     }
-  }
-
-  static String createJobIdToken(String jobName, String stepUuid) {
-    return String.format("beam_job_%s_%s", stepUuid, jobName.replaceAll("-", ""));
-  }
-
-  static String getExtractJobId(String jobIdToken) {
-    return String.format("%s-extract", jobIdToken);
-  }
-
-  static TableReference createTempTableReference(
-      String projectId, String jobUuid, Optional<String> tempDatasetIdOpt) {
-    String tempDatasetId = tempDatasetIdOpt.orElse("temp_dataset_" + jobUuid);
-    String queryTempTableId = "temp_table_" + jobUuid;
-    return new TableReference()
-        .setProjectId(projectId)
-        .setDatasetId(tempDatasetId)
-        .setTableId(queryTempTableId);
   }
 
   static String resolveTempLocation(

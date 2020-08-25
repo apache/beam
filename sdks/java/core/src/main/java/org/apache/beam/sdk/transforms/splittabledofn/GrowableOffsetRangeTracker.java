@@ -140,4 +140,13 @@ public class GrowableOffsetRangeTracker extends OffsetRangeTracker {
         totalWork.subtract(workRemaining, MathContext.DECIMAL128).doubleValue(),
         workRemaining.doubleValue());
   }
+
+  @Override
+  public IsBounded isBounded() {
+    // If current range has been done, the range should be bounded.
+    if (lastAttemptedOffset != null && lastAttemptedOffset == Long.MAX_VALUE) {
+      return IsBounded.BOUNDED;
+    }
+    return range.getTo() == Long.MAX_VALUE ? IsBounded.UNBOUNDED : IsBounded.BOUNDED;
+  }
 }

@@ -22,7 +22,6 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.Map;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
 public class BeamBuiltinAggregations {
@@ -283,8 +283,7 @@ public class BeamBuiltinAggregations {
 
   static class IntegerAvg extends Avg<Integer> {
     @Override
-    @Nullable
-    public Integer extractOutput(KV<Integer, BigDecimal> accumulator) {
+    public @Nullable Integer extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).intValue();
     }
 
@@ -296,8 +295,7 @@ public class BeamBuiltinAggregations {
 
   static class LongAvg extends Avg<Long> {
     @Override
-    @Nullable
-    public Long extractOutput(KV<Integer, BigDecimal> accumulator) {
+    public @Nullable Long extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).longValue();
     }
 
@@ -309,8 +307,7 @@ public class BeamBuiltinAggregations {
 
   static class ShortAvg extends Avg<Short> {
     @Override
-    @Nullable
-    public Short extractOutput(KV<Integer, BigDecimal> accumulator) {
+    public @Nullable Short extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).shortValue();
     }
 
@@ -322,8 +319,7 @@ public class BeamBuiltinAggregations {
 
   static class ByteAvg extends Avg<Byte> {
     @Override
-    @Nullable
-    public Byte extractOutput(KV<Integer, BigDecimal> accumulator) {
+    public @Nullable Byte extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).byteValue();
     }
 
@@ -335,8 +331,7 @@ public class BeamBuiltinAggregations {
 
   static class FloatAvg extends Avg<Float> {
     @Override
-    @Nullable
-    public Float extractOutput(KV<Integer, BigDecimal> accumulator) {
+    public @Nullable Float extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).floatValue();
     }
 
@@ -348,8 +343,7 @@ public class BeamBuiltinAggregations {
 
   static class DoubleAvg extends Avg<Double> {
     @Override
-    @Nullable
-    public Double extractOutput(KV<Integer, BigDecimal> accumulator) {
+    public @Nullable Double extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).doubleValue();
     }
 
@@ -361,8 +355,7 @@ public class BeamBuiltinAggregations {
 
   static class BigDecimalAvg extends Avg<BigDecimal> {
     @Override
-    @Nullable
-    public BigDecimal extractOutput(KV<Integer, BigDecimal> accumulator) {
+    public @Nullable BigDecimal extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator);
     }
 

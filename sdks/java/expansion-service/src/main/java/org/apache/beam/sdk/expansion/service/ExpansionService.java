@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.expansion.service;
 
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -32,7 +32,6 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
@@ -69,6 +68,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,17 +106,21 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           ImmutableMap.builder();
       for (ExternalTransformRegistrar registrar :
           ServiceLoader.load(ExternalTransformRegistrar.class)) {
-        for (Map.Entry<String, Class<? extends ExternalTransformBuilder>> entry :
-            registrar.knownBuilders().entrySet()) {
+        for (Map.Entry<String, ExternalTransformBuilder<?, ?, ?>> entry :
+            registrar.knownBuilderInstances().entrySet()) {
           String urn = entry.getKey();
-          Class<? extends ExternalTransformBuilder> builderClass = entry.getValue();
+          ExternalTransformBuilder builderInstance = entry.getValue();
           builder.put(
               urn,
               spec -> {
                 try {
                   ExternalTransforms.ExternalConfigurationPayload payload =
                       ExternalTransforms.ExternalConfigurationPayload.parseFrom(spec.getPayload());
-                  return translate(payload, builderClass);
+                  return builderInstance.buildExternal(
+                      payloadToConfig(
+                          payload,
+                          (Class<? extends ExternalTransformBuilder<?, ?, ?>>)
+                              builderInstance.getClass()));
                 } catch (Exception e) {
                   throw new RuntimeException(
                       String.format("Failed to build transform %s from spec %s", urn, spec), e);
@@ -123,30 +128,27 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
               });
         }
       }
+
       return builder.build();
     }
 
-    private static PTransform translate(
+    Object payloadToConfig(
         ExternalTransforms.ExternalConfigurationPayload payload,
-        Class<? extends ExternalTransformBuilder> builderClass)
+        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass)
         throws Exception {
-      Preconditions.checkState(
-          ExternalTransformBuilder.class.isAssignableFrom(builderClass),
-          "Provided identifier %s is not an ExternalTransformBuilder.",
-          builderClass.getName());
-
       Object configObject = initConfiguration(builderClass);
       populateConfiguration(configObject, payload);
-      return buildTransform(builderClass, configObject);
+      return configObject;
     }
 
-    private static Object initConfiguration(Class<? extends ExternalTransformBuilder> builderClass)
-        throws Exception {
+    private static Object initConfiguration(
+        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass) throws Exception {
       for (Method method : builderClass.getMethods()) {
         if (method.getName().equals("buildExternal")) {
           Preconditions.checkState(
               method.getParameterCount() == 1,
-              "Build method for ExternalTransformBuilder %s must have exactly one parameter, but had %s parameters.",
+              "Build method for ExternalTransformBuilder %s must have exactly one parameter, but"
+                  + " had %s parameters.",
               builderClass.getSimpleName(),
               method.getParameterCount());
           Class<?> configurationClass = method.getParameterTypes()[0];
@@ -170,6 +172,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         ExternalTransforms.ConfigValue value = entry.getValue();
 
         String fieldName = camelCaseConverter.convert(key);
+        assert fieldName != null
+            : "@AssumeAssertion(nullness): converter type is imprecise; it is nullness-preserving";
         List<String> coderUrns = value.getCoderUrnList();
         Preconditions.checkArgument(coderUrns.size() > 0, "No Coder URN provided.");
         Coder coder = resolveCoder(coderUrns);
@@ -234,18 +238,6 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
       return coderBuilder.build();
     }
-
-    private static PTransform buildTransform(
-        Class<? extends ExternalTransformBuilder> builderClass, Object configObject)
-        throws Exception {
-      Constructor<? extends ExternalTransformBuilder> constructor =
-          builderClass.getDeclaredConstructor();
-      constructor.setAccessible(true);
-      ExternalTransformBuilder<?, ?, ?> externalTransformBuilder = constructor.newInstance();
-      Method buildMethod = builderClass.getMethod("buildExternal", configObject.getClass());
-      buildMethod.setAccessible(true);
-      return (PTransform) buildMethod.invoke(externalTransformBuilder, configObject);
-    }
   }
 
   /**
@@ -258,6 +250,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   public interface TransformProvider<InputT extends PInput, OutputT extends POutput> {
 
     default InputT createInput(Pipeline p, Map<String, PCollection<?>> inputs) {
+      inputs =
+          checkArgumentNotNull(
+              inputs); // spotbugs claims incorrectly that it is annotated @Nullable
       if (inputs.size() == 0) {
         return (InputT) p.begin();
       }
@@ -285,9 +280,13 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                 .collect(Collectors.toMap(entry -> entry.getKey().getId(), Map.Entry::getValue));
       } else if (output instanceof PCollectionList<?>) {
         PCollectionList<?> listOutput = (PCollectionList<?>) output;
-        return IntStream.range(0, listOutput.size())
-            .boxed()
-            .collect(Collectors.toMap(Object::toString, listOutput::get));
+        ImmutableMap.Builder<String, PCollection<?>> indexToPCollection = ImmutableMap.builder();
+        int i = 0;
+        for (PCollection pc : listOutput.getAll()) {
+          indexToPCollection.put(Integer.toString(i), pc);
+          i++;
+        }
+        return indexToPCollection.build();
       } else {
         throw new UnsupportedOperationException("Unknown output type: " + output.getClass());
       }
@@ -300,15 +299,26 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     }
   }
 
-  private Map<String, TransformProvider> registeredTransforms = loadRegisteredTransforms();
+  private @MonotonicNonNull Map<String, TransformProvider> registeredTransforms;
+
+  private Map<String, TransformProvider> getRegisteredTransforms() {
+    if (registeredTransforms == null) {
+      registeredTransforms = loadRegisteredTransforms();
+    }
+    return registeredTransforms;
+  }
 
   private Map<String, TransformProvider> loadRegisteredTransforms() {
-    ImmutableMap.Builder<String, TransformProvider> registeredTransforms = ImmutableMap.builder();
+    ImmutableMap.Builder<String, TransformProvider> registeredTransformsBuilder =
+        ImmutableMap.builder();
     for (ExpansionServiceRegistrar registrar :
         ServiceLoader.load(ExpansionServiceRegistrar.class)) {
-      registeredTransforms.putAll(registrar.knownTransforms());
+      registeredTransformsBuilder.putAll(registrar.knownTransforms());
     }
-    return registeredTransforms.build();
+    ImmutableMap<String, TransformProvider> registeredTransforms =
+        registeredTransformsBuilder.build();
+    LOG.info("Registering external transforms: {}", registeredTransforms.keySet());
+    return registeredTransforms;
   }
 
   @VisibleForTesting
@@ -322,8 +332,15 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     Pipeline pipeline = Pipeline.create();
     ExperimentalOptions.addExperiment(
         pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+
+    ClassLoader classLoader = Environments.class.getClassLoader();
+    if (classLoader == null) {
+      throw new RuntimeException(
+          "Cannot detect classpath: classload is null (is it the bootstrap classloader?)");
+    }
+
     List<String> classpathResources =
-        detectClassPathResourcesToStage(Environments.class.getClassLoader(), pipeline.getOptions());
+        detectClassPathResourcesToStage(classLoader, pipeline.getOptions());
     if (classpathResources.isEmpty()) {
       throw new IllegalArgumentException("No classpath elements found.");
     }
@@ -345,22 +362,26 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                         throw new RuntimeException(exn);
                       }
                     }));
-    if (!registeredTransforms.containsKey(request.getTransform().getSpec().getUrn())) {
+
+    @Nullable
+    TransformProvider transformProvider =
+        getRegisteredTransforms().get(request.getTransform().getSpec().getUrn());
+    if (transformProvider == null) {
       throw new UnsupportedOperationException(
           "Unknown urn: " + request.getTransform().getSpec().getUrn());
     }
     Map<String, PCollection<?>> outputs =
-        registeredTransforms
-            .get(request.getTransform().getSpec().getUrn())
-            .apply(
-                pipeline,
-                request.getTransform().getUniqueName(),
-                request.getTransform().getSpec(),
-                inputs);
+        transformProvider.apply(
+            pipeline,
+            request.getTransform().getUniqueName(),
+            request.getTransform().getSpec(),
+            inputs);
 
     // Needed to find which transform was new...
     SdkComponents sdkComponents =
-        rehydratedComponents.getSdkComponents(null).withNewIdPrefix(request.getNamespace());
+        rehydratedComponents
+            .getSdkComponents(Collections.emptyList())
+            .withNewIdPrefix(request.getNamespace());
     sdkComponents.registerEnvironment(
         Environments.createOrGetDefaultEnvironment(
             pipeline.getOptions().as(PortablePipelineOptions.class)));
@@ -425,7 +446,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     int port = Integer.parseInt(args[0]);
     System.out.println("Starting expansion service at localhost:" + port);
     ExpansionService service = new ExpansionService();
-    for (Map.Entry<String, TransformProvider> entry : service.registeredTransforms.entrySet()) {
+    for (Map.Entry<String, TransformProvider> entry :
+        service.getRegisteredTransforms().entrySet()) {
       System.out.println("\t" + entry.getKey() + ": " + entry.getValue());
     }
 

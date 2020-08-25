@@ -29,11 +29,11 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -67,6 +67,7 @@ public class KafkaIOExternalTest {
             .put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer)
             .put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer)
             .build();
+    Long startReadTime = 100L;
 
     ExternalTransforms.ExternalConfigurationPayload payload =
         ExternalTransforms.ExternalConfigurationPayload.newBuilder()
@@ -97,6 +98,12 @@ public class KafkaIOExternalTest {
                 ExternalTransforms.ConfigValue.newBuilder()
                     .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(valueDeserializer)))
+                    .build())
+            .putConfiguration(
+                "start_read_time",
+                ExternalTransforms.ConfigValue.newBuilder()
+                    .addCoderUrn("beam:coder:varint:v1")
+                    .setPayload(ByteString.copyFrom(encodeLong(startReadTime)))
                     .build())
             .build();
 
@@ -129,25 +136,60 @@ public class KafkaIOExternalTest {
 
     RunnerApi.PTransform kafkaComposite =
         result.getComponents().getTransformsOrThrow(transform.getSubtransforms(0));
-    RunnerApi.PTransform kafkaRead =
-        result.getComponents().getTransformsOrThrow(kafkaComposite.getSubtransforms(0));
-    RunnerApi.ReadPayload readPayload =
-        RunnerApi.ReadPayload.parseFrom(kafkaRead.getSpec().getPayload());
-    KafkaUnboundedSource source =
-        (KafkaUnboundedSource) ReadTranslation.unboundedSourceFromProto(readPayload);
-    KafkaIO.Read spec = source.getSpec();
 
-    assertThat(spec.getConsumerConfig(), Matchers.is(consumerConfig));
-    assertThat(spec.getTopics(), Matchers.is(topics));
+    // KafkaIO.Read should be expanded into SDF transform.
     assertThat(
-        spec.getKeyDeserializerProvider()
-            .getDeserializer(spec.getConsumerConfig(), true)
+        kafkaComposite.getSubtransformsList(),
+        Matchers.contains(
+            "test_namespacetest/KafkaIO.Read/Impulse",
+            "test_namespacetest/KafkaIO.Read/ParDo(GenerateKafkaSourceDescriptor)",
+            "test_namespacetest/KafkaIO.Read/KafkaIO.ReadSourceDescriptors"));
+
+    // Verify the consumerConfig and topics are populated correctly to
+    // GenerateKafkaSourceDescriptor.
+    RunnerApi.PTransform generateParDo =
+        result.getComponents().getTransformsOrThrow(kafkaComposite.getSubtransforms(1));
+    KafkaIO.Read.GenerateKafkaSourceDescriptor generateDoFn =
+        (KafkaIO.Read.GenerateKafkaSourceDescriptor)
+            ParDoTranslation.getDoFn(
+                RunnerApi.ParDoPayload.parseFrom(
+                    result
+                        .getComponents()
+                        .getTransformsOrThrow(generateParDo.getSubtransforms(0))
+                        .getSpec()
+                        .getPayload()));
+    assertThat(generateDoFn.consumerConfig, Matchers.is(consumerConfig));
+    assertThat(generateDoFn.topics, Matchers.is(topics));
+
+    // Verify that the consumerConfig, keyDeserializerProvider, valueDeserializerProvider are
+    // populated correctly to the SDF.
+    RunnerApi.PTransform readViaSDF =
+        result.getComponents().getTransformsOrThrow(kafkaComposite.getSubtransforms(2));
+    RunnerApi.PTransform subTransform =
+        result.getComponents().getTransformsOrThrow(readViaSDF.getSubtransforms(0));
+
+    ReadFromKafkaDoFn readSDF =
+        (ReadFromKafkaDoFn)
+            ParDoTranslation.getDoFn(
+                RunnerApi.ParDoPayload.parseFrom(
+                    result
+                        .getComponents()
+                        .getTransformsOrThrow(subTransform.getSubtransforms(0))
+                        .getSpec()
+                        .getPayload()));
+
+    assertThat(readSDF.consumerConfig, Matchers.is(consumerConfig));
+    assertThat(
+        readSDF
+            .keyDeserializerProvider
+            .getDeserializer(readSDF.consumerConfig, true)
             .getClass()
             .getName(),
         Matchers.is(keyDeserializer));
     assertThat(
-        spec.getValueDeserializerProvider()
-            .getDeserializer(spec.getConsumerConfig(), false)
+        readSDF
+            .valueDeserializerProvider
+            .getDeserializer(readSDF.consumerConfig, false)
             .getClass()
             .getName(),
         Matchers.is(valueDeserializer));
@@ -277,6 +319,12 @@ public class KafkaIOExternalTest {
   private static byte[] encodeString(String str) throws IOException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     StringUtf8Coder.of().encode(str, baos);
+    return baos.toByteArray();
+  }
+
+  private static byte[] encodeLong(Long str) throws IOException {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    VarLongCoder.of().encode(str, baos);
     return baos.toByteArray();
   }
 

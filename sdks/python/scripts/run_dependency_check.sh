@@ -17,18 +17,7 @@
 #
 # This script will be run by Jenkins as a Python dependency test.
 
-set -e
-set -v
-
-# Assumes that python virtual env is already active
-
-if [ $(python -c "import sys; print(sys.version_info.major)") -eq 2 ]; then
-  # Don't install interactive extra, its not supported in python 2
-  # TODO(BEAM-7372): Remove this when python 2 support is dropped
-  pip install -e .[docs,test,gcp,aws]
-else
-  pip install -e .[docs,test,gcp,aws,interactive]
-fi
+set -euv
 
 mkdir -p $WORKSPACE/src/build/dependencyUpdates
 rm -f $WORKSPACE/src/build/dependencyUpdates/python_dependency_report.txt

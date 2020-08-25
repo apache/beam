@@ -64,8 +64,9 @@ type RTracker interface {
 	//
 	// This method modifies the underlying restriction in the RTracker to reflect the primary. It
 	// then returns a copy of the newly modified restriction as a primary, and returns a new
-	// restriction for the residual. If the split would produce an empty residual (i.e. the only
-	// split point is the end of the restriction), then the returned residual is nil.
+	// restriction for the residual. If the split would produce an empty residual (either because
+	// the only split point is the end of the restriction, or the split failed for some recoverable
+	// reason), then this function returns nil as the residual.
 	//
 	// If an error is returned, some catastrophic failure occurred and the entire bundle will fail.
 	TrySplit(fraction float64) (primary, residual interface{}, err error)
@@ -77,7 +78,11 @@ type RTracker interface {
 
 	// IsDone returns a boolean indicating whether all blocks inside the restriction have been
 	// claimed. This method is called by the SDK Harness to validate that a splittable DoFn has
-	// correctly processed all work in a restriction before finishing. If this method returns false
-	// then GetError is expected to return a non-nil error.
+	// correctly processed all work in a restriction before finishing. If this method still returns
+	// false after processing, then GetError is expected to return a non-nil error.
 	IsDone() bool
+
+	// GetRestriction returns the restriction this tracker is tracking, or nil if the restriction
+	// is unavailable for some reason.
+	GetRestriction() interface{}
 }

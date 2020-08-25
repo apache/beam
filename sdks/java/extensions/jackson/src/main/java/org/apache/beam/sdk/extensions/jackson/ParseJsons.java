@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Contextful;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link PTransform} for parsing JSON {@link String Strings}. Parse {@link PCollection} of {@link
@@ -167,10 +167,11 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
   /** A {@code PTransform} that adds exception handling to {@link ParseJsons}. */
   public class ParseJsonsWithFailures<FailureT>
       extends PTransform<PCollection<String>, WithFailures.Result<PCollection<OutputT>, FailureT>> {
-    @Nullable
-    private InferableFunction<WithFailures.ExceptionElement<String>, FailureT> exceptionHandler;
 
-    @Nullable private final transient TypeDescriptor<FailureT> failureType;
+    private @Nullable InferableFunction<WithFailures.ExceptionElement<String>, FailureT>
+        exceptionHandler;
+
+    private final transient @Nullable TypeDescriptor<FailureT> failureType;
 
     ParseJsonsWithFailures(
         InferableFunction<WithFailures.ExceptionElement<String>, FailureT> exceptionHandler,

@@ -39,14 +39,24 @@ from future.utils import iteritems
 import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
-from apache_beam.io.gcp.bigquery_test import HttpError
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
+from apache_beam.io.gcp.bigquery_tools import BigQueryJobTypes
 from apache_beam.io.gcp.bigquery_tools import JsonRowWriter
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
+from apache_beam.io.gcp.bigquery_tools import generate_bq_job_name
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import PipelineOptions
+
+# Protect against environments where bigquery library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py.exceptions import HttpError, HttpForbiddenError
+except ImportError:
+  HttpError = None
+  HttpForbiddenError = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -264,6 +274,37 @@ class TestBigQueryWrapper(unittest.TestCase):
     self.assertEqual(
         'The maximum number of retries has been reached',
         str(context.exception))
+
+  def test_get_query_location(self):
+    client = mock.Mock()
+    query = """
+        SELECT
+            av.column1, table.column1
+        FROM `dataset.authorized_view` as av
+        JOIN `dataset.table` as table ON av.column2 = table.column2
+    """
+    job = mock.MagicMock(spec=bigquery.Job)
+    job.statistics.query.referencedTables = [
+        bigquery.TableReference(
+            projectId="first_project_id",
+            datasetId="first_dataset",
+            tableId="table_used_by_authorized_view"),
+        bigquery.TableReference(
+            projectId="second_project_id",
+            datasetId="second_dataset",
+            tableId="table"),
+    ]
+    client.jobs.Insert.return_value = job
+
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    wrapper.get_table_location = mock.Mock(
+        side_effect=[
+            HttpForbiddenError(response={'status': '404'}, url='', content=''),
+            "US"
+        ])
+    location = wrapper.get_query_location(
+        project_id="second_project_id", query=query, use_legacy_sql=False)
+    self.assertEqual("US", location)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -810,6 +851,43 @@ class TestAvroRowWriter(unittest.TestCase):
     self.assertEqual(len(records), 1)
     self.assertTrue(math.isnan(records[0]['number']))
     self.assertEqual(records[0]['stamp'], stamp)
+
+
+class TestBQJobNames(unittest.TestCase):
+  def test_simple_names(self):
+    self.assertEqual(
+        "beam_bq_job_EXPORT_beamappjobtest_abcd",
+        generate_bq_job_name(
+            "beamapp-job-test", "abcd", BigQueryJobTypes.EXPORT))
+
+    self.assertEqual(
+        "beam_bq_job_LOAD_beamappjobtest_abcd",
+        generate_bq_job_name("beamapp-job-test", "abcd", BigQueryJobTypes.LOAD))
+
+    self.assertEqual(
+        "beam_bq_job_QUERY_beamappjobtest_abcd",
+        generate_bq_job_name(
+            "beamapp-job-test", "abcd", BigQueryJobTypes.QUERY))
+
+    self.assertEqual(
+        "beam_bq_job_COPY_beamappjobtest_abcd",
+        generate_bq_job_name("beamapp-job-test", "abcd", BigQueryJobTypes.COPY))
+
+  def test_random_in_name(self):
+    self.assertEqual(
+        "beam_bq_job_COPY_beamappjobtest_abcd_randome",
+        generate_bq_job_name(
+            "beamapp-job-test", "abcd", BigQueryJobTypes.COPY, "randome"))
+
+  def test_matches_template(self):
+    base_pattern = "beam_bq_job_[A-Z]+_[a-z0-9-]+_[a-z0-9-]+(_[a-z0-9-]+)?"
+    job_name = generate_bq_job_name(
+        "beamapp-job-test", "abcd", BigQueryJobTypes.COPY, "randome")
+    self.assertRegex(job_name, base_pattern)
+
+    job_name = generate_bq_job_name(
+        "beamapp-job-test", "abcd", BigQueryJobTypes.COPY)
+    self.assertRegex(job_name, base_pattern)
 
 
 if __name__ == '__main__':

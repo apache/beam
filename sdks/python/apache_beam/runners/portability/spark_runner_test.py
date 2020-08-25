@@ -61,7 +61,7 @@ if __name__ == '__main__':
   spark_job_server_jar = (
       known_args.spark_job_server_jar or
       job_server.JavaJarJobServer.path_to_beam_jar(
-          'runners:spark:job-server:shadowJar'))
+          ':runners:spark:job-server:shadowJar'))
   environment_type = known_args.environment_type.lower()
   environment_config = (
       known_args.environment_config if known_args.environment_config else None)

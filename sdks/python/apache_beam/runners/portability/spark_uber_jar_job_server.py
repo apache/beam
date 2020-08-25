@@ -77,7 +77,7 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
       url = self._executable_jar
     else:
       url = job_server.JavaJarJobServer.path_to_beam_jar(
-          'runners:spark:job-server:shadowJar')
+          ':runners:spark:job-server:shadowJar')
     return job_server.JavaJarJobServer.local_jar(url)
 
   def create_beam_job(self, job_id, job_name, pipeline, options):

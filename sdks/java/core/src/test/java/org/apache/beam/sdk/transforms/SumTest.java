@@ -63,6 +63,35 @@ public class SumTest {
   }
 
   @Test
+  public void testSumDoubleFnInfinity() {
+    testCombineFn(
+        Sum.ofDoubles(),
+        Lists.newArrayList(Double.NEGATIVE_INFINITY, 2.0, 3.0, Double.POSITIVE_INFINITY),
+        Double.NaN);
+  }
+
+  @Test
+  public void testSumDoubleFnPositiveInfinity() {
+    testCombineFn(
+        Sum.ofDoubles(),
+        Lists.newArrayList(1.0, 2.0, 3.0, Double.POSITIVE_INFINITY),
+        Double.POSITIVE_INFINITY);
+  }
+
+  @Test
+  public void testSumDoubleFnNegativeInfinity() {
+    testCombineFn(
+        Sum.ofDoubles(),
+        Lists.newArrayList(Double.NEGATIVE_INFINITY, 2.0, 3.0, 4.0),
+        Double.NEGATIVE_INFINITY);
+  }
+
+  @Test
+  public void testSumDoubleFnNan() {
+    testCombineFn(Sum.ofDoubles(), Lists.newArrayList(1.0, 2.0, 3.0, Double.NaN), Double.NaN);
+  }
+
+  @Test
   public void testGetAccumulatorCoderEquals() {
     Combine.BinaryCombineIntegerFn sumIntegerFn = Sum.ofIntegers();
     assertEquals(

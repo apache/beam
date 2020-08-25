@@ -22,13 +22,14 @@ from __future__ import absolute_import
 import unittest
 
 from apache_beam import coders
-from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive.cache_manager import SafeFastPrimitivesCoder
 from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
+from apache_beam.runners.interactive.options.capture_limiters import CountLimiter
+from apache_beam.runners.interactive.options.capture_limiters import ProcessingTimeLimiter
 from apache_beam.runners.interactive.pipeline_instrument import CacheKey
 from apache_beam.runners.interactive.testing.test_cache_manager import FileRecordsBuilder
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -64,6 +65,14 @@ class StreamingCacheTest(unittest.TestCase):
 
     # Assert that an empty reader returns an empty list.
     self.assertFalse([e for e in reader])
+
+  def test_clear(self):
+    cache = StreamingCache(cache_dir=None)
+    self.assertFalse(cache.exists('my_label'))
+    cache.write([TestStreamFileRecord()], 'my_label')
+    self.assertTrue(cache.exists('my_label'))
+    self.assertTrue(cache.clear('my_label'))
+    self.assertFalse(cache.exists('my_label'))
 
   def test_single_reader(self):
     """Tests that we expect to see all the correctly emitted TestStreamPayloads.
@@ -269,8 +278,6 @@ class StreamingCacheTest(unittest.TestCase):
     cache = StreamingCache(cache_dir=None, sample_resolution_sec=1.0)
 
     options = StandardOptions(streaming=True)
-    options.view_as(DebugOptions).add_experiment(
-        'passthrough_pcollection_output_ids')
     with TestPipeline(options=options) as p:
       records = (p | test_stream)[CACHED_RECORDS]
 
@@ -351,8 +358,6 @@ class StreamingCacheTest(unittest.TestCase):
     coder = SafeFastPrimitivesCoder()
 
     options = StandardOptions(streaming=True)
-    options.view_as(DebugOptions).add_experiment(
-        'passthrough_pcollection_output_ids')
     with TestPipeline(options=options) as p:
       # pylint: disable=expression-not-assigned
       events = p | test_stream
@@ -407,6 +412,106 @@ class StreamingCacheTest(unittest.TestCase):
     ]
 
     self.assertListEqual(actual_events, expected_events)
+
+  def test_single_reader_with_count_limiter(self):
+    """Tests that we expect to see all the correctly emitted TestStreamPayloads.
+    """
+    CACHED_PCOLLECTION_KEY = repr(CacheKey('arbitrary_key', '', '', ''))
+
+    values = (FileRecordsBuilder(tag=CACHED_PCOLLECTION_KEY)
+              .add_element(element=0, event_time_secs=0)
+              .advance_processing_time(1)
+              .add_element(element=1, event_time_secs=1)
+              .advance_processing_time(1)
+              .add_element(element=2, event_time_secs=2)
+              .build()) # yapf: disable
+
+    cache = StreamingCache(cache_dir=None)
+    cache.write(values, CACHED_PCOLLECTION_KEY)
+
+    reader, _ = cache.read(CACHED_PCOLLECTION_KEY, limiters=[CountLimiter(2)])
+    coder = coders.FastPrimitivesCoder()
+    events = list(reader)
+
+    # Units here are in microseconds.
+    # These are a slice of the original values such that we only get two
+    # elements.
+    expected = [
+        TestStreamPayload.Event(
+            element_event=TestStreamPayload.Event.AddElements(
+                elements=[
+                    TestStreamPayload.TimestampedElement(
+                        encoded_element=coder.encode(0), timestamp=0)
+                ],
+                tag=CACHED_PCOLLECTION_KEY)),
+        TestStreamPayload.Event(
+            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+                advance_duration=1 * 10**6)),
+        TestStreamPayload.Event(
+            element_event=TestStreamPayload.Event.AddElements(
+                elements=[
+                    TestStreamPayload.TimestampedElement(
+                        encoded_element=coder.encode(1), timestamp=1 * 10**6)
+                ],
+                tag=CACHED_PCOLLECTION_KEY)),
+        TestStreamPayload.Event(
+            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+                advance_duration=1 * 10**6)),
+    ]
+    self.assertSequenceEqual(events, expected)
+
+  def test_single_reader_with_processing_time_limiter(self):
+    """Tests that we expect to see all the correctly emitted TestStreamPayloads.
+    """
+    CACHED_PCOLLECTION_KEY = repr(CacheKey('arbitrary_key', '', '', ''))
+
+    values = (FileRecordsBuilder(tag=CACHED_PCOLLECTION_KEY)
+              .advance_processing_time(1e-6)
+              .add_element(element=0, event_time_secs=0)
+              .advance_processing_time(1)
+              .add_element(element=1, event_time_secs=1)
+              .advance_processing_time(1)
+              .add_element(element=2, event_time_secs=2)
+              .advance_processing_time(1)
+              .add_element(element=3, event_time_secs=2)
+              .advance_processing_time(1)
+              .add_element(element=4, event_time_secs=2)
+              .build()) # yapf: disable
+
+    cache = StreamingCache(cache_dir=None)
+    cache.write(values, CACHED_PCOLLECTION_KEY)
+
+    reader, _ = cache.read(
+        CACHED_PCOLLECTION_KEY, limiters=[ProcessingTimeLimiter(2)])
+    coder = coders.FastPrimitivesCoder()
+    events = list(reader)
+
+    # Units here are in microseconds.
+    # Expects that the elements are a slice of the original values where all
+    # processing time is less than the duration.
+    expected = [
+        TestStreamPayload.Event(
+            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+                advance_duration=1)),
+        TestStreamPayload.Event(
+            element_event=TestStreamPayload.Event.AddElements(
+                elements=[
+                    TestStreamPayload.TimestampedElement(
+                        encoded_element=coder.encode(0), timestamp=0)
+                ],
+                tag=CACHED_PCOLLECTION_KEY)),
+        TestStreamPayload.Event(
+            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+                advance_duration=1 * 10**6)),
+        TestStreamPayload.Event(
+            element_event=TestStreamPayload.Event.AddElements(
+                elements=[
+                    TestStreamPayload.TimestampedElement(
+                        encoded_element=coder.encode(1), timestamp=1 * 10**6)
+                ],
+                tag=CACHED_PCOLLECTION_KEY)),
+    ]
+    self.assertSequenceEqual(events, expected)
 
 
 if __name__ == '__main__':

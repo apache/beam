@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Auction;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** A simulator of the {@code WinningBids} query. */
@@ -121,8 +121,7 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
    * if no more winning bids, in which case all expired auctions will have been removed from our
    * state. Retire auctions in order of expire time.
    */
-  @Nullable
-  private TimestampedValue<AuctionBid> nextWinningBid(Instant timestamp) {
+  private @Nullable TimestampedValue<AuctionBid> nextWinningBid(Instant timestamp) {
     Map<Instant, List<Long>> toBeRetired = new TreeMap<>();
     for (Map.Entry<Long, Auction> entry : openAuctions.entrySet()) {
       if (entry.getValue().expires.compareTo(timestamp) <= 0) {

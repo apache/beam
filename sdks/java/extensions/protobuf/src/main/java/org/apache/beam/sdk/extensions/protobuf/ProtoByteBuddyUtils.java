@@ -46,7 +46,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
@@ -110,6 +109,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 class ProtoByteBuddyUtils {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
@@ -970,9 +970,9 @@ class ProtoByteBuddyUtils {
   }
 
   @Experimental(Kind.SCHEMAS)
-  @Nullable
-  public static <ProtoBuilderT extends MessageLite.Builder> SchemaUserTypeCreator getBuilderCreator(
-      Class<?> protoClass, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
+  public static @Nullable <ProtoBuilderT extends MessageLite.Builder>
+      SchemaUserTypeCreator getBuilderCreator(
+          Class<?> protoClass, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
     Class<ProtoBuilderT> builderClass = getProtoGeneratedBuilder(protoClass);
     if (builderClass == null) {
       return null;

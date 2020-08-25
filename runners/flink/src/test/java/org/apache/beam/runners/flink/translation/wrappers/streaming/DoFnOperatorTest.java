@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
@@ -90,6 +89,7 @@ import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.OutputTag;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -1587,12 +1587,23 @@ public class DoFnOperatorTest {
 
     OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
+    // Check that we have only the element which was emitted before the snapshot
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         contains(WindowedValue.valueInGlobalWindow("regular element")));
+
+    // Check that we would flush the buffered elements when continuing to run
+    testHarness.processWatermark(Long.MAX_VALUE);
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(
+            WindowedValue.valueInGlobalWindow("regular element"),
+            WindowedValue.valueInGlobalWindow("trigger another bundle"),
+            WindowedValue.valueInGlobalWindow("check that the previous element is not flushed")));
+
     testHarness.close();
 
-    // Restore
+    // Check that we would flush the buffered elements when restoring from a checkpoint
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness2 =
         new OneInputStreamOperatorTestHarness<>(doFnOperatorSupplier.get());
 

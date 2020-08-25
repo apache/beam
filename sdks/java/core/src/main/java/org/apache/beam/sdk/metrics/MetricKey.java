@@ -19,9 +19,9 @@ package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Metrics are keyed by the step name they are associated with and the name of the metric. */
 @Experimental(Kind.METRICS)
@@ -29,8 +29,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 public abstract class MetricKey implements Serializable {
 
   /** The step name that is associated with this metric or Null if none is associated. */
-  @Nullable
-  public abstract String stepName();
+  public abstract @Nullable String stepName();
 
   /** The name of the metric. */
   public abstract MetricName metricName();

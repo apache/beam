@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Base class for 'NEXMark' query transforms.

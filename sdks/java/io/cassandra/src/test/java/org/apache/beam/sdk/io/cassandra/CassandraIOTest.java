@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getEs
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.getRingFraction;
 import static org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.isMurmur3Partitioner;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
+import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -81,6 +82,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.cassandra.service.StorageServiceMBean;
 import org.apache.commons.io.FileUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -225,7 +227,7 @@ public class CassandraIOTest implements Serializable {
               CASSANDRA_KEYSPACE,
               CASSANDRA_TABLE));
     }
-    flushMemTables();
+    flushMemTablesAndRefreshSizeEstimates();
   }
 
   /**
@@ -239,7 +241,7 @@ public class CassandraIOTest implements Serializable {
    * /src/java/org/apache/cassandra/tools/nodetool/Flush.java
    */
   @SuppressWarnings("unused")
-  private static void flushMemTables() throws Exception {
+  private static void flushMemTablesAndRefreshSizeEstimates() throws Exception {
     JMXServiceURL url =
         new JMXServiceURL(
             String.format(
@@ -251,6 +253,7 @@ public class CassandraIOTest implements Serializable {
     StorageServiceMBean mBeanProxy =
         JMX.newMBeanProxy(mBeanServerConnection, objectName, StorageServiceMBean.class);
     mBeanProxy.forceKeyspaceFlush(CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
+    mBeanProxy.refreshSizeEstimates();
     jmxConnector.close();
     Thread.sleep(FLUSH_TIMEOUT);
   }
@@ -287,8 +290,12 @@ public class CassandraIOTest implements Serializable {
             .withTable(CASSANDRA_TABLE);
     CassandraIO.CassandraSource<Scientist> source = new CassandraIO.CassandraSource<>(read, null);
     long estimatedSizeBytes = source.getEstimatedSizeBytes(pipelineOptions);
-    // the size is non determanistic in Cassandra backend
-    assertTrue((estimatedSizeBytes >= 12960L * 0.9f) && (estimatedSizeBytes <= 12960L * 1.1f));
+    // the size is non determanistic in Cassandra backend: checks that estimatedSizeBytes >= 12960L
+    // -20%  && estimatedSizeBytes <= 12960L +20%
+    assertThat(
+        "wrong estimated size in " + CASSANDRA_KEYSPACE + "/" + CASSANDRA_TABLE,
+        (double) estimatedSizeBytes,
+        closeTo(12960.0D, 2592.0D));
   }
 
   @Test
@@ -372,7 +379,8 @@ public class CassandraIOTest implements Serializable {
                 .withPort(cassandraPort)
                 .withKeyspace(CASSANDRA_KEYSPACE)
                 .withEntity(ScientistWrite.class));
-    // table to write to is specified in the entity in @Table annotation (in that case scientist)
+    // table to write to is specified in the entity in @Table annotation (in that case
+    // scientist_write)
     pipeline.run();
 
     List<Row> results = getRows(CASSANDRA_TABLE_WRITE);
@@ -637,7 +645,7 @@ public class CassandraIOTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

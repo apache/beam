@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import sys
 import unittest
 
 import grpc
@@ -29,6 +30,13 @@ from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileH
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.testing.test_stream_service import TestStreamServiceController
+
+# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
+# unittest.mock module.
+try:
+  from unittest.mock import patch
+except ImportError:
+  from mock import patch  # type: ignore[misc]
 
 # Nose automatically detects tests if they match a regex. Here, it mistakens
 # these protos as tests. For more info see the Nose docs at:
@@ -114,6 +122,79 @@ class TestStreamServiceTest(unittest.TestCase):
 
     self.assertEqual(events_a, expected_events)
     self.assertEqual(events_b, expected_events)
+
+
+@unittest.skipIf(
+    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
+class TestStreamServiceStartStopTest(unittest.TestCase):
+
+  # Weak internal use needs to be explicitly imported.
+  from grpc import _server
+
+  def setUp(self):
+    self.controller = TestStreamServiceController(
+        EventsReader(expected_key=[('full', EXPECTED_KEY)]))
+    self.assertFalse(self.controller._server_started)
+    self.assertFalse(self.controller._server_stopped)
+
+  def tearDown(self):
+    self.controller.stop()
+
+  def test_start_when_never_started(self):
+    with patch.object(self._server._Server,
+                      'start',
+                      wraps=self.controller._server.start) as mock_start:
+      self.controller.start()
+      mock_start.assert_called_once()
+      self.assertTrue(self.controller._server_started)
+      self.assertFalse(self.controller._server_stopped)
+
+  def test_start_noop_when_already_started(self):
+    with patch.object(self._server._Server,
+                      'start',
+                      wraps=self.controller._server.start) as mock_start:
+      self.controller.start()
+      mock_start.assert_called_once()
+      self.controller.start()
+      mock_start.assert_called_once()
+
+  def test_start_noop_when_already_stopped(self):
+    with patch.object(self._server._Server,
+                      'start',
+                      wraps=self.controller._server.start) as mock_start:
+      self.controller.start()
+      self.controller.stop()
+      mock_start.assert_called_once()
+      self.controller.start()
+      mock_start.assert_called_once()
+
+  def test_stop_noop_when_not_started(self):
+    with patch.object(self._server._Server,
+                      'stop',
+                      wraps=self.controller._server.stop) as mock_stop:
+      self.controller.stop()
+      mock_stop.assert_not_called()
+
+  def test_stop_when_already_started(self):
+    with patch.object(self._server._Server,
+                      'stop',
+                      wraps=self.controller._server.stop) as mock_stop:
+      self.controller.start()
+      mock_stop.assert_not_called()
+      self.controller.stop()
+      mock_stop.assert_called_once()
+      self.assertFalse(self.controller._server_started)
+      self.assertTrue(self.controller._server_stopped)
+
+  def test_stop_noop_when_already_stopped(self):
+    with patch.object(self._server._Server,
+                      'stop',
+                      wraps=self.controller._server.stop) as mock_stop:
+      self.controller.start()
+      self.controller.stop()
+      mock_stop.assert_called_once()
+      self.controller.stop()
+      mock_stop.assert_called_once()
 
 
 if __name__ == '__main__':

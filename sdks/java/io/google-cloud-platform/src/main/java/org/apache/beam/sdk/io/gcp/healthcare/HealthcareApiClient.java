@@ -27,8 +27,8 @@ import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import java.io.IOException;
 import java.text.ParseException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Defines a client that talks to the Cloud Healthcare API. */

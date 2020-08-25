@@ -25,7 +25,6 @@ import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.Map;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
@@ -35,6 +34,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.Dataflow
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Origin;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,8 +97,7 @@ class UserMonitoringInfoToCounterUpdateTransformer
    * @return Relevant CounterUpdate or null if transformation failed.
    */
   @Override
-  @Nullable
-  public CounterUpdate transform(MonitoringInfo monitoringInfo) {
+  public @Nullable CounterUpdate transform(MonitoringInfo monitoringInfo) {
     Optional<String> validationResult = validate(monitoringInfo);
     if (validationResult.isPresent()) {
       LOG.debug(validationResult.get());

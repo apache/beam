@@ -23,7 +23,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
@@ -58,6 +57,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -171,7 +171,7 @@ public class BatchDataflowWorker implements Closeable {
    * <p>This is also known as the "portable" or "Beam model" approach.
    */
   static BatchDataflowWorker forBatchFnWorkerHarness(
-      @Nullable RunnerApi.Pipeline pipeline,
+      RunnerApi.@Nullable Pipeline pipeline,
       SdkHarnessRegistry sdkHarnessRegistry,
       WorkUnitClient workUnitClient,
       DataflowWorkerHarnessOptions options) {
@@ -184,7 +184,7 @@ public class BatchDataflowWorker implements Closeable {
   }
 
   protected BatchDataflowWorker(
-      @Nullable RunnerApi.Pipeline pipeline,
+      RunnerApi.@Nullable Pipeline pipeline,
       SdkHarnessRegistry sdkHarnessRegistry,
       WorkUnitClient workUnitClient,
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,

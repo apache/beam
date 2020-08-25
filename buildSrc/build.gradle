@@ -38,7 +38,7 @@ dependencies {
   compile gradleApi()
   compile localGroovy()
   compile 'com.github.jengelman.gradle.plugins:shadow:4.0.3'
-  compile 'gradle.plugin.com.github.spotbugs:spotbugs-gradle-plugin:2.0.0'                            // Enable spotbugs
+  compile 'com.github.spotbugs:spotbugs-gradle-plugin:3.0.0'                                          // Enable spotbugs
 
   runtime "net.ltgt.gradle:gradle-apt-plugin:0.20"                                                    // Enable a Java annotation processor
   runtime "com.google.protobuf:protobuf-gradle-plugin:0.8.5"                                          // Enable proto code generation
@@ -57,6 +57,7 @@ dependencies {
   runtime "com.avast.gradle:gradle-docker-compose-plugin:0.8.8"                                       // Enable docker compose tasks
   runtime "ca.cutterslade.gradle:gradle-dependency-analyze:1.3.1"                                     // Enable dep analysis
   runtime "gradle.plugin.net.ossindex:ossindex-gradle-plugin:0.4.11"                                  // Enable dep vulnerability analysis
+  runtime "org.checkerframework:checkerframework-gradle-plugin:0.5.5"                                 // Enable enhanced static checking plugin
 }
 
 // Because buildSrc is built and tested automatically _before_ gradle
@@ -66,7 +67,7 @@ dependencies {
 //
 // ./gradlew :buildSrc:spotlessApply -PdisableSpotlessCheck=true
 def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
-        project.disableSpotlessCheck == 'true'
+    project.disableSpotlessCheck == 'true'
 
 spotless {
   enforceCheck !disableSpotlessCheck

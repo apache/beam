@@ -21,6 +21,7 @@
 from __future__ import absolute_import
 
 import hashlib
+import json
 import logging
 
 import pandas as pd
@@ -29,10 +30,10 @@ from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 
 
 def to_element_list(
-    reader, # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
-    coder, # type: Coder
-    include_window_info # type: bool
-    ):
+    reader,  # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
+    coder,  # type: Coder
+    include_window_info  # type: bool
+):
   # type: (...) -> List[WindowedValue]
 
   """Returns an iterator that properly decodes the elements from the reader.
@@ -204,3 +205,23 @@ def progress_indicated(func):
       return func(*args, **kwargs)
 
   return run_within_progress_indicator
+
+
+def as_json(func):
+  # type: (Callable[..., Any]) -> Callable[..., str]
+
+  """A decorator convert python objects returned by callables to json
+  string.
+
+  The decorated function should always return an object parsable by json.dumps.
+  If the object is not parsable, the str() of original object is returned
+  instead.
+  """
+  def return_as_json(*args, **kwargs):
+    try:
+      return_value = func(*args, **kwargs)
+      return json.dumps(return_value)
+    except TypeError:
+      return str(return_value)
+
+  return return_as_json

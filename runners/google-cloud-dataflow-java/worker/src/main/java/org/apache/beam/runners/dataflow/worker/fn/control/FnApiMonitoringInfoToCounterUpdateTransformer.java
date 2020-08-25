@@ -20,12 +20,12 @@ package org.apache.beam.runners.dataflow.worker.fn.control;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Generic MonitoringInfo to CounterUpdate transformer for FnApi.
@@ -78,8 +78,7 @@ public class FnApiMonitoringInfoToCounterUpdateTransformer
   }
 
   @Override
-  @Nullable
-  public CounterUpdate transform(MonitoringInfo src) {
+  public @Nullable CounterUpdate transform(MonitoringInfo src) {
     MonitoringInfoToCounterUpdateTransformer transformer =
         urnToCounterTransformers.get(src.getUrn());
     if (transformer == null) {

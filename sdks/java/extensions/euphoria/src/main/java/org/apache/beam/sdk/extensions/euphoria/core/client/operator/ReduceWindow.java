@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.Optional;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Derived;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -37,7 +36,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.ShuffleOperator;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAware;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
@@ -51,6 +49,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -333,20 +332,20 @@ public class ReduceWindow<InputT, ValueT, AccT, OutputT>
 
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
-    @Nullable private final String name;
-    @Nullable private final ReduceFunctor<ValueT, OutputT> reducer;
-    @Nullable private final VoidFunction<AccT> accumulatorFactory;
-    @Nullable private final BinaryFunction<AccT, ValueT, AccT> accumulate;
-    @Nullable private final CombinableBinaryFunction<AccT> mergeAccumulators;
-    @Nullable private final UnaryFunction<AccT, OutputT> outputFn;
-    @Nullable private final TypeDescriptor<AccT> accumulatorType;
+    private final @Nullable String name;
+    private final @Nullable ReduceFunctor<ValueT, OutputT> reducer;
+    private final @Nullable VoidFunction<AccT> accumulatorFactory;
+    private final @Nullable BinaryFunction<AccT, ValueT, AccT> accumulate;
+    private final @Nullable CombinableBinaryFunction<AccT> mergeAccumulators;
+    private final @Nullable UnaryFunction<AccT, OutputT> outputFn;
+    private final @Nullable TypeDescriptor<AccT> accumulatorType;
 
     private PCollection<InputT> input;
-    @Nullable private UnaryFunction<InputT, ValueT> valueExtractor;
-    @Nullable private TypeDescriptor<ValueT> valueType;
+    private @Nullable UnaryFunction<InputT, ValueT> valueExtractor;
+    private @Nullable TypeDescriptor<ValueT> valueType;
 
-    @Nullable private TypeDescriptor<OutputT> outputType;
-    @Nullable private BinaryFunction<ValueT, ValueT, Integer> valueComparator;
+    private @Nullable TypeDescriptor<OutputT> outputType;
+    private @Nullable BinaryFunction<ValueT, ValueT, Integer> valueComparator;
 
     Builder(@Nullable String name) {
       this.name = name;
@@ -496,7 +495,7 @@ public class ReduceWindow<InputT, ValueT, AccT, OutputT>
     }
 
     @Override
-    public PCollection<OutputT> output(OutputHint... outputHints) {
+    public PCollection<OutputT> output() {
       final ReduceWindow<InputT, ValueT, ?, OutputT> rw;
       if (valueExtractor == null) {
         valueExtractor = identity();
@@ -545,8 +544,8 @@ public class ReduceWindow<InputT, ValueT, AccT, OutputT>
   private final @Nullable TypeDescriptor<AccT> accumulatorType;
 
   private final UnaryFunction<InputT, ValueT> valueExtractor;
-  @Nullable private final BinaryFunction<ValueT, ValueT, Integer> valueComparator;
-  @Nullable private final TypeDescriptor<ValueT> valueType;
+  private final @Nullable BinaryFunction<ValueT, ValueT, Integer> valueComparator;
+  private final @Nullable TypeDescriptor<ValueT> valueType;
 
   private ReduceWindow(
       @Nullable String name,

@@ -127,15 +127,16 @@ class SdkWorkerTest(unittest.TestCase):
   def test_fn_registration(self):
     self._check_fn_registration_multi_request((1, 4), (4, 4))
 
+  def _get_state_sampler_info_for_lull(self, lull_duration_s):
+    return statesampler.StateSamplerInfo(
+        CounterName('progress-msecs', 'stage_name', 'step_name'),
+        1,
+        lull_duration_s * 1e9,
+        threading.current_thread())
+
   def test_log_lull_in_bundle_processor(self):
     bundle_processor_cache = mock.MagicMock()
     worker = SdkWorker(bundle_processor_cache)
-
-    sampler_info = statesampler.StateSamplerInfo(
-        CounterName('progress-msecs', 'stage_name', 'step_name'),
-        1,
-        400000000000,
-        threading.current_thread())
 
     now = time.time()
     log_full_thread_dump_fn_name = \
@@ -144,6 +145,7 @@ class SdkWorkerTest(unittest.TestCase):
       with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
         with mock.patch('time.time') as time_mock:
           time_mock.return_value = now
+          sampler_info = self._get_state_sampler_info_for_lull(21 * 60)
           worker._log_lull_sampler_info(sampler_info)
 
           processing_template = warn_mock.call_args[0][1]
@@ -159,14 +161,27 @@ class SdkWorkerTest(unittest.TestCase):
     with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
       with mock.patch('time.time') as time_mock:
         time_mock.return_value = now + 6 * 60  # 6 minutes
+        sampler_info = self._get_state_sampler_info_for_lull(21 * 60)
         worker._log_lull_sampler_info(sampler_info)
         self.assertFalse(
             log_full_thread_dump.called,
-            'log_full_thread_dump should not be called.')
+            'log_full_thread_dump should not be called because only 6 minutes '
+            'have passed since the last dump.')
 
     with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
       with mock.patch('time.time') as time_mock:
         time_mock.return_value = now + 21 * 60  # 21 minutes
+        sampler_info = self._get_state_sampler_info_for_lull(10 * 60)
+        worker._log_lull_sampler_info(sampler_info)
+        self.assertFalse(
+            log_full_thread_dump.called,
+            'log_full_thread_dump should not be called because lull is only '
+            'for 10 minutes.')
+
+    with mock.patch(log_full_thread_dump_fn_name) as log_full_thread_dump:
+      with mock.patch('time.time') as time_mock:
+        time_mock.return_value = now + 21 * 60  # 21 minutes
+        sampler_info = self._get_state_sampler_info_for_lull(21 * 60)
         worker._log_lull_sampler_info(sampler_info)
         log_full_thread_dump.assert_called_once_with()
 

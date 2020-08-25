@@ -51,6 +51,7 @@ from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp import bigquery_avro_tools
+from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -62,7 +63,7 @@ from apache_beam.utils import retry
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpError, HttpForbiddenError
 except ImportError:
   pass
 
@@ -289,9 +290,10 @@ class BigQueryWrapper(object):
     """
     Get the location of tables referenced in a query.
 
-    This method returns the location of the first referenced table in the query
-    and depends on the BigQuery service to provide error handling for
-    queries that reference tables in multiple locations.
+    This method returns the location of the first available referenced
+    table for user in the query and depends on the BigQuery service to
+    provide error handling for queries that reference tables in multiple
+    locations.
     """
     reference = bigquery.JobReference(
         jobId=uuid.uuid4().hex, projectId=project_id)
@@ -317,17 +319,25 @@ class BigQueryWrapper(object):
 
     referenced_tables = response.statistics.query.referencedTables
     if referenced_tables:  # Guards against both non-empty and non-None
-      table = referenced_tables[0]
-      location = self.get_table_location(
-          table.projectId, table.datasetId, table.tableId)
-      _LOGGER.info(
-          "Using location %r from table %r referenced by query %s",
-          location,
-          table,
-          query)
-      return location
+      for table in referenced_tables:
+        try:
+          location = self.get_table_location(
+              table.projectId, table.datasetId, table.tableId)
+        except HttpForbiddenError:
+          # Permission access for table (i.e. from authorized_view),
+          # try next one
+          continue
+        _LOGGER.info(
+            "Using location %r from table %r referenced by query %s",
+            location,
+            table,
+            query)
+        return location
 
-    _LOGGER.debug("Query %s does not reference any tables.", query)
+    _LOGGER.debug(
+        "Query %s does not reference any tables or "
+        "you don't have permission to inspect them.",
+        query)
     return None
 
   @retry.with_exponential_backoff(
@@ -697,7 +707,8 @@ class BigQueryWrapper(object):
       write_disposition=None,
       create_disposition=None,
       additional_load_parameters=None,
-      source_format=None):
+      source_format=None,
+      job_labels=None):
     """Starts a job to load data into BigQuery.
 
     Returns:
@@ -712,7 +723,8 @@ class BigQueryWrapper(object):
         create_disposition=create_disposition,
         write_disposition=write_disposition,
         additional_load_parameters=additional_load_parameters,
-        source_format=source_format)
+        source_format=source_format,
+        job_labels=job_labels)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -865,14 +877,21 @@ class BigQueryWrapper(object):
         return created_table
 
   def run_query(
-      self, project_id, query, use_legacy_sql, flatten_results, dry_run=False):
+      self,
+      project_id,
+      query,
+      use_legacy_sql,
+      flatten_results,
+      dry_run=False,
+      job_labels=None):
     job = self._start_query_job(
         project_id,
         query,
         use_legacy_sql,
         flatten_results,
         job_id=uuid.uuid4().hex,
-        dry_run=dry_run)
+        dry_run=dry_run,
+        job_labels=job_labels)
     job_id = job.jobReference.jobId
     location = job.jobReference.location
 
@@ -1064,6 +1083,8 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     self.use_legacy_sql = use_legacy_sql
     self.flatten_results = flatten_results
     self.kms_key = kms_key
+    self.bigquery_job_labels = {}
+    self.bq_io_metadata = None
 
     if self.source.table_reference is not None:
       # If table schema did not define a project we default to executing
@@ -1118,10 +1139,14 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     self.client.clean_up_temporary_dataset(self.executing_project)
 
   def __iter__(self):
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata()
     for rows, schema in self.client.run_query(
         project_id=self.executing_project, query=self.query,
         use_legacy_sql=self.use_legacy_sql,
-        flatten_results=self.flatten_results):
+        flatten_results=self.flatten_results,
+        job_labels=self.bq_io_metadata.add_additional_bq_job_labels(
+            self.bigquery_job_labels)):
       if self.schema is None:
         self.schema = schema
       for row in rows:
@@ -1465,3 +1490,21 @@ bigquery_v2_messages.TableSchema):
   dict_table_schema = get_dict_table_schema(schema)
   return bigquery_avro_tools.get_record_schema_from_dict_table_schema(
       "root", dict_table_schema)
+
+
+class BigQueryJobTypes:
+  EXPORT = 'EXPORT'
+  COPY = 'COPY'
+  LOAD = 'LOAD'
+  QUERY = 'QUERY'
+
+
+def generate_bq_job_name(job_name, step_id, job_type, random=None):
+  from apache_beam.io.gcp.bigquery import BQ_JOB_NAME_TEMPLATE
+  random = ("_%s" % random) if random else ""
+  return str.format(
+      BQ_JOB_NAME_TEMPLATE,
+      job_type=job_type,
+      job_id=job_name.replace("-", ""),
+      step_id=step_id,
+      random=random)

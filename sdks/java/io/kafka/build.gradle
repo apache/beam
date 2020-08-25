@@ -18,6 +18,8 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  enableChecker:false,
+  ignoreRawtypeErrors:true,
   automaticModuleName: 'org.apache.beam.sdk.io.kafka',
   mavenRepositories: [
     [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']

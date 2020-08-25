@@ -21,7 +21,6 @@ import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.toImmutableList;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
@@ -43,10 +42,10 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
@@ -78,6 +77,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharStreams;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -340,6 +340,10 @@ public class CommonCoderTest {
   }
 
   private static Object parseField(Object value, Schema.FieldType fieldType) {
+    if (value == null) {
+      return null;
+    }
+
     switch (fieldType.getTypeName()) {
       case BYTE:
         return ((Number) value).byteValue();
@@ -366,14 +370,18 @@ public class CommonCoderTest {
                 .map((element) -> parseField(element, fieldType.getCollectionElementType()))
                 .collect(toImmutableList());
       case MAP:
-        Map<Object, Object> kvMap = (Map<Object, Object>) value;
-        return kvMap.entrySet().stream()
-            .collect(
-                toImmutableMap(
-                    (pair) -> parseField(pair.getKey(), fieldType.getMapKeyType()),
-                    (pair) -> parseField(pair.getValue(), fieldType.getMapValueType())));
+        Map<Object, Object> kvMap = new HashMap<>();
+        ((Map<Object, Object>) value)
+            .entrySet().stream()
+                .forEach(
+                    (entry) ->
+                        kvMap.put(
+                            parseField(entry.getKey(), fieldType.getMapKeyType()),
+                            parseField(entry.getValue(), fieldType.getMapValueType())));
+        return kvMap;
       case ROW:
-        Map<String, Object> rowMap = (Map<String, Object>) value;
+        // Clone map so we don't mutate the underlying value
+        Map<String, Object> rowMap = new HashMap<>((Map<String, Object>) value);
         Schema schema = fieldType.getRowSchema();
         Row.Builder row = Row.withSchema(schema);
         for (Schema.Field field : schema.getFields()) {

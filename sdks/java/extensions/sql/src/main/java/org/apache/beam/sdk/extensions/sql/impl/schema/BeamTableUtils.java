@@ -151,10 +151,16 @@ public final class BeamTableUtils {
         case INT32:
           return Integer.valueOf(raw);
         case INT64:
+          if (raw.equals("")) {
+            return null;
+          }
           return Long.valueOf(raw);
         case FLOAT:
           return Float.valueOf(raw);
         case DOUBLE:
+          if (raw.equals("")) {
+            return null;
+          }
           return Double.valueOf(raw);
         default:
           throw new UnsupportedOperationException(

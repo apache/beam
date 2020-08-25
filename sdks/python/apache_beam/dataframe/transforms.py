@@ -125,32 +125,47 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         return '%s:%s' % (self.stage.ops, id(self))
 
       def expand(self, pcolls):
-        if self.stage.partitioning != partitionings.Nothing():
+        scalar_inputs = [expr for expr in self.stage.inputs if is_scalar(expr)]
+        tabular_inputs = [
+            expr for expr in self.stage.inputs if not is_scalar(expr)
+        ]
+
+        if len(tabular_inputs) == 0:
+          partitioned_pcoll = next(pcolls.values()).pipeline | beam.Create([{}])
+
+        elif self.stage.partitioning != partitionings.Nothing():
           # Arrange such that partitioned_pcoll is properly partitioned.
-          input_pcolls = {
-              tag: pcoll | 'Flat%s' % tag >> beam.FlatMap(
+          main_pcolls = {
+              expr._id: pcolls[expr._id] | 'Flat%s' % expr._id >> beam.FlatMap(
                   self.stage.partitioning.partition_fn)
-              for (tag, pcoll) in pcolls.items()
-          }
-          partitioned_pcoll = input_pcolls | beam.CoGroupByKey(
-          ) | beam.MapTuple(
+              for expr in tabular_inputs
+          } | beam.CoGroupByKey()
+          partitioned_pcoll = main_pcolls | beam.MapTuple(
               lambda _,
               inputs: {tag: pd.concat(vs)
                        for tag, vs in inputs.items()})
+
         else:
           # Already partitioned, or no partitioning needed.
-          (tag, pcoll), = pcolls.items()
-          partitioned_pcoll = pcoll | beam.Map(lambda df: {tag: df})
+          assert len(tabular_inputs) == 1
+          tag = tabular_inputs[0]._id
+          partitioned_pcoll = pcolls[tag] | beam.Map(lambda df: {tag: df})
+
+        side_pcolls = {
+            expr._id: beam.pvalue.AsSingleton(pcolls[expr._id])
+            for expr in scalar_inputs
+        }
 
         # Actually evaluate the expressions.
-        def evaluate(partition, stage=self.stage):
+        def evaluate(partition, stage=self.stage, **side_inputs):
           session = expressions.Session(
-              {expr: partition[expr._id]
-               for expr in stage.inputs})
+              dict([(expr, partition[expr._id]) for expr in tabular_inputs] +
+                   [(expr, side_inputs[expr._id]) for expr in scalar_inputs]))
           for expr in stage.outputs:
             yield beam.pvalue.TaggedOutput(expr._id, expr.evaluate_at(session))
 
-        return partitioned_pcoll | beam.FlatMap(evaluate).with_outputs()
+        return partitioned_pcoll | beam.FlatMap(evaluate, **
+                                                side_pcolls).with_outputs()
 
     class Stage(object):
       """Used to build up a set of operations that can be fused together.
@@ -199,6 +214,10 @@ class _DataframeExpressionsTransform(transforms.PTransform):
             yield stage
 
     @memoize
+    def is_scalar(expr):
+      return not isinstance(expr.proxy(), pd.core.generic.NDFrame)
+
+    @memoize
     def expr_to_stages(expr):
       assert expr not in inputs
       # First attempt to compute this expression as part of an existing stage,
@@ -212,7 +231,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       for stage in common_stages([expr_to_stages(arg) for arg in expr.args()
                                   if arg not in inputs]):
         if all(output_is_partitioned_by(arg, stage, required_partitioning)
-               for arg in expr.args()):
+               for arg in expr.args() if not is_scalar(arg)):
           break
       else:
         # Otherwise, compute this expression as part of a new stage.

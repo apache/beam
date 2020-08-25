@@ -57,7 +57,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
@@ -123,6 +122,7 @@ import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.utils.Utils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Duration;
@@ -1592,49 +1592,6 @@ public class KafkaIOTest {
 
       completionThread.shutdown();
     }
-  }
-
-  @Test
-  public void testOffsetConsumerConfigOverrides() throws Exception {
-    KafkaUnboundedReader reader1 =
-        new KafkaUnboundedReader(
-            new KafkaUnboundedSource(
-                KafkaIO.read()
-                    .withBootstrapServers("broker_1:9092,broker_2:9092")
-                    .withTopic("my_topic")
-                    .withOffsetConsumerConfigOverrides(null),
-                0),
-            null);
-    assertTrue(
-        reader1
-            .getOffsetConsumerConfig()
-            .get(ConsumerConfig.GROUP_ID_CONFIG)
-            .toString()
-            .matches(".*_offset_consumer_\\d+_none"));
-    assertEquals(
-        false, reader1.getOffsetConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG));
-    assertEquals(
-        "read_uncommitted",
-        reader1.getOffsetConsumerConfig().get(ConsumerConfig.ISOLATION_LEVEL_CONFIG));
-
-    String offsetGroupId = "group.offsetConsumer";
-    KafkaUnboundedReader reader2 =
-        new KafkaUnboundedReader(
-            new KafkaUnboundedSource(
-                KafkaIO.read()
-                    .withBootstrapServers("broker_1:9092,broker_2:9092")
-                    .withTopic("my_topic")
-                    .withOffsetConsumerConfigOverrides(
-                        ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId)),
-                0),
-            null);
-    assertEquals(
-        offsetGroupId, reader2.getOffsetConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG));
-    assertEquals(
-        false, reader2.getOffsetConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG));
-    assertEquals(
-        "read_uncommitted",
-        reader2.getOffsetConsumerConfig().get(ConsumerConfig.ISOLATION_LEVEL_CONFIG));
   }
 
   private static void verifyProducerRecords(

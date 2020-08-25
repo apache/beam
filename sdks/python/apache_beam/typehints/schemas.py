@@ -96,6 +96,7 @@ _PRIMITIVES = (
     (np.float64, schema_pb2.DOUBLE),
     (unicode, schema_pb2.STRING),
     (bool, schema_pb2.BOOLEAN),
+    # TODO(BEAM-7372): Use bytes instead of ByteString
     (bytes if sys.version_info.major >= 3 else ByteString, schema_pb2.BYTES),
 )
 
@@ -107,6 +108,7 @@ PRIMITIVE_TO_ATOMIC_TYPE.update({
     # In python 2, this is a no-op because we define it as the bi-directional
     # mapping above. This just ensures the one-way mapping is defined in python
     # 3.
+    # TODO(BEAM-7372): Use bytes instead of ByteString
     ByteString: schema_pb2.BYTES,
     # Allow users to specify a native int, and use INT64 as the cross-language
     # representation. Technically ints have unlimited precision, but RowCoder
@@ -175,6 +177,11 @@ def typing_to_runner_api(type_):
     element_type = typing_to_runner_api(_get_args(type_)[0])
     return schema_pb2.FieldType(
         array_type=schema_pb2.ArrayType(element_type=element_type))
+
+  elif _safe_issubclass(type_, Mapping):
+    key_type, value_type = map(typing_to_runner_api, _get_args(type_))
+    return schema_pb2.FieldType(
+        map_type=schema_pb2.MapType(key_type=key_type, value_type=value_type))
 
   raise ValueError("Unsupported type: %s" % type_)
 
