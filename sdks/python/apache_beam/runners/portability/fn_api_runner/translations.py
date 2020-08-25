@@ -1483,7 +1483,7 @@ def only_element(iterable):
 
 
 def only_transform(stage):
-  # type: Stage -> beam_runner_api_pb2.PTransform
+  # type: (Stage) -> beam_runner_api_pb2.PTransform
   assert len(stage.transforms) == 1
   return stage.transforms[0]
 
