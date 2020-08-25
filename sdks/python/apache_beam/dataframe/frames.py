@@ -213,7 +213,14 @@ for base in ['add', 'sub', 'mul', 'div', 'truediv', 'floordiv', 'mod', 'pow']:
       DeferredSeries,
       '__i%s__' % base,
       frame_base._elementwise_method('__i%s__' % base, inplace=True))
-for name in ['__lt__', '__le__', '__gt__', '__ge__', '__eq__', '__ne__']:
+for name in ['__lt__',
+             '__le__',
+             '__gt__',
+             '__ge__',
+             '__eq__',
+             '__ne__',
+             '__or__',
+             '__and__']:
   setattr(DeferredSeries, name, frame_base._elementwise_method(name))
 for name in ['apply', 'map', 'transform']:
   setattr(DeferredSeries, name, frame_base._elementwise_method(name))
