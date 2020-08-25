@@ -20,15 +20,10 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -41,11 +36,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -233,21 +225,14 @@ public class FhirIO {
   /**
    * Export resources to GCS. Intended for use on non-empty FHIR stores
    *
+   * @param fhirStore the fhir store
+   * @param exportGcsUriPrefix the destination GCS dir
    * @return the export
    * @see ExportGcs
    */
-  public static ExportGcs exportResourcesToGcs(ExportGcs.Options exportOptions) {
-    return new ExportGcs(StaticValueProvider.of(exportOptions));
-  }
-
-  /**
-   * Export resources to GCS. Intended for use on non-empty FHIR stores
-   *
-   * @return the export
-   * @see ExportGcs
-   */
-  public static ExportGcs exportResourcesToGcs(ValueProvider<ExportGcs.Options> exportOptions) {
-    return new ExportGcs(exportOptions);
+  public static ExportGcs exportResourcesToGcs(String fhirStore, String exportGcsUriPrefix) {
+    return new ExportGcs(
+        StaticValueProvider.of(fhirStore), StaticValueProvider.of(exportGcsUriPrefix));
   }
 
   /** The type Read. */
@@ -1210,58 +1195,6 @@ public class FhirIO {
   public static class ExportGcs extends PTransform<PBegin, ExportGcs.Result> {
     public static final TupleTag<String> OUT = new TupleTag<String>() {};
 
-    /** Options contain parameters for the export resources to GCS call. */
-    @AutoValue
-    @JsonDeserialize(builder = AutoValue_FhirIO_ExportGcs_Options.Builder.class)
-    public abstract static class Options implements Serializable {
-      private static final long serialVersionUID = 281314372806434554L;
-
-      public abstract String getFhirStore();
-
-      public abstract String getExportGcsUriPrefix();
-
-      public static Builder builder() {
-        return new AutoValue_FhirIO_ExportGcs_Options.Builder();
-      }
-
-      /** Builder class for creating an {@code Options} object. */
-      @AutoValue.Builder
-      @JsonPOJOBuilder(withPrefix = "")
-      public abstract static class Builder {
-        public abstract Builder setFhirStore(String fhirStore);
-
-        public abstract Builder setExportGcsUriPrefix(String exportGcsUriPrefix);
-
-        public abstract Options build();
-      }
-    }
-
-    /** Internally used {@link CustomCoder} for {@link Options}. */
-    static class OptionsCoder extends CustomCoder<Options> {
-
-      private static final NullableCoder<String> CODER = NullableCoder.of(StringUtf8Coder.of());
-
-      static OptionsCoder of() {
-        return new OptionsCoder();
-      }
-
-      private OptionsCoder() {}
-
-      @Override
-      public void encode(Options value, OutputStream outStream) throws CoderException, IOException {
-        CODER.encode(value.getFhirStore(), outStream);
-        CODER.encode(value.getExportGcsUriPrefix(), outStream);
-      }
-
-      @Override
-      public Options decode(InputStream inStream) throws CoderException, IOException {
-        return Options.builder()
-            .setFhirStore(CODER.decode(inStream))
-            .setExportGcsUriPrefix(CODER.decode(inStream))
-            .build();
-      }
-    }
-
     /**
      * Represents the result of an export, including both the successful parsed messages, and
      * invalid ones.
@@ -1296,27 +1229,36 @@ public class FhirIO {
           String transformName, PInput input, PTransform<?, ?> transform) {}
     }
 
-    private final ValueProvider<Options> options;
+    private final ValueProvider<String> fhirStore;
+    private final ValueProvider<String> exportGcsUriPrefix;
 
-    public ExportGcs(ValueProvider<Options> options) {
-      this.options = options;
+    public ExportGcs(ValueProvider<String> fhirStore, ValueProvider<String> exportGcsUriPrefix) {
+      this.fhirStore = fhirStore;
+      this.exportGcsUriPrefix = exportGcsUriPrefix;
     }
 
     @Override
     public ExportGcs.Result expand(PBegin input) {
       return ExportGcs.Result.of(
           input
-              .apply(Create.ofProvider(options, OptionsCoder.of()))
-              .apply("ScheduleExportOperations", ParDo.of(new ExportResourcesToGcsFn()))
+              .apply(Create.ofProvider(fhirStore, StringUtf8Coder.of()))
+              .apply(
+                  "ScheduleExportOperations",
+                  ParDo.of(new ExportResourcesToGcsFn(this.exportGcsUriPrefix)))
               .apply(FileIO.matchAll())
               .apply(FileIO.readMatches())
               .apply("ReadResourcesFromFiles", TextIO.readFiles()));
     }
 
     /** A function that schedules an export operation and monitors the status. */
-    public static class ExportResourcesToGcsFn extends DoFn<Options, String> {
+    public static class ExportResourcesToGcsFn extends DoFn<String, String> {
 
       private HealthcareApiClient client;
+      private final ValueProvider<String> exportGcsUriPrefix;
+
+      public ExportResourcesToGcsFn(ValueProvider<String> exportGcsUriPrefix) {
+        this.exportGcsUriPrefix = exportGcsUriPrefix;
+      }
 
       @Setup
       public void initClient() throws IOException {
@@ -1326,9 +1268,9 @@ public class FhirIO {
       @ProcessElement
       public void exportResourcesToGcs(ProcessContext context)
           throws IOException, InterruptedException, HealthcareHttpException {
-        Options options = context.element();
-        String gcsPrefix = options.getExportGcsUriPrefix();
-        Operation operation = client.exportFhirResourceToGcs(options.getFhirStore(), gcsPrefix);
+        String fhirStore = context.element();
+        String gcsPrefix = this.exportGcsUriPrefix.get();
+        Operation operation = client.exportFhirResourceToGcs(fhirStore, gcsPrefix);
         operation = client.pollOperation(operation, 1000L);
         if (operation.getError() != null) {
           throw new RuntimeException(
