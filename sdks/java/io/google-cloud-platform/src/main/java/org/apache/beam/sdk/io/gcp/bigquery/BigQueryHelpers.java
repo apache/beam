@@ -347,10 +347,12 @@ public class BigQueryHelpers {
     UNKNOWN,
   }
 
+  /** Project resource name formatted according to https://google.aip.dev/122. */
   static String toProjectResourceName(String projectName) {
     return "projects/" + projectName;
   }
 
+  /** Table resource name formatted according to https://google.aip.dev/122. */
   static String toTableResourceName(TableReference tableReference) {
     return "projects/"
         + tableReference.getProjectId()
