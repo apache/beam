@@ -75,6 +75,9 @@ class SqlOperatorMappingTable {
           // https://issues.apache.org/jira/browse/BEAM-10379
           .put("string_agg", SqlOperators.STRING_AGG_STRING_FN) // NULL values not supported
           .put("bit_or", SqlStdOperatorTable.BIT_OR)
+          .put("var_pop", SqlStdOperatorTable.VAR_POP)
+          .put("var_samp", SqlStdOperatorTable.VAR_SAMP)
+          .put("variance", SqlStdOperatorTable.VARIANCE)
           .put("ceil", SqlStdOperatorTable.CEIL)
           .put("floor", SqlStdOperatorTable.FLOOR)
           .put("mod", SqlStdOperatorTable.MOD)
