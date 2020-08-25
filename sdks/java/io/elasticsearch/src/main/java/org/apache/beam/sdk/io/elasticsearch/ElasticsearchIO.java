@@ -28,13 +28,18 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.auto.value.AutoValue;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.security.KeyManagementException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -80,6 +85,7 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.entity.NStringEntity;
+import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.elasticsearch.client.Request;
@@ -238,9 +244,13 @@ public class ElasticsearchIO {
 
     public abstract @Nullable String getPassword();
 
-    public abstract @Nullable String getKeystorePath();
+    public abstract @Nullable String getClientKeystorePath();
 
-    public abstract @Nullable String getKeystorePassword();
+    public abstract @Nullable String getClientKeystorePassword();
+
+    public abstract @Nullable String getServerKeystorePath();
+
+    public abstract @Nullable String getServerKeystorePassword();
 
     public abstract String getIndex();
 
@@ -262,9 +272,13 @@ public class ElasticsearchIO {
 
       abstract Builder setPassword(String password);
 
-      abstract Builder setKeystorePath(String keystorePath);
+      abstract Builder setClientKeystorePath(String keystorePath);
 
-      abstract Builder setKeystorePassword(String password);
+      abstract Builder setClientKeystorePassword(String password);
+
+      abstract Builder setServerKeystorePath(String keystorePath);
+
+      abstract Builder setServerKeystorePassword(String trustStorePassword);
 
       abstract Builder setIndex(String index);
 
@@ -327,37 +341,104 @@ public class ElasticsearchIO {
     }
 
     /**
-     * If Elasticsearch uses SSL/TLS with mutual authentication (via shield), provide the keystore
-     * containing the client key.
+     * If Elasticsearch uses SSL/TLS set TrustMaterial (server side certificates, that should be
+     * trusted).
      *
      * @param keystorePath the location of the keystore containing the client key.
      * @return a {@link ConnectionConfiguration} describes a connection configuration to
      *     Elasticsearch.
+     * @deprecated use {@link #withServerKeystore(String, String)} to avoid confusion with client
+     *     keystore
      */
+    @Deprecated
     public ConnectionConfiguration withKeystorePath(String keystorePath) {
       checkArgument(keystorePath != null, "keystorePath can not be null");
       checkArgument(!keystorePath.isEmpty(), "keystorePath can not be empty");
-      return builder().setKeystorePath(keystorePath).build();
+      return builder().setServerKeystorePath(keystorePath).build();
     }
 
     /**
-     * If Elasticsearch uses SSL/TLS with mutual authentication (via shield), provide the password
-     * to open the client keystore.
+     * If Elasticsearch uses SSL/TLS set TrustMaterial (server side certificates, that should be
+     * trusted).
      *
      * @param keystorePassword the password of the client keystore.
      * @return a {@link ConnectionConfiguration} describes a connection configuration to
      *     Elasticsearch.
+     * @deprecated use {@link #withServerKeystore(String, String)} to avoid confusion with client
+     *     keystore
      */
+    @Deprecated
     public ConnectionConfiguration withKeystorePassword(String keystorePassword) {
-      checkArgument(keystorePassword != null, "keystorePassword can not be null");
-      return builder().setKeystorePassword(keystorePassword).build();
+      return builder().setServerKeystorePassword(keystorePassword).build();
     }
 
     /**
-     * If Elasticsearch uses SSL/TLS then configure whether to trust self signed certs or not. The
-     * default is false.
+     * If Elasticsearch uses SSL/TLS set TrustMaterial (server side certificates, that should be
+     * trusted).
      *
-     * @param trustSelfSignedCerts Whether to trust self signed certs
+     * @param keystorePath the location of the keystore with server certificate
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
+     */
+    public ConnectionConfiguration withServerKeystore(String keystorePath) {
+      return withServerKeystore(keystorePath, null);
+    }
+
+    /**
+     * If Elasticsearch uses SSL/TLS set TrustMaterial (server side certificates, that should be
+     * trusted).
+     *
+     * @param keystorePath the location of the keystore with server certificate
+     * @param password the password to the keystore with server certificate
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
+     */
+    public ConnectionConfiguration withServerKeystore(
+        String keystorePath, @Nullable String password) {
+      checkArgument(keystorePath != null, "keystorePath can not be null");
+      checkArgument(!keystorePath.isEmpty(), "keystorePath can not be empty");
+      return builder()
+          .setServerKeystorePath(keystorePath)
+          .setServerKeystorePassword(password)
+          .build();
+    }
+
+    /**
+     * If Elasticsearch uses SSL/TLS set KeyMaterial (client side certificates, that are used for
+     * authentication).
+     *
+     * @param keystorePath the location of the keystore with client key for authentication
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
+     */
+    public ConnectionConfiguration withClientKeystore(String keystorePath) {
+      return withClientKeystore(keystorePath, null);
+    }
+
+    /**
+     * If Elasticsearch uses SSL/TLS set KeyMaterial (client side certificates, that are used for
+     * authentication).
+     *
+     * @param keystorePath the location of the keystore with client key
+     * @param password the password to the keystore with client key
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
+     */
+    public ConnectionConfiguration withClientKeystore(
+        String keystorePath, @Nullable String password) {
+      checkArgument(keystorePath != null, "keystorePath can not be null");
+      checkArgument(!keystorePath.isEmpty(), "keystorePath can not be empty");
+      return builder()
+          .setClientKeystorePath(keystorePath)
+          .setClientKeystorePassword(password)
+          .build();
+    }
+
+    /**
+     * If Elasticsearch uses SSL/TLS then configure whether to trust ALL self signed certs or not.
+     * The default is false.
+     *
+     * @param trustSelfSignedCerts Whether to trust ALL self signed certs
      * @return a {@link ConnectionConfiguration} describes a connection configuration to
      *     Elasticsearch.
      */
@@ -397,7 +478,7 @@ public class ElasticsearchIO {
       builder.add(DisplayData.item("index", getIndex()));
       builder.add(DisplayData.item("type", getType()));
       builder.addIfNotNull(DisplayData.item("username", getUsername()));
-      builder.addIfNotNull(DisplayData.item("keystore.path", getKeystorePath()));
+      builder.addIfNotNull(DisplayData.item("keystore.path", getServerKeystorePath()));
       builder.addIfNotNull(DisplayData.item("socketTimeout", getSocketTimeout()));
       builder.addIfNotNull(DisplayData.item("connectTimeout", getConnectTimeout()));
       builder.addIfNotNull(DisplayData.item("trustSelfSignedCerts", isTrustSelfSignedCerts()));
@@ -421,25 +502,16 @@ public class ElasticsearchIO {
             httpAsyncClientBuilder ->
                 httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
       }
-      if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
-        try {
-          KeyStore keyStore = KeyStore.getInstance("jks");
-          try (InputStream is = new FileInputStream(new File(getKeystorePath()))) {
-            String keystorePassword = getKeystorePassword();
-            keyStore.load(is, (keystorePassword == null) ? null : keystorePassword.toCharArray());
-          }
-          final TrustStrategy trustStrategy =
-              isTrustSelfSignedCerts() ? new TrustSelfSignedStrategy() : null;
-          final SSLContext sslContext =
-              SSLContexts.custom().loadTrustMaterial(keyStore, trustStrategy).build();
-          final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
-          restClientBuilder.setHttpClientConfigCallback(
-              httpClientBuilder ->
-                  httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
-        } catch (Exception e) {
-          throw new IOException("Can't load the client certificate from the keystore", e);
-        }
+
+      final SSLContext sslContext = createSSLContext();
+
+      if (sslContext != null) {
+        final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
+        restClientBuilder.setHttpClientConfigCallback(
+            httpClientBuilder ->
+                httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
       }
+
       restClientBuilder.setRequestConfigCallback(
           new RestClientBuilder.RequestConfigCallback() {
             @Override
@@ -455,6 +527,69 @@ public class ElasticsearchIO {
             }
           });
       return restClientBuilder.build();
+    }
+
+    private SSLContext createSSLContext() throws IOException {
+      if (getServerKeystorePath() == null || getClientKeystorePath() == null) {
+        return null;
+      }
+
+      final SSLContextBuilder sslContextBuilder = SSLContexts.custom();
+
+      if (getServerKeystorePath() != null) {
+        KeyStore serverKeystore =
+            createKeyStore(getServerKeystorePath(), getServerKeystorePassword());
+        final TrustStrategy trustStrategy =
+            isTrustSelfSignedCerts() ? new TrustSelfSignedStrategy() : null;
+        try {
+          sslContextBuilder.loadTrustMaterial(serverKeystore, trustStrategy);
+        } catch (NoSuchAlgorithmException | KeyStoreException e) {
+          throw new IOException("Can't load the server certificate from the keystore", e);
+        }
+      }
+
+      if (getClientKeystorePath() != null) {
+        KeyStore clientKeyStore =
+            createKeyStore(getClientKeystorePath(), getClientKeystorePassword());
+        try {
+          sslContextBuilder.loadKeyMaterial(
+              clientKeyStore,
+              getClientKeystorePassword() == null
+                  ? null
+                  : getClientKeystorePassword().toCharArray());
+        } catch (NoSuchAlgorithmException | KeyStoreException | UnrecoverableKeyException e) {
+          throw new IOException(
+              "Can't load the client certificate for authentication from the keystore", e);
+        }
+      }
+      try {
+        return sslContextBuilder.build();
+      } catch (NoSuchAlgorithmException | KeyManagementException e) {
+        throw new IOException("Couldn't create SSLContext", e);
+      }
+    }
+
+    private KeyStore createKeyStore(String keyStorePath, String keyStorePassword) {
+      KeyStore keyStore;
+      try {
+        keyStore = KeyStore.getInstance("jks");
+
+        File keyStoreFile = new File(keyStorePath);
+        if (!keyStoreFile.exists()) {
+          throw new IllegalArgumentException("Couldn't find keystore file=" + keyStorePath);
+        }
+        char[] keyStorePasswordChars =
+            keyStorePassword == null ? null : keyStorePassword.toCharArray();
+        try (InputStream is = Files.newInputStream(keyStoreFile.toPath())) {
+          keyStore.load(is, keyStorePasswordChars);
+        }
+      } catch (KeyStoreException
+          | NoSuchAlgorithmException
+          | IOException
+          | CertificateException e) {
+        throw new IllegalArgumentException("Cannot initialize SSLContext", e);
+      }
+      return keyStore;
     }
   }
 
