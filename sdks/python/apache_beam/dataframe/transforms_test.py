@@ -108,7 +108,7 @@ class TransformTest(unittest.TestCase):
     with expressions.allow_non_parallel_operations():
       self.run_scenario(df, lambda df: df.groupby('Animal').mean())
     self.run_scenario(
-      df, lambda df: df.loc[df.Speed > 25].groupby('Animal').sum())
+        df, lambda df: df.loc[df.Speed > 25].groupby('Animal').sum())
 
   def test_filter(self):
     df = pd.DataFrame({
