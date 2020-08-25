@@ -358,6 +358,8 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       'order-sensitive')
   diff = frame_base.wont_implement_method('order-sensitive')
 
+  drop = frame_base._elementwise_method('drop')
+
   max = frame_base._agg_method('max')
   min = frame_base._agg_method('min')
 

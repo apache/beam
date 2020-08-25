@@ -77,7 +77,9 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.count': ['*'],
             'pandas.core.frame.DataFrame.cov': ['*'],
             'pandas.core.frame.DataFrame.dot': ['*'],
-            'pandas.core.frame.DataFrame.drop': ['*'],
+            'pandas.core.frame.DataFrame.drop': [
+                "df.drop(index='cow', columns='small')", 'df.drop([0, 1])'
+            ],
             'pandas.core.frame.DataFrame.eval': ['*'],
             'pandas.core.frame.DataFrame.explode': ['*'],
             'pandas.core.frame.DataFrame.info': ['*'],
