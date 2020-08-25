@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
@@ -30,9 +29,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetDataStream;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -81,38 +78,6 @@ public class MetricTrackingWindmillServerStub {
     }
   }
 
-  private static final class KeyAndComputation {
-
-    final ByteString key;
-    final long shardingKey;
-    final String computation;
-
-    KeyAndComputation(ByteString key, long shardingKey, String computation) {
-      this.key = key;
-      this.shardingKey = shardingKey;
-      this.computation = computation;
-    }
-
-    @Override
-    public boolean equals(@Nullable Object other) {
-      if (this == other) {
-        return true;
-      }
-      if (!(other instanceof KeyAndComputation)) {
-        return false;
-      }
-      KeyAndComputation that = (KeyAndComputation) other;
-      return this.key.equals(that.key)
-          && this.shardingKey == that.shardingKey
-          && this.computation.equals(that.computation);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(key, shardingKey, computation);
-    }
-  }
-
   public MetricTrackingWindmillServerStub(
       WindmillServerStub server, MemoryMonitor gcThrashingMonitor, boolean useStreamingRequests) {
     this.server = server;
@@ -152,7 +117,7 @@ public class MetricTrackingWindmillServerStub {
         continue;
       }
       int numReads = 1;
-      Map<KeyAndComputation, SettableFuture<Windmill.KeyedGetDataResponse>> pendingResponses =
+      Map<WindmillComputationKey, SettableFuture<Windmill.KeyedGetDataResponse>> pendingResponses =
           new HashMap<>();
       Map<String, Windmill.ComputationGetDataRequest.Builder> computationBuilders = new HashMap<>();
       do {
@@ -166,8 +131,8 @@ public class MetricTrackingWindmillServerStub {
 
         computationBuilder.addRequests(entry.request);
         pendingResponses.put(
-            new KeyAndComputation(
-                entry.request.getKey(), entry.request.getShardingKey(), entry.computation),
+            WindmillComputationKey.create(
+                entry.computation, entry.request.getKey(), entry.request.getShardingKey()),
             entry.response);
       } while (numReads++ < MAX_READS_PER_BATCH && (entry = readQueue.poll()) != null);
 
@@ -185,10 +150,10 @@ public class MetricTrackingWindmillServerStub {
         for (Windmill.KeyedGetDataResponse keyResponse : computationResponse.getDataList()) {
           pendingResponses
               .get(
-                  new KeyAndComputation(
+                  WindmillComputationKey.create(
+                      computationResponse.getComputationId(),
                       keyResponse.getKey(),
-                      keyResponse.getShardingKey(),
-                      computationResponse.getComputationId()))
+                      keyResponse.getShardingKey()))
               .set(keyResponse);
         }
       }
