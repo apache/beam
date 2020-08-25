@@ -35,10 +35,7 @@ class DeferredFrameTest(unittest.TestCase):
             expressions.ConstantExpression(arg, arg[0:0])) for arg in args
     ]
     expected = func(*args)
-    actual = expressions.PartitioningSession({}).evaluate(func(*deferred_args)._expr)
-    if isinstance(actual, pd.core.generic.NDFrame):
-      actual = actual.sort_index()
-      expected = expected.sort_index()
+    actual = expressions.Session({}).evaluate(func(*deferred_args)._expr)
     self.assertTrue(
         getattr(expected, 'equals', expected.__eq__)(actual),
         'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
@@ -133,6 +130,12 @@ class DeferredFrameTest(unittest.TestCase):
       self._run_test(lambda df: df.agg({'A': ['sum', 'mean']}), df)
       self._run_test(lambda df: df.agg({'A': ['sum', 'mean'], 'B': 'min'}), df)
 
+  @unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
+  def test_smallest_largest(self):
+    df = pd.DataFrame({'A': [1, 1, 2, 2], 'B': [2, 3, 5, 7]})
+    self._run_test(lambda df: df.nlargest(1, 'A', keep='all'), df)
+    self._run_test(lambda df: df.nsmallest(3, 'A', keep='all'), df)
+    self._run_test(lambda df: df.nlargest(3, ['A', 'B'], keep='all'), df)
 
 
 class AllowNonParallelTest(unittest.TestCase):
