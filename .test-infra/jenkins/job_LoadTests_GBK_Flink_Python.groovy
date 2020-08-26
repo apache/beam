@@ -129,17 +129,19 @@ def scenarios = { datasetName ->
 def loadTest = { scope, triggeringContext ->
   Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
   def sdk = CommonTestProperties.SDK.PYTHON_37
-  String pythonHarnessImageTag = publisher.getFullImageName('beam_python3.7_sdk')
+  String imageTag = now + '-gbk-batch'
+  String pythonSDKHarnessImageName = publisher.getFullImageName('beam_python3.7_sdk', imageTag)
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 16
-  additionalPipelineArgs << [environment_config: pythonHarnessImageTag]
+  additionalPipelineArgs << [environment_config: pythonSDKHarnessImageName]
   List<Map> testScenarios = scenarios(datasetName)
 
-  publisher.publish(':sdks:python:container:py37:docker', 'beam_python3.7_sdk')
-  publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server')
+  publisher.publish(':sdks:python:container:py37:dockerPush', imageTag)
+  publisher.publish(':runners:flink:1.10:job-server-container:dockerPush', imageTag)
   def flink = new Flink(scope, 'beam_LoadTests_Python_GBK_Flink_Batch')
-  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('beam_flink1.10_job_server'))
+  String jobServerImageName = publisher.getFullImageName('beam_flink1.10_job_server', imageTag)
+  flink.setUp([pythonSDKHarnessImageName], numberOfWorkers, jobServerImageName)
 
   def configurations = testScenarios.findAll { it.pipelineOptions?.parallelism?.value == numberOfWorkers }
   loadTestsBuilder.loadTests(scope, sdk, configurations, "GBK", "batch")
