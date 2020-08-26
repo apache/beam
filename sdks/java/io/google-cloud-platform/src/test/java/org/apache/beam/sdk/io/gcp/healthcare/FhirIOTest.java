@@ -48,7 +48,7 @@ import org.junit.runners.JUnit4;
 public class FhirIOTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-  private final String fhirStoreName;
+  private final String fhirStoreId;
   private final String project;
   private transient HealthcareApiClient client;
   private String healthcareDataset;
@@ -56,7 +56,7 @@ public class FhirIOTest {
 
   public FhirIOTest() {
     long testTime = System.currentTimeMillis();
-    this.fhirStoreName = "FHIR_store_" + testTime + "_" + (new SecureRandom().nextInt(32));
+    this.fhirStoreId = "FHIR_store_" + testTime + "_" + (new SecureRandom().nextInt(32));
     this.version = "STU3";
     this.project =
         TestPipeline.testingPipelineOptions()
@@ -70,24 +70,36 @@ public class FhirIOTest {
     if (client == null) {
       this.client = new HttpHealthcareApiClient();
     }
-    client.createFhirStore(healthcareDataset, fhirStoreName, version, null);
+    client.createFhirStore(healthcareDataset, fhirStoreId, version, null);
 
     // Execute bundles to populate some data.
     FhirIOTestUtil.executeFhirBundles(
         client,
-        healthcareDataset + "/fhirStores/" + fhirStoreName,
+        healthcareDataset + "/fhirStores/" + fhirStoreId,
         FhirIOTestUtil.BUNDLES.get(version));
   }
 
   @After
   public void deleteFHIRtore() throws IOException {
     HealthcareApiClient client = new HttpHealthcareApiClient();
-    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreName);
+    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreId);
   }
 
   @AfterClass
   public static void teardownBucket() throws IOException {
     FhirIOTestUtil.tearDownTempBucket();
+  }
+
+  @Test
+  public void test_FhirIO_exportFhirResourcesGcs() {
+    String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
+    String exportGcsUriPrefix = "gs://" + DEFAULT_TEMP_BUCKET + "/"
+        + (new SecureRandom().nextInt(32));
+    FhirIO.ExportGcs.Result exportResults =
+        pipeline.apply(FhirIO.exportResourcesToGcs(fhirStoreName, exportGcsUriPrefix));
+    PCollection<String> resources = exportResults.getResources();
+    resources.apply(TextIO.write().to(exportGcsUriPrefix + "/write"));
+    pipeline.run();
   }
 
   @Test
@@ -106,16 +118,6 @@ public class FhirIOTest {
 
     PAssert.that(failedMsgIds).containsInAnyOrder(badMessageIDs);
     PAssert.that(resources).empty();
-    pipeline.run();
-  }
-
-  @Test
-  public void test_FhirIO_exportFhirResourcesGcs() {
-    String exportGcsUriPrefix = DEFAULT_TEMP_BUCKET + "/" + (new SecureRandom().nextInt(32));
-    FhirIO.ExportGcs.Result exportResults =
-        pipeline.apply(FhirIO.exportResourcesToGcs(fhirStoreName, exportGcsUriPrefix));
-    PCollection<String> resources = exportResults.getResources();
-    resources.apply(TextIO.write().to(exportGcsUriPrefix + "/write"));
     pipeline.run();
   }
 
