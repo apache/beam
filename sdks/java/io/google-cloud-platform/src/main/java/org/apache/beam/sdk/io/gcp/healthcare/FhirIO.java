@@ -237,6 +237,21 @@ public class FhirIO {
         StaticValueProvider.of(fhirStore), StaticValueProvider.of(exportGcsUriPrefix));
   }
 
+  /**
+   * Export resources to GCS. Intended for use on non-empty FHIR stores
+   *
+   * @param fhirStore the fhir store, in the format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   * @param exportGcsUriPrefix the destination GCS dir, in the format:
+   *     gs://YOUR_BUCKET_NAME/path/to/a/dir
+   * @return the export
+   * @see ExportGcs
+   */
+  public static ExportGcs exportResourcesToGcs(
+      ValueProvider<String> fhirStore, ValueProvider<String> exportGcsUriPrefix) {
+    return new ExportGcs(fhirStore, exportGcsUriPrefix);
+  }
+
   /** The type Read. */
   public static class Read extends PTransform<PCollection<String>, FhirIO.Read.Result> {
     private static final Logger LOG = LoggerFactory.getLogger(Read.class);
