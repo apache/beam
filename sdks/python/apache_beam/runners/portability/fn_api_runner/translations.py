@@ -543,14 +543,13 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
   for stage in stages:
     if partial:
       transform = only_element(stage.transforms)
+      copy_subtransforms(transform)
     else:
       transform = stage.executable_stage_transform(
           known_runner_urns, all_consumers, components)
     transform_id = unique_name(components.transforms, stage.name)
     components.transforms[transform_id].CopyFrom(transform)
     add_parent(transform_id, stage.parent)
-    if partial:
-      copy_subtransforms(transform)
 
   del new_proto.root_transform_ids[:]
   new_proto.root_transform_ids.extend(roots)
@@ -1483,7 +1482,7 @@ def only_element(iterable):
 
 
 def only_transform(stage):
-  # type: Stage -> beam_runner_api_pb2.PTransform
+  # type: (Stage) -> beam_runner_api_pb2.PTransform
   assert len(stage.transforms) == 1
   return stage.transforms[0]
 
