@@ -16,6 +16,16 @@
  * limitations under the License.
  */
 
+plugins {
+  // Enable publishing build scans
+  id "com.gradle.enterprise" version "3.4.1" apply false
+}
+
+// Plugins which require online access should not be enabled when running in offline mode.
+if (!gradle.startParameter.isOffline()) {
+  apply plugin: "com.gradle.enterprise"
+}
+
 rootProject.name = "beam"
 
 include ":release"
