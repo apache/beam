@@ -201,7 +201,16 @@ class DeferredSeries(frame_base.DeferredFrame):
   view = frame_base.wont_implement_method('memory sharing semantics')
 
 
-for base in ['add', 'sub', 'mul', 'div', 'truediv', 'floordiv', 'mod', 'pow']:
+for base in ['add',
+             'sub',
+             'mul',
+             'div',
+             'truediv',
+             'floordiv',
+             'mod',
+             'pow',
+             'and',
+             'or']:
   for p in ['%s', 'r%s', '__%s__', '__r%s__']:
     # TODO: non-trivial level?
     name = p % base
@@ -213,14 +222,7 @@ for base in ['add', 'sub', 'mul', 'div', 'truediv', 'floordiv', 'mod', 'pow']:
       DeferredSeries,
       '__i%s__' % base,
       frame_base._elementwise_method('__i%s__' % base, inplace=True))
-for name in ['__lt__',
-             '__le__',
-             '__gt__',
-             '__ge__',
-             '__eq__',
-             '__ne__',
-             '__or__',
-             '__and__']:
+for name in ['__lt__', '__le__', '__gt__', '__ge__', '__eq__', '__ne__']:
   setattr(DeferredSeries, name, frame_base._elementwise_method(name))
 for name in ['apply', 'map', 'transform']:
   setattr(DeferredSeries, name, frame_base._elementwise_method(name))
