@@ -37,10 +37,10 @@ import org.junit.runners.JUnit4;
 public class FhirIOLROIT {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-  private final String fhirStoreId;
-  private final String project;
   private transient HealthcareApiClient client;
+  private final String project;
   private String healthcareDataset;
+  private final String fhirStoreId;
   private String version;
 
   public FhirIOLROIT() {
