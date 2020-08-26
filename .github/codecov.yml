@@ -43,10 +43,9 @@ parsers:
       method: no
       macro: no
 
-# Do not comment on PRs.
-comment: false
-
 fixes:
+  # Files like setup.py and conftest.py.
+  - "*.py::sdks/python/"
   - "apache_beam/::sdks/python/apache_beam/"
 
 ignore:
