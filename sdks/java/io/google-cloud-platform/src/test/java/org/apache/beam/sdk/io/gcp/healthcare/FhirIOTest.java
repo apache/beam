@@ -93,8 +93,8 @@ public class FhirIOTest {
   @Test
   public void test_FhirIO_exportFhirResourcesGcs() {
     String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
-    String exportGcsUriPrefix = "gs://" + DEFAULT_TEMP_BUCKET + "/"
-        + (new SecureRandom().nextInt(32));
+    String exportGcsUriPrefix =
+        "gs://" + DEFAULT_TEMP_BUCKET + "/" + (new SecureRandom().nextInt(32));
     FhirIO.ExportGcs.Result exportResults =
         pipeline.apply(FhirIO.exportResourcesToGcs(fhirStoreName, exportGcsUriPrefix));
     PCollection<String> resources = exportResults.getResources();
