@@ -89,16 +89,16 @@ public class FhirIOTest {
 
   private static ArrayList<KV<String, String>> createTestData() {
     String[] scientists = {
-        "Einstein",
-        "Darwin",
-        "Copernicus",
-        "Pasteur",
-        "Curie",
-        "Faraday",
-        "Newton",
-        "Bohr",
-        "Galilei",
-        "Maxwell"
+      "Einstein",
+      "Darwin",
+      "Copernicus",
+      "Pasteur",
+      "Curie",
+      "Faraday",
+      "Newton",
+      "Bohr",
+      "Galilei",
+      "Maxwell"
     };
     ArrayList<KV<String, String>> data = new ArrayList<>();
     for (int i = 0; i < NUM_ELEMENTS; i++) {
