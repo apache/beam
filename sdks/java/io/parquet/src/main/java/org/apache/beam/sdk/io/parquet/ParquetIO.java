@@ -44,10 +44,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -319,6 +316,7 @@ public class ParquetIO {
           RestrictionTracker<OffsetRange, Long> tracker,
           OutputReceiver<GenericRecord> outputReceiver)
           throws Exception {
+        LOG.info("start "+tracker.currentRestriction().getFrom()+ " to "+tracker.currentRestriction().getTo());
         ParquetReadOptions options = HadoopReadOptions.builder(getConfWithModelClass()).build();
         ParquetFileReader reader =
             ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options);
@@ -351,7 +349,7 @@ public class ParquetIO {
 
         while ((tracker).tryClaim(currentBlock)) {
           PageReadStore pages = reader.readNextRowGroup();
-          LOG.debug("block {} read in memory. row count = {}", currentBlock, pages.getRowCount());
+          LOG.info("block {} read in memory. row count = {}", currentBlock, pages.getRowCount());
           currentBlock += 1;
           RecordReader<GenericRecord> recordReader =
               columnIO.getRecordReader(
@@ -391,7 +389,7 @@ public class ParquetIO {
                   e);
             }
           }
-          LOG.debug("Finish processing " + currentRow + " rows from block " + (currentBlock - 1));
+          LOG.info("Finish processing " + currentRow + " rows from block " + (currentBlock - 1));
         }
       }
 
@@ -456,8 +454,8 @@ public class ParquetIO {
       public RestrictionTracker<OffsetRange, Long> newTracker(
           @Restriction OffsetRange restriction, @Element FileIO.ReadableFile file)
           throws Exception {
-        List<Long> recordCountAndSize = getRecordCountAndSize(file, restriction);
-        return new BlockTracker(restriction, recordCountAndSize.get(1), recordCountAndSize.get(0));
+        List<Double> recordCountAndSize = getRecordCountAndSize(file, restriction);
+        return new BlockTracker(restriction, Math.round(recordCountAndSize.get(1)), Math.round(recordCountAndSize.get(0)));
       }
 
       @GetRestrictionCoder
@@ -465,18 +463,23 @@ public class ParquetIO {
         return new OffsetRange.Coder();
       }
 
-      public List<Long> getRecordCountAndSize(
+      @GetSize
+      public double getSize(@Element FileIO.ReadableFile file, @Restriction OffsetRange restriction) throws Exception {
+        return getRecordCountAndSize(file,restriction).get(1);
+      }
+
+      public List<Double> getRecordCountAndSize(
           @Element FileIO.ReadableFile file, @Restriction OffsetRange restriction)
           throws Exception {
         ParquetFileReader reader = getParquetFileReader(file);
-        long size = 0;
-        long recordCount = 0;
+        double size = 0;
+        double recordCount = 0;
         for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
           BlockMetaData block = reader.getRowGroups().get((int) i);
           recordCount += block.getRowCount();
           size += block.getTotalByteSize();
         }
-        List<Long> countAndSize = new ArrayList<Long>();
+        List<Double> countAndSize = new ArrayList<>();
         countAndSize.add(recordCount);
         countAndSize.add(size);
         return countAndSize;
