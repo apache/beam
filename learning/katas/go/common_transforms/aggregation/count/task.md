@@ -18,8 +18,8 @@
 
 # Aggregation - Count
 
-In the Beam model, metrics provide some insight into the current state of a user pipeline.  
-In this lesson we introduce the [stats](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/transforms/stats) 
+In the Beam model, metrics provide some insight into the current state of a user pipeline.
+In this lesson we introduce the [stats](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/transforms/stats)
 package that contains transforms for statistical processing.
 
 **Kata:** Count the number of elements from an input.
