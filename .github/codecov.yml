@@ -49,5 +49,5 @@ fixes:
   - "apache_beam/::sdks/python/apache_beam/"
 
 ignore:
-  - "**/_test.py"
-  - "**/_test_py3*.py"
+  - "**/*_test.py"
+  - "**/*_test_py3*.py"
