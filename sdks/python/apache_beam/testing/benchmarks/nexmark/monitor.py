@@ -47,13 +47,22 @@ class MonitorDoFn(beam.DoFn):
         namespace, prefix + MonitorSuffix.ELEMENT_COUNTER)
     self.event_time = Metrics.distribution(
         namespace, prefix + MonitorSuffix.EVENT_TIME)
+    self.event_timestamp = Metrics.distribution(
+        namespace, prefix + MonitorSuffix.EVENT_TIMESTAMP)
 
-  def process(self, element):
-    self.element_count.inc()
+  def start_bundle(self):
     self.event_time.update(int(time() * 1000))
+
+  def process(self, element, timestamp=beam.DoFn.TimestampParam):
+    self.element_count.inc()
+    self.event_timestamp.update(timestamp)
     yield element
+
+  def finish_bundle(self):
+    self.event_time.update(int(time() * 1000))
 
 
 class MonitorSuffix:
   ELEMENT_COUNTER = '.elements'
+  EVENT_TIMESTAMP = '.event_timestamp'
   EVENT_TIME = '.event_time'
