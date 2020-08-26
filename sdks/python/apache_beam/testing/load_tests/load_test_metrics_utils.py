@@ -149,10 +149,15 @@ def get_all_distributions_by_type(dist, metric_id):
   """
   submit_timestamp = time.time()
   dist_types = ['count', 'max', 'min', 'sum']
-  return [
-      get_distribution_dict(dist_type, submit_timestamp, dist, metric_id)
-      for dist_type in dist_types
-  ]
+  distribution_dicts = []
+  for dist_type in dist_types:
+    try:
+      distribution_dicts.append(
+          get_distribution_dict(dist_type, submit_timestamp, dist, metric_id))
+    except ValueError:
+      # Ignore metrics with 'None' values.
+      continue
+  return distribution_dicts
 
 
 def get_distribution_dict(metric_type, submit_timestamp, dist, metric_id):
@@ -325,6 +330,11 @@ class DistributionMetric(Metric):
                    '_' + metric_type + \
                    '_' + dist_metric.key.metric.name
     value = getattr(dist_metric.result, metric_type)
+    if value is None:
+      msg = '%s: the result is expected to be an integer, ' \
+            'not None.' % custom_label
+      _LOGGER.debug(msg)
+      raise ValueError(msg)
     super(DistributionMetric, self) \
       .__init__(submit_timestamp, metric_id, value, dist_metric, custom_label)
 
