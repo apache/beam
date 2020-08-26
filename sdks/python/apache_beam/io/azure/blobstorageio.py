@@ -566,7 +566,6 @@ class BlobStorageIO(object):
         results[(container, blob)] = response
       except ResourceNotFoundError as e:
         results[(container, blob)] = e.status_code
-    print(results)
     return results
 
   @retry.with_exponential_backoff(

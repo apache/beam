@@ -422,7 +422,6 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertFalse(self.azfs.exists(file_name))
 
   def test_delete_paths(self):
-    self.skipTest('Azurite does not support this operation.')
     # Create files.
     prefix = self.TEST_DATA_PATH + 'test_delete_paths/'
     file_names = [prefix + 'x', prefix + 'y/z']
@@ -441,7 +440,6 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertFalse(self.azfs.exists(file_names[1]))
 
   def test_delete_tree(self):
-    self.skipTest('Azurite does not support this operation.')
     root_path = self.TEST_DATA_PATH + 'test_delete_tree/'
     leaf_paths = ['x', 'y/a', 'y/b', 'y/b/c']
 
@@ -494,7 +492,6 @@ class TestBlobStorageIO(unittest.TestCase):
       self.assertFalse(self.azfs.exists(file_name_pattern % i))
 
   def test_delete_files_with_errors(self):
-    self.skipTest('Azurite does not support this operation.')
     real_file = self.TEST_DATA_PATH + 'test_delete_files/file'
     fake_file = 'azfs://fake/fake-container/test_fake_file'
     filenames = [real_file, fake_file]
@@ -506,7 +503,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
     # First is the file in the real container, which shouldn't throw an error.
     self.assertEqual(result[0][0], filenames[0])
-    self.assertEqual(result[0][1], 202)
+    self.assertEqual(result[0][1], None)
 
     # Second is the file in the fake container, which should throw a 404.
     self.assertEqual(result[1][0], filenames[1])
