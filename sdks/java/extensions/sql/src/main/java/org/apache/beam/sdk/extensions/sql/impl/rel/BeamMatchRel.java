@@ -24,8 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPCall;
@@ -37,6 +35,7 @@ import org.apache.beam.sdk.extensions.sql.impl.cep.CEPOperation;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPPattern;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPUtils;
 import org.apache.beam.sdk.extensions.sql.impl.cep.OrderKey;
+import org.apache.beam.sdk.extensions.sql.impl.cep.Quantifier;
 import org.apache.beam.sdk.extensions.sql.impl.nfa.NFA;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
@@ -62,7 +61,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -200,7 +198,6 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       // apply the pattern match in each partition
       ArrayList<CEPPattern> cepPattern =
           CEPUtils.getCEPPatternFromPattern(upstreamSchema, pattern, patternDefs);
-      String regexPattern = CEPUtils.getRegexFromPattern(pattern);
       List<CEPMeasure> cepMeasures = new ArrayList<>();
       for (Map.Entry<String, RexNode> i : measures.entrySet()) {
         String outTableName = i.getKey();
@@ -230,7 +227,6 @@ public class BeamMatchRel extends Match implements BeamRelNode {
                           upstreamSchema,
                           cepParKeys,
                           cepPattern,
-                          regexPattern,
                           cepMeasures,
                           allRows,
                           outSchema)))
@@ -248,7 +244,6 @@ public class BeamMatchRel extends Match implements BeamRelNode {
     private final Schema outSchema;
     private final List<CEPFieldRef> parKeys;
     private final ArrayList<CEPPattern> pattern;
-    private final String regexPattern;
     private final List<CEPMeasure> measures;
     private final boolean allRows;
 
@@ -256,14 +251,12 @@ public class BeamMatchRel extends Match implements BeamRelNode {
         Schema upstreamSchema,
         List<CEPFieldRef> parKeys,
         ArrayList<CEPPattern> pattern,
-        String regexPattern,
         List<CEPMeasure> measures,
         boolean allRows,
         Schema outSchema) {
       this.upstreamSchema = upstreamSchema;
       this.parKeys = parKeys;
       this.pattern = pattern;
-      this.regexPattern = regexPattern;
       this.measures = measures;
       this.allRows = allRows;
       this.outSchema = outSchema;
@@ -284,7 +277,6 @@ public class BeamMatchRel extends Match implements BeamRelNode {
         }
 
         LOG.info("Finds a MATCH!!");
-        LOG.info(result.toString());
 
         if (allRows) {
           for(ArrayList<Row> i : result.values()) {

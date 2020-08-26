@@ -10,10 +10,13 @@ import org.apache.beam.sdk.extensions.sql.impl.cep.CEPPattern;
 import org.apache.beam.sdk.extensions.sql.impl.cep.Quantifier;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +31,7 @@ public class NFA implements Serializable {
   private final State startState;
   private ArrayList<StateLocator> currentRuns;
   private final Schema upstreamSchema;
+  private static final Logger LOG = LoggerFactory.getLogger(NFA.class);
 
   private NFA(List<CEPPattern> patterns, Schema upstreamSchema) {
     this.startState = loadStates(patterns);
@@ -52,6 +56,7 @@ public class NFA implements Serializable {
       throw new IllegalStateException("the second argument of the prev operation should be a decimal. Provided: "
           + opr2.getClass().toString());
     }
+    LOG.info("inside PREV");
     CEPFieldRef fieldRef = (CEPFieldRef) opr1;
     String alpha = fieldRef.getAlpha(); // the patternVar
     int lastNumber = opr2.getDecimal().intValue();
@@ -60,7 +65,9 @@ public class NFA implements Serializable {
     while(curEvent != null &&
         iterPointer.getPatternVar().equals(alpha) &&
         lastNumber > 0) {
-      curEvent = curEvent.getPrevEvent(iterPointer);
+      LOG.info(curEvent.getRow().toString());
+      iterPointer = curEvent.getPrevPointer(iterPointer);
+      curEvent = curEvent.findEvent(iterPointer);
     }
     if(curEvent != null) {
       return curEvent.toCEPLiteral(fieldRef);
@@ -121,8 +128,23 @@ public class NFA implements Serializable {
     // add a start state locator to the array
     EventPointer nullPtr = new EventPointer(new ArrayList<>(), "");
     currentRuns.add(new StateLocator(nullPtr, startState, 0, null));
+    // scan for kleene plus locator, if exits, add the next next state
+    ArrayList<StateLocator> kleenePlusLocators = new ArrayList<>();
+    for(StateLocator locator : currentRuns) {
+      if(locator.isKleenePlusSecondary()) {
+        if(locator.getCurState().getNextState().isFinal) {
+          return processOutput(locator);
+        }
+        StateLocator proceedLocator = locator.proceedIgnore();
+        kleenePlusLocators.add(proceedLocator);
+      }
+    }
+    currentRuns.addAll(kleenePlusLocators);
+
     // decide next possible states
+    LOG.info("Incoming row..." + inputRow.toString());
     for(StateLocator currentLocator : currentRuns) {
+      LOG.info(currentLocator.getPointer().toString());
       boolean split = false;
       StateLocator proceedLocator = currentLocator.proceed(inputEvent);
       if(proceedLocator != null) {
@@ -131,7 +153,15 @@ public class NFA implements Serializable {
         // clear current runs
         // then return the output
         if(proceedLocator.atFinal()) {
-          this.currentRuns.clear();
+          // reset after a match
+          currentRuns.clear();
+          State iterState = startState;
+          while(!iterState.isFinal) {
+            iterState.reset();
+            iterState = iterState.getNextState();
+          }
+          currentRuns.add(new StateLocator(nullPtr, startState, 0, null));
+
           return processOutput(proceedLocator);
         } else {
           // add the new locator to the array
@@ -153,6 +183,7 @@ public class NFA implements Serializable {
     HashMap<String, ArrayList<Row>> rows = new HashMap<>();
     EventPointer iterPointer = locator.getPointer().copy();
     Event curEvent = locator.getCurrentEvent();
+    LOG.info("finds a match at " + curEvent.getRow().toString());
 
     while(curEvent != null) {
       String patternVar = iterPointer.getPatternVar();
@@ -164,7 +195,16 @@ public class NFA implements Serializable {
         newPatternArray.add(curEvent.getRow());
         rows.put(patternVar, newPatternArray);
       }
-      curEvent = curEvent.getPrevEvent(iterPointer);
+      curEvent = curEvent.findEvent(iterPointer);
+      if(curEvent != null) {
+        LOG.info(curEvent.getRow().toString());
+        iterPointer = curEvent.getPrevPointer(iterPointer);
+      }
+    }
+
+    // restore the order
+    for(ArrayList<Row> i : rows.values()) {
+      Collections.reverse(i);
     }
 
     return rows;
@@ -214,19 +254,33 @@ public class NFA implements Serializable {
       return null;
     }
 
-    public Event getPrevEvent(EventPointer eventPointer) {
-      // if the last digit of a pointer is 0,
-      // then for sure, we should follow a proceed edge
-      if(eventPointer.isProceedPointer()) {
-        eventPointer.trim();
-        return findEvent(eventPointer);
-      } else {
-        // follow a take edge
-        Event preEvent;
-        while((preEvent = findEvent(eventPointer)) == null) {
-          eventPointer.decrement();
+    private EventPointer findEventPointer(EventPointer pointer) {
+      for (EventPointer i : prevEvents.keySet()) {
+        if (i.isEqual(pointer)) {
+          return i.copy();
         }
-        return preEvent;
+      }
+      return null;
+    }
+
+    public EventPointer getPrevPointer(EventPointer curPointer) {
+      if(curPointer.isNull()) {
+        return null;
+      }
+      if(curPointer.isProceedPointer()) {
+        while(findEvent(curPointer) == null && curPointer.canTrim()) {
+          curPointer.trim();
+        }
+        return findEventPointer(curPointer);
+      } else {
+        while(findEvent(curPointer) == null) {
+          if(curPointer.canDecrement()) {
+            curPointer.decrement();
+          } else {
+            return null;
+          }
+        }
+        return curPointer;
       }
     }
 
@@ -244,7 +298,7 @@ public class NFA implements Serializable {
   }
 
   // shared buffer versioned pointer: see the UMASS paper for description
-  private class EventPointer implements Serializable {
+  private static class EventPointer implements Serializable {
     private List<Integer> ptrValues;
     // labels the event that was pointed to
     private final String patternVar;
@@ -254,22 +308,37 @@ public class NFA implements Serializable {
       this.patternVar = patternVar;
     }
 
+    public boolean canTrim() {
+      return ptrValues.size() > 1;
+    }
+
     // for following a proceed edge
     // trim the last digit
     public void trim() {
       if(isProceedPointer()) {
-        ptrValues = ptrValues.subList(0, ptrValues.size() - 2);
+        ptrValues = ptrValues.subList(0, ptrValues.size() - 1);
       } else {
         throw new IllegalStateException("the null event pointer cannot be trimmed.");
       }
     }
 
+    public boolean canDecrement() {
+      if(isNull()) {
+        return false;
+      }
+      int lastValue = ptrValues.get(ptrValues.size() - 1);
+      return lastValue > 0;
+    }
+
     // for following the take edge
     // decrement the last digit
     public void decrement() {
+      if(!canDecrement()) {
+        throw new IllegalStateException("the event pointer cannot be decremented.");
+      }
       if(!isProceedPointer()) {
         ArrayList<Integer> newPtrValue =
-            new ArrayList<>(ptrValues.subList(0, ptrValues.size() - 2));
+            new ArrayList<>(ptrValues.subList(0, ptrValues.size() - 1));
         int lastValue = ptrValues.get(ptrValues.size() - 1) - 1;
         newPtrValue.add(lastValue);
         ptrValues = newPtrValue;
@@ -350,6 +419,10 @@ public class NFA implements Serializable {
       this.curEvent = curEvent;
     }
 
+    public State getCurState() {
+      return curState;
+    }
+
     public EventPointer getPointer() {
       return ptr;
     }
@@ -361,6 +434,20 @@ public class NFA implements Serializable {
     // check if the current state is the final state
     public boolean atFinal() {
       return curState.isFinal;
+    }
+
+    public boolean isKleenePlusSecondary() {
+      return curState.isKleenePlusSecondary();
+    }
+
+    // a proceed action for secondary kleenePlus state
+    public StateLocator proceedIgnore() {
+      if(isKleenePlusSecondary()) {
+        EventPointer newPtr = ptr.getNewProceedPointer(0, curState.getPatternVar());
+        return new StateLocator(newPtr, curState.getNextState(), 0, curEvent);
+      } else {
+        return null;
+      }
     }
 
     // represents the "proceed"/"begin" edge: transfer to a new state,
@@ -375,6 +462,7 @@ public class NFA implements Serializable {
         if(evalCondition(inputEvent, condition)) {
           // special case: for an event that starts a match,
           // assign a new index as the pointer value
+          LOG.info(inputEvent.getRow().toString() +  " passed proceed test at " + curState.getPatternVar());
           if(curState == startState && curEvent == null) {
             int ptrValue = curState.assignIndex();
             ArrayList<Integer> ptrArray = new ArrayList<>();
@@ -510,7 +598,7 @@ public class NFA implements Serializable {
 
   // State are determined directly by the PATTERN clause
   private static class State implements Serializable {
-    private int index = -1; // number ith state in the NFA
+    private int index = 0; // number ith state (pointer value) in the NFA
     private final String patternVar;
     private final Quantifier quant;
     private final CEPOperation condition; // condition to evaluate when taking the "begin" action and "proceed" action
@@ -532,13 +620,14 @@ public class NFA implements Serializable {
       return patternVar;
     }
 
-    public void setIndex(int indexToAssign) {
-      this.index = indexToAssign;
-    }
-
     // assigns a new index
     public int assignIndex() {
       return ++index;
+    }
+
+    // reset the index
+    public void reset() {
+      index = 0;
     }
 
     // checks if a state has a take edge
@@ -548,9 +637,13 @@ public class NFA implements Serializable {
 
     // checks if a state has a proceed/begin edge
     public boolean hasProceed() {
-      // for singleton state and first state p[1] of a paired state
+      // except for the final state
       // return true
-      return !(isFinal || isKleenePlusSecondary);
+      return !isFinal;
+    }
+
+    public boolean isKleenePlusSecondary() {
+      return isKleenePlusSecondary;
     }
 
     // get the condition for the `take` condition
@@ -597,15 +690,14 @@ public class NFA implements Serializable {
     }
 
     public boolean isKleenePlus() {
-      return this.quant == Quantifier.PLUS ||
-          this.quant == Quantifier.PLUS_RELUCTANT;
+      return quant.toString().equals("+") ||
+          quant.toString().equals("+?");
     }
   }
 
   private static State setNextStatesAndAssignIndices(List<State> states) {
     for(int i = 0; i < (states.size() - 1); ++i) {
       State currentState = states.get(i);
-      currentState.setIndex(i);
       State nextState = states.get(i + 1);
       if(currentState.isKleenePlus()) {
         State secondaryState = currentState.getNextState();
@@ -618,7 +710,7 @@ public class NFA implements Serializable {
   }
 
   // constructs states for the NFA and returns the start state
-  private static State loadStates(List<CEPPattern> patterns) {
+  private State loadStates(List<CEPPattern> patterns) {
     boolean startState;
     ArrayList<State> states = new ArrayList<>();
 
@@ -633,7 +725,7 @@ public class NFA implements Serializable {
       CEPOperation condition = currentPattern.getPatternCondition();
       Quantifier quantifier = currentPattern.getQuantifier();
 
-      if(quantifier == Quantifier.PLUS) {
+      if(quantifier.toString().equals("+")) {
         // for Kleene plus, we need a pair of states
 
         State primaryState = new State(

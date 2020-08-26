@@ -130,7 +130,8 @@ public class BeamMatchRelTest {
         "TestTable",
         TestBoundedTable.of(schemaType)
             .addRows(
-                1, "a", 1, 1, "a", 2, 1, "b", 3, 1, "c", 4, 1, "b", 8, 1, "a", 7, 1, "c", 9, 2, "a",
+                1, "a", 1, 1, "a", 2, 1, "b", 3, 1, "c", 4
+                , 1, "b", 8, 1, "a", 7, 1, "c", 9, 2, "a",
                 6, 2, "b", 10, 2, "c", 11, 5, "a", 0));
 
     String sql =
@@ -166,7 +167,56 @@ public class BeamMatchRelTest {
     pipeline.run().waitUntilFinish();
   }
 
-  @Ignore("NFA has not been implemented for now.")
+  @Test
+  public void matchPrevFunctionTest() {
+    // finds the minimum prices in the table
+    Schema schemaType =
+        Schema.builder()
+            .addInt32Field("id")
+            .addInt32Field("transTime")
+            .addInt32Field("price")
+            .build();
+
+    registerTable(
+        "TestTable",
+        TestBoundedTable.of(schemaType)
+            .addRows(1, 3, 1,
+                1, 1, 3,
+                1, 2, 2,
+                1, 4, 5,
+                1, 6, 7,
+                1, 5, 6,
+                1, 7, 3
+                ));
+
+    String sql =
+        "SELECT * "
+            + "FROM TestTable "
+            + "MATCH_RECOGNIZE ("
+            + "PARTITION BY id "
+            + "ORDER BY transTime "
+            + "MEASURES "
+            + "LAST (A.price) AS minimumPrice, "
+            + "B.price AS afterPrice "
+            + "PATTERN (A+ B) "
+            + "DEFINE "
+            + "A AS price < PREV(A.price) "
+            + ") AS T ";
+
+    PCollection<Row> result = compilePipeline(sql, pipeline);
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                Schema.FieldType.INT32, "minimumPrice",
+                Schema.FieldType.INT32, "afterPrice")
+                .addRows(1, 5, 7, 3)
+                .getRows());
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Ignore("NFA has not been fully implemented for now.")
   @Test
   public void matchNFATest() {
     Schema schemaType =
