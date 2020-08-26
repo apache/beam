@@ -560,18 +560,13 @@ class BlobStorageIO(object):
     """
     container_client = self.client.get_container_client(container)
     results = {}
-
-    try:
-      response = container_client.delete_blobs(
-          *blobs, raise_on_any_failure=False)
-
-      for blob, error in zip(blobs, response):
-        results[(container, blob)] = error.status_code
-
-    except BlobStorageError as e:
-      for blob in blobs:
-        results[(container, blob)] = e.message
-
+    for blob in blobs:
+      try:
+        response = container_client.delete_blob(blob)
+        results[(container, blob)] = response
+      except ResourceNotFoundError as e:
+        results[(container, blob)] = e.status_code
+    print(results)
     return results
 
   @retry.with_exponential_backoff(

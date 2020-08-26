@@ -112,7 +112,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.azfs = blobstorageio.BlobStorageIO(self.azurite_client)
     try:
       self.azurite_client.create_container("gsoc")
-    except blobstorageio.BlobStorageError:
+    except:
       pass
     self.TEST_DATA_PATH = 'azfs://devstoreaccount1/gsoc/'
 
@@ -465,7 +465,6 @@ class TestBlobStorageIO(unittest.TestCase):
       self.assertFalse(self.azfs.exists(path))
 
   def test_delete_files(self):
-    self.skipTest('Azurite does not support this operation.')
     file_name_pattern = self.TEST_DATA_PATH + 'test_delete_files/%d'
     file_size = 1024
     num_files = 5
