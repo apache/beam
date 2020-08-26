@@ -201,7 +201,16 @@ class DeferredSeries(frame_base.DeferredFrame):
   view = frame_base.wont_implement_method('memory sharing semantics')
 
 
-for base in ['add', 'sub', 'mul', 'div', 'truediv', 'floordiv', 'mod', 'pow']:
+for base in ['add',
+             'sub',
+             'mul',
+             'div',
+             'truediv',
+             'floordiv',
+             'mod',
+             'pow',
+             'and',
+             'or']:
   for p in ['%s', 'r%s', '__%s__', '__r%s__']:
     # TODO: non-trivial level?
     name = p % base
@@ -245,7 +254,10 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       return object.__getattribute__(self, name)
 
   def __getitem__(self, key):
-    if key in self._expr.proxy().columns:
+    # TODO: Replicate pd.DataFrame.__getitem__ logic
+    if (isinstance(key, list) and
+        all(key_column in self._expr.proxy().columns
+            for key_column in key)) or key in self._expr.proxy().columns:
       return self._elementwise(lambda df: df[key], 'get_column')
     else:
       raise NotImplementedError(key)
