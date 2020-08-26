@@ -136,6 +136,14 @@ class TransformTest(unittest.TestCase):
       self.run_scenario(
           df, lambda df: df.groupby('key').sum().val / df.val.agg(sum))
 
+  def test_getitem_projection(self):
+    df = pd.DataFrame({
+        'Animal': ['Aardvark', 'Ant', 'Elephant', 'Zebra'],
+        'Speed': [5, 2, 35, 40],
+        'Size': ['Small', 'Extra Small', 'Large', 'Medium']
+    })
+    self.run_scenario(df, lambda df: df[['Speed', 'Size']])
+
   def test_batching_named_tuple_input(self):
     with beam.Pipeline() as p:
       result = (
