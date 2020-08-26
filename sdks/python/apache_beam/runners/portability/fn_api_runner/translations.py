@@ -684,6 +684,7 @@ def annotate_stateful_dofns_as_roots(stages, pipeline_context):
 
 def fix_side_input_pcoll_coders(stages, pipeline_context):
   # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
+
   """Length prefix side input PCollection coders.
   """
   for stage in stages:
@@ -694,6 +695,7 @@ def fix_side_input_pcoll_coders(stages, pipeline_context):
 
 def pack_combiners(stages, context):
   # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
+
   """Packs sibling CombinePerKey stages into a single CombinePerKey.
 
   If CombinePerKey stages have a common input, one input each, and one output
@@ -702,7 +704,6 @@ def pack_combiners(stages, context):
   tuples from this PCollection and sends them to the original output
   PCollections.
   """
-
   class _UnpackFn(core.DoFn):
     """A DoFn that unpacks a packed to multiple tagged outputs.
 
@@ -711,15 +712,14 @@ def pack_combiners(stages, context):
       input = (K, (V1, V2, ...))
       output = TaggedOutput(T1, (K, V1)), TaggedOutput(T2, (K, V1)), ...
     """
-
     def __init__(self, tags):
       self._tags = tags
 
     def process(self, element):
       key, values = element
       return [
-          core.pvalue.TaggedOutput(tag, (key, value))
-          for tag, value in zip(self._tags, values)
+          core.pvalue.TaggedOutput(tag, (key, value)) for tag,
+          value in zip(self._tags, values)
       ]
 
   def _get_fallback_coder_id():
@@ -750,14 +750,12 @@ def pack_combiners(stages, context):
   for stage in stages:
     is_packable_combine = False
 
-    if (len(stage.transforms) == 1 and
-        stage.environment is not None and
-        python_urns.PACKED_COMBINE_FN in
-        context.components.environments[stage.environment].capabilities):
+    if (len(stage.transforms) == 1 and stage.environment is not None and
+        python_urns.PACKED_COMBINE_FN in context.components.environments[
+            stage.environment].capabilities):
       transform = only_transform(stage.transforms)
       if (transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn and
-          len(transform.inputs) == 1 and
-          len(transform.outputs) == 1):
+          len(transform.inputs) == 1 and len(transform.outputs) == 1):
         combine_payload = proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.CombinePayload)
         if combine_payload.combine_fn.urn == python_urns.PICKLED_COMBINE_FN:
@@ -786,8 +784,8 @@ def pack_combiners(stages, context):
 
     transforms = [only_transform(stage.transforms) for stage in packable_stages]
     combine_payloads = [
-        proto_utils.parse_Bytes(transform.spec.payload,
-                                beam_runner_api_pb2.CombinePayload)
+        proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.CombinePayload)
         for transform in transforms
     ]
     output_pcoll_ids = [
@@ -839,18 +837,19 @@ def pack_combiners(stages, context):
             is_bounded=input_pcoll.is_bounded))
 
     # Set up Pack stage.
-    pack_combine_fn = combiners.SingleInputTupleCombineFn(*[
-        core.CombineFn.from_runner_api(combine_payload.combine_fn, context)
-        for combine_payload in combine_payloads
-    ]).to_runner_api(context)
+    pack_combine_fn = combiners.SingleInputTupleCombineFn(
+        *[
+            core.CombineFn.from_runner_api(combine_payload.combine_fn, context)
+            for combine_payload in combine_payloads
+        ]).to_runner_api(context)
     pack_transform = beam_runner_api_pb2.PTransform(
         unique_name=pack_combine_name + '/Pack',
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=common_urns.composites.COMBINE_PER_KEY.urn,
             payload=beam_runner_api_pb2.CombinePayload(
                 combine_fn=pack_combine_fn,
-                accumulator_coder_id=tuple_accumulator_coder_id)
-            .SerializeToString()),
+                accumulator_coder_id=tuple_accumulator_coder_id).
+            SerializeToString()),
         inputs={'in': input_pcoll_id},
         outputs={'out': pack_pcoll_id},
         environment_id=fused_stage.environment)
@@ -1667,7 +1666,7 @@ def only_element(iterable):
 
 
 def only_transform(transforms):
-  # type: List[beam_runner_api_pb2.PTransform] -> beam_runner_api_pb2.PTransform
+  # type: (List[beam_runner_api_pb2.PTransform]) -> beam_runner_api_pb2.PTransform
   assert len(transforms) == 1
   return transforms[0]
 

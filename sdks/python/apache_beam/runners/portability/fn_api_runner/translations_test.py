@@ -29,8 +29,8 @@ from apache_beam.transforms import combiners
 from apache_beam.transforms import environments
 from apache_beam.transforms.core import Create
 
-class TranslationsTest(unittest.TestCase):
 
+class TranslationsTest(unittest.TestCase):
   def test_pack_combiners(self):
     pipeline = beam.Pipeline()
     vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
