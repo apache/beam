@@ -172,7 +172,6 @@ public class BeamMatchRelTest {
     // finds the minimum prices in the table
     Schema schemaType =
         Schema.builder()
-            .addInt32Field("id")
             .addInt32Field("transTime")
             .addInt32Field("price")
             .build();
@@ -180,27 +179,25 @@ public class BeamMatchRelTest {
     registerTable(
         "TestTable",
         TestBoundedTable.of(schemaType)
-            .addRows(1, 3, 1,
-                1, 1, 3,
-                1, 2, 2,
-                1, 4, 5,
-                1, 6, 7,
-                1, 5, 6,
-                1, 7, 3
+            .addRows(3, 1,
+                1, 3,
+                2, 2,
+                4, 5,
+                5, 6
                 ));
 
     String sql =
         "SELECT * "
             + "FROM TestTable "
             + "MATCH_RECOGNIZE ("
-            + "PARTITION BY id "
             + "ORDER BY transTime "
             + "MEASURES "
-            + "LAST (A.price) AS minimumPrice, "
-            + "B.price AS afterPrice "
-            + "PATTERN (A+ B) "
+            + "LAST (A.price) AS beforePrice, "
+            + "FIRST (B.price) AS afterPrice "
+            + "PATTERN (A+ B+) "
             + "DEFINE "
-            + "A AS price < PREV(A.price) "
+            + "A AS price < PREV(A.price), "
+            + "B AS price > PREV(B.price) "
             + ") AS T ";
 
     PCollection<Row> result = compilePipeline(sql, pipeline);
@@ -208,9 +205,9 @@ public class BeamMatchRelTest {
     PAssert.that(result)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                Schema.FieldType.INT32, "minimumPrice",
+                Schema.FieldType.INT32, "beforePrice",
                 Schema.FieldType.INT32, "afterPrice")
-                .addRows(1, 5, 7, 3)
+                .addRows(1, 5)
                 .getRows());
 
     pipeline.run().waitUntilFinish();

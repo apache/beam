@@ -47,7 +47,8 @@ public class NFA implements Serializable {
   private CEPLiteral prev(CEPOperation opr1,
                           CEPLiteral opr2,
                           EventPointer curPointer,
-                          Event curEvent) {
+                          Event curEvent,
+                          Event inputEvent) {
     if(opr1.getClass() != CEPFieldRef.class) {
       throw new IllegalStateException("the first argument of the PREV operation should be a field reference. Provided: "
       + opr1.getClass().toString());
@@ -56,11 +57,19 @@ public class NFA implements Serializable {
       throw new IllegalStateException("the second argument of the prev operation should be a decimal. Provided: "
           + opr2.getClass().toString());
     }
-    LOG.info("inside PREV");
+    // if the second argument is 0, return the current event
+    if(opr2.getDecimal().intValue() == 0) {
+      return inputEvent.toCEPLiteral((CEPFieldRef) opr1);
+    }
+    // for the starting event, return null
+    if(curEvent == null) {
+      return null;
+    }
     CEPFieldRef fieldRef = (CEPFieldRef) opr1;
     String alpha = fieldRef.getAlpha(); // the patternVar
     int lastNumber = opr2.getDecimal().intValue();
     EventPointer iterPointer = curPointer.copy();
+    LOG.info("PREV: " + curEvent.getRow().toString());
 
     while(curEvent != null &&
         iterPointer.getPatternVar().equals(alpha) &&
@@ -455,6 +464,7 @@ public class NFA implements Serializable {
     // returns a "new" state locator
     // returns null if not a match
     public StateLocator proceed(Event inputEvent) {
+      LOG.info("proceeding " + inputEvent.getRow().toString());
       if(curState.hasProceed()) {
         // try to proceed
         CEPCall condition = (CEPCall) curState.getProceedCondition();
@@ -519,9 +529,12 @@ public class NFA implements Serializable {
       CEPOperation leftSide = condition.getOperands().get(0); // left side must contain field reference
       CEPOperation rightSide = condition.getOperands().get(1);
       CEPLiteral leftSideValue = evalLeftSideCondition(leftSide, inputEvent);
-      CEPLiteral rightSideValue = evalRightSideCondition(rightSide);
-      if(leftSideValue == null || rightSideValue == null) {
+      CEPLiteral rightSideValue = evalRightSideCondition(rightSide, inputEvent);
+      if(leftSideValue == null) {
         return false;
+      }
+      if(rightSideValue == null) {
+        return true;
       }
       switch(comparator) {
         case EQUALS:
@@ -570,7 +583,7 @@ public class NFA implements Serializable {
     }
 
     // evaluates the condition value (right) given an input event
-    private CEPLiteral evalRightSideCondition(CEPOperation inputOperation) {
+    private CEPLiteral evalRightSideCondition(CEPOperation inputOperation, Event inputEvent) {
       if(inputOperation instanceof CEPLiteral) {
         return (CEPLiteral) inputOperation;
       } else if(inputOperation.getClass() == CEPCall.class) {
@@ -579,10 +592,10 @@ public class NFA implements Serializable {
         List<CEPOperation> operands = call.getOperands();
         switch(operator.getCepKind()) {
           case PLUS:
-            return plus(evalRightSideCondition(operands.get(0)),
-                evalRightSideCondition(operands.get(1)));
+            return plus(evalRightSideCondition(operands.get(0), inputEvent),
+                evalRightSideCondition(operands.get(1), inputEvent));
           case PREV:
-            return prev(operands.get(0), (CEPLiteral) operands.get(1), ptr, curEvent);
+            return prev(operands.get(0), (CEPLiteral) operands.get(1), ptr, curEvent, inputEvent);
           default:
             throw new UnsupportedOperationException("the function is not supported for now: " +
                 operator.getCepKind().toString());

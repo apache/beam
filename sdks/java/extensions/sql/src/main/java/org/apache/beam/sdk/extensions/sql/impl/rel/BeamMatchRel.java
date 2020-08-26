@@ -327,7 +327,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
                 case FIRST:
                   CEPFieldRef colFirstField = (CEPFieldRef) call.getOperands().get(0);
                   CEPLiteral colFirstIndex = (CEPLiteral) call.getOperands().get(1);
-                  Row rowFirstToProc = patternRows.get(colFirstIndex.getInt32());
+                  Row rowFirstToProc = patternRows.get(colFirstIndex.getDecimal().intValue());
                   if (newFieldBuilder == null) {
                     newFieldBuilder =
                         newRowBuilder.withFieldValue(
@@ -381,6 +381,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
           } else {
             newRow = newFieldBuilder.build();
           }
+          LOG.info(newRow.toString());
           out.output(newRow);
         }
       }
