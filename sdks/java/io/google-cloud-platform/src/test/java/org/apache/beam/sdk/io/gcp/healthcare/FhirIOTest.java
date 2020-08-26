@@ -17,10 +17,16 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_BUCKET;
+import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
+
+import java.io.IOException;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -29,7 +35,10 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -38,6 +47,48 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class FhirIOTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+
+  private final String fhirStoreName;
+  private final String project;
+  private transient HealthcareApiClient client;
+  private String healthcareDataset;
+  private String version;
+
+  public FhirIOTest() {
+    long testTime = System.currentTimeMillis();
+    this.fhirStoreName = "FHIR_store_" + testTime + "_" + (new SecureRandom().nextInt(32));
+    this.version = "STU3";
+    this.project =
+        TestPipeline.testingPipelineOptions()
+            .as(HealthcareStoreTestPipelineOptions.class)
+            .getStoreProjectId();
+  }
+
+  @Before
+  public void setup() throws Exception {
+    healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
+    if (client == null) {
+      this.client = new HttpHealthcareApiClient();
+    }
+    client.createFhirStore(healthcareDataset, fhirStoreName, version, null);
+
+    // Execute bundles to populate some data.
+    FhirIOTestUtil.executeFhirBundles(
+        client,
+        healthcareDataset + "/fhirStores/" + fhirStoreName,
+        FhirIOTestUtil.BUNDLES.get(version));
+  }
+
+  @After
+  public void deleteFHIRtore() throws IOException {
+    HealthcareApiClient client = new HttpHealthcareApiClient();
+    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreName);
+  }
+
+  @AfterClass
+  public static void teardownBucket() throws IOException {
+    FhirIOTestUtil.tearDownTempBucket();
+  }
 
   @Test
   public void test_FhirIO_failedReads() {
@@ -55,6 +106,16 @@ public class FhirIOTest {
 
     PAssert.that(failedMsgIds).containsInAnyOrder(badMessageIDs);
     PAssert.that(resources).empty();
+    pipeline.run();
+  }
+
+  @Test
+  public void test_FhirIO_exportFhirResourcesGcs() {
+    String exportGcsUriPrefix = DEFAULT_TEMP_BUCKET + "/" + (new SecureRandom().nextInt(32));
+    FhirIO.ExportGcs.Result exportResults =
+        pipeline.apply(FhirIO.exportResourcesToGcs(fhirStoreName, exportGcsUriPrefix));
+    PCollection<String> resources = exportResults.getResources();
+    resources.apply(TextIO.write().to(exportGcsUriPrefix + "/write"));
     pipeline.run();
   }
 
