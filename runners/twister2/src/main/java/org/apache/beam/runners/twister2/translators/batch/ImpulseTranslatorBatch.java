@@ -17,39 +17,18 @@
  */
 package org.apache.beam.runners.twister2.translators.batch;
 
-import edu.iu.dsc.tws.api.tset.fn.SourceFunc;
 import edu.iu.dsc.tws.tset.env.BatchTSetEnvironment;
 import edu.iu.dsc.tws.tset.env.TSetEnvironment;
 import edu.iu.dsc.tws.tset.sets.batch.SourceTSet;
 import org.apache.beam.runners.twister2.Twister2BatchTranslationContext;
 import org.apache.beam.runners.twister2.translators.BatchTransformTranslator;
+import org.apache.beam.runners.twister2.translators.functions.ImpulseSource;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 
 /** Impulse translator. */
 public class ImpulseTranslatorBatch implements BatchTransformTranslator<Impulse> {
-
-  private static class ImpulseSource implements SourceFunc<WindowedValue<byte[]>> {
-    private static final WindowedValue<byte[]> IMPULSE_VALUE =
-        WindowedValue.valueInGlobalWindow(new byte[0]);
-
-    private boolean impulseEmitted = false;
-
-    @Override
-    public boolean hasNext() {
-      return !impulseEmitted;
-    }
-
-    @Override
-    public WindowedValue<byte[]> next() {
-      if (impulseEmitted) {
-        throw new IllegalStateException("Impulse has already emitted an element.");
-      }
-      impulseEmitted = true;
-      return IMPULSE_VALUE;
-    }
-  }
 
   @Override
   public void translateNode(Impulse transform, Twister2BatchTranslationContext context) {
