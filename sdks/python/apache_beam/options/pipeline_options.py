@@ -45,6 +45,7 @@ __all__ = [
     'TypeOptions',
     'DirectOptions',
     'GoogleCloudOptions',
+    'AzureFileSystemOptions',
     'HadoopFileSystemOptions',
     'WorkerOptions',
     'DebugOptions',
