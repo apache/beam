@@ -13,19 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module beam.apache.org/learning/katas
+package task
 
-go 1.14
-
-require (
-	cloud.google.com/go/storage v1.10.0 // indirect
-	github.com/apache/beam v2.23.0+incompatible
-	github.com/google/go-cmp v0.5.0
-	golang.org/x/net v0.0.0-20200813134508-3edf25e44fcc // indirect
-	golang.org/x/sys v0.0.0-20200819171115-d785dc25833f // indirect
-	golang.org/x/text v0.3.3 // indirect
-	google.golang.org/api v0.29.0 // indirect
-	google.golang.org/genproto v0.0.0-20200815001618-f69a88009b70 // indirect
-	google.golang.org/grpc v1.31.0 // indirect
-	google.golang.org/protobuf v1.25.0 // indirect
+import (
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
+
+func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return stats.CountElms(s, input)
+}
