@@ -642,6 +642,16 @@ class GoogleCloudOptions(PipelineOptions):
     return errors
 
 
+class AzureFileSystemOptions(PipelineOptions):
+  """``AzureFileSystemOptions`` connection options."""
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--azfs_connection_string',
+        default=None,
+        help=('Azure blob storage connection string.'))
+
+
 class HadoopFileSystemOptions(PipelineOptions):
   """``HadoopFileSystem`` connection options."""
   @classmethod
