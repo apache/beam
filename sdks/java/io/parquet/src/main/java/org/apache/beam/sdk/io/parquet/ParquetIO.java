@@ -316,7 +316,11 @@ public class ParquetIO {
           RestrictionTracker<OffsetRange, Long> tracker,
           OutputReceiver<GenericRecord> outputReceiver)
           throws Exception {
-        LOG.info("start "+tracker.currentRestriction().getFrom()+ " to "+tracker.currentRestriction().getTo());
+        LOG.info(
+            "start "
+                + tracker.currentRestriction().getFrom()
+                + " to "
+                + tracker.currentRestriction().getTo());
         ParquetReadOptions options = HadoopReadOptions.builder(getConfWithModelClass()).build();
         ParquetFileReader reader =
             ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options);
@@ -455,7 +459,10 @@ public class ParquetIO {
           @Restriction OffsetRange restriction, @Element FileIO.ReadableFile file)
           throws Exception {
         List<Double> recordCountAndSize = getRecordCountAndSize(file, restriction);
-        return new BlockTracker(restriction, Math.round(recordCountAndSize.get(1)), Math.round(recordCountAndSize.get(0)));
+        return new BlockTracker(
+            restriction,
+            Math.round(recordCountAndSize.get(1)),
+            Math.round(recordCountAndSize.get(0)));
       }
 
       @GetRestrictionCoder
@@ -464,8 +471,9 @@ public class ParquetIO {
       }
 
       @GetSize
-      public double getSize(@Element FileIO.ReadableFile file, @Restriction OffsetRange restriction) throws Exception {
-        return getRecordCountAndSize(file,restriction).get(1);
+      public double getSize(@Element FileIO.ReadableFile file, @Restriction OffsetRange restriction)
+          throws Exception {
+        return getRecordCountAndSize(file, restriction).get(1);
       }
 
       public List<Double> getRecordCountAndSize(
