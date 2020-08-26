@@ -18,5 +18,4 @@
 #
 
 content:
-- filter
-- aggregation
+- count
