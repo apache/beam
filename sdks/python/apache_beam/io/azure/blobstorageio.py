@@ -47,6 +47,8 @@ try:
       BlobServiceClient,
       ContentSettings,
   )
+  from apache_beam.options.pipeline_options import AzureFileSystemOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
   AZURE_DEPS_INSTALLED = True
 except ImportError:
   AZURE_DEPS_INSTALLED = False
