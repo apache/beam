@@ -23,6 +23,8 @@ import Flink
 import LoadTestsBuilder
 import PostcommitJobBuilder
 
+String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
+
 def chicagoTaxiJob = { scope ->
   scope.description('Runs the Chicago Taxi Example on the Flink runner.')
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 120)
@@ -30,16 +32,18 @@ def chicagoTaxiJob = { scope ->
   def numberOfWorkers = 5
 
   Docker publisher = new Docker(scope, LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-  publisher.publish(':sdks:python:container:py2:docker', 'beam_python2.7_sdk')
-  publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server')
-  String pythonHarnessImageTag = publisher.getFullImageName('beam_python2.7_sdk')
+  String imageTag = now + '-chicagoTaxi'
+  publisher.publish(':sdks:python:container:py2:dockerPush', imageTag)
+  publisher.publish(':runners:flink:1.10:job-server-container:dockerPush', imageTag)
+  String pythonSDKHarnessImageName = publisher.getFullImageName('beam_python2.7_sdk', imageTag)
+  String jobServerImageName = publisher.getFullImageName('beam_flink1.10_job_server', imageTag)
   Flink flink = new Flink(scope, 'beam_PostCommit_Python_Chicago_Taxi_Flink')
-  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('beam_flink1.10_job_server'))
+  flink.setUp([pythonSDKHarnessImageName], numberOfWorkers, jobServerImageName)
 
   def pipelineOptions = [
     parallelism             : numberOfWorkers,
     job_endpoint            : 'localhost:8099',
-    environment_config      : pythonHarnessImageTag,
+    environment_config      : pythonSDKHarnessImageName,
     environment_type        : 'DOCKER',
     execution_mode_for_batch: 'BATCH_FORCED',
   ]

@@ -31,15 +31,9 @@ class Docker {
    * Builds a Docker image from a gradle task and pushes it to the registry.
    *
    * @param gradleTask - name of a Gradle task
-   * @param imageName - name of a docker image
    * @param imageTag - tag of a docker image
    */
-  final void publish(String gradleTask, String imageName, String imageTag = 'latest') {
-    build(gradleTask, imageTag)
-    push(imageName, imageTag)
-  }
-
-  private void build(String gradleTask, String imageTag) {
+  final void publish(String gradleTask, String imageTag = 'latest') {
     job.steps {
       gradle {
         rootBuildScriptDir(common.checkoutDir)
@@ -48,17 +42,6 @@ class Docker {
         switches("-Pdocker-repository-root=${repositoryRoot}")
         switches("-Pdocker-tag=${imageTag}")
       }
-    }
-  }
-
-  private void push(String imageName, String imageTag) {
-    String targetImage = getFullImageName(imageName, imageTag)
-
-    job.steps {
-      shell("echo \"Tagging image\"...")
-      shell("docker tag ${targetImage} ${targetImage}")
-      shell("echo \"Pushing image\"...")
-      shell("docker push ${targetImage}")
     }
   }
 

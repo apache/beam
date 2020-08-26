@@ -113,14 +113,12 @@ def addStreamingOptions(test) {
 }
 
 def loadTestJob = { scope, triggeringContext, mode ->
-  scope.description('Runs Python Combine load tests on Flink runner in batch mode')
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
-
   Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-  String pythonHarnessImageTag = publisher.getFullImageName('beam_python3.7_sdk')
+  String imageTag = now + '-combine-' + mode
+  String pythonSDKHarnessImageName = publisher.getFullImageName('beam_python3.7_sdk', imageTag)
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  additionalPipelineArgs << [environment_config: pythonHarnessImageTag]
+  additionalPipelineArgs << [environment_config: pythonSDKHarnessImageName]
   List<Map> testScenarios = loadTestConfigurations(mode, datasetName)
   Map<Integer, List> testScenariosByParallelism = testScenarios.groupBy { test ->
     test.pipelineOptions.parallelism
@@ -128,11 +126,11 @@ def loadTestJob = { scope, triggeringContext, mode ->
   Integer initialParallelism = testScenariosByParallelism.keySet().iterator().next()
   List initialScenarios = testScenariosByParallelism.remove(initialParallelism)
 
-
-  publisher.publish(':sdks:python:container:py37:docker', 'beam_python3.7_sdk')
-  publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server')
-  def flink = new Flink(scope, 'beam_LoadTests_Python_Combine_Flink_Batch')
-  flink.setUp([pythonHarnessImageTag], initialScenarios, publisher.getFullImageName('beam_flink1.10_job_server'))
+  publisher.publish(':sdks:python:container:py37:dockerPush', imageTag)
+  publisher.publish(':runners:flink:1.10:job-server-container:dockerPush', imageTag)
+  def flink = new Flink(scope, "beam_LoadTests_Python_Combine_Flink_${mode.capitalize()}")
+  String jobServerImageName = publisher.getFullImageName('beam_flink1.10_job_server', imageTag)
+  flink.setUp([pythonSDKHarnessImageName], initialParallelism, jobServerImageName)
 
   // Execute all scenarios connected with initial parallelism.
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, initialScenarios, 'Combine', mode)

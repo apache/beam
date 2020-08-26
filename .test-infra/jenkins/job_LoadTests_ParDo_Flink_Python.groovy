@@ -221,38 +221,23 @@ def streamingScenarios = { datasetName ->
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
-def loadBatchTests = { scope, triggeringContext ->
+def loadTestJob = { scope, triggeringContext, mode ->
   Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-  String pythonHarnessImageTag = publisher.getFullImageName('beam_python3.7_sdk')
+  String imageTag = now + '-pardo-' + mode
+  String pythonSDKHarnessImageName = publisher.getFullImageName('beam_python3.7_sdk', imageTag)
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 5
-  additionalPipelineArgs << [environment_config: pythonHarnessImageTag]
-  List<Map> batchTestScenarios = batchScenarios(datasetName)
+  additionalPipelineArgs << [environment_config: pythonSDKHarnessImageName]
+  List<Map> testScenarios = mode == 'batch' ? batchScenarios(datasetName) : streamingScenarios(datasetName)
 
-  publisher.publish(':sdks:python:container:py37:docker', 'beam_python3.7_sdk')
-  publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server')
+  publisher.publish(':sdks:python:container:py37:dockerPush', imageTag)
+  publisher.publish(':runners:flink:1.10:job-server-container:dockerPush', imageTag)
 
-  Flink flink = new Flink(scope, 'beam_LoadTests_Python_ParDo_Flink_Batch')
-  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('beam_flink1.10_job_server'))
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, batchTestScenarios, 'ParDo', 'batch')
-}
-
-def loadStreamingTests = { scope, triggeringContext ->
-  Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-  String pythonHarnessImageTag = publisher.getFullImageName('beam_python3.7_sdk')
-
-  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  def numberOfWorkers = 5
-  additionalPipelineArgs << [environment_config: pythonHarnessImageTag]
-  List<Map> streamingTestScenarios = streamingScenarios(datasetName)
-
-  publisher.publish(':sdks:python:container:py37:docker', 'beam_python3.7_sdk')
-  publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server', 'streaming-load-tests')
-
-  Flink flink = new Flink(scope, 'beam_LoadTests_Python_ParDo_Flink_Streaming')
-  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('beam_flink1.10_job_server', 'streaming-load-tests'))
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, streamingTestScenarios, 'ParDo', 'streaming')
+  Flink flink = new Flink(scope, "beam_LoadTests_Python_ParDo_Flink_${mode.capitalize()}")
+  String jobServerImageName = publisher.getFullImageName('beam_flink1.10_job_server', imageTag)
+  flink.setUp([pythonSDKHarnessImageName], numberOfWorkers, jobServerImageName)
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, testScenarios, 'ParDo', mode)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
@@ -262,7 +247,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     this
     ) {
       additionalPipelineArgs = [:]
-      loadBatchTests(delegate, CommonTestProperties.TriggeringContext.PR)
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
@@ -272,7 +257,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     this
     ) {
       additionalPipelineArgs = [:]
-      loadStreamingTests(delegate, CommonTestProperties.TriggeringContext.PR)
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'streaming')
     }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Batch', 'H 13 * * *', this) {
@@ -280,7 +265,7 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Batch', 'H 13 * * *', 
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
-  loadBatchTests(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Streaming', 'H 13 * * *', this) {
@@ -288,5 +273,5 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Streaming', 'H 13 * * 
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
-  loadStreamingTests(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
 }
