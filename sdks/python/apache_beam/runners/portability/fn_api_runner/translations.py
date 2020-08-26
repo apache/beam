@@ -801,8 +801,7 @@ def pack_combiners(stages, context):
     ]
     tuple_accumulator_coder_id = context.add_or_get_coder_id(
         beam_runner_api_pb2.Coder(
-            spec=beam_runner_api_pb2.FunctionSpec(
-                urn=common_urns.coders.KV.urn),
+            spec=beam_runner_api_pb2.FunctionSpec(urn=python_urns.TUPLE_CODER),
             component_coder_ids=accumulator_coder_ids))
 
     # Build packed output coder for (key, (out1, out2, ...))
@@ -819,7 +818,7 @@ def pack_combiners(stages, context):
         for output_kv_coder_id in output_kv_coder_ids
     ]
     pack_output_value_coder = beam_runner_api_pb2.Coder(
-        spec=beam_runner_api_pb2.FunctionSpec(urn=python_urns.tuple.KV.urn),
+        spec=beam_runner_api_pb2.FunctionSpec(urn=python_urns.TUPLE_CODER),
         component_coder_ids=output_value_coder_ids)
     pack_output_value_coder_id = context.add_or_get_coder_id(
         pack_output_value_coder)
