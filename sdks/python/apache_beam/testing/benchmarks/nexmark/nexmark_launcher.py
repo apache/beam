@@ -60,6 +60,7 @@ Usage
 # pytype: skip-file
 
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import argparse
@@ -76,6 +77,8 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.testing.benchmarks.nexmark import nexmark_util
+from apache_beam.testing.benchmarks.nexmark.monitor import Monitor
+from apache_beam.testing.benchmarks.nexmark.monitor import MonitorSuffix
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import Command
 from apache_beam.testing.benchmarks.nexmark.queries import query0
 from apache_beam.testing.benchmarks.nexmark.queries import query1
@@ -216,15 +219,15 @@ class NexmarkLauncher(object):
       self.parse_args()
       self.pipeline = beam.Pipeline(options=self.pipeline_options)
       nexmark_util.setup_coder()
+
+      event_monitor = Monitor('.events', 'event')
+      result_monitor = Monitor('.results', 'result')
+
       events = self.generate_events()
+      events = events | 'event_monitor' >> beam.ParDo(event_monitor.doFn)
       output = query.load(events, query_args)
-      # print results
-      (  # pylint: disable=expression-not-assigned
-          output | beam.Map(repr)
-          | beam.io.WriteToText(
-              "py-query-result", file_name_suffix='.json', num_shards=1))
-      output | nexmark_util.CountAndLog()  # pylint: disable=expression-not-assigned
-      # end of results output
+      output | 'result_monitor' >> beam.ParDo(result_monitor.doFn)  # pylint: disable=expression-not-assigned
+
       result = self.pipeline.run()
       job_duration = (
           self.pipeline_options.view_as(TestOptions).wait_until_finish_duration)
@@ -236,6 +239,39 @@ class NexmarkLauncher(object):
     except Exception as exc:
       query_errors.append(str(exc))
       raise
+
+  @staticmethod
+  def get_performance(result, event_monitor, result_monitor):
+    event_count = nexmark_util.get_counter_metric(
+        result,
+        event_monitor.namespace,
+        event_monitor.name_prefix + MonitorSuffix.ELEMENT_COUNTER)
+    event_start = nexmark_util.get_start_time_metric(
+        result,
+        event_monitor.namespace,
+        event_monitor.name_prefix + MonitorSuffix.EVENT_TIME)
+    event_end = nexmark_util.get_end_time_metric(
+        result,
+        event_monitor.namespace,
+        event_monitor.name_prefix + MonitorSuffix.EVENT_TIME)
+    result_count = nexmark_util.get_counter_metric(
+        result,
+        result_monitor.namespace,
+        result_monitor.name_prefix + MonitorSuffix.ELEMENT_COUNTER)
+    result_end = nexmark_util.get_end_time_metric(
+        result,
+        result_monitor.namespace,
+        result_monitor.name_prefix + MonitorSuffix.EVENT_TIME)
+
+    effective_end = max(event_end, result_end)
+    runtime_sec = (effective_end - event_start) / 1000
+    event_per_sec = event_count / runtime_sec
+    logging.info(
+        'input event count: %d, output event count: %d' %
+        (event_count, result_count))
+    logging.info(
+        'query run took %.1f seconds and processed %.1f events per second' %
+        (runtime_sec, event_per_sec))
 
   def cleanup(self):
     publish_client = pubsub.Client(project=self.project)
