@@ -48,6 +48,7 @@ class SchemaUtils {
           .put("STRING", FieldType.STRING)
           .put("TIME", FieldType.logicalType(SqlTypes.TIME))
           .put("TIMESTAMP", FieldType.DATETIME)
+          .put("NUMERIC", FieldType.DECIMAL)
           .put("MAP<STRING,STRING>", FieldType.map(FieldType.STRING, FieldType.STRING))
           .build();
 

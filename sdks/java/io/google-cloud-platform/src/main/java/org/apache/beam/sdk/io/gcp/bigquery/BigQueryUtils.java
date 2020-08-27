@@ -29,6 +29,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,8 +38,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.IntStream;
+import org.apache.avro.Conversions;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
@@ -46,7 +50,6 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
-import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
@@ -124,6 +127,9 @@ public class BigQueryUtils {
       public abstract SchemaConversionOptions build();
     }
   }
+
+  private static final java.time.format.DateTimeFormatter BIGQUERY_DATETIME_FORMATTER =
+      java.time.format.DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss[.SSSSSS]");
 
   private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER;
 
@@ -221,8 +227,8 @@ public class BigQueryUtils {
       ImmutableMap.<String, StandardSQLTypeName>builder()
           .put(SqlTypes.DATE.getIdentifier(), StandardSQLTypeName.DATE)
           .put(SqlTypes.TIME.getIdentifier(), StandardSQLTypeName.TIME)
+          .put(SqlTypes.DATETIME.getIdentifier(), StandardSQLTypeName.DATETIME)
           .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
-          .put("SqlTimestampWithLocalTzType", StandardSQLTypeName.DATETIME)
           .put("SqlCharType", StandardSQLTypeName.STRING)
           .put("Enum", StandardSQLTypeName.STRING)
           .build();
@@ -289,10 +295,7 @@ public class BigQueryUtils {
       case "DATE":
         return FieldType.logicalType(SqlTypes.DATE);
       case "DATETIME":
-        // TODO[BEAM-10240]: map to the new logical type when ZetaSQL DATETIME type is supported
-        return FieldType.logicalType(
-            new PassThroughLogicalType<Instant>(
-                "SqlTimestampWithLocalTzType", FieldType.STRING, "", FieldType.DATETIME) {});
+        return FieldType.logicalType(SqlTypes.DATETIME);
       case "STRUCT":
       case "RECORD":
         if (options.getInferMaps() && nestedFields.size() == 2) {
@@ -532,8 +535,6 @@ public class BigQueryUtils {
       case DOUBLE:
       case STRING:
       case BOOLEAN:
-        return fieldValue.toString();
-
       case DECIMAL:
         return fieldValue.toString();
 
@@ -544,10 +545,11 @@ public class BigQueryUtils {
         // For the JSON formats of DATE/DATETIME/TIME/TIMESTAMP types that BigQuery accepts, see
         // https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json#details_of_loading_json_data
         String identifier = fieldType.getLogicalType().getIdentifier();
-        // TODO[BEAM-10240]: unparse (toString() is not enough) LocalDateTime here for DATETIME type
         if (SqlTypes.DATE.getIdentifier().equals(identifier)
             || SqlTypes.TIME.getIdentifier().equals(identifier)) {
           return fieldValue.toString();
+        } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
+          return BIGQUERY_DATETIME_FORMATTER.format((LocalDateTime) fieldValue);
         } else if ("Enum".equals(identifier)) {
           return fieldType
               .getLogicalType(EnumerationType.class)
@@ -644,13 +646,16 @@ public class BigQueryUtils {
   }
 
   // TODO: BigQuery shouldn't know about SQL internal logical types.
-  private static final Set<String> SQL_DATE_TIME_TYPES =
-      ImmutableSet.of("SqlTimeWithLocalTzType", "SqlTimestampWithLocalTzType");
+  private static final Set<String> SQL_DATE_TIME_TYPES = ImmutableSet.of("SqlTimeWithLocalTzType");
   private static final Set<String> SQL_STRING_TYPES = ImmutableSet.of("SqlCharType");
 
   /**
    * Tries to convert an Avro decoded value to a Beam field value based on the target type of the
    * Beam field.
+   *
+   * <p>For the Avro formats of BigQuery types, see
+   * https://cloud.google.com/bigquery/docs/exporting-data#avro_export_details and
+   * https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions
    */
   public static Object convertAvroFormat(
       FieldType beamFieldType, Object avroValue, BigQueryUtils.ConversionOptions options) {
@@ -685,6 +690,8 @@ public class BigQueryUtils {
                 String.format(
                     "Unknown timestamp truncation option: %s", options.getTruncateTimestamps()));
         }
+      case DECIMAL:
+        return convertAvroNumeric(avroValue);
       case ARRAY:
         return convertAvroArray(beamFieldType, avroValue, options);
       case LOGICAL_TYPE:
@@ -693,6 +700,8 @@ public class BigQueryUtils {
           return convertAvroDate(avroValue);
         } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
           return convertAvroTime(avroValue);
+        } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
+          return convertAvroDateTime(avroValue);
         } else if (SQL_DATE_TIME_TYPES.contains(identifier)) {
           switch (options.getTruncateTimestamps()) {
             case TRUNCATE:
@@ -716,8 +725,6 @@ public class BigQueryUtils {
         }
         GenericData.Record record = (GenericData.Record) avroValue;
         return toBeamRow(record, rowSchema, options);
-      case DECIMAL:
-        throw new RuntimeException("Does not support converting DECIMAL type value");
       case MAP:
         return convertAvroRecordToMap(beamFieldType, avroValue, options);
       default:
@@ -801,8 +808,8 @@ public class BigQueryUtils {
   private static Object convertAvroString(Object value) {
     if (value == null) {
       return null;
-    } else if (value instanceof org.apache.avro.util.Utf8) {
-      return ((org.apache.avro.util.Utf8) value).toString();
+    } else if (value instanceof Utf8) {
+      return ((Utf8) value).toString();
     } else if (value instanceof String) {
       return value;
     } else {
@@ -841,6 +848,30 @@ public class BigQueryUtils {
       return null;
     } else if (value instanceof Long) {
       return LocalTime.ofNanoOfDay((Long) value * 1000);
+    } else {
+      throw new RuntimeException(
+          "Does not support converting avro format: " + value.getClass().getName());
+    }
+  }
+
+  private static Object convertAvroDateTime(Object value) {
+    if (value == null) {
+      return null;
+    } else if (value instanceof Utf8) {
+      return LocalDateTime.parse(value.toString());
+    } else {
+      throw new RuntimeException(
+          "Does not support converting avro format: " + value.getClass().getName());
+    }
+  }
+
+  private static Object convertAvroNumeric(Object value) {
+    if (value == null) {
+      return null;
+    } else if (value instanceof ByteBuffer) {
+      // BigQuery NUMERIC type has precision 38 and scale 9
+      return new Conversions.DecimalConversion()
+          .fromBytes((ByteBuffer) value, null, LogicalTypes.decimal(38, 9));
     } else {
       throw new RuntimeException(
           "Does not support converting avro format: " + value.getClass().getName());

@@ -36,12 +36,16 @@ import java.math.RoundingMode;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import org.apache.avro.Conversions;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.TruncateTimestamps;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -566,6 +570,27 @@ public class BigQueryUtilsTest {
         BigQueryUtils.convertAvroFormat(
             FieldType.logicalType(SqlTypes.TIME), t.toNanoOfDay() / 1000, REJECT_OPTIONS),
         equalTo(t));
+  }
+
+  @Test
+  public void testMicroPrecisionDateTimeType() {
+    LocalDateTime dt = LocalDateTime.parse("2020-06-04T12:34:56.789876");
+    assertThat(
+        BigQueryUtils.convertAvroFormat(
+            FieldType.logicalType(SqlTypes.DATETIME), new Utf8(dt.toString()), REJECT_OPTIONS),
+        equalTo(dt));
+  }
+
+  @Test
+  public void testNumericType() {
+    // BigQuery NUMERIC type has precision 38 and scale 9
+    BigDecimal n = new BigDecimal("123456789.987654321").setScale(9);
+    assertThat(
+        BigQueryUtils.convertAvroFormat(
+            FieldType.DECIMAL,
+            new Conversions.DecimalConversion().toBytes(n, null, LogicalTypes.decimal(38, 9)),
+            REJECT_OPTIONS),
+        equalTo(n));
   }
 
   @Test
