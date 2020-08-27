@@ -184,6 +184,7 @@ dependencies {
 class ValidatesRunnerConfig {
   String name
   boolean streaming
+  boolean checkpointing
 }
 
 def createValidatesRunnerTask(Map m) {
@@ -192,11 +193,17 @@ def createValidatesRunnerTask(Map m) {
     group = "Verification"
     def runnerType = config.streaming ? "streaming" : "batch"
     description = "Validates the ${runnerType} runner"
-    def pipelineOptions = JsonOutput.toJson(
-        ["--runner=TestFlinkRunner",
-         "--streaming=${config.streaming}",
-         "--parallelism=2",
-        ])
+    def pipelineOptionsArray = ["--runner=TestFlinkRunner",
+                                "--streaming=${config.streaming}",
+                                "--parallelism=2",
+    ]
+    if (config.checkpointing) {
+      pipelineOptionsArray.addAll([
+              "--checkpointingInterval=3000",
+              "--shutdownSourcesAfterIdleMs=60000",
+      ])
+    }
+    def pipelineOptions = JsonOutput.toJson(pipelineOptionsArray)
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
     testClassesDirs = files(
@@ -206,21 +213,27 @@ def createValidatesRunnerTask(Map m) {
     // maxParallelForks decreased from 4 in order to avoid OOM errors
     maxParallelForks 2
     useJUnit {
-      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      if (config.checkpointing) {
+        includeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+        // TestStreamSource does not support checkpointing
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+      } else {
+        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+      }
       excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
       excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
       if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'  // BEAM-8598
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
       } else {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
@@ -231,12 +244,19 @@ def createValidatesRunnerTask(Map m) {
 
 createValidatesRunnerTask(name: "validatesRunnerBatch", streaming: false)
 createValidatesRunnerTask(name: "validatesRunnerStreaming", streaming: true)
+// We specifically have a variant which runs with checkpointing enabled for the
+// tests that require it since running a checkpoint variant is significantly
+// slower since we have to wait shutdownSourcesAfterIdleMs before the source
+// can shutdown because of https://issues.apache.org/jira/browse/FLINK-2491
+// not supporting checkpointing when an operator has been shutdown.
+createValidatesRunnerTask(name: "validatesRunnerStreamingCheckpointing", streaming: true, checkpointing: true)
 
 tasks.register('validatesRunner') {
   group = 'Verification'
   description "Validates Flink runner"
   dependsOn validatesRunnerBatch
   dependsOn validatesRunnerStreaming
+  dependsOn validatesRunnerStreamingCheckpointing
 }
 
 // Generates :runners:flink:1.10:runQuickstartJavaFlinkLocal
