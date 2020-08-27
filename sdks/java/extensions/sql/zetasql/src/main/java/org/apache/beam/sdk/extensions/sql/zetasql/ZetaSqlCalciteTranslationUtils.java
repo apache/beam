@@ -305,8 +305,6 @@ public final class ZetaSqlCalciteTranslationUtils {
   }
 
   // internal only, used for DateTimestampPart
-  // TODO: Fix Later
-  @SuppressWarnings("nullness")
   private static RexNode enumValueToRexNode(Value value, RexBuilder rexBuilder) {
     String enumDescriptorName = value.getType().asEnum().getDescriptor().getFullName();
     if (!"zetasql.functions.DateTimestampPart".equals(enumDescriptorName)) {
@@ -316,7 +314,7 @@ public final class ZetaSqlCalciteTranslationUtils {
     if (timeUnit == null) {
       throw new UnsupportedOperationException("Unknown ZetaSQL Enum value: " + value.getEnumName());
     }
-    return rexBuilder.makeFlag(TimeUnitRange.of(timeUnit, null));
+    return rexBuilder.makeFlag(TimeUnitRange.of(timeUnit, timeUnit));
   }
 
   private static DateString dateValueToDateString(Value value) {
