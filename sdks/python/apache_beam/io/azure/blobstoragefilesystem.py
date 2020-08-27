@@ -58,6 +58,7 @@ class BlobStorageFileSystem(FileSystem):
 
     if azfs_connection_string is None:
       raise ValueError('azfs_connection_string is not set.')
+    self.azfs_client = blobstorageio.BlobStorageIO(azfs_connection_string)
 
   @classmethod
   def scheme(cls):

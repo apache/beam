@@ -26,6 +26,8 @@ import os
 import time
 import unittest
 
+from nose.plugins.attrib import attr
+
 # Protect against environments where azure library is not available.
 try:
   from apache_beam.io.azure import blobstorageio
@@ -108,10 +110,9 @@ class TestBlobStorageIO(unittest.TestCase):
         "AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFs" +
         "uFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;" +
         "BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;")
-    self.azurite_client = BlobServiceClient.from_connection_string(connect_str)
     self.azfs = blobstorageio.BlobStorageIO(connect_str, True)
     try:
-      self.azurite_client.create_container("gsoc")
+      self.azfs.client.create_container("gsoc")
     except:
       pass
     self.TEST_DATA_PATH = 'azfs://devstoreaccount1/gsoc/'
@@ -126,6 +127,7 @@ class TestBlobStorageIO(unittest.TestCase):
     # Clean up.
     self.azfs.delete(file_name)
 
+  @attr('AzuriteIT')
   def test_full_file_read(self):
     file_name = self.TEST_DATA_PATH + 'test_file_read'
     file_size = 1024
@@ -143,6 +145,7 @@ class TestBlobStorageIO(unittest.TestCase):
     # Clean up.
     self.azfs.delete(file_name)
 
+  @attr('AzuriteIT')
   def test_file_write(self):
     file_name = self.TEST_DATA_PATH + 'test_file_write'
     # file_size = 5 * 1024 * 1024 + 2000
@@ -160,6 +163,7 @@ class TestBlobStorageIO(unittest.TestCase):
     # Clean up.
     self.azfs.delete(file_name)
 
+  @attr('AzuriteIT')
   def test_copy(self):
     src_file_name = self.TEST_DATA_PATH + 'mysource'
     dest_file_name = self.TEST_DATA_PATH + 'mydest'
@@ -189,6 +193,7 @@ class TestBlobStorageIO(unittest.TestCase):
         'The specified blob does not exist.' in err.exception.message)
     self.assertEqual(err.exception.code, 404)
 
+  @attr('AzuriteIT')
   def test_copy_tree(self):
     src_dir_name = self.TEST_DATA_PATH + 'mysource/'
     dest_dir_name = self.TEST_DATA_PATH + 'mydest/'
@@ -222,6 +227,7 @@ class TestBlobStorageIO(unittest.TestCase):
       self.azfs.delete(src_file_name)
       self.azfs.delete(dest_file_name)
 
+  @attr('AzuriteIT')
   def test_copy_paths(self):
     from_name_pattern = self.TEST_DATA_PATH + 'copy_me_%d'
     to_name_pattern = self.TEST_DATA_PATH + 'destination_%d'
@@ -269,6 +275,7 @@ class TestBlobStorageIO(unittest.TestCase):
       self.azfs.delete(src)
       self.azfs.delete(dest)
 
+  @attr('AzuriteIT')
   def test_rename(self):
     src_file_name = self.TEST_DATA_PATH + 'mysource'
     dest_file_name = self.TEST_DATA_PATH + 'mydest'
@@ -290,8 +297,8 @@ class TestBlobStorageIO(unittest.TestCase):
     self.azfs.delete(src_file_name)
     self.azfs.delete(dest_file_name)
 
+  @attr('AzuriteIT')
   def test_rename_files(self):
-    self.skipTest('Azurite does not support this operation.')
     from_name_pattern = self.TEST_DATA_PATH + 'to_rename_%d'
     to_name_pattern = self.TEST_DATA_PATH + 'been_renamed_%d'
     file_size = 1024
@@ -333,6 +340,7 @@ class TestBlobStorageIO(unittest.TestCase):
       self.azfs.delete(src)
       self.azfs.delete(dest)
 
+  @attr('AzuriteIT')
   def test_rename_directory_error(self):
     dir_name = self.TEST_DATA_PATH + 'rename_dir/'
     file_name = dir_name + 'test_rename_file'
@@ -351,6 +359,7 @@ class TestBlobStorageIO(unittest.TestCase):
     # Clean up.
     self.azfs.delete(file_name)
 
+  @attr('AzuriteIT')
   def test_exists(self):
     file_name = self.TEST_DATA_PATH + 'test_exists'
     file_size = 1024
@@ -363,6 +372,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.azfs.delete(file_name)
     self.assertFalse(self.azfs.exists(file_name))
 
+  @attr('AzuriteIT')
   def test_size(self):
     file_name = self.TEST_DATA_PATH + 'test_size'
     file_size = 1024
@@ -376,6 +386,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.azfs.delete(file_name)
     self.assertFalse(self.azfs.exists(file_name))
 
+  @attr('AzuriteIT')
   def test_last_updated(self):
     file_name = self.TEST_DATA_PATH + 'test_last_updated'
     file_size = 1024
@@ -389,6 +400,7 @@ class TestBlobStorageIO(unittest.TestCase):
     # Clean up.
     self.azfs.delete(file_name)
 
+  @attr('AzuriteIT')
   def test_checksum(self):
     file_name = self.TEST_DATA_PATH + 'test_checksum'
     file_size = 1024
@@ -407,6 +419,7 @@ class TestBlobStorageIO(unittest.TestCase):
     # Clean up.
     self.azfs.delete(file_name)
 
+  @attr('AzuriteIT')
   def test_delete(self):
     file_name = self.TEST_DATA_PATH + 'test_delete'
     file_size = 1024
@@ -421,6 +434,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.azfs.delete(file_name)
     self.assertFalse(self.azfs.exists(file_name))
 
+  @attr('AzuriteIT')
   def test_delete_paths(self):
     # Create files.
     prefix = self.TEST_DATA_PATH + 'test_delete_paths/'
@@ -439,6 +453,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertFalse(self.azfs.exists(file_names[0]))
     self.assertFalse(self.azfs.exists(file_names[1]))
 
+  @attr('AzuriteIT')
   def test_delete_tree(self):
     root_path = self.TEST_DATA_PATH + 'test_delete_tree/'
     leaf_paths = ['x', 'y/a', 'y/b', 'y/b/c']
@@ -462,6 +477,7 @@ class TestBlobStorageIO(unittest.TestCase):
     for path in paths:
       self.assertFalse(self.azfs.exists(path))
 
+  @attr('AzuriteIT')
   def test_delete_files(self):
     file_name_pattern = self.TEST_DATA_PATH + 'test_delete_files/%d'
     file_size = 1024
@@ -491,6 +507,7 @@ class TestBlobStorageIO(unittest.TestCase):
     for i in range(num_files):
       self.assertFalse(self.azfs.exists(file_name_pattern % i))
 
+  @attr('AzuriteIT')
   def test_delete_files_with_errors(self):
     real_file = self.TEST_DATA_PATH + 'test_delete_files/file'
     fake_file = 'azfs://fake/fake-container/test_fake_file'
@@ -509,6 +526,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.assertEqual(result[1][0], filenames[1])
     self.assertEqual(result[1][1], 404)
 
+  @attr('AzuriteIT')
   def test_list_prefix(self):
     blobs = [
         ('sloth/pictures/sleeping', 2),
