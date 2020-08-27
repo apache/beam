@@ -32,7 +32,7 @@ Access the `assignWindows` function through `WindowFn.AssignContext.element()`. 
 
 ### Creating data-driven gaps
 To create data-driven gaps, add the following snippets to the `assignWindows` function:
-- A default value for when the custom gap is not present in the data 
+- A default value for when the custom gap is not present in the data
 - A way to set the attribute from the main pipeline as a method of the custom windows
 
 For example, the following function assigns each element to a window between the timestamp and `gapDuration`:

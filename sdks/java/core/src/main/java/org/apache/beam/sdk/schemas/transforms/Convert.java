@@ -142,12 +142,7 @@ public class Convert {
                             converted.outputSchemaCoder.getFromRowFunction().apply((Row) input));
                       }
                     }));
-        output =
-            output.setSchema(
-                converted.outputSchemaCoder.getSchema(),
-                outputTypeDescriptor,
-                converted.outputSchemaCoder.getToRowFunction(),
-                converted.outputSchemaCoder.getFromRowFunction());
+        output.setCoder(converted.outputSchemaCoder);
       } else {
         SerializableFunction<?, OutputT> convertPrimitive =
             ConvertHelpers.getConvertPrimitive(

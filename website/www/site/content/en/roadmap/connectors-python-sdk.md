@@ -20,10 +20,10 @@ Roadmap for connectors developed using Python SDK.
 # Kafka
 
 An Apache Kafka connectors for Python SDK that is fully developed using
-Splittable DoFn API is planned. This is partially blocked till 
-Splittable DoFn work related to portability framework is finalized. 
+Splittable DoFn API is planned. This is partially blocked till
+Splittable DoFn work related to portability framework is finalized.
 See [BEAM-3788](https://issues.apache.org/jira/browse/BEAM-3788) for more details.
 
 # Parquet
-A Python connector for Parquet file format is currently in development. 
+A Python connector for Parquet file format is currently in development.
 See [BEAM-4444](https://issues.apache.org/jira/browse/BEAM-4444) for more details.

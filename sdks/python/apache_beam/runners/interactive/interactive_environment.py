@@ -501,9 +501,11 @@ class InteractiveEnvironment(object):
     is specified, evicts for all pipelines.
     """
     if pipeline:
+      discarded = set()
       for pcoll in self._computed_pcolls:
         if pcoll.pipeline is pipeline:
-          self._computed_pcolls.discard(pcoll)
+          discarded.add(pcoll)
+      self._computed_pcolls -= discarded
     else:
       self._computed_pcolls = set()
 

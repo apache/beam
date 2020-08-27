@@ -110,8 +110,8 @@ To build Beam SDK container images:
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container buildAll
 ```
 
-From 2.21.0, `docker-pull-licenses` tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when `docker-pull-licenses` was set. 
-For example, `./gradlew :sdks:java:container:docker -Pdocker-pull-licenses`. The files are added to `/opt/apache/beam/third_party_licenses/`. 
+From 2.21.0, `docker-pull-licenses` tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when `docker-pull-licenses` was set.
+For example, `./gradlew :sdks:java:container:docker -Pdocker-pull-licenses`. The files are added to `/opt/apache/beam/third_party_licenses/`.
 By default, no licenses/notices are added to the docker images.
 
 To examine the containers that you built, run `docker images` from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:
@@ -127,7 +127,7 @@ apache/beam_go_sdk                 latest              30cf602e9763        2 wee
 
 ### Overriding default Docker targets
 
-The default [tag](https://docs.docker.com/engine/reference/commandline/tag/) is sdk_version defined at [gradle.properties](https://github.com/apache/beam/blob/master/gradle.properties) and the default repositories are in the Docker Hub `apache` namespace. 
+The default [tag](https://docs.docker.com/engine/reference/commandline/tag/) is sdk_version defined at [gradle.properties](https://github.com/apache/beam/blob/master/gradle.properties) and the default repositories are in the Docker Hub `apache` namespace.
 The `docker` command-line tool implicitly [pushes container images](#pushing-container-images) to this location.
 
 To tag a local image, set the `docker-tag` option when building the container. The following command tags a Python SDK image with a date.
@@ -135,7 +135,7 @@ To tag a local image, set the `docker-tag` option when building the container. T
 ./gradlew :sdks:python:container:py36:docker -Pdocker-tag=2019-10-04
 ```
 
-To change the repository, set the `docker-repository-root` option to a new location. The following command sets the `docker-repository-root` 
+To change the repository, set the `docker-repository-root` option to a new location. The following command sets the `docker-repository-root`
 to a repository named `example-repo` on Docker Hub.
 ```
 ./gradlew :sdks:python:container:py36:docker -Pdocker-repository-root=example-repo
@@ -145,10 +145,9 @@ to a repository named `example-repo` on Docker Hub.
 
 After [building a container image](#building-container-images), you can store it in a remote Docker repository.
 
-The following steps push a Python3.6 SDK image to the [`docker-root-repository` value](#overriding-default-docker-targets). 
-Please log in to the destination repository as needed. 
+The following steps push a Python3.6 SDK image to the [`docker-root-repository` value](#overriding-default-docker-targets).
+Please log in to the destination repository as needed.
 
-```
 Upload it to the remote repository:
 ```
 docker push example-repo/beam_python3.6_sdk

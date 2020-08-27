@@ -43,7 +43,6 @@ import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -653,7 +652,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesStatefulParDo.class, DataflowPortabilityApiUnsupported.class})
+  @Category({NeedsRunner.class, UsesStatefulParDo.class})
   public void testRowBagState() {
     final String stateId = "foo";
 
@@ -719,7 +718,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesStatefulParDo.class, DataflowPortabilityApiUnsupported.class})
+  @Category({NeedsRunner.class, UsesStatefulParDo.class})
   public void tesBagStateSchemaInference() throws NoSuchSchemaException {
     final String stateId = "foo";
 
@@ -769,7 +768,7 @@ public class ParDoSchemaTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesStatefulParDo.class, DataflowPortabilityApiUnsupported.class})
+  @Category({NeedsRunner.class, UsesStatefulParDo.class})
   public void testSetStateSchemaInference() throws NoSuchSchemaException {
     final String stateId = "foo";
 

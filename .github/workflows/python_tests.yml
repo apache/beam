@@ -1,0 +1,219 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# To learn more about GitHub Actions in Apache Beam check the CI.md
+
+name: Python tests
+
+on:
+  schedule:
+    - cron: '10 2 * * *'
+  push:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+    paths: ['sdks/python/**', 'model/**']
+  workflow_dispatch:
+    inputs:
+      runDataflow:
+        description: 'Type "true" if you want to run Dataflow tests (GCP variables must be configured, check CI.md)'
+        default: false
+
+
+jobs:
+
+  check_gcp_variables:
+    timeout-minutes: 5
+    name: "Check GCP variables"
+    runs-on: ubuntu-latest
+    outputs:
+      gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: "Check are GCP variables set"
+        run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
+        id: check_gcp_variables
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ secrets.GCP_REGION }}
+          GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          GCP_TESTING_BUCKET: ${{ secrets.GCP_TESTING_BUCKET }}
+          GCP_PYTHON_WHEELS_BUCKET: "not-needed-here"
+
+  build_python_sdk_source:
+    name: 'Build python source distribution'
+    if: |
+      needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
+        (github.event_name == 'push' || github.event_name == 'schedule') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
+      )
+    needs:
+      - check_gcp_variables
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - name: Get build dependencies
+        working-directory: ./sdks/python
+        run: pip install pip setuptools --upgrade && pip install -r build-requirements.txt
+      - name: Build source
+        working-directory: ./sdks/python
+        run: python setup.py sdist
+      - name: Rename source file
+        working-directory: ./sdks/python/dist
+        run: mv $(ls | grep "apache-beam.*tar\.gz") apache-beam-source.tar.gz
+      - name: Upload compressed sources as artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: python_sdk_source
+          path: sdks/python/dist/apache-beam-source.tar.gz
+
+  python_unit_tests:
+    name: 'Python Unit Tests'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        params: [
+          {"py_ver": "3.5", "tox_env": "py35"},
+          {"py_ver": "3.6", "tox_env": "py36"},
+          {"py_ver": "3.7", "tox_env": "py37"},
+          {"py_ver": "3.8", "tox_env": "py38"},
+        ]
+        exclude:
+          # TODO remove exclusion after issue with protobuf is solved
+          # https://github.com/protocolbuffers/protobuf/issues/7765
+          - os: windows-latest
+            params: {"py_ver": "3.8", "tox_env": "py38"}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.params.py_ver }}
+      - name: Get build dependencies
+        working-directory: ./sdks/python
+        run: pip install -r build-requirements.txt
+      - name: Install tox
+        run: pip install tox
+      - name: Run tests basic unix
+        if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+        working-directory: ./sdks/python
+        run: tox -c tox.ini -e ${{ matrix.params.tox_env }}
+      - name: Run tests basic windows
+        if: startsWith(matrix.os, 'windows')
+        working-directory: ./sdks/python
+        run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-win
+      - name: Upload test logs
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: pytest-${{matrix.os}}-${{matrix.params.py_ver}}
+          path: sdks/python/pytest**.xml
+
+  python_wordcount_direct_runner:
+    name: 'Python Wordcount Direct Runner'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: [3.5, 3.6, 3.7, 3.8]
+        exclude:
+          # TODO remove exclusion after issue with protobuf is solved
+          # https://github.com/protocolbuffers/protobuf/issues/7765
+          - os: windows-latest
+            python: 3.8
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Get build dependencies
+        working-directory: ./sdks/python
+        run: pip install -r build-requirements.txt
+      - name: Install requirements
+        working-directory: ./sdks/python
+        run: pip install setuptools --upgrade && pip install -e .
+      - name: Run WordCount
+        working-directory: ./sdks/python
+        shell: bash
+        run: python -m apache_beam.examples.wordcount --input MANIFEST.in --output counts
+
+  python_wordcount_dataflow:
+    name: 'Python Wordcount Dataflow'
+    needs:
+      - build_python_sdk_source
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: [3.5, 3.6, 3.7, 3.8]
+        exclude:
+          # TODO remove exclusion after issue with protobuf is solved
+          # https://github.com/protocolbuffers/protobuf/issues/7765
+          - os: windows-latest
+            python: 3.8
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Download source from artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: python_sdk_source
+          path: apache-beam-source
+      - name: Authenticate on GCP
+        uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          export_default_credentials: true
+      - name: Get build dependencies
+        working-directory: ./sdks/python
+        run: pip install -r build-requirements.txt
+      - name: Install requirements
+        working-directory: ./sdks/python
+        run: pip install setuptools --upgrade && pip install -e ".[gcp]"
+      - name: Run WordCount
+        working-directory: ./sdks/python
+        shell: bash
+        run: |
+          python -m apache_beam.examples.wordcount \
+            --input gs://dataflow-samples/shakespeare/kinglear.txt \
+            --output gs://${{ secrets.GCP_TESTING_BUCKET }}/python_wordcount_dataflow/counts \
+            --runner DataflowRunner \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --region ${{ secrets.GCP_REGION }} \
+            --temp_location gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp/python_wordcount_dataflow/ \
+            --sdk_location ../../apache-beam-source/apache-beam-source.tar.gz

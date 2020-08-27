@@ -60,7 +60,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Internal;
@@ -368,82 +367,6 @@ public class ExpressionConverter {
     }
 
     return ret;
-  }
-
-  /** Extract the RexNode from expression with ref scan. */
-  // TODO: Fix Later
-  @SuppressWarnings("nullness")
-  public RexNode convertRexNodeFromResolvedExprWithRefScan(
-      ResolvedExpr expr,
-      List<ResolvedColumn> refScanLeftColumnList,
-      List<RelDataTypeField> leftFieldList,
-      List<ResolvedColumn> originalLeftColumnList,
-      List<ResolvedColumn> refScanRightColumnList,
-      List<RelDataTypeField> rightFieldList,
-      List<ResolvedColumn> originalRightColumnList) {
-    switch (expr.nodeKind()) {
-      case RESOLVED_LITERAL:
-        return convertResolvedLiteral((ResolvedLiteral) expr);
-      case RESOLVED_COLUMN_REF:
-        ResolvedColumnRef columnRef = (ResolvedColumnRef) expr;
-        // first look for column ref on the left side
-        Optional<RexNode> colRexNode =
-            convertRexNodeFromResolvedColumnRefWithRefScan(
-                columnRef, refScanLeftColumnList, originalLeftColumnList, leftFieldList);
-
-        if (colRexNode.isPresent()) {
-          return colRexNode.get();
-        }
-
-        // if not found there look on the right
-        colRexNode =
-            convertRexNodeFromResolvedColumnRefWithRefScan(
-                columnRef, refScanRightColumnList, originalRightColumnList, rightFieldList);
-        if (colRexNode.isPresent()) {
-          return colRexNode.get();
-        }
-
-        throw new IllegalArgumentException(
-            String.format(
-                "Could not find column reference %s in %s or %s",
-                columnRef, refScanLeftColumnList, refScanRightColumnList));
-      case RESOLVED_FUNCTION_CALL:
-        // JOIN only support equal join.
-        ResolvedFunctionCall resolvedFunctionCall = (ResolvedFunctionCall) expr;
-        List<RexNode> operands = new ArrayList<>();
-
-        for (ResolvedExpr resolvedExpr : resolvedFunctionCall.getArgumentList()) {
-          operands.add(
-              convertRexNodeFromResolvedExprWithRefScan(
-                  resolvedExpr,
-                  refScanLeftColumnList,
-                  leftFieldList,
-                  originalLeftColumnList,
-                  refScanRightColumnList,
-                  rightFieldList,
-                  originalRightColumnList));
-        }
-
-        SqlOperator op =
-            SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-                resolvedFunctionCall.getFunction().getName());
-        return rexBuilder().makeCall(op, operands);
-      case RESOLVED_CAST:
-        ResolvedCast resolvedCast = (ResolvedCast) expr;
-        return convertResolvedCast(
-            resolvedCast,
-            convertRexNodeFromResolvedExprWithRefScan(
-                resolvedCast.getExpr(),
-                refScanLeftColumnList,
-                leftFieldList,
-                originalLeftColumnList,
-                refScanRightColumnList,
-                rightFieldList,
-                originalRightColumnList));
-      default:
-        throw new UnsupportedOperationException(
-            "Does not support expr node kind " + expr.nodeKind());
-    }
   }
 
   private RexNode convertRexNodeFromComputedColumnWithFieldList(
@@ -914,30 +837,6 @@ public class ExpressionConverter {
         || (fromType.equals(TYPE_TIMESTAMP) && toType.equals(TYPE_STRING));
   }
 
-  private Optional<RexNode> convertRexNodeFromResolvedColumnRefWithRefScan(
-      ResolvedColumnRef columnRef,
-      List<ResolvedColumn> refScanColumnList,
-      List<ResolvedColumn> originalColumnList,
-      List<RelDataTypeField> fieldList) {
-
-    for (int i = 0; i < refScanColumnList.size(); i++) {
-      if (refScanColumnList.get(i).getId() == columnRef.getColumn().getId()) {
-        boolean nullable = fieldList.get(i).getType().isNullable();
-        int off = (int) originalColumnList.get(i).getId() - 1;
-        return Optional.of(
-            rexBuilder()
-                .makeInputRef(
-                    ZetaSqlCalciteTranslationUtils.toCalciteType(
-                        columnRef.getType(), nullable, rexBuilder()),
-                    off));
-      }
-    }
-
-    return Optional.empty();
-  }
-
-  // TODO: Fix Later
-  @SuppressWarnings("nullness")
   private RexNode convertResolvedParameter(ResolvedParameter parameter) {
     Value value;
     switch (queryParams.getKind()) {

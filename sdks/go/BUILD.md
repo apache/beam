@@ -38,7 +38,7 @@ The Go toolchain expects the package name to match the directory structure,
 which in turn must be rooted in `github.com/apache/beam` for `go get` to work.
 This directory prefix is beyond the repo itself and we must copy the Go source
 code into such a layout to invoke the tool chain. We use a single directory
-`sdks/go` for all shared library code and export it as a zip file during the 
+`sdks/go` for all shared library code and export it as a zip file during the
 build process to be used by various tools, such as `sdks/java/container`.
 This scheme balances the convenience of combined Go setup with the desire
 for a unified layout across languages. Python seems to do the same.

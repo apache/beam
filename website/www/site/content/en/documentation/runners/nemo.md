@@ -119,7 +119,7 @@ With this shaded jar, you can use the `bin/run_beam.sh` shell script as follows:
     -user_args "`pwd`/examples/resources/test_input_wordcount `pwd`/examples/resources/test_output_wordcount"
 ```
 
-To use Nemo using YARN, set the `-deploy_mode` flag on Nemo to `yarn`. 
+To use Nemo using YARN, set the `-deploy_mode` flag on Nemo to `yarn`.
 
 More instructions can be seen on the README of the [Apache Nemo GitHub](https://github.com/apache/incubator-nemo).
 

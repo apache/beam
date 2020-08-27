@@ -25,7 +25,7 @@ Easy to use Java 8 DSL for the Beam Java SDK. Provides a high-level abstraction 
 ## "Salted" join implementation
 
 Implementation of a join, that can handle large scale join of highly skewed data sets. This implementation breaks
-the large keys into multiple splits, using key distribution approximated by count min sketch data structure. 
+the large keys into multiple splits, using key distribution approximated by count min sketch data structure.
 
 ## Pipeline sampling
 

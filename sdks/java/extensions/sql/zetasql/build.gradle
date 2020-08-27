@@ -33,7 +33,7 @@ dependencies {
   compile project(":sdks:java:extensions:sql")
   compile library.java.vendored_calcite_1_20_0
   compile library.java.guava
-  compile library.java.grpc_all
+  compile library.java.grpc_api
   compile library.java.protobuf_java
   compile library.java.protobuf_java_util
   compile "com.google.api.grpc:proto-google-common-protos:1.12.0" // Interfaces with ZetaSQL use this

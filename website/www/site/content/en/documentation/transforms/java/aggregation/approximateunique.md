@@ -32,7 +32,7 @@ of key-value pairs.
 ## Examples
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
-## Related transforms 
+## Related transforms
 * [HllCount](/documentation/transforms/java/aggregation/hllcount)
   estimates the number of distinct elements and creates re-aggregatable sketches using the HyperLogLog++ algorithm.
 * [Count](/documentation/transforms/java/aggregation/count)

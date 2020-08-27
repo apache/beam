@@ -1257,6 +1257,8 @@ public class AvroIO {
     abstract @Nullable DynamicAvroDestinations<UserT, DestinationT, OutputT>
         getDynamicDestinations();
 
+    abstract AvroSink.@Nullable DatumWriterFactory<OutputT> getDatumWriterFactory();
+
     /**
      * The codec used to encode the blocks in the Avro file. String value drawn from those in
      * https://avro.apache.org/docs/1.7.7/api/java/org/apache/avro/file/CodecFactory.html
@@ -1304,6 +1306,9 @@ public class AvroIO {
 
       abstract Builder<UserT, DestinationT, OutputT> setDynamicDestinations(
           DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations);
+
+      abstract Builder<UserT, DestinationT, OutputT> setDatumWriterFactory(
+          AvroSink.DatumWriterFactory<OutputT> datumWriterFactory);
 
       abstract TypedWrite<UserT, DestinationT, OutputT> build();
     }
@@ -1499,6 +1504,15 @@ public class AvroIO {
     }
 
     /**
+     * Specifies a {@link AvroSink.DatumWriterFactory} to use for creating {@link
+     * org.apache.avro.io.DatumWriter} instances.
+     */
+    public TypedWrite<UserT, DestinationT, OutputT> withDatumWriterFactory(
+        AvroSink.DatumWriterFactory<OutputT> datumWriterFactory) {
+      return toBuilder().setDatumWriterFactory(datumWriterFactory).build();
+    }
+
+    /**
      * Writes to Avro file(s) with the specified metadata.
      *
      * <p>Supported value types are String, Long, and byte[].
@@ -1539,7 +1553,8 @@ public class AvroIO {
                     getSchema(),
                     getMetadata(),
                     getCodec().getCodec(),
-                    getFormatFunction());
+                    getFormatFunction(),
+                    getDatumWriterFactory());
       }
       return dynamicDestinations;
     }
@@ -1700,6 +1715,11 @@ public class AvroIO {
       return new Write<>(inner.withCodec(codec));
     }
 
+    /** See {@link TypedWrite#withDatumWriterFactory}. */
+    public Write<T> withDatumWriterFactory(AvroSink.DatumWriterFactory<T> datumWriterFactory) {
+      return new Write<>(inner.withDatumWriterFactory(datumWriterFactory));
+    }
+
     /**
      * Specify that output filenames are wanted.
      *
@@ -1742,7 +1762,22 @@ public class AvroIO {
       Map<String, Object> metadata,
       CodecFactory codec,
       SerializableFunction<UserT, OutputT> formatFunction) {
-    return new ConstantAvroDestination<>(filenamePolicy, schema, metadata, codec, formatFunction);
+    return constantDestinations(filenamePolicy, schema, metadata, codec, formatFunction, null);
+  }
+
+  /**
+   * Returns a {@link DynamicAvroDestinations} that always returns the same {@link FilenamePolicy},
+   * schema, metadata, and codec.
+   */
+  public static <UserT, OutputT> DynamicAvroDestinations<UserT, Void, OutputT> constantDestinations(
+      FilenamePolicy filenamePolicy,
+      Schema schema,
+      Map<String, Object> metadata,
+      CodecFactory codec,
+      SerializableFunction<UserT, OutputT> formatFunction,
+      AvroSink.@Nullable DatumWriterFactory<OutputT> datumWriterFactory) {
+    return new ConstantAvroDestination<>(
+        filenamePolicy, schema, metadata, codec, formatFunction, datumWriterFactory);
   }
   /////////////////////////////////////////////////////////////////////////////
 

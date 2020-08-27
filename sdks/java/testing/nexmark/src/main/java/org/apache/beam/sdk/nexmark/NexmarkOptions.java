@@ -68,6 +68,12 @@ public interface NexmarkOptions
 
   void setPubSubMode(NexmarkUtils.PubSubMode pubSubMode);
 
+  @Description("How to serialize event objects to pubsub messages.")
+  NexmarkUtils.@Nullable PubsubMessageSerializationMethod getPubsubMessageSerializationMethod();
+
+  void setPubsubMessageSerializationMethod(
+      NexmarkUtils.PubsubMessageSerializationMethod pubsubMessageSerializationMethod);
+
   @Description("Which query to run.")
   @Nullable
   String getQuery();

@@ -37,7 +37,7 @@ def chicagoTaxiJob = { scope ->
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       commonJobProperties.setGradleSwitches(delegate)
-      tasks(':sdks:python:test-suites:dataflow:py2:chicagoTaxiExample')
+      tasks(':sdks:python:test-suites:dataflow:chicagoTaxiExample')
       switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
       switches("-PpipelineOptions=\"${LoadTestsBuilder.parseOptions(pipelineOptions)}\"")
     }

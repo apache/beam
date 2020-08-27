@@ -50,7 +50,7 @@ For more information on changes in 2.23.0, check out the
   `{"foo": "bar", "baz": null}`, whereas an implicit null like `{"foo": "bar"}` would raise an
   exception. Now both JSON strings will yield the same result by default. This behavior can be
   overridden with `RowJson.RowJsonDeserializer#withNullBehavior`.
-* Fixed a bug in `GroupIntoBatches` experimental transform in Python to actually group batches by key. 
+* Fixed a bug in `GroupIntoBatches` experimental transform in Python to actually group batches by key.
   This changes the output type for this transform ([BEAM-6696](https://issues.apache.org/jira/browse/BEAM-6696)).
 
 ## Deprecations

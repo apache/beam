@@ -18,13 +18,21 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.datastore;
 
 import com.google.auto.service.AutoService;
-import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.meta.provider.SchemaIOTableProviderWrapper;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.io.gcp.datastore.DataStoreV1SchemaIOProvider;
+import org.apache.beam.sdk.io.gcp.datastore.DataStoreV1SchemaIOProvider.DataStoreV1SchemaIO;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreIO;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.io.SchemaIO;
+import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 
 /**
- * {@link TableProvider} for {@link DataStoreV1Table}.
+ * {@link TableProvider} for {@link DatastoreIO} for consumption by Beam SQL.
+ *
+ * <p>Passes the {@link DataStoreV1SchemaIOProvider} to the generalized table provider wrapper,
+ * {@link SchemaIOTableProviderWrapper}, for DataStoreV1 specific behavior.
  *
  * <p>A sample of DataStoreV1Table table is:
  *
@@ -39,7 +47,11 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
  * }</pre>
  */
 @AutoService(TableProvider.class)
-public class DataStoreV1TableProvider extends InMemoryMetaTableProvider {
+public class DataStoreV1TableProvider extends SchemaIOTableProviderWrapper {
+  @Override
+  public SchemaIOProvider getSchemaIOProvider() {
+    return new DataStoreV1SchemaIOProvider();
+  }
 
   @Override
   public String getTableType() {
@@ -47,7 +59,18 @@ public class DataStoreV1TableProvider extends InMemoryMetaTableProvider {
   }
 
   @Override
-  public BeamSqlTable buildBeamSqlTable(Table table) {
-    return new DataStoreV1Table(table);
+  public BeamTableStatistics getTableStatistics(PipelineOptions options, SchemaIO schemaIO) {
+    DataStoreV1SchemaIO dataStoreV1SchemaIO = (DataStoreV1SchemaIO) schemaIO;
+    long count =
+        DatastoreIO.v1()
+            .read()
+            .withProjectId(dataStoreV1SchemaIO.getProjectId())
+            .getNumEntities(options, dataStoreV1SchemaIO.getKind(), null);
+
+    if (count < 0) {
+      return BeamTableStatistics.BOUNDED_UNKNOWN;
+    }
+
+    return BeamTableStatistics.createBoundedTableStatistics((double) count);
   }
 }

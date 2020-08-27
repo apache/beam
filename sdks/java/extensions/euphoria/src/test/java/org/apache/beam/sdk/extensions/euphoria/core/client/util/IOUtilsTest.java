@@ -25,8 +25,11 @@ import java.util.Arrays;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.euphoria.core.util.IOUtils;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test behavior of IOUtils. */
+@RunWith(JUnit4.class)
 public class IOUtilsTest {
 
   @Test(expected = IOException.class)

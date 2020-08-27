@@ -48,11 +48,11 @@ public class UnboundedDataset<T> implements Dataset {
     this.streamSources.addAll(streamSources);
   }
 
-  JavaDStream<WindowedValue<T>> getDStream() {
+  public JavaDStream<WindowedValue<T>> getDStream() {
     return dStream;
   }
 
-  List<Integer> getStreamSources() {
+  public List<Integer> getStreamSources() {
     return streamSources;
   }
 

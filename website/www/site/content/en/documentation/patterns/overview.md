@@ -42,7 +42,7 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 * [Analysing the structure and meaning of text](/documentation/patterns/ai-platform/#analysing-the-structure-and-meaning-of-text)
 * [Getting predictions](/documentation/patterns/ai-platform/#getting-predictions)
 
-**Schema patterns** - Patterns for using Schemas 
+**Schema patterns** - Patterns for using Schemas
 * [Using Joins](/documentation/patterns/schema/#using-joins)
 
 ## Contributing a pattern

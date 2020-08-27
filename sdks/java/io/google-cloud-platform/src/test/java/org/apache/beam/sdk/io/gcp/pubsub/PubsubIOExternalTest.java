@@ -31,6 +31,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -131,7 +132,12 @@ public class PubsubIOExternalTest {
                 .withFieldValue("id_label", idAttribute)
                 .build());
 
-    Pipeline p = Pipeline.create();
+    // Requirements are not passed as part of the expansion service so the validation
+    // fails because of how we construct the pipeline to expand the transform since it now
+    // has a transform with a requirement.
+    Pipeline p =
+        Pipeline.create(
+            PipelineOptionsFactory.fromArgs("--experiments=use_deprecated_read").create());
     p.apply("unbounded", Create.of(1, 2, 3)).setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);

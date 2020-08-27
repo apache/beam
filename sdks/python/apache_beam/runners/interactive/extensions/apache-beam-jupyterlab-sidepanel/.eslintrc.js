@@ -15,6 +15,7 @@ module.exports = {
     'eslint:recommended',
     'plugin:@typescript-eslint/eslint-recommended',
     'plugin:@typescript-eslint/recommended',
+    'plugin:react/recommended',
     'plugin:prettier/recommended'
   ],
   parser: '@typescript-eslint/parser',
@@ -39,6 +40,15 @@ module.exports = {
     ],
     curly: ['error', 'all'],
     eqeqeq: 'error',
-    'prefer-arrow-callback': 'error'
+    'prefer-arrow-callback': 'error',
+    'max-len': [
+      'error',
+      {'code': 80, 'ignoreUrls': true, 'tabWidth': 2}
+    ]
+  },
+  settings: {
+    'react': {
+      'version': 'detect'
+    }
   }
 };

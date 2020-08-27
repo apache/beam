@@ -43,7 +43,7 @@ final class KafkaIOUtils {
           ByteArrayDeserializer.class.getName(),
 
           // Use large receive buffer. Once KAFKA-3135 is fixed, this _may_ not be required.
-          // with default value of of 32K, It takes multiple seconds between successful polls.
+          // with default value of 32K, It takes multiple seconds between successful polls.
           // All the consumer work is done inside poll(), with smaller send buffer size, it
           // takes many polls before a 1MB chunk from the server is fully read. In my testing
           // about half of the time select() inside kafka consumer waited for 20-30ms, though

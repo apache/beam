@@ -1,9 +1,9 @@
 ---
 title: "{{ replace .Name "-" " " | title }}"
 date: "{{ .Date }}"
-categories: 
+categories:
   - blog
-authors: 
+authors:
   - "Your Name"
 ---
 <!--

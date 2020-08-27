@@ -182,7 +182,9 @@ def is_cache_complete(pipeline_id):
   cache_changed = is_source_to_cache_changed(
       user_pipeline, update_cached_source_signature=False)
 
-  return is_done and not cache_changed
+  # Stop reading from the cache if the background job is done or the underlying
+  # cache signature changed that requires a new background caching job.
+  return is_done or cache_changed
 
 
 def has_source_to_cache(user_pipeline):

@@ -51,7 +51,7 @@ examples, see latest information [here](/contribute/portability/#status).
 
 ### I/Os
 
-* KinesisIO, fixed dependency issue 
+* KinesisIO, fixed dependency issue
 
 ## List of Contributors
 

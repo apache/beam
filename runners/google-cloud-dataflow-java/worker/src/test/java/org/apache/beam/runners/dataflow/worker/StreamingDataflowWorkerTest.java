@@ -78,6 +78,7 @@ import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
+import org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
@@ -166,6 +167,7 @@ import org.slf4j.LoggerFactory;
 /** Unit tests for {@link StreamingDataflowWorker}. */
 @RunWith(Parameterized.class)
 public class StreamingDataflowWorkerTest {
+
   private final boolean streamingEngine;
 
   @Parameterized.Parameters(name = "{index}: [streamingEngine={0}]")
@@ -213,6 +215,7 @@ public class StreamingDataflowWorkerTest {
   private static final String DEFAULT_SINK_ORIGINAL_NAME = "sinkOriginalName";
   private static final String DEFAULT_SOURCE_COMPUTATION_ID = "upstream";
   private static final String DEFAULT_KEY_STRING = "key";
+  private static final long DEFAULT_SHARDING_KEY = 12345;
   private static final ByteString DEFAULT_KEY_BYTES = ByteString.copyFromUtf8(DEFAULT_KEY_STRING);
   private static final String DEFAULT_DATA_STRING = "data";
   private static final String DEFAULT_DESTINATION_STREAM_ID = "out";
@@ -432,7 +435,7 @@ public class StreamingDataflowWorkerTest {
     // Windmill.GetWorkResponse.Builder builder = Windmill.GetWorkResponse.newBuilder();
     Windmill.WorkItem.Builder builder = Windmill.WorkItem.newBuilder();
     builder.setKey(DEFAULT_KEY_BYTES);
-    builder.setShardingKey(1);
+    builder.setShardingKey(DEFAULT_SHARDING_KEY);
     builder.setCacheToken(1);
     builder.setWorkToken(workToken);
     builder.setOutputDataWatermark(outputWatermark * 1000);
@@ -475,7 +478,10 @@ public class StreamingDataflowWorkerTest {
               builder.addDataBuilder().setComputationId(compRequest.getComputationId());
           for (KeyedGetDataRequest keyRequest : compRequest.getRequestsList()) {
             KeyedGetDataResponse.Builder keyBuilder =
-                compBuilder.addDataBuilder().setKey(keyRequest.getKey());
+                compBuilder
+                    .addDataBuilder()
+                    .setKey(keyRequest.getKey())
+                    .setShardingKey(keyRequest.getShardingKey());
             keyBuilder.addAllValues(keyRequest.getValuesToFetchList());
             keyBuilder.addAllBags(keyRequest.getBagsToFetchList());
             keyBuilder.addAllWatermarkHolds(keyRequest.getWatermarkHoldsToFetchList());
@@ -485,11 +491,11 @@ public class StreamingDataflowWorkerTest {
       };
 
   private Windmill.GetWorkResponse makeInput(int index, long timestamp) throws Exception {
-    return makeInput(index, timestamp, keyStringForIndex(index));
+    return makeInput(index, timestamp, keyStringForIndex(index), DEFAULT_SHARDING_KEY);
   }
 
-  private Windmill.GetWorkResponse makeInput(int index, long timestamp, String key)
-      throws Exception {
+  private Windmill.GetWorkResponse makeInput(
+      int index, long timestamp, String key, long shardingKey) throws Exception {
     return buildInput(
         "work {"
             + "  computation_id: \""
@@ -500,7 +506,8 @@ public class StreamingDataflowWorkerTest {
             + "    key: \""
             + key
             + "\""
-            + "    sharding_key: 17"
+            + "    sharding_key: "
+            + shardingKey
             + "    work_token: "
             + index
             + "    cache_token: 3"
@@ -557,12 +564,14 @@ public class StreamingDataflowWorkerTest {
 
   private WorkItemCommitRequest.Builder makeExpectedOutput(int index, long timestamp)
       throws Exception {
-    return makeExpectedOutput(index, timestamp, keyStringForIndex(index), keyStringForIndex(index));
+    return makeExpectedOutput(
+        index, timestamp, keyStringForIndex(index), DEFAULT_SHARDING_KEY, keyStringForIndex(index));
   }
 
   private WorkItemCommitRequest.Builder makeExpectedOutput(
-      int index, long timestamp, String key, String outKey) throws Exception {
-    StringBuilder expectedCommitRequestBuilder = initializeExpectedCommitRequest(key, index);
+      int index, long timestamp, String key, long shardingKey, String outKey) throws Exception {
+    StringBuilder expectedCommitRequestBuilder =
+        initializeExpectedCommitRequest(key, shardingKey, index);
     appendCommitOutputMessages(expectedCommitRequestBuilder, index, timestamp, outKey);
 
     return setMessagesMetadata(
@@ -572,20 +581,23 @@ public class StreamingDataflowWorkerTest {
   }
 
   private WorkItemCommitRequest.Builder makeExpectedTruncationRequestOutput(
-      int index, String key, long estimatedSize) throws Exception {
-    StringBuilder expectedCommitRequestBuilder = initializeExpectedCommitRequest(key, index);
+      int index, String key, long shardingKey, long estimatedSize) throws Exception {
+    StringBuilder expectedCommitRequestBuilder =
+        initializeExpectedCommitRequest(key, shardingKey, index);
     appendCommitTruncationFields(expectedCommitRequestBuilder, estimatedSize);
 
     return parseCommitRequest(expectedCommitRequestBuilder.toString());
   }
 
-  private StringBuilder initializeExpectedCommitRequest(String key, int index) {
+  private StringBuilder initializeExpectedCommitRequest(String key, long shardingKey, int index) {
     StringBuilder requestBuilder = new StringBuilder();
 
     requestBuilder.append("key: \"");
     requestBuilder.append(key);
     requestBuilder.append("\" ");
-    requestBuilder.append("sharding_key: 17 ");
+    requestBuilder.append("sharding_key: ");
+    requestBuilder.append(shardingKey);
+    requestBuilder.append(" ");
     requestBuilder.append("work_token: ");
     requestBuilder.append(index);
     requestBuilder.append(" ");
@@ -752,6 +764,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   static class BlockingFn extends DoFn<String, String> implements TestRule {
+
     public static CountDownLatch blocker = new CountDownLatch(1);
     public static Semaphore counter = new Semaphore(0);
     public static AtomicInteger callCounter = new AtomicInteger(0);
@@ -794,16 +807,31 @@ public class StreamingDataflowWorkerTest {
     worker.start();
 
     for (int i = 0; i < numIters; ++i) {
-      server.addWorkToOffer(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
+      server.addWorkToOffer(
+          makeInput(
+              i, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i), DEFAULT_SHARDING_KEY));
+      // Also add work for a different shard of the same key.
+      server.addWorkToOffer(
+          makeInput(
+              i + 1000,
+              TimeUnit.MILLISECONDS.toMicros(i),
+              keyStringForIndex(i),
+              DEFAULT_SHARDING_KEY + 1));
     }
 
     // Wait for keys to schedule.  They will be blocked.
-    BlockingFn.counter.acquire(numIters);
+    BlockingFn.counter.acquire(numIters * 2);
 
     // Re-add the work, it should be ignored due to the keys being active.
     for (int i = 0; i < numIters; ++i) {
       // Same work token.
       server.addWorkToOffer(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
+      server.addWorkToOffer(
+          makeInput(
+              i + 1000,
+              TimeUnit.MILLISECONDS.toMicros(i),
+              keyStringForIndex(i),
+              DEFAULT_SHARDING_KEY + 1));
     }
 
     // Give all added calls a chance to run.
@@ -812,7 +840,11 @@ public class StreamingDataflowWorkerTest {
     for (int i = 0; i < numIters; ++i) {
       // Different work token same keys.
       server.addWorkToOffer(
-          makeInput(i + numIters, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i)));
+          makeInput(
+              i + numIters,
+              TimeUnit.MILLISECONDS.toMicros(i),
+              keyStringForIndex(i),
+              DEFAULT_SHARDING_KEY));
     }
 
     // Give all added calls a chance to run.
@@ -822,17 +854,28 @@ public class StreamingDataflowWorkerTest {
     BlockingFn.blocker.countDown();
 
     // Verify the output
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters * 2);
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters * 3);
     for (int i = 0; i < numIters; ++i) {
       assertTrue(result.containsKey((long) i));
       assertEquals(
           makeExpectedOutput(i, TimeUnit.MILLISECONDS.toMicros(i)).build(), result.get((long) i));
+      assertTrue(result.containsKey((long) i + 1000));
+      assertEquals(
+          makeExpectedOutput(
+                  i + 1000,
+                  TimeUnit.MILLISECONDS.toMicros(i),
+                  keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY + 1,
+                  keyStringForIndex(i))
+              .build(),
+          result.get((long) i + 1000));
       assertTrue(result.containsKey((long) i + numIters));
       assertEquals(
           makeExpectedOutput(
                   i + numIters,
                   TimeUnit.MILLISECONDS.toMicros(i),
                   keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY,
                   keyStringForIndex(i))
               .build(),
           result.get((long) i + numIters));
@@ -841,7 +884,11 @@ public class StreamingDataflowWorkerTest {
     // Re-add the work, it should process due to the keys no longer being active.
     for (int i = 0; i < numIters; ++i) {
       server.addWorkToOffer(
-          makeInput(i + numIters * 2, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i)));
+          makeInput(
+              i + numIters * 2,
+              TimeUnit.MILLISECONDS.toMicros(i),
+              keyStringForIndex(i),
+              DEFAULT_SHARDING_KEY));
     }
     result = server.waitForAndGetCommits(numIters);
     worker.stop();
@@ -852,6 +899,7 @@ public class StreamingDataflowWorkerTest {
                   i + numIters * 2,
                   TimeUnit.MILLISECONDS.toMicros(i),
                   keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY,
                   keyStringForIndex(i))
               .build(),
           result.get((long) i + numIters * 2));
@@ -898,6 +946,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   static class KeyTokenInvalidFn extends DoFn<KV<String, String>, KV<String, String>> {
+
     static boolean thrown = false;
 
     @ProcessElement
@@ -926,7 +975,7 @@ public class StreamingDataflowWorkerTest {
             makeSinkInstruction(kvCoder, 1));
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
-    server.addWorkToOffer(makeInput(0, 0, "key"));
+    server.addWorkToOffer(makeInput(0, 0, DEFAULT_KEY_STRING, DEFAULT_SHARDING_KEY));
 
     StreamingDataflowWorker worker =
         makeWorker(instructions, createTestingPipelineOptions(server), true /* publishCounters */);
@@ -934,20 +983,26 @@ public class StreamingDataflowWorkerTest {
 
     server.waitForEmptyWorkQueue();
 
-    server.addWorkToOffer(makeInput(1, 0, "key"));
+    server.addWorkToOffer(makeInput(1, 0, DEFAULT_KEY_STRING, DEFAULT_SHARDING_KEY));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
-    assertEquals(makeExpectedOutput(1, 0, "key", "key").build(), result.get(1L));
+    assertEquals(
+        makeExpectedOutput(1, 0, DEFAULT_KEY_STRING, DEFAULT_SHARDING_KEY, DEFAULT_KEY_STRING)
+            .build(),
+        result.get(1L));
     assertEquals(1, result.size());
   }
 
   static class LargeCommitFn extends DoFn<KV<String, String>, KV<String, String>> {
+
     @ProcessElement
     public void processElement(ProcessContext c) {
       if (c.element().getKey().equals("large_key")) {
         StringBuilder s = new StringBuilder();
-        for (int i = 0; i < 100; ++i) s.append("large_commit");
+        for (int i = 0; i < 100; ++i) {
+          s.append("large_commit");
+        }
         c.output(KV.of(c.element().getKey(), s.toString()));
       } else {
         c.output(c.element());
@@ -973,21 +1028,22 @@ public class StreamingDataflowWorkerTest {
     worker.setMaxWorkItemCommitBytes(1000);
     worker.start();
 
-    server.addWorkToOffer(makeInput(1, 0, "large_key"));
-    server.addWorkToOffer(makeInput(2, 0, "key"));
+    server.addWorkToOffer(makeInput(1, 0, "large_key", DEFAULT_SHARDING_KEY));
+    server.addWorkToOffer(makeInput(2, 0, "key", DEFAULT_SHARDING_KEY));
     server.waitForEmptyWorkQueue();
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
     assertEquals(2, result.size());
-    assertEquals(makeExpectedOutput(2, 0, "key", "key").build(), result.get(2L));
+    assertEquals(
+        makeExpectedOutput(2, 0, "key", DEFAULT_SHARDING_KEY, "key").build(), result.get(2L));
 
     assertTrue(result.containsKey(1L));
     WorkItemCommitRequest largeCommit = result.get(1L);
     assertEquals("large_key", largeCommit.getKey().toStringUtf8());
     assertEquals(
         makeExpectedTruncationRequestOutput(
-                1, "large_key", largeCommit.getEstimatedWorkItemCommitBytes())
+                1, "large_key", DEFAULT_SHARDING_KEY, largeCommit.getEstimatedWorkItemCommitBytes())
             .build(),
         largeCommit);
 
@@ -1020,6 +1076,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   static class ChangeKeysFn extends DoFn<KV<String, String>, KV<String, String>> {
+
     @ProcessElement
     public void processElement(ProcessContext c) {
       KV<String, String> elem = c.element();
@@ -1038,28 +1095,50 @@ public class StreamingDataflowWorkerTest {
             makeSinkInstruction(kvCoder, 1));
 
     FakeWindmillServer server = new FakeWindmillServer(errorCollector);
-    server.addWorkToOffer(makeInput(0, 0));
-    server.addWorkToOffer(makeInput(1, TimeUnit.MILLISECONDS.toMicros(1)));
+    for (int i = 0; i < 2; i++) {
+      server.addWorkToOffer(
+          makeInput(
+              i, TimeUnit.MILLISECONDS.toMicros(i), keyStringForIndex(i), DEFAULT_SHARDING_KEY));
+      server.addWorkToOffer(
+          makeInput(
+              i + 1000,
+              TimeUnit.MILLISECONDS.toMicros(i),
+              keyStringForIndex(i),
+              DEFAULT_SHARDING_KEY + i));
+    }
 
     StreamingDataflowWorker worker =
         makeWorker(instructions, createTestingPipelineOptions(server), true /* publishCounters */);
     worker.start();
 
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(2);
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(4);
 
     for (int i = 0; i < 2; i++) {
+      assertTrue(result.containsKey((long) i));
       assertEquals(
           makeExpectedOutput(
                   i,
                   TimeUnit.MILLISECONDS.toMicros(i),
                   keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY,
                   keyStringForIndex(i) + "_data" + i)
               .build(),
           result.get((long) i));
+      assertTrue(result.containsKey((long) i + 1000));
+      assertEquals(
+          makeExpectedOutput(
+                  i + 1000,
+                  TimeUnit.MILLISECONDS.toMicros(i),
+                  keyStringForIndex(i),
+                  DEFAULT_SHARDING_KEY + i,
+                  keyStringForIndex(i) + "_data" + (i + 1000))
+              .build(),
+          result.get((long) i + 1000));
     }
   }
 
   static class TestExceptionFn extends DoFn<String, String> {
+
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       if (firstTime) {
@@ -1360,7 +1439,8 @@ public class StreamingDataflowWorkerTest {
                 + "    key: \""
                 + DEFAULT_KEY_STRING
                 + "\""
-                + "    sharding_key: 1"
+                + "    sharding_key: "
+                + DEFAULT_SHARDING_KEY
                 + "    cache_token: 1"
                 + "    work_token: 1"
                 + "    message_bundles {"
@@ -1455,7 +1535,7 @@ public class StreamingDataflowWorkerTest {
         .setInputDataWatermark(timerTimestamp + 1000)
         .addWorkBuilder()
         .setKey(ByteString.copyFromUtf8(DEFAULT_KEY_STRING))
-        .setShardingKey(1)
+        .setShardingKey(DEFAULT_SHARDING_KEY)
         .setWorkToken(2)
         .setCacheToken(1)
         .getTimersBuilder()
@@ -1470,7 +1550,8 @@ public class StreamingDataflowWorkerTest {
             .addDataBuilder()
             .setComputationId(DEFAULT_COMPUTATION_ID)
             .addDataBuilder()
-            .setKey(ByteString.copyFromUtf8(DEFAULT_KEY_STRING));
+            .setKey(ByteString.copyFromUtf8(DEFAULT_KEY_STRING))
+            .setShardingKey(DEFAULT_SHARDING_KEY);
     dataBuilder
         .addBagsBuilder()
         .setTag(bufferTag)
@@ -1568,6 +1649,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   static class Action {
+
     public Action(GetWorkResponse response) {
       this.response = response;
     }
@@ -1756,6 +1838,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   static class PrintFn extends DoFn<ValueWithRecordId<KV<Integer, Integer>>, String> {
+
     @ProcessElement
     public void processElement(ProcessContext c) {
       KV<Integer, Integer> elem = c.element().getValue();
@@ -2072,6 +2155,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   private static class MockWork extends StreamingDataflowWorker.Work {
+
     public MockWork(long workToken) {
       super(
           Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(workToken).build());
@@ -2092,8 +2176,8 @@ public class StreamingDataflowWorkerTest {
             ImmutableMap.of(),
             null);
 
-    ByteString key1 = ByteString.copyFromUtf8("key1");
-    ByteString key2 = ByteString.copyFromUtf8("key2");
+    ShardedKey key1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
+    ShardedKey key2 = ShardedKey.create(ByteString.copyFromUtf8("key2"), 2);
 
     MockWork m1 = new MockWork(1);
     assertTrue(computationState.activateWork(key1, m1));
@@ -2131,8 +2215,50 @@ public class StreamingDataflowWorkerTest {
     Mockito.verifyNoMoreInteractions(mockExecutor);
   }
 
+  @Test
+  public void testActiveWorkForShardedKeys() throws Exception {
+    BoundedQueueExecutor mockExecutor = Mockito.mock(BoundedQueueExecutor.class);
+    StreamingDataflowWorker.ComputationState computationState =
+        new StreamingDataflowWorker.ComputationState(
+            "computation",
+            defaultMapTask(Arrays.asList(makeSourceInstruction(StringUtf8Coder.of()))),
+            mockExecutor,
+            ImmutableMap.of(),
+            null);
+
+    ShardedKey key1Shard1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
+    ShardedKey key1Shard2 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 2);
+
+    MockWork m1 = new MockWork(1);
+    assertTrue(computationState.activateWork(key1Shard1, m1));
+    Mockito.verify(mockExecutor).execute(m1);
+    computationState.completeWork(key1Shard1, 1);
+    Mockito.verifyNoMoreInteractions(mockExecutor);
+
+    // Verify work queues.
+    MockWork m2 = new MockWork(2);
+    assertTrue(computationState.activateWork(key1Shard1, m2));
+    Mockito.verify(mockExecutor).execute(m2);
+    MockWork m3 = new MockWork(3);
+    assertTrue(computationState.activateWork(key1Shard1, m3));
+    Mockito.verifyNoMoreInteractions(mockExecutor);
+
+    // Verify a different shard of key is a separate queue.
+    MockWork m4 = new MockWork(3);
+    assertFalse(computationState.activateWork(key1Shard1, m4));
+    Mockito.verifyNoMoreInteractions(mockExecutor);
+    assertTrue(computationState.activateWork(key1Shard2, m4));
+    Mockito.verify(mockExecutor).execute(m4);
+
+    // Verify duplicate work dropped
+    assertFalse(computationState.activateWork(key1Shard2, m4));
+    computationState.completeWork(key1Shard2, 3);
+    Mockito.verifyNoMoreInteractions(mockExecutor);
+  }
+
   static class TestExceptionInvalidatesCacheFn
       extends DoFn<ValueWithRecordId<KV<Integer, Integer>>, String> {
+
     static boolean thrown = false;
 
     @StateId("int")
@@ -2260,6 +2386,7 @@ public class StreamingDataflowWorkerTest {
             .setComputationId(DEFAULT_COMPUTATION_ID)
             .addDataBuilder()
             .setKey(ByteString.copyFromUtf8("0000000000000001"))
+            .setShardingKey(1)
             .addValuesBuilder()
             .setTag(ByteString.copyFromUtf8("//+uint"))
             .setStateFamily(DEFAULT_PARDO_STATE_FAMILY)
@@ -2373,6 +2500,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   private static class FanoutFn extends DoFn<String, String> {
+
     @ProcessElement
     public void processElement(ProcessContext c) {
       StringBuilder builder = new StringBuilder(1000000);
@@ -2406,6 +2534,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   private static class SlowDoFn extends DoFn<String, String> {
+
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       Thread.sleep(1000);
@@ -2443,6 +2572,7 @@ public class StreamingDataflowWorkerTest {
 
   /** For each input element, emits a large string. */
   private static class InflateDoFn extends DoFn<ValueWithRecordId<KV<Integer, Integer>>, String> {
+
     final int inflatedSize;
 
     /** For each input elements, outputs a string of this length */
@@ -2624,16 +2754,21 @@ public class StreamingDataflowWorkerTest {
     server.setDropStreamingCommits(true);
 
     // Add some work for key 1.
-    server.addWorkToOffer(makeInput(10, TimeUnit.MILLISECONDS.toMicros(2), keyStringForIndex(1)));
-    server.waitForDroppedCommits(1);
+    server.addWorkToOffer(makeInput(10, TimeUnit.MILLISECONDS.toMicros(2), DEFAULT_KEY_STRING, 1));
+    server.addWorkToOffer(makeInput(15, TimeUnit.MILLISECONDS.toMicros(3), DEFAULT_KEY_STRING, 5));
+    server.waitForDroppedCommits(2);
     server.setDropStreamingCommits(false);
     // Enqueue another work item for key 1.
-    server.addWorkToOffer(makeInput(1, TimeUnit.MILLISECONDS.toMicros(1)));
-    // Ensure that the second work item processes.
+    server.addWorkToOffer(makeInput(1, TimeUnit.MILLISECONDS.toMicros(1), DEFAULT_KEY_STRING, 1));
+    // Ensure that the this work item processes.
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
     worker.stop();
 
     assertTrue(result.containsKey(1L));
-    assertEquals(makeExpectedOutput(1, TimeUnit.MILLISECONDS.toMicros(1)).build(), result.get(1L));
+    assertEquals(
+        makeExpectedOutput(
+                1, TimeUnit.MILLISECONDS.toMicros(1), DEFAULT_KEY_STRING, 1, DEFAULT_KEY_STRING)
+            .build(),
+        result.get(1L));
   }
 }

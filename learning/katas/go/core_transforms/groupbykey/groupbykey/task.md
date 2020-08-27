@@ -25,7 +25,7 @@ input to GroupByKey is a collection of key/value pairs that represents a multima
 collection contains multiple pairs that have the same key, but different values. Given such a
 collection, you use GroupByKey to collect all of the values associated with each unique key.
 
-**Kata:** Implement a 
+**Kata:** Implement a
 <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#GroupByKey">
 beam.GroupByKey</a> transform that groups words by its first letter.
 
@@ -41,14 +41,14 @@ beam.GroupByKey</a> transform that groups words by its first letter.
 </div>
 
 <div class="hint">
-  To return as a KV, you can return two values from your DoFn. The first return value represents the Key, and 
+  To return as a KV, you can return two values from your DoFn. The first return value represents the Key, and
   the second return value represents the Value.  An example is shown below.
-  
+
 ```
 func doFn(element string) (string, string) {
     key := string(element[0])
     value := element
     return key, value
 }
-``` 
+```
 </div>

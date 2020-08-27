@@ -31,8 +31,8 @@ collection. The many elements are flattened into the resulting collection.
 ## Examples
 See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
 
-## Related transforms 
-* [Filter](/documentation/transforms/java/elementwise/filter) is useful if the function is just 
+## Related transforms
+* [Filter](/documentation/transforms/java/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
 * [ParDo](/documentation/transforms/java/elementwise/pardo) is the most general element-wise mapping
-  operation, and includes other abilities such as multiple output collections and side-inputs. 
+  operation, and includes other abilities such as multiple output collections and side-inputs.

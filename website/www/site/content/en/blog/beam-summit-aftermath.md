@@ -29,7 +29,7 @@ Almost 1 month ago, we had the pleasure to welcome the Beam community at Level39
 
 ## First edition!
 
-This first edition of the summit was a free event, with over 125 RSVPs. We had two days of content; day one was focused on the roadmap of the project, the ASF and use cases from companies that use Beam. The second day was divided into tracks (a beginner and an advanced track). Those presentations & workshops were organised for the more than **80 attendees** - and next to that there were several other activities like discussions, a brainstorm session, a UX booth and a signing session. We were able to offer the attendees **17 sessions** from a great line-up of companies: 
+This first edition of the summit was a free event, with over 125 RSVPs. We had two days of content; day one was focused on the roadmap of the project, the ASF and use cases from companies that use Beam. The second day was divided into tracks (a beginner and an advanced track). Those presentations & workshops were organised for the more than **80 attendees** - and next to that there were several other activities like discussions, a brainstorm session, a UX booth and a signing session. We were able to offer the attendees **17 sessions** from a great line-up of companies:
 Google, Spotify, Talend, Sky, Amazon, Data Artisans, Datatonic, Vente Exclusive, ML6, Flumaion, Plantix, Polidea, Seznam and more!
 
 

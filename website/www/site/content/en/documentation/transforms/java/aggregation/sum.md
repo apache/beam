@@ -44,6 +44,6 @@ PCollection<KV<String, Integer>> sumPerKey = input
      .apply(Sum.integersPerKey());
 {{< /highlight >}}
 
-## Related transforms 
+## Related transforms
 * [Count](/documentation/transforms/java/aggregation/count)
   counts the number of elements within each aggregation
