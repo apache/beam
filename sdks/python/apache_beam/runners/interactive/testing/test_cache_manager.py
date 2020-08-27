@@ -18,6 +18,7 @@ from __future__ import absolute_import
 
 import collections
 import itertools
+import sys
 
 import apache_beam as beam
 from apache_beam import coders
@@ -49,19 +50,7 @@ class InMemoryCache(CacheManager):
     if not self.exists(*labels):
       return itertools.chain([]), -1
 
-    limiters = args.pop('limiters', [])
-
-    def limit_reader(r):
-      for e in r:
-        for l in limiters:
-          l.update(e)
-
-        if any(l.is_triggered() for l in limiters):
-          break
-
-        yield e
-
-    return limit_reader(itertools.chain(self._cached[self._key(*labels)])), None
+    return itertools.chain(self._cached[self._key(*labels)]), None
 
   def write(self, value, *labels):
     if not self.exists(*labels):
@@ -84,6 +73,11 @@ class InMemoryCache(CacheManager):
 
   def sink(self, labels, is_capture=False):
     return beam.Map(lambda _: _)
+
+  def size(self, *labels):
+    if self.exists(*labels):
+      return sys.getsizeof(self._cached[self._key(*labels)])
+    return 0
 
   def _key(self, *labels):
     return '/'.join([l for l in labels])
