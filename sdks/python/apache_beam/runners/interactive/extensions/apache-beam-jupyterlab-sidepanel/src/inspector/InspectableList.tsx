@@ -53,25 +53,10 @@ export class InspectableList extends React.Component<
 > {
   constructor(props: IInspectableListProps) {
     super(props);
+    this._onClickHeader = this._onClickHeader.bind(this);
   }
 
   render(): React.ReactNode {
-    const pcollListItems = Object.entries(this.props.pcolls).map(
-      ([key, value]) => {
-        const propsWithKey = {
-          inspectableViewModel: this.props.inspectableViewModel,
-          id: key,
-          metadata: value
-        };
-        return <InspectableListItem key={key} {...propsWithKey} />;
-      }
-    );
-    const onClick = (): void => {
-      this.props.inspectableViewModel.queryKernel(
-        this.props.metadata.type,
-        this.props.id
-      );
-    };
     return (
       <React.Fragment>
         <CollapsibleList
@@ -87,13 +72,33 @@ export class InspectableList extends React.Component<
               metaIcon="chevron_right"
             />
           }
-          onOpen={onClick}
-          onClose={onClick}
+          onOpen={this._onClickHeader}
+          onClose={this._onClickHeader}
         >
-          {pcollListItems}
+          {this._buildListItems()}
         </CollapsibleList>
         <ListDivider />
       </React.Fragment>
+    );
+  }
+
+  private _onClickHeader(): void {
+    this.props.inspectableViewModel.queryKernel(
+      this.props.metadata.type,
+      this.props.id
+    );
+  }
+
+  private _buildListItems(): React.ReactNode {
+    return Object.entries(this.props.pcolls).map(
+      ([key, value]) => {
+        const propsWithKey = {
+          inspectableViewModel: this.props.inspectableViewModel,
+          id: key,
+          metadata: value
+        };
+        return <InspectableListItem key={key} {...propsWithKey} />;
+      }
     );
   }
 }

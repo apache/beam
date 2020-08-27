@@ -76,41 +76,33 @@ export class InspectableView extends React.Component<
   }
 
   renderOptions(): React.ReactNode {
-    if (this.props.model.inspectableType === 'pcollection') {
-      const showOptions = this._buildShowOptions(this.state.options);
-      return (
-        <React.Fragment>
-          <Checkbox
-            label="window info"
-            checked={showOptions.includeWindowInfo}
-            onChange={(e): void => {
-              showOptions.includeWindowInfo = !!e.currentTarget.checked;
-              this.setState({ options: showOptions });
-              // Back store the new state to the model.
-              this.props.model.options = showOptions;
-            }}
-          />
-          <Checkbox
-            label="facets"
-            checked={showOptions.visualizeInFacets}
-            onChange={(e): void => {
-              showOptions.visualizeInFacets = !!e.currentTarget.checked;
-              this.setState({ options: showOptions });
-              this.props.model.options = showOptions;
-            }}
-          />
-        </React.Fragment>
-      );
+    if (this.props.model.inspectableType !== 'pcollection') {
+      return <span />;
     }
-    return <span />;
-  }
-
-  _buildShowOptions(options: IOptions): IShowOptions {
-    const optionsInput = options as IShowOptions;
-    return {
-      includeWindowInfo: !!optionsInput?.includeWindowInfo,
-      visualizeInFacets: !!optionsInput?.visualizeInFacets
-    } as IShowOptions;
+    const showOptions = this._buildShowOptions(this.state.options);
+    return (
+      <React.Fragment>
+        <Checkbox
+          label="window info"
+          checked={showOptions.includeWindowInfo}
+          onChange={(e): void => {
+            showOptions.includeWindowInfo = !!e.currentTarget.checked;
+            this.setState({ options: showOptions });
+            // Back store the new state to the model.
+            this.props.model.options = showOptions;
+          }}
+        />
+        <Checkbox
+          label="facets"
+          checked={showOptions.visualizeInFacets}
+          onChange={(e): void => {
+            showOptions.visualizeInFacets = !!e.currentTarget.checked;
+            this.setState({ options: showOptions });
+            this.props.model.options = showOptions;
+          }}
+        />
+      </React.Fragment>
+    );
   }
 
   render(): React.ReactNode {
@@ -122,6 +114,14 @@ export class InspectableView extends React.Component<
         <HtmlView htmlProvider={htmlProvider} />
       </div>
     );
+  }
+
+  private _buildShowOptions(options: IOptions): IShowOptions {
+    const optionsInput = options as IShowOptions;
+    return {
+      includeWindowInfo: !!optionsInput?.includeWindowInfo,
+      visualizeInFacets: !!optionsInput?.visualizeInFacets
+    } as IShowOptions;
   }
 
   private _updateRenderTimerId: number;
