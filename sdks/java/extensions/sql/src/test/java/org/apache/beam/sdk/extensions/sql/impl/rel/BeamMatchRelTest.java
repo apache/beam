@@ -130,8 +130,7 @@ public class BeamMatchRelTest {
         "TestTable",
         TestBoundedTable.of(schemaType)
             .addRows(
-                1, "a", 1, 1, "a", 2, 1, "b", 3, 1, "c", 4
-                , 1, "b", 8, 1, "a", 7, 1, "c", 9, 2, "a",
+                1, "a", 1, 1, "a", 2, 1, "b", 3, 1, "c", 4, 1, "b", 8, 1, "a", 7, 1, "c", 9, 2, "a",
                 6, 2, "b", 10, 2, "c", 11, 5, "a", 0));
 
     String sql =
@@ -149,8 +148,8 @@ public class BeamMatchRelTest {
             + "A AS name = 'a', "
             + "B AS name = 'b', "
             + "C AS name = 'c' "
-            + ") AS T " +
-        "WHERE T.id > 0";
+            + ") AS T "
+            + "WHERE T.id > 0";
 
     PCollection<Row> result = compilePipeline(sql, pipeline);
 
@@ -170,21 +169,10 @@ public class BeamMatchRelTest {
   @Test
   public void matchPrevFunctionTest() {
     // finds the minimum prices in the table
-    Schema schemaType =
-        Schema.builder()
-            .addInt32Field("transTime")
-            .addInt32Field("price")
-            .build();
+    Schema schemaType = Schema.builder().addInt32Field("transTime").addInt32Field("price").build();
 
     registerTable(
-        "TestTable",
-        TestBoundedTable.of(schemaType)
-            .addRows(3, 1,
-                1, 3,
-                2, 2,
-                4, 5,
-                5, 6
-                ));
+        "TestTable", TestBoundedTable.of(schemaType).addRows(3, 1, 1, 3, 2, 2, 4, 5, 5, 6));
 
     String sql =
         "SELECT * "
@@ -205,8 +193,8 @@ public class BeamMatchRelTest {
     PAssert.that(result)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                Schema.FieldType.INT32, "beforePrice",
-                Schema.FieldType.INT32, "afterPrice")
+                    Schema.FieldType.INT32, "beforePrice",
+                    Schema.FieldType.INT32, "afterPrice")
                 .addRows(1, 5)
                 .getRows());
 

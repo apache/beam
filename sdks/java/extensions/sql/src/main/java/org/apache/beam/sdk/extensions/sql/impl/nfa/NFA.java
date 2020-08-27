@@ -1,5 +1,29 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.sql.impl.nfa;
 
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPCall;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPFieldRef;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPKind;
@@ -10,28 +34,26 @@ import org.apache.beam.sdk.extensions.sql.impl.cep.CEPPattern;
 import org.apache.beam.sdk.extensions.sql.impl.cep.Quantifier;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 // TODO: add support for more quantifiers: `?`, `{19, }` ... for now, support `+` and singletons
 // TODO: sort conditions based on "the last identifier" during compilation
 // TODO: add optimization for the NFA
 // for now, assume the conditions are sorted.
-// This implementation is single-threaded, the multi-threaded (parallel) version is left as a future work
+
+/**
+ * {@code NFA} is an implementation of non-deterministic finite automata. It is used for the
+ * non-deterministic pattern match in the MATCH_RECOGNIZE component.
+ *
+ * <p>The implementation is strongly based on the UMASS paper on NFA with shared buffer:
+ *
+ * @see <a
+ *     href="https://dl.acm.org/doi/10.1145/1376616.1376634">https://dl.acm.org/doi/10.1145/1376616.1376634</a>
+ */
 public class NFA implements Serializable {
 
   private final State startState;
   private ArrayList<StateLocator> currentRuns;
   private final Schema upstreamSchema;
-  private static final Logger LOG = LoggerFactory.getLogger(NFA.class);
 
   private NFA(List<CEPPattern> patterns, Schema upstreamSchema) {
     this.startState = loadStates(patterns);
@@ -43,105 +65,21 @@ public class NFA implements Serializable {
     return new NFA(patterns, outSchema);
   }
 
-  // represents the PREV operation
-  private CEPLiteral prev(CEPOperation opr1,
-                          CEPLiteral opr2,
-                          EventPointer curPointer,
-                          Event curEvent,
-                          Event inputEvent) {
-    if(opr1.getClass() != CEPFieldRef.class) {
-      throw new IllegalStateException("the first argument of the PREV operation should be a field reference. Provided: "
-      + opr1.getClass().toString());
-    }
-    if(opr2.getTypeName() != Schema.TypeName.DECIMAL) {
-      throw new IllegalStateException("the second argument of the prev operation should be a decimal. Provided: "
-          + opr2.getClass().toString());
-    }
-    // if the second argument is 0, return the current event
-    if(opr2.getDecimal().intValue() == 0) {
-      return inputEvent.toCEPLiteral((CEPFieldRef) opr1);
-    }
-    // for the starting event, return null
-    if(curEvent == null) {
-      return null;
-    }
-    CEPFieldRef fieldRef = (CEPFieldRef) opr1;
-    String alpha = fieldRef.getAlpha(); // the patternVar
-    int lastNumber = opr2.getDecimal().intValue();
-    EventPointer iterPointer = curPointer.copy();
-    LOG.info("PREV: " + curEvent.getRow().toString());
-
-    while(curEvent != null &&
-        iterPointer.getPatternVar().equals(alpha) &&
-        lastNumber > 0) {
-      LOG.info(curEvent.getRow().toString());
-      iterPointer = curEvent.getPrevPointer(iterPointer);
-      curEvent = curEvent.findEvent(iterPointer);
-    }
-    if(curEvent != null) {
-      return curEvent.toCEPLiteral(fieldRef);
-    } else {
-      return null;
-    }
-  }
-
-  // represents the LAST operation
-  // TODO: add implementation. for now, return the current row
-  private CEPLiteral last(CEPOperation opr1, CEPLiteral opr2, Event inputEvent) {
-    if(opr1.getClass() != CEPFieldRef.class) {
-      throw new IllegalStateException("the first argument of the PREV operation should be a field reference. Provided: "
-          + opr1.getClass().toString());
-    }
-    if(opr2.getTypeName() != Schema.TypeName.DECIMAL) {
-      throw new IllegalStateException("the second argument of the prev operation should be a decimal. Provided: "
-          + opr2.getClass().toString());
-    }
-    return inputEvent.toCEPLiteral((CEPFieldRef) opr1);
-  }
-
-  // represents the PLUS operation
-  private CEPLiteral plus(CEPLiteral opr1, CEPLiteral opr2) {
-    Schema.TypeName type1 = opr1.getTypeName();
-    Schema.TypeName type2 = opr2.getTypeName();
-    if(type1.isNumericType() && type1 == type2) {
-      switch(type1) {
-        case BYTE:
-          return CEPLiteral.of(opr1.getByte() + opr2.getByte());
-        case INT16:
-          return CEPLiteral.of(opr1.getInt16() + opr2.getInt16());
-        case INT32:
-          return CEPLiteral.of(opr1.getInt32() + opr2.getInt32());
-        case INT64:
-          return CEPLiteral.of(opr1.getInt64() + opr2.getInt64());
-        case DECIMAL:
-          return CEPLiteral.of(opr1.getDecimal().add(opr2.getDecimal()));
-        case FLOAT:
-          return CEPLiteral.of(opr1.getFloat() + opr2.getFloat());
-        case DOUBLE:
-          return CEPLiteral.of(opr1.getDouble() + opr2.getDouble());
-        default:
-          throw new UnsupportedOperationException("Type is not supported: " + type1.toString());
-      }
-    } else {
-      throw new IllegalStateException("Types do not match: " + type1.toString() + ", " + type2.toString());
-    }
-  }
-
   // process a new row,
   // return a mapping of pattern variable to row to output in the DoFn if there is a match
   // return null if none of locators reached the final state
   public Map<String, ArrayList<Row>> processNewRow(Row inputRow) {
     // wrap the input row as an event
-    Event inputEvent = new Event(inputRow);
+    Event inputEvent = new Event(inputRow, upstreamSchema);
     ArrayList<StateLocator> nextStateLocators = new ArrayList<>();
     // add a start state locator to the array
     EventPointer nullPtr = new EventPointer(new ArrayList<>(), "");
-    currentRuns.add(new StateLocator(nullPtr, startState, 0, null));
+    currentRuns.add(new StateLocator(nullPtr, startState, startState, 0, null));
     // scan for kleene plus locator, if exits, add the next next state
     ArrayList<StateLocator> kleenePlusLocators = new ArrayList<>();
-    for(StateLocator locator : currentRuns) {
-      if(locator.isKleenePlusSecondary()) {
-        if(locator.getCurState().getNextState().isFinal) {
+    for (StateLocator locator : currentRuns) {
+      if (locator.isKleenePlusSecondary()) {
+        if (locator.getCurState().getNextState().isFinal) {
           return processOutput(locator);
         }
         StateLocator proceedLocator = locator.proceedIgnore();
@@ -151,25 +89,23 @@ public class NFA implements Serializable {
     currentRuns.addAll(kleenePlusLocators);
 
     // decide next possible states
-    LOG.info("Incoming row..." + inputRow.toString());
-    for(StateLocator currentLocator : currentRuns) {
-      LOG.info(currentLocator.getPointer().toString());
+    for (StateLocator currentLocator : currentRuns) {
       boolean split = false;
       StateLocator proceedLocator = currentLocator.proceed(inputEvent);
-      if(proceedLocator != null) {
+      if (proceedLocator != null) {
         // TODO: add support for after match strategy
         // if the locator is at the final state
         // clear current runs
         // then return the output
-        if(proceedLocator.atFinal()) {
+        if (proceedLocator.atFinal()) {
           // reset after a match
           currentRuns.clear();
           State iterState = startState;
-          while(!iterState.isFinal) {
+          while (!iterState.isFinal) {
             iterState.reset();
             iterState = iterState.getNextState();
           }
-          currentRuns.add(new StateLocator(nullPtr, startState, 0, null));
+          currentRuns.add(new StateLocator(nullPtr, startState, startState, 0, null));
 
           return processOutput(proceedLocator);
         } else {
@@ -179,7 +115,7 @@ public class NFA implements Serializable {
         split = true;
       }
       StateLocator takeLocator = currentLocator.take(inputEvent, split);
-      if(takeLocator != null) {
+      if (takeLocator != null) {
         nextStateLocators.add(takeLocator);
       }
     }
@@ -192,11 +128,10 @@ public class NFA implements Serializable {
     HashMap<String, ArrayList<Row>> rows = new HashMap<>();
     EventPointer iterPointer = locator.getPointer().copy();
     Event curEvent = locator.getCurrentEvent();
-    LOG.info("finds a match at " + curEvent.getRow().toString());
 
-    while(curEvent != null) {
+    while (curEvent != null) {
       String patternVar = iterPointer.getPatternVar();
-      if(rows.containsKey(patternVar)) {
+      if (rows.containsKey(patternVar)) {
         ArrayList<Row> patternArray = rows.get(patternVar);
         patternArray.add(curEvent.getRow());
       } else {
@@ -205,30 +140,36 @@ public class NFA implements Serializable {
         rows.put(patternVar, newPatternArray);
       }
       curEvent = curEvent.findEvent(iterPointer);
-      if(curEvent != null) {
-        LOG.info(curEvent.getRow().toString());
+      if (curEvent != null) {
         iterPointer = curEvent.getPrevPointer(iterPointer);
       }
     }
 
     // restore the order
-    for(ArrayList<Row> i : rows.values()) {
+    for (ArrayList<Row> i : rows.values()) {
       Collections.reverse(i);
     }
 
     return rows;
   }
 
-  private class Event implements Serializable {
-    private HashMap<EventPointer, Event> prevEvents = new HashMap<>(); // a mapping from the runIndex to the previous events
+  private static class Event implements Serializable {
+    private HashMap<EventPointer, Event> prevEvents =
+        new HashMap<>(); // a mapping from the runIndex to the previous events
     private Row row;
+    private Schema upstreamSchema;
+
+    Event(Row inputRow, Schema upstreamSchema) {
+      this.row = inputRow;
+      this.upstreamSchema = upstreamSchema;
+    }
 
     // store an input row as a literal
     public CEPLiteral toCEPLiteral(CEPFieldRef fieldRef) {
       int fieldIndex = fieldRef.getIndex();
       Schema.Field field = upstreamSchema.getField(fieldIndex);
       Schema.FieldType type = field.getType();
-      switch(type.getTypeName()) {
+      switch (type.getTypeName()) {
         case BYTE:
           return CEPLiteral.of(row.getByte(fieldIndex));
         case INT16:
@@ -250,22 +191,18 @@ public class NFA implements Serializable {
         case STRING:
           return CEPLiteral.of(row.getString(fieldIndex));
         default:
-          throw new UnsupportedOperationException("The type is not supported: " + type.getTypeName().toString());
+          throw new UnsupportedOperationException(
+              "The type is not supported: " + type.getTypeName().toString());
       }
     }
 
     private Event findEvent(EventPointer eventPointer) {
-      for(EventPointer i : prevEvents.keySet()) {
-        if(i.isEqual(eventPointer)) {
-          return prevEvents.get(i);
-        }
-      }
-      return null;
+      return prevEvents.getOrDefault(eventPointer, null);
     }
 
     private EventPointer findEventPointer(EventPointer pointer) {
       for (EventPointer i : prevEvents.keySet()) {
-        if (i.isEqual(pointer)) {
+        if (i.equals(pointer)) {
           return i.copy();
         }
       }
@@ -273,17 +210,17 @@ public class NFA implements Serializable {
     }
 
     public EventPointer getPrevPointer(EventPointer curPointer) {
-      if(curPointer.isNull()) {
+      if (curPointer.isNull()) {
         return null;
       }
-      if(curPointer.isProceedPointer()) {
-        while(findEvent(curPointer) == null && curPointer.canTrim()) {
+      if (curPointer.isProceedPointer()) {
+        while (findEvent(curPointer) == null && curPointer.canTrim()) {
           curPointer.trim();
         }
         return findEventPointer(curPointer);
       } else {
-        while(findEvent(curPointer) == null) {
-          if(curPointer.canDecrement()) {
+        while (findEvent(curPointer) == null) {
+          if (curPointer.canDecrement()) {
             curPointer.decrement();
           } else {
             return null;
@@ -291,10 +228,6 @@ public class NFA implements Serializable {
         }
         return curPointer;
       }
-    }
-
-    Event(Row inputRow) {
-      this.row = inputRow;
     }
 
     public Row getRow() {
@@ -324,7 +257,7 @@ public class NFA implements Serializable {
     // for following a proceed edge
     // trim the last digit
     public void trim() {
-      if(isProceedPointer()) {
+      if (isProceedPointer()) {
         ptrValues = ptrValues.subList(0, ptrValues.size() - 1);
       } else {
         throw new IllegalStateException("the null event pointer cannot be trimmed.");
@@ -332,7 +265,7 @@ public class NFA implements Serializable {
     }
 
     public boolean canDecrement() {
-      if(isNull()) {
+      if (isNull()) {
         return false;
       }
       int lastValue = ptrValues.get(ptrValues.size() - 1);
@@ -342,10 +275,10 @@ public class NFA implements Serializable {
     // for following the take edge
     // decrement the last digit
     public void decrement() {
-      if(!canDecrement()) {
+      if (!canDecrement()) {
         throw new IllegalStateException("the event pointer cannot be decremented.");
       }
-      if(!isProceedPointer()) {
+      if (!isProceedPointer()) {
         ArrayList<Integer> newPtrValue =
             new ArrayList<>(ptrValues.subList(0, ptrValues.size() - 1));
         int lastValue = ptrValues.get(ptrValues.size() - 1) - 1;
@@ -356,8 +289,9 @@ public class NFA implements Serializable {
       }
     }
 
-    public boolean isEqual(Object other) {
-      if(!(other instanceof EventPointer)) {
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof EventPointer)) {
         return false;
       }
       EventPointer otherPointer = (EventPointer) other;
@@ -367,15 +301,20 @@ public class NFA implements Serializable {
     public boolean isProceedPointer() {
       // if the last digit of the pointer is 0,
       // then it is a proceed pointer
-      if(ptrValues.isEmpty()) {
+      if (ptrValues.isEmpty()) {
         return false;
       }
       int lastPtrValue = ptrValues.get(ptrValues.size() - 1);
-      if(lastPtrValue == 0) {
+      if (lastPtrValue == 0) {
         return true;
       } else {
         return false;
       }
+    }
+
+    @Override
+    public int hashCode() {
+      return ptrValues.hashCode();
     }
 
     public boolean isNull() {
@@ -407,7 +346,7 @@ public class NFA implements Serializable {
     @Override
     public String toString() {
       ArrayList<String> ptrValuesCopy = new ArrayList<>();
-      for(Integer i : ptrValues) {
+      for (Integer i : ptrValues) {
         ptrValuesCopy.add(i.toString());
       }
       return String.join(".", ptrValuesCopy);
@@ -415,14 +354,17 @@ public class NFA implements Serializable {
   }
 
   // StateLocator should be thought as immutable
-  private class StateLocator implements Serializable {
+  private static class StateLocator implements Serializable {
     private EventPointer ptr;
+    private State startState;
     private State curState;
     private int takeCount = 0; // counts the number of events taken
     private Event curEvent = null;
 
-    StateLocator(EventPointer ptr, State curState, int takeCount, Event curEvent) {
+    StateLocator(
+        EventPointer ptr, State startState, State curState, int takeCount, Event curEvent) {
       this.ptr = ptr;
+      this.startState = startState;
       this.curState = curState;
       this.takeCount = takeCount;
       this.curEvent = curEvent;
@@ -451,9 +393,9 @@ public class NFA implements Serializable {
 
     // a proceed action for secondary kleenePlus state
     public StateLocator proceedIgnore() {
-      if(isKleenePlusSecondary()) {
+      if (isKleenePlusSecondary()) {
         EventPointer newPtr = ptr.getNewProceedPointer(0, curState.getPatternVar());
-        return new StateLocator(newPtr, curState.getNextState(), 0, curEvent);
+        return new StateLocator(newPtr, startState, curState.getNextState(), 0, curEvent);
       } else {
         return null;
       }
@@ -464,27 +406,26 @@ public class NFA implements Serializable {
     // returns a "new" state locator
     // returns null if not a match
     public StateLocator proceed(Event inputEvent) {
-      LOG.info("proceeding " + inputEvent.getRow().toString());
-      if(curState.hasProceed()) {
+      if (curState.hasProceed()) {
         // try to proceed
         CEPCall condition = (CEPCall) curState.getProceedCondition();
         String patternVar = curState.getPatternVar();
-        if(evalCondition(inputEvent, condition)) {
+        if (evalCondition(inputEvent, condition)) {
           // special case: for an event that starts a match,
           // assign a new index as the pointer value
-          LOG.info(inputEvent.getRow().toString() +  " passed proceed test at " + curState.getPatternVar());
-          if(curState == startState && curEvent == null) {
+          if (curState == startState && curEvent == null) {
             int ptrValue = curState.assignIndex();
             ArrayList<Integer> ptrArray = new ArrayList<>();
             ptrArray.add(ptrValue);
             EventPointer eventPointer = new EventPointer(ptrArray, patternVar);
             inputEvent.addPrevEvent(eventPointer, null);
-            return new StateLocator(eventPointer, curState.getNextState(), 0, inputEvent);
+            return new StateLocator(
+                eventPointer, startState, curState.getNextState(), 0, inputEvent);
           }
           // for the other cases, add a zero in the event pointer
           EventPointer newPtr = ptr.getNewProceedPointer(0, patternVar);
           inputEvent.addPrevEvent(newPtr, curEvent);
-          return new StateLocator(newPtr, curState.getNextState(), 0, inputEvent);
+          return new StateLocator(newPtr, startState, curState.getNextState(), 0, inputEvent);
         } else {
           return null;
         }
@@ -497,18 +438,18 @@ public class NFA implements Serializable {
     // write the new event in the current state's buffer.
     // returns null if not a match
     public StateLocator take(Event inputEvent, boolean split) {
-      if(curState.hasTake()) {
-        if(evalCondition(inputEvent, curState.getTakeCondition())) {
+      if (curState.hasTake()) {
+        if (evalCondition(inputEvent, curState.getTakeCondition())) {
           if (split) {
             // get another unique pointer value
             int ptrValue = curState.assignIndex();
             EventPointer newPtr = ptr.getNewTakePointer(ptrValue);
             inputEvent.addPrevEvent(newPtr, curEvent);
-            return new StateLocator(newPtr, curState, takeCount + 1, inputEvent);
+            return new StateLocator(newPtr, startState, curState, takeCount + 1, inputEvent);
           } else {
             EventPointer newPtr = ptr.copy();
             inputEvent.addPrevEvent(newPtr, curEvent);
-            return new StateLocator(newPtr, curState, takeCount + 1, inputEvent);
+            return new StateLocator(newPtr, startState, curState, takeCount + 1, inputEvent);
           }
         } else {
           return null;
@@ -521,22 +462,23 @@ public class NFA implements Serializable {
     // evaluates the condition
     // returns true if the new event satisfies the condition at a givens state
     private boolean evalCondition(Event inputEvent, CEPOperation operation) {
-      if(operation == null) {
+      if (operation == null) {
         return true;
       }
       CEPCall condition = (CEPCall) operation;
       CEPKind comparator = condition.getOperator().getCepKind();
-      CEPOperation leftSide = condition.getOperands().get(0); // left side must contain field reference
+      CEPOperation leftSide =
+          condition.getOperands().get(0); // left side must contain field reference
       CEPOperation rightSide = condition.getOperands().get(1);
       CEPLiteral leftSideValue = evalLeftSideCondition(leftSide, inputEvent);
       CEPLiteral rightSideValue = evalRightSideCondition(rightSide, inputEvent);
-      if(leftSideValue == null) {
+      if (leftSideValue == null) {
         return false;
       }
-      if(rightSideValue == null) {
+      if (rightSideValue == null) {
         return true;
       }
-      switch(comparator) {
+      switch (comparator) {
         case EQUALS:
           return leftSideValue.compareTo(rightSideValue) == 0;
         case NOT_EQUALS:
@@ -550,77 +492,173 @@ public class NFA implements Serializable {
         case LESS_THAN_OR_EQUAL:
           return leftSideValue.compareTo(rightSideValue) <= 0;
         default:
-          throw new IllegalStateException("the comparator is not supported: " + comparator.toString());
+          throw new IllegalStateException(
+              "the comparator is not supported: " + comparator.toString());
       }
     }
 
     // evaluates the condition value (left) given an input event
     private CEPLiteral evalLeftSideCondition(CEPOperation inputOperation, Event inputEvent) {
-      if(inputOperation instanceof CEPLiteral) {
+      if (inputOperation instanceof CEPLiteral) {
         return (CEPLiteral) inputOperation;
-      } else if(inputOperation.getClass() == CEPFieldRef.class) {
+      } else if (inputOperation.getClass() == CEPFieldRef.class) {
         return inputEvent.toCEPLiteral((CEPFieldRef) inputOperation);
-      } else if(inputOperation.getClass() == CEPCall.class) {
+      } else if (inputOperation.getClass() == CEPCall.class) {
         CEPCall call = (CEPCall) inputOperation;
         CEPOperator operator = call.getOperator();
         List<CEPOperation> operands = call.getOperands();
-        switch(operator.getCepKind()) {
+        switch (operator.getCepKind()) {
           case LAST:
-            return last(operands.get(0),
-                evalLeftSideCondition(operands.get(1), inputEvent),
-                inputEvent);
+            return last(
+                operands.get(0), evalLeftSideCondition(operands.get(1), inputEvent), inputEvent);
           case PLUS:
-            return plus(evalLeftSideCondition(operands.get(0), inputEvent),
+            return plus(
+                evalLeftSideCondition(operands.get(0), inputEvent),
                 evalLeftSideCondition(operands.get(1), inputEvent));
           default:
-            throw new UnsupportedOperationException("the function is not supported for now: " +
-                operator.getCepKind().toString());
+            throw new UnsupportedOperationException(
+                "the function is not supported for now: " + operator.getCepKind().toString());
         }
       } else {
-        throw new IllegalStateException("the left side CEP operation is not legal: " +
-            inputOperation.getClass().toString());
+        throw new IllegalStateException(
+            "the left side CEP operation is not legal: " + inputOperation.getClass().toString());
       }
     }
 
     // evaluates the condition value (right) given an input event
     private CEPLiteral evalRightSideCondition(CEPOperation inputOperation, Event inputEvent) {
-      if(inputOperation instanceof CEPLiteral) {
+      if (inputOperation instanceof CEPLiteral) {
         return (CEPLiteral) inputOperation;
-      } else if(inputOperation.getClass() == CEPCall.class) {
+      } else if (inputOperation.getClass() == CEPCall.class) {
         CEPCall call = (CEPCall) inputOperation;
         CEPOperator operator = call.getOperator();
         List<CEPOperation> operands = call.getOperands();
-        switch(operator.getCepKind()) {
+        switch (operator.getCepKind()) {
           case PLUS:
-            return plus(evalRightSideCondition(operands.get(0), inputEvent),
+            return plus(
+                evalRightSideCondition(operands.get(0), inputEvent),
                 evalRightSideCondition(operands.get(1), inputEvent));
           case PREV:
             return prev(operands.get(0), (CEPLiteral) operands.get(1), ptr, curEvent, inputEvent);
           default:
-            throw new UnsupportedOperationException("the function is not supported for now: " +
-                operator.getCepKind().toString());
+            throw new UnsupportedOperationException(
+                "the function is not supported for now: " + operator.getCepKind().toString());
         }
       } else {
-        throw new IllegalStateException("the right side CEP operation is not legal: " +
-            inputOperation.getClass().toString());
+        throw new IllegalStateException(
+            "the right side CEP operation is not legal: " + inputOperation.getClass().toString());
       }
     }
 
-  }
+    /* below are function implementations */
 
+    // represents the PREV operation
+    private CEPLiteral prev(
+        CEPOperation opr1,
+        CEPLiteral opr2,
+        EventPointer curPointer,
+        Event curEvent,
+        Event inputEvent) {
+      if (opr1.getClass() != CEPFieldRef.class) {
+        throw new IllegalStateException(
+            "the first argument of the PREV operation should be a field reference. Provided: "
+                + opr1.getClass().toString());
+      }
+      if (opr2.getTypeName() != Schema.TypeName.DECIMAL) {
+        throw new IllegalStateException(
+            "the second argument of the prev operation should be a decimal. Provided: "
+                + opr2.getClass().toString());
+      }
+      // if the second argument is 0, return the current event
+      if (opr2.getDecimal().intValue() == 0) {
+        return inputEvent.toCEPLiteral((CEPFieldRef) opr1);
+      }
+      // for the starting event, return null
+      if (curEvent == null) {
+        return null;
+      }
+      CEPFieldRef fieldRef = (CEPFieldRef) opr1;
+      String alpha = fieldRef.getAlpha(); // the patternVar
+      int lastNumber = opr2.getDecimal().intValue();
+      EventPointer iterPointer = curPointer.copy();
+
+      while (curEvent != null && iterPointer.getPatternVar().equals(alpha) && lastNumber > 0) {
+        iterPointer = curEvent.getPrevPointer(iterPointer);
+        curEvent = curEvent.findEvent(iterPointer);
+      }
+      if (curEvent != null) {
+        return curEvent.toCEPLiteral(fieldRef);
+      } else {
+        return null;
+      }
+    }
+
+    // represents the LAST operation
+    // TODO: add implementation. for now, return the current row
+    private CEPLiteral last(CEPOperation opr1, CEPLiteral opr2, Event inputEvent) {
+      if (opr1.getClass() != CEPFieldRef.class) {
+        throw new IllegalStateException(
+            "the first argument of the PREV operation should be a field reference. Provided: "
+                + opr1.getClass().toString());
+      }
+      if (opr2.getTypeName() != Schema.TypeName.DECIMAL) {
+        throw new IllegalStateException(
+            "the second argument of the prev operation should be a decimal. Provided: "
+                + opr2.getClass().toString());
+      }
+      return inputEvent.toCEPLiteral((CEPFieldRef) opr1);
+    }
+
+    // represents the PLUS operation
+    private CEPLiteral plus(CEPLiteral opr1, CEPLiteral opr2) {
+      Schema.TypeName type1 = opr1.getTypeName();
+      Schema.TypeName type2 = opr2.getTypeName();
+      if (type1.isNumericType() && type1 == type2) {
+        switch (type1) {
+          case BYTE:
+            return CEPLiteral.of(opr1.getByte() + opr2.getByte());
+          case INT16:
+            return CEPLiteral.of(opr1.getInt16() + opr2.getInt16());
+          case INT32:
+            return CEPLiteral.of(opr1.getInt32() + opr2.getInt32());
+          case INT64:
+            return CEPLiteral.of(opr1.getInt64() + opr2.getInt64());
+          case DECIMAL:
+            return CEPLiteral.of(opr1.getDecimal().add(opr2.getDecimal()));
+          case FLOAT:
+            return CEPLiteral.of(opr1.getFloat() + opr2.getFloat());
+          case DOUBLE:
+            return CEPLiteral.of(opr1.getDouble() + opr2.getDouble());
+          default:
+            throw new UnsupportedOperationException("Type is not supported: " + type1.toString());
+        }
+      } else {
+        throw new IllegalStateException(
+            "Types do not match: " + type1.toString() + ", " + type2.toString());
+      }
+    }
+  }
 
   // State are determined directly by the PATTERN clause
   private static class State implements Serializable {
     private int index = 0; // number ith state (pointer value) in the NFA
     private final String patternVar;
     private final Quantifier quant;
-    private final CEPOperation condition; // condition to evaluate when taking the "begin" action and "proceed" action
+    private final CEPOperation
+        condition; // condition to evaluate when taking the "begin" action and "proceed" action
     private State nextState = null;
     public final boolean isStart;
     public final boolean isFinal;
-    private final boolean isKleenePlusSecondary; // whether is the second state for a Kleene Plus pattern variable
+    private final boolean
+        isKleenePlusSecondary; // whether is the second state for a Kleene Plus pattern variable
 
-    State(String patternVar, Quantifier quant, CEPOperation condition, boolean isStart, boolean isFinal, boolean isKleenePlusSecondary) {
+    State(
+        String patternVar,
+        Quantifier quant,
+        CEPOperation condition,
+        boolean isStart,
+        boolean isFinal,
+        boolean isKleenePlusSecondary) {
       this.patternVar = patternVar;
       this.quant = quant;
       this.condition = condition;
@@ -663,7 +701,7 @@ public class NFA implements Serializable {
     // returns null if the take edge takes no condition
     // throws exception if there is no take edge for the state
     public CEPOperation getTakeCondition() {
-      if(!hasTake()) {
+      if (!hasTake()) {
         throw new IllegalStateException("The state does not have a take edge.");
       }
       return condition;
@@ -673,12 +711,12 @@ public class NFA implements Serializable {
     // returns null if the proceed (begin) edge is always evaluated to true
     // throws exception if there is no proceed (begin) edge for the state
     public CEPOperation getProceedCondition() {
-      if(!hasProceed()) {
+      if (!hasProceed()) {
         throw new IllegalStateException("The state does not have a proceed edge.");
       }
       // for singleton state or the first state of a paired state
       // return the current condition
-      if(!isKleenePlusSecondary) {
+      if (!isKleenePlusSecondary) {
         return condition;
       } else {
         return null;
@@ -691,7 +729,7 @@ public class NFA implements Serializable {
 
     public void setNextState(State theNextState) {
 
-      if(this == theNextState) {
+      if (this == theNextState) {
         return;
       }
 
@@ -703,16 +741,15 @@ public class NFA implements Serializable {
     }
 
     public boolean isKleenePlus() {
-      return quant.toString().equals("+") ||
-          quant.toString().equals("+?");
+      return quant.toString().equals("+") || quant.toString().equals("+?");
     }
   }
 
   private static State setNextStatesAndAssignIndices(List<State> states) {
-    for(int i = 0; i < (states.size() - 1); ++i) {
+    for (int i = 0; i < (states.size() - 1); ++i) {
       State currentState = states.get(i);
       State nextState = states.get(i + 1);
-      if(currentState.isKleenePlus()) {
+      if (currentState.isKleenePlus()) {
         State secondaryState = currentState.getNextState();
         secondaryState.setNextState(nextState);
       } else {
@@ -727,8 +764,8 @@ public class NFA implements Serializable {
     boolean startState;
     ArrayList<State> states = new ArrayList<>();
 
-    for(int i = 0; i < patterns.size(); ++i) {
-      if(i == 0) {
+    for (int i = 0; i < patterns.size(); ++i) {
+      if (i == 0) {
         startState = true;
       } else {
         startState = false;
@@ -738,51 +775,39 @@ public class NFA implements Serializable {
       CEPOperation condition = currentPattern.getPatternCondition();
       Quantifier quantifier = currentPattern.getQuantifier();
 
-      if(quantifier.toString().equals("+")) {
+      if (quantifier.toString().equals("+")) {
         // for Kleene plus, we need a pair of states
 
-        State primaryState = new State(
-            currentPattern.getPatternVar(),
-            Quantifier.PLUS,
-            condition,
-            startState,
-            false,
-            false
-        );
+        State primaryState =
+            new State(
+                currentPattern.getPatternVar(),
+                Quantifier.PLUS,
+                condition,
+                startState,
+                false,
+                false);
 
-        State secondaryState = new State(
-            currentPattern.getPatternVar(),
-            Quantifier.PLUS,
-            condition,
-            startState,
-            false,
-            true
-        );
+        State secondaryState =
+            new State(
+                currentPattern.getPatternVar(),
+                Quantifier.PLUS,
+                condition,
+                startState,
+                false,
+                true);
 
         primaryState.setNextState(secondaryState);
         states.add(primaryState);
       } else {
         // for non-Kleene-Plus pattern var, construct a single state
-        State newState = new State(
-            currentPattern.getPatternVar(),
-            quantifier,
-            condition,
-            startState,
-            false,
-            false
-        );
+        State newState =
+            new State(
+                currentPattern.getPatternVar(), quantifier, condition, startState, false, false);
         states.add(newState);
       }
     }
     // add final state
-    State theFinalState = new State(
-        "",
-        Quantifier.NONE,
-        null,
-        false,
-        true,
-        false
-    );
+    State theFinalState = new State("", Quantifier.NONE, null, false, true, false);
     states.add(theFinalState);
     State beginState = setNextStatesAndAssignIndices(states);
     return beginState;

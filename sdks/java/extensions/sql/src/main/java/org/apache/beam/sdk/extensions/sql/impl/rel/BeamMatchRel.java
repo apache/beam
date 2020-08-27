@@ -35,7 +35,6 @@ import org.apache.beam.sdk.extensions.sql.impl.cep.CEPOperation;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPPattern;
 import org.apache.beam.sdk.extensions.sql.impl.cep.CEPUtils;
 import org.apache.beam.sdk.extensions.sql.impl.cep.OrderKey;
-import org.apache.beam.sdk.extensions.sql.impl.cep.Quantifier;
 import org.apache.beam.sdk.extensions.sql.impl.nfa.NFA;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
@@ -61,8 +60,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * {@code BeamRelNode} to replace a {@code Match} node.
@@ -72,8 +69,6 @@ import org.slf4j.LoggerFactory;
  * <p>For now, the underline implementation is based on java.util.regex.
  */
 public class BeamMatchRel extends Match implements BeamRelNode {
-
-  private static final Logger LOG = LoggerFactory.getLogger(BeamMatchRel.class);
 
   public BeamMatchRel(
       RelOptCluster cluster,
@@ -224,12 +219,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
               .apply(
                   ParDo.of(
                       new MatchPattern(
-                          upstreamSchema,
-                          cepParKeys,
-                          cepPattern,
-                          cepMeasures,
-                          allRows,
-                          outSchema)))
+                          upstreamSchema, cepParKeys, cepPattern, cepMeasures, allRows, outSchema)))
               .setRowSchema(outSchema);
 
       return outStream;
@@ -268,19 +258,17 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       Iterable<Row> partRows = keyRows.getValue();
       Map<String, ArrayList<Row>> result;
 
-      for(Row singleRow : partRows) {
+      for (Row singleRow : partRows) {
         // output each matched sequence as specified by the Measure clause
         result = partNFA.processNewRow(singleRow);
-        if(result == null) {
+        if (result == null) {
           // if there isn't match
           continue;
         }
 
-        LOG.info("Finds a MATCH!!");
-
         if (allRows) {
-          for(ArrayList<Row> i : result.values()) {
-            for(Row j : i) {
+          for (ArrayList<Row> i : result.values()) {
+            for (Row j : i) {
               out.output(j);
             }
           }
@@ -299,12 +287,10 @@ public class BeamMatchRel extends Match implements BeamRelNode {
               Row parKeyRow = keyRows.getKey();
               if (newFieldBuilder == null) {
                 newFieldBuilder =
-                    newRowBuilder.withFieldValue(
-                        fieldName, parKeyRow.getValue(fieldName));
+                    newRowBuilder.withFieldValue(fieldName, parKeyRow.getValue(fieldName));
               } else {
                 newFieldBuilder =
-                    newFieldBuilder.withFieldValue(
-                        fieldName, parKeyRow.getValue(fieldName));
+                    newFieldBuilder.withFieldValue(fieldName, parKeyRow.getValue(fieldName));
               }
             } else {
               break;
@@ -363,8 +349,7 @@ public class BeamMatchRel extends Match implements BeamRelNode {
               CEPFieldRef fieldRef = (CEPFieldRef) opr;
               if (newFieldBuilder == null) {
                 newFieldBuilder =
-                    newRowBuilder.withFieldValue(
-                        outName, rowToProc.getValue(fieldRef.getIndex()));
+                    newRowBuilder.withFieldValue(outName, rowToProc.getValue(fieldRef.getIndex()));
               } else {
                 newFieldBuilder =
                     newFieldBuilder.withFieldValue(
@@ -381,7 +366,6 @@ public class BeamMatchRel extends Match implements BeamRelNode {
           } else {
             newRow = newFieldBuilder.build();
           }
-          LOG.info(newRow.toString());
           out.output(newRow);
         }
       }
@@ -421,7 +405,6 @@ public class BeamMatchRel extends Match implements BeamRelNode {
       out.output(KV.of(keyRows.getKey(), rows));
     }
   }
-
 
   private static class MapKeys extends DoFn<Row, KV<Row, Row>> {
 

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl.cep;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollation;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation;
