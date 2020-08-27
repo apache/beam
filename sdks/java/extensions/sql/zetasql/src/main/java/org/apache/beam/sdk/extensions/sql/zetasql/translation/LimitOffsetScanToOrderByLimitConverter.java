@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING;
 import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation.Direction.DESCENDING;
 
@@ -58,8 +59,6 @@ class LimitOffsetScanToOrderByLimitConverter extends RelConverter<ResolvedLimitO
         ((ResolvedOrderByScan) zetaNode.getInputScan()).getInputScan());
   }
 
-  // TODO: Fix Later
-  @SuppressWarnings("nullness")
   @Override
   public RelNode convert(ResolvedLimitOffsetScan zetaNode, List<RelNode> inputs) {
     ResolvedOrderByScan inputOrderByScan = (ResolvedOrderByScan) zetaNode.getInputScan();
@@ -78,6 +77,7 @@ class LimitOffsetScanToOrderByLimitConverter extends RelConverter<ResolvedLimitO
                 input.getRowType().getFieldList(),
                 ImmutableMap.of());
 
+    offset = checkArgumentNotNull(offset);
     if (RexLiteral.isNullLiteral(offset) || RexLiteral.isNullLiteral(fetch)) {
       throw new UnsupportedOperationException("Limit requires non-null count and offset");
     }
