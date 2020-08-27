@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import com.google.zetasql.FileDescriptorSetsBuilder;
 import com.google.zetasql.FunctionProtos.TableValuedFunctionProto;
 import com.google.zetasql.TableValuedFunction.FixedOutputSchemaTVF;
@@ -39,8 +41,6 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
     super(context);
   }
 
-  // TODO: Fix Later
-  @SuppressWarnings("nullness")
   @Override
   public RelNode convert(ResolvedTVFScan zetaNode, List<RelNode> inputs) {
     RelNode input = inputs.get(0);
@@ -53,6 +53,7 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
                 zetaNode.getArgumentList().get(0).getScan() != null
                     ? zetaNode.getArgumentList().get(0).getScan().getColumnList()
                     : Collections.emptyList());
+    @SuppressWarnings("argument.type.incompatible") // create function accepts null for elementType
     RelNode tableFunctionScan =
         LogicalTableFunctionScan.create(
             getCluster(), inputs, call, null, call.getType(), Collections.EMPTY_SET);
@@ -63,8 +64,6 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
     return tableFunctionScan;
   }
 
-  // TODO: Fix Later
-  @SuppressWarnings("nullness")
   @Override
   public List<ResolvedNode> getInputs(ResolvedTVFScan zetaNode) {
     List<ResolvedNode> inputs = new ArrayList();
@@ -72,7 +71,8 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
         && context
             .getUserDefinedTableValuedFunctions()
             .containsKey(zetaNode.getTvf().getNamePath())) {
-      inputs.add(context.getUserDefinedTableValuedFunctions().get(zetaNode.getTvf().getNamePath()));
+      inputs.add(checkArgumentNotNull(context.getUserDefinedTableValuedFunctions()
+              .get(zetaNode.getTvf().getNamePath())));
     }
 
     for (ResolvedTVFArgument argument : zetaNode.getArgumentList()) {
