@@ -47,8 +47,6 @@ try:
       BlobServiceClient,
       ContentSettings,
   )
-  from apache_beam.options.pipeline_options import AzureFileSystemOptions
-  from apache_beam.options.pipeline_options import PipelineOptions
   AZURE_DEPS_INSTALLED = True
 except ImportError:
   AZURE_DEPS_INSTALLED = False
@@ -91,16 +89,6 @@ def get_azfs_url(storage_account, container, blob='', azurite=False):
   else:
     return 'https://' + storage_account + '.blob.core.windows.net/' + \
         container + '/' + blob
-
-
-class Blob():
-  """A Blob in Azure Blob Storage."""
-  def __init__(self, etag, name, last_updated, size, mime_type):
-    self.etag = etag
-    self.name = name
-    self.last_updated = last_updated
-    self.size = size
-    self.mime_type = mime_type
 
 
 class BlobStorageIOError(IOError, retry.PermanentException):

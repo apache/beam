@@ -29,6 +29,8 @@ from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
+from apache_beam.options.pipeline_options import AzureFileSystemOptions
+ from apache_beam.options.pipeline_options import PipelineOptions
 
 __all__ = ['BlobStorageFileSystem']
 
@@ -40,6 +42,22 @@ class BlobStorageFileSystem(FileSystem):
 
   CHUNK_SIZE = blobstorageio.MAX_BATCH_OPERATION_SIZE
   AZURE_FILE_SYSTEM_PREFIX = 'azfs://'
+
+  def __init__(self, pipeline_options):
+    """Initializes a connection to Azure Blob Storage
+    via connection string.
+
+    The connection string is retrieved by passing pipleine options.
+    See : clas:`~apache_beam.options.pipeline_options.AzureFileSystemOptions`.
+    """
+    super(BlobStorageFileSystem, self).__init__(pipeline_options)
+    if pipeline_options is None:
+      raise ValueError('Pipeline options is not set.')
+    azfs_options = pipeline_options.view_as(AzureFileSystemOptions)
+    azfs_connection_string = azfs_options.azfs_connection_string
+
+    if azfs_connection_string is None:
+      raise ValueError('azfs_connection_string is not set.')
 
   @classmethod
   def scheme(cls):
