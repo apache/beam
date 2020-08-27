@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.util.List;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
@@ -35,8 +37,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  */
 class SqlNullIfOperatorRewriter implements SqlOperatorRewriter {
 
-  // TODO: Fix Later
-  @SuppressWarnings("nullness")
   @Override
   public RexNode apply(RexBuilder rexBuilder, List<RexNode> operands) {
     Preconditions.checkArgument(
@@ -51,6 +51,7 @@ class SqlNullIfOperatorRewriter implements SqlOperatorRewriter {
             rexBuilder.makeNullLiteral(operands.get(1).getType()),
             operands.get(0));
 
+    op = checkArgumentNotNull(op);
     return rexBuilder.makeCall(op, newOperands);
   }
 }
