@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import com.google.protobuf.ByteString;
 import com.google.zetasql.ArrayType;
 import com.google.zetasql.StructType;
@@ -48,8 +50,6 @@ import org.joda.time.Instant;
  *
  * <p>Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
  */
-// TODO: Fix Later
-@SuppressWarnings("nullness")
 @Internal
 public final class ZetaSqlBeamTranslationUtils {
 
@@ -76,7 +76,7 @@ public final class ZetaSqlBeamTranslationUtils {
         // TODO[BEAM-10238]: Mapping TIMESTAMP to a Beam LogicalType instead?
         return TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP);
       case LOGICAL_TYPE:
-        String identifier = fieldType.getLogicalType().getIdentifier();
+        String identifier = checkArgumentNotNull(fieldType.getLogicalType()).getIdentifier();
         if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
           return TypeFactory.createSimpleType(TypeKind.TYPE_DATE);
         } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
@@ -87,9 +87,9 @@ public final class ZetaSqlBeamTranslationUtils {
           throw new UnsupportedOperationException("Unknown Beam logical type: " + identifier);
         }
       case ARRAY:
-        return toZetaSqlArrayType(fieldType.getCollectionElementType());
+        return toZetaSqlArrayType(checkArgumentNotNull(fieldType.getCollectionElementType()));
       case ROW:
-        return toZetaSqlStructType(fieldType.getRowSchema());
+        return toZetaSqlStructType(checkArgumentNotNull(fieldType.getRowSchema()));
       default:
         throw new UnsupportedOperationException(
             "Unknown Beam fieldType: " + fieldType.getTypeName());
@@ -109,6 +109,7 @@ public final class ZetaSqlBeamTranslationUtils {
 
   // Value conversion: Beam => ZetaSQL
   public static Value toZetaSqlValue(@Nullable Object object, FieldType fieldType) {
+    fieldType = checkArgumentNotNull(fieldType);
     if (object == null) {
       return Value.createNullValue(toZetaSqlType(fieldType));
     }
@@ -129,7 +130,7 @@ public final class ZetaSqlBeamTranslationUtils {
         return Value.createTimestampValueFromUnixMicros(
             LongMath.checkedMultiply(((Instant) object).getMillis(), MICROS_PER_MILLI));
       case LOGICAL_TYPE:
-        String identifier = fieldType.getLogicalType().getIdentifier();
+        String identifier = checkArgumentNotNull(fieldType.getLogicalType()).getIdentifier();
         if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
           if (object instanceof Long) { // base type
             return Value.createDateValue(((Long) object).intValue());
@@ -147,10 +148,13 @@ public final class ZetaSqlBeamTranslationUtils {
         } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
           LocalDateTime datetime;
           if (object instanceof Row) { // base type
+            Row row = (Row) object;
             datetime =
                 LocalDateTime.of(
-                    LocalDate.ofEpochDay(((Row) object).getInt64(DateTime.DATE_FIELD_NAME)),
-                    LocalTime.ofNanoOfDay(((Row) object).getInt64(DateTime.TIME_FIELD_NAME)));
+                    LocalDate.ofEpochDay(
+                        checkArgumentNotNull(row.getInt64(DateTime.DATE_FIELD_NAME))),
+                    LocalTime.ofNanoOfDay(
+                        checkArgumentNotNull(row.getInt64(DateTime.TIME_FIELD_NAME))));
           } else { // input type
             datetime = (LocalDateTime) object;
           }
@@ -159,9 +163,10 @@ public final class ZetaSqlBeamTranslationUtils {
           throw new UnsupportedOperationException("Unknown Beam logical type: " + identifier);
         }
       case ARRAY:
-        return toZetaSqlArrayValue((List<Object>) object, fieldType.getCollectionElementType());
+        return toZetaSqlArrayValue(
+            (List<Object>) object, checkArgumentNotNull(fieldType.getCollectionElementType()));
       case ROW:
-        return toZetaSqlStructValue((Row) object, fieldType.getRowSchema());
+        return toZetaSqlStructValue((Row) object, checkArgumentNotNull(fieldType.getRowSchema()));
       default:
         throw new UnsupportedOperationException(
             "Unknown Beam fieldType: " + fieldType.getTypeName());
@@ -222,7 +227,7 @@ public final class ZetaSqlBeamTranslationUtils {
   }
 
   // Value conversion: ZetaSQL => Beam (target Beam type unknown)
-  public static Object toBeamObject(Value value, boolean verifyValues) {
+  public static @Nullable Object toBeamObject(Value value, boolean verifyValues) {
     return toBeamObject(value, toBeamType(value.getType()), verifyValues);
   }
 
@@ -253,7 +258,7 @@ public final class ZetaSqlBeamTranslationUtils {
       case DATETIME:
         return Instant.ofEpochMilli(value.getTimestampUnixMicros() / MICROS_PER_MILLI);
       case LOGICAL_TYPE:
-        String identifier = fieldType.getLogicalType().getIdentifier();
+        String identifier = checkArgumentNotNull(fieldType.getLogicalType()).getIdentifier();
         if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
           return value.getLocalDateValue();
         } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
@@ -264,9 +269,10 @@ public final class ZetaSqlBeamTranslationUtils {
           throw new UnsupportedOperationException("Unknown Beam logical type: " + identifier);
         }
       case ARRAY:
-        return toBeamList(value, fieldType.getCollectionElementType(), verifyValues);
+        return toBeamList(
+            value, checkArgumentNotNull(fieldType.getCollectionElementType()), verifyValues);
       case ROW:
-        return toBeamRow(value, fieldType.getRowSchema(), verifyValues);
+        return toBeamRow(value, checkArgumentNotNull(fieldType.getRowSchema()), verifyValues);
       default:
         throw new UnsupportedOperationException(
             "Unknown Beam fieldType: " + fieldType.getTypeName());
@@ -276,7 +282,7 @@ public final class ZetaSqlBeamTranslationUtils {
   private static List<Object> toBeamList(
       Value arrayValue, FieldType elementType, boolean verifyValues) {
     return arrayValue.getElementList().stream()
-        .map(e -> toBeamObject(e, elementType, verifyValues))
+        .map(e -> checkArgumentNotNull(toBeamObject(e, elementType, verifyValues)))
         .collect(Collectors.toList());
   }
 
@@ -284,7 +290,9 @@ public final class ZetaSqlBeamTranslationUtils {
     List<Object> objects = new ArrayList<>(schema.getFieldCount());
     List<Value> values = structValue.getFieldList();
     for (int i = 0; i < values.size(); i++) {
-      objects.add(toBeamObject(values.get(i), schema.getField(i).getType(), verifyValues));
+      objects.add(
+          checkArgumentNotNull(
+              toBeamObject(values.get(i), schema.getField(i).getType(), verifyValues)));
     }
     Row row =
         verifyValues
