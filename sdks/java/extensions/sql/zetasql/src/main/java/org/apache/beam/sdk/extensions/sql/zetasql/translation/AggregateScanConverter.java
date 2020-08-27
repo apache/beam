@@ -179,10 +179,9 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
     // Reject AVG(INT64)
     if (aggregateFunctionCall.getFunction().getName().equals("avg")) {
       FunctionSignature signature = aggregateFunctionCall.getSignature();
-      if (checkArgumentNotNull(signature
-              .getFunctionArgumentList()
-              .get(0)
-              .getType()).getKind().equals(TypeKind.TYPE_INT64)) {
+      if (checkArgumentNotNull(signature.getFunctionArgumentList().get(0).getType())
+          .getKind()
+          .equals(TypeKind.TYPE_INT64)) {
         throw new UnsupportedOperationException(AVG_ILLEGAL_LONG_INPUT_TYPE);
       }
     }
