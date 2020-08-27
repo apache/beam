@@ -324,6 +324,13 @@ class ParDoBoundMultiTranslator<InT, OutT>
       // set up user state configs
       for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
         final String storeId = state.id();
+
+        // TODO: remove validation after we support same state id in different ParDo.
+        if (!ctx.addStateId(storeId)) {
+          throw new IllegalStateException(
+              "Duplicate StateId " + storeId + " found in multiple ParDo.");
+        }
+
         config.put(
             "stores." + storeId + ".factory",
             "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");

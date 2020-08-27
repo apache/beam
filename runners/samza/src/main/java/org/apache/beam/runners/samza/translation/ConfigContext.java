@@ -17,7 +17,9 @@
  */
 package org.apache.beam.runners.samza.translation;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -30,10 +32,12 @@ public class ConfigContext {
   private final Map<PValue, String> idMap;
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SamzaPipelineOptions options;
+  private final Set<String> stateIds;
 
   public ConfigContext(Map<PValue, String> idMap, SamzaPipelineOptions options) {
     this.idMap = idMap;
     this.options = options;
+    this.stateIds = new HashSet<>();
   }
 
   public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
@@ -55,6 +59,10 @@ public class ConfigContext {
 
   public SamzaPipelineOptions getPipelineOptions() {
     return this.options;
+  }
+
+  public boolean addStateId(String stateId) {
+    return stateIds.add(stateId);
   }
 
   private String getIdForPValue(PValue pvalue) {

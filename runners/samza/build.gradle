@@ -120,6 +120,10 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
   }
+  filter {
+    // Re-enable the test after Samza runner supports same state id across DoFn(s).
+    excludeTest('ParDoTest$StateTests', 'testValueStateSameId')
+  }
 }
 
 // Generates :runners:samza:runQuickstartJavaSamza

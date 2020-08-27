@@ -19,6 +19,7 @@ package org.apache.beam.runners.samza.translation;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Map;
@@ -244,5 +245,50 @@ public class TestConfigBuilder {
     final Config config2 = configBuilder.build();
     assertEquals(
         "TestStoreConfig-1-testState-changelog", config2.get("stores.testState.changelog"));
+  }
+
+  @Test
+  public void testDuplicateStateIdConfig() {
+    SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
+    options.setJobName("TestStoreConfig");
+    options.setRunner(SamzaRunner.class);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply(
+            Create.empty(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.strings())))
+        .apply(
+            ParDo.of(
+                new DoFn<KV<String, String>, KV<String, String>>() {
+                  private static final String testState = "testState";
+
+                  @StateId(testState)
+                  private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
+
+                  @ProcessElement
+                  public void processElement(
+                      ProcessContext context, @StateId(testState) ValueState<Integer> state) {
+                    context.output(context.element());
+                  }
+                }))
+        .apply(
+            ParDo.of(
+                new DoFn<KV<String, String>, Void>() {
+                  private static final String testState = "testState";
+
+                  @StateId(testState)
+                  private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
+
+                  @ProcessElement
+                  public void processElement(
+                      ProcessContext context, @StateId(testState) ValueState<Integer> state) {}
+                }));
+
+    final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
+    final ConfigBuilder configBuilder = new ConfigBuilder(options);
+
+    assertThrows(
+        IllegalStateException.class,
+        () -> SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder));
   }
 }
