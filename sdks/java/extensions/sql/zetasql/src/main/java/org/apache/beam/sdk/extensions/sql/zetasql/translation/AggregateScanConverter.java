@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CAST;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_COLUMN_REF;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_GET_STRUCT_FIELD;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.zetasql.FunctionSignature;
 import com.google.zetasql.ZetaSQLType.TypeKind;
@@ -170,8 +171,6 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
     return LogicalProject.create(input, projects, fieldNames);
   }
 
-  // TODO: Fix Later
-  @SuppressWarnings("nullness")
   private AggregateCall convertAggCall(
       ResolvedComputedColumn computedColumn, int columnRefOff, boolean nullable) {
     ResolvedAggregateFunctionCall aggregateFunctionCall =
@@ -180,12 +179,10 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
     // Reject AVG(INT64)
     if (aggregateFunctionCall.getFunction().getName().equals("avg")) {
       FunctionSignature signature = aggregateFunctionCall.getSignature();
-      if (signature
-          .getFunctionArgumentList()
-          .get(0)
-          .getType()
-          .getKind()
-          .equals(TypeKind.TYPE_INT64)) {
+      if (checkArgumentNotNull(signature
+              .getFunctionArgumentList()
+              .get(0)
+              .getType()).getKind().equals(TypeKind.TYPE_INT64)) {
         throw new UnsupportedOperationException(AVG_ILLEGAL_LONG_INPUT_TYPE);
       }
     }
