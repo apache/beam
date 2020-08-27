@@ -75,19 +75,15 @@ or:
 from __future__ import absolute_import
 
 import logging
-import os
-import time
-from typing import Tuple
 
 import apache_beam as beam
-from apache_beam import pvalue
-from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import AssignTimestamps
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureLatency
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
+from apache_beam.testing.synthetic_pipeline import StatefulLoadGenerator
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
 from apache_beam.transforms import userstate
 
@@ -158,69 +154,6 @@ class ParDoTest(LoadTest):
         'Measure latency' >> beam.ParDo(MeasureLatency(self.metrics_namespace))
         |
         'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
-
-
-class StatefulLoadGenerator(beam.PTransform):
-  def __init__(self, input_options, num_keys=100):
-    self.num_records = input_options['num_records']
-    self.key_size = input_options['key_size']
-    self.value_size = input_options['value_size']
-    self.num_keys = num_keys
-
-  @typehints.with_output_types(Tuple[bytes, bytes])
-  class GenerateKeys(beam.DoFn):
-    def __init__(self, num_keys, key_size):
-      self.num_keys = num_keys
-      self.key_size = key_size
-
-    def process(self, impulse):
-      for _ in range(self.num_keys):
-        key = os.urandom(self.key_size)
-        yield key, b''
-
-  class GenerateLoad(beam.DoFn):
-    state_spec = userstate.CombiningValueStateSpec(
-        'bundles_remaining', combine_fn=sum)
-    timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
-
-    def __init__(self, num_records_per_key, value_size, bundle_size=1000):
-      self.num_records_per_key = num_records_per_key
-      self.payload = os.urandom(value_size)
-      self.bundle_size = bundle_size
-      self.time_fn = time.time
-
-    def process(
-        self,
-        _element,
-        records_remaining=beam.DoFn.StateParam(state_spec),
-        timer=beam.DoFn.TimerParam(timer_spec)):
-      records_remaining.add(self.num_records_per_key)
-      timer.set(0)
-
-    @userstate.on_timer(timer_spec)
-    def process_timer(
-        self,
-        key=beam.DoFn.KeyParam,
-        records_remaining=beam.DoFn.StateParam(state_spec),
-        timer=beam.DoFn.TimerParam(timer_spec)):
-      cur_bundle_size = min(self.bundle_size, records_remaining.read())
-      for _ in range(cur_bundle_size):
-        records_remaining.add(-1)
-        yield key, self.payload
-      if records_remaining.read() > 0:
-        timer.set(0)
-
-  def expand(self, pbegin):
-    assert isinstance(pbegin, pvalue.PBegin), (
-        'Input to transform must be a PBegin but found %s' % pbegin)
-    return (
-        pbegin
-        | 'Impulse' >> beam.Impulse()
-        | 'GenerateKeys' >> beam.ParDo(
-            StatefulLoadGenerator.GenerateKeys(self.num_keys, self.key_size))
-        | 'GenerateLoad' >> beam.ParDo(
-            StatefulLoadGenerator.GenerateLoad(
-                self.num_records // self.num_keys, self.value_size)))
 
 
 if __name__ == '__main__':
