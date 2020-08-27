@@ -148,28 +148,18 @@ class StreamingCacheSource:
   This class is used to read from file and send its to the TestStream via the
   StreamingCacheManager.Reader.
   """
-  def __init__(
-      self,
-      cache_dir,
-      labels,
-      is_cache_complete=None,
-      coder=None,
-      limiters=None):
+  def __init__(self, cache_dir, labels, is_cache_complete=None, coder=None):
     if not coder:
       coder = SafeFastPrimitivesCoder()
 
     if not is_cache_complete:
       is_cache_complete = lambda _: True
 
-    if not limiters:
-      limiters = []
-
     self._cache_dir = cache_dir
     self._coder = coder
     self._labels = labels
     self._path = os.path.join(self._cache_dir, *self._labels)
     self._is_cache_complete = is_cache_complete
-    self._limiters = limiters
 
     from apache_beam.runners.interactive.pipeline_instrument import CacheKey
     self._pipeline_id = CacheKey.from_str(labels[-1]).pipeline_id
@@ -221,15 +211,9 @@ class StreamingCacheSource:
         proto_cls = TestStreamFileHeader if pos == 0 else TestStreamFileRecord
         msg = self._try_parse_as(proto_cls, to_decode)
         if msg:
-          for l in self._limiters:
-            l.update(msg)
-
-          if any(l.is_triggered() for l in self._limiters):
-            break
+          yield msg
         else:
           break
-
-        yield msg
 
   def _try_parse_as(self, proto_cls, to_decode):
     try:
@@ -288,6 +272,12 @@ class StreamingCache(CacheManager):
     # The sinks to capture data from capturable sources.
     # Dict([str, StreamingCacheSink])
     self._capture_sinks = {}
+    self._capture_keys = set()
+
+  def size(self, *labels):
+    if self.exists(*labels):
+      return os.path.getsize(os.path.join(self._cache_dir, *labels))
+    return 0
 
   @property
   def capture_size(self):
@@ -297,25 +287,26 @@ class StreamingCache(CacheManager):
   def capture_paths(self):
     return list(self._capture_sinks.keys())
 
+  @property
+  def capture_keys(self):
+    return self._capture_keys
+
   def exists(self, *labels):
     path = os.path.join(self._cache_dir, *labels)
     return os.path.exists(path)
 
   # TODO(srohde): Modify this to return the correct version.
   def read(self, *labels, **args):
-    """Returns a generator to read all records from file.
-
-    Does not tail.
-    """
-    if not self.exists(*labels):
-      return iter([]), -1
-
-    limiters = args.pop('limiters', [])
+    """Returns a generator to read all records from file."""
     tail = args.pop('tail', False)
 
+    # Only immediately return when the file doesn't exist when the user wants a
+    # snapshot of the cache (when tail is false).
+    if not self.exists(*labels) and not tail:
+      return iter([]), -1
+
     reader = StreamingCacheSource(
-        self._cache_dir, labels, self._is_cache_complete,
-        limiters=limiters).read(tail=tail)
+        self._cache_dir, labels, self._is_cache_complete).read(tail=tail)
 
     # Return an empty iterator if there is nothing in the file yet. This can
     # only happen when tail is False.
@@ -325,7 +316,7 @@ class StreamingCache(CacheManager):
       return iter([]), -1
     return StreamingCache.Reader([header], [reader]).read(), 1
 
-  def read_multiple(self, labels, limiters=None, tail=True):
+  def read_multiple(self, labels, tail=True):
     """Returns a generator to read all records from file.
 
     Does tail until the cache is complete. This is because it is used in the
@@ -333,9 +324,9 @@ class StreamingCache(CacheManager):
     pipeline runtime which needs to block.
     """
     readers = [
-        StreamingCacheSource(
-            self._cache_dir, l, self._is_cache_complete,
-            limiters=limiters).read(tail=tail) for l in labels
+        StreamingCacheSource(self._cache_dir, l,
+                             self._is_cache_complete).read(tail=tail)
+        for l in labels
     ]
     headers = [next(r) for r in readers]
     return StreamingCache.Reader(headers, readers).read()
@@ -358,6 +349,7 @@ class StreamingCache(CacheManager):
   def clear(self, *labels):
     directory = os.path.join(self._cache_dir, *labels[:-1])
     filepath = os.path.join(directory, labels[-1])
+    self._capture_keys.discard(labels[-1])
     if os.path.exists(filepath):
       os.remove(filepath)
       return True
@@ -383,6 +375,7 @@ class StreamingCache(CacheManager):
     sink = StreamingCacheSink(cache_dir, filename, self._sample_resolution_sec)
     if is_capture:
       self._capture_sinks[sink.path] = sink
+      self._capture_keys.add(filename)
     return sink
 
   def save_pcoder(self, pcoder, *labels):
@@ -398,6 +391,7 @@ class StreamingCache(CacheManager):
       shutil.rmtree(self._cache_dir)
     self._saved_pcoders = {}
     self._capture_sinks = {}
+    self._capture_keys = set()
 
   class Reader(object):
     """Abstraction that reads from PCollection readers.

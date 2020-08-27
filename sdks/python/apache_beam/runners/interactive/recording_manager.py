@@ -97,9 +97,7 @@ class ElementStream:
     limiters = [
         CountLimiter(self._n), ProcessingTimeLimiter(self._duration_secs)
     ]
-    reader, _ = cache_manager.read('full', self._cache_key,
-                                   limiters=limiters,
-                                   tail=tail)
+    reader, _ = cache_manager.read('full', self._cache_key, tail=tail)
 
     # Because a single TestStreamFileRecord can yield multiple elements, we
     # limit the count again here in the to_element_list call.
@@ -112,7 +110,13 @@ class ElementStream:
                                    coder,
                                    include_window_info=True,
                                    n=self._n):
+      for l in limiters:
+        l.update(e)
+
       yield e
+
+      if any(l.is_triggered() for l in limiters):
+        break
 
     # A limiter being triggered means that we have fulfilled the user's request.
     # This implies that reading from the cache again won't yield any new
