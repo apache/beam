@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.SimpleTable;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
@@ -87,12 +88,10 @@ public class TableResolution {
    * Data class to store simple table, its full path (excluding top-level schema), and top-level
    * schema.
    */
-  // TODO: Fix Later
-  @SuppressWarnings("nullness")
   static class SimpleTableWithPath {
 
-    SimpleTable table;
-    List<String> path;
+    SimpleTable table = new SimpleTable("");
+    List<String> path = Collections.emptyList();
 
     static SimpleTableWithPath of(List<String> path) {
       SimpleTableWithPath tableWithPath = new SimpleTableWithPath();
