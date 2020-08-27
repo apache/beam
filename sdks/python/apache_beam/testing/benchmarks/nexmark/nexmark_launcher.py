@@ -68,8 +68,6 @@ import logging
 import sys
 import uuid
 
-from google.cloud import pubsub
-
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -93,27 +91,35 @@ from apache_beam.testing.benchmarks.nexmark.queries import query9
 from apache_beam.testing.benchmarks.nexmark.queries import query11
 from apache_beam.testing.benchmarks.nexmark.queries import query12
 from apache_beam.transforms import window
+from apache_beam.utils.timestamp import Timestamp
 
 
 class NexmarkLauncher(object):
   def __init__(self):
     self.parse_args()
-    self.uuid = str(uuid.uuid4())
-    self.topic_name = self.args.topic_name + self.uuid
-    self.subscription_name = self.args.subscription_name + self.uuid
-    publish_client = pubsub.Client(project=self.project)
-    topic = publish_client.topic(self.topic_name)
-    if topic.exists():
-      logging.info('deleting topic %s', self.topic_name)
-      topic.delete()
-    logging.info('creating topic %s', self.topic_name)
-    topic.create()
-    sub = topic.subscription(self.subscription_name)
-    if sub.exists():
-      logging.info('deleting sub %s', self.topic_name)
-      sub.delete()
-    logging.info('creating sub %s', self.topic_name)
-    sub.create()
+    self.manage_resources = self.args.manage_resources
+    self.uuid = str(uuid.uuid4()) if self.manage_resources else ''
+    self.topic_name = (
+        self.args.topic_name + self.uuid if self.args.topic_name else None)
+    self.subscription_name = (
+        self.args.subscription_name +
+        self.uuid if self.args.subscription_name else None)
+    self.pubsub_mode = self.args.pubsub_mode
+    if self.manage_resources:
+      from google.cloud import pubsub
+      publish_client = pubsub.Client(project=self.project)
+      topic = publish_client.topic(self.topic_name)
+      if topic.exists():
+        logging.info('deleting topic %s', self.topic_name)
+        topic.delete()
+      logging.info('creating topic %s', self.topic_name)
+      topic.create()
+      sub = topic.subscription(self.subscription_name)
+      if sub.exists():
+        logging.info('deleting sub %s', self.topic_name)
+        sub.delete()
+      logging.info('creating sub %s', self.topic_name)
+      sub.create()
 
   def parse_args(self):
     parser = argparse.ArgumentParser()
@@ -143,8 +149,19 @@ class NexmarkLauncher(object):
     parser.add_argument(
         '--input',
         type=str,
-        required=True,
         help='Path to the data file containing nexmark events.')
+    parser.add_argument(
+        '--manage_resources',
+        default=False,
+        action='store_true',
+        help='If true, manage the creation and cleanup of topics and '
+        'subscriptions.')
+    parser.add_argument(
+        '--pubsub_mode',
+        type=str,
+        default='SUBSCRIBE_ONLY',
+        choices=['PUBLISH_ONLY', 'SUBSCRIBE_ONLY', 'COMBINED'],
+        help='Pubsub mode used in the pipeline.')
 
     self.args, self.pipeline_args = parser.parse_known_args()
     logging.basicConfig(
@@ -156,34 +173,32 @@ class NexmarkLauncher(object):
 
     # Usage with Dataflow requires a project to be supplied.
     self.project = self.pipeline_options.view_as(GoogleCloudOptions).project
-    if self.project is None:
-      parser.print_usage()
-      print(sys.argv[0] + ': error: argument --project is required')
-      sys.exit(1)
-
-    # Pub/Sub is currently available for use only in streaming pipelines.
     self.streaming = self.pipeline_options.view_as(StandardOptions).streaming
-    if self.streaming is None:
-      parser.print_usage()
-      print(sys.argv[0] + ': error: argument --streaming is required')
-      sys.exit(1)
 
     # wait_until_finish ensures that the streaming job is canceled.
     self.wait_until_finish_duration = (
         self.pipeline_options.view_as(TestOptions).wait_until_finish_duration)
-    if self.wait_until_finish_duration is None:
-      parser.print_usage()
-      print(sys.argv[0] + ': error: argument --wait_until_finish_duration is required')  # pylint: disable=line-too-long
-      sys.exit(1)
+    self.runner = self.pipeline_options.view_as(StandardOptions).runner
+
+    if self.streaming:
+      if self.wait_until_finish_duration is None\
+          or self.project is None or self.runner != 'DataflowRunner':
+        print('error: argument --wait_until_finish_duration\n' +
+              '--project and --DataflowRunner required when running in streaming mode')  # pylint: disable=line-too-long
+        sys.exit(1)
+    else:
+      if self.args.input is None:
+        print('error: argument --input is required when running in batch mode')
+        sys.exit(1)
 
     # We use the save_main_session option because one or more DoFn's in this
     # workflow rely on global context (e.g., a module imported at module level).
     self.pipeline_options.view_as(SetupOptions).save_main_session = True
 
   def generate_events(self):
+    from google.cloud import pubsub
     publish_client = pubsub.Client(project=self.project)
     topic = publish_client.topic(self.topic_name)
-    sub = topic.subscription(self.subscription_name)
 
     logging.info('Generating auction events to topic %s', topic.name)
 
@@ -200,42 +215,65 @@ class NexmarkLauncher(object):
 
     logging.info('Finished event generation.')
 
-    # Read from PubSub into a PCollection.
-    if self.args.subscription_name:
-      raw_events = self.pipeline | 'ReadPubSub' >> beam.io.ReadFromPubSub(
-          subscription=sub.full_name)
-    else:
-      raw_events = self.pipeline | 'ReadPubSub' >> beam.io.ReadFromPubSub(
-          topic=topic.full_name)
-    raw_events = (
-        raw_events
-        | 'deserialization' >> beam.ParDo(nexmark_util.ParseJsonEvnetFn())
+  def read_from_file(self):
+    return (
+        self.pipeline
+        | 'reading_from_file' >> beam.io.ReadFromText(self.args.input)
+        | 'deserialization' >> beam.ParDo(nexmark_util.ParseJsonEventFn())
         | 'timestamping' >>
         beam.Map(lambda e: window.TimestampedValue(e, e.date_time)))
-    return raw_events
+
+  def read_from_pubsub(self):
+    # Read from PubSub into a PCollection.
+    if self.subscription_name:
+      raw_events = self.pipeline | 'ReadPubSub' >> beam.io.ReadFromPubSub(
+          subscription=self.subscription_name,
+          with_attributes=True,
+          id_label='id',
+          timestamp_attribute='timestamp')
+    else:
+      raw_events = self.pipeline | 'ReadPubSub' >> beam.io.ReadFromPubSub(
+          topic=self.topic_name,
+          with_attributes=True,
+          id_label='id',
+          timestamp_attribute='timestamp')
+    events = (
+        raw_events
+        | 'pubsub_stamp' >> beam.Map(
+            lambda m: window.TimestampedValue(
+                m.data, Timestamp(micros=int(m.attributes['timestamp']) * 1000))
+        )
+        | 'deserialization' >> beam.ParDo(nexmark_util.ParseJsonEventFn()))
+    return events
 
   def run_query(self, query, query_args, query_errors):
     try:
-      self.parse_args()
       self.pipeline = beam.Pipeline(options=self.pipeline_options)
       nexmark_util.setup_coder()
 
       event_monitor = Monitor('.events', 'event')
       result_monitor = Monitor('.results', 'result')
 
-      events = self.generate_events()
+      if self.streaming:
+        if self.pubsub_mode != 'SUBSCRIBE_ONLY':
+          self.generate_events()
+        if self.pubsub_mode == 'PUBLISH_ONLY':
+          return
+        events = self.read_from_pubsub()
+      else:
+        events = self.read_from_file()
+
       events = events | 'event_monitor' >> beam.ParDo(event_monitor.doFn)
       output = query.load(events, query_args)
       output | 'result_monitor' >> beam.ParDo(result_monitor.doFn)  # pylint: disable=expression-not-assigned
 
       result = self.pipeline.run()
-      job_duration = (
-          self.pipeline_options.view_as(TestOptions).wait_until_finish_duration)
-      if self.pipeline_options.view_as(StandardOptions).runner == 'DataflowRunner':  # pylint: disable=line-too-long
-        result.wait_until_finish(duration=job_duration)
+      if self.runner == 'DataflowRunner':
+        result.wait_until_finish(duration=self.wait_until_finish_duration)
         result.cancel()
       else:
         result.wait_until_finish()
+      self.__class__.get_performance(result, event_monitor, result_monitor)
     except Exception as exc:
       query_errors.append(str(exc))
       raise
@@ -274,13 +312,15 @@ class NexmarkLauncher(object):
         (runtime_sec, event_per_sec))
 
   def cleanup(self):
-    publish_client = pubsub.Client(project=self.project)
-    topic = publish_client.topic(self.topic_name)
-    if topic.exists():
-      topic.delete()
-    sub = topic.subscription(self.subscription_name)
-    if sub.exists():
-      sub.delete()
+    if self.manage_resources:
+      from google.cloud import pubsub
+      publish_client = pubsub.Client(project=self.project)
+      topic = publish_client.topic(self.topic_name)
+      if topic.exists():
+        topic.delete()
+      sub = topic.subscription(self.subscription_name)
+      if sub.exists():
+        sub.delete()
 
   def run(self):
     queries = {
@@ -312,24 +352,20 @@ class NexmarkLauncher(object):
 
     query_errors = []
     for i in self.args.query:
-      self.parse_args()
       logging.info('Running query %d', i)
 
       # The DirectRunner is the default runner, and it needs
       # special handling to cancel streaming jobs.
-      launch_from_direct_runner = self.pipeline_options.view_as(
-          StandardOptions).runner in [None, 'DirectRunner']
+      streaming_from_direct_runner = self.runner in [
+          None, 'DirectRunner', 'BundleBasedDirectRunner'
+      ] and self.streaming
 
-      query_duration = self.pipeline_options.view_as(TestOptions).wait_until_finish_duration  # pylint: disable=line-too-long
-      if launch_from_direct_runner:
+      if streaming_from_direct_runner:
         command = Command(
             self.run_query, args=[queries[i], query_args, query_errors])
-        command.run(timeout=query_duration // 1000)
+        command.run(timeout=self.wait_until_finish_duration // 1000)
       else:
-        try:
-          self.run_query(queries[i], query_args, query_errors=query_errors)
-        except Exception as exc:
-          query_errors.append(str(exc))
+        self.run_query(queries[i], query_args, query_errors=query_errors)
 
     if query_errors:
       logging.error('Query failed with %s', ', '.join(query_errors))
