@@ -16,11 +16,13 @@
 package exec
 
 import (
+	"context"
+	"testing"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/google/go-cmp/cmp"
-	"testing"
 )
 
 // testTimestamp is a constant used to check that timestamps are retained.
@@ -385,4 +387,146 @@ func TestSdfNodes(t *testing.T) {
 			})
 		}
 	})
+}
+
+// TestAsSplittableUnit tests ProcessSizedElementsAndRestrictions' implementation
+// of the SplittableUnit interface.
+func TestAsSplittableUnit(t *testing.T) {
+	dfn, err := graph.NewDoFn(&VetSdf{}, graph.NumMainInputs(graph.MainSingle))
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+	kvdfn, err := graph.NewDoFn(&VetKvSdf{}, graph.NumMainInputs(graph.MainKv))
+	if err != nil {
+		t.Fatalf("invalid function: %v", err)
+	}
+
+	// Test that Split returns properly structured results and calls Split on
+	// the restriction tracker.
+	t.Run("Split", func(t *testing.T) {
+		tests := []struct {
+			name         string
+			fn           *graph.DoFn
+			in           FullValue
+			wantPrimary  FullValue
+			wantResidual FullValue
+		}{
+			{
+				name: "SingleElem",
+				fn:   dfn,
+				in: FullValue{
+					Elm: &FullValue{
+						Elm:  1,
+						Elm2: &VetRestriction{ID: "Sdf"},
+					},
+					Elm2:      1.0,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+				wantPrimary: FullValue{
+					Elm: &FullValue{
+						Elm:  1,
+						Elm2: &VetRestriction{ID: "Sdf.1", RestSize: true, Val: 1},
+					},
+					Elm2:      1.0,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+				wantResidual: FullValue{
+					Elm: &FullValue{
+						Elm:  1,
+						Elm2: &VetRestriction{ID: "Sdf.2", RestSize: true, Val: 1},
+					},
+					Elm2:      1.0,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+			},
+			{
+				name: "KvElem",
+				fn:   kvdfn,
+				in: FullValue{
+					Elm: &FullValue{
+						Elm: &FullValue{
+							Elm:  1,
+							Elm2: 2,
+						},
+						Elm2: &VetRestriction{ID: "KvSdf"},
+					},
+					Elm2:      3.0,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+				wantPrimary: FullValue{
+					Elm: &FullValue{
+						Elm: &FullValue{
+							Elm:  1,
+							Elm2: 2,
+						},
+						Elm2: &VetRestriction{ID: "KvSdf.1", RestSize: true, Key: 1, Val: 2},
+					},
+					Elm2:      3.0,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+				wantResidual: FullValue{
+					Elm: &FullValue{
+						Elm: &FullValue{
+							Elm:  1,
+							Elm2: 2,
+						},
+						Elm2: &VetRestriction{ID: "KvSdf.2", RestSize: true, Key: 1, Val: 2},
+					},
+					Elm2:      3.0,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+			},
+		}
+		for _, test := range tests {
+			test := test
+			t.Run(test.name, func(t *testing.T) {
+				// Setup, create transforms, inputs, and desired outputs.
+				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{}}
+				node := &ProcessSizedElementsAndRestrictions{PDo: n}
+				node.rt = &SplittableUnitRTracker{
+					VetRTracker: VetRTracker{Rest: test.in.Elm.(*FullValue).Elm2.(*VetRestriction)},
+				}
+				node.elm = &test.in
+
+				// Call from SplittableUnit and check results.
+				su := SplittableUnit(node)
+				frac := 0.5
+				if err := node.Up(context.Background()); err != nil {
+					t.Fatalf("ProcessSizedElementsAndRestrictions.Up() failed: %v", err)
+				}
+				gotPrimary, gotResidual, err := su.Split(frac)
+				if err != nil {
+					t.Fatalf("SplittableUnit.Split(%v) failed: %v", frac, err)
+				}
+				if diff := cmp.Diff(gotPrimary, &test.wantPrimary); diff != "" {
+					t.Errorf("SplittableUnit.Split(%v) has incorrect primary: %v", frac, diff)
+				}
+				if diff := cmp.Diff(gotResidual, &test.wantResidual); diff != "" {
+					t.Errorf("SplittableUnit.Split(%v) has incorrect residual: %v", frac, diff)
+				}
+			})
+		}
+	})
+}
+
+// SplittableUnitRTracker is a VetRTracker with some added behavior needed for
+// TestAsSplittableUnit.
+type SplittableUnitRTracker struct {
+	VetRTracker
+}
+
+func (rt *SplittableUnitRTracker) IsDone() bool { return false }
+
+func (rt *SplittableUnitRTracker) TrySplit(_ float64) (interface{}, interface{}, error) {
+	rest1 := rt.Rest.copy()
+	rest1.ID += ".1"
+	rest2 := rt.Rest.copy()
+	rest2.ID += ".2"
+	return &rest1, &rest2, nil
 }

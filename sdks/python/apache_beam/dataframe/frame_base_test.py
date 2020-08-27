@@ -41,6 +41,59 @@ class FrameBaseTest(unittest.TestCase):
     self.assertTrue(sub(x, b)._expr.evaluate_at(session).equals(a - b))
     self.assertTrue(sub(a, y)._expr.evaluate_at(session).equals(a - b))
 
+  def test_maybe_inplace(self):
+    @frame_base.maybe_inplace
+    def add_one(frame):
+      return frame + 1
+
+    frames.DeferredSeries.add_one = add_one
+    original_expr = expressions.PlaceholderExpression(pd.Series([1, 2, 3]))
+    x = frames.DeferredSeries(original_expr)
+    x.add_one()
+    self.assertIs(x._expr, original_expr)
+    x.add_one(inplace=False)
+    self.assertIs(x._expr, original_expr)
+    x.add_one(inplace=True)
+    self.assertIsNot(x._expr, original_expr)
+
+  def test_args_to_kwargs(self):
+    class Base(object):
+      def func(self, a=1, b=2, c=3):
+        pass
+
+    class Proxy(object):
+      @frame_base.args_to_kwargs(Base)
+      def func(self, **kwargs):
+        return kwargs
+
+    proxy = Proxy()
+    # pylint: disable=too-many-function-args
+    self.assertEqual(proxy.func(), {})
+    self.assertEqual(proxy.func(100), {'a': 100})
+    self.assertEqual(proxy.func(2, 4, 6), {'a': 2, 'b': 4, 'c': 6})
+    self.assertEqual(proxy.func(2, c=6), {'a': 2, 'c': 6})
+    self.assertEqual(proxy.func(c=6, a=2), {'a': 2, 'c': 6})
+
+  def test_args_to_kwargs_populates_defaults(self):
+    class Base(object):
+      def func(self, a=1, b=2, c=3):
+        pass
+
+    class Proxy(object):
+      @frame_base.args_to_kwargs(Base)
+      @frame_base.populate_defaults(Base)
+      def func(self, a, c=1000, **kwargs):
+        return dict(kwargs, a=a, c=c)
+
+    proxy = Proxy()
+    # pylint: disable=too-many-function-args
+    self.assertEqual(proxy.func(), {'a': 1, 'c': 1000})
+    self.assertEqual(proxy.func(100), {'a': 100, 'c': 1000})
+    self.assertEqual(proxy.func(2, 4, 6), {'a': 2, 'b': 4, 'c': 6})
+    self.assertEqual(proxy.func(2, c=6), {'a': 2, 'c': 6})
+    self.assertEqual(proxy.func(c=6, a=2), {'a': 2, 'c': 6})
+    self.assertEqual(proxy.func(c=6), {'a': 1, 'c': 6})
+
 
 if __name__ == '__main__':
   unittest.main()

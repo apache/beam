@@ -109,6 +109,62 @@ message TagBag {
   optional int64 fetch_max_bytes = 6 [default = 0x7fffffffffffffff];
 }
 
+// A single entry in a sorted list
+message SortedListEntry {
+  // The value payload.
+  optional bytes value = 1;
+  // The sort key.  must be strictly smaller than than 0x7fffffffffffffff.
+  optional int64 sort_key = 2;
+  // A unique id for this element.The combination of the sort key and the id
+  // identify an element. Entries written with the same sort_key and id will
+  // overwrite the previous entry.
+  optional uint64 id = 3;
+}
+
+message SortedListRange {
+  // start and limit describe the range of SortedList entries
+  // to be fetched.  The targeted range is [start, limit).
+  optional int64 start = 1 [default = -0x8000000000000000];
+  optional int64 limit = 2 [default = 0x7fffffffffffffff];
+}
+
+message TagSortedListFetchRequest {
+  optional bytes tag = 1;
+  optional string state_family = 2;
+  optional SortedListRange fetch_range = 3;
+
+  // Sets a limit on the maximum response value bytes
+  optional int64 fetch_max_bytes = 5 [default = 0x7fffffffffffffff];
+  // If a previous TagSortedListFetchRequest returned a continuation_position,
+  // then passing that token into requestPosition will cause the subsequent
+  // request to continue the previous request.
+  optional bytes request_position = 6;
+}
+
+message TagSortedListFetchResponse {
+  optional bytes tag = 1;
+  optional string state_family = 2;
+  repeated SortedListEntry entries = 3;
+  optional bytes continuation_position = 4;
+}
+
+message TagSortedListUpdateRequest {
+  optional bytes tag = 1;
+  optional string state_family = 2;
+
+  // The list of inserts and deletes to be applied. Deletes always happen before
+  // inserts. Inserts with the same sort_key+id overwrite each other.
+  repeated TagSortedListDeleteRequest deletes = 3;
+  repeated TagSortedListInsertRequest inserts = 4;
+}
+
+message TagSortedListInsertRequest {
+  repeated SortedListEntry entries = 1;
+}
+
+message TagSortedListDeleteRequest {
+  optional SortedListRange range = 1;
+}
 message GlobalDataId {
   required string tag = 1;
   required bytes version = 2;
@@ -197,6 +253,7 @@ message KeyedGetDataRequest {
   optional fixed64 sharding_key = 6;
   repeated TagValue values_to_fetch = 3;
   repeated TagBag bags_to_fetch = 8;
+  repeated TagSortedListFetchRequest sorted_lists_to_fetch = 9;
   repeated WatermarkHold watermark_holds_to_fetch = 5;
 
   optional int64 max_bytes = 7;
@@ -220,10 +277,12 @@ message GetDataRequest {
 
 message KeyedGetDataResponse {
   required bytes key = 1;
+  optional fixed64 sharding_key = 7;
   // The response for this key is not populated due to the fetch failing.
   optional bool failed = 2;
   repeated TagValue values = 3;
   repeated TagBag bags = 6;
+  repeated TagSortedListFetchResponse tag_sorted_lists = 8;
   repeated WatermarkHold watermark_holds = 5;
 
   reserved 4;
@@ -287,6 +346,7 @@ message WorkItemCommitRequest {
   repeated Timer output_timers = 4;
   repeated TagValue value_updates = 5;
   repeated TagBag bag_updates = 18;
+  repeated TagSortedListUpdateRequest sorted_list_updates = 24;
   repeated Counter counter_updates = 8;
   repeated GlobalDataRequest global_data_requests = 11;
   repeated GlobalData global_data_updates = 10;

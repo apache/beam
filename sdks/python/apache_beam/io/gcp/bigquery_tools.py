@@ -63,9 +63,15 @@ from apache_beam.utils import retry
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpError, HttpForbiddenError
 except ImportError:
   pass
+
+try:
+  # TODO(pabloem): Remove this workaround after Python 2.7 support ends.
+  from json.decoder import JSONDecodeError
+except ImportError:
+  JSONDecodeError = ValueError
 
 # pylint: enable=wrong-import-order, wrong-import-position
 
@@ -134,7 +140,11 @@ def parse_table_schema_from_json(schema_string):
   Returns:
     A TableSchema of the BigQuery export from either the Query or the Table.
   """
-  json_schema = json.loads(schema_string)
+  try:
+    json_schema = json.loads(schema_string)
+  except JSONDecodeError as e:
+    raise ValueError(
+        'Unable to parse JSON schema: %s - %r' % (schema_string, e))
 
   def _parse_schema_field(field):
     """Parse a single schema field from dictionary.
@@ -290,9 +300,10 @@ class BigQueryWrapper(object):
     """
     Get the location of tables referenced in a query.
 
-    This method returns the location of the first referenced table in the query
-    and depends on the BigQuery service to provide error handling for
-    queries that reference tables in multiple locations.
+    This method returns the location of the first available referenced
+    table for user in the query and depends on the BigQuery service to
+    provide error handling for queries that reference tables in multiple
+    locations.
     """
     reference = bigquery.JobReference(
         jobId=uuid.uuid4().hex, projectId=project_id)
@@ -318,17 +329,25 @@ class BigQueryWrapper(object):
 
     referenced_tables = response.statistics.query.referencedTables
     if referenced_tables:  # Guards against both non-empty and non-None
-      table = referenced_tables[0]
-      location = self.get_table_location(
-          table.projectId, table.datasetId, table.tableId)
-      _LOGGER.info(
-          "Using location %r from table %r referenced by query %s",
-          location,
-          table,
-          query)
-      return location
+      for table in referenced_tables:
+        try:
+          location = self.get_table_location(
+              table.projectId, table.datasetId, table.tableId)
+        except HttpForbiddenError:
+          # Permission access for table (i.e. from authorized_view),
+          # try next one
+          continue
+        _LOGGER.info(
+            "Using location %r from table %r referenced by query %s",
+            location,
+            table,
+            query)
+        return location
 
-    _LOGGER.debug("Query %s does not reference any tables.", query)
+    _LOGGER.debug(
+        "Query %s does not reference any tables or "
+        "you don't have permission to inspect them.",
+        query)
     return None
 
   @retry.with_exponential_backoff(
@@ -1366,7 +1385,11 @@ class AppendDestinationsFn(DoFn):
   Experimental; no backwards compatibility guarantees.
   """
   def __init__(self, destination):
+    self._display_destination = destination
     self.destination = AppendDestinationsFn._get_table_fn(destination)
+
+  def display_data(self):
+    return {'destination': str(self._display_destination)}
 
   @staticmethod
   def _value_provider_or_static_val(elm):

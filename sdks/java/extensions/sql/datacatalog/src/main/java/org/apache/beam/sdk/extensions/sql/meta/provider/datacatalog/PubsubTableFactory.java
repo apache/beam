@@ -36,7 +36,7 @@ class PubsubTableFactory implements TableFactory {
 
   @Override
   public Optional<Builder> tableBuilder(Entry entry) {
-    if (!URI.create(entry.getLinkedResource()).getAuthority().toLowerCase().equals(PUBSUB_API)) {
+    if (!URI.create(entry.getLinkedResource()).getAuthority().equalsIgnoreCase(PUBSUB_API)) {
       return Optional.empty();
     }
 

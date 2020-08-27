@@ -118,6 +118,7 @@ rat {
 
     // Mockito extensions
     "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
+    "sdks/java/io/azure/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
     "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
 
     // JupyterLab extensions
@@ -178,6 +179,7 @@ task javaPostCommit() {
   dependsOn ":sdks:java:extensions:google-cloud-platform-core:postCommit"
   dependsOn ":sdks:java:extensions:zetasketch:postCommit"
   dependsOn ":sdks:java:io:google-cloud-platform:postCommit"
+  dependsOn ":sdks:java:io:kinesis:integrationTest"
 }
 
 task sqlPostCommit() {
@@ -187,6 +189,7 @@ task sqlPostCommit() {
 }
 
 task goPreCommit() {
+  dependsOn ":sdks:go:goBuild"
   dependsOn ":sdks:go:goTest"
 
   dependsOn ":sdks:go:examples:goBuild"
@@ -220,13 +223,12 @@ task pythonPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
   dependsOn ":sdks:python:test-suites:tox:py38:preCommitPy38"
-  dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitIT"
-  dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitIT_V2"
-  dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT"
-  dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT_V2"
-  // We don't include Py35, Py36 precommit ITs to reduce quota footprint.
-  // We can reconsider if we ever see an issue that these suites would
-  // have caught. Note that the same tests will still run in postcommit.
+  dependsOn ":sdks:python:test-suites:dataflow:preCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:preCommitIT_V2"
+}
+
+task pythonDocsPreCommit() {
+  dependsOn ":sdks:python:test-suites:tox:pycommon:docs"
 }
 
 task pythonDockerBuildPreCommit() {
@@ -247,7 +249,6 @@ task pythonFormatterPreCommit() {
 }
 
 task python2PostCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py2:crossLanguagePythonJavaKafkaIOFlink"
   dependsOn ":sdks:python:test-suites:portable:py2:crossLanguageTests"
   dependsOn ":sdks:python:test-suites:dataflow:py2:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py2:directRunnerIT"
@@ -275,7 +276,6 @@ task python37PostCommit() {
 }
 
 task python38PostCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py38:crossLanguagePythonJavaKafkaIOFlink"
   dependsOn ":sdks:python:test-suites:dataflow:py38:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py38:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py38:hdfsIntegrationTest"
@@ -319,6 +319,12 @@ task runBeamDependencyCheck() {
   dependsOn ":sdks:python:dependencyUpdates"
 }
 
+task whitespacePreCommit() {
+  dependsOn ":sdks:python:test-suites:tox:py38:archiveFilesToLint"
+  dependsOn ":sdks:python:test-suites:tox:py38:unpackFilesToLint"
+  dependsOn ":sdks:python:test-suites:tox:py38:whitespacelint"
+}
+
 // Configure the release plugin to do only local work; the release manager determines what, if
 // anything, to push. On failure, the release manager can reset the branch without pushing.
 release {
@@ -346,7 +352,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 
   configurations { linkageCheckerJava }
   dependencies {
-    linkageCheckerJava "com.google.cloud.tools:dependencies:1.4.2"
+    linkageCheckerJava "com.google.cloud.tools:dependencies:1.5.0"
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the
@@ -369,7 +375,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
         "${project.ext.mavenGroupId}:${it}:${project.version}"
       }
     }).join(',')]
-    
+
     // Exclusion file filters out existing linkage errors before a change
     if (project.hasProperty('javaLinkageWriteBaseline')) {
       arguments += ['--output-exclusion-file', project.getProperty('javaLinkageWriteBaseline')]

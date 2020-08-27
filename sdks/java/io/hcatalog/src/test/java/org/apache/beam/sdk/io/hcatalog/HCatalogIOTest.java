@@ -57,6 +57,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Watch;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -290,6 +291,31 @@ public class HCatalogIOTest implements Serializable {
     HCatalogIO.read()
         .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
         .expand(null);
+  }
+
+  /** Regression test for BEAM-10694. */
+  @Test
+  public void testReadTransformCanBeSerializedMultipleTimes() throws Exception {
+    ReaderContext context = getReaderContext(getConfigPropertiesAsMap(service.getHiveConf()));
+    HCatalogIO.Read spec =
+        HCatalogIO.read()
+            .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
+            .withContext(context)
+            .withTable(TEST_TABLE);
+    SerializableUtils.clone(SerializableUtils.clone(spec));
+  }
+
+  /** Regression test for BEAM-10694. */
+  @Test
+  public void testSourceCanBeSerializedMultipleTimes() throws Exception {
+    ReaderContext context = getReaderContext(getConfigPropertiesAsMap(service.getHiveConf()));
+    HCatalogIO.Read spec =
+        HCatalogIO.read()
+            .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
+            .withContext(context)
+            .withTable(TEST_TABLE);
+    BoundedHCatalogSource source = new BoundedHCatalogSource(spec);
+    SerializableUtils.clone(SerializableUtils.clone(source));
   }
 
   /** Test of Read using SourceTestUtils.readFromSource(..). */

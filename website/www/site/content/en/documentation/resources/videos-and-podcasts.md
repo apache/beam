@@ -31,7 +31,7 @@ The following resources provide general overviews and fundamentals of Apache Bea
 
 Data Science Summit, Jerusalem, 2016
 
-Presented by Tyler Akidau, *Apache Beam PPMC member*  
+Presented by Tyler Akidau, *Apache Beam PPMC member*
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/V35MwYcXEX0" frameborder="0" allowfullscreen></iframe>
 <br>
@@ -49,7 +49,7 @@ Presented by Davor Bonaci, *Apache Beam PPMC member*
 
 @Scale Conference, San Jose, CA, 2016
 
-Presented by Dan Halperin, *Apache Beam PPMC member*  
+Presented by Dan Halperin, *Apache Beam PPMC member*
 
 <iframe src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fatscaleevents%2Fvideos%2F1775945569345206%2F&show_text=0&width=560" width="560" height="315" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowTransparency="true" allowFullScreen="true"></iframe>
 <br>
@@ -65,7 +65,7 @@ Presented by Frances Perry, *Apache Beam PPMC member*
 
 The following resources present Apache Beam partnerships.
 
-### Distributed Processing for Machine Learning Production Pipelines 
+### Distributed Processing for Machine Learning Production Pipelines
 
 Flink Forward, 2020
 
@@ -74,7 +74,7 @@ Presented by Ahmet Altay, Robert Crowe, Reza Rokni
 <iframe width="560" height="315" src="https://www.youtube.com/embed/jV1WFTmm4qg" frameborder="0" allowfullscreen></iframe>
 <br>
 
-### TensorFlow Extended: An End-to-End Machine Learning Platform for TensorFlow 
+### TensorFlow Extended: An End-to-End Machine Learning Platform for TensorFlow
 
 Spark+AI, San Francisco, 2019
 

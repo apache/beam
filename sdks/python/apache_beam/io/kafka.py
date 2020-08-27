@@ -93,10 +93,13 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 ReadFromKafkaSchema = typing.NamedTuple(
     'ReadFromKafkaSchema',
     [
-        ('consumer_config', typing.List[typing.Tuple[unicode, unicode]]),
+        ('consumer_config', typing.Mapping[unicode, unicode]),
         ('topics', typing.List[unicode]),
         ('key_deserializer', unicode),
         ('value_deserializer', unicode),
+        ('start_read_time', typing.Optional[int]),
+        ('max_num_records', typing.Optional[int]),
+        ('max_read_time', typing.Optional[int]),
     ])
 
 
@@ -125,34 +128,43 @@ class ReadFromKafka(ExternalTransform):
       topics,
       key_deserializer=byte_array_deserializer,
       value_deserializer=byte_array_deserializer,
-      expansion_service=None):
+      start_read_time=None,
+      max_num_records=None,
+      max_read_time=None,
+      expansion_service=None,
+  ):
     """
     Initializes a read operation from Kafka.
 
     :param consumer_config: A dictionary containing the consumer configuration.
     :param topics: A list of topic strings.
     :param key_deserializer: A fully-qualified Java class name of a Kafka
-                             Deserializer for the topic's key, e.g.
-                             'org.apache.kafka.common.
-                             serialization.LongDeserializer'.
-                             Default: 'org.apache.kafka.common.
-                             serialization.ByteArrayDeserializer'.
+        Deserializer for the topic's key, e.g.
+        'org.apache.kafka.common.serialization.LongDeserializer'.
+        Default: 'org.apache.kafka.common.serialization.ByteArrayDeserializer'.
     :param value_deserializer: A fully-qualified Java class name of a Kafka
-                               Deserializer for the topic's value, e.g.
-                               'org.apache.kafka.common.
-                               serialization.LongDeserializer'.
-                               Default: 'org.apache.kafka.common.
-                               serialization.ByteArrayDeserializer'.
+        Deserializer for the topic's value, e.g.
+        'org.apache.kafka.common.serialization.LongDeserializer'.
+        Default: 'org.apache.kafka.common.serialization.ByteArrayDeserializer'.
+    :param start_read_time: Use timestamp to set up start offset in milliseconds
+        epoch.
+    :param max_num_records: Maximum amount of records to be read. Mainly used
+        for tests and demo applications.
+    :param max_read_time: Maximum amount of time in seconds the transform
+        executes. Mainly used for tests and demo applications.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
     super(ReadFromKafka, self).__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
             ReadFromKafkaSchema(
-                consumer_config=list(consumer_config.items()),
+                consumer_config=consumer_config,
                 topics=topics,
                 key_deserializer=key_deserializer,
                 value_deserializer=value_deserializer,
+                max_num_records=max_num_records,
+                max_read_time=max_read_time,
+                start_read_time=start_read_time,
             )),
         expansion_service or default_io_expansion_service())
 
@@ -160,7 +172,7 @@ class ReadFromKafka(ExternalTransform):
 WriteToKafkaSchema = typing.NamedTuple(
     'WriteToKafkaSchema',
     [
-        ('producer_config', typing.List[typing.Tuple[unicode, unicode]]),
+        ('producer_config', typing.Mapping[unicode, unicode]),
         ('topic', unicode),
         ('key_serializer', unicode),
         ('value_serializer', unicode),
@@ -195,24 +207,20 @@ class WriteToKafka(ExternalTransform):
     :param producer_config: A dictionary containing the producer configuration.
     :param topic: A Kafka topic name.
     :param key_deserializer: A fully-qualified Java class name of a Kafka
-                             Serializer for the topic's key, e.g.
-                             'org.apache.kafka.common.
-                             serialization.LongSerializer'.
-                             Default: 'org.apache.kafka.common.
-                             serialization.ByteArraySerializer'.
+        Serializer for the topic's key, e.g.
+        'org.apache.kafka.common.serialization.LongSerializer'.
+        Default: 'org.apache.kafka.common.serialization.ByteArraySerializer'.
     :param value_deserializer: A fully-qualified Java class name of a Kafka
-                               Serializer for the topic's value, e.g.
-                               'org.apache.kafka.common.
-                               serialization.LongSerializer'.
-                               Default: 'org.apache.kafka.common.
-                               serialization.ByteArraySerializer'.
+        Serializer for the topic's value, e.g.
+        'org.apache.kafka.common.serialization.LongSerializer'.
+        Default: 'org.apache.kafka.common.serialization.ByteArraySerializer'.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
     super(WriteToKafka, self).__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
             WriteToKafkaSchema(
-                producer_config=list(producer_config.items()),
+                producer_config=producer_config,
                 topic=topic,
                 key_serializer=key_serializer,
                 value_serializer=value_serializer,

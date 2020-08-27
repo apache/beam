@@ -322,7 +322,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.24.0'
+    project.version = '2.25.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -391,7 +391,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def gax_version = "1.54.0"
     def generated_grpc_ga_version = "1.85.1"
     def google_auth_version = "0.19.0"
-    def google_clients_version = "1.30.9"
+    def google_clients_version = "1.30.10"
     def google_cloud_bigdataoss_version = "2.1.3"
     def google_cloud_core_version = "1.92.2"
     def google_cloud_pubsublite_version = "0.1.6"
@@ -408,7 +408,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def jaxb_api_version = "2.3.3"
     def kafka_version = "1.0.0"
     def nemo_version = "0.1"
-    def netty_version = "4.1.30.Final"
+    def netty_version = "4.1.51.Final"
     def postgres_version = "42.2.2"
     def powermock_version = "2.0.2"
     def proto_google_common_protos_version = "1.17.0"
@@ -416,6 +416,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def quickcheck_version = "0.8"
     def spark_version = "2.4.6"
     def spotbugs_version = "4.0.6"
+    def testcontainers_localstack_version = "1.14.3"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -469,13 +470,13 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common:1.8.1",
-        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20191211-$google_clients_version",
-        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20200313-$google_clients_version",
-        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20200311-$google_clients_version",
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20200305-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1beta1-rev20200525-$google_clients_version",
-        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20200312-$google_clients_version",
-        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20200226-$google_clients_version",
+        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20200719-$google_clients_version",
+        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20200501-$google_clients_version",
+        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20200720-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20200713-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1beta1-rev20200713-$google_clients_version",
+        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20200713-$google_clients_version",
+        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20200611-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:1.108.0",
@@ -496,7 +497,8 @@ class BeamModulePlugin implements Plugin<Project> {
         google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf:$google_http_clients_version",
         google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_oauth_clients_version",
         google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_oauth_clients_version",
-        grpc_all                                    : "io.grpc:grpc-all:$grpc_version",
+        // Don't use grpc_all, it can cause issues in Bazel builds. Reference the gRPC libraries you need individually instead.
+        grpc_api                                    : "io.grpc:grpc-api:$grpc_version",
         grpc_alts                                   : "io.grpc:grpc-alts:$grpc_version",
         grpc_auth                                   : "io.grpc:grpc-auth:$grpc_version",
         grpc_core                                   : "io.grpc:grpc-core:$grpc_version",
@@ -540,7 +542,7 @@ class BeamModulePlugin implements Plugin<Project> {
         mockito_core                                : "org.mockito:mockito-core:3.0.0",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
-        netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.17.Final",
+        netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.33.Final",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         powermock                                   : "org.powermock:powermock-module-junit4:$powermock_version",
@@ -564,6 +566,7 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
+        testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_localstack_version",
         vendored_bytebuddy_1_10_8                   : "org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1",
         vendored_grpc_1_26_0                        : "org.apache.beam:beam-vendor-grpc-1_26_0:0.3",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
@@ -581,7 +584,7 @@ class BeamModulePlugin implements Plugin<Project> {
         maven_exec_plugin    : "maven-plugins:maven-exec-plugin:1.6.0",
         maven_jar_plugin     : "maven-plugins:maven-jar-plugin:3.0.2",
         maven_shade_plugin   : "maven-plugins:maven-shade-plugin:3.1.0",
-        maven_surefire_plugin: "maven-plugins:maven-surefire-plugin:2.21.0",
+        maven_surefire_plugin: "maven-plugins:maven-surefire-plugin:3.0.0-M5",
       ],
     ]
 
@@ -1375,9 +1378,15 @@ class BeamModulePlugin implements Plugin<Project> {
         include "**/*IT.class"
 
         def pipelineOptionsString = configuration.integrationTestPipelineOptions
+        def pipelineOptionsStringFormatted
+        def allOptionsList
+
+        if(pipelineOptionsString) {
+          allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
+        }
+
         if(pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
           project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
-          def allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
           def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
               project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
           def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
@@ -1386,11 +1395,17 @@ class BeamModulePlugin implements Plugin<Project> {
             "--dataflowWorkerJar=${dataflowWorkerJar}",
             "--region=${dataflowRegion}"
           ])
-
-          pipelineOptionsString = JsonOutput.toJson(allOptionsList)
         }
 
-        systemProperties.beamTestPipelineOptions = pipelineOptionsString
+        // Windows handles quotation marks differently
+        if (pipelineOptionsString && System.properties['os.name'].toLowerCase().contains('windows')) {
+          def allOptionsListFormatted = allOptionsList.collect{ "\"$it\"" }
+          pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsListFormatted)
+        } else if (pipelineOptionsString) {
+          pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsList)
+        }
+
+        systemProperties.beamTestPipelineOptions = pipelineOptionsStringFormatted ?: pipelineOptionsString
       }
     }
 
@@ -1495,6 +1510,9 @@ class BeamModulePlugin implements Plugin<Project> {
       project.tasks.dockerPrepare.dependsOn project.tasks.copyLicenses
     }
 
+    project.ext.applyDockerRunNature = {
+      project.apply plugin: "com.palantir.docker-run"
+    }
     /** ***********************************************************************************************/
 
     project.ext.applyGroovyNature = {
@@ -2136,6 +2154,14 @@ class BeamModulePlugin implements Plugin<Project> {
         addPortableWordCountTask(false, "FlinkRunner")
         addPortableWordCountTask(true, "FlinkRunner")
         addPortableWordCountTask(false, "SparkRunner")
+      }
+
+      project.ext.getVersionSuffix = { String version ->
+        return version == '2.7' ? '2' : version.replace('.', '')
+      }
+
+      project.ext.getVersionsAsList = { String propertyName ->
+        return project.getProperty(propertyName).split(',')
       }
     }
   }

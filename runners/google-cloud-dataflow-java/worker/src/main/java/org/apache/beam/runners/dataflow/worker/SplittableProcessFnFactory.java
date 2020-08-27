@@ -162,7 +162,11 @@ class SplittableProcessFnFactory {
               // advancing smoothly, and ensures that not too much work will have to be reprocessed
               // in the event of a crash.
               10000,
-              Duration.standardSeconds(10)));
+              Duration.standardSeconds(10),
+              () -> {
+                throw new UnsupportedOperationException(
+                    "BundleFinalizer unsupported by non-portable Dataflow.");
+              }));
       DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> simpleRunner =
           new SimpleDoFnRunner<>(
               options,

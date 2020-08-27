@@ -26,8 +26,13 @@ import java.io.Serializable;
 import java.util.Arrays;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesCrossLanguageTransforms;
@@ -39,6 +44,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ConnectivityState;
@@ -54,7 +60,30 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Test External transforms. */
+/**
+ * Runner Validation Test Suite for Cross-language Transforms.
+ *
+ * <p>As per Beams's Portability Framework design, Cross-language transforms should work out of the
+ * box. In spite of this, there always exists a possibility of rough edges existing. It could be
+ * caused due to unpolished implementation of any part of the execution code path, for example: –>
+ * Transform expansion [SDK] –> Pipeline construction [SDK] –> Cross-language artifact staging
+ * [Runner] –> Language specific serialization/deserialization of PCollection (and other data types)
+ * [Runner/SDK]
+ *
+ * <p>In an effort to improve developer visibility into potential problems, this test suite
+ * validates correct execution of 5 Core Beam transforms when used as cross-language transforms
+ * within the Java SDK from any foreign SDK: –> ParDo
+ * (https://beam.apache.org/documentation/programming-guide/#pardo) –> GroupByKey
+ * (https://beam.apache.org/documentation/programming-guide/#groupbykey) –> CoGroupByKey
+ * (https://beam.apache.org/documentation/programming-guide/#cogroupbykey) –> Combine
+ * (https://beam.apache.org/documentation/programming-guide/#combine) –> Flatten
+ * (https://beam.apache.org/documentation/programming-guide/#flatten) –> Partition
+ * (https://beam.apache.org/documentation/programming-guide/#partition)
+ *
+ * <p>See Runner Validation Test Plan for Cross-language transforms
+ * (https://docs.google.com/document/d/1xQp0ElIV84b8OCVz8CD2hvbiWdR8w4BvWxPTZJZA6NA") for further
+ * details.
+ */
 @RunWith(JUnit4.class)
 public class ValidateRunnerXlangTest implements Serializable {
   @Rule public transient TestPipeline testPipeline = TestPipeline.create();
@@ -110,6 +139,14 @@ public class ValidateRunnerXlangTest implements Serializable {
     }
   }
 
+  /**
+   * Motivation behind singleInputOutputTest.
+   *
+   * <p>Target transform – ParDo (https://beam.apache.org/documentation/programming-guide/#pardo)
+   * Test scenario – Mapping elements from a single input collection to a single output collection
+   * Boundary conditions checked – –> PCollection<?> to external transforms –> PCollection<?> from
+   * external transforms
+   */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void singleInputOutputTest() throws IOException {
@@ -120,6 +157,14 @@ public class ValidateRunnerXlangTest implements Serializable {
     PAssert.that(col).containsInAnyOrder("01", "02", "03");
   }
 
+  /**
+   * Motivation behind multiInputOutputWithSideInputTest.
+   *
+   * <p>Target transform – ParDo (https://beam.apache.org/documentation/programming-guide/#pardo)
+   * Test scenario – Mapping elements from multiple input collections (main and side) to multiple
+   * output collections (main and side) Boundary conditions checked – –> PCollectionTuple to
+   * external transforms –> PCollectionTuple from external transforms
+   */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void multiInputOutputWithSideInputTest() {
@@ -135,6 +180,15 @@ public class ValidateRunnerXlangTest implements Serializable {
     PAssert.that(pTuple.get("side")).containsInAnyOrder("ss");
   }
 
+  /**
+   * Motivation behind groupByKeyTest.
+   *
+   * <p>Target transform – GroupByKey
+   * (https://beam.apache.org/documentation/programming-guide/#groupbykey) Test scenario – Grouping
+   * a collection of KV<K,V> to a collection of KV<K, Iterable<V>> by key Boundary conditions
+   * checked – –> PCollection<KV<?, ?>> to external transforms –> PCollection<KV<?, Iterable<?>>>
+   * from external transforms
+   */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void groupByKeyTest() {
@@ -154,6 +208,15 @@ public class ValidateRunnerXlangTest implements Serializable {
     PAssert.that(col).containsInAnyOrder("0:1,2", "1:3");
   }
 
+  /**
+   * Motivation behind coGroupByKeyTest.
+   *
+   * <p>Target transform – CoGroupByKey
+   * (https://beam.apache.org/documentation/programming-guide/#cogroupbykey) Test scenario –
+   * Grouping multiple input collections with keys to a collection of KV<K, CoGbkResult> by key
+   * Boundary conditions checked – –> KeyedPCollectionTuple<?> to external transforms –>
+   * PCollection<KV<?, Iterable<?>>> from external transforms
+   */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void coGroupByKeyTest() {
@@ -177,6 +240,14 @@ public class ValidateRunnerXlangTest implements Serializable {
     PAssert.that(col).containsInAnyOrder("0:1,2,4", "1:3,5,6");
   }
 
+  /**
+   * Motivation behind combineGloballyTest.
+   *
+   * <p>Target transform – Combine
+   * (https://beam.apache.org/documentation/programming-guide/#combine) Test scenario – Combining
+   * elements globally with a predefined simple CombineFn Boundary conditions checked – –>
+   * PCollection<?> to external transforms –> PCollection<?> from external transforms
+   */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void combineGloballyTest() {
@@ -187,6 +258,14 @@ public class ValidateRunnerXlangTest implements Serializable {
     PAssert.that(col).containsInAnyOrder(6L);
   }
 
+  /**
+   * Motivation behind combinePerKeyTest.
+   *
+   * <p>Target transform – Combine
+   * (https://beam.apache.org/documentation/programming-guide/#combine) Test scenario – Combining
+   * elements per key with a predefined simple merging function Boundary conditions checked – –>
+   * PCollection<?> to external transforms –> PCollection<?> from external transforms
+   */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void combinePerKeyTest() {
@@ -197,6 +276,14 @@ public class ValidateRunnerXlangTest implements Serializable {
     PAssert.that(col).containsInAnyOrder(KV.of("a", 3L), KV.of("b", 3L));
   }
 
+  /**
+   * Motivation behind flattenTest.
+   *
+   * <p>Target transform – Flatten
+   * (https://beam.apache.org/documentation/programming-guide/#flatten) Test scenario – Merging
+   * multiple collections into a single collection Boundary conditions checked – –>
+   * PCollectionList<?> to external transforms –> PCollection<?> from external transforms
+   */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void flattenTest() {
@@ -209,6 +296,15 @@ public class ValidateRunnerXlangTest implements Serializable {
     PAssert.that(col).containsInAnyOrder(1L, 2L, 3L, 4L, 5L, 6L);
   }
 
+  /**
+   * Motivation behind partitionTest.
+   *
+   * <p>Target transform – Partition
+   * (https://beam.apache.org/documentation/programming-guide/#partition) Test scenario – Splitting
+   * a single collection into multiple collections with a predefined simple PartitionFn Boundary
+   * conditions checked – –> PCollection<?> to external transforms –> PCollectionList<?> from
+   * external transforms
+   */
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void partitionTest() {
@@ -222,14 +318,21 @@ public class ValidateRunnerXlangTest implements Serializable {
   }
 
   private byte[] toStringPayloadBytes(String data) throws IOException {
+    Row configRow =
+        Row.withSchema(Schema.of(Field.of("data", FieldType.STRING)))
+            .withFieldValue("data", data)
+            .build();
+
+    ByteString.Output outputStream = ByteString.newOutput();
+    try {
+      RowCoder.of(configRow.getSchema()).encode(configRow, outputStream);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
     ExternalTransforms.ExternalConfigurationPayload payload =
         ExternalTransforms.ExternalConfigurationPayload.newBuilder()
-            .putConfiguration(
-                "data",
-                ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:string_utf8:v1")
-                    .setPayload(ByteString.copyFrom(encodeString(data)))
-                    .build())
+            .setSchema(SchemaTranslation.schemaToProto(configRow.getSchema(), false))
+            .setPayload(outputStream.toByteString())
             .build();
     return payload.toByteArray();
   }

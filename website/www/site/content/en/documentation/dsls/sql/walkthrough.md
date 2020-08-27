@@ -39,7 +39,7 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
 
     {{< highlight java >}}
     // Define the schema for the records.
-    Schema appSchema = 
+    Schema appSchema =
         Schema
           .builder()
           .addInt32Field("appId")
@@ -48,14 +48,14 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
           .build();
 
     // Create a concrete row with that type.
-    Row row = 
+    Row row =
         Row
           .withSchema(appSchema)
           .addValues(1, "Some cool app", new Date())
           .build();
 
     // Create a source PCollection containing only that row
-    PCollection<Row> testApps = 
+    PCollection<Row> testApps =
         PBegin
           .in(p)
           .apply(Create
@@ -83,14 +83,14 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
               // Get the current POJO instance
               AppPojo pojo = c.element();
 
-              // Create a Row with the appSchema schema 
+              // Create a Row with the appSchema schema
               // and values from the current POJO
-              Row appRow = 
+              Row appRow =
                     Row
                       .withSchema(appSchema)
                       .addValues(
-                        pojo.appId, 
-                        pojo.description, 
+                        pojo.appId,
+                        pojo.description,
                         pojo.timestamp)
                       .build();
 
@@ -119,20 +119,20 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
             + "FROM PCOLLECTION "
             + "WHERE id=1"));
     {{< /highlight >}}
-  - when applying to a `PCollectionTuple`, the tuple tag for each `PCollection` in the tuple defines the table name that may be used to query it. Note that table names are bound to the specific `PCollectionTuple`, and thus are only valid in the context of queries applied to it.  
+  - when applying to a `PCollectionTuple`, the tuple tag for each `PCollection` in the tuple defines the table name that may be used to query it. Note that table names are bound to the specific `PCollectionTuple`, and thus are only valid in the context of queries applied to it.
 
-    For example, you can join two `PCollections`:  
+    For example, you can join two `PCollections`:
     {{< highlight java >}}
     // Create the schema for reviews
-    Schema reviewSchema = 
+    Schema reviewSchema =
         Schema
           .builder()
           .addInt32Field("appId")
           .addInt32Field("reviewerId")
-          .withFloatField("rating")
+          .addFloatField("rating")
           .addDateTimeField("rowtime")
           .build();
-    
+
     // Obtain the reviews records with this schema
     PCollection<Row> reviewsRows = ...
 
@@ -142,8 +142,8 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
         new TupleTag<>("Apps"), appsRows), // appsRows from the previous example
         new TupleTag<>("Reviews"), reviewsRows));
 
-    // Compute the total number of reviews 
-    // and average rating per app 
+    // Compute the total number of reviews
+    // and average rating per app
     // by joining two PCollections
     PCollection<Row> output = namesAndFoods.apply(
         SqlTransform.query(

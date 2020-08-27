@@ -60,6 +60,10 @@ class TimeDomain(object):
   def to_runner_api(domain):
     return TimeDomain._RUNNER_API_MAPPING[domain]
 
+  @staticmethod
+  def is_event_time(domain):
+    return TimeDomain.from_string(domain) == TimeDomain.WATERMARK
+
 
 class TimestampCombinerImpl(with_metaclass(ABCMeta,
                                            object)):  # type: ignore[misc]

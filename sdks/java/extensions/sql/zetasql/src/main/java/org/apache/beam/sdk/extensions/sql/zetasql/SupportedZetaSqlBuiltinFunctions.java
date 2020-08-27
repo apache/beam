@@ -197,23 +197,23 @@ class SupportedZetaSqlBuiltinFunctions {
 
           // Time functions
           FunctionSignatureId.FN_CURRENT_DATE, // current_date
-          // FunctionSignatureId.FN_CURRENT_DATETIME, // current_datetime
+          FunctionSignatureId.FN_CURRENT_DATETIME, // current_datetime
           FunctionSignatureId.FN_CURRENT_TIME, // current_time
           FunctionSignatureId.FN_CURRENT_TIMESTAMP, // current_timestamp
           FunctionSignatureId.FN_DATE_ADD_DATE, // date_add
-          // FunctionSignatureId.FN_DATETIME_ADD, // datetime_add
+          FunctionSignatureId.FN_DATETIME_ADD, // datetime_add
           FunctionSignatureId.FN_TIME_ADD, // time_add
           FunctionSignatureId.FN_TIMESTAMP_ADD, // timestamp_add
           FunctionSignatureId.FN_DATE_DIFF_DATE, // date_diff
-          // FunctionSignatureId.FN_DATETIME_DIFF, // datetime_diff
+          FunctionSignatureId.FN_DATETIME_DIFF, // datetime_diff
           FunctionSignatureId.FN_TIME_DIFF, // time_diff
           FunctionSignatureId.FN_TIMESTAMP_DIFF, // timestamp_diff
           FunctionSignatureId.FN_DATE_SUB_DATE, // date_sub
-          // FunctionSignatureId.FN_DATETIME_SUB, // datetime_sub
+          FunctionSignatureId.FN_DATETIME_SUB, // datetime_sub
           FunctionSignatureId.FN_TIME_SUB, // time_sub
           FunctionSignatureId.FN_TIMESTAMP_SUB, // timestamp_sub
           FunctionSignatureId.FN_DATE_TRUNC_DATE, // date_trunc
-          // FunctionSignatureId.FN_DATETIME_TRUNC, // datetime_trunc
+          FunctionSignatureId.FN_DATETIME_TRUNC, // datetime_trunc
           FunctionSignatureId.FN_TIME_TRUNC, // time_trunc
           FunctionSignatureId.FN_TIMESTAMP_TRUNC, // timestamp_trunc
           FunctionSignatureId.FN_DATE_FROM_UNIX_DATE, // date_from_unix_date
@@ -234,19 +234,18 @@ class SupportedZetaSqlBuiltinFunctions {
           FunctionSignatureId.FN_UNIX_MILLIS_FROM_TIMESTAMP,
           // FunctionSignatureId.FN_UNIX_MICROS_FROM_TIMESTAMP,
           FunctionSignatureId.FN_DATE_FROM_TIMESTAMP, // date
-          // FunctionSignatureId.FN_DATE_FROM_DATETIME, // date
+          FunctionSignatureId.FN_DATE_FROM_DATETIME, // date
           FunctionSignatureId.FN_DATE_FROM_YEAR_MONTH_DAY, // date
           FunctionSignatureId.FN_TIMESTAMP_FROM_STRING, // timestamp
           FunctionSignatureId.FN_TIMESTAMP_FROM_DATE, // timestamp
-          // FunctionSignatureId.FN_TIMESTAMP_FROM_DATETIME, // timestamp
+          FunctionSignatureId.FN_TIMESTAMP_FROM_DATETIME, // timestamp
           FunctionSignatureId.FN_TIME_FROM_HOUR_MINUTE_SECOND, // time
           FunctionSignatureId.FN_TIME_FROM_TIMESTAMP, // time
-          // FunctionSignatureId.FN_TIME_FROM_DATETIME, // time
-          // FunctionSignatureId.FN_DATETIME_FROM_DATE_AND_TIME, // datetime
-          // FunctionSignatureId.FN_DATETIME_FROM_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND, // datetime
-          // FunctionSignatureId.FN_DATETIME_FROM_TIMESTAMP, // datetime
-          // FunctionSignatureId.FN_DATETIME_FROM_DATE, // datetime
-
+          FunctionSignatureId.FN_TIME_FROM_DATETIME, // time
+          FunctionSignatureId.FN_DATETIME_FROM_DATE_AND_TIME, // datetime
+          FunctionSignatureId.FN_DATETIME_FROM_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND, // datetime
+          FunctionSignatureId.FN_DATETIME_FROM_TIMESTAMP, // datetime
+          FunctionSignatureId.FN_DATETIME_FROM_DATE, // datetime
           FunctionSignatureId.FN_STRING_FROM_TIMESTAMP, // string
 
           // Signatures for extracting date parts, taking a date/timestamp
@@ -258,23 +257,24 @@ class SupportedZetaSqlBuiltinFunctions {
 
           // Signatures specific to extracting the DATE date part from a DATETIME or a
           // TIMESTAMP.
-          // FunctionSignatureId.FN_EXTRACT_DATE_FROM_DATETIME, // $extract_date
+          FunctionSignatureId.FN_EXTRACT_DATE_FROM_DATETIME, // $extract_date
           FunctionSignatureId.FN_EXTRACT_DATE_FROM_TIMESTAMP, // $extract_date
 
           // Signatures specific to extracting the TIME date part from a DATETIME or a
           // TIMESTAMP.
-          // FunctionSignatureId.FN_EXTRACT_TIME_FROM_DATETIME, // $extract_time
+          FunctionSignatureId.FN_EXTRACT_TIME_FROM_DATETIME, // $extract_time
           FunctionSignatureId.FN_EXTRACT_TIME_FROM_TIMESTAMP, // $extract_time
 
           // Signature specific to extracting the DATETIME date part from a TIMESTAMP.
-          // FunctionSignatureId.FN_EXTRACT_DATETIME_FROM_TIMESTAMP, // $extract_datetime
+          FunctionSignatureId.FN_EXTRACT_DATETIME_FROM_TIMESTAMP, // $extract_datetime
 
+          // Signature for formatting and parsing
           FunctionSignatureId.FN_FORMAT_DATE, // format_date
-          // FunctionSignatureId.FN_FORMAT_DATETIME, // format_datetime
+          FunctionSignatureId.FN_FORMAT_DATETIME, // format_datetime
           FunctionSignatureId.FN_FORMAT_TIME, // format_time
           FunctionSignatureId.FN_FORMAT_TIMESTAMP, // format_timestamp
           FunctionSignatureId.FN_PARSE_DATE, // parse_date
-          // FunctionSignatureId.FN_PARSE_DATETIME, // parse_datetime
+          FunctionSignatureId.FN_PARSE_DATETIME, // parse_datetime
           FunctionSignatureId.FN_PARSE_TIME, // parse_time
           FunctionSignatureId.FN_PARSE_TIMESTAMP, // parse_timestamp
 

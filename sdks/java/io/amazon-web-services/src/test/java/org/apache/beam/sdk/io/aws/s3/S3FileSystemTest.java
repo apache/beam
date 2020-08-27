@@ -106,22 +106,6 @@ public class S3FileSystemTest {
   }
 
   @Test
-  public void testGlobTranslation() {
-    assertEquals("foo", S3FileSystem.wildcardToRegexp("foo"));
-    assertEquals("fo[^/]*o", S3FileSystem.wildcardToRegexp("fo*o"));
-    assertEquals("f[^/]*o\\.[^/]", S3FileSystem.wildcardToRegexp("f*o.?"));
-    assertEquals("foo-[0-9][^/]*", S3FileSystem.wildcardToRegexp("foo-[0-9]*"));
-    assertEquals("foo-[0-9].*", S3FileSystem.wildcardToRegexp("foo-[0-9]**"));
-    assertEquals(".*foo", S3FileSystem.wildcardToRegexp("**/*foo"));
-    assertEquals(".*foo", S3FileSystem.wildcardToRegexp("**foo"));
-    assertEquals("foo/[^/]*", S3FileSystem.wildcardToRegexp("foo/*"));
-    assertEquals("foo[^/]*", S3FileSystem.wildcardToRegexp("foo*"));
-    assertEquals("foo/[^/]*/[^/]*/[^/]*", S3FileSystem.wildcardToRegexp("foo/*/*/*"));
-    assertEquals("foo/[^/]*/.*", S3FileSystem.wildcardToRegexp("foo/*/**"));
-    assertEquals("foo.*baz", S3FileSystem.wildcardToRegexp("foo**baz"));
-  }
-
-  @Test
   public void testGetScheme() {
     S3FileSystem s3FileSystem = new S3FileSystem(s3Options());
     assertEquals("s3", s3FileSystem.getScheme());

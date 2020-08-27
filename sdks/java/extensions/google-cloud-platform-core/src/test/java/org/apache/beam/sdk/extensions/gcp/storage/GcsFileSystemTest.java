@@ -153,17 +153,6 @@ public class GcsFileSystemTest {
     }
 
     {
-      GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file*");
-      List<String> expectedFiles =
-          ImmutableList.of(
-              "gs://testbucket/testdirectory/file1name",
-              "gs://testbucket/testdirectory/file2name",
-              "gs://testbucket/testdirectory/file3name");
-
-      assertThat(expectedFiles, contains(toFilenames(gcsFileSystem.expand(pattern)).toArray()));
-    }
-
-    {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file[1-3]*");
       List<String> expectedFiles =
           ImmutableList.of(

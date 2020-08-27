@@ -37,6 +37,9 @@ The release process consists of several steps:
 
 1. Decide to release
 1. Prepare for the release
+1. Investigate performance regressions
+1. Create a release branch
+1. Verify release branch
 1. Build a release candidate
 1. Vote on the release candidate
 1. During vote process, run validation tests
@@ -45,7 +48,7 @@ The release process consists of several steps:
 1. Promote the release
 
 
-### Decide to release
+## 1. Decide to release
 
 Deciding to release and selecting a Release Manager is the first step of the release process. This is a consensus-based decision of the entire community.
 
@@ -60,13 +63,13 @@ In general, the community prefers to have a rotating set of 3-5 Release Managers
 
 **********
 
-## 1. Prepare for the release
+## 2. Prepare for the release
 
 Before your first release, you should perform one-time configuration steps. This will set up your security keys for signing the release and access to various release repositories.
 
 To prepare for each release, you should audit the project status in the JIRA issue tracker, and do necessary bookkeeping. Finally, you should create a release branch from which individual release candidates will be built.
 
-__NOTE__: If you are using [GitHub two-factor authentication](https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/) and haven't configure HTTPS access, 
+__NOTE__: If you are using [GitHub two-factor authentication](https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/) and haven't configure HTTPS access,
 please follow [the guide](https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/) to configure command line access.
 
 
@@ -87,7 +90,7 @@ Please have these credentials ready at hand, you will likely need to enter them 
 
 You need to have a GPG key to sign the release artifacts. Please be aware of the ASF-wide [release signing guidelines](https://www.apache.org/dev/release-signing.html). If you don’t have a GPG key associated with your Apache account, please create one according to the guidelines.
 
-There are 2 ways to configure your GPG key for release, either using release automation script(which is recommended), 
+There are 2 ways to configure your GPG key for release, either using release automation script(which is recommended),
 or running all commands manually.
 
 ##### Use preparation_before_release.sh to setup GPG
@@ -101,7 +104,7 @@ or running all commands manually.
   1. Help you create a new GPG key if you want.
   1. Configure ```git user.signingkey``` with chosen pubkey.
   1. Add chosen pubkey into [dev KEYS](https://dist.apache.org/repos/dist/dev/beam/KEYS)  and [release KEYS](https://dist.apache.org/repos/dist/release/beam/KEYS)
-     
+
      **NOTES**: Only PMC can write into [release repo](https://dist.apache.org/repos/dist/release/beam/).
   1. Start GPG agents.
 
@@ -116,7 +119,7 @@ __NOTE__: When generating the key, please make sure you choose the key type as _
       sudo rngd -r /dev/urandom
 
 * Create a GPG key
-    
+
       gpg --full-generate-key
 
 * Determine your Apache GPG Key and Key ID, as follows:
@@ -124,7 +127,7 @@ __NOTE__: When generating the key, please make sure you choose the key type as _
       gpg --list-sigs --keyid-format LONG
 
   This will list your GPG keys. One of these should reflect your Apache account, for example:
-  
+
       --------------------------------------------------
       pub   2048R/845E6689 2016-02-23
       uid                  Nomen Nescio <anonymous@apache.org>
@@ -173,7 +176,7 @@ Configure access to the [Apache Nexus repository](https://repository.apache.org/
         </settings>
 
 #### Submit your GPG public key into MIT PGP Public Key Server
-In order to make yourself have right permission to stage java artifacts in Apache Nexus staging repository, 
+In order to make yourself have right permission to stage java artifacts in Apache Nexus staging repository,
 please submit your GPG public key into [MIT PGP Public Key Server](http://pgp.mit.edu:11371/).
 
 If MIT doesn't work for you (it probably won't, it's slow, returns 502 a lot, Nexus might error out not being able to find the keys),
@@ -205,7 +208,7 @@ Automation Reliability](https://s.apache.org/beam-site-automation).
 Release manager needs to have an account with PyPI. If you need one, [register at PyPI](https://pypi.python.org/account/register/). You also need to be a maintainer (or an owner) of the [apache-beam](https://pypi.python.org/pypi/apache-beam) package in order to push a new release. Ask on the mailing list for assistance.
 
 #### Login to DockerHub
-Run following command manually. It will ask you to input your DockerHub ID and password if 
+Run following command manually. It will ask you to input your DockerHub ID and password if
 authorization info cannot be found from ~/.docker/config.json file.
 ```
 docker login docker.io
@@ -244,7 +247,23 @@ __Attention__: Only PMC has permission to perform this. If you are not a PMC, pl
 **********
 
 
-## 2. Create a release branch in apache/beam repository
+## 3. Investigate performance regressions
+
+Check the Beam load tests for possible performance regressions. Measurements are available on [metrics.beam.apache.org](http://metrics.beam.apache.org).
+
+All Runners which publish data should be checked for the following, in both *batch* and *streaming* mode:
+
+- [ParDo](http://metrics.beam.apache.org/d/MOi-kf3Zk/pardo-load-tests) and [GBK](http://metrics.beam.apache.org/d/UYZ-oJ3Zk/gbk-load-test): Runtime, latency, checkpoint duration
+- [Nexmark](http://metrics.beam.apache.org/d/ahuaA_zGz/nexmark): Query runtime for all queries
+- [IO](http://metrics.beam.apache.org/d/bnlHKP3Wz/java-io-it-tests-dataflow): Runtime
+
+If regressions are found, the release branch can still be created, but the regressions should be investigated and fixed as part of the release process.
+The role of the release manager is to file JIRA issues for each regression with the 'Fix Version' set to the to-be-released version. The release manager
+oversees these just like any other JIRA issue marked with the 'Fix Version' of the release.
+
+The mailing list should be informed to allow fixing the regressions in the course of the release.
+
+## 4. Create a release branch in apache/beam repository
 
 Attention: Only committer has permission to create release branch in apache/beam.
 
@@ -261,26 +280,26 @@ There are 2 ways to cut a release branch: either running automation script(recom
   ./beam/release/src/main/scripts/cut_release_branch.sh \
   --release=${RELEASE_VERSION} \
   --next_release=${NEXT_VERSION}
-  
+
   # Show help page
   ./beam/release/src/main/scripts/cut_release_branch.sh -h
   ```
 * The script will:
   1. Create release-${RELEASE_VERSION} branch locally.
   1. Change and commit dev versoin number in master branch:
-  
+
      [BeamModulePlugin.groovy](https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy#L209),
      [gradle.properties](https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/gradle.properties#L25),
      [version.py](https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/sdks/python/apache_beam/version.py#L21)
   1. Change and commit version number in release branch:
-  
-     [version.py](https://github.com/apache/beam/blob/release-2.6.0/sdks/python/apache_beam/version.py#L21), 
-     [build.gradle](https://github.com/apache/beam/blob/release-2.6.0/runners/google-cloud-dataflow-java/build.gradle#L39), 
+
+     [version.py](https://github.com/apache/beam/blob/release-2.6.0/sdks/python/apache_beam/version.py#L21),
+     [build.gradle](https://github.com/apache/beam/blob/release-2.6.0/runners/google-cloud-dataflow-java/build.gradle#L39),
      [gradle.properties](https://github.com/apache/beam/blob/release-2.16.0/gradle.properties#L27)
-     
+
 #### (Alternative) Run all steps manually
 * Checkout working branch
-   
+
   Check out the version of the codebase from which you start the release. For a new minor or major release, this may be `HEAD` of the `master` branch. To build a hotfix/incremental release, instead of the `master` branch, use the release tag of the release being patched. (Please make sure your cloned repository is up-to-date before starting.)
 
       git checkout <master branch OR release tag>
@@ -305,16 +324,16 @@ There are 2 ways to cut a release branch: either running automation script(recom
       git checkout tags/${BASE_RELEASE}
 
 * Create release branch locally
-    
+
       git branch ${BRANCH}
 
 * Update version files in the master branch.
-  
+
       # Now change the version in existing gradle files, and Python files
       sed -i -e "s/'${RELEASE}'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g" build_rules.gradle
       sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" gradle.properties
       sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" sdks/python/apache_beam/version.py
-  
+
       # Save changes in master branch
       git add gradle.properties build_rules.gradle sdks/python/apache_beam/version.py
       git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
@@ -322,10 +341,10 @@ There are 2 ways to cut a release branch: either running automation script(recom
 * Check out the release branch.
 
       git checkout ${BRANCH}
-    
+
 
 * Update version files in release branch
-      
+
       DEV=${RELEASE}.dev
       sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py
       sed -i -e "s/${DEV}/${RELEASE}/g" gradle.properties
@@ -345,18 +364,18 @@ There are 2 ways to trigger a nightly build, either using automation script(reco
 * Script: [start_snapshot_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/start_snapshot_build.sh)
 
 * Usage
-  
+
       ./beam/release/src/main/scripts/start_snapshot_build.sh
 
 * The script will:
   1. Install [hub](https://github.com/github/hub) with your agreement.
   1. Touch an empty txt file and commit changes into ```${your remote beam repo}/snapshot_build```
   1. Use hub to create a PR against apache:master, which triggers a Jenkins job to build snapshot.
-  
+
 * Tasks you need to do manually to __verify the SNAPSHOT build__
   1. Check whether the Jenkins job gets triggered. If not, please comment ```Run Gradle Publish``` into the generated PR.
   1. After verifying build succeeded, you need to close PR manually.
-  
+
 #### (Alternative) Do all operations manually
 
 * Find one PR against apache:master in beam.
@@ -367,7 +386,7 @@ There are 2 ways to trigger a nightly build, either using automation script(reco
 **********
 
 
-## 3. Verify release branch
+## 5. Verify release branch
 
 After the release branch is cut you need to make sure it builds and has no significant issues that would block the creation of the release candidate.
 There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.
@@ -405,7 +424,7 @@ You can use [mass_comment.py](https://github.com/apache/beam/blob/master/release
   1. Check the build result.
   2. If build failed, scan log will contain all failures.
   3. You should stabilize the release branch until release build succeeded.
-  
+
 There are some projects that don't produce the artifacts, e.g. `beam-test-tools`, you may be able to
 ignore failures there.
 
@@ -442,7 +461,7 @@ projects you're interested at the moment, e.g. `./gradlew :runners:java-fn-execu
   1. Clean current workspace
 
       ```
-      git clean -fdx 
+      git clean -fdx
       ./gradlew clean
       ```
 
@@ -477,18 +496,23 @@ The verify_release_build.sh script may include failing or flaky tests. For each 
 
 * Description: Description of failure
 
+#### Inform the mailing list
+
+The dev@beam.apache.org mailing list should be informed about the release branch being cut. Alongside with this note,
+a list of pending issues and to-be-trigated issues should be included. Afterwards, this list can be refined and updated
+by the release manager and the Beam community.
 
 **********
 
 
-## 4. Triage release-blocking issues in JIRA
+## 6. Triage release-blocking issues in JIRA
 
 There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate. We track them by assigning a specific `Fix version` field even before the issue resolved.
 
 The list of release-blocking issues is available at the [version status page](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel). Triage each unresolved issue with one of the following resolutions:
 
 The release manager should triage what does and does not block a release. An issue should not block the release if the problem exists in the current released version or is a bug in new functionality that does not exist in the current released version. It should be a blocker if the bug is a regression between the currently released version and the release in progress and has no easy workaround.
- 
+
 For all JIRA issues:
 
 * If the issue has been resolved and JIRA was not updated, resolve it accordingly.
@@ -528,7 +552,7 @@ _Tip_: Another tool in your toolbox is the known issues section of the release b
 **********
 
 
-## 5. Build a release candidate
+## 7. Build a release candidate
 
 ### Checklist before proceeding
 
@@ -547,7 +571,7 @@ _Tip_: Another tool in your toolbox is the known issues section of the release b
 
 The core of the release process is the build-vote-fix cycle. Each cycle produces one release candidate. The Release Manager repeats this cycle until the community approves one release candidate, which is then finalized.
 
-For this step, we recommend you using automation script to create a RC, but you still can perform all steps manually if you want. 
+For this step, we recommend you using automation script to create a RC, but you still can perform all steps manually if you want.
 
 
 ### Run build_release_candidate.sh to create a release candidate
@@ -555,7 +579,7 @@ For this step, we recommend you using automation script to create a RC, but you 
 * Script: [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh)
 
 * Usage
-  
+
       ./beam/release/src/main/scripts/build_release_candidate.sh
 
 * The script will:
@@ -567,7 +591,7 @@ For this step, we recommend you using automation script to create a RC, but you 
   1. Create a PR to update beam-site, changes includes:
      * Copy python doc into beam-site
      * Copy java doc into beam-site
-     
+
 #### Tasks you need to do manually
   1. Verify the script worked.
       1. Verify that the source and Python binaries are present in [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam).
@@ -599,7 +623,7 @@ For this step, we recommend you using automation script to create a RC, but you 
 **********
 
 
-## 6. Prepare documents
+## 8. Prepare documents
 
 ### Update and Verify Javadoc
 
@@ -621,7 +645,7 @@ Javadoc to the Javadoc for other modules that Beam depends on.
 
 ### Build the Pydoc API reference
 
-Make sure you have ```tox``` installed: 
+Make sure you have ```tox``` installed:
 
 ```
 pip install tox
@@ -748,7 +772,7 @@ docker pull apache/beam_python3.5_sdk:2.16.0_rc1
 **********
 
 
-## 7. Vote and validate release candidate
+## 9. Vote and validate release candidate
 
 Once you have built and individually reviewed the release candidate, please share it for the community-wide review. Please review foundation-wide [voting guidelines](http://www.apache.org/foundation/voting.html) for more information.
 
@@ -790,7 +814,7 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     [8] https://github.com/apache/beam/pull/...
     [9] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
     [10] https://hub.docker.com/search?q=apache%2Fbeam&type=image
-    
+
 If there are any issues found in the release candidate, reply on the vote thread to cancel the vote. There’s no need to wait 72 hours. Proceed to the `Fix Issues` step below and address the problem. However, some issues don’t require cancellation. For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.
 
 If there are no issues, reply on the vote thread to close the voting. Then, tally the votes in a separate email thread. Here’s an email template; please adjust as you see fit.
@@ -810,7 +834,7 @@ If there are no issues, reply on the vote thread to close the voting. Then, tall
     There are no disapproving votes.
 
     Thanks everyone!
-    
+
 ### Run validation tests
 All tests listed in this [spreadsheet](https://s.apache.org/beam-release-validation)
 
@@ -820,7 +844,7 @@ Since there are a bunch of tests, we recommend you running validations using aut
 * Script: [run_rc_validation.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/run_rc_validation.sh)
 
 * Usage
-  1. First update required configurations listed in `RC_VALIDATE_CONFIGS` in 
+  1. First update required configurations listed in `RC_VALIDATE_CONFIGS` in
      [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
   1. Then run
       ```
@@ -879,57 +903,57 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   -PgcsBucket=${YOUR_GCP_BUCKET}
   ```
 * Java Mobile Game(UserScore, HourlyTeamScore, Leaderboard)
-  
+
   Pre-request
   * Create your own BigQuery dataset
     ```
     bq mk --project_id=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
     ```
-  * Create yout PubSub topic 
+  * Create yout PubSub topic
     ```
-    gcloud alpha pubsub topics create --project=${YOUR_GCP_PROJECT} ${YOUR_PROJECT_PUBSUB_TOPIC} 
+    gcloud alpha pubsub topics create --project=${YOUR_GCP_PROJECT} ${YOUR_PROJECT_PUBSUB_TOPIC}
     ```
   * Setup your service account
-    
+
     Goto IAM console in your project to create a service account as ```project owner```
-    
-    Run 
+
+    Run
     ```
     gcloud iam service-accounts keys create ${YOUR_KEY_JSON} --iam-account ${YOUR_SERVICE_ACCOUNT_NAME}@${YOUR_PROJECT_NAME}
-    export GOOGLE_APPLICATION_CREDENTIALS=${PATH_TO_YOUR_KEY_JSON} 
+    export GOOGLE_APPLICATION_CREDENTIALS=${PATH_TO_YOUR_KEY_JSON}
     ```
-  Run 
+  Run
   ```
   ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
-   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \ 
+   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
    -Pver=${RELEASE_VERSION} \
    -PgcpProject=${YOUR_GCP_PROJECT} \
    -PgcsBucket=${YOUR_GCP_BUCKET} \
    -PbqDataset=${YOUR_DATASET} -PpubsubTopic=${YOUR_PROJECT_PUBSUB_TOPIC}
   ```
 * Python Quickstart(batch & streaming), MobileGame(UserScore, HourlyTeamScore)
-  
+
   Create a new PR in apache/beam
-  
+
   In comment area, type in ```Run Python ReleaseCandidate```
- 
+
 * Python Leaderboard & GameStats
   * Get staging RC ```wget https://dist.apache.org/repos/dist/dev/beam/2.5.0/* ```
   * Verify the hashes
-  
+
     ```
     sha512sum -c apache-beam-2.5.0-python.zip.sha512
     sha512sum -c apache-beam-2.5.0-source-release.zip.sha512
     ```
   * Build SDK
-  
+
     ```
     sudo apt-get install unzip
     unzip apache-beam-2.5.0-source-release.zip
     python setup.py sdist
     ```
   * Setup virtualenv
-    
+
     ```
     pip install --upgrade pip
     pip install --upgrade setuptools
@@ -938,15 +962,15 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
      . beam_env/bin/activate
     ```
   * Install SDK
-    
+
     ```
     pip install dist/apache-beam-2.5.0.tar.gz
     pip install dist/apache-beam-2.5.0.tar.gz[gcp]
     ```
   * Setup GCP
-    
+
     Please repeat following steps for every following test.
-    
+
     ```
     bq rm -rf --project=${YOUR_PROJECT} ${USER}_test
     bq mk --project_id=${YOUR_PROJECT} ${USER}_test
@@ -955,7 +979,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
     gcloud alpha pubsub topics create --project=${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC}
     ```
     Setup your service account as described in ```Java Mobile Game``` section above.
-  
+
     Produce data by using java injector:
     * Configure your ~/.m2/settings.xml as following:
       ```
@@ -978,8 +1002,8 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
       </settings>
       ```
       _Note_: You can found the latest  ```id```, ```name``` and ```url``` for one RC in the vote email thread sent out by Release Manager.
-    
-    * Run 
+
+    * Run
       ```
       mvn archetype:generate \
             -DarchetypeGroupId=org.apache.beam \
@@ -991,7 +1015,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
             -Dpackage=org.apache.beam.examples \
             -DinteractiveMode=false
             -DarchetypeCatalog=internal
-            
+
       mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
         -Dexec.args="${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC} none"
       ```
@@ -1009,13 +1033,13 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
     * bq head -n 10 ${USER}_test.leader_board_teams
   * Run Leaderboard with Dataflow Runner
     ```
-    python -m apache_beam.examples.complete.game.leader_board \ 
-    --project=${YOUR_PROJECT} \ 
+    python -m apache_beam.examples.complete.game.leader_board \
+    --project=${YOUR_PROJECT} \
     --region=${GCE_REGION} \
-    --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
-    --dataset ${USER}_test \ 
-    --runner DataflowRunner \ 
-    --temp_location=${YOUR_GS_BUCKET}/temp/ \ 
+    --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
+    --dataset ${USER}_test \
+    --runner DataflowRunner \
+    --temp_location=${YOUR_GS_BUCKET}/temp/ \
     --sdk_location dist/*
     ```
     Inspect results:
@@ -1039,13 +1063,13 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
 
   * Run GameStats with Dataflow Runner
     ```
-    python -m apache_beam.examples.complete.game.game_stats \ 
+    python -m apache_beam.examples.complete.game.game_stats \
     --project=${YOUR_PROJECT} \
     --region=${GCE_REGION} \
-    --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
-    --dataset ${USER}_test \ 
-    --runner DataflowRunner \ 
-    --temp_location=${YOUR_GS_BUCKET}/temp/ \ 
+    --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
+    --dataset ${USER}_test \
+    --runner DataflowRunner \
+    --temp_location=${YOUR_GS_BUCKET}/temp/ \
     --sdk_location dist/* \
     --fixed_window_duration ${SOME_SMALL_DURATION}
     ```
@@ -1074,7 +1098,7 @@ Once all issues have been resolved, you should go back and build a new release c
 **********
 
 
-## 8. Finalize the release
+## 10. Finalize the release
 
 Once the release candidate has been reviewed and approved by the community, the release should be finalized. This involves the final deployment of the release candidate to the release repositories, merging of the website changes, etc.
 
@@ -1103,7 +1127,7 @@ All wheels should be published, in addition to the zip of the release source.
 ```
 Verify that:
 * Images are published at [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags {RELEASE} and *latest*.
-* Images with *latest* tag are pointing to current release by confirming 
+* Images with *latest* tag are pointing to current release by confirming
   1. Digest of the image with *latest* tag is the same as the one with {RELEASE} tag.
 
 ### Merge Website pull requests
@@ -1163,7 +1187,7 @@ Use reporter.apache.org to seed the information about the release into future pr
 **********
 
 
-## 9. Promote the release
+## 11. Promote the release
 
 Once the release has been finalized, the last step of the process is to promote the release within the project and beyond.
 

@@ -291,11 +291,20 @@ def pick_port(*ports):
     if port:
       return port
     else:
-      s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      except OSError as e:
+        # [Errno 97] Address family not supported by protocol
+        # Likely indicates we are in an IPv6-only environment (BEAM-10618). Try
+        # again with AF_INET6.
+        if e.errno == 97:
+          s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        else:
+          raise e
+
       sockets.append(s)
       s.bind(('localhost', 0))
-      _, free_port = s.getsockname()
-      return free_port
+      return s.getsockname()[1]
 
   ports = list(map(find_free_port, ports))
   # Close sockets only now to avoid the same port to be chosen twice

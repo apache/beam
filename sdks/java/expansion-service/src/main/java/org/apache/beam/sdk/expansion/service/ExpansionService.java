@@ -23,23 +23,18 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayDeque;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExternalConfigurationPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.BeamUrns;
-import org.apache.beam.runners.core.construction.CoderTranslation;
-import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
@@ -47,17 +42,26 @@ import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ServerBuilder;
@@ -101,23 +105,26 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   public static class ExternalTransformRegistrarLoader
       implements ExpansionService.ExpansionServiceRegistrar {
 
+    private static final SchemaRegistry SCHEMA_REGISTRY = SchemaRegistry.createDefault();
+
     @Override
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
       ImmutableMap.Builder<String, ExpansionService.TransformProvider> builder =
           ImmutableMap.builder();
       for (ExternalTransformRegistrar registrar :
           ServiceLoader.load(ExternalTransformRegistrar.class)) {
-        for (Map.Entry<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> entry :
-            registrar.knownBuilders().entrySet()) {
+        for (Map.Entry<String, ExternalTransformBuilder<?, ?, ?>> entry :
+            registrar.knownBuilderInstances().entrySet()) {
           String urn = entry.getKey();
-          Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass = entry.getValue();
+          ExternalTransformBuilder builderInstance = entry.getValue();
           builder.put(
               urn,
               spec -> {
                 try {
-                  ExternalTransforms.ExternalConfigurationPayload payload =
-                      ExternalTransforms.ExternalConfigurationPayload.parseFrom(spec.getPayload());
-                  return translate(payload, builderClass);
+                  Class configClass = getConfigClass(builderInstance);
+                  return builderInstance.buildExternal(
+                      payloadToConfig(
+                          ExternalConfigurationPayload.parseFrom(spec.getPayload()), configClass));
                 } catch (Exception e) {
                   throw new RuntimeException(
                       String.format("Failed to build transform %s from spec %s", urn, spec), e);
@@ -125,59 +132,140 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
               });
         }
       }
+
       return builder.build();
     }
 
-    private static PTransform<?, ?> translate(
-        ExternalTransforms.ExternalConfigurationPayload payload,
-        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass)
-        throws Exception {
-      Preconditions.checkState(
-          ExternalTransformBuilder.class.isAssignableFrom(builderClass),
-          "Provided identifier %s is not an ExternalTransformBuilder.",
-          builderClass.getName());
-
-      Object configObject = initConfiguration(builderClass);
-      populateConfiguration(configObject, payload);
-      return buildTransform(builderClass, configObject);
-    }
-
-    private static Object initConfiguration(
-        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass) throws Exception {
-      for (Method method : builderClass.getMethods()) {
+    private static <ConfigT> Class<ConfigT> getConfigClass(
+        ExternalTransformBuilder<ConfigT, ?, ?> transformBuilder) {
+      Class<ConfigT> configurationClass = null;
+      for (Method method : transformBuilder.getClass().getMethods()) {
         if (method.getName().equals("buildExternal")) {
           Preconditions.checkState(
               method.getParameterCount() == 1,
               "Build method for ExternalTransformBuilder %s must have exactly one parameter, but"
                   + " had %s parameters.",
-              builderClass.getSimpleName(),
+              transformBuilder.getClass().getSimpleName(),
               method.getParameterCount());
-          Class<?> configurationClass = method.getParameterTypes()[0];
+          configurationClass = (Class<ConfigT>) method.getParameterTypes()[0];
           if (Object.class.equals(configurationClass)) {
             continue;
           }
-          return configurationClass.getDeclaredConstructor().newInstance();
+          break;
         }
       }
-      throw new RuntimeException("Couldn't find build method on ExternalTransformBuilder.");
+
+      if (configurationClass == null) {
+        throw new AssertionError("Failed to find buildExternal method.");
+      }
+
+      return configurationClass;
     }
 
-    @VisibleForTesting
-    static void populateConfiguration(
-        Object config, ExternalTransforms.ExternalConfigurationPayload payload) throws Exception {
+    private static <ConfigT> Row decodeRow(ExternalConfigurationPayload payload) {
+      Schema payloadSchema = SchemaTranslation.schemaFromProto(payload.getSchema());
+
+      if (payloadSchema.getFieldCount() == 0) {
+        return Row.withSchema(Schema.of()).build();
+      }
+
+      // Coerce field names to camel-case
       Converter<String, String> camelCaseConverter =
           CaseFormat.LOWER_UNDERSCORE.converterTo(CaseFormat.LOWER_CAMEL);
-      for (Map.Entry<String, ExternalTransforms.ConfigValue> entry :
-          payload.getConfigurationMap().entrySet()) {
-        String key = entry.getKey();
-        ExternalTransforms.ConfigValue value = entry.getValue();
+      payloadSchema =
+          payloadSchema.getFields().stream()
+              .map(
+                  (field) -> {
+                    Preconditions.checkNotNull(field.getName());
+                    if (field.getName().contains("_")) {
+                      @Nullable String newName = camelCaseConverter.convert(field.getName());
+                      assert newName != null
+                          : "@AssumeAssertion(nullness): converter type is imprecise; it is nullness-preserving";
+                      return field.withName(newName);
+                    } else {
+                      return field;
+                    }
+                  })
+              .collect(Schema.toSchema());
 
-        String fieldName = camelCaseConverter.convert(key);
-        assert fieldName != null
-            : "@AssumeAssertion(nullness): converter type is imprecise; it is nullness-preserving";
-        List<String> coderUrns = value.getCoderUrnList();
-        Preconditions.checkArgument(coderUrns.size() > 0, "No Coder URN provided.");
-        Coder coder = resolveCoder(coderUrns);
+      Row configRow;
+      try {
+        configRow = RowCoder.of(payloadSchema).decode(payload.getPayload().newInput());
+      } catch (IOException e) {
+        throw new RuntimeException("Error decoding payload", e);
+      }
+      return configRow;
+    }
+
+    /**
+     * Attempt to create an instance of {@link ConfigT} from an {@link
+     * ExternalConfigurationPayload}. If a schema is registered for {@link ConfigT} this method will
+     * attempt to ise it. Throws an {@link IllegalArgumentException} if the schema in {@code
+     * payload} is not {@link Schema#assignableTo(Schema) assignable to} the registered schema.
+     *
+     * <p>If no Schema is registered, {@link ConfigT} must have a zero-argument constructor and
+     * setters corresponding to each field in the row encoded by {@code payload}. Note {@link
+     * ConfigT} may have additional setters not represented in the {@ocde payload} schema.
+     *
+     * <p>Exposed for testing only. No backwards compatibility guarantees.
+     */
+    @VisibleForTesting
+    public static <ConfigT> ConfigT payloadToConfig(
+        ExternalConfigurationPayload payload, Class<ConfigT> configurationClass) {
+      try {
+        return payloadToConfigSchema(payload, configurationClass);
+      } catch (NoSuchSchemaException schemaException) {
+        LOG.warn(
+            "Configuration class '{}' has no schema registered. Attempting to construct with setter approach.",
+            configurationClass.getName());
+        try {
+          return payloadToConfigSetters(payload, configurationClass);
+        } catch (ReflectiveOperationException e) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Failed to construct instance of configuration class '%s'",
+                  configurationClass.getName()),
+              e);
+        }
+      }
+    }
+
+    private static <ConfigT> ConfigT payloadToConfigSchema(
+        ExternalConfigurationPayload payload, Class<ConfigT> configurationClass)
+        throws NoSuchSchemaException {
+      Schema configSchema = SCHEMA_REGISTRY.getSchema(configurationClass);
+      SerializableFunction<Row, ConfigT> fromRowFunc =
+          SCHEMA_REGISTRY.getFromRowFunction(configurationClass);
+
+      Row payloadRow = decodeRow(payload);
+
+      if (!payloadRow.getSchema().assignableTo(configSchema)) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Schema in expansion request payload is not assignable to the schema for the "
+                    + "configuration object.%n%nPayload Schema: %s%n%nConfiguration Schema: %s",
+                payloadRow.getSchema(), configSchema));
+      }
+
+      return fromRowFunc.apply(payloadRow);
+    }
+
+    private static <ConfigT> ConfigT payloadToConfigSetters(
+        ExternalConfigurationPayload payload, Class<ConfigT> configurationClass)
+        throws ReflectiveOperationException {
+      Row configRow = decodeRow(payload);
+
+      Constructor<ConfigT> constructor = configurationClass.getDeclaredConstructor();
+      constructor.setAccessible(true);
+
+      ConfigT config = constructor.newInstance();
+      for (Field field : configRow.getSchema().getFields()) {
+        String key = field.getName();
+        @Nullable Object value = configRow.getValue(field.getName());
+
+        String fieldName = key;
+
+        Coder coder = SchemaCoder.coderForFieldType(field.getType());
         Class type = coder.getEncodedTypeDescriptor().getRawType();
 
         String setterName =
@@ -187,7 +275,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           // retrieve the setter for this field
           method = config.getClass().getMethod(setterName, type);
         } catch (NoSuchMethodException e) {
-          throw new RuntimeException(
+          throw new IllegalArgumentException(
               String.format(
                   "The configuration class %s is missing a setter %s for %s with type %s",
                   config.getClass(),
@@ -196,70 +284,18 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                   coder.getEncodedTypeDescriptor().getType().getTypeName()),
               e);
         }
-        method.invoke(
-            config, coder.decode(entry.getValue().getPayload().newInput(), Coder.Context.NESTED));
+        invokeSetter(config, value, method);
       }
+      return config;
     }
 
-    private static Coder resolveCoder(List<String> coderUrns) throws Exception {
-      Preconditions.checkArgument(coderUrns.size() > 0, "No Coder URN provided.");
-      RunnerApi.Components.Builder componentsBuilder = RunnerApi.Components.newBuilder();
-      Deque<String> coderQueue = new ArrayDeque<>(coderUrns);
-      RunnerApi.Coder coder = buildProto(coderQueue, componentsBuilder);
-
-      RehydratedComponents rehydratedComponents =
-          RehydratedComponents.forComponents(componentsBuilder.build());
-      return CoderTranslation.fromProto(coder, rehydratedComponents, TranslationContext.DEFAULT);
-    }
-
-    private static RunnerApi.Coder buildProto(
-        Deque<String> coderUrns, RunnerApi.Components.Builder componentsBuilder) {
-      Preconditions.checkArgument(coderUrns.size() > 0, "No URNs left to construct coder from");
-
-      final String coderUrn = coderUrns.pop();
-      RunnerApi.Coder.Builder coderBuilder =
-          RunnerApi.Coder.newBuilder()
-              .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(coderUrn).build());
-
-      if (coderUrn.equals(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.ITERABLE))) {
-        RunnerApi.Coder elementCoder = buildProto(coderUrns, componentsBuilder);
-        String coderId = UUID.randomUUID().toString();
-        componentsBuilder.putCoders(coderId, elementCoder);
-        coderBuilder.addComponentCoderIds(coderId);
-      } else if (coderUrn.equals(BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.KV))) {
-        RunnerApi.Coder element1Coder = buildProto(coderUrns, componentsBuilder);
-        RunnerApi.Coder element2Coder = buildProto(coderUrns, componentsBuilder);
-        String coderId1 = UUID.randomUUID().toString();
-        String coderId2 = UUID.randomUUID().toString();
-        componentsBuilder.putCoders(coderId1, element1Coder);
-        componentsBuilder.putCoders(coderId2, element2Coder);
-        coderBuilder.addComponentCoderIds(coderId1);
-        coderBuilder.addComponentCoderIds(coderId2);
-      }
-
-      return coderBuilder.build();
-    }
-
-    private static PTransform<?, ?> buildTransform(
-        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass, Object configObject)
-        throws Exception {
-      Constructor<? extends ExternalTransformBuilder<?, ?, ?>> constructor =
-          builderClass.getDeclaredConstructor();
-      constructor.setAccessible(true);
-      ExternalTransformBuilder<?, ?, ?> externalTransformBuilder = constructor.newInstance();
-      Method buildMethod = builderClass.getMethod("buildExternal", configObject.getClass());
-      buildMethod.setAccessible(true);
-
-      PTransform<?, ?> transform =
-          (PTransform<?, ?>)
-              checkArgumentNotNull(
-                  buildMethod.invoke(externalTransformBuilder, configObject),
-                  "Invoking %s.%s(%s) returned null, violating its type.",
-                  builderClass.getCanonicalName(),
-                  "buildExternal",
-                  configObject);
-
-      return transform;
+    // Checker framework is conservative for Method#invoke, args are NonNull
+    // See https://checkerframework.org/manual/#reflection-resolution
+    @SuppressWarnings("nullness")
+    private static <ConfigT> void invokeSetter(
+        ConfigT config, @Nullable Object value, Method method)
+        throws IllegalAccessException, InvocationTargetException {
+      method.invoke(config, value);
     }
   }
 

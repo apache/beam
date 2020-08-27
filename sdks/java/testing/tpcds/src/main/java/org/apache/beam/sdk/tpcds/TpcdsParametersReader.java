@@ -26,9 +26,8 @@ import java.util.stream.Stream;
  * Get and check the TpcdsOptions' parameters, throw exceptions when user input is invalid
  */
 public class TpcdsParametersReader {
-
     /** The data sizes that have been supported. */
-    private static final Set<String> supportedDataSizes = Stream.of("1G", "10G").collect(Collectors.toCollection(HashSet::new));
+    private static final Set<String> supportedDataSizes = Stream.of("1G", "10G", "100G").collect(Collectors.toCollection(HashSet::new));
 
     /**
      * Get and check dataSize entered by user. This dataSize has to have been supported.

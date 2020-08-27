@@ -71,7 +71,7 @@ For example, if your `DoFn` requires an `int` input, it makes more sense to decl
 Using Annotations has the added benefit of allowing use of a static type checker (such as mypy) to additionally type check your code.
 If you already use a type checker, using annotations instead of decorators reduces code duplication.
 However, annotations do not cover all the use cases that decorators and inline declarations do.
-Two such are the `expand` of a composite transform and lambda functions.
+For instance, they do not work for lambda functions.
 
 ### Declaring Type Hints Using Type Annotations
 
@@ -82,12 +82,22 @@ To specify type hints as annotations on certain functions, use them as usual and
 Annotations are currently supported on:
 
  - `process()` methods on `DoFn` subclasses.
+ - `expand()` methods on `PTransform` subclasses.
  - Functions passed to: `ParDo`, `Map`, `FlatMap`, `Filter`.
 
 The following code declares an `int` input and a `str` output type hint on the `to_id` transform, using annotations on `my_fn`.
 
 {{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test_py3.py" type_hints_map_annotations >}}
+{{< /highlight >}}
+
+The following code demonstrates how to use annotations on `PTransform` subclasses.
+A valid annotation is a `PCollection` that wraps an internal (nested) type, `PBegin`, `PDone`, or `None`.
+The following code declares typehints on a custom PTransform, that takes a `PCollection[int]` input
+and outputs a `PCollection[str]`, using annotations.
+
+{{< highlight py >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test_py3.py" type_hints_ptransforms >}}
 {{< /highlight >}}
 
 The following code declares `int` input and output type hints on `filter_evens`, using annotations on `FilterEvensDoFn.process`.
@@ -182,6 +192,7 @@ The following parameterized type hints are permitted:
 * `Iterable[T]`
 * `Iterator[T]`
 * `Generator[T]`
+* `PCollection[T]`
 
 **Note:** The `Tuple[T, U]` type hint is a tuple with a fixed number of heterogeneously typed elements, while the `Tuple[T, ...]` type hint is a tuple with a variable of homogeneously typed elements.
 
@@ -210,7 +221,15 @@ However, if you enable runtime type checking, the code is guaranteed to fail at 
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" type_hints_runtime_on >}}
 {{< /highlight >}}
 
-Note that because runtime type checks are done for each `PCollection` element, enabling this feature may incur a significant performance penalty. It is therefore recommended that runtime type checks are disabled for production pipelines.
+Note that because runtime type checks are done for each `PCollection` element, enabling this feature may incur a significant performance penalty. It is therefore recommended that runtime type checks are disabled for production pipelines. See the following section for a quicker, production-friendly alternative.
+
+### Faster Runtime Type Checking
+You can enable faster, sampling-based runtime type checking by setting the pipeline option `performance_runtime_type_check` to `True`.
+
+The is a Python 3 only feature that works by runtime type checking a small subset of values, called a sample, using optimized Cython code.
+
+Currently, this feature does not support runtime type checking for side inputs or combining operations.
+These are planned to be supported in a future release of Beam.
 
 ## Use of Type Hints in Coders
 

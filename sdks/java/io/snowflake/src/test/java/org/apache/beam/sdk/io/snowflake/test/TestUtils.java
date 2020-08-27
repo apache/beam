@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io.snowflake.test;
 
+import com.google.api.gax.paging.Page;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -138,6 +142,10 @@ public class TestUtils {
     return (SnowflakeIO.UserDataMapper<String[]>) recordLine -> recordLine;
   }
 
+  public static SnowflakeIO.UserDataMapper<String> getStringCsvMapper() {
+    return (SnowflakeIO.UserDataMapper<String>) recordLine -> new String[] {recordLine};
+  }
+
   public static class ParseToKv extends DoFn<Long, KV<String, Long>> {
     @ProcessElement
     public void processElement(ProcessContext c) {
@@ -161,5 +169,19 @@ public class TestUtils {
     }
 
     return lines;
+  }
+
+  public static void clearStagingBucket(String stagingBucketName, String directory) {
+    Storage storage = StorageOptions.getDefaultInstance().getService();
+    Page<Blob> blobs;
+    if (directory != null) {
+      blobs = storage.list(stagingBucketName, Storage.BlobListOption.prefix(directory));
+    } else {
+      blobs = storage.list(stagingBucketName);
+    }
+
+    for (Blob blob : blobs.iterateAll()) {
+      storage.delete(blob.getBlobId());
+    }
   }
 }

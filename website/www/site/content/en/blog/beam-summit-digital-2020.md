@@ -4,7 +4,7 @@ title:  "Beam Summit Digital Is Coming - Register Now!"
 date:   2020-05-08 00:00:01 -0800
 aliases:
   - /blog/2020/05/08/beam-summit-digital-2020.html
-categories: 
+categories:
   - blog
 authors:
   - pedro

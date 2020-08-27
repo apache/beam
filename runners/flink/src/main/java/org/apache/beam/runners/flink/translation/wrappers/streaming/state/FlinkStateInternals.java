@@ -21,8 +21,6 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Objects;
-import java.util.TreeMap;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.StateInternals;
@@ -36,6 +34,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
@@ -53,6 +52,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultiset;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -78,7 +78,7 @@ public class FlinkStateInternals<K> implements StateInternals {
   private Coder<K> keyCoder;
 
   // Watermark holds for all keys/windows of this partition, allows efficient lookup of the minimum
-  private final TreeMap<Long, Integer> watermarkHolds = new TreeMap<>();
+  private final TreeMultiset<Long> watermarkHolds = TreeMultiset.create();
   // State to persist combined watermark holds for all keys of this partition
   private final MapStateDescriptor<String, Instant> watermarkHoldStateDescriptor =
       new MapStateDescriptor<>(
@@ -98,7 +98,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     if (watermarkHolds.isEmpty()) {
       return Long.MAX_VALUE;
     } else {
-      return watermarkHolds.firstKey();
+      return watermarkHolds.firstEntry().getElement();
     }
   }
 
@@ -147,6 +147,13 @@ public class FlinkStateInternals<K> implements StateInternals {
         Coder<KeyT> mapKeyCoder,
         Coder<ValueT> mapValueCoder) {
       return new FlinkMapState<>(flinkStateBackend, id, namespace, mapKeyCoder, mapValueCoder);
+    }
+
+    @Override
+    public <T> OrderedListState<T> bindOrderedList(
+        String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
     }
 
     @Override
@@ -1190,18 +1197,12 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
   }
 
-  private void addWatermarkHoldUsage(Instant watermarkHold) {
-    watermarkHolds.merge(watermarkHold.getMillis(), 1, Integer::sum);
+  public void addWatermarkHoldUsage(Instant watermarkHold) {
+    watermarkHolds.add(watermarkHold.getMillis());
   }
 
-  private void removeWatermarkHoldUsage(Instant watermarkHold) {
-    watermarkHolds.compute(
-        watermarkHold.getMillis(),
-        (hold, usage) -> {
-          Objects.requireNonNull(usage);
-          // Returning null here will delete the entry
-          return usage == 1 ? null : usage - 1;
-        });
+  public void removeWatermarkHoldUsage(Instant watermarkHold) {
+    watermarkHolds.remove(watermarkHold.getMillis());
   }
 
   /** Restores a view of the watermark holds of all keys of this partition. */
@@ -1284,6 +1285,13 @@ public class FlinkStateInternals<K> implements StateInternals {
         throw new RuntimeException(e);
       }
       return null;
+    }
+
+    @Override
+    public <T> OrderedListState<T> bindOrderedList(
+        String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
+      throw new UnsupportedOperationException(
+          String.format("%s is not supported", OrderedListState.class.getSimpleName()));
     }
 
     @Override

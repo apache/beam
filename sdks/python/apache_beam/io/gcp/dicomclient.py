@@ -76,7 +76,6 @@ class DicomApiHttpClient:
     while True:
       params['offset'] = offset
       response = session.get(dicomweb_path, headers=headers, params=params)
-      response.raise_for_status()
       status = response.status_code
       if status != 200:
         if offset == 0:
@@ -84,7 +83,6 @@ class DicomApiHttpClient:
         params['offset'] = offset - 1
         params['limit'] = 1
         response = session.get(dicomweb_path, headers=headers, params=params)
-        response.raise_for_status()
         check_status = response.status_code
         if check_status == 200:
           # if the number of results equals to page size
@@ -123,6 +121,5 @@ class DicomApiHttpClient:
     headers = {"Content-Type": content_type}
 
     response = session.post(dicomweb_path, data=dcm_file, headers=headers)
-    response.raise_for_status()
 
     return None, response.status_code

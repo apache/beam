@@ -32,7 +32,7 @@ public abstract class Operator<OutputT> implements Serializable, TypeAware.Outpu
   private final @Nullable String name;
 
   /** The type of output elements. */
-  private final @Nullable TypeDescriptor<OutputT> outputType;
+  private final transient @Nullable TypeDescriptor<OutputT> outputType;
 
   protected Operator(@Nullable String name, @Nullable TypeDescriptor<OutputT> outputType) {
     this.name = name;

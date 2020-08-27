@@ -19,10 +19,10 @@
 Branching
 ---------
 
-You can use the same PCollection as input for multiple transforms without consuming the input or 
+You can use the same PCollection as input for multiple transforms without consuming the input or
 altering it.
 
-**Kata:** Branch out the numbers to two different transforms: one transform is multiplying each 
+**Kata:** Branch out the numbers to two different transforms: one transform is multiplying each
 number by 5 and the other transform is multiplying each number by 10.
 <div class="hint">
   Refer to the Beam Design Your Pipeline Guide

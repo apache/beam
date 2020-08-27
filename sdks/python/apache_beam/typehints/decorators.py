@@ -105,6 +105,7 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
+from typing import Union
 
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
@@ -377,6 +378,75 @@ class IOTypeHints(NamedTuple(
     return (
         self.output_types and len(self.output_types[0]) == 1 and
         not self.output_types[1])
+
+  def strip_pcoll(self):
+    from apache_beam.pipeline import Pipeline
+    from apache_beam.pvalue import PBegin
+    from apache_beam.pvalue import PDone
+
+    return self.strip_pcoll_helper(self.input_types,
+                                   self._has_input_types,
+                                   'input_types',
+                                    [Pipeline, PBegin],
+                                   'This input type hint will be ignored '
+                                   'and not used for type-checking purposes. '
+                                   'Typically, input type hints for a '
+                                   'PTransform are single (or nested) types '
+                                   'wrapped by a PCollection, or PBegin.',
+                                   'strip_pcoll_input()').\
+                strip_pcoll_helper(self.output_types,
+                                   self.has_simple_output_type,
+                                   'output_types',
+                                   [PDone, None],
+                                   'This output type hint will be ignored '
+                                   'and not used for type-checking purposes. '
+                                   'Typically, output type hints for a '
+                                   'PTransform are single (or nested) types '
+                                   'wrapped by a PCollection, PDone, or None.',
+                                   'strip_pcoll_output()')
+
+  def strip_pcoll_helper(
+      self,
+      my_type,            # type: any
+      has_my_type,        # type: Callable[[], bool]
+      my_key,             # type: str
+      special_containers,   # type: List[Union[PBegin, PDone, PCollection]]
+      error_str,          # type: str
+      source_str          # type: str
+      ):
+    # type: (...) -> IOTypeHints
+    from apache_beam.pvalue import PCollection
+
+    if not has_my_type() or not my_type or len(my_type[0]) != 1:
+      return self
+
+    my_type = my_type[0][0]
+
+    if isinstance(my_type, typehints.AnyTypeConstraint):
+      return self
+
+    special_containers += [PCollection]
+    kwarg_dict = {}
+
+    if (my_type not in special_containers and
+        getattr(my_type, '__origin__', None) != PCollection):
+      logging.warning(error_str + ' Got: %s instead.' % my_type)
+      kwarg_dict[my_key] = None
+      return self._replace(
+          origin=self._make_origin([self], tb=False, msg=[source_str]),
+          **kwarg_dict)
+
+    if (getattr(my_type, '__args__', -1) in [-1, None] or
+        len(my_type.__args__) == 0):
+      # e.g. PCollection (or PBegin/PDone)
+      kwarg_dict[my_key] = ((typehints.Any, ), {})
+    else:
+      # e.g. PCollection[type]
+      kwarg_dict[my_key] = ((convert_to_beam_type(my_type.__args__[0]), ), {})
+
+    return self._replace(
+        origin=self._make_origin([self], tb=False, msg=[source_str]),
+        **kwarg_dict)
 
   def strip_iterable(self):
     # type: () -> IOTypeHints

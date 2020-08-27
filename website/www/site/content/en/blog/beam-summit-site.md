@@ -25,7 +25,7 @@ limitations under the License.
 
 We are thrilled to announce the launch of our new website dedicated to Beam Summits!
 
-The [beamsummit.org](https://beamsummit.org) site provides all the information you need towards the upcoming Beam Summits in Europe, Asia and North America in 2019. You will find information about the conference theme, the speakers and sessions, the abstract submission timeline and the registration process, the conference venues and hosting cities - and much more that you will find useful until and during the Beam Summits 2019. 
+The [beamsummit.org](https://beamsummit.org) site provides all the information you need towards the upcoming Beam Summits in Europe, Asia and North America in 2019. You will find information about the conference theme, the speakers and sessions, the abstract submission timeline and the registration process, the conference venues and hosting cities - and much more that you will find useful until and during the Beam Summits 2019.
 
 We are working to make the website easy to use, so that anyone who is organizing a Beam event can rely on it. You can find the [code for it in Github](https://github.com/matthiasa4/hoverboard).
 

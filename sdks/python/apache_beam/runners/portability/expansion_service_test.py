@@ -29,7 +29,7 @@ from past.builtins import unicode
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
-from apache_beam.coders import StrUtf8Coder
+from apache_beam.coders import RowCoder
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
@@ -274,12 +274,8 @@ class FibTransform(ptransform.PTransform):
 def parse_string_payload(input_byte):
   payload = ExternalConfigurationPayload()
   payload.ParseFromString(input_byte)
-  coder = StrUtf8Coder()
-  return {
-      k: coder.decode_nested(v.payload)
-      for k,
-      v in payload.configuration.items()
-  }
+
+  return RowCoder(payload.schema).decode(payload.payload)._asdict()
 
 
 server = None

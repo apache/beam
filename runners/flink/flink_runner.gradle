@@ -127,6 +127,10 @@ test {
   } else if (project.path == ":runners:flink:1.10") {
     mustRunAfter(":runners:flink:1.8:test")
     mustRunAfter(":runners:flink:1.9:test")
+  } else if (project.path == ":runners:flink:1.11") {
+    mustRunAfter(":runners:flink:1.8:test")
+    mustRunAfter(":runners:flink:1.9:test")
+    mustRunAfter(":runners:flink:1.10:test")
   }
 }
 
@@ -209,6 +213,8 @@ def createValidatesRunnerTask(Map m) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
       if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'

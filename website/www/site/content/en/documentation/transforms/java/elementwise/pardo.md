@@ -143,7 +143,7 @@ See more information in the [Beam Programming Guide](/documentation/programming-
 {{< /highlight >}}
 
 
-## Related transforms 
+## Related transforms
 * [MapElements](/documentation/transforms/java/elementwise/mapelements)
   applies a simple 1-to-1 mapping function over each element in the collection.
 * [Filter](/documentation/transforms/java/elementwise/filter)

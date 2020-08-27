@@ -43,7 +43,7 @@ func (n *PairWithRestriction) ID() UnitID {
 }
 
 // Up performs one-time setup for this executor.
-func (n *PairWithRestriction) Up(ctx context.Context) error {
+func (n *PairWithRestriction) Up(_ context.Context) error {
 	fn := (*graph.SplittableDoFn)(n.Fn).CreateInitialRestrictionFn()
 	var err error
 	if n.inv, err = newCreateInitialRestrictionInvoker(fn); err != nil {
@@ -88,7 +88,7 @@ func (n *PairWithRestriction) FinishBundle(ctx context.Context) error {
 }
 
 // Down currently does nothing.
-func (n *PairWithRestriction) Down(ctx context.Context) error {
+func (n *PairWithRestriction) Down(_ context.Context) error {
 	return nil
 }
 
@@ -117,7 +117,7 @@ func (n *SplitAndSizeRestrictions) ID() UnitID {
 }
 
 // Up performs one-time setup for this executor.
-func (n *SplitAndSizeRestrictions) Up(ctx context.Context) error {
+func (n *SplitAndSizeRestrictions) Up(_ context.Context) error {
 	fn := (*graph.SplittableDoFn)(n.Fn).SplitRestrictionFn()
 	var err error
 	if n.splitInv, err = newSplitRestrictionInvoker(fn); err != nil {
@@ -200,7 +200,7 @@ func (n *SplitAndSizeRestrictions) FinishBundle(ctx context.Context) error {
 }
 
 // Down currently does nothing.
-func (n *SplitAndSizeRestrictions) Down(ctx context.Context) error {
+func (n *SplitAndSizeRestrictions) Down(_ context.Context) error {
 	return nil
 }
 
@@ -215,14 +215,27 @@ func (n *SplitAndSizeRestrictions) String() string {
 // changes to support the SDF's method signatures and the expected structure
 // of the FullValue being received.
 type ProcessSizedElementsAndRestrictions struct {
-	PDo *ParDo
+	PDo     *ParDo
+	TfId    string // Transform ID. Needed for splitting.
+	ctInv   *ctInvoker
+	sizeInv *rsInvoker
 
-	inv *ctInvoker
+	// SU is a buffered channel for indicating when this unit is splittable.
+	// When this unit is processing an element, it sends a SplittableUnit
+	// interface through the channel. That interface can be received on other
+	// threads and used to perform splitting or other related operation.
+	//
+	// This channel should be received on in a non-blocking manner, to avoid
+	// hanging if no element is processing.
+	//
+	// Receiving the SplittableUnit prevents the current element from finishing
+	// processing, so the element does not unexpectedly change during a split.
+	// Therefore, receivers of the SplittableUnit must send it back through the
+	// channel once finished with it, or it will block indefinitely.
+	SU chan SplittableUnit
 
-	// Rt allows this unit to send out restriction trackers being processed.
-	// Receivers of the tracker do not own it, and must send it back through the
-	// same channel once finished with it.
-	Rt chan sdf.RTracker
+	elm *FullValue   // Currently processing element.
+	rt  sdf.RTracker // Currently processing element's restriction tracker.
 }
 
 // ID calls the ParDo's ID method.
@@ -234,10 +247,14 @@ func (n *ProcessSizedElementsAndRestrictions) ID() UnitID {
 func (n *ProcessSizedElementsAndRestrictions) Up(ctx context.Context) error {
 	fn := (*graph.SplittableDoFn)(n.PDo.Fn).CreateTrackerFn()
 	var err error
-	if n.inv, err = newCreateTrackerInvoker(fn); err != nil {
+	if n.ctInv, err = newCreateTrackerInvoker(fn); err != nil {
 		return errors.WithContextf(err, "%v", n)
 	}
-	n.Rt = make(chan sdf.RTracker, 1)
+	fn = (*graph.SplittableDoFn)(n.PDo.Fn).RestrictionSizeFn()
+	if n.sizeInv, err = newRestrictionSizeInvoker(fn); err != nil {
+		return errors.WithContextf(err, "%v", n)
+	}
+	n.SU = make(chan SplittableUnit, 1)
 	return n.PDo.Up(ctx)
 }
 
@@ -268,15 +285,22 @@ func (n *ProcessSizedElementsAndRestrictions) StartBundle(ctx context.Context, i
 // and processes each element using the underlying ParDo and adding the
 // restriction tracker to the normal invocation. Sizing information is present
 // but currently ignored. Output is forwarded to the underlying ParDo's outputs.
-func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
+func (n *ProcessSizedElementsAndRestrictions) ProcessElement(_ context.Context, elm *FullValue, values ...ReStream) error {
 	if n.PDo.status != Active {
 		err := errors.Errorf("invalid status %v, want Active", n.PDo.status)
 		return errors.WithContextf(err, "%v", n)
 	}
 
 	rest := elm.Elm.(*FullValue).Elm2
-	rt := n.inv.Invoke(rest)
-	n.Rt <- rt
+	rt := n.ctInv.Invoke(rest)
+
+	n.rt = rt
+	n.elm = elm
+	n.SU <- n
+	defer func() {
+		<-n.SU
+	}()
+
 	mainIn := &MainInput{
 		Values:   values,
 		RTracker: rt,
@@ -303,26 +327,122 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context
 		}
 	}
 
-	err := n.PDo.processMainInput(mainIn)
-	<-n.Rt
-	return err
+	return n.PDo.processMainInput(mainIn)
 }
 
 // FinishBundle resets the invokers and then calls the ParDo's FinishBundle method.
 func (n *ProcessSizedElementsAndRestrictions) FinishBundle(ctx context.Context) error {
-	n.inv.Reset()
+	n.ctInv.Reset()
+	n.sizeInv.Reset()
 	return n.PDo.FinishBundle(ctx)
 }
 
-// Down closes open channels and calls the ParDo's Down method.
+// Down calls the ParDo's Down method.
 func (n *ProcessSizedElementsAndRestrictions) Down(ctx context.Context) error {
-	close(n.Rt)
 	return n.PDo.Down(ctx)
 }
 
 // String outputs a human-readable description of this transform.
 func (n *ProcessSizedElementsAndRestrictions) String() string {
 	return fmt.Sprintf("SDF.ProcessSizedElementsAndRestrictions[%v] UID:%v Out:%v", path.Base(n.PDo.Fn.Name()), n.PDo.ID(), IDs(n.PDo.Out...))
+}
+
+// SplittableUnit is an interface that defines sub-element splitting operations
+// for a unit, and provides access to them on other threads.
+type SplittableUnit interface {
+	// Split performs a split on a fraction of a currently processing element
+	// and returns the primary and residual elements resulting from it, or an
+	// error if the split failed.
+	Split(fraction float64) (primary, residual *FullValue, err error)
+
+	// GetProgress returns the fraction of progress the current element has
+	// made in processing. (ex. 0.0 means no progress, and 1.0 means fully
+	// processed.)
+	GetProgress() float64
+
+	// GetTransformId returns the transform ID of the splittable unit.
+	GetTransformId() string
+
+	// GetInputId returns the local input ID of the input that the element being
+	// split was received from.
+	GetInputId() string
+}
+
+// Split splits the currently processing element using its restriction tracker.
+// Then it returns an element for primary and residual, following the expected
+// input structure to this unit, including updating the size of the split
+// elements.
+func (n *ProcessSizedElementsAndRestrictions) Split(f float64) (*FullValue, *FullValue, error) {
+	addContext := func(err error) error {
+		return errors.WithContext(err, "Attempting split in ProcessSizedElementsAndRestrictions")
+	}
+
+	// Check that the restriction tracker is in a state where it can be split.
+	if n.rt == nil {
+		return nil, nil, addContext(errors.New("Restriction tracker missing."))
+	}
+	if err := n.rt.GetError(); err != nil {
+		return nil, nil, addContext(err)
+	}
+	if n.rt.IsDone() { // Not an error, but not splittable.
+		return nil, nil, nil
+	}
+
+	p, r, err := n.rt.TrySplit(f)
+	if err != nil {
+		return nil, nil, addContext(err)
+	}
+	if r == nil { // If r is nil then the split failed/returned an empty residual.
+		return nil, nil, nil
+	}
+
+	var pfv, rfv *FullValue
+	var pSize, rSize float64
+	elm := n.elm.Elm.(*FullValue).Elm
+	if fv, ok := elm.(*FullValue); ok {
+		pSize = n.sizeInv.Invoke(fv, p)
+		rSize = n.sizeInv.Invoke(fv, r)
+	} else {
+		fv := &FullValue{Elm: elm}
+		pSize = n.sizeInv.Invoke(fv, p)
+		rSize = n.sizeInv.Invoke(fv, r)
+	}
+	pfv = &FullValue{
+		Elm: &FullValue{
+			Elm:  elm,
+			Elm2: p,
+		},
+		Elm2:      pSize,
+		Timestamp: n.elm.Timestamp,
+		Windows:   n.elm.Windows,
+	}
+	rfv = &FullValue{
+		Elm: &FullValue{
+			Elm:  elm,
+			Elm2: r,
+		},
+		Elm2:      rSize,
+		Timestamp: n.elm.Timestamp,
+		Windows:   n.elm.Windows,
+	}
+	return pfv, rfv, nil
+}
+
+// GetProgress returns the current restriction tracker's progress as a fraction.
+func (n *ProcessSizedElementsAndRestrictions) GetProgress() float64 {
+	d, r := n.rt.GetProgress()
+	return d / (d + r)
+}
+
+// GetTransformId returns this transform's transform ID.
+func (n *ProcessSizedElementsAndRestrictions) GetTransformId() string {
+	return n.TfId
+}
+
+// GetInputId returns the main input ID, since main input elements are being
+// split.
+func (n *ProcessSizedElementsAndRestrictions) GetInputId() string {
+	return indexToInputId(0)
 }
 
 // SdfFallback is an executor used when an SDF isn't expanded into steps by the
@@ -370,7 +490,7 @@ func (n *SdfFallback) StartBundle(ctx context.Context, id string, data DataConte
 // restrictions, and then creating restriction trackers and processing each
 // restriction with the underlying ParDo. This executor skips the sizing step
 // because sizing information is unnecessary for unexpanded SDFs.
-func (n *SdfFallback) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
+func (n *SdfFallback) ProcessElement(_ context.Context, elm *FullValue, values ...ReStream) error {
 	if n.PDo.status != Active {
 		err := errors.Errorf("invalid status %v, want Active", n.PDo.status)
 		return errors.WithContextf(err, "%v", n)
