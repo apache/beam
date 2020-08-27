@@ -30,7 +30,7 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
 from apache_beam.options.pipeline_options import AzureFileSystemOptions
- from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
 __all__ = ['BlobStorageFileSystem']
 

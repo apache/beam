@@ -105,14 +105,16 @@ class BlobStorageError(Exception):
 
 class BlobStorageIO(object):
   """Azure Blob Storage I/O client."""
-  def __init__(self, client=None):
-    connect_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-    self.azurite = False
-    if client is None:
-      self.client = BlobServiceClient.from_connection_string(connect_str)
-    else:
-      self.client = client
-      self.azurite = True
+  def __init__(self, connect_str=None, azurite=False):
+    self.client = BlobServiceClient.from_connection_string(connect_str)
+    self.azurite = azurite
+    # connect_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+    # self.azurite = False
+    # if client is None:
+    #   self.client = BlobServiceClient.from_connection_string(connect_str)
+    # else:
+    #   self.client = client
+    #   self.azurite = True
     if not AZURE_DEPS_INSTALLED:
       raise RuntimeError('Azure dependencies are not installed. Unable to run.')
 

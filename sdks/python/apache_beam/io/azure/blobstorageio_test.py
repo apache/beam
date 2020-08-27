@@ -109,7 +109,7 @@ class TestBlobStorageIO(unittest.TestCase):
         "uFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;" +
         "BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;")
     self.azurite_client = BlobServiceClient.from_connection_string(connect_str)
-    self.azfs = blobstorageio.BlobStorageIO(self.azurite_client)
+    self.azfs = blobstorageio.BlobStorageIO(connect_str, True)
     try:
       self.azurite_client.create_container("gsoc")
     except:
