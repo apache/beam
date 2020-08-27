@@ -267,8 +267,8 @@ class BlobStorageFileSystemTest(unittest.TestCase):
 
     blobstorageio_mock.delete_paths.return_value = {
         nonexistent_directory: exception,
-        'azfs://storageaccount/container/blob1': 202,
-        'azfs://storageaccount/container/blob2': 202,
+        'azfs://storageaccount/container/blob1': None,
+        'azfs://storageaccount/container/blob2': None,
     }
 
     blobstorageio_mock.size.return_value = 0
