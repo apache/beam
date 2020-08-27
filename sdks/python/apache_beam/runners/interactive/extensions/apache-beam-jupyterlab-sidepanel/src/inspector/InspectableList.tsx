@@ -90,15 +90,13 @@ export class InspectableList extends React.Component<
   }
 
   private _buildListItems(): React.ReactNode {
-    return Object.entries(this.props.pcolls).map(
-      ([key, value]) => {
-        const propsWithKey = {
-          inspectableViewModel: this.props.inspectableViewModel,
-          id: key,
-          metadata: value
-        };
-        return <InspectableListItem key={key} {...propsWithKey} />;
-      }
-    );
+    return Object.entries(this.props.pcolls).map(([key, value]) => {
+      const propsWithKey = {
+        inspectableViewModel: this.props.inspectableViewModel,
+        id: key,
+        metadata: value
+      };
+      return <InspectableListItem key={key} {...propsWithKey} />;
+    });
   }
 }
