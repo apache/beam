@@ -44,8 +44,6 @@ parsers:
       macro: no
 
 fixes:
-  # Files like setup.py and conftest.py.
-  - "*.py::sdks/python/"
   - "apache_beam/::sdks/python/apache_beam/"
 
 ignore:
