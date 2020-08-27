@@ -39,6 +39,7 @@ import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.util.Histogram;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -50,6 +51,9 @@ public interface BigQueryServices extends Serializable {
 
   /** Returns a real, mock, or fake {@link DatasetService}. */
   DatasetService getDatasetService(BigQueryOptions bqOptions);
+
+  /** Returns a real, mock, or fake {@link DatasetService}. */
+  DatasetService getDatasetService(BigQueryOptions bqOptions, Histogram requestLatencies);
 
   /** Returns a real, mock, or fake {@link StorageClient}. */
   @Experimental(Kind.SOURCE_SINK)

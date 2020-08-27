@@ -84,6 +84,7 @@ import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.extensions.gcp.util.CustomHttpErrors;
+import org.apache.beam.sdk.extensions.gcp.util.LatencyRecordingHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.metrics.Counter;
@@ -91,6 +92,7 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Histogram;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -134,7 +136,12 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   @Override
   public DatasetService getDatasetService(BigQueryOptions options) {
-    return new DatasetServiceImpl(options);
+    return new DatasetServiceImpl(options, null);
+  }
+
+  @Override
+  public DatasetService getDatasetService(BigQueryOptions options, Histogram requestLatencies) {
+    return new DatasetServiceImpl(options, requestLatencies);
   }
 
   @Override
@@ -161,7 +168,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     private JobServiceImpl(BigQueryOptions options) {
       this.errorExtractor = new ApiErrorExtractor();
-      this.client = newBigQueryClient(options).build();
+      this.client = newBigQueryClient(options, null).build();
       this.bqIOMetadata = BigQueryIOMetadata.create();
     }
 
@@ -455,9 +462,9 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.executor = null;
     }
 
-    private DatasetServiceImpl(BigQueryOptions bqOptions) {
+    private DatasetServiceImpl(BigQueryOptions bqOptions, @Nullable Histogram requestLatencies) {
       this.errorExtractor = new ApiErrorExtractor();
-      this.client = newBigQueryClient(bqOptions).build();
+      this.client = newBigQueryClient(bqOptions, requestLatencies).build();
       this.options = bqOptions;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
@@ -1029,32 +1036,31 @@ class BigQueryServicesImpl implements BigQueryServices {
   }
 
   /** Returns a BigQuery client builder using the specified {@link BigQueryOptions}. */
-  private static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
+  private static Bigquery.Builder newBigQueryClient(
+      BigQueryOptions options, @Nullable Histogram requestLatencies) {
     RetryHttpRequestInitializer httpRequestInitializer =
         new RetryHttpRequestInitializer(ImmutableList.of(404));
     httpRequestInitializer.setCustomErrors(createBigQueryClientCustomErrors());
     httpRequestInitializer.setWriteTimeout(options.getHTTPWriteTimeout());
+    ImmutableList.Builder<HttpRequestInitializer> initBuilder = ImmutableList.builder();
+    Credentials credential = options.getGcpCredential();
+    initBuilder.add(
+        credential == null
+            ? new NullCredentialInitializer()
+            : new HttpCredentialsAdapter(credential));
+    // Do not log 404. It clutters the output and is possibly even required by the
+    // caller.
+    initBuilder.add(httpRequestInitializer);
+    if (requestLatencies != null) {
+      initBuilder.add(new LatencyRecordingHttpRequestInitializer(requestLatencies));
+    }
+    HttpRequestInitializer chainInitializer =
+        new ChainingHttpRequestInitializer(
+            Iterables.toArray(initBuilder.build(), HttpRequestInitializer.class));
     return new Bigquery.Builder(
-            Transport.getTransport(),
-            Transport.getJsonFactory(),
-            chainHttpRequestInitializer(
-                options.getGcpCredential(),
-                // Do not log 404. It clutters the output and is possibly even required by the
-                // caller.
-                httpRequestInitializer))
+            Transport.getTransport(), Transport.getJsonFactory(), chainInitializer)
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
-  }
-
-  private static HttpRequestInitializer chainHttpRequestInitializer(
-      Credentials credential, HttpRequestInitializer httpRequestInitializer) {
-    if (credential == null) {
-      return new ChainingHttpRequestInitializer(
-          new NullCredentialInitializer(), httpRequestInitializer);
-    } else {
-      return new ChainingHttpRequestInitializer(
-          new HttpCredentialsAdapter(credential), httpRequestInitializer);
-    }
   }
 
   public static CustomHttpErrors createBigQueryClientCustomErrors() {
