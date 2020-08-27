@@ -26,19 +26,24 @@ import InfluxDBCredentialsHelper
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def scenarios = { datasetName ->
+// TODO(BEAM-10852): Skipping some cases because they are too slow.
+def TESTS_TO_SKIP = [
+  'load-tests-python-flink-streaming-combine-1',
+]
+
+def loadTestConfigurations = { mode, datasetName ->
   [
     [
       title          : 'Combine Python Load test: 2GB 10 byte records',
       test           : 'apache_beam.testing.load_tests.combine_test',
       runner         : CommonTestProperties.Runner.PORTABLE,
       pipelineOptions: [
-        job_name            : 'load-tests-python-flink-batch-combine-1-' + now,
+        job_name            : "load-tests-python-flink-${mode}-combine-1-${now}",
         project             : 'apache-beam-testing',
         publish_to_big_query: true,
         metrics_dataset     : datasetName,
-        metrics_table       : 'python_flink_batch_combine_1',
-        influx_measurement  : 'python_batch_combine_1',
+        metrics_table       : "python_flink_${mode}_combine_1",
+        influx_measurement  : "python_${mode}_combine_1",
         input_options       : '\'{' +
         '"num_records": 200000000,' +
         '"key_size": 1,' +
@@ -54,12 +59,12 @@ def scenarios = { datasetName ->
       test           : 'apache_beam.testing.load_tests.combine_test',
       runner         : CommonTestProperties.Runner.PORTABLE,
       pipelineOptions: [
-        job_name            : 'load-tests-python-flink-batch-combine-4-' + now,
+        job_name            : "load-tests-python-flink-${mode}-combine-4-${now}",
         project             : 'apache-beam-testing',
         publish_to_big_query: true,
         metrics_dataset     : datasetName,
-        metrics_table       : 'python_flink_batch_combine_4',
-        influx_measurement  : 'python_batch_combine_4',
+        metrics_table       : "python_flink_${mode}_combine_4",
+        influx_measurement  : "python_${mode}_combine_4",
         input_options       : '\'{' +
         '"num_records": 5000000,' +
         '"key_size": 10,' +
@@ -76,12 +81,12 @@ def scenarios = { datasetName ->
       test           : 'apache_beam.testing.load_tests.combine_test',
       runner         : CommonTestProperties.Runner.PORTABLE,
       pipelineOptions: [
-        job_name            : 'load-tests-python-flink-batch-combine-5-' + now,
+        job_name            : "load-tests-python-flink-${mode}-combine-5-${now}",
         project             : 'apache-beam-testing',
         publish_to_big_query: true,
         metrics_dataset     : datasetName,
-        metrics_table       : 'python_flink_batch_combine_5',
-        influx_measurement  : 'python_batch_combine_5',
+        metrics_table       : "python_flink_${mode}_combine_5",
+        influx_measurement  : "python_${mode}_combine_5",
         input_options       : '\'{' +
         '"num_records": 2500000,' +
         '"key_size": 10,' +
@@ -93,10 +98,21 @@ def scenarios = { datasetName ->
         top_count           : 20,
       ]
     ]
-  ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+  ]
+  .each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+  .each { test -> (mode != 'streaming') ?: addStreamingOptions(test) }
+  .collectMany { test ->
+    TESTS_TO_SKIP.any { element -> test.pipelineOptions.job_name.startsWith(element) } ? []: [test]
+  }
 }
 
-def batchLoadTestJob = { scope, triggeringContext ->
+def addStreamingOptions(test) {
+  test.pipelineOptions << [streaming: null,
+    use_stateful_load_generator: null
+  ]
+}
+
+def loadTestJob = { scope, triggeringContext, mode ->
   scope.description('Runs Python Combine load tests on Flink runner in batch mode')
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
@@ -104,34 +120,28 @@ def batchLoadTestJob = { scope, triggeringContext ->
   String pythonHarnessImageTag = publisher.getFullImageName('beam_python3.7_sdk')
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  def numberOfWorkers = 16
   additionalPipelineArgs << [environment_config: pythonHarnessImageTag]
-  List<Map> testScenarios = scenarios(datasetName)
+  List<Map> testScenarios = loadTestConfigurations(mode, datasetName)
+  Map<Integer, List> testScenariosByParallelism = testScenarios.groupBy { test ->
+    test.pipelineOptions.parallelism
+  }
+  Integer initialParallelism = testScenariosByParallelism.keySet().iterator().next()
+  List initialScenarios = testScenariosByParallelism.remove(initialParallelism)
+
 
   publisher.publish(':sdks:python:container:py37:docker', 'beam_python3.7_sdk')
   publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server')
   def flink = new Flink(scope, 'beam_LoadTests_Python_Combine_Flink_Batch')
-  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('beam_flink1.10_job_server'))
+  flink.setUp([pythonHarnessImageTag], initialScenarios, publisher.getFullImageName('beam_flink1.10_job_server'))
 
-  defineTestSteps(scope, testScenarios, [
-    'Combine Python Load test: 2GB Fanout 4',
-    'Combine Python Load test: 2GB Fanout 8'
-  ])
+  // Execute all scenarios connected with initial parallelism.
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, initialScenarios, 'Combine', mode)
 
-  numberOfWorkers = 5
-  flink.scaleCluster(numberOfWorkers)
-
-  defineTestSteps(scope, testScenarios, [
-    'Combine Python Load test: 2GB 10 byte records'
-  ])
-}
-
-private List<Map> defineTestSteps(scope, List<Map> testScenarios, List<String> titles) {
-  return testScenarios
-      .findAll { it.title in titles }
-      .forEach {
-        loadTestsBuilder.loadTest(scope, it.title, it.runner, CommonTestProperties.SDK.PYTHON_37, it.pipelineOptions, it.test)
-      }
+  // Execute the rest of scenarios.
+  testScenariosByParallelism.each { parallelism, scenarios ->
+    flink.scaleCluster(parallelism)
+    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, scenarios, 'Combine', mode)
+  }
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
@@ -141,7 +151,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     this
     ) {
       additionalPipelineArgs = [:]
-      batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
     }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Batch', 'H 15 * * *', this) {
@@ -149,5 +159,23 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Batch', 'H 15 * * *'
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
-  batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
+}
+
+PhraseTriggeringPostCommitBuilder.postCommitJob(
+    'beam_LoadTests_Python_Combine_Flink_Streaming',
+    'Run Load Tests Python Combine Flink Streaming',
+    'Load Tests Python Combine Flink Streaming suite',
+    this
+    ) {
+      additionalPipelineArgs = [:]
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'streaming')
+    }
+
+CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Streaming', 'H 15 * * *', this) {
+  additionalPipelineArgs = [
+    influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
+  ]
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
 }
