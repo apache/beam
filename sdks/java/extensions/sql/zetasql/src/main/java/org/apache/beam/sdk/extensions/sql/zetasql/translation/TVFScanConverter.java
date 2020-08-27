@@ -71,8 +71,9 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
         && context
             .getUserDefinedTableValuedFunctions()
             .containsKey(zetaNode.getTvf().getNamePath())) {
-      inputs.add(checkArgumentNotNull(context.getUserDefinedTableValuedFunctions()
-              .get(zetaNode.getTvf().getNamePath())));
+      inputs.add(
+          checkArgumentNotNull(
+              context.getUserDefinedTableValuedFunctions().get(zetaNode.getTvf().getNamePath())));
     }
 
     for (ResolvedTVFArgument argument : zetaNode.getArgumentList()) {
