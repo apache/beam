@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
 #
+# -*- coding: utf-8 -*-
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -49,8 +49,13 @@ except ImportError:
 class BlobStorageFileSystemTest(unittest.TestCase):
   def setUp(self):
     pipeline_options = PipelineOptions()
-    azfs_options = pipeline_options.view_as(AzureFileSystemOptions)
-    azfs_options.azfs_connection_string = ''
+    # azfs_options = pipeline_options.view_as(AzureFileSystemOptions)
+    # azfs_options.azfs_connection_string = (
+    #     "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;" +
+    #     "AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFs" +
+    #     "uFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;" +
+    #     "BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;")
+    # azfs_options.use_local_azurite = True
     self.fs = blobstoragefilesystem.BlobStorageFileSystem(
         pipeline_options=pipeline_options)
 
