@@ -38,7 +38,8 @@ import org.apache.beam.sdk.values.Row;
  * guarantees and it should not be implemented outside of the Beam repository.
  *
  * <p>For a detailed walkthrough of implementation, see <a
- * href="https://s.apache.org/schemaio-development-guide">s.apache.org/schemaio-development-guide </a>
+ * href="https://s.apache.org/schemaio-development-guide">s.apache.org/schemaio-development-guide
+ * </a>
  */
 @Internal
 @Experimental(Kind.SCHEMAS)
