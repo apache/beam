@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -257,11 +259,9 @@ public class SqlOperators {
     };
   }
 
-  // TODO: Fix Later
-  @SuppressWarnings("nullness")
   private static List<RelDataType> toSql(
       final RelDataTypeFactory typeFactory, List<RelDataType> types) {
-    return Lists.transform(types, type -> toSql(typeFactory, type));
+    return Lists.transform(types, type -> toSql(typeFactory, checkArgumentNotNull(type)));
   }
 
   private static RelDataType toSql(RelDataTypeFactory typeFactory, RelDataType type) {
