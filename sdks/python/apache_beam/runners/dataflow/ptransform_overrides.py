@@ -164,7 +164,6 @@ class ReadBigQuerySourcePTransformOverride(PTransformOverride):
         not getattr(applied_ptransform.transform, 'override', False) and
         hasattr(applied_ptransform.transform, 'source') and
         isinstance(applied_ptransform.transfor.source, BigQuerySource))
-        
 
   def get_replacement_transform(self, ptransform):
     # Imported here to avoid circular dependencies.
@@ -180,8 +179,7 @@ class ReadBigQuerySourcePTransformOverride(PTransformOverride):
         query=source.query,
         table=source.table_reference,
         use_legacy_sql=source.use_legacy_sql,
-        kms_key=source.kms_key
-    ).with_output_types(ptransform.source.coder.to_type_hint())
+        kms_key=source.kms_key)
 
 
 class NativeReadPTransformOverride(PTransformOverride):
