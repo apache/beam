@@ -892,6 +892,13 @@ public class DoFnOperator<InputT, OutputT>
       bufferingDoFnRunner.checkpoint(context.getCheckpointId());
     }
 
+    int diff = pendingFinalizations.size() - MAX_NUMBER_PENDING_BUNDLE_FINALIZATIONS;
+    if (diff >= 0) {
+      for (Iterator<Long> iterator = pendingFinalizations.keySet().iterator(); diff >= 0; diff--) {
+        iterator.next();
+        iterator.remove();
+      }
+    }
     pendingFinalizations.put(context.getCheckpointId(), bundleFinalizer.getAndClearFinalizations());
 
     try {
@@ -929,13 +936,9 @@ public class DoFnOperator<InputT, OutputT>
     }
 
     List<InMemoryBundleFinalizer.Finalization> finalizations =
-        pendingFinalizations.get(checkpointId);
+        pendingFinalizations.remove(checkpointId);
     if (finalizations != null) {
-      // remove old finalizations except for the current one
-      pendingFinalizations.clear();
-      pendingFinalizations.put(checkpointId, finalizations);
-
-      // confirm all finalizations
+      // confirm all finalizations that were associated with the checkpoint
       for (InMemoryBundleFinalizer.Finalization finalization : finalizations) {
         finalization.getCallback().onBundleSuccess();
       }
