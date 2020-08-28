@@ -48,8 +48,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for ZetaSQL time functions (DATE, TIME, DATETIME, and TIMESTAMP functions). */
-// TODO: Fix Later
-@SuppressWarnings("nullness")
 @RunWith(JUnit4.class)
 public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
@@ -1462,6 +1460,8 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
   @Test
   // test default timezone works properly in query execution stage
+  // TODO: FIX LATER Depends upon the setDefaultTimezone method
+  @SuppressWarnings("method.invocation.invalid")
   public void testTimestampFromDateWithDefaultTimezoneSet() {
     String sql = "SELECT TIMESTAMP(DATE '2014-01-31')";
 
@@ -1501,6 +1501,8 @@ public class ZetaSqlTimeFunctionsTest extends ZetaSqlTestBase {
 
   @Test
   // test default timezone works properly in query execution stage
+  // TODO: FIX LATER Depends upon the setDefaultTimezone method
+  @SuppressWarnings("method.invocation.invalid")
   public void testTimestampFromDateTimeWithDefaultTimezoneSet() {
     String sql = "SELECT TIMESTAMP(DATETIME '2008-12-25 15:30:00')";
 
