@@ -178,6 +178,9 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       for (FhirStore fs : resp.getFhirStores()) {
         fhirStores.add(fs);
       }
+      if (resp.getNextPageToken() == null) {
+        break;
+      }
       pageToken = resp.getNextPageToken();
     } while (!pageToken.equals(""));
     return fhirStores;
