@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_D
 
 import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
 import com.google.api.services.healthcare.v1beta1.model.FhirStore;
+import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.List;
@@ -72,6 +73,7 @@ public class FhirIOLROIT {
 
   @After
   public void deleteAllFhirStores() throws IOException {
+    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
     HealthcareApiClient client = new HttpHealthcareApiClient();
     List<FhirStore> fhirStores = client.listAllFhirStores(healthcareDataset);
     for (FhirStore fs : fhirStores) {
