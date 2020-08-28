@@ -73,7 +73,7 @@ job('beam_Dependency_Check') {
       onlyIfSuccessful()
     }
     wsCleanup {
-      excludePattern('**beam-dependency-check-report.html')
+      excludePattern('src/build/dependencyUpdates/beam-dependency-check-report.html')
     }
   }
 }
