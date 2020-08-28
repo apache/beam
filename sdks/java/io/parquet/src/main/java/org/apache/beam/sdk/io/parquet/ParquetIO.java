@@ -44,7 +44,10 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -428,7 +431,7 @@ public class ParquetIO {
         List<BlockMetaData> rowGroups = reader.getRowGroups();
         for (OffsetRange offsetRange :
             splitBlockWithLimit(
-                restriction.getFrom(), restriction.getTo(), rowGroups, SPLIT_LIMIT)) {
+                restriction.getFrom(), restriction.getTo(), rowGroups, SPLIT_LIMIT / 1000)) {
           out.output(offsetRange);
         }
       }
