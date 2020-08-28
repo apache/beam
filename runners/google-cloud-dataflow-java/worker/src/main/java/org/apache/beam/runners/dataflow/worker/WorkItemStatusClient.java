@@ -192,7 +192,10 @@ public class WorkItemStatusClient {
       throws IOException {
     WorkItemServiceState result = workUnitClient.reportWorkItemStatus(status);
     if (result != null) {
-      nextReportIndex = result.getNextReportIndex();
+      nextReportIndex =
+          checkNotNull(
+              result.getNextReportIndex(),
+              "Missing next work index in " + result + " when reporting " + status);
       commitMetrics();
     }
 
