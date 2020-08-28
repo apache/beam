@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-// import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_BUCKET;
-// import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
+import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_BUCKET;
+import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
 import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
 import com.google.api.services.healthcare.v1beta1.model.FhirStore;
@@ -42,8 +42,6 @@ public class FhirIOLROIT {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   private transient HealthcareApiClient client;
-  private String DEFAULT_TEMP_BUCKET;
-  private String HEALTHCARE_DATASET_TEMPLATE;
   private final String project;
   private String healthcareDataset;
   private final String fhirStoreId;
@@ -53,13 +51,10 @@ public class FhirIOLROIT {
     long testTime = System.currentTimeMillis();
     this.fhirStoreId = "FHIR_store_" + testTime + "_" + (new SecureRandom().nextInt(32));
     this.version = "STU3";
-    // this.project =
-    //     TestPipeline.testingPipelineOptions()
-    //         .as(HealthcareStoreTestPipelineOptions.class)
-    //         .getStoreProjectId();
-    DEFAULT_TEMP_BUCKET = "trucleduc-test-export";
-    HEALTHCARE_DATASET_TEMPLATE = "projects/%s/locations/us-central1/datasets/test-dataset";
-    this.project = "trucleduc-test";
+    this.project =
+        TestPipeline.testingPipelineOptions()
+            .as(HealthcareStoreTestPipelineOptions.class)
+            .getStoreProjectId();
   }
 
   @Before
@@ -89,7 +84,7 @@ public class FhirIOLROIT {
 
   @AfterClass
   public static void teardownBucket() throws IOException {
-    // FhirIOTestUtil.tearDownTempBucket();
+    FhirIOTestUtil.tearDownTempBucket();
   }
 
   @Test

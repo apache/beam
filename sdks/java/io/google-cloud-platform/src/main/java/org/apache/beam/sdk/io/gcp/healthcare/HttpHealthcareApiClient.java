@@ -179,7 +179,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         fhirStores.add(fs);
       }
       pageToken = resp.getNextPageToken();
-    } while (pageToken != "");
+    } while (!pageToken.equals(""));
     return fhirStores;
   }
 
