@@ -242,7 +242,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Python_ParDo_Flink_Batch',
-    'Run Python Load Tests ParDo Flink Batch',
+    'Run Load Tests Python ParDo Flink Batch',
     'Load Tests Python ParDo Flink Batch suite',
     this
     ) {
@@ -252,7 +252,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Python_ParDo_Flink_Streaming',
-    'Run Python Load Tests ParDo Flink Streaming',
+    'Run Load Tests Python ParDo Flink Streaming',
     'Load Tests Python ParDo Flink Streaming suite',
     this
     ) {
