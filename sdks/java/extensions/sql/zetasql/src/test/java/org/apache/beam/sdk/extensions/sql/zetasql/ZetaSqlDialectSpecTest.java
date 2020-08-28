@@ -19,6 +19,8 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DATETIME;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
@@ -1497,8 +1499,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  // TODO: Fix Later
-  @SuppressWarnings("nullness")
   public void testZetaSQLAnyValueInGroupBy() {
     String sql =
         "SELECT rowCol.row_id as key, ANY_VALUE(rowCol.data) as any_value FROM table_with_struct_two GROUP BY rowCol.row_id";
@@ -1514,12 +1514,10 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .satisfies(
             input -> {
-              Iterator<Row> iter = input.iterator();
-              while (iter.hasNext()) {
-                Row row = iter.next();
-                List<String> values = allowedTuples.remove(row.getInt64("key"));
-                assertTrue(values != null);
-                assertTrue(values.contains(row.getString("any_value")));
+              for (Row row : input) {
+                List<String> values = checkArgumentNotNull(allowedTuples.remove(
+                        checkArgumentNotNull(row.getInt64("key"))));
+                assertTrue(values.contains(checkArgumentNotNull(row.getString("any_value"))));
               }
               assertTrue(allowedTuples.isEmpty());
               return null;
@@ -4004,7 +4002,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
   @Test
   // test default timezone works properly in query analysis stage
-  // TODO: Fix Later
+  // TODO: Fix Later Depends upon setDefaultTimezone method
   @SuppressWarnings("method.invocation.invalid")
   public void testCastStringToTimestampWithDefaultTimezoneSet() {
     String sql = "SELECT CAST('2014-12-01 12:34:56+07:30' AS TIMESTAMP)";
