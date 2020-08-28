@@ -34,7 +34,8 @@ class CommonJobProperties {
       String defaultBranch = 'master',
       int defaultTimeout = 100,
       boolean allowRemotePoll = true,
-      String jenkinsExecutorLabel =  'beam') {
+      String jenkinsExecutorLabel = 'beam',
+      boolean cleanWorkspace = true) {
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/beam/')
@@ -100,9 +101,11 @@ class CommonJobProperties {
       colorizeOutput()
     }
 
-    context.publishers {
-      // Clean after job completes.
-      wsCleanup()
+    if (cleanWorkspace) {
+      context.publishers {
+        // Clean after job completes.
+        wsCleanup()
+      }
     }
   }
 
