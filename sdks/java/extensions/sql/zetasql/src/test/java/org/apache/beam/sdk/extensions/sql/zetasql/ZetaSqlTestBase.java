@@ -34,11 +34,11 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Common setup for ZetaSQL tests. */
-// TODO: Fix Later
-@SuppressWarnings("nullness")
 public abstract class ZetaSqlTestBase {
   protected static final long PIPELINE_EXECUTION_WAITTIME_MINUTES = 2L;
 
+  // The field has been initialized in initialize method
+  @SuppressWarnings("initialization.fields.uninitialized")
   protected FrameworkConfig config;
 
   private TableProvider createBeamTableProvider() {
