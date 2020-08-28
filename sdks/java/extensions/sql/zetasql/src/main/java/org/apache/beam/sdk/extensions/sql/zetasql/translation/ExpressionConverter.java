@@ -677,7 +677,8 @@ public class ExpressionConverter {
     } else if (funGroup.equals(USER_DEFINED_FUNCTIONS)) {
       String fullName = functionCall.getFunction().getFullName();
       ResolvedCreateFunctionStmt createFunctionStmt = userDefinedFunctions.get(fullName);
-      ResolvedExpr functionExpression = checkArgumentNotNull(createFunctionStmt).getFunctionExpression();
+      ResolvedExpr functionExpression =
+          checkArgumentNotNull(createFunctionStmt).getFunctionExpression();
       ImmutableMap.Builder<String, RexNode> innerFunctionArguments = ImmutableMap.builder();
       for (int i = 0; i < functionCall.getArgumentList().size(); i++) {
         String argName = createFunctionStmt.getArgumentNameList().get(i);
