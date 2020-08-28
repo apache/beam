@@ -17,14 +17,12 @@
  */
 package org.apache.beam.sdk.io.snowflake.crosslanguage;
 
-import com.google.auto.service.AutoService;
 import java.io.Serializable;
 import java.nio.charset.Charset;
-import java.util.Map;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentials;
 import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentialsFactory;
@@ -33,47 +31,35 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
-/** Exposes {@link SnowflakeIO.Read} as an external transform for cross-language usage. */
-@Experimental
-@AutoService(ExternalTransformRegistrar.class)
-public final class SnowflakeReadRegistrar implements ExternalTransformRegistrar {
-
-  public static final String URN = "beam:external:java:snowflake:read:v1";
-
-  @Override
-  public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
-    return ImmutableMap.of(URN, ReadBuilder.class);
-  }
+@Experimental(Kind.PORTABILITY)
+public class ReadBuilder
+    implements ExternalTransformBuilder<ReadBuilder.Configuration, PBegin, PCollection<byte[]>> {
 
   /** Parameters class to expose the transform to an external SDK. */
-  public static class ReadConfiguration extends Configuration {}
+  public static class Configuration extends CrossLanguageConfiguration {}
 
-  public static class ReadBuilder
-      implements ExternalTransformBuilder<ReadConfiguration, PBegin, PCollection<byte[]>> {
-    public ReadBuilder() {}
+  @Override
+  public PTransform<PBegin, PCollection<byte[]>> buildExternal(Configuration c) {
+    SnowflakeCredentials credentials = SnowflakeCredentialsFactory.of(c);
 
-    @Override
-    public PTransform<PBegin, PCollection<byte[]>> buildExternal(ReadConfiguration c) {
-      SnowflakeCredentials credentials = SnowflakeCredentialsFactory.of(c);
+    SerializableFunction<Void, DataSource> dataSourceSerializableFunction =
+        SnowflakeIO.DataSourceProviderFromDataSourceConfiguration.of(
+            SnowflakeIO.DataSourceConfiguration.create(credentials)
+                .withServerName(c.getServerName())
+                .withDatabase(c.getDatabase())
+                .withSchema(c.getSchema())
+                .withRole(c.getRole())
+                .withWarehouse(c.getWarehouse()));
 
-      SerializableFunction<Void, DataSource> dataSourceSerializableFunction =
-          SnowflakeIO.DataSourceProviderFromDataSourceConfiguration.of(
-              SnowflakeIO.DataSourceConfiguration.create(credentials)
-                  .withServerName(c.getServerName())
-                  .withDatabase(c.getDatabase())
-                  .withSchema(c.getSchema()));
-
-      return SnowflakeIO.<byte[]>read()
-          .withStorageIntegrationName(c.getStorageIntegrationName())
-          .withStagingBucketName(c.getStagingBucketName())
-          .withDataSourceProviderFn(dataSourceSerializableFunction)
-          .withCsvMapper(CsvMapper.getCsvMapper())
-          .withCoder(ByteArrayCoder.of())
-          .fromTable(c.getTable())
-          .fromQuery(c.getQuery());
-    }
+    return SnowflakeIO.<byte[]>read()
+        .withStorageIntegrationName(c.getStorageIntegrationName())
+        .withStagingBucketName(c.getStagingBucketName())
+        .withDataSourceProviderFn(dataSourceSerializableFunction)
+        .withCsvMapper(CsvMapper.getCsvMapper())
+        .withCoder(ByteArrayCoder.of())
+        .fromTable(c.getTable())
+        .fromQuery(c.getQuery());
   }
 
   private static class CsvMapper implements Serializable {

@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.snowflake.crosslanguage;
 
 /** Parameters abstract class to expose the transforms to an external SDK. */
-public abstract class Configuration {
+public abstract class CrossLanguageConfiguration {
   private String serverName;
   private String username;
   private String password;
@@ -27,6 +27,8 @@ public abstract class Configuration {
   private String oAuthToken;
   private String database;
   private String schema;
+  private String role;
+  private String warehouse;
   private String table;
   private String query;
   private String stagingBucketName;
@@ -94,6 +96,22 @@ public abstract class Configuration {
 
   public void setSchema(String schema) {
     this.schema = schema;
+  }
+
+  public String getRole() {
+    return role;
+  }
+
+  public void setRole(String role) {
+    this.role = role;
+  }
+
+  public String getWarehouse() {
+    return warehouse;
+  }
+
+  public void setWarehouse(String warehouse) {
+    this.warehouse = warehouse;
   }
 
   public String getTable() {
