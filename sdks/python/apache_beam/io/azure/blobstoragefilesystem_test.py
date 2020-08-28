@@ -31,6 +31,7 @@ import mock
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import FileMetadata
+from apache_beam.options.pipeline_options import AzureFileSystemOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 
 # Protect against environments where azure library is not available.
@@ -48,6 +49,8 @@ except ImportError:
 class BlobStorageFileSystemTest(unittest.TestCase):
   def setUp(self):
     pipeline_options = PipelineOptions()
+    azfs_options = pipeline_options.view_as(AzureFileSystemOptions)
+    azfs_options.azfs_connection_string = ''
     self.fs = blobstoragefilesystem.BlobStorageFileSystem(
         pipeline_options=pipeline_options)
 
