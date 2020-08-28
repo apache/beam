@@ -650,7 +650,11 @@ class AzureFileSystemOptions(PipelineOptions):
         '--azfs_connection_string',
         default=None,
         help=('Azure blob storage connection string.'))
-
+    parser.add_argument(
+        '--use_local_azurite',
+        default=False,
+        action='store_true',
+        help=('If set, Azurite will be used.'))
 
 class HadoopFileSystemOptions(PipelineOptions):
   """``HadoopFileSystem`` connection options."""
