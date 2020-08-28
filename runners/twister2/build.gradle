@@ -87,3 +87,6 @@ task validatesRunner {
     description "Validates Twister2 Runner"
     dependsOn validatesRunnerBatch
 }
+
+// Generates :runners:twister2:runQuickstartJavaTwister2
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner:'Twister2')

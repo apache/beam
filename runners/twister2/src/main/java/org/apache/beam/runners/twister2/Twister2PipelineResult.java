@@ -17,15 +17,21 @@
  */
 package org.apache.beam.runners.twister2;
 
+import edu.iu.dsc.tws.api.scheduler.Twister2JobState;
 import java.io.IOException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
+import org.mortbay.log.Log;
 
 /** Represents a Twister2 pipeline execution result. */
 public class Twister2PipelineResult implements PipelineResult {
 
-  PipelineResult.State state = State.RUNNING;
+  PipelineResult.State state;
+
+  public Twister2PipelineResult(Twister2JobState jobState) {
+    state = mapToState(jobState);
+  }
 
   @Override
   public State getState() {
@@ -39,12 +45,15 @@ public class Twister2PipelineResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish(Duration duration) {
-    throw new UnsupportedOperationException("Operation not supported");
+    Log.debug(
+        "Twister2 runner does not currently support wait with duration"
+            + "default waitUntilFinish will be executed");
+    return waitUntilFinish();
   }
 
   @Override
   public State waitUntilFinish() {
-    throw new UnsupportedOperationException("Operation not supported");
+    return state;
   }
 
   @Override
@@ -54,5 +63,24 @@ public class Twister2PipelineResult implements PipelineResult {
 
   public void setState(State state) {
     this.state = state;
+  }
+
+  /**
+   * Map Twister2 job state to Beam result State.
+   *
+   * @param jobState twister2 job state
+   * @return corresponding Beam result state
+   */
+  private State mapToState(Twister2JobState jobState) {
+    switch (jobState.getJobstate()) {
+      case RUNNING:
+        return State.RUNNING;
+      case COMPLETED:
+        return State.DONE;
+      case FAILED:
+        return State.FAILED;
+      default:
+        return State.FAILED;
+    }
   }
 }
