@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.snowflake.credentials;
 
 import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
-import org.apache.beam.sdk.io.snowflake.crosslanguage.SnowflakeReadRegistrar;
+import org.apache.beam.sdk.io.snowflake.crosslanguage.CrossLanguageConfiguration;
 
 /**
  * Factory class for creating implementations of {@link SnowflakeCredentials} from {@link
@@ -38,7 +38,7 @@ public class SnowflakeCredentialsFactory {
     throw new RuntimeException("Can't get credentials from Options");
   }
 
-  public static SnowflakeCredentials of(SnowflakeReadRegistrar.ReadConfiguration c) {
+  public static SnowflakeCredentials of(CrossLanguageConfiguration c) {
     if (oauthOptionsAvailable(c.getOAuthToken())) {
       return new OAuthTokenSnowflakeCredentials(c.getOAuthToken());
     } else if (usernamePasswordOptionsAvailable(c.getUsername(), c.getPassword())) {

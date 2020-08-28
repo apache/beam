@@ -343,18 +343,17 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 	if bufSize <= 0 || n.splitIdx < bufSize {
 		bufSize = n.splitIdx
 	}
-	s, f, err := splitHelper(n.index, bufSize, currProg, splits, frac, su != nil)
+	s, fr, err := splitHelper(n.index, bufSize, currProg, splits, frac, su != nil)
 	if err != nil {
 		return SplitResult{}, err
 	}
 
 	// No fraction returned, perform channel split.
-	if f < 0 {
+	if fr < 0 {
 		n.splitIdx = s
 		return SplitResult{PI: s - 1, RI: s}, nil
 	}
 	// Otherwise, perform a sub-element split.
-	fr := f / (1.0 - currProg)
 	p, r, err := su.Split(fr)
 	if err != nil {
 		return SplitResult{}, err
@@ -406,11 +405,14 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 // splittable indicates that sub-element splitting is possible (i.e. the next
 // unit is an SDF).
 //
-// Returns the element index to split at (first element of residual), and the
-// fraction within that element to split, iff the split point is the current
+// Returns the element index to split at (first element of residual). If the
+// split position qualifies for sub-element splitting, then this also returns
+// the fraction of remaining work in the current element to use as a split
+// fraction for a sub-element split, and otherwise returns -1.
+//
+// A split point is sub-element splittable iff the split point is the current
 // element, the splittable param is set to true, and both the element being
-// split and the following element are valid split points. If there is no
-// fraction, returns -1.
+// split and the following element are valid split points.
 func splitHelper(
 	currIdx, endIdx int64,
 	currProg float64,
@@ -429,9 +431,11 @@ func splitHelper(
 	// Handle simpler cases where all split points are valid first.
 	if len(splits) == 0 {
 		if splittable && int64(splitFloat) == currIdx {
-			// Sub-element splitting is valid here, so return fraction.
+			// Sub-element splitting is valid.
 			_, f := math.Modf(splitFloat)
-			return int64(splitFloat), f, nil
+			// Convert from fraction of entire element to fraction of remainder.
+			fr := (f - currProg) / (1.0 - currProg)
+			return int64(splitFloat), fr, nil
 		}
 		// All split points are valid so just split at safe index closest to
 		// fraction.
@@ -458,10 +462,11 @@ func splitHelper(
 				break
 			}
 		}
-		if c && cp1 {
-			// Sub-element splitting is valid here, so return fraction.
+		if c && cp1 { // Sub-element splitting is valid.
 			_, f := math.Modf(splitFloat)
-			return int64(splitFloat), f, nil
+			// Convert from fraction of entire element to fraction of remainder.
+			fr := (f - currProg) / (1.0 - currProg)
+			return int64(splitFloat), fr, nil
 		}
 	}
 

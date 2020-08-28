@@ -88,7 +88,7 @@ class PValue(object):
   def __init__(self,
                pipeline,  # type: Pipeline
                tag=None,  # type: Optional[str]
-               element_type=None,  # type: Optional[object]
+               element_type=None,  # type: Optional[Union[type,typehints.TypeConstraint]]
                windowing=None,  # type: Optional[Windowing]
                is_bounded=True,
               ):

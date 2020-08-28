@@ -183,6 +183,7 @@ public class ProcessBundleHandler {
       Set<String> processedPTransformIds,
       PTransformFunctionRegistry startFunctionRegistry,
       PTransformFunctionRegistry finishFunctionRegistry,
+      Consumer<ThrowingRunnable> addResetFunction,
       Consumer<ThrowingRunnable> addTearDownFunction,
       Consumer<ProgressRequestCallback> addProgressRequestCallback,
       BundleSplitListener splitListener,
@@ -209,6 +210,7 @@ public class ProcessBundleHandler {
             processedPTransformIds,
             startFunctionRegistry,
             finishFunctionRegistry,
+            addResetFunction,
             addTearDownFunction,
             addProgressRequestCallback,
             splitListener,
@@ -248,6 +250,7 @@ public class ProcessBundleHandler {
                   pCollectionConsumerRegistry,
                   startFunctionRegistry,
                   finishFunctionRegistry,
+                  addResetFunction,
                   addTearDownFunction,
                   addProgressRequestCallback,
                   splitListener,
@@ -428,6 +431,7 @@ public class ProcessBundleHandler {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             metricsContainerRegistry, stateTracker, ExecutionStateTracker.FINISH_STATE_NAME);
+    List<ThrowingRunnable> resetFunctions = new ArrayList<>();
     List<ThrowingRunnable> tearDownFunctions = new ArrayList<>();
     List<ProgressRequestCallback> progressRequestCallbacks = new ArrayList<>();
 
@@ -472,6 +476,7 @@ public class ProcessBundleHandler {
         BundleProcessor.create(
             startFunctionRegistry,
             finishFunctionRegistry,
+            resetFunctions,
             tearDownFunctions,
             progressRequestCallbacks,
             splitListener,
@@ -510,6 +515,7 @@ public class ProcessBundleHandler {
           processedPTransformIds,
           startFunctionRegistry,
           finishFunctionRegistry,
+          resetFunctions::add,
           tearDownFunctions::add,
           progressRequestCallbacks::add,
           splitListener,
@@ -580,8 +586,15 @@ public class ProcessBundleHandler {
      */
     void release(String bundleDescriptorId, BundleProcessor bundleProcessor) {
       activeBundleProcessors.remove(bundleProcessor.getInstructionId());
-      bundleProcessor.reset();
-      cachedBundleProcessors.get(bundleDescriptorId).add(bundleProcessor);
+      try {
+        bundleProcessor.reset();
+        cachedBundleProcessors.get(bundleDescriptorId).add(bundleProcessor);
+      } catch (Exception e) {
+        LOG.warn(
+            "Was unable to reset bundle processor safely. Bundle processor will be discarded and re-instantiated on next bundle for descriptor {}.",
+            bundleDescriptorId,
+            e);
+      }
     }
 
     /** Shutdown all the cached {@link BundleProcessor}s, running the tearDown() functions. */
@@ -605,6 +618,7 @@ public class ProcessBundleHandler {
     public static BundleProcessor create(
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
+        List<ThrowingRunnable> resetFunctions,
         List<ThrowingRunnable> tearDownFunctions,
         List<ProgressRequestCallback> progressRequestCallbacks,
         BundleSplitListener.InMemory splitListener,
@@ -617,6 +631,7 @@ public class ProcessBundleHandler {
       return new AutoValue_ProcessBundleHandler_BundleProcessor(
           startFunctionRegistry,
           finishFunctionRegistry,
+          resetFunctions,
           tearDownFunctions,
           progressRequestCallbacks,
           splitListener,
@@ -634,6 +649,8 @@ public class ProcessBundleHandler {
     abstract PTransformFunctionRegistry getStartFunctionRegistry();
 
     abstract PTransformFunctionRegistry getFinishFunctionRegistry();
+
+    abstract List<ThrowingRunnable> getResetFunctions();
 
     abstract List<ThrowingRunnable> getTearDownFunctions();
 
@@ -663,7 +680,7 @@ public class ProcessBundleHandler {
       this.instructionId = instructionId;
     }
 
-    void reset() {
+    void reset() throws Exception {
       getStartFunctionRegistry().reset();
       getFinishFunctionRegistry().reset();
       getSplitListener().clear();
@@ -672,6 +689,9 @@ public class ProcessBundleHandler {
       getStateTracker().reset();
       ExecutionStateSampler.instance().reset();
       getBundleFinalizationCallbackRegistrations().clear();
+      for (ThrowingRunnable resetFunction : getResetFunctions()) {
+        resetFunction.run();
+      }
     }
   }
 
@@ -789,6 +809,7 @@ public class ProcessBundleHandler {
         PCollectionConsumerRegistry pCollectionConsumerRegistry,
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
+        Consumer<ThrowingRunnable> addResetFunction,
         Consumer<ThrowingRunnable> tearDownFunctions,
         Consumer<ProgressRequestCallback> addProgressRequestCallback,
         BundleSplitListener splitListener,

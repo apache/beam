@@ -30,6 +30,6 @@ A class of transforms that contains combine functions that have access to `Pipel
 ## Examples
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
-## Related transforms 
+## Related transforms
 * [Combine](/documentation/transforms/java/aggregation/combine)
   for combining all values associated with a key to a single result

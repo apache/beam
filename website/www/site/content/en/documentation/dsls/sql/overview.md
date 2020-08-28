@@ -43,10 +43,10 @@ There are two additional concepts you need to know to use SQL in your pipeline:
 The [SQL pipeline walkthrough](/documentation/dsls/sql/walkthrough) works through how to use Beam SQL with example code.
 
 ## Shell
-The Beam SQL shell allows you to write pipelines as SQL queries without using the Java SDK. 
-The [Shell page](/documentation/dsls/sql/shell) describes how to work with the interactive Beam SQL shell. 
+The Beam SQL shell allows you to write pipelines as SQL queries without using the Java SDK.
+The [Shell page](/documentation/dsls/sql/shell) describes how to work with the interactive Beam SQL shell.
 
-## Apache Calcite dialect 
+## Apache Calcite dialect
 The [Beam Calcite SQL overview](/documentation/dsls/sql/calcite/overview) summarizes Apache Calcite operators,
 functions, syntax, and data types supported by Beam Calcite SQL.
 

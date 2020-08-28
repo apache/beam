@@ -118,6 +118,7 @@ rat {
 
     // Mockito extensions
     "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
+    "sdks/java/io/azure/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
     "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
 
     // JupyterLab extensions
@@ -222,13 +223,8 @@ task pythonPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
   dependsOn ":sdks:python:test-suites:tox:py38:preCommitPy38"
-  dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitIT"
-  dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitIT_V2"
-  dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT"
-  dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT_V2"
-  // We don't include Py35, Py36 precommit ITs to reduce quota footprint.
-  // We can reconsider if we ever see an issue that these suites would
-  // have caught. Note that the same tests will still run in postcommit.
+  dependsOn ":sdks:python:test-suites:dataflow:preCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:preCommitIT_V2"
 }
 
 task pythonDocsPreCommit() {
@@ -323,6 +319,12 @@ task runBeamDependencyCheck() {
   dependsOn ":sdks:python:dependencyUpdates"
 }
 
+task whitespacePreCommit() {
+  dependsOn ":sdks:python:test-suites:tox:py38:archiveFilesToLint"
+  dependsOn ":sdks:python:test-suites:tox:py38:unpackFilesToLint"
+  dependsOn ":sdks:python:test-suites:tox:py38:whitespacelint"
+}
+
 // Configure the release plugin to do only local work; the release manager determines what, if
 // anything, to push. On failure, the release manager can reset the branch without pushing.
 release {
@@ -373,7 +375,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
         "${project.ext.mavenGroupId}:${it}:${project.version}"
       }
     }).join(',')]
-    
+
     // Exclusion file filters out existing linkage errors before a change
     if (project.hasProperty('javaLinkageWriteBaseline')) {
       arguments += ['--output-exclusion-file', project.getProperty('javaLinkageWriteBaseline')]

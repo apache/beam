@@ -17,7 +17,6 @@
  */
 
 import PrecommitJobBuilder
-import CommonJobProperties as common
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
@@ -38,6 +37,6 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     )
 builder.build {
   publishers {
-    common.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
+    archiveJunit('**/build/test-results/**/*.xml')
   }
 }

@@ -91,8 +91,8 @@ The following code declares an `int` input and a `str` output type hint on the `
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test_py3.py" type_hints_map_annotations >}}
 {{< /highlight >}}
 
-The following code demonstrates how to use annotations on `PTransform` subclasses. 
-A valid annotation is a `PCollection` that wraps an internal (nested) type, `PBegin`, `PDone`, or `None`. 
+The following code demonstrates how to use annotations on `PTransform` subclasses.
+A valid annotation is a `PCollection` that wraps an internal (nested) type, `PBegin`, `PDone`, or `None`.
 The following code declares typehints on a custom PTransform, that takes a `PCollection[int]` input
 and outputs a `PCollection[str]`, using annotations.
 
@@ -221,7 +221,15 @@ However, if you enable runtime type checking, the code is guaranteed to fail at 
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" type_hints_runtime_on >}}
 {{< /highlight >}}
 
-Note that because runtime type checks are done for each `PCollection` element, enabling this feature may incur a significant performance penalty. It is therefore recommended that runtime type checks are disabled for production pipelines.
+Note that because runtime type checks are done for each `PCollection` element, enabling this feature may incur a significant performance penalty. It is therefore recommended that runtime type checks are disabled for production pipelines. See the following section for a quicker, production-friendly alternative.
+
+### Faster Runtime Type Checking
+You can enable faster, sampling-based runtime type checking by setting the pipeline option `performance_runtime_type_check` to `True`.
+
+The is a Python 3 only feature that works by runtime type checking a small subset of values, called a sample, using optimized Cython code.
+
+Currently, this feature does not support runtime type checking for side inputs or combining operations.
+These are planned to be supported in a future release of Beam.
 
 ## Use of Type Hints in Coders
 

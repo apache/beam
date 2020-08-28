@@ -545,30 +545,31 @@ class BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
-FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
-
-
-def _to_decimal(value):
-  return decimal.Decimal(value)
-
-
-def _to_bytes(value):
-  """Converts value from str to bytes on Python 3.x. Does nothing on
-  Python 2.7."""
-  return value.encode('utf-8')
-
-
 class _JsonToDictCoder(coders.Coder):
   """A coder for a JSON string to a Python dict."""
+
+  FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
+
   def __init__(self, table_schema):
     self.fields = self._convert_to_tuple(table_schema.fields)
     self._converters = {
         'INTEGER': int,
         'INT64': int,
         'FLOAT': float,
-        'NUMERIC': _to_decimal,
-        'BYTES': _to_bytes,
+        'FLOAT64': float,
+        'NUMERIC': self._to_decimal,
+        'BYTES': self._to_bytes,
     }
+
+  @staticmethod
+  def _to_decimal(value):
+    return decimal.Decimal(value)
+
+  @staticmethod
+  def _to_bytes(value):
+    """Converts value from str to bytes on Python 3.x. Does nothing on
+    Python 2.7."""
+    return value.encode('utf-8')
 
   @classmethod
   def _convert_to_tuple(cls, table_field_schemas):
@@ -580,7 +581,8 @@ class _JsonToDictCoder(coders.Coder):
       return []
 
     return [
-        FieldSchema(cls._convert_to_tuple(x.fields), x.mode, x.name, x.type)
+        cls.FieldSchema(
+            cls._convert_to_tuple(x.fields), x.mode, x.name, x.type)
         for x in table_field_schemas
     ]
 
@@ -598,8 +600,14 @@ class _JsonToDictCoder(coders.Coder):
         continue
 
       if field.type == 'RECORD':
-        value[field.name] = self._decode_with_schema(
-            value[field.name], field.fields)
+        nested_values = value[field.name]
+        if field.mode == 'REPEATED':
+          for i, nested_value in enumerate(nested_values):
+            nested_values[i] = self._decode_with_schema(
+                nested_value, field.fields)
+        else:
+          value[field.name] = self._decode_with_schema(
+              nested_values, field.fields)
       else:
         try:
           converter = self._converters[field.type]
@@ -1079,6 +1087,9 @@ class BigQueryWriteFn(DoFn):
 
     self.additional_bq_parameters = additional_bq_parameters or {}
 
+    # accumulate the total time spent in exponential backoff
+    self._throttled_secs = Metrics.counter(
+        BigQueryWriteFn, "cumulativeThrottlingSeconds")
     self.batch_size_metric = Metrics.distribution(self.__class__, "batch_size")
     self.batch_latency_metric = Metrics.distribution(
         self.__class__, "batch_latency_ms")
@@ -1257,6 +1268,7 @@ class BigQueryWriteFn(DoFn):
         _LOGGER.info(
             'Sleeping %s seconds before retrying insertion.', retry_backoff)
         time.sleep(retry_backoff)
+        self._throttled_secs.inc(retry_backoff)
 
     self._total_buffered_rows -= len(self._rows_buffer[destination])
     del self._rows_buffer[destination]

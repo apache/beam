@@ -97,6 +97,7 @@ class CommonJobProperties {
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
       }
       timestamps()
+      colorizeOutput()
     }
 
     context.publishers {
@@ -199,14 +200,6 @@ class CommonJobProperties {
   static void setCronJob(context, String buildSchedule) {
     context.triggers {
       cron(buildSchedule)
-    }
-  }
-
-  static void setArchiveJunitWithStabilityHistory(context, String glob) {
-    context.archiveJunit(glob) {
-      testDataPublishers {
-        publishTestStabilityData()
-      }
     }
   }
 

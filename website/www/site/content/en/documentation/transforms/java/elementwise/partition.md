@@ -51,10 +51,10 @@ PCollectionList<Student> studentsByPercentile =
 PCollection<Student> fortiethPercentile = studentsByPercentile.get(4);
 {{< /highlight >}}
 
-## Related transforms 
-* [Filter](/documentation/transforms/java/elementwise/filter) is useful if the function is just 
+## Related transforms
+* [Filter](/documentation/transforms/java/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
 * [ParDo](/documentation/transforms/java/elementwise/pardo) is the most general element-wise mapping
-  operation, and includes other abilities such as multiple output collections and side-inputs. 
+  operation, and includes other abilities such as multiple output collections and side-inputs.
 * [CoGroupByKey](/documentation/transforms/java/aggregation/cogroupbykey)
-  performs a per-key equijoin. 
+  performs a per-key equijoin.

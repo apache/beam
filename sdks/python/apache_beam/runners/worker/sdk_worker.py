@@ -147,6 +147,8 @@ class SdkHarness(object):
                data_buffer_time_limit_ms=0,
                profiler_factory=None,  # type: Optional[Callable[..., Profile]]
                status_address=None,  # type: Optional[str]
+               # Heap dump through status api is disabled by default
+               enable_heap_dump=False, # type: bool
                ):
     self._alive = True
     self._worker_index = 0
@@ -186,8 +188,8 @@ class SdkHarness(object):
     if status_address:
       try:
         self._status_handler = FnApiWorkerStatusHandler(
-            status_address, self._bundle_processor_cache
-        )  # type: Optional[FnApiWorkerStatusHandler]
+            status_address, self._bundle_processor_cache,
+            enable_heap_dump)  # type: Optional[FnApiWorkerStatusHandler]
       except Exception:
         traceback_string = traceback.format_exc()
         _LOGGER.warning(

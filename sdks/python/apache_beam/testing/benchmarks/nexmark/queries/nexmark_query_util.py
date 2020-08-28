@@ -26,12 +26,36 @@ BID_TAG = 'bids'
 PERSON_TAG = 'person'
 
 
+class ResultNames:
+  SELLER = 'seller'
+  PRICE = 'price'
+  NAME = 'name'
+  CITY = 'city'
+  STATE = 'state'
+  AUCTION_ID = 'auction_id'
+  ID = 'id'
+  RESERVE = 'reserve'
+  CATEGORY = 'category'
+  IS_LAST = 'is_last'
+  BIDDER_ID = 'bidder_id'
+  BID_COUNT = 'bid_count'
+  NUM = 'num'
+
+
 def is_bid(event):
   return isinstance(event, nexmark_model.Bid)
 
 
 def is_auction(event):
   return isinstance(event, nexmark_model.Auction)
+
+
+def is_person(event):
+  return isinstance(event, nexmark_model.Person)
+
+
+def auction_or_bid(event):
+  return isinstance(event, (nexmark_model.Auction, nexmark_model.Bid))
 
 
 class JustBids(beam.PTransform):
@@ -44,6 +68,11 @@ class JustAuctions(beam.PTransform):
     return pcoll | "IsAuction" >> beam.Filter(is_auction)
 
 
+class JustPerson(beam.PTransform):
+  def expand(self, pcoll):
+    return pcoll | "IsPerson" >> beam.Filter(is_person)
+
+
 class AuctionByIdFn(beam.DoFn):
   def process(self, element):
     yield element.id, element
@@ -54,5 +83,11 @@ class BidByAuctionIdFn(beam.DoFn):
     yield element.auction, element
 
 
-def auction_or_bid(event):
-  return isinstance(event, (nexmark_model.Auction, nexmark_model.Bid))
+class PersonByIdFn(beam.DoFn):
+  def process(self, element):
+    yield element.id, element
+
+
+class AuctionBySellerFn(beam.DoFn):
+  def process(self, element):
+    yield element.seller, element

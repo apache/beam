@@ -38,7 +38,7 @@ After you run the commands,  the SQL shell starts and you can type queries:
 
 ```
 Welcome to Beam SQL 2.6.0-SNAPSHOT (based on sqlline version 1.4.0)
-0: BeamSQL> 
+0: BeamSQL>
 ```
 
 _Note: If you haven't built the project before running the Gradle command, the command will take a few minutes as Gradle must build all dependencies first._
@@ -95,7 +95,7 @@ To write data to the CSV file, use the `INSERT INTO … SELECT ...` statement:
 ```
 Read and write behavior depends on the type of the table. For example:
 
-*   The table type `text` is implemented using `TextIO`, so writing to a `text` table can produce multiple numbered files. 
+*   The table type `text` is implemented using `TextIO`, so writing to a `text` table can produce multiple numbered files.
 *   The table type `pubsub` is an unbounded source, so reading from a `pubsub` table never completes.
 
 ## Developing with unbounded Sources
@@ -106,7 +106,7 @@ When you want to inspect the data from an unbounded source during development, y
 0: BeamSQL> SELECT field1 FROM unbounded_source LIMIT 10 ;
 ```
 
-The example queries shown so far are fast queries that execute locally. These queries are helpful when you are investigating the data and iteratively designing the pipeline. Ideally, you want the queries to finish quickly and return output when complete. 
+The example queries shown so far are fast queries that execute locally. These queries are helpful when you are investigating the data and iteratively designing the pipeline. Ideally, you want the queries to finish quickly and return output when complete.
 
 When you're satisfied with the logic of your SQL statements, you can submit the statements as long-running jobs by dropping the `LIMIT x` statement. Then, the pipeline can potentially run forever if one of the tables represents an unbounded source.
 

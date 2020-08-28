@@ -18,25 +18,7 @@
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
-enablePythonPerformanceTest()
-
-dependencies {
-  distTarBall project(path: ":sdks:python", configuration: "distTarBall")
-}
 
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.5'
-apply from : "../common.gradle"
-
-task mongodbioIT {
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
-  def opts = findProperty('opts')
-  opts = String.format("%s %s", opts, "--sdk_location=${files(configurations.distTarBall.files).singleFile}")
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.io.mongodbio_it_test ${opts}"
-    }
-  }
-}
+apply from: "../common.gradle"

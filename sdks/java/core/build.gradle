@@ -84,7 +84,7 @@ dependencies {
   provided library.java.junit
   provided library.java.hamcrest_core
   provided library.java.hamcrest_library
-  provided 'io.airlift:aircompressor:0.16' 
+  provided 'io.airlift:aircompressor:0.16'
   provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.guava_testlib

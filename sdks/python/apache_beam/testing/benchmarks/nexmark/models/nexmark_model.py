@@ -35,6 +35,9 @@ from apache_beam.testing.benchmarks.nexmark import nexmark_util
 
 
 class PersonCoder(FastCoder):
+  def to_type_hint(self):
+    return Person
+
   def _create_impl(self):
     return PersonCoderImpl()
 
@@ -62,6 +65,9 @@ class Person(object):
 
 
 class AuctionCoder(FastCoder):
+  def to_type_hint(self):
+    return Auction
+
   def _create_impl(self):
     return AuctionCoderImpl()
 
@@ -101,6 +107,9 @@ class Auction(object):
 
 
 class BidCoder(FastCoder):
+  def to_type_hint(self):
+    return Bid
+
   def _create_impl(self):
     return BidCoderImpl()
 
