@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DATETIME;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
@@ -35,7 +34,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
@@ -1515,8 +1513,9 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .satisfies(
             input -> {
               for (Row row : input) {
-                List<String> values = checkArgumentNotNull(allowedTuples.remove(
-                        checkArgumentNotNull(row.getInt64("key"))));
+                List<String> values =
+                    checkArgumentNotNull(
+                        allowedTuples.remove(checkArgumentNotNull(row.getInt64("key"))));
                 assertTrue(values.contains(checkArgumentNotNull(row.getString("any_value"))));
               }
               assertTrue(allowedTuples.isEmpty());
