@@ -55,9 +55,15 @@ class BlobStorageFileSystem(FileSystem):
       raise ValueError('Pipeline options is not set.')
     azfs_options = pipeline_options.view_as(AzureFileSystemOptions)
     azfs_connection_string = azfs_options.azfs_connection_string
+    azfs_use_local_azurite = azfs_options.use_local_azurite
 
     if azfs_connection_string is None:
       raise ValueError('azfs_connection_string is not set.')
+
+    if not isinstance(azfs_use_local_azurite, bool):
+      raise ValueError('azfs_use_local_azurite should be bool, got: %s',
+                       azfs_use_local_azurite)
+
     self.azfs_client = blobstorageio.BlobStorageIO(azfs_connection_string)
 
   @classmethod
