@@ -26,6 +26,7 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.PRE_DEFINED_WINDOW_FUNCTIONS;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.USER_DEFINED_FUNCTIONS;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Ascii;
@@ -607,8 +608,6 @@ public class ExpressionConverter {
     return ret;
   }
 
-  // TODO: Fix Later
-  @SuppressWarnings("nullness")
   private RexNode convertResolvedFunctionCall(
       ResolvedFunctionCall functionCall,
       @Nullable List<ResolvedColumn> columnList,
@@ -678,7 +677,7 @@ public class ExpressionConverter {
     } else if (funGroup.equals(USER_DEFINED_FUNCTIONS)) {
       String fullName = functionCall.getFunction().getFullName();
       ResolvedCreateFunctionStmt createFunctionStmt = userDefinedFunctions.get(fullName);
-      ResolvedExpr functionExpression = createFunctionStmt.getFunctionExpression();
+      ResolvedExpr functionExpression = checkArgumentNotNull(createFunctionStmt).getFunctionExpression();
       ImmutableMap.Builder<String, RexNode> innerFunctionArguments = ImmutableMap.builder();
       for (int i = 0; i < functionCall.getArgumentList().size(); i++) {
         String argName = createFunctionStmt.getArgumentNameList().get(i);
@@ -699,7 +698,7 @@ public class ExpressionConverter {
     if (rewriter != null) {
       return rewriter.apply(rexBuilder(), operands);
     } else {
-      return rexBuilder().makeCall(op, operands);
+      return rexBuilder().makeCall(checkArgumentNotNull(op), operands);
     }
   }
 
@@ -837,7 +836,6 @@ public class ExpressionConverter {
         || (fromType.equals(TYPE_TIMESTAMP) && toType.equals(TYPE_STRING));
   }
 
-  @SuppressWarnings("nullness")
   private RexNode convertResolvedParameter(ResolvedParameter parameter) {
     Value value;
     switch (queryParams.getKind()) {
@@ -851,6 +849,7 @@ public class ExpressionConverter {
       default:
         throw new IllegalArgumentException("Found unexpected parameter " + parameter);
     }
+    value = checkArgumentNotNull(value);
     Preconditions.checkState(parameter.getType().equals(value.getType()));
     if (value.isNull()) {
       // In some cases NULL parameter cannot be substituted with NULL literal
@@ -865,11 +864,9 @@ public class ExpressionConverter {
     }
   }
 
-  // TODO: Fix Later
-  @SuppressWarnings("nullness")
   private RexNode convertResolvedArgumentRef(
       ResolvedArgumentRef resolvedArgumentRef, Map<String, RexNode> functionArguments) {
-    return functionArguments.get(resolvedArgumentRef.getName());
+    return checkArgumentNotNull(functionArguments.get(resolvedArgumentRef.getName()));
   }
 
   private RexNode convertResolvedStructFieldAccess(ResolvedGetStructField resolvedGetStructField) {
