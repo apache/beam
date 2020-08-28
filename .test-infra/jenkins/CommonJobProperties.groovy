@@ -36,8 +36,6 @@ class CommonJobProperties {
       boolean allowRemotePoll = true,
       String jenkinsExecutorLabel = 'beam',
       boolean cleanWorkspace = true) {
-
-    context.disabled()
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/beam/')
