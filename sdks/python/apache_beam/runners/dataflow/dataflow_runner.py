@@ -118,6 +118,7 @@ class DataflowRunner(PipelineRunner):
   from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import JrhReadPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import ReadBigQuerySourcePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import NativeReadPTransformOverride
 
   # These overrides should be applied before the proto representation of the
@@ -125,6 +126,7 @@ class DataflowRunner(PipelineRunner):
   _PTRANSFORM_OVERRIDES = [
       CombineValuesPTransformOverride(),
       NativeReadPTransformOverride(),
+      ReadBigQuerySourcePTransformOverride(),
   ]  # type: List[PTransformOverride]
 
   _JRH_PTRANSFORM_OVERRIDES = [

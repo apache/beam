@@ -161,9 +161,8 @@ class ReadBigQuerySourcePTransformOverride(PTransformOverride):
     # Consider the native Read to be a primitive for Dataflow by replacing.
     return (
         isinstance(applied_ptransform.transform, Read) and
-        not getattr(applied_ptransform.transform, 'override', False) and
         hasattr(applied_ptransform.transform, 'source') and
-        isinstance(applied_ptransform.transfor.source, BigQuerySource))
+        isinstance(applied_ptransform.transform.source, BigQuerySource))
 
   def get_replacement_transform(self, ptransform):
     # Imported here to avoid circular dependencies.
@@ -178,7 +177,7 @@ class ReadBigQuerySourcePTransformOverride(PTransformOverride):
     return ReadFromBigQuery(
         query=source.query,
         table=source.table_reference,
-        use_legacy_sql=source.use_legacy_sql,
+        use_standard_sql=not source.use_legacy_sql,
         kms_key=source.kms_key)
 
 

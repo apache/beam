@@ -36,6 +36,7 @@ import apache_beam as beam
 import apache_beam.transforms as ptransform
 from apache_beam.coders import BytesCoder
 from apache_beam.coders import coders
+from apache_beam.io.gcp import bigquery
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
@@ -694,6 +695,26 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(gbk_step[u'kind'], u'GroupByKey')
     self.assertEqual(
         gbk_step[u'properties']['output_info'], expected_output_info)
+
+  def test_bigquerysource_translation(self):
+    runner = DataflowRunner()
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      _ = p | 'TestedRead' >> beam.io.Read(
+          bigquery.BigQuerySource(table='myproject:mydset.mytable'))
+
+    job_dict = json.loads(str(runner.job))
+    read_step = [
+        s for s in job_dict[u'steps']
+        if s[u'properties'][u'user_name'].startswith('TestedRead')
+    ][0]
+    print(read_step)
+    self.assertEqual('ParallelRead', read_step['kind'])
+    source_name = [
+        dd['shortValue'] for dd in read_step['properties']['display_data']
+        if dd['key'] == 'source'
+    ][0]
+    self.assertEqual('_CustomBigQuerySource', source_name)
 
   def test_write_bigquery_translation(self):
     runner = DataflowRunner()
