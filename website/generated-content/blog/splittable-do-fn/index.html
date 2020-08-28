@@ -204,7 +204,7 @@ produces pairs <em>(x, 0), (x, 1), …, (x, N-1)</em> as output.</p><div class=l
       <span class=k>if</span> <span class=ow>not</span> <span class=n>tracker</span><span class=o>.</span><span class=n>try_claim</span><span class=p>(</span><span class=n>i</span><span class=p>):</span>
         <span class=k>return</span>
       <span class=k>yield</span> <span class=n>element</span><span class=p>[</span><span class=mi>0</span><span class=p>],</span> <span class=n>i</span>
-        
+
   <span class=k>def</span> <span class=nf>get_initial_restriction</span><span class=p>(</span><span class=n>element</span><span class=p>):</span>
     <span class=k>return</span> <span class=p>(</span><span class=mi>0</span><span class=p>,</span> <span class=n>element</span><span class=p>[</span><span class=mi>1</span><span class=p>])</span></code></pre></div></div><p>This short <code>DoFn</code> subsumes the functionality of
 <a href=https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/CountingSource.java>CountingSource</a>,
@@ -259,7 +259,7 @@ to illustrate the approach.</p><div class=language-java><div class=highlight><pr
         <span class=k>for</span> <span class=n>record</span> <span class=ow>in</span> <span class=n>block</span><span class=o>.</span><span class=n>records</span><span class=p>():</span>
           <span class=k>yield</span> <span class=n>record</span>
         <span class=n>block</span> <span class=o>=</span> <span class=n>AvroUtils</span><span class=o>.</span><span class=n>get_next_block</span><span class=p>(</span><span class=nb>file</span><span class=p>)</span>
-        
+
   <span class=k>def</span> <span class=nf>get_initial_restriction</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>filename</span><span class=p>):</span>
     <span class=k>return</span> <span class=p>(</span><span class=mi>0</span><span class=p>,</span> <span class=n>fileio</span><span class=o>.</span><span class=n>ChannelFactory</span><span class=o>.</span><span class=n>size_in_bytes</span><span class=p>(</span><span class=n>filename</span><span class=p>))</span></code></pre></div></div><p>This hypothetical <code>DoFn</code> reads records from a single Avro file. Notably missing
 is the code for expanding a filepattern: it no longer needs to be part of this

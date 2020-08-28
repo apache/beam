@@ -8,7 +8,7 @@ by its associated <a href=https://beam.apache.org/releases/javadoc/2.23.0/index.
 You can use the <a href=https://beam.apache.org/releases/javadoc/2.23.0/index.html?org/apache/beam/sdk/schemas/Schema.html>Schema.builder()</a> to create
 <code>Schemas</code>. See <a href=/documentation/dsls/sql/data-types>Data
 Types</a> for more details on supported primitive data types.</p><p>A <code>PCollection&lt;Row></code> can be obtained multiple ways, for example:</p><ul><li><p><strong>From in-memory data</strong> (typically for unit testing).</p><p><strong>Note:</strong> you have to explicitly specify the <code>Row</code> coder. In this example we&rsquo;re doing it by calling <code>Create.of(..)</code>:</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java>    <span class=c1>// Define the schema for the records.
-</span><span class=c1></span>    <span class=n>Schema</span> <span class=n>appSchema</span> <span class=o>=</span> 
+</span><span class=c1></span>    <span class=n>Schema</span> <span class=n>appSchema</span> <span class=o>=</span>
         <span class=n>Schema</span>
           <span class=o>.</span><span class=na>builder</span><span class=o>()</span>
           <span class=o>.</span><span class=na>addInt32Field</span><span class=o>(</span><span class=s>&#34;appId&#34;</span><span class=o>)</span>
@@ -17,14 +17,14 @@ Types</a> for more details on supported primitive data types.</p><p>A <code>PCol
           <span class=o>.</span><span class=na>build</span><span class=o>();</span>
 
     <span class=c1>// Create a concrete row with that type.
-</span><span class=c1></span>    <span class=n>Row</span> <span class=n>row</span> <span class=o>=</span> 
+</span><span class=c1></span>    <span class=n>Row</span> <span class=n>row</span> <span class=o>=</span>
         <span class=n>Row</span>
           <span class=o>.</span><span class=na>withSchema</span><span class=o>(</span><span class=n>appSchema</span><span class=o>)</span>
           <span class=o>.</span><span class=na>addValues</span><span class=o>(</span><span class=n>1</span><span class=o>,</span> <span class=s>&#34;Some cool app&#34;</span><span class=o>,</span> <span class=k>new</span> <span class=n>Date</span><span class=o>())</span>
           <span class=o>.</span><span class=na>build</span><span class=o>();</span>
 
     <span class=c1>// Create a source PCollection containing only that row
-</span><span class=c1></span>    <span class=n>PCollection</span><span class=o>&lt;</span><span class=n>Row</span><span class=o>&gt;</span> <span class=n>testApps</span> <span class=o>=</span> 
+</span><span class=c1></span>    <span class=n>PCollection</span><span class=o>&lt;</span><span class=n>Row</span><span class=o>&gt;</span> <span class=n>testApps</span> <span class=o>=</span>
         <span class=n>PBegin</span>
           <span class=o>.</span><span class=na>in</span><span class=o>(</span><span class=n>p</span><span class=o>)</span>
           <span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>Create</span>
@@ -49,14 +49,14 @@ Types</a> for more details on supported primitive data types.</p><p>A <code>PCol
               <span class=c1>// Get the current POJO instance
 </span><span class=c1></span>              <span class=n>AppPojo</span> <span class=n>pojo</span> <span class=o>=</span> <span class=n>c</span><span class=o>.</span><span class=na>element</span><span class=o>();</span>
 
-              <span class=c1>// Create a Row with the appSchema schema 
+              <span class=c1>// Create a Row with the appSchema schema
 </span><span class=c1></span>              <span class=c1>// and values from the current POJO
-</span><span class=c1></span>              <span class=n>Row</span> <span class=n>appRow</span> <span class=o>=</span> 
+</span><span class=c1></span>              <span class=n>Row</span> <span class=n>appRow</span> <span class=o>=</span>
                     <span class=n>Row</span>
                       <span class=o>.</span><span class=na>withSchema</span><span class=o>(</span><span class=n>appSchema</span><span class=o>)</span>
                       <span class=o>.</span><span class=na>addValues</span><span class=o>(</span>
-                        <span class=n>pojo</span><span class=o>.</span><span class=na>appId</span><span class=o>,</span> 
-                        <span class=n>pojo</span><span class=o>.</span><span class=na>description</span><span class=o>,</span> 
+                        <span class=n>pojo</span><span class=o>.</span><span class=na>appId</span><span class=o>,</span>
+                        <span class=n>pojo</span><span class=o>.</span><span class=na>description</span><span class=o>,</span>
                         <span class=n>pojo</span><span class=o>.</span><span class=na>timestamp</span><span class=o>)</span>
                       <span class=o>.</span><span class=na>build</span><span class=o>();</span>
 
@@ -72,8 +72,8 @@ to either a single <code>PCollection</code> or a <code>PCollectionTuple</code> w
           <span class=s>&#34;SELECT appId, description, rowtime &#34;</span>
             <span class=o>+</span> <span class=s>&#34;FROM PCOLLECTION &#34;</span>
             <span class=o>+</span> <span class=s>&#34;WHERE id=1&#34;</span><span class=o>));</span>
-    </code></pre></div></div></p></li><li><p>when applying to a <code>PCollectionTuple</code>, the tuple tag for each <code>PCollection</code> in the tuple defines the table name that may be used to query it. Note that table names are bound to the specific <code>PCollectionTuple</code>, and thus are only valid in the context of queries applied to it.</p><p>For example, you can join two <code>PCollections</code>:<br><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java>    <span class=c1>// Create the schema for reviews
-</span><span class=c1></span>    <span class=n>Schema</span> <span class=n>reviewSchema</span> <span class=o>=</span> 
+    </code></pre></div></div></p></li><li><p>when applying to a <code>PCollectionTuple</code>, the tuple tag for each <code>PCollection</code> in the tuple defines the table name that may be used to query it. Note that table names are bound to the specific <code>PCollectionTuple</code>, and thus are only valid in the context of queries applied to it.</p><p>For example, you can join two <code>PCollections</code>:<div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java>    <span class=c1>// Create the schema for reviews
+</span><span class=c1></span>    <span class=n>Schema</span> <span class=n>reviewSchema</span> <span class=o>=</span>
         <span class=n>Schema</span>
           <span class=o>.</span><span class=na>builder</span><span class=o>()</span>
           <span class=o>.</span><span class=na>addInt32Field</span><span class=o>(</span><span class=s>&#34;appId&#34;</span><span class=o>)</span>
@@ -81,7 +81,7 @@ to either a single <code>PCollection</code> or a <code>PCollectionTuple</code> w
           <span class=o>.</span><span class=na>addFloatField</span><span class=o>(</span><span class=s>&#34;rating&#34;</span><span class=o>)</span>
           <span class=o>.</span><span class=na>addDateTimeField</span><span class=o>(</span><span class=s>&#34;rowtime&#34;</span><span class=o>)</span>
           <span class=o>.</span><span class=na>build</span><span class=o>();</span>
-    
+
     <span class=c1>// Obtain the reviews records with this schema
 </span><span class=c1></span>    <span class=n>PCollection</span><span class=o>&lt;</span><span class=n>Row</span><span class=o>&gt;</span> <span class=n>reviewsRows</span> <span class=o>=</span> <span class=o>...</span>
 
@@ -91,8 +91,8 @@ to either a single <code>PCollection</code> or a <code>PCollectionTuple</code> w
         <span class=k>new</span> <span class=n>TupleTag</span><span class=o>&lt;&gt;(</span><span class=s>&#34;Apps&#34;</span><span class=o>),</span> <span class=n>appsRows</span><span class=o>),</span> <span class=c1>// appsRows from the previous example
 </span><span class=c1></span>        <span class=k>new</span> <span class=n>TupleTag</span><span class=o>&lt;&gt;(</span><span class=s>&#34;Reviews&#34;</span><span class=o>),</span> <span class=n>reviewsRows</span><span class=o>));</span>
 
-    <span class=c1>// Compute the total number of reviews 
-</span><span class=c1></span>    <span class=c1>// and average rating per app 
+    <span class=c1>// Compute the total number of reviews
+</span><span class=c1></span>    <span class=c1>// and average rating per app
 </span><span class=c1></span>    <span class=c1>// by joining two PCollections
 </span><span class=c1></span>    <span class=n>PCollection</span><span class=o>&lt;</span><span class=n>Row</span><span class=o>&gt;</span> <span class=n>output</span> <span class=o>=</span> <span class=n>namesAndFoods</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span>
         <span class=n>SqlTransform</span><span class=o>.</span><span class=na>query</span><span class=o>(</span>

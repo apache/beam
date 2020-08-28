@@ -77,7 +77,7 @@ or may be published to Pub/Sub or Kafka.</p><p>The query results may be:</p><ul>
 </code></pre><h3 id=spark-runner-specific-configuration>Spark runner specific configuration</h3><pre><code>--manageResources=false --monitorJobs=true \
 --sparkMaster=local \
 -Dspark.ui.enabled=false -DSPARK_LOCAL_IP=localhost -Dsun.io.serialization.extendedDebugInfo=true
-</code></pre><h3 id=kafka-sourcesink-configuration-parameters>Kafka source/sink configuration parameters</h3><p>Set Kafka host/ip (for example, &ldquo;localhost:9092&rdquo;):</p><pre><code>--bootstrapServers=&lt;kafka host/ip&gt; 
+</code></pre><h3 id=kafka-sourcesink-configuration-parameters>Kafka source/sink configuration parameters</h3><p>Set Kafka host/ip (for example, &ldquo;localhost:9092&rdquo;):</p><pre><code>--bootstrapServers=&lt;kafka host/ip&gt;
 </code></pre><p>Write results into Kafka topic:</p><pre><code>--sinkType=KAFKA
 </code></pre><p>Set topic name which will be used for benchmark results:</p><pre><code>--kafkaResultsTopic=&lt;topic name&gt;
 </code></pre><p>Write or/and read events into/from Kafka topic:</p><pre><code>--sourceType=KAFKA

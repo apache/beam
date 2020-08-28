@@ -28,24 +28,24 @@ MinimalWordCount.java	WordCount.java</code></pre></div><div class=shell-PowerShe
 
 PS&gt; dir
 
-... 
- 
-Mode                LastWriteTime         Length Name                                                        
-----                -------------         ------ ----                                                        
-d-----        7/19/2018  11:00 PM                src                                                         
+...
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+d-----        7/19/2018  11:00 PM                src
 -a----        7/19/2018  11:00 PM          16051 pom.xml
 
 PS&gt; dir .\src\main\java\org\apache\beam\examples
 
 ...
-Mode                LastWriteTime         Length Name                                                        
-----                -------------         ------ ----                                                        
-d-----        7/19/2018  11:00 PM                common                                                      
-d-----        7/19/2018  11:00 PM                complete                                                    
-d-----        7/19/2018  11:00 PM                subprocess                                                  
--a----        7/19/2018  11:00 PM           7073 DebuggingWordCount.java                                     
--a----        7/19/2018  11:00 PM           5945 MinimalWordCount.java                                       
--a----        7/19/2018  11:00 PM           9490 WindowedWordCount.java                                      
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+d-----        7/19/2018  11:00 PM                common
+d-----        7/19/2018  11:00 PM                complete
+d-----        7/19/2018  11:00 PM                subprocess
+-a----        7/19/2018  11:00 PM           7073 DebuggingWordCount.java
+-a----        7/19/2018  11:00 PM           5945 MinimalWordCount.java
+-a----        7/19/2018  11:00 PM           9490 WindowedWordCount.java
 -a----        7/19/2018  11:00 PM           7662 WordCount.java</code></pre></div><p>For a detailed introduction to the Beam concepts used in these examples, see the <a href=/get-started/wordcount-example>WordCount Example Walkthrough</a>. Here, we&rsquo;ll just focus on executing <code>WordCount.java</code>.</p><h2 id=optional-convert-from-maven-to-gradle-project>Optional: Convert from Maven to Gradle Project</h2><p>Ensure you are in the same directory as the <code>pom.xml</code> file generated from the previous step. Automatically convert your project from Maven to Gradle by running:<pre><code>$ gradle init</code></pre></p><p>After you have converted the project to Gradle:</p><ol><li>Edit the generated <code>build.gradle</code> file by adding <code>mavenCentral()</code> under <code>repositories</code>:<pre><code>repositories {
     mavenCentral()
     maven {
@@ -143,8 +143,7 @@ Bashful: 1
 Below: 2
 deserves: 32
 barrenly: 1
-...</code></pre></div><div class=runner-samza-local><pre><code>  
-$ more /tmp/counts*
+...</code></pre></div><div class=runner-samza-local><pre><code>$ more /tmp/counts*
 api: 7
 are: 2
 can: 2

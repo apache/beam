@@ -24,14 +24,14 @@ returns one scalar value.</li><li>A <code>SerializableFunction</code>.</li></ul>
 <span class=o>}</span>
 
 <span class=c1>// Define a SQL query which calls the above UDFs
-</span><span class=c1></span><span class=n>String</span> <span class=n>sql</span> <span class=o>=</span> 
+</span><span class=c1></span><span class=n>String</span> <span class=n>sql</span> <span class=o>=</span>
     <span class=s>&#34;SELECT f_int, cubic1(f_int), cubic2(f_int)&#34;</span>
       <span class=o>+</span> <span class=s>&#34;FROM PCOLLECTION &#34;</span>
       <span class=o>+</span> <span class=s>&#34;WHERE f_int = 2&#34;</span><span class=o>;</span>
 
 <span class=c1>// Create and apply the PTransform representing the query.
-</span><span class=c1>// Register the UDFs used in the query by calling &#39;.registerUdf()&#39; with 
-</span><span class=c1>// either a class which implements BeamSqlUdf or with 
+</span><span class=c1>// Register the UDFs used in the query by calling &#39;.registerUdf()&#39; with
+</span><span class=c1>// either a class which implements BeamSqlUdf or with
 </span><span class=c1>// an instance of the SerializableFunction;
 </span><span class=c1></span><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>Row</span><span class=o>&gt;</span> <span class=n>result</span> <span class=o>=</span>
     <span class=n>input</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span>
@@ -71,13 +71,13 @@ example above:</p><div class=language-java><div class=highlight><pre class=chrom
 <span class=o>}</span>
 
 <span class=c1>// Define a SQL query which calls the above UDAF
-</span><span class=c1></span><span class=n>String</span> <span class=n>sql</span> <span class=o>=</span> 
+</span><span class=c1></span><span class=n>String</span> <span class=n>sql</span> <span class=o>=</span>
     <span class=s>&#34;SELECT f_int1, squaresum(f_int2) &#34;</span>
       <span class=o>+</span> <span class=s>&#34;FROM PCOLLECTION &#34;</span>
       <span class=o>+</span> <span class=s>&#34;GROUP BY f_int2&#34;</span><span class=o>;</span>
-      
+
 <span class=c1>// Create and apply the PTransform representing the query.
-</span><span class=c1>// Register the UDAFs used in the query by calling &#39;.registerUdaf()&#39; by 
+</span><span class=c1>// Register the UDAFs used in the query by calling &#39;.registerUdaf()&#39; by
 </span><span class=c1>// providing it an instance of the CombineFn
 </span><span class=c1></span><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>Row</span><span class=o>&gt;</span> <span class=n>result</span> <span class=o>=</span>
     <span class=n>input</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span>

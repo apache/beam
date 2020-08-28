@@ -5,7 +5,7 @@
 
 ./sdks/java/extensions/sql/shell/build/install/shell/bin/shell
 </code></pre><p>After you run the commands, the SQL shell starts and you can type queries:</p><pre><code>Welcome to Beam SQL 2.6.0-SNAPSHOT (based on sqlline version 1.4.0)
-0: BeamSQL&gt; 
+0: BeamSQL&gt;
 </code></pre><p><em>Note: If you haven&rsquo;t built the project before running the Gradle command, the command will take a few minutes as Gradle must build all dependencies first.</em></p><p>The shell converts the queries into Beam pipelines, runs them using <code>DirectRunner</code>, and returns the results as tables when the pipelines finish:</p><pre><code>0: BeamSQL&gt; SELECT 'foo' AS NAME, 'bar' AS TYPE, 'num' AS NUMBER;
 +------+------+--------+
 | NAME | TYPE | NUMBER |

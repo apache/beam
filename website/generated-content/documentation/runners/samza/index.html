@@ -40,8 +40,7 @@
   <span class=o>&lt;</span><span class=n>artifactId</span><span class=o>&gt;</span><span class=n>samza</span><span class=o>-</span><span class=n>kv</span><span class=o>-</span><span class=n>rocksdb_2</span><span class=o>.</span><span class=na>11</span><span class=o>&lt;/</span><span class=n>artifactId</span><span class=o>&gt;</span>
   <span class=o>&lt;</span><span class=n>version</span><span class=o>&gt;</span><span class=n>$</span><span class=o>{</span><span class=n>samza</span><span class=o>.</span><span class=na>version</span><span class=o>}&lt;/</span><span class=n>version</span><span class=o>&gt;</span>
   <span class=o>&lt;</span><span class=n>scope</span><span class=o>&gt;</span><span class=n>runtime</span><span class=o>&lt;/</span><span class=n>scope</span><span class=o>&gt;</span>
-<span class=o>&lt;/</span><span class=n>dependency</span><span class=o>&gt;</span>
-    </code></pre></div></div></p><h2 id=executing-a-pipeline-with-samza-runner>Executing a pipeline with Samza Runner</h2><p>If you run your pipeline locally or deploy it to a standalone cluster with all the jars and resource files, no packaging is required. For example, the following command runs the WordCount example:</p><pre><code>$ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+<span class=o>&lt;/</span><span class=n>dependency</span><span class=o>&gt;</span></code></pre></div></div></p><h2 id=executing-a-pipeline-with-samza-runner>Executing a pipeline with Samza Runner</h2><p>If you run your pipeline locally or deploy it to a standalone cluster with all the jars and resource files, no packaging is required. For example, the following command runs the WordCount example:</p><pre><code>$ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
     -Psamza-runner \
     -Dexec.args=&quot;--runner=SamzaRunner \
       --inputFile=/path/to/input \

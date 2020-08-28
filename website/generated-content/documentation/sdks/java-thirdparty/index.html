@@ -17,7 +17,7 @@ This parser is simply initialized with this schema and the list of fields you wa
 
       @Setup
       public void setup() throws NoSuchMethodException {
-        parser = new HttpdLoglineParser&lt;&gt;(WebEvent.class, 
+        parser = new HttpdLoglineParser&lt;&gt;(WebEvent.class,
             &quot;%h %l %u %t \&quot;%r\&quot; %&gt;s %b \&quot;%{Referer}i\&quot; \&quot;%{User-Agent}i\&quot; \&quot;%{Cookie}i\&quot;&quot;);
         parser.addParseTarget(&quot;setIP&quot;,                  &quot;IP:connection.client.host&quot;);
         parser.addParseTarget(&quot;setQueryImg&quot;,            &quot;STRING:request.firstline.uri.query.img&quot;);

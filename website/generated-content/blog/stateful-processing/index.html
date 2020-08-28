@@ -28,7 +28,7 @@ for performing an operation in parallel across all elements, and <em><code>Group
 for aggregating elements to which you have assigned the same key. In the
 picture below (featured in many of our presentations) the color indicates the
 key of the element. Thus the <code>GroupByKey</code>/<code>CombinePerKey</code> transform gathers all the
-green squares to produce a single output element.</p><p><img class=center-block src=/images/blog/stateful-processing/pardo-and-gbk.png alt="ParDo and GroupByKey/CombinePerKey: 
+green squares to produce a single output element.</p><p><img class=center-block src=/images/blog/stateful-processing/pardo-and-gbk.png alt="ParDo and GroupByKey/CombinePerKey:
 Elementwise versus aggregating computations" width=400></p><p>But not all use cases are easily expressed as pipelines of simple <code>ParDo</code>/<code>Map</code> and
 <code>GroupByKey</code>/<code>CombinePerKey</code> transforms. The topic of this blog post is a new
 extension to the Beam programming model: <strong>per-element operation augmented with
@@ -47,7 +47,7 @@ that it applies to each element. Without stateful augmentations, a <code>DoFn</c
 mostly-pure function from inputs to one or more outputs, corresponding to the
 Mapper in a MapReduce. With state, a <code>DoFn</code> has the ability to access
 persistent mutable state while processing each input element. Consider this
-illustration:</p><p><img class=center-block src=/images/blog/stateful-processing/stateful-dofn.png alt="Stateful DoFn - 
+illustration:</p><p><img class=center-block src=/images/blog/stateful-processing/stateful-dofn.png alt="Stateful DoFn -
 the runner controls input but the DoFn controls storage and output" width=300></p><p>The first thing to note is that all the data - the little squares, circles, and
 triangles - are red. This is to illustrate that stateful processing occurs in
 the context of a single key - all of the elements are key-value pairs with the
@@ -231,7 +231,7 @@ against it, outputting the prediction, like so:</p><div class=language-java><div
         <span class=n>Model</span> <span class=n>model</span> <span class=o>=</span> <span class=n>ctx</span><span class=o>.</span><span class=na>sideinput</span><span class=o>(</span><span class=n>userModels</span><span class=o>).</span><span class=na>get</span><span class=o>(</span><span class=n>userId</span><span class=o>);</span>
 
         <span class=c1>// Perhaps some logic around when to output a new prediction
-</span><span class=c1></span>        <span class=err>…</span> <span class=n>c</span><span class=o>.</span><span class=na>output</span><span class=o>(</span><span class=n>KV</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=n>userId</span><span class=o>,</span> <span class=n>model</span><span class=o>.</span><span class=na>prediction</span><span class=o>(</span><span class=n>event</span><span class=o>)))</span> <span class=err>…</span> 
+</span><span class=c1></span>        <span class=err>…</span> <span class=n>c</span><span class=o>.</span><span class=na>output</span><span class=o>(</span><span class=n>KV</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=n>userId</span><span class=o>,</span> <span class=n>model</span><span class=o>.</span><span class=na>prediction</span><span class=o>(</span><span class=n>event</span><span class=o>)))</span> <span class=err>…</span>
       <span class=o>}</span>
     <span class=o>}));</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=c1># Events is a collection of (user, event) pairs.</span>
 <span class=n>events</span> <span class=o>=</span> <span class=p>(</span><span class=n>p</span> <span class=o>|</span> <span class=n>ReadFromEventSource</span><span class=p>()</span> <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>WindowInto</span><span class=p>(</span><span class=o>....</span><span class=p>))</span>
@@ -316,7 +316,7 @@ only features I have already introduced:</p><div class=language-java><div class=
     <span class=n>Prediction</span> <span class=n>newPrediction</span> <span class=o>=</span> <span class=n>model</span><span class=o>.</span><span class=na>prediction</span><span class=o>(</span><span class=n>event</span><span class=o>);</span>
     <span class=n>model</span><span class=o>.</span><span class=na>add</span><span class=o>(</span><span class=n>event</span><span class=o>);</span>
     <span class=n>modelState</span><span class=o>.</span><span class=na>write</span><span class=o>(</span><span class=n>model</span><span class=o>);</span>
-    <span class=k>if</span> <span class=o>(</span><span class=n>previousPrediction</span> <span class=o>==</span> <span class=kc>null</span> 
+    <span class=k>if</span> <span class=o>(</span><span class=n>previousPrediction</span> <span class=o>==</span> <span class=kc>null</span>
         <span class=o>||</span> <span class=n>shouldOutputNewPrediction</span><span class=o>(</span><span class=n>previousPrediction</span><span class=o>,</span> <span class=n>newPrediction</span><span class=o>))</span> <span class=o>{</span>
       <span class=n>c</span><span class=o>.</span><span class=na>output</span><span class=o>(</span><span class=n>KV</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=n>userId</span><span class=o>,</span> <span class=n>newPrediction</span><span class=o>));</span>
       <span class=n>previousPredictionState</span><span class=o>.</span><span class=na>write</span><span class=o>(</span><span class=n>newPrediction</span><span class=o>);</span>

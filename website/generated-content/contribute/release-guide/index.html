@@ -67,7 +67,7 @@ oversees these just like any other JIRA issue marked with the &lsquo;Fix Version
 ./beam/release/src/main/scripts/cut_release_branch.sh \
 --release=${RELEASE_VERSION} \
 --next_release=${NEXT_VERSION}
-  
+
 # Show help page
 ./beam/release/src/main/scripts/cut_release_branch.sh -h
 </code></pre></li><li><p>The script will:</p><ol><li><p>Create release-${RELEASE_VERSION} branch locally.</p></li><li><p>Change and commit dev versoin number in master branch:</p><p><a href=https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy#L209>BeamModulePlugin.groovy</a>,
@@ -119,7 +119,7 @@ sudo apt-get install python3-dev
 sudo apt-get install python3.5-dev
 sudo apt-get install python3.6-dev
 sudo apt-get install python3.7-dev
-</code></pre></li></ol></li><li><p>Run gradle release build</p><ol><li><p>Clean current workspace</p><pre><code>git clean -fdx 
+</code></pre></li></ol></li><li><p>Run gradle release build</p><ol><li><p>Clean current workspace</p><pre><code>git clean -fdx
 ./gradlew clean
 </code></pre></li><li><p>Unlock the secret key</p><pre><code>gpg --output ~/doc.sig --sign ~/.bashrc
 </code></pre></li><li><p>Run build command</p><pre><code>./gradlew build -PisRelease --no-parallel --scan --stacktrace --continue
@@ -268,11 +268,11 @@ Thanks everyone!
 -PgcpProject=${YOUR_GCP_PROJECT} \
 -PgcsBucket=${YOUR_GCP_BUCKET}
 </code></pre></li><li><p>Java Mobile Game(UserScore, HourlyTeamScore, Leaderboard)</p><p>Pre-request</p><ul><li><p>Create your own BigQuery dataset</p><pre><code>bq mk --project_id=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
-</code></pre></li><li><p>Create yout PubSub topic</p><pre><code>gcloud alpha pubsub topics create --project=${YOUR_GCP_PROJECT} ${YOUR_PROJECT_PUBSUB_TOPIC} 
+</code></pre></li><li><p>Create yout PubSub topic</p><pre><code>gcloud alpha pubsub topics create --project=${YOUR_GCP_PROJECT} ${YOUR_PROJECT_PUBSUB_TOPIC}
 </code></pre></li><li><p>Setup your service account</p><p>Goto IAM console in your project to create a service account as <code>project owner</code></p><p>Run</p><pre><code>gcloud iam service-accounts keys create ${YOUR_KEY_JSON} --iam-account ${YOUR_SERVICE_ACCOUNT_NAME}@${YOUR_PROJECT_NAME}
-export GOOGLE_APPLICATION_CREDENTIALS=${PATH_TO_YOUR_KEY_JSON} 
+export GOOGLE_APPLICATION_CREDENTIALS=${PATH_TO_YOUR_KEY_JSON}
 </code></pre></li></ul><p>Run</p><pre><code>./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
- -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \ 
+ -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
  -Pver=${RELEASE_VERSION} \
  -PgcpProject=${YOUR_GCP_PROJECT} \
  -PgcsBucket=${YOUR_GCP_BUCKET} \
@@ -321,33 +321,33 @@ gcloud alpha pubsub topics create --project=${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC}
       -Dpackage=org.apache.beam.examples \
       -DinteractiveMode=false
       -DarchetypeCatalog=internal
-            
+
 mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
   -Dexec.args=&quot;${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC} none&quot;
 </code></pre></li></ul></li><li><p>Run Leaderboard with Direct Runner</p><pre><code>python -m apache_beam.examples.complete.game.leader_board \
 --project=${YOUR_PROJECT} \
 --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
 --dataset ${USER}_test
-</code></pre><p>Inspect results:</p><ul><li>Check whether there is any error messages in console.</li><li>Goto your BigQuery console and check whether your ${USER}_test has leader_board_users and leader_board_teams table.</li><li>bq head -n 10 ${USER}_test.leader_board_users</li><li>bq head -n 10 ${USER}_test.leader_board_teams</li></ul></li><li><p>Run Leaderboard with Dataflow Runner</p><pre><code>python -m apache_beam.examples.complete.game.leader_board \ 
---project=${YOUR_PROJECT} \ 
+</code></pre><p>Inspect results:</p><ul><li>Check whether there is any error messages in console.</li><li>Goto your BigQuery console and check whether your ${USER}_test has leader_board_users and leader_board_teams table.</li><li>bq head -n 10 ${USER}_test.leader_board_users</li><li>bq head -n 10 ${USER}_test.leader_board_teams</li></ul></li><li><p>Run Leaderboard with Dataflow Runner</p><pre><code>python -m apache_beam.examples.complete.game.leader_board \
+--project=${YOUR_PROJECT} \
 --region=${GCE_REGION} \
---topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
---dataset ${USER}_test \ 
---runner DataflowRunner \ 
---temp_location=${YOUR_GS_BUCKET}/temp/ \ 
+--topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
+--dataset ${USER}_test \
+--runner DataflowRunner \
+--temp_location=${YOUR_GS_BUCKET}/temp/ \
 --sdk_location dist/*
 </code></pre><p>Inspect results:</p><ul><li>Goto your Dataflow job console and check whether there is any error.</li><li>Goto your BigQuery console and check whether your ${USER}_test has leader_board_users and leader_board_teams table.</li><li>bq head -n 10 ${USER}_test.leader_board_users</li><li>bq head -n 10 ${USER}_test.leader_board_teams</li></ul></li><li><p>Run GameStats with Direct Runner</p><pre><code>python -m apache_beam.examples.complete.game.game_stats \
 --project=${YOUR_PROJECT} \
 --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
 --dataset ${USER}_test \
 --fixed_window_duration ${SOME_SMALL_DURATION}
-</code></pre><p>Inspect results:</p><ul><li>Check whether there is any error messages in console.</li><li>Goto your BigQuery console and check whether your ${USER}_test has game_stats_teams and game_stats_sessions table.</li><li>bq head -n 10 ${USER}_test.game_stats_teams</li><li>bq head -n 10 ${USER}_test.game_stats_sessions</li></ul></li><li><p>Run GameStats with Dataflow Runner</p><pre><code>python -m apache_beam.examples.complete.game.game_stats \ 
+</code></pre><p>Inspect results:</p><ul><li>Check whether there is any error messages in console.</li><li>Goto your BigQuery console and check whether your ${USER}_test has game_stats_teams and game_stats_sessions table.</li><li>bq head -n 10 ${USER}_test.game_stats_teams</li><li>bq head -n 10 ${USER}_test.game_stats_sessions</li></ul></li><li><p>Run GameStats with Dataflow Runner</p><pre><code>python -m apache_beam.examples.complete.game.game_stats \
 --project=${YOUR_PROJECT} \
 --region=${GCE_REGION} \
---topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
---dataset ${USER}_test \ 
---runner DataflowRunner \ 
---temp_location=${YOUR_GS_BUCKET}/temp/ \ 
+--topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \
+--dataset ${USER}_test \
+--runner DataflowRunner \
+--temp_location=${YOUR_GS_BUCKET}/temp/ \
 --sdk_location dist/* \
 --fixed_window_duration ${SOME_SMALL_DURATION}
 </code></pre><p>Inspect results:</p><ul><li>Goto your Dataflow job console and check whether there is any error.</li><li>Goto your BigQuery console and check whether your ${USER}_test has game_stats_teams and game_stats_sessions table.</li><li>bq head -n 10 ${USER}_test.game_stats_teams</li><li>bq head -n 10 ${USER}_test.game_stats_sessions</li></ul></li></ul></li></ul><h3 id=fix-any-issues>Fix any issues</h3><p>Any issues identified during the community review and vote should be fixed in this step. Additionally, any JIRA issues created from the initial branch verification should be fixed.</p><p>Code changes should be proposed as standard pull requests to the <code>master</code> branch and reviewed using the normal contributing process. Then, relevant changes should be cherry-picked into the release branch. The cherry-pick commits should then be proposed as the pull requests against the release branch, again reviewed and merged using the normal contributing process.</p><p>Once all issues have been resolved, you should go back and build a new release candidate with these changes.</p><h3 id=checklist-to-proceed-to-the-next-step-2>Checklist to proceed to the next step</h3><ol><li>Issues identified during vote have been resolved, with fixes committed to the release branch.</li><li>All issues tagged with <code>Fix-Version</code> for the current release should be closed.</li><li>Community votes to release the proposed candidate, with at least three approving PMC votes</li></ol><hr><h2 id=10-finalize-the-release>10. Finalize the release</h2><p>Once the release candidate has been reviewed and approved by the community, the release should be finalized. This involves the final deployment of the release candidate to the release repositories, merging of the website changes, etc.</p><h3 id=deploy-artifacts-to-maven-central-repository>Deploy artifacts to Maven Central Repository</h3><p>Use the <a href=https://repository.apache.org/#stagingRepositories>Apache Nexus repository manager</a> to release the staged binary artifacts to the Maven Central repository. In the <code>Staging Repositories</code> section, find the relevant release candidate <code>orgapachebeam-XXX</code> entry and click <code>Release</code>. Drop all other release candidates that are not being released.

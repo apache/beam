@@ -1163,7 +1163,7 @@ There are scenarios when this may prove faster than accessing content through th
 &lt;span class="s">&amp;#34;my_snaphshot&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
 &lt;span class="n">TableName&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">valueOf&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;my_table&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
 &lt;span class="n">HBaseProtos&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">SnapshotDescription&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Type&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">FLUSH&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="o">}&lt;/span> &lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/p>
 &lt;div class=language-py>
@@ -3534,8 +3534,7 @@ To access the timestamp of an input element, add a keyword parameter default to 
 &lt;span class="k">class&lt;/span> &lt;span class="nc">ProcessRecord&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">timestamp&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TimestampParam&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="c1"># access timestamp of element.&lt;/span>
-&lt;span class="k">pass&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="k">pass&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;p class="language-java">&lt;strong>Window:&lt;/strong>
 To access the window an input element falls into, add a parameter of the type of the window used for the input &lt;code>PCollection&lt;/code>.
@@ -3557,8 +3556,7 @@ If an element falls in multiple windows (for example, this will happen when usin
 &lt;span class="k">class&lt;/span> &lt;span class="nc">ProcessRecord&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">window&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WindowParam&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="c1"># access window e.g. window.end.micros&lt;/span>
-&lt;span class="k">pass&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="k">pass&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;p class="language-java">&lt;strong>PaneInfo:&lt;/strong>
 When triggers are used, Beam provides a &lt;code>PaneInfo&lt;/code> object that contains information about the current firing. Using &lt;code>PaneInfo&lt;/code>
@@ -3577,8 +3575,7 @@ This feature implementation in Python SDK is not fully completed; see more at &l
 &lt;span class="k">class&lt;/span> &lt;span class="nc">ProcessRecord&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pane_info&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PaneInfoParam&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="c1"># access pane info, e.g. pane_info.is_first, pane_info.is_last, pane_info.timing&lt;/span>
-&lt;span class="k">pass&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="k">pass&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;p class="language-java">&lt;strong>PipelineOptions:&lt;/strong>
 The &lt;code>PipelineOptions&lt;/code> for the current pipeline can always be accessed in a process method by adding it
@@ -3951,7 +3948,7 @@ Schema rows; Beam uses a special coder to encode schema types.&lt;/p>
 &lt;p>While schemas themselves are language independent, they are designed to embed naturally into the programming languages
 of the Beam SDK being used. This allows Beam users to continue using native types while reaping the advantage of
 having Beam understand their element schemas.&lt;/p>
-&lt;p class="language-java">In Java you could use the following set of classes to represent the purchase schema. Beam will automatically&lt;br>
+&lt;p class="language-java">In Java you could use the following set of classes to represent the purchase schema. Beam will automatically
 infer the correct schema based on the members of the class.&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@DefaultSchema&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">JavaBeanSchema&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
@@ -4231,7 +4228,7 @@ exclude these fields. Note that ignored fields will not be included in the encod
 not owned by the Beam pipeline author. In these cases the schema inference can be triggered programmatically in
 pipeline’s main function as follows:&lt;/p>
 &lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="n">pipeline&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getSchemaRegistry&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">registerPOJO&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TransactionPOJO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span> &lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="n">pipeline&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getSchemaRegistry&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">registerPOJO&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TransactionPOJO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;h5 id="java-beans">&lt;strong>Java Beans&lt;/strong>&lt;/h5>
 &lt;p>Java Beans are a de-facto standard for creating reusable property classes in Java. While the full
@@ -5515,8 +5512,7 @@ windowing function:&lt;/p>
 &lt;span class="n">FixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">60&lt;/span>&lt;span class="p">),&lt;/span>
 &lt;span class="n">trigger&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">AfterProcessingTime&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">60&lt;/span>&lt;span class="p">),&lt;/span>
 &lt;span class="n">allowed_lateness&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1800&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># 30 minutes&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="o">...&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="o">|&lt;/span> &lt;span class="o">...&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;p>This allowed lateness propagates to all &lt;code>PCollection&lt;/code>s derived as a result of
 applying transforms to the original &lt;code>PCollection&lt;/code>. If you want to change the
@@ -6003,7 +5999,7 @@ id, and timers in different timer families are independent.&lt;/p>
 &lt;/div>
 &lt;h4 id="timer-output-timestamps">11.3.4 Timer output timestamps&lt;/h4>
 &lt;p>By default, event-time timers will hold the output watermark of the &lt;code>ParDo&lt;/code> to the timestamp of the timer. This means
-that if a timer is set to 12pm, any windowed aggregations or event-time timers later in the pipeline graph that finish&lt;br>
+that if a timer is set to 12pm, any windowed aggregations or event-time timers later in the pipeline graph that finish
 after 12pm will not expire. The timestamp of the timer is also the default output timestamp for the timer callback. This
 means that any elements output from the onTimer method will have a timestamp equal to the timestamp of the timer firing.
 For processing-time timers, the default output timestamp and watermark hold is the value of the input watermark at the
@@ -6178,7 +6174,7 @@ This can be done by updating a timer that garbage collects state. For example&lt
 &lt;span class="n">timer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TimerParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">TIMER&lt;/span>&lt;span class="p">)):&lt;/span>
 &lt;span class="n">update_state&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">state&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="n">max_timestamp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">micros&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="c1"># Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so &lt;/span>
+&lt;span class="c1"># Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so&lt;/span>
 &lt;span class="c1"># as long as there is activity on this key the state will stay active. Once the key goes inactive for one hour&amp;#39;s&lt;/span>
 &lt;span class="c1"># worth of event time (as measured by the watermark), then the gc timer will fire.&lt;/span>
 &lt;span class="n">expiration_time&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Timestamp&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">micros&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">max_timestamp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="p">())&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">Duration&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">seconds&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">60&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="mi">60&lt;/span>&lt;span class="p">)&lt;/span>

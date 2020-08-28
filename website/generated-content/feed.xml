@@ -1,4 +1,244 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.23.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Improved Annotation Support for the Python SDK</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>The importance of static type checking in a dynamically
+typed language like Python is not up for debate. Type hints
+allow developers to leverage a strong typing system to:&lt;/p>
+&lt;ul>
+&lt;li>write better code,&lt;/li>
+&lt;li>self-document ambiguous programming logic, and&lt;/li>
+&lt;li>inform intelligent code completion in IDEs like PyCharm.&lt;/li>
+&lt;/ul>
+&lt;p>This is why we&amp;rsquo;re excited to announce upcoming improvements to
+the &lt;code>typehints&lt;/code> module of Beam&amp;rsquo;s Python SDK, including support
+for typed PCollections and Python 3 style annotations on PTransforms.&lt;/p>
+&lt;h1 id="improved-annotations">Improved Annotations&lt;/h1>
+&lt;p>Today, you have the option to declare type hints on PTransforms using either
+class decorators or inline functions.&lt;/p>
+&lt;p>For instance, a PTransform with decorated type hints might look like this:&lt;/p>
+&lt;pre>&lt;code>@beam.typehints.with_input_types(int)
+@beam.typehints.with_output_types(str)
+class IntToStr(beam.PTransform):
+def expand(self, pcoll):
+return pcoll | beam.Map(lambda num: str(num))
+strings = numbers | beam.ParDo(IntToStr())
+&lt;/code>&lt;/pre>&lt;p>Using inline functions instead, the same transform would look like this:&lt;/p>
+&lt;pre>&lt;code>class IntToStr(beam.PTransform):
+def expand(self, pcoll):
+return pcoll | beam.Map(lambda num: str(num))
+strings = numbers | beam.ParDo(IntToStr()).with_input_types(int).with_output_types(str)
+&lt;/code>&lt;/pre>&lt;p>Both methods have problems. Class decorators are syntax-heavy,
+requiring two additional lines of code, whereas inline functions provide type hints
+that aren&amp;rsquo;t reusable across other instances of the same transform. Additionally, both
+methods are incompatible with static type checkers like MyPy.&lt;/p>
+&lt;p>With Python 3 annotations however, we can subvert these problems to provide a
+clean and reusable type hint experience. Our previous transform now looks like this:&lt;/p>
+&lt;pre>&lt;code>class IntToStr(beam.PTransform):
+def expand(self, pcoll: PCollection[int]) -&amp;gt; PCollection[str]:
+return pcoll | beam.Map(lambda num: str(num))
+strings = numbers | beam.ParDo(IntToStr())
+&lt;/code>&lt;/pre>&lt;p>These type hints will actively hook into the internal Beam typing system to
+play a role in pipeline type checking, and runtime type checking.&lt;/p>
+&lt;p>So how does this work?&lt;/p>
+&lt;h2 id="typed-pcollections">Typed PCollections&lt;/h2>
+&lt;p>You guessed it! The PCollection class inherits from &lt;code>typing.Generic&lt;/code>, allowing it to be
+parameterized with either zero types (denoted &lt;code>PCollection&lt;/code>) or one type (denoted &lt;code>PCollection[T]&lt;/code>).&lt;/p>
+&lt;ul>
+&lt;li>A PCollection with zero types is implicitly converted to &lt;code>PCollection[Any]&lt;/code>.&lt;/li>
+&lt;li>A PCollection with one type can have any nested type (e.g. &lt;code>Union[int, str]&lt;/code>).&lt;/li>
+&lt;/ul>
+&lt;p>Internally, Beam&amp;rsquo;s typing system makes these annotations compatible with other
+type hints by removing the outer PCollection container.&lt;/p>
+&lt;h2 id="pbegin-pdone-none">PBegin, PDone, None&lt;/h2>
+&lt;p>Finally, besides PCollection, a valid annotation on the &lt;code>expand(...)&lt;/code> method of a PTransform is
+&lt;code>PBegin&lt;/code> or &lt;code>None&lt;/code>. These are generally used for PTransforms that begin or end with an I/O operation.&lt;/p>
+&lt;p>For instance, when saving data, your transform&amp;rsquo;s output type should be &lt;code>None&lt;/code>.&lt;/p>
+&lt;pre>&lt;code>class SaveResults(beam.PTransform):
+def expand(self, pcoll: PCollection[str]) -&amp;gt; None:
+return pcoll | beam.io.WriteToBigQuery(...)
+&lt;/code>&lt;/pre>&lt;h1 id="next-steps">Next Steps&lt;/h1>
+&lt;p>What are you waiting for.. start using annotations on your transforms!&lt;/p>
+&lt;p>For more background on type hints in Python, see:
+&lt;a href="https://beam.apache.org/documentation/sdks/python-type-safety/">Ensuring Python Type Safety&lt;/a>.&lt;/p>
+&lt;p>Finally, please
+&lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a>
+if you encounter any issues.&lt;/p></description><link>/blog/python-improved-annotations/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-improved-annotations/</guid><category>blog</category><category>python</category><category>typing</category></item><item><title>Performance-Driven Runtime Type Checking for the Python SDK</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>In this blog post, we&amp;rsquo;re announcing the upcoming release of a new, opt-in
+runtime type checking system for Beam&amp;rsquo;s Python SDK that&amp;rsquo;s optimized for performance
+in both development and production environments.&lt;/p>
+&lt;p>But let&amp;rsquo;s take a step back - why do we even care about runtime type checking
+in the first place? Let&amp;rsquo;s look at an example.&lt;/p>
+&lt;pre>&lt;code>class MultiplyNumberByTwo(beam.DoFn):
+def process(self, element: int):
+return element * 2
+p = Pipeline()
+p | beam.Create(['1', '2'] | beam.ParDo(MultiplyNumberByTwo())
+&lt;/code>&lt;/pre>&lt;p>In this code, we passed a list of strings to a DoFn that&amp;rsquo;s clearly intended for use with
+integers. Luckily, this code will throw an error during pipeline construction because
+the inferred output type of &lt;code>beam.Create(['1', '2'])&lt;/code> is &lt;code>str&lt;/code> which is incompatible with
+the declared input type of &lt;code>MultiplyNumberByTwo.process&lt;/code> which is &lt;code>int&lt;/code>.&lt;/p>
+&lt;p>However, what if we turned pipeline type checking off using the &lt;code>no_pipeline_type_check&lt;/code>
+flag? Or more realistically, what if the input PCollection to &lt;code>MultiplyNumberByTwo&lt;/code> arrived
+from a database, meaning that the output data type can only be known at runtime?&lt;/p>
+&lt;p>In either case, no error would be thrown during pipeline construction.
+And even at runtime, this code works. Each string would be multiplied by 2,
+yielding a result of &lt;code>['11', '22']&lt;/code>, but that&amp;rsquo;s certainly not the outcome we want.&lt;/p>
+&lt;p>So how do you debug this breed of &amp;ldquo;hidden&amp;rdquo; errors? More broadly speaking, how do you debug
+any typing or serialization error in Beam?&lt;/p>
+&lt;p>The answer is to use runtime type checking.&lt;/p>
+&lt;h1 id="runtime-type-checking-rtc">Runtime Type Checking (RTC)&lt;/h1>
+&lt;p>This feature works by checking that actual input and output values satisfy the declared
+type constraints during pipeline execution. If you ran the code from before with
+&lt;code>runtime_type_check&lt;/code> on, you would receive the following error message:&lt;/p>
+&lt;pre>&lt;code>Type hint violation for 'ParDo(MultiplyByTwo)': requires &amp;lt;class 'int'&amp;gt; but got &amp;lt;class 'str'&amp;gt; for element
+&lt;/code>&lt;/pre>&lt;p>This is an actionable error message - it tells you that either your code has a bug
+or that your declared type hints are incorrect. Sounds simple enough, so what&amp;rsquo;s the catch?&lt;/p>
+&lt;p>&lt;em>It is soooo slowwwwww.&lt;/em> See for yourself.&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Element Size&lt;/th>
+&lt;th>Normal Pipeline&lt;/th>
+&lt;th>Runtime Type Checking Pipeline&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>1&lt;/td>
+&lt;td>5.3 sec&lt;/td>
+&lt;td>5.6 sec&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2,001&lt;/td>
+&lt;td>9.4 sec&lt;/td>
+&lt;td>57.2 sec&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>10,001&lt;/td>
+&lt;td>24.5 sec&lt;/td>
+&lt;td>259.8 sec&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>18,001&lt;/td>
+&lt;td>38.7 sec&lt;/td>
+&lt;td>450.5 sec&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>In this micro-benchmark, the pipeline with runtime type checking was over 10x slower,
+with the gap only increasing as our input PCollection increased in size.&lt;/p>
+&lt;p>So, is there any production-friendly alternative?&lt;/p>
+&lt;h1 id="performance-runtime-type-check">Performance Runtime Type Check&lt;/h1>
+&lt;p>There is! We developed a new flag called &lt;code>performance_runtime_type_check&lt;/code> that
+minimizes its footprint on the pipeline&amp;rsquo;s time complexity using a combination of&lt;/p>
+&lt;ul>
+&lt;li>efficient Cython code,&lt;/li>
+&lt;li>smart sampling techniques, and&lt;/li>
+&lt;li>optimized mega type-hints.&lt;/li>
+&lt;/ul>
+&lt;p>So what do the new numbers look like?&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Element Size&lt;/th>
+&lt;th>Normal&lt;/th>
+&lt;th>RTC&lt;/th>
+&lt;th>Performance RTC&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>1&lt;/td>
+&lt;td>5.3 sec&lt;/td>
+&lt;td>5.6 sec&lt;/td>
+&lt;td>5.4 sec&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2,001&lt;/td>
+&lt;td>9.4 sec&lt;/td>
+&lt;td>57.2 sec&lt;/td>
+&lt;td>11.2 sec&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>10,001&lt;/td>
+&lt;td>24.5 sec&lt;/td>
+&lt;td>259.8 sec&lt;/td>
+&lt;td>25.5 sec&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>18,001&lt;/td>
+&lt;td>38.7 sec&lt;/td>
+&lt;td>450.5 sec&lt;/td>
+&lt;td>39.4 sec&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>On average, the new Performance RTC is 4.4% slower than a normal pipeline whereas the old RTC
+is over 900% slower! Additionally, as the size of the input PCollection increases, the fixed cost
+of setting up the Performance RTC system is spread across each element, decreasing the relative
+impact on the overall pipeline. With 18,001 elements, the difference is less than 1 second.&lt;/p>
+&lt;h2 id="how-does-it-work">How does it work?&lt;/h2>
+&lt;p>There are three key factors responsible for this upgrade in performance.&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>Instead of type checking all values, we only type check a subset of values, known as
+a sample in statistics. Initially, we sample a substantial number of elements, but as our
+confidence that the element type won&amp;rsquo;t change over time increases, we reduce our
+sampling rate (up to a fixed minimum).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Whereas the old RTC system used heavy wrappers to perform the type check, the new RTC system
+moves the type check to a Cython-optimized, non-decorated portion of the codebase. For reference,
+Cython is a programming language that gives C-like performance to Python code.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Finally, we use a single mega type hint to type-check only the output values of transforms
+instead of type-checking both the input and output values separately. This mega typehint is composed of
+the original transform&amp;rsquo;s output type constraints along with all consumer transforms&amp;rsquo; input type
+constraints. Using this mega type hint allows us to reduce overhead while simultaneously allowing
+us to throw &lt;em>more actionable errors&lt;/em>. For instance, consider the following error (which was
+generated from the old RTC system):&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;pre>&lt;code>Runtime type violation detected within ParDo(DownstreamDoFn): Type-hint for argument: 'element' violated. Expected an instance of &amp;lt;class ‘str’&amp;gt;, instead found 9, an instance of &amp;lt;class ‘int’&amp;gt;.
+&lt;/code>&lt;/pre>&lt;p>This error tells us that the &lt;code>DownstreamDoFn&lt;/code> received an &lt;code>int&lt;/code> when it was expecting a &lt;code>str&lt;/code>, but doesn&amp;rsquo;t tell us
+who created that &lt;code>int&lt;/code> in the first place. Who is the offending upstream transform that&amp;rsquo;s responsible for
+this &lt;code>int&lt;/code>? Presumably, &lt;em>that&lt;/em> transform&amp;rsquo;s output type hints were too expansive (e.g. &lt;code>Any&lt;/code>) or otherwise non-existent because
+no error was thrown during the runtime type check of its output.&lt;/p>
+&lt;p>The problem here boils down to a lack of context. If we knew who our consumers were when type
+checking our output, we could simultaneously type check our output value against our output type
+constraints and every consumers&amp;rsquo; input type constraints to know whether there is &lt;em>any&lt;/em> possibility
+for a mismatch. This is exactly what the mega type hint does, and it allows us to throw errors
+at the point of declaration rather than the point of exception, saving you valuable time
+while providing higher quality error messages.&lt;/p>
+&lt;p>So what would the same error look like using Performance RTC? It&amp;rsquo;s the exact same string but with one additional line:&lt;/p>
+&lt;pre>&lt;code>[while running 'ParDo(UpstreamDoFn)']
+&lt;/code>&lt;/pre>&lt;p>And that&amp;rsquo;s much more actionable for an investigation :)&lt;/p>
+&lt;h1 id="next-steps">Next Steps&lt;/h1>
+&lt;p>Go play with the new &lt;code>performance_runtime_type_check&lt;/code> feature!&lt;/p>
+&lt;p>It&amp;rsquo;s in an experimental state so please
+&lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a>
+if you encounter any issues.&lt;/p></description><link>/blog/python-performance-runtime-type-checking/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-performance-runtime-type-checking/</guid><category>blog</category><category>python</category><category>typing</category></item><item><title>Apache Beam 2.23.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -513,189 +753,4 @@ See the &lt;a href="/get-started/downloads/#2190-2020-02-04">download page&lt;/a
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.19.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ankur Goenka, Anton Kedin, Boyuan Zhang, Brian Hulette, Brian Martin, Chamikara Jayalath, Charles Chen, Craig Chambers, Daniel Oliveira, David Moravek, David Rieber, Dustin Rhodes, Etienne Chauchot, Gleb Kanterov, Hai Lu, Heejong Lee, Ismaël Mejía, Jan Lukavský, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, João Cabrita, J Ross Thomson, Juan Rael, Juta, Kasia Kucharczyk, Kengo Seki, Kenneth Jung, Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Łukasz Gajowy, Marek Simunek, Mark Liu, Maximilian Michels, Melissa Pashniak, Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Reuven Lax, Rob, Robbe Sneyders, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Thomas Weise, Tianyang Hu, ttanay, tvalentyn, Tyler Akidau, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin&lt;/p></description><link>/blog/beam-2.19.0/</link><pubDate>Tue, 04 Feb 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.19.0/</guid><category>blog</category></item><item><title>Apache Beam 2.18.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.18.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2180-2020-01-23">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.18.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?version=12346383&amp;amp;projectId=12319527">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8470">BEAM-8470&lt;/a> - Create a new Spark runner based on Spark Structured streaming framework&lt;/li>
-&lt;/ul>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7636">BEAM-7636&lt;/a> - Added SqsIO v2 support.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8513">BEAM-8513&lt;/a> - RabbitMqIO: Allow reads from exchange-bound queue without declaring the exchange.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8540">BEAM-8540&lt;/a> - Fix CSVSink example in FileIO docs&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-5878">BEAM-5878&lt;/a> - Added support DoFns with Keyword-only arguments in Python 3.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-6756">BEAM-6756&lt;/a> - Improved support for lazy iterables in schemas (Java).&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-4776">BEAM-4776&lt;/a> AND &lt;a href="https://issues.apache.org/jira/browse/BEAM-4777">BEAM-4777&lt;/a> - Added metrics supports to portable runners.&lt;/li>
-&lt;li>Various improvements to Interactive Beam: &lt;a href="https://issues.apache.org/jira/browse/BEAM-7760">BEAM-7760&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-8379">BEAM-8379&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-8016">BEAM-8016&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-8016">BEAM-8016&lt;/a>.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8658">BEAM-8658&lt;/a> - Optionally set artifact staging port in FlinkUberJarJobServer.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8660">BEAM-8660&lt;/a> - Override returned artifact staging endpoint&lt;/li>
-&lt;/ul>
-&lt;h3 id="sql">SQL&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8343">BEAM-8343&lt;/a> - [SQL] Add means for IO APIs to support predicate and/or project push-down when running SQL pipelines. And &lt;a href="https://issues.apache.org/jira/browse/BEAM-8468">BEAM-8468&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-8365">BEAM-8365&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-8508">BEAM-8508&lt;/a>.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8427">BEAM-8427&lt;/a> - [SQL] Add support for MongoDB source.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8456">BEAM-8456&lt;/a> - Add pipeline option to control truncate of BigQuery data processed by Beam SQL.&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8814">BEAM-8814&lt;/a> - &amp;ndash;no_auth flag changed to boolean type.&lt;/li>
-&lt;/ul>
-&lt;h3 id="deprecations">Deprecations&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8252">BEAM-8252&lt;/a> AND &lt;a href="https://issues.apache.org/jira/browse/BEAM-8254">BEAM-8254&lt;/a> Add worker_region and worker_zone options. Deprecated &amp;ndash;zone flag and &amp;ndash;worker_region experiment argument.&lt;/li>
-&lt;/ul>
-&lt;h3 id="dependency-changes">Dependency Changes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7078">BEAM-7078&lt;/a> - com.amazonaws:amazon-kinesis-client updated to 1.13.0.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8822">BEAM-8822&lt;/a> - Upgrade Hadoop dependencies to version 2.8.&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7917">BEAM-7917&lt;/a> - Python datastore v1new fails on retry.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7981">BEAM-7981&lt;/a> - ParDo function wrapper doesn&amp;rsquo;t support Iterable output types.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8146">BEAM-8146&lt;/a> - SchemaCoder/RowCoder have no equals() function.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8347">BEAM-8347&lt;/a> - UnboundedRabbitMqReader can fail to advance watermark if no new data comes in.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8352">BEAM-8352&lt;/a> - Reading records in background may lead to OOM errors&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8480">BEAM-8480&lt;/a> - Explicitly set restriction coder for bounded reader wrapper SDF.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8515">BEAM-8515&lt;/a> - Ensure that ValueProvider types have equals/hashCode implemented for comparison reasons.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8579">BEAM-8579&lt;/a> - Strip UTF-8 BOM bytes (if present) in TextSource.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8657">BEAM-8657&lt;/a> - Not doing Combiner lifting for data-driven triggers.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8663">BEAM-8663&lt;/a> - BundleBasedRunner Stacked Bundles don&amp;rsquo;t respect PaneInfo.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8667">BEAM-8667&lt;/a> - Data channel should to avoid unlimited buffering in Python SDK.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8802">BEAM-8802&lt;/a> - Timestamp combiner not respected across bundles in streaming mode.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8803">BEAM-8803&lt;/a> - Default behaviour for Python BQ Streaming inserts sink should be to retry always.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8825">BEAM-8825&lt;/a> - OOM when writing large numbers of &amp;lsquo;narrow&amp;rsquo; rows.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8835">BEAM-8835&lt;/a> - Artifact retrieval fails with FlinkUberJarJobServer&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8836">BEAM-8836&lt;/a> - ExternalTransform is not providing a unique name&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8884">BEAM-8884&lt;/a> - Python MongoDBIO TypeError when splitting.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9041">BEAM-9041&lt;/a> - SchemaCoder equals should not rely on from/toRowFunction equality.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9042">BEAM-9042&lt;/a> - AvroUtils.schemaCoder(schema) produces a not serializable SchemaCoder.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9065">BEAM-9065&lt;/a> - Spark runner accumulates metrics (incorrectly) between runs.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-6303">BEAM-6303&lt;/a> - Add .parquet extension to files in ParquetIO.&lt;/li>
-&lt;li>Various bug fixes and performance improvements.&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>
-&lt;p>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8882">BEAM-8882&lt;/a> - Python: &lt;code>beam.Create&lt;/code> no longer preserves order unless &lt;code>reshuffle=False&lt;/code> is passed in as an argument.&lt;/p>
-&lt;p>You may encounter this issue when using DirectRunner.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9065">BEAM-9065&lt;/a> - Spark runner accumulates metrics (incorrectly) between runs&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9123">BEAM-9123&lt;/a> - HadoopResourceId returns wrong directory name&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>See a full list of open &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.18.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://issues.apache.org/jira/browse/BEAM-9144">BEAM-9144&lt;/a> - If you are using Avro 1.9.x with Beam you should not upgrade to this version. There is an issue with timestamp conversions. A fix will be available in the next release.&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.18.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Aizhamal Nurmamat kyzy, Alan Myrvold, Alexey Romanenko, Alex Van Boxel, Andre Araujo, Andrew Crites, Andrew Pilloud, Aryan Naraghi, Boyuan Zhang, Brian Hulette, bumblebee-coming, Cerny Ondrej, Chad Dombrova, Chamikara Jayalath, Changming Ma, Chun Yang, cmachgodaddy, Colm O hEigeartaigh, Craig Chambers, Daniel Oliveira, Daniel Robert, David Cavazos, David Moravek, David Song, dependabot[bot], Derek, Dmytro Sadovnychyi, Elliotte Rusty Harold, Etienne Chauchot, Hai Lu, Henry Suryawirawan, Ismaël Mejía, Jack Whelpton, Jan Lukavský, Jean-Baptiste Onofré, Jeff Klukas, Jincheng Sun, Jing, Jing Chen, Joe Tsai, Jonathan Alvarez-Gutierrez, Kamil Wasilewski, KangZhiDong, Kasia Kucharczyk, Kenneth Knowles, kirillkozlov, Kirill Kozlov, Kyle Weaver, liumomo315, lostluck, Łukasz Gajowy, Luke Cwik, Mark Liu, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Niel Markwick, Ning Kang, nlofeudo, pabloem, Pablo Estrada, Pankaj Gudlani, Piotr Szczepanik, Primevenn, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, RusOr10n, Ryan Skraba, Saikat Maitra, sambvfx, Sam Rohde, Samuel Husso, Stefano, Steve Koonce, Steve Niemitz, sunjincheng121, Thomas Weise, Tianyang Hu, Tim Robertson, Tomo Suzuki, tvalentyn, Udi Meiri, Valentyn Tymofieiev, Viola Lyu, Wenjia Liu, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, ziel, 康智冬&lt;/p></description><link>/blog/beam-2.18.0/</link><pubDate>Thu, 23 Jan 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.18.0/</guid><category>blog</category></item><item><title>Apache Beam 2.17.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.17.0 release of Beam. This release includes both improvements and new functionality.
-Users of the MongoDbIO connector are encouraged to upgrade to this release to address a &lt;a href="/security/CVE-2020-1929/">security vulnerability&lt;/a>.&lt;/p>
-&lt;p>See the &lt;a href="/get-started/downloads/#2170-2020-01-06">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.17.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?version=12345970&amp;amp;projectId=12319527">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7962">BEAM-7962&lt;/a> - Drop support for Flink 1.5 and 1.6&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7635">BEAM-7635&lt;/a> - Migrate SnsIO to AWS SDK for Java 2&lt;/li>
-&lt;li>Improved usability for portable Flink Runner
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8183">BEAM-8183&lt;/a> - Optionally bundle multiple pipelines into a single Flink jar.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8372">BEAM-8372&lt;/a> - Allow submission of Flink UberJar directly to flink cluster.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8471">BEAM-8471&lt;/a> - Flink native job submission for portable pipelines.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8312">BEAM-8312&lt;/a> - Flink portable pipeline jars do not need to stage artifacts remotely.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7730">BEAM-7730&lt;/a> - Add Flink 1.9 build target and Make FlinkRunner compatible with Flink 1.9.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7990">BEAM-7990&lt;/a> - Add ability to read parquet files into PCollection of pyarrow.Table.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8355">BEAM-8355&lt;/a> - Make BooleanCoder a standard coder.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8394">BEAM-8394&lt;/a> - Add withDataSourceConfiguration() method in JdbcIO.ReadRows class.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-5428">BEAM-5428&lt;/a> - Implement cross-bundle state caching.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-5967">BEAM-5967&lt;/a> - Add handling of DynamicMessage in ProtoCoder.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7473">BEAM-7473&lt;/a> - Update RestrictionTracker within Python to not be required to be thread safe.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-7920">BEAM-7920&lt;/a> - Added AvroTableProvider to Beam SQL.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8098">BEAM-8098&lt;/a> - Improve documentation on BigQueryIO.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8100">BEAM-8100&lt;/a> - Add exception handling to Json transforms in Java SDK.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8306">BEAM-8306&lt;/a> - Improve estimation of data byte size reading from source in ElasticsearchIO.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8351">BEAM-8351&lt;/a> - Support passing in arbitrary KV pairs to sdk worker via external environment config.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8396">BEAM-8396&lt;/a> - Default to LOOPBACK mode for local flink (spark, &amp;hellip;) runner.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8410">BEAM-8410&lt;/a> - JdbcIO should support setConnectionInitSqls in its DataSource.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8609">BEAM-8609&lt;/a> - Add HllCount to Java transform catalog.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8861">BEAM-8861&lt;/a> - Disallow self-signed certificates by default in ElasticsearchIO.&lt;/li>
-&lt;/ul>
-&lt;h3 id="dependency-changes">Dependency Changes&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8285">BEAM-8285&lt;/a> - Upgrade ZetaSQL to 2019.09.1.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8392">BEAM-8392&lt;/a> - Upgrade pyarrow version bounds: 0.15.1&amp;lt;= to &amp;lt;0.16.0.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-5895">BEAM-5895&lt;/a> - Upgrade com.rabbitmq:amqp-client to 5.7.3.&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-6896">BEAM-6896&lt;/a> - Upgrade PyYAML version bounds: 3.12&amp;lt;= to &amp;lt;6.0.0.&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>[BEAM-8819] - AvroCoder for SpecificRecords is not serialized correctly since 2.13.0&lt;/li>
-&lt;li>Various bug fixes and performance improvements.&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-8989">BEAM-8989&lt;/a> Apache Nemo
-runner broken due to backwards incompatible change since 2.16.0.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.17.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alan Myrvold, Alexey Romanenko, Andre-Philippe Paquet, Andrew
-Pilloud, angulartist, Ankit Jhalaria, Ankur Goenka, Anton Kedin, Aryan Naraghi,
-Aurélien Geron, B M VISHWAS, Bartok Jozsef, Boyuan Zhang, Brian Hulette, Cerny
-Ondrej, Chad Dombrova, Chamikara Jayalath, ChethanU, cmach, Colm O hEigeartaigh,
-Cyrus Maden, Daniel Oliveira, Daniel Robert, Dante, David Cavazos, David
-Moravek, David Yan, Enrico Canzonieri, Etienne Chauchot, gxercavins, Hai Lu,
-Hannah Jiang, Ian Lance Taylor, Ismaël Mejía, Israel Herraiz, James Wen, Jan
-Lukavský, Jean-Baptiste Onofré, Jeff Klukas, jesusrv1103, Jofre, Kai Jiang,
-Kamil Wasilewski, Kasia Kucharczyk, Kenneth Knowles, Kirill Kozlov,
-kirillkozlov, Kohki YAMAGIWA, Kyle Weaver, Leonardo Alves Miguel, lloigor,
-lostluck, Luis Enrique Ortíz Ramirez, Luke Cwik, Mark Liu, Maximilian Michels,
-Michal Walenia, Mikhail Gryzykhin, mrociorg, Nicolas Delsaux, Ning Kang, NING
-KANG, Pablo Estrada, pabloem, Piotr Szczepanik, rahul8383, Rakesh Kumar, Renat
-Nasyrov, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ruslan Altynnikov,
-Ryan Skraba, Salman Raza, Saul Chavez, Sebastian Jambor, sunjincheng121, Tatu
-Saloranta, tchiarato, Thomas Weise, Tomo Suzuki, Tudor Marian, tvalentyn, Udi
-Meiri, Valentyn Tymofieiev, Viola Lyu, Vishwas, Yichi Zhang, Yifan Zou, Yueyang
-Qiu, Łukasz Gajowy&lt;/p></description><link>/blog/beam-2.17.0/</link><pubDate>Mon, 06 Jan 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.17.0/</guid><category>blog</category></item></channel></rss>
+&lt;p>Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ankur Goenka, Anton Kedin, Boyuan Zhang, Brian Hulette, Brian Martin, Chamikara Jayalath, Charles Chen, Craig Chambers, Daniel Oliveira, David Moravek, David Rieber, Dustin Rhodes, Etienne Chauchot, Gleb Kanterov, Hai Lu, Heejong Lee, Ismaël Mejía, Jan Lukavský, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, João Cabrita, J Ross Thomson, Juan Rael, Juta, Kasia Kucharczyk, Kengo Seki, Kenneth Jung, Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Łukasz Gajowy, Marek Simunek, Mark Liu, Maximilian Michels, Melissa Pashniak, Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Reuven Lax, Rob, Robbe Sneyders, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Thomas Weise, Tianyang Hu, ttanay, tvalentyn, Tyler Akidau, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin&lt;/p></description><link>/blog/beam-2.19.0/</link><pubDate>Tue, 04 Feb 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.19.0/</guid><category>blog</category></item></channel></rss>

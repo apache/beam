@@ -91,7 +91,7 @@ setter methods for each option, as in the following example for
 adding <code>input</code> and <code>output</code> custom options:</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kd>public</span> <span class=kd>interface</span> <span class=nc>MyOptions</span> <span class=kd>extends</span> <span class=n>PipelineOptions</span> <span class=o>{</span>
     <span class=n>String</span> <span class=nf>getInput</span><span class=o>();</span>
     <span class=kt>void</span> <span class=nf>setInput</span><span class=o>(</span><span class=n>String</span> <span class=n>input</span><span class=o>);</span>
-    
+
     <span class=n>String</span> <span class=nf>getOutput</span><span class=o>();</span>
     <span class=kt>void</span> <span class=nf>setOutput</span><span class=o>(</span><span class=n>String</span> <span class=n>output</span><span class=o>);</span>
 <span class=o>}</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=kn>from</span> <span class=nn>apache_beam.options.pipeline_options</span> <span class=kn>import</span> <span class=n>PipelineOptions</span>
@@ -1141,8 +1141,7 @@ To access the timestamp of an input element, add a keyword parameter default to 
 
   <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>element</span><span class=p>,</span> <span class=n>timestamp</span><span class=o>=</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=o>.</span><span class=n>TimestampParam</span><span class=p>):</span>
      <span class=c1># access timestamp of element.</span>
-     <span class=k>pass</span>  
-  </code></pre></div></div><p class=language-java><strong>Window:</strong>
+     <span class=k>pass</span></code></pre></div></div><p class=language-java><strong>Window:</strong>
 To access the window an input element falls into, add a parameter of the type of the window used for the input <code>PCollection</code>.
 If the parameter is a window type (a subclass of <code>BoundedWindow</code>) that does not match the input <code>PCollection</code>, then an error
 will be raised. If an element falls in multiple windows (for example, this will happen when using <code>SlidingWindows</code>), then the
@@ -1158,8 +1157,7 @@ If an element falls in multiple windows (for example, this will happen when usin
 
   <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>element</span><span class=p>,</span> <span class=n>window</span><span class=o>=</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=o>.</span><span class=n>WindowParam</span><span class=p>):</span>
      <span class=c1># access window e.g. window.end.micros</span>
-     <span class=k>pass</span>  
-  </code></pre></div></div><p class=language-java><strong>PaneInfo:</strong>
+     <span class=k>pass</span></code></pre></div></div><p class=language-java><strong>PaneInfo:</strong>
 When triggers are used, Beam provides a <code>PaneInfo</code> object that contains information about the current firing. Using <code>PaneInfo</code>
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.</p><p class=language-py><strong>PaneInfo:</strong>
 When triggers are used, Beam provides a <code>DoFn.PaneInfoParam</code> object that contains information about the current firing. Using <code>DoFn.PaneInfoParam</code>
@@ -1172,8 +1170,7 @@ This feature implementation in Python SDK is not fully completed; see more at <a
 
   <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>element</span><span class=p>,</span> <span class=n>pane_info</span><span class=o>=</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=o>.</span><span class=n>PaneInfoParam</span><span class=p>):</span>
      <span class=c1># access pane info, e.g. pane_info.is_first, pane_info.is_last, pane_info.timing</span>
-     <span class=k>pass</span>  
-  </code></pre></div></div><p class=language-java><strong>PipelineOptions:</strong>
+     <span class=k>pass</span></code></pre></div></div><p class=language-java><strong>PipelineOptions:</strong>
 The <code>PipelineOptions</code> for the current pipeline can always be accessed in a process method by adding it
 as a parameter:</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=k>new</span> <span class=n>DoFn</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>String</span><span class=o>&gt;()</span> <span class=o>{</span>
      <span class=kd>public</span> <span class=kt>void</span> <span class=nf>processElement</span><span class=o>(</span><span class=nd>@Element</span> <span class=n>String</span> <span class=n>word</span><span class=o>,</span> <span class=n>PipelineOptions</span> <span class=n>options</span><span class=o>)</span> <span class=o>{</span>
@@ -1362,16 +1359,17 @@ and Beam will allow us to seamlessly convert between these types. Schemas also p
 types across different programming-language APIs.</p><p>A <code>PCollection</code> with a schema does not need to have a <code>Coder</code> specified, as Beam knows how to encode and decode
 Schema rows; Beam uses a special coder to encode schema types.</p><h3 id=schemas-for-pl-types>6.2. Schemas for programming language types</h3><p>While schemas themselves are language independent, they are designed to embed naturally into the programming languages
 of the Beam SDK being used. This allows Beam users to continue using native types while reaping the advantage of
-having Beam understand their element schemas.</p><p class=language-java>In Java you could use the following set of classes to represent the purchase schema. Beam will automatically<br>infer the correct schema based on the members of the class.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=nd>@DefaultSchema</span><span class=o>(</span><span class=n>JavaBeanSchema</span><span class=o>.</span><span class=na>class</span><span class=o>)</span>
+having Beam understand their element schemas.</p><p class=language-java>In Java you could use the following set of classes to represent the purchase schema. Beam will automatically
+infer the correct schema based on the members of the class.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=nd>@DefaultSchema</span><span class=o>(</span><span class=n>JavaBeanSchema</span><span class=o>.</span><span class=na>class</span><span class=o>)</span>
 <span class=kd>public</span> <span class=kd>class</span> <span class=nc>Purchase</span> <span class=o>{</span>
   <span class=kd>public</span> <span class=n>String</span> <span class=nf>getUserId</span><span class=o>();</span>  <span class=c1>// Returns the id of the user who made the purchase.
 </span><span class=c1></span>  <span class=kd>public</span> <span class=kt>long</span> <span class=nf>getItemId</span><span class=o>();</span>  <span class=c1>// Returns the identifier of the item that was purchased.
 </span><span class=c1></span>  <span class=kd>public</span> <span class=n>ShippingAddress</span> <span class=nf>getShippingAddress</span><span class=o>();</span>  <span class=c1>// Returns the shipping address, a nested type.
 </span><span class=c1></span>  <span class=kd>public</span> <span class=kt>long</span> <span class=nf>getCostCents</span><span class=o>();</span>  <span class=c1>// Returns the cost of the item.
 </span><span class=c1></span>  <span class=kd>public</span> <span class=n>List</span><span class=o>&lt;</span><span class=n>Transaction</span><span class=o>&gt;</span> <span class=nf>getTransactions</span><span class=o>();</span>  <span class=c1>// Returns the transactions that paid for this purchase (returns a list, since the purchase might be spread out over multiple credit cards).
-</span><span class=c1></span>  
+</span><span class=c1></span>
   <span class=nd>@SchemaCreate</span>
-  <span class=kd>public</span> <span class=nf>Purchase</span><span class=o>(</span><span class=n>String</span> <span class=n>userId</span><span class=o>,</span> <span class=kt>long</span> <span class=n>itemId</span><span class=o>,</span> <span class=n>ShippingAddress</span> <span class=n>shippingAddress</span><span class=o>,</span> <span class=kt>long</span> <span class=n>costCents</span><span class=o>,</span> 
+  <span class=kd>public</span> <span class=nf>Purchase</span><span class=o>(</span><span class=n>String</span> <span class=n>userId</span><span class=o>,</span> <span class=kt>long</span> <span class=n>itemId</span><span class=o>,</span> <span class=n>ShippingAddress</span> <span class=n>shippingAddress</span><span class=o>,</span> <span class=kt>long</span> <span class=n>costCents</span><span class=o>,</span>
                   <span class=n>List</span><span class=o>&lt;</span><span class=n>Transaction</span><span class=o>&gt;</span> <span class=n>transactions</span><span class=o>)</span> <span class=o>{</span>
       <span class=o>...</span>
   <span class=o>}</span>
@@ -1384,7 +1382,7 @@ having Beam understand their element schemas.</p><p class=language-java>In Java 
   <span class=nd>@Nullable</span> <span class=kd>public</span> <span class=n>String</span> <span class=nf>getState</span><span class=o>();</span>
   <span class=kd>public</span> <span class=n>String</span> <span class=nf>getCountry</span><span class=o>();</span>
   <span class=kd>public</span> <span class=n>String</span> <span class=nf>getPostCode</span><span class=o>();</span>
-  
+
   <span class=nd>@SchemaCreate</span>
   <span class=kd>public</span> <span class=nf>ShippingAddress</span><span class=o>(</span><span class=n>String</span> <span class=n>streetAddress</span><span class=o>,</span> <span class=n>String</span> <span class=n>city</span><span class=o>,</span> <span class=nd>@Nullable</span> <span class=n>String</span> <span class=n>state</span><span class=o>,</span> <span class=n>String</span> <span class=n>country</span><span class=o>,</span>
                          <span class=n>String</span> <span class=n>postCode</span><span class=o>)</span> <span class=o>{</span>
@@ -1396,7 +1394,7 @@ having Beam understand their element schemas.</p><p class=language-java>In Java 
 <span class=kd>public</span> <span class=kd>class</span> <span class=nc>Transaction</span> <span class=o>{</span>
   <span class=kd>public</span> <span class=n>String</span> <span class=nf>getBank</span><span class=o>();</span>
   <span class=kd>public</span> <span class=kt>double</span> <span class=nf>getPurchaseAmount</span><span class=o>();</span>
- 
+
   <span class=nd>@SchemaCreate</span>
   <span class=kd>public</span> <span class=nf>Transaction</span><span class=o>(</span><span class=n>String</span> <span class=n>bank</span><span class=o>,</span> <span class=kt>double</span> <span class=n>purchaseAmount</span><span class=o>)</span> <span class=o>{</span>
      <span class=o>...</span>
@@ -1446,12 +1444,12 @@ The argument is represented by a schema type, so can itself be a complex type.</
 </span><span class=c1></span>  <span class=kd>private</span> <span class=kd>final</span> <span class=n>Schema</span> <span class=n>SCHEMA</span> <span class=o>=</span> <span class=n>Schema</span><span class=o>.</span><span class=na>builder</span><span class=o>().</span><span class=na>addInt64Field</span><span class=o>(</span><span class=s>&#34;seconds&#34;</span><span class=o>).</span><span class=na>addInt32Field</span><span class=o>(</span><span class=s>&#34;nanos&#34;</span><span class=o>).</span><span class=na>build</span><span class=o>();</span>
   <span class=nd>@Override</span> <span class=kd>public</span> <span class=n>String</span> <span class=nf>getIdentifier</span><span class=o>()</span> <span class=o>{</span> <span class=k>return</span> <span class=s>&#34;timestampNanos&#34;</span><span class=o>;</span> <span class=o>}</span>
   <span class=nd>@Override</span> <span class=kd>public</span> <span class=n>FieldType</span> <span class=nf>getBaseType</span><span class=o>()</span> <span class=o>{</span> <span class=k>return</span> <span class=n>schema</span><span class=o>;</span> <span class=o>}</span>
-  
+
   <span class=c1>// Convert the representation type to the underlying Row type. Called by Beam when necessary.
 </span><span class=c1></span>  <span class=nd>@Override</span> <span class=kd>public</span> <span class=n>Row</span> <span class=nf>toBaseType</span><span class=o>(</span><span class=n>Instant</span> <span class=n>instant</span><span class=o>)</span> <span class=o>{</span>
     <span class=k>return</span> <span class=n>Row</span><span class=o>.</span><span class=na>withSchema</span><span class=o>(</span><span class=n>schema</span><span class=o>).</span><span class=na>addValues</span><span class=o>(</span><span class=n>instant</span><span class=o>.</span><span class=na>getEpochSecond</span><span class=o>(),</span> <span class=n>instant</span><span class=o>.</span><span class=na>getNano</span><span class=o>()).</span><span class=na>build</span><span class=o>();</span>
   <span class=o>}</span>
-  
+
   <span class=c1>// Convert the underlying Row type to an Instant. Called by Beam when necessary.
 </span><span class=c1></span>  <span class=nd>@Override</span> <span class=kd>public</span> <span class=n>Instant</span> <span class=nf>toInputType</span><span class=o>(</span><span class=n>Row</span> <span class=n>base</span><span class=o>)</span> <span class=o>{</span>
     <span class=k>return</span> <span class=n>Instant</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=n>row</span><span class=o>.</span><span class=na>getInt64</span><span class=o>(</span><span class=s>&#34;seconds&#34;</span><span class=o>),</span> <span class=n>row</span><span class=o>.</span><span class=na>getInt32</span><span class=o>(</span><span class=s>&#34;nanos&#34;</span><span class=o>));</span>
@@ -1467,14 +1465,14 @@ you access the enumeration either as a string or a value. For example:</p><div c
 </span><span class=c1></span><span class=n>enumValue</span><span class=o>.</span><span class=na>toString</span><span class=o>();</span>  <span class=o>//</span> <span class=n>Returns</span> <span class=s>&#34;RED&#34;</span><span class=o>,</span> <span class=n>the</span> <span class=n>string</span> <span class=n>value</span> <span class=n>of</span> <span class=n>the</span> <span class=n>constant</span></code></pre></div></div><p>Given a row object with an enumeration field, you can also extract the field as the enumeration value.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>EnumerationType</span><span class=o>.</span><span class=na>Value</span> <span class=n>enumValue</span> <span class=o>=</span> <span class=n>row</span><span class=o>.</span><span class=na>getLogicalTypeValue</span><span class=o>(</span><span class=s>&#34;color&#34;</span><span class=o>,</span> <span class=n>EnumerationType</span><span class=o>.</span><span class=na>Value</span><span class=o>.</span><span class=na>class</span><span class=o>);</span></code></pre></div></div><p>Automatic schema inference from Java POJOs and JavaBeans automatically converts Java enums to EnumerationType logical
 types.</p><h5 id=oneoftype><strong>OneOfType</strong></h5><p>OneOfType allows creating a disjoint union type over a set of schema fields. For example:</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>Schema</span> <span class=n>schema</span> <span class=o>=</span> <span class=n>Schema</span><span class=o>.</span><span class=na>builder</span><span class=o>()</span>
                <span class=err>…</span>
-     <span class=o>.</span><span class=na>addLogicalTypeField</span><span class=o>(</span><span class=s>&#34;oneOfField&#34;</span><span class=o>,</span> 
+     <span class=o>.</span><span class=na>addLogicalTypeField</span><span class=o>(</span><span class=s>&#34;oneOfField&#34;</span><span class=o>,</span>
         <span class=n>OneOfType</span><span class=o>.</span><span class=na>create</span><span class=o>(</span><span class=n>Field</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=s>&#34;intField&#34;</span><span class=o>,</span> <span class=n>FieldType</span><span class=o>.</span><span class=na>INT32</span><span class=o>),</span>
                          <span class=n>Field</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=s>&#34;stringField&#34;</span><span class=o>,</span> <span class=n>FieldType</span><span class=o>.</span><span class=na>STRING</span><span class=o>),</span>
                          <span class=n>Field</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=s>&#34;bytesField&#34;</span><span class=o>,</span> <span class=n>FieldType</span><span class=o>.</span><span class=na>BYTES</span><span class=o>)))</span>
       <span class=o>.</span><span class=na>build</span><span class=o>();</span></code></pre></div></div><p>The value of this field is stored in the row as another Row type, where all the fields are marked as nullable. The
 logical type however defines a Value object that contains an enumeration value indicating which field was set and allows
 getting just that field:</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// Returns an enumeration indicating all possible case values for the enum.
-</span><span class=c1>// For the above example, this will be 
+</span><span class=c1>// For the above example, this will be
 </span><span class=c1>// EnumerationType.create(&#34;intField&#34;, &#34;stringField&#34;, &#34;bytesField&#34;);
 </span><span class=c1></span><span class=n>EnumerationType</span> <span class=n>oneOfEnum</span> <span class=o>=</span> <span class=n>onOfType</span><span class=o>.</span><span class=na>getCaseEnumType</span><span class=o>();</span>
 
@@ -1483,7 +1481,7 @@ getting just that field:</p><div class=language-java><div class=highlight><pre c
 
 <span class=c1>// Handle the oneof
 </span><span class=c1></span><span class=k>switch</span> <span class=o>(</span><span class=n>oneOfValue</span><span class=o>.</span><span class=na>getCaseEnumType</span><span class=o>().</span><span class=na>toString</span><span class=o>())</span> <span class=o>{</span>
-  <span class=k>case</span> <span class=s>&#34;intField&#34;</span><span class=o>:</span>  
+  <span class=k>case</span> <span class=s>&#34;intField&#34;</span><span class=o>:</span>
     <span class=k>return</span> <span class=n>processInt</span><span class=o>(</span><span class=n>oneOfValue</span><span class=o>.</span><span class=na>getValue</span><span class=o>(</span><span class=n>Integer</span><span class=o>.</span><span class=na>class</span><span class=o>));</span>
   <span class=k>case</span> <span class=s>&#34;stringField&#34;</span><span class=o>:</span>
     <span class=k>return</span> <span class=n>processString</span><span class=o>(</span><span class=n>oneOfValue</span><span class=o>.</span><span class=na>getValue</span><span class=o>(</span><span class=n>String</span><span class=o>.</span><span class=na>class</span><span class=o>));</span>
@@ -1515,12 +1513,12 @@ schema. For example, it’s common to have ephemeral fields in a class that shou
 (e.g. caching the hash value to prevent expensive recomputation of the hash), and <code>@SchemaIgnore</code> can be used to
 exclude these fields. Note that ignored fields will not be included in the encoding of these records.</p><p>In some cases it is not convenient to annotate the POJO class, for example if the POJO is in a different package that is
 not owned by the Beam pipeline author. In these cases the schema inference can be triggered programmatically in
-pipeline’s main function as follows:</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java> <span class=n>pipeline</span><span class=o>.</span><span class=na>getSchemaRegistry</span><span class=o>().</span><span class=na>registerPOJO</span><span class=o>(</span><span class=n>TransactionPOJO</span><span class=o>.</span><span class=na>class</span><span class=o>);</span> </code></pre></div></div><h5 id=java-beans><strong>Java Beans</strong></h5><p>Java Beans are a de-facto standard for creating reusable property classes in Java. While the full
+pipeline’s main function as follows:</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java> <span class=n>pipeline</span><span class=o>.</span><span class=na>getSchemaRegistry</span><span class=o>().</span><span class=na>registerPOJO</span><span class=o>(</span><span class=n>TransactionPOJO</span><span class=o>.</span><span class=na>class</span><span class=o>);</span></code></pre></div></div><h5 id=java-beans><strong>Java Beans</strong></h5><p>Java Beans are a de-facto standard for creating reusable property classes in Java. While the full
 standard has many characteristics, the key ones are that all properties are accessed via getter and setter classes, and
 the name format for these getters and setters is standardized. A Java Bean class can be annotated with
 <code>@DefaultSchema(JavaBeanSchema.class)</code> and Beam will automatically infer a schema for this class. For example:</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=nd>@DefaultSchema</span><span class=o>(</span><span class=n>JavaBeanSchema</span><span class=o>.</span><span class=na>class</span><span class=o>)</span>
 <span class=kd>public</span> <span class=kd>class</span> <span class=nc>TransactionBean</span> <span class=o>{</span>
-  <span class=kd>public</span> <span class=nf>TransactionBean</span><span class=o>()</span> <span class=o>{</span> <span class=err>…</span> <span class=o>}</span> 
+  <span class=kd>public</span> <span class=nf>TransactionBean</span><span class=o>()</span> <span class=o>{</span> <span class=err>…</span> <span class=o>}</span>
   <span class=kd>public</span> <span class=n>String</span> <span class=nf>getBank</span><span class=o>()</span> <span class=o>{</span> <span class=err>…</span> <span class=o>}</span>
   <span class=kd>public</span> <span class=kt>void</span> <span class=nf>setBank</span><span class=o>(</span><span class=n>String</span> <span class=n>bank</span><span class=o>)</span> <span class=o>{</span> <span class=err>…</span> <span class=o>}</span>
   <span class=kd>public</span> <span class=kt>double</span> <span class=nf>getPurchaseAmount</span><span class=o>()</span> <span class=o>{</span> <span class=err>…</span> <span class=o>}</span>
@@ -1539,7 +1537,7 @@ order to properly implement a value class. AutoValue is a popular library for ea
 implementing a simple abstract base class.</p><p>Beam can infer a schema from an AutoValue class. For example:</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=nd>@DefaultSchema</span><span class=o>(</span><span class=n>AutoValueSchema</span><span class=o>.</span><span class=na>class</span><span class=o>)</span>
 <span class=nd>@AutoValue</span>
 <span class=kd>public</span> <span class=kd>abstract</span> <span class=kd>class</span> <span class=nc>TransactionValue</span> <span class=o>{</span>
-  <span class=kd>public</span> <span class=kd>abstract</span> <span class=n>String</span> <span class=nf>getBank</span><span class=o>();</span> 
+  <span class=kd>public</span> <span class=kd>abstract</span> <span class=n>String</span> <span class=nf>getBank</span><span class=o>();</span>
   <span class=kd>public</span> <span class=kd>abstract</span> <span class=kt>double</span> <span class=nf>getPurchaseAmount</span><span class=o>();</span>
 <span class=o>}</span></code></pre></div></div><p>This is all that’s needed to generate a simple AutoValue class, and the above <code>@DefaultSchema</code> annotation tells Beam to
 infer a schema from it. This also allows AutoValue elements to be used inside of <code>PCollection</code>s.</p><p><code>@SchemaFieldName</code> and <code>@SchemaIgnore</code> can be used to alter the schema inferred.</p><h3 id=using-schemas>6.6. Using Schema Transforms</h3><p>A schema on a <code>PCollection</code> enables a rich variety of relational transforms. The fact that each record is composed of
@@ -1627,7 +1625,7 @@ renamed using the field-selection syntax.</p><p>For example, the following snipp
   <span class=o>.</span><span class=na>rename</span><span class=o>(</span><span class=s>&#34;shippingAddress.streetAddress&#34;</span><span class=o>,</span> <span class=s>&#34;shippingAddress.street&#34;</span><span class=o>));</span></code></pre></div></div><p>Results in the same set of unmodified input elements, however the schema on the PCollection has been changed to rename
 <strong>userId</strong> to <strong>userIdentifier</strong> and <strong>shippingAddress.streetAddress</strong> to <strong>shippingAddress.street</strong>.</p><h5 id=converting-between-types><strong>Converting between types</strong></h5><p>As mentioned, Beam can automatically convert between different Java types, as long as those types have equivalent
 schemas. One way to do this is by using the <code>Convert</code> transform, as follows.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>PurchaseBean</span><span class=o>&gt;</span> <span class=n>purchaseBeans</span> <span class=o>=</span> <span class=n>readPurchasesAsBeans</span><span class=o>();</span>
-<span class=n>PCollection</span><span class=o>&lt;</span><span class=n>PurchasePojo</span><span class=o>&gt;</span> <span class=n>pojoPurchases</span> <span class=o>=</span> 
+<span class=n>PCollection</span><span class=o>&lt;</span><span class=n>PurchasePojo</span><span class=o>&gt;</span> <span class=n>pojoPurchases</span> <span class=o>=</span>
     <span class=n>purchaseBeans</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>Convert</span><span class=o>.</span><span class=na>to</span><span class=o>(</span><span class=n>PurchasePojo</span><span class=o>.</span><span class=na>class</span><span class=o>));</span></code></pre></div></div><p>Beam will validate that the inferred schema for <code>PurchasePojo</code> matches that of the input <code>PCollection</code>, and will
 then cast to a <code>PCollection&lt;PurchasePojo></code>.</p><p>Since the <code>Row</code> class can support any schema, any <code>PCollection</code> with schema can be cast to a <code>PCollection</code> of rows, as
 follows.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>Row</span><span class=o>&gt;</span> <span class=n>purchaseRows</span> <span class=o>=</span> <span class=n>purchaseBeans</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>Convert</span><span class=o>.</span><span class=na>toRows</span><span class=o>());</span></code></pre></div></div><p>If the source type is a single-field schema, Convert will also convert to the type of the field if asked, effectively
@@ -2089,8 +2087,7 @@ windowing function:</p><div class=language-java><div class=highlight><pre class=
             <span class=n>FixedWindows</span><span class=p>(</span><span class=mi>60</span><span class=p>),</span>
             <span class=n>trigger</span><span class=o>=</span><span class=n>AfterProcessingTime</span><span class=p>(</span><span class=mi>60</span><span class=p>),</span>
             <span class=n>allowed_lateness</span><span class=o>=</span><span class=mi>1800</span><span class=p>)</span> <span class=c1># 30 minutes</span>
-     <span class=o>|</span> <span class=o>...</span>
-  </code></pre></div></div><p>This allowed lateness propagates to all <code>PCollection</code>s derived as a result of
+     <span class=o>|</span> <span class=o>...</span></code></pre></div></div><p>This allowed lateness propagates to all <code>PCollection</code>s derived as a result of
 applying transforms to the original <code>PCollection</code>. If you want to change the
 allowed lateness later in your pipeline, you can apply
 <code>Window.configure().withAllowedLateness()</code> again, explicitly.</p><h3 id=composite-triggers>9.5. Composite triggers</h3><p>You can combine multiple triggers to form <strong>composite triggers</strong>, and can
@@ -2158,7 +2155,7 @@ after jobs have completed.</p></blockquote><h3 id=types-of-metrics>10.2 Types of
 <span class=nd>@ProcessElement</span>
 <span class=kd>public</span> <span class=kt>void</span> <span class=nf>processElement</span><span class=o>(</span><span class=n>ProcessContext</span> <span class=n>context</span><span class=o>)</span> <span class=o>{</span>
   <span class=n>Integer</span> <span class=n>element</span> <span class=o>=</span> <span class=n>context</span><span class=o>.</span><span class=na>element</span><span class=o>();</span>
-    <span class=c1>// create a distribution (histogram) of the values 
+    <span class=c1>// create a distribution (histogram) of the values
 </span><span class=c1></span>    <span class=n>distribution</span><span class=o>.</span><span class=na>update</span><span class=o>(</span><span class=n>element</span><span class=o>);</span>
     <span class=o>...</span>
 <span class=o>}</span></code></pre></div></div><p><strong>Gauge</strong>: A metric that reports the latest value out of reported values. Since metrics are
@@ -2167,7 +2164,7 @@ collected from many workers the value may not be the absolute last, but one of t
 <span class=nd>@ProcessElement</span>
 <span class=kd>public</span> <span class=kt>void</span> <span class=nf>processElement</span><span class=o>(</span><span class=n>ProcessContext</span> <span class=n>context</span><span class=o>)</span> <span class=o>{</span>
   <span class=n>Integer</span> <span class=n>element</span> <span class=o>=</span> <span class=n>context</span><span class=o>.</span><span class=na>element</span><span class=o>();</span>
-  <span class=c1>// create a gauge (latest value received) of the values 
+  <span class=c1>// create a gauge (latest value received) of the values
 </span><span class=c1></span>  <span class=n>gauge</span><span class=o>.</span><span class=na>set</span><span class=o>(</span><span class=n>element</span><span class=o>);</span>
   <span class=o>...</span>
 <span class=o>}</span></code></pre></div></div><h3 id=querying-metrics>10.3 Querying metrics</h3><p><code>PipelineResult</code> has a method <code>metrics()</code> which returns a <code>MetricResults</code> object that allows
@@ -2207,7 +2204,7 @@ matching a given filter.</p><div class=language-java><div class=highlight><pre c
                 <span class=o>.</span><span class=na>addNameFilter</span><span class=o>(</span><span class=n>MetricNameFilter</span><span class=o>.</span><span class=na>named</span><span class=o>(</span><span class=s>&#34;namespace&#34;</span><span class=o>,</span> <span class=s>&#34;counter1&#34;</span><span class=o>))</span>
                 <span class=o>.</span><span class=na>build</span><span class=o>());</span>
 
-<span class=c1>// print the metric value - there should be only one line because there is only one metric 
+<span class=c1>// print the metric value - there should be only one line because there is only one metric
 </span><span class=c1>// called &#34;counter1&#34; in the namespace called &#34;namespace&#34;
 </span><span class=c1></span><span class=k>for</span> <span class=o>(</span><span class=n>MetricResult</span><span class=o>&lt;</span><span class=n>Long</span><span class=o>&gt;</span> <span class=n>counter</span><span class=o>:</span> <span class=n>metrics</span><span class=o>.</span><span class=na>getCounters</span><span class=o>())</span> <span class=o>{</span>
   <span class=n>System</span><span class=o>.</span><span class=na>out</span><span class=o>.</span><span class=na>println</span><span class=o>(</span><span class=n>counter</span><span class=o>.</span><span class=na>getName</span><span class=o>()</span> <span class=o>+</span> <span class=s>&#34;:&#34;</span> <span class=o>+</span> <span class=n>counter</span><span class=o>.</span><span class=na>getAttempted</span><span class=o>());</span>
@@ -2249,7 +2246,7 @@ specified when creating the ValueState. For example, the following ParDo creates
 accumulates the number of elements seen.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;&gt;</span> <span class=n>perUser</span> <span class=o>=</span> <span class=n>readPerUser</span><span class=o>();</span>
 <span class=n>perUser</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>ParDo</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=k>new</span> <span class=n>DoFn</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;,</span> <span class=n>OutputT</span><span class=o>&gt;()</span> <span class=o>{</span>
   <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;state&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>&gt;&gt;</span> <span class=n>numElements</span> <span class=o>=</span> <span class=n>StateSpecs</span><span class=o>.</span><span class=na>value</span><span class=o>();</span>
-  
+
   <span class=nd>@ProcessElement</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>process</span><span class=o>(</span><span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;state&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>&gt;</span> <span class=n>state</span><span class=o>)</span> <span class=o>{</span>
     <span class=c1>// Read the number element seen so far for this user key.
 </span><span class=c1></span>    <span class=c1>// state.read() returns null if it was never set. The below code allows us to have a default value of 0.
@@ -2264,18 +2261,18 @@ accumulates the number of elements seen.</p><div class=language-java><div class=
 <span class=o>}));</span></code></pre></div></div><h4 id=combiningstate>CombiningState</h4><p><code>CombiningState</code> allows you to create a state object that is updated using a Beam combiner. For example, the previous
 <code>ValueState</code> example could be rewritten to use <code>CombiningState</code></p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;&gt;</span> <span class=n>perUser</span> <span class=o>=</span> <span class=n>readPerUser</span><span class=o>();</span>
 <span class=n>perUser</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>ParDo</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=k>new</span> <span class=n>DoFn</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;,</span> <span class=n>OutputT</span><span class=o>&gt;()</span> <span class=o>{</span>
-  <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;state&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>CombiningState</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>,</span> <span class=kt>int</span><span class=o>[],</span> <span class=n>Integer</span><span class=o>&gt;&gt;</span> <span class=n>numElements</span> <span class=o>=</span> 
+  <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;state&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>CombiningState</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>,</span> <span class=kt>int</span><span class=o>[],</span> <span class=n>Integer</span><span class=o>&gt;&gt;</span> <span class=n>numElements</span> <span class=o>=</span>
       <span class=n>StateSpecs</span><span class=o>.</span><span class=na>combining</span><span class=o>(</span><span class=n>Sum</span><span class=o>.</span><span class=na>ofIntegers</span><span class=o>());</span>
-  
+
   <span class=nd>@ProcessElement</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>process</span><span class=o>(</span><span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;state&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>&gt;</span> <span class=n>state</span><span class=o>)</span> <span class=o>{</span>
     <span class=n>state</span><span class=o>.</span><span class=na>add</span><span class=o>(</span><span class=n>1</span><span class=o>);</span>
   <span class=o>}</span>
 <span class=o>}));</span></code></pre></div></div><div class=language-python><div class=highlight><pre class=chroma><code class=language-python data-lang=python><span class=k>class</span> <span class=nc>CombiningStateDoFn</span><span class=p>(</span><span class=n>DoFn</span><span class=p>):</span>
   <span class=n>SUM_TOTAL</span> <span class=o>=</span> <span class=n>CombiningValueStateSpec</span><span class=p>(</span><span class=s1>&#39;total&#39;</span><span class=p>,</span> <span class=nb>sum</span><span class=p>)</span>
-  
+
   <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>element</span><span class=p>,</span> <span class=n>state</span><span class=o>=</span><span class=n>SoFn</span><span class=o>.</span><span class=n>StateParam</span><span class=p>(</span><span class=n>SUM_TOTAL</span><span class=p>)):</span>
     <span class=n>state</span><span class=o>.</span><span class=n>add</span><span class=p>(</span><span class=mi>1</span><span class=p>)</span>
-    
+
 <span class=n>_</span> <span class=o>=</span> <span class=p>(</span><span class=n>p</span> <span class=o>|</span> <span class=s1>&#39;Read per user&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>ReadPerUser</span><span class=p>()</span>
        <span class=o>|</span> <span class=s1>&#39;Combine state pardo&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>CombiningStateDofn</span><span class=p>()))</span></code></pre></div></div><h4 id=bagstate>BagState</h4><p>A common use case for state is to accumulate multiple elements. <code>BagState</code> allows for accumulating an unordered set
 of elements. This allows for addition of elements to the collection without requiring the reading of the entire
@@ -2283,9 +2280,9 @@ collection first, which is an efficiency gain. In addition, runners that support
 bags larger than available memory.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;&gt;</span> <span class=n>perUser</span> <span class=o>=</span> <span class=n>readPerUser</span><span class=o>();</span>
 <span class=n>perUser</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>ParDo</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=k>new</span> <span class=n>DoFn</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;,</span> <span class=n>OutputT</span><span class=o>&gt;()</span> <span class=o>{</span>
   <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;state&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>BagState</span><span class=o>&lt;</span><span class=n>ValueT</span><span class=o>&gt;&gt;</span> <span class=n>numElements</span> <span class=o>=</span> <span class=n>StateSpecs</span><span class=o>.</span><span class=na>bag</span><span class=o>();</span>
-  
+
   <span class=nd>@ProcessElement</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>process</span><span class=o>(</span>
-    <span class=nd>@Element</span> <span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>element</span><span class=o>,</span> 
+    <span class=nd>@Element</span> <span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>element</span><span class=o>,</span>
     <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;state&#34;</span><span class=o>)</span> <span class=n>BagState</span><span class=o>&lt;</span><span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>state</span><span class=o>)</span> <span class=o>{</span>
     <span class=c1>// Add the current element to the bag for this key.
 </span><span class=c1></span>    <span class=n>state</span><span class=o>.</span><span class=na>add</span><span class=o>(</span><span class=n>element</span><span class=o>.</span><span class=na>getValue</span><span class=o>());</span>
@@ -2298,14 +2295,14 @@ bags larger than available memory.</p><div class=language-java><div class=highli
   <span class=o>}</span>
 <span class=o>}));</span></code></pre></div></div><div class=language-python><div class=highlight><pre class=chroma><code class=language-python data-lang=python><span class=k>class</span> <span class=nc>BagStateDoFn</span><span class=p>(</span><span class=n>DoFn</span><span class=p>):</span>
   <span class=n>ALL_ELEMENTS</span> <span class=o>=</span> <span class=n>BagStateSpec</span><span class=p>(</span><span class=s1>&#39;buffer&#39;</span><span class=p>,</span> <span class=n>coders</span><span class=o>.</span><span class=n>VarIntCoder</span><span class=p>())</span>
-  
+
   <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>element_pair</span><span class=p>,</span> <span class=n>state</span><span class=o>=</span><span class=n>DoFn</span><span class=o>.</span><span class=n>StateParam</span><span class=p>(</span><span class=n>ALL_ELEMENTS</span><span class=p>)):</span>
     <span class=n>state</span><span class=o>.</span><span class=n>add</span><span class=p>(</span><span class=n>element_pair</span><span class=p>[</span><span class=mi>1</span><span class=p>])</span>
     <span class=k>if</span> <span class=n>should_fetch</span><span class=p>():</span>
       <span class=n>all_elements</span> <span class=o>=</span> <span class=nb>list</span><span class=p>(</span><span class=n>state</span><span class=o>.</span><span class=n>read</span><span class=p>())</span>
       <span class=n>process_values</span><span class=p>(</span><span class=n>all_elements</span><span class=p>)</span>
       <span class=n>state</span><span class=o>.</span><span class=n>clear</span><span class=p>()</span>
-    
+
 <span class=n>_</span> <span class=o>=</span> <span class=p>(</span><span class=n>p</span> <span class=o>|</span> <span class=s1>&#39;Read per user&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>ReadPerUser</span><span class=p>()</span>
        <span class=o>|</span> <span class=s1>&#39;Bag state pardo&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>BagStateDoFn</span><span class=p>()))</span></code></pre></div></div><h3 id=deferred-state-reads>11.2 Deferred state reads</h3><p>When a <code>DoFn</code> contains multiple state specifications, reading each one in order can be slow. Calling the <code>read()</code> function
 on a state can cause the runner to perform a blocking read. Performing multiple blocking reads in sequence adds latency
@@ -2341,7 +2338,7 @@ be read in the future, allowing multiple state reads to be batched together.</p>
       <span class=n>state2</span><span class=o>.</span><span class=na>readLater</span><span class=o>();</span>
       <span class=n>state3</span><span class=o>.</span><span class=na>readLater</span><span class=o>();</span>
     <span class=o>}</span>
-   
+
     <span class=c1>// The runner can now batch all three states into a single read, reducing latency.
 </span><span class=c1></span>    <span class=n>processState1</span><span class=o>(</span><span class=n>state1</span><span class=o>.</span><span class=na>read</span><span class=o>());</span>
     <span class=n>processState2</span><span class=o>(</span><span class=n>state2</span><span class=o>.</span><span class=na>read</span><span class=o>());</span>
@@ -2360,33 +2357,33 @@ allows for event-time aggregations.</p><div class=language-java><div class=highl
   <span class=nd>@ProcessElement</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>process</span><span class=o>(</span>
       <span class=nd>@Element</span> <span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>element</span><span class=o>,</span>
       <span class=nd>@Timestamp</span> <span class=n>Instant</span> <span class=n>elementTs</span><span class=o>,</span>
-      <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;state&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>&gt;</span> <span class=n>state</span><span class=o>,</span> 
+      <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;state&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>&gt;</span> <span class=n>state</span><span class=o>,</span>
       <span class=nd>@TimerId</span><span class=o>(</span><span class=s>&#34;timer&#34;</span><span class=o>)</span> <span class=n>Timer</span> <span class=n>timer</span><span class=o>)</span> <span class=o>{</span>
      <span class=o>...</span>
      <span class=c1>// Set an event-time timer to the element timestamp.
 </span><span class=c1></span>     <span class=n>timer</span><span class=o>.</span><span class=na>set</span><span class=o>(</span><span class=n>elementTs</span><span class=o>);</span>
   <span class=o>}</span>
-  
+
    <span class=nd>@OnTimer</span><span class=o>(</span><span class=s>&#34;timer&#34;</span><span class=o>)</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>onTimer</span><span class=o>()</span> <span class=o>{</span>
       <span class=c1>//Process timer.
 </span><span class=c1></span>   <span class=o>}</span>
 <span class=o>}));</span></code></pre></div></div><div class=language-python><div class=highlight><pre class=chroma><code class=language-python data-lang=python><span class=k>class</span> <span class=nc>EventTimerDoFn</span><span class=p>(</span><span class=n>DoFn</span><span class=p>):</span>
   <span class=n>ALL_ELEMENTS</span> <span class=o>=</span> <span class=n>BagStateSpec</span><span class=p>(</span><span class=s1>&#39;buffer&#39;</span><span class=p>,</span> <span class=n>coders</span><span class=o>.</span><span class=n>VarIntCoder</span><span class=p>())</span>
   <span class=n>TIMER</span> <span class=o>=</span> <span class=n>TimerSpec</span><span class=p>(</span><span class=s1>&#39;timer&#39;</span><span class=p>,</span> <span class=n>TimeDomain</span><span class=o>.</span><span class=n>WATERMARK</span><span class=p>)</span>
-  
-  <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> 
-              <span class=n>element_pair</span><span class=p>,</span> 
+
+  <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span>
+              <span class=n>element_pair</span><span class=p>,</span>
               <span class=n>t</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>TimestampParam</span><span class=p>,</span>
-              <span class=nb>buffer</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>StateParam</span><span class=p>(</span><span class=n>ALL_ELEMENTS</span><span class=p>),</span> 
+              <span class=nb>buffer</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>StateParam</span><span class=p>(</span><span class=n>ALL_ELEMENTS</span><span class=p>),</span>
               <span class=n>timer</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>TimerParam</span><span class=p>(</span><span class=n>TIMER</span><span class=p>)):</span>
     <span class=nb>buffer</span><span class=o>.</span><span class=n>add</span><span class=p>(</span><span class=n>element_pair</span><span class=p>[</span><span class=mi>1</span><span class=p>])</span>
     <span class=c1># Set an event-time timer to the element timestamp.</span>
     <span class=n>timer</span><span class=o>.</span><span class=n>set</span><span class=p>(</span><span class=n>t</span><span class=p>)</span>
-  
+
   <span class=nd>@on_timer</span><span class=p>(</span><span class=n>TIMER</span><span class=p>)</span>
   <span class=k>def</span> <span class=nf>expiry_callback</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=nb>buffer</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>StateParam</span><span class=p>(</span><span class=n>ALL_ELEMENTS</span><span class=p>)):</span>
     <span class=n>state</span><span class=o>.</span><span class=n>clear</span><span class=p>()</span>
-    
+
 <span class=n>_</span> <span class=o>=</span> <span class=p>(</span><span class=n>p</span> <span class=o>|</span> <span class=s1>&#39;Read per user&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>ReadPerUser</span><span class=p>()</span>
        <span class=o>|</span> <span class=s1>&#39;EventTime timer pardo&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>EventTimerDoFn</span><span class=p>()))</span></code></pre></div></div><h4 id=processing-time-timers>11.3.2 Processing-time timers</h4><p>Processing-time timers fire when the real wall-clock time passes. This is often used to create larger batches of data
 before processing. It can also be used to schedule events that should occur at a specific time. Just like with
@@ -2400,27 +2397,27 @@ to the current time. In Java, the <code>Timer.offset</code> and <code>Timer.setR
      <span class=c1>// Set a timer to go off 30 seconds in the future.
 </span><span class=c1></span>     <span class=n>timer</span><span class=o>.</span><span class=na>offset</span><span class=o>(</span><span class=n>Duration</span><span class=o>.</span><span class=na>standardSeconds</span><span class=o>(</span><span class=n>30</span><span class=o>)).</span><span class=na>setRelative</span><span class=o>();</span>
   <span class=o>}</span>
-  
+
    <span class=nd>@OnTimer</span><span class=o>(</span><span class=s>&#34;timer&#34;</span><span class=o>)</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>onTimer</span><span class=o>()</span> <span class=o>{</span>
       <span class=c1>//Process timer.
 </span><span class=c1></span>   <span class=o>}</span>
 <span class=o>}));</span></code></pre></div></div><div class=language-python><div class=highlight><pre class=chroma><code class=language-python data-lang=python><span class=k>class</span> <span class=nc>ProcessingTimerDoFn</span><span class=p>(</span><span class=n>DoFn</span><span class=p>):</span>
   <span class=n>ALL_ELEMENTS</span> <span class=o>=</span> <span class=n>BagStateSpec</span><span class=p>(</span><span class=s1>&#39;buffer&#39;</span><span class=p>,</span> <span class=n>coders</span><span class=o>.</span><span class=n>VarIntCoder</span><span class=p>())</span>
   <span class=n>TIMER</span> <span class=o>=</span> <span class=n>TimerSpec</span><span class=p>(</span><span class=s1>&#39;timer&#39;</span><span class=p>,</span> <span class=n>TimeDomain</span><span class=o>.</span><span class=n>REAL_TIME</span><span class=p>)</span>
-  
-  <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> 
-              <span class=n>element_pair</span><span class=p>,</span> 
-              <span class=nb>buffer</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>StateParam</span><span class=p>(</span><span class=n>ALL_ELEMENTS</span><span class=p>),</span> 
+
+  <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span>
+              <span class=n>element_pair</span><span class=p>,</span>
+              <span class=nb>buffer</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>StateParam</span><span class=p>(</span><span class=n>ALL_ELEMENTS</span><span class=p>),</span>
               <span class=n>timer</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>TimerParam</span><span class=p>(</span><span class=n>TIMER</span><span class=p>)):</span>
     <span class=nb>buffer</span><span class=o>.</span><span class=n>add</span><span class=p>(</span><span class=n>element_pair</span><span class=p>[</span><span class=mi>1</span><span class=p>])</span>
     <span class=c1># Set a timer to go off 30 seconds in the future.</span>
     <span class=n>timer</span><span class=o>.</span><span class=n>set</span><span class=p>(</span><span class=n>Timestamp</span><span class=o>.</span><span class=n>now</span><span class=p>()</span> <span class=o>+</span> <span class=n>Duration</span><span class=p>(</span><span class=n>seconds</span><span class=o>=</span><span class=mi>30</span><span class=p>))</span>
-  
+
   <span class=nd>@on_timer</span><span class=p>(</span><span class=n>TIMER</span><span class=p>)</span>
   <span class=k>def</span> <span class=nf>expiry_callback</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=nb>buffer</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>StateParam</span><span class=p>(</span><span class=n>ALL_ELEMENTS</span><span class=p>)):</span>
     <span class=c1># Process timer.</span>
     <span class=n>state</span><span class=o>.</span><span class=n>clear</span><span class=p>()</span>
-    
+
 <span class=n>_</span> <span class=o>=</span> <span class=p>(</span><span class=n>p</span> <span class=o>|</span> <span class=s1>&#39;Read per user&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>ReadPerUser</span><span class=p>()</span>
        <span class=o>|</span> <span class=s1>&#39;ProcessingTime timer pardo&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>ProcessingTimerDoFn</span><span class=p>()))</span></code></pre></div></div><h4 id=dynamic-timer-tags>11.3.3 Dynamic timer tags</h4><p>Beam also supports dynamically setting a timer tag using <code>TimerMap</code>. This allows for setting multiple different timers
 in a <code>DoFn</code> and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
@@ -2432,17 +2429,18 @@ id, and timers in different timer families are independent.</p><div class=langua
     <span class=n>TimerSpecs</span><span class=o>.</span><span class=na>timerMap</span><span class=o>(</span><span class=n>TimeDomain</span><span class=o>.</span><span class=na>EVENT_TIME</span><span class=o>);</span>
 
   <span class=nd>@ProcessElement</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>process</span><span class=o>(</span>
-      <span class=nd>@Element</span> <span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>element</span><span class=o>,</span> 
+      <span class=nd>@Element</span> <span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>element</span><span class=o>,</span>
       <span class=nd>@Timestamp</span> <span class=n>Instant</span> <span class=n>elementTs</span><span class=o>,</span>
       <span class=nd>@TimerFamily</span><span class=o>(</span><span class=s>&#34;actionTimers&#34;</span><span class=o>)</span> <span class=n>TimerMap</span> <span class=n>timers</span><span class=o>)</span> <span class=o>{</span>
      <span class=n>timers</span><span class=o>.</span><span class=na>set</span><span class=o>(</span><span class=n>element</span><span class=o>.</span><span class=na>getValue</span><span class=o>().</span><span class=na>getActionType</span><span class=o>(),</span> <span class=n>elementTs</span><span class=o>);</span>
   <span class=o>}</span>
-  
+
    <span class=nd>@OnTimerFamily</span><span class=o>(</span><span class=s>&#34;actionTimers&#34;</span><span class=o>)</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>onTimer</span><span class=o>(</span><span class=nd>@TimerId</span> <span class=n>String</span> <span class=n>timerId</span><span class=o>)</span> <span class=o>{</span>
      <span class=n>LOG</span><span class=o>.</span><span class=na>info</span><span class=o>(</span><span class=s>&#34;Timer fired with id &#34;</span> <span class=o>+</span> <span class=n>timerId</span><span class=o>);</span>
    <span class=o>}</span>
 <span class=o>}));</span></code></pre></div></div><div class=language-python><div class=highlight><pre class=chroma><code class=language-python data-lang=python><span class=n>To</span> <span class=n>be</span> <span class=n>supported</span><span class=p>,</span> <span class=n>See</span> <span class=n>BEAM</span><span class=o>-</span><span class=mi>9602</span></code></pre></div></div><h4 id=timer-output-timestamps>11.3.4 Timer output timestamps</h4><p>By default, event-time timers will hold the output watermark of the <code>ParDo</code> to the timestamp of the timer. This means
-that if a timer is set to 12pm, any windowed aggregations or event-time timers later in the pipeline graph that finish<br>after 12pm will not expire. The timestamp of the timer is also the default output timestamp for the timer callback. This
+that if a timer is set to 12pm, any windowed aggregations or event-time timers later in the pipeline graph that finish
+after 12pm will not expire. The timestamp of the timer is also the default output timestamp for the timer callback. This
 means that any elements output from the onTimer method will have a timestamp equal to the timestamp of the timer firing.
 For processing-time timers, the default output timestamp and watermark hold is the value of the input watermark at the
 time the timer was set.</p><p>In some cases, a DoFn needs to output timestamps earlier than the timer expiration time, and therefore also needs to
@@ -2452,9 +2450,9 @@ records into state, and sets a timer to drain the state. This code may appear co
   <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;elementBag&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>BagState</span><span class=o>&lt;</span><span class=n>ValueT</span><span class=o>&gt;&gt;</span> <span class=n>elementBag</span> <span class=o>=</span> <span class=n>StateSpecs</span><span class=o>.</span><span class=na>bag</span><span class=o>();</span>
   <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;timerSet&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Boolean</span><span class=o>&gt;&gt;</span> <span class=n>timerSet</span> <span class=o>=</span> <span class=n>StateSpecs</span><span class=o>.</span><span class=na>value</span><span class=o>();</span>
   <span class=nd>@TimerId</span><span class=o>(</span><span class=s>&#34;outputState&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>TimerSpec</span> <span class=n>timer</span> <span class=o>=</span> <span class=n>TimerSpecs</span><span class=o>.</span><span class=na>timer</span><span class=o>(</span><span class=n>TimeDomain</span><span class=o>.</span><span class=na>PROCESSING_TIME</span><span class=o>);</span>
-  
+
   <span class=nd>@ProcessElement</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>process</span><span class=o>(</span>
-      <span class=nd>@Element</span> <span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>element</span><span class=o>,</span> 
+      <span class=nd>@Element</span> <span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>element</span><span class=o>,</span>
       <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;elementBag&#34;</span><span class=o>)</span> <span class=n>BagState</span><span class=o>&lt;</span><span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>elementBag</span><span class=o>,</span>
       <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;timerSet&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Boolean</span><span class=o>&gt;</span> <span class=n>timerSet</span><span class=o>,</span>
       <span class=nd>@TimerId</span><span class=o>(</span><span class=s>&#34;outputState&#34;</span><span class=o>)</span> <span class=n>Timer</span> <span class=n>timer</span><span class=o>)</span> <span class=o>{</span>
@@ -2466,7 +2464,7 @@ records into state, and sets a timer to drain the state. This code may appear co
       <span class=n>timerSet</span><span class=o>.</span><span class=na>write</span><span class=o>(</span><span class=kc>true</span><span class=o>);</span>
     <span class=o>}</span>
   <span class=o>}</span>
-  
+
   <span class=nd>@OnTimer</span><span class=o>(</span><span class=s>&#34;outputState&#34;</span><span class=o>)</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>onTimer</span><span class=o>(</span>
       <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;elementBag&#34;</span><span class=o>)</span> <span class=n>BagState</span><span class=o>&lt;</span><span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>elementBag</span><span class=o>,</span>
       <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;timerSet&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Boolean</span><span class=o>&gt;</span> <span class=n>timerSet</span><span class=o>,</span>
@@ -2489,13 +2487,13 @@ past the timestamp of the minimum element. The following code demonstrates this.
   <span class=c1>// The timestamp of the timer set.
 </span><span class=c1></span>  <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;timerTimestamp&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Long</span><span class=o>&gt;&gt;</span> <span class=n>timerTimestamp</span> <span class=o>=</span> <span class=n>StateSpecs</span><span class=o>.</span><span class=na>value</span><span class=o>();</span>
   <span class=c1>// The minimum timestamp stored in the bag.
-</span><span class=c1></span>  <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;minTimestampInBag&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>CombiningState</span><span class=o>&lt;</span><span class=n>Long</span><span class=o>,</span> <span class=kt>long</span><span class=o>[],</span> <span class=n>Long</span><span class=o>&gt;&gt;</span> 
+</span><span class=c1></span>  <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;minTimestampInBag&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>CombiningState</span><span class=o>&lt;</span><span class=n>Long</span><span class=o>,</span> <span class=kt>long</span><span class=o>[],</span> <span class=n>Long</span><span class=o>&gt;&gt;</span>
      <span class=n>minTimestampInBag</span> <span class=o>=</span> <span class=n>StateSpecs</span><span class=o>.</span><span class=na>combining</span><span class=o>(</span><span class=n>Min</span><span class=o>.</span><span class=na>ofLongs</span><span class=o>());</span>
 
   <span class=nd>@TimerId</span><span class=o>(</span><span class=s>&#34;outputState&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>TimerSpec</span> <span class=n>timer</span> <span class=o>=</span> <span class=n>TimerSpecs</span><span class=o>.</span><span class=na>timer</span><span class=o>(</span><span class=n>TimeDomain</span><span class=o>.</span><span class=na>PROCESSING_TIME</span><span class=o>);</span>
-  
+
   <span class=nd>@ProcessElement</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>process</span><span class=o>(</span>
-      <span class=nd>@Element</span> <span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>element</span><span class=o>,</span> 
+      <span class=nd>@Element</span> <span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>element</span><span class=o>,</span>
       <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;elementBag&#34;</span><span class=o>)</span> <span class=n>BagState</span><span class=o>&lt;</span><span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>elementBag</span><span class=o>,</span>
       <span class=nd>@AlwaysFetched</span> <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;timerTimestamp&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Long</span><span class=o>&gt;</span> <span class=n>timerTimestamp</span><span class=o>,</span>
       <span class=nd>@AlwaysFetched</span> <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;minTimestampInBag&#34;</span><span class=o>)</span> <span class=n>CombiningState</span><span class=o>&lt;</span><span class=n>Long</span><span class=o>,</span> <span class=kt>long</span><span class=o>[],</span> <span class=n>Long</span><span class=o>&gt;</span> <span class=n>minTimestamp</span><span class=o>,</span>
@@ -2515,7 +2513,7 @@ past the timestamp of the minimum element. The following code demonstrates this.
 </span><span class=c1></span>    <span class=n>timer</span><span class=o>.</span><span class=na>withOutputTimestamp</span><span class=o>(</span><span class=n>minTimestamp</span><span class=o>.</span><span class=na>read</span><span class=o>()).</span><span class=na>set</span><span class=o>(</span><span class=n>timerToSet</span><span class=o>).</span>
     <span class=n>timerTimestamp</span><span class=o>.</span><span class=na>write</span><span class=o>(</span><span class=n>timerToSet</span><span class=o>.</span><span class=na>getMillis</span><span class=o>());</span>
   <span class=o>}</span>
-  
+
   <span class=nd>@OnTimer</span><span class=o>(</span><span class=s>&#34;outputState&#34;</span><span class=o>)</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>onTimer</span><span class=o>(</span>
       <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;elementBag&#34;</span><span class=o>)</span> <span class=n>BagState</span><span class=o>&lt;</span><span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>elementBag</span><span class=o>,</span>
       <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;timerTimestamp&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Long</span><span class=o>&gt;</span> <span class=n>timerTimestamp</span><span class=o>,</span>
@@ -2545,12 +2543,12 @@ garbage-collection strategy.</p><p>For example, given the following:</p><div cla
 </span><span class=c1></span>           <span class=o>}</span>
          <span class=o>}));</span></code></pre></div></div><div class=language-python><div class=highlight><pre class=chroma><code class=language-python data-lang=python><span class=k>class</span> <span class=nc>StateDoFn</span><span class=p>(</span><span class=n>DoFn</span><span class=p>):</span>
   <span class=n>ALL_ELEMENTS</span> <span class=o>=</span> <span class=n>BagStateSpec</span><span class=p>(</span><span class=s1>&#39;buffer&#39;</span><span class=p>,</span> <span class=n>coders</span><span class=o>.</span><span class=n>VarIntCoder</span><span class=p>())</span>
-  
-  <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> 
-              <span class=n>element_pair</span><span class=p>,</span> 
+
+  <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span>
+              <span class=n>element_pair</span><span class=p>,</span>
               <span class=nb>buffer</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>StateParam</span><span class=p>(</span><span class=n>ALL_ELEMENTS</span><span class=p>)):</span>
     <span class=o>...</span>
-    
+
 <span class=n>_</span> <span class=o>=</span> <span class=p>(</span><span class=n>p</span> <span class=o>|</span> <span class=s1>&#39;Read per user&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>ReadPerUser</span><span class=p>()</span>
        <span class=o>|</span> <span class=s1>&#39;Windowing&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>WindowInto</span><span class=p>(</span><span class=n>FixedWindows</span><span class=p>(</span><span class=mi>60</span> <span class=o>*</span> <span class=mi>60</span> <span class=o>*</span> <span class=mi>24</span><span class=p>))</span>
        <span class=o>|</span> <span class=s1>&#39;DoFn&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>StateDoFn</span><span class=p>()))</span></code></pre></div></div><p>This <code>ParDo</code> stores state per day. Once the pipeline is done processing data for a given day, all the state for that
@@ -2562,7 +2560,7 @@ This can be done by updating a timer that garbage collects state. For example</p
 </span><span class=c1></span>  <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;state&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>ValueState</span><span class=o>&lt;</span><span class=n>ValueT</span><span class=o>&gt;&gt;</span> <span class=n>state</span> <span class=o>=</span> <span class=n>StateSpecs</span><span class=o>.</span><span class=na>value</span><span class=o>();</span>
 
   <span class=c1>// The maximum element timestamp seen so far.
-</span><span class=c1></span>  <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;maxTimestampSeen&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>CombiningState</span><span class=o>&lt;</span><span class=n>Long</span><span class=o>,</span> <span class=kt>long</span><span class=o>[],</span> <span class=n>Long</span><span class=o>&gt;&gt;</span> 
+</span><span class=c1></span>  <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;maxTimestampSeen&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>CombiningState</span><span class=o>&lt;</span><span class=n>Long</span><span class=o>,</span> <span class=kt>long</span><span class=o>[],</span> <span class=n>Long</span><span class=o>&gt;&gt;</span>
      <span class=n>maxTimestamp</span> <span class=o>=</span> <span class=n>StateSpecs</span><span class=o>.</span><span class=na>combining</span><span class=o>(</span><span class=n>Max</span><span class=o>.</span><span class=na>ofLongs</span><span class=o>());</span>
 
   <span class=nd>@TimerId</span><span class=o>(</span><span class=s>&#34;gcTimer&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>TimerSpec</span> <span class=n>gcTimer</span> <span class=o>=</span> <span class=n>TimerSpecs</span><span class=o>.</span><span class=na>timer</span><span class=o>(</span><span class=n>TimeDomain</span><span class=o>.</span><span class=na>EVENT_TIME</span><span class=o>);</span>
@@ -2572,11 +2570,11 @@ This can be done by updating a timer that garbage collects state. For example</p
       <span class=nd>@Timestamp</span> <span class=n>Instant</span> <span class=n>ts</span><span class=o>,</span>
       <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;state&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>state</span><span class=o>,</span>
       <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;maxTimestampSeen&#34;</span><span class=o>)</span> <span class=n>CombiningState</span><span class=o>&lt;</span><span class=n>Long</span><span class=o>,</span> <span class=kt>long</span><span class=o>[],</span> <span class=n>Long</span><span class=o>&gt;</span> <span class=n>maxTimestamp</span><span class=o>,</span>
-      <span class=nd>@TimerId</span><span class=o>(</span><span class=s>&#34;gcTimer&#34;</span><span class=o>)</span> <span class=n>gcTimer</span><span class=o>)</span> <span class=o>{</span> 
+      <span class=nd>@TimerId</span><span class=o>(</span><span class=s>&#34;gcTimer&#34;</span><span class=o>)</span> <span class=n>gcTimer</span><span class=o>)</span> <span class=o>{</span>
     <span class=n>updateState</span><span class=o>(</span><span class=n>state</span><span class=o>,</span> <span class=n>element</span><span class=o>);</span>
     <span class=n>maxTimestamp</span><span class=o>.</span><span class=na>add</span><span class=o>(</span><span class=n>ts</span><span class=o>.</span><span class=na>getMillis</span><span class=o>());</span>
-    
-    <span class=c1>// Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so 
+
+    <span class=c1>// Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so
 </span><span class=c1></span>    <span class=c1>// as long as there is activity on this key the state will stay active. Once the key goes inactive for one hour&#39;s
 </span><span class=c1></span>    <span class=c1>// worth of event time (as measured by the watermark), then the gc timer will fire.
 </span><span class=c1></span>    <span class=n>Instant</span> <span class=n>expirationTime</span> <span class=o>=</span> <span class=k>new</span> <span class=n>Instant</span><span class=o>(</span><span class=n>maxTimestamp</span><span class=o>.</span><span class=na>read</span><span class=o>()).</span><span class=na>plus</span><span class=o>(</span><span class=n>Duration</span><span class=o>.</span><span class=na>standardHours</span><span class=o>(</span><span class=n>1</span><span class=o>));</span>
@@ -2594,30 +2592,30 @@ This can be done by updating a timer that garbage collects state. For example</p
   <span class=n>ALL_ELEMENTS</span> <span class=o>=</span> <span class=n>BagStateSpec</span><span class=p>(</span><span class=s1>&#39;state&#39;</span><span class=p>,</span> <span class=n>coders</span><span class=o>.</span><span class=n>VarIntCoder</span><span class=p>())</span>
   <span class=n>MAX_TIMESTAMP</span> <span class=o>=</span> <span class=n>CombiningValueStateSpec</span><span class=p>(</span><span class=s1>&#39;max_timestamp_seen&#39;</span><span class=p>,</span> <span class=nb>max</span><span class=p>)</span>
   <span class=n>TIMER</span> <span class=o>=</span> <span class=n>TimerSpec</span><span class=p>(</span><span class=s1>&#39;gc-timer&#39;</span><span class=p>,</span> <span class=n>TimeDomain</span><span class=o>.</span><span class=n>WATERMARK</span><span class=p>)</span>
-  
-  <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> 
-              <span class=n>element</span><span class=p>,</span> 
+
+  <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span>
+              <span class=n>element</span><span class=p>,</span>
               <span class=n>t</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>TimestampParam</span><span class=p>,</span>
-              <span class=n>state</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>StateParam</span><span class=p>(</span><span class=n>ALL_ELEMENTS</span><span class=p>),</span> 
+              <span class=n>state</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>StateParam</span><span class=p>(</span><span class=n>ALL_ELEMENTS</span><span class=p>),</span>
               <span class=n>max_timestamp</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>StateParam</span><span class=p>(</span><span class=n>MAX_TIMESTAMP</span><span class=p>),</span>
               <span class=n>timer</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>TimerParam</span><span class=p>(</span><span class=n>TIMER</span><span class=p>)):</span>
     <span class=n>update_state</span><span class=p>(</span><span class=n>state</span><span class=p>,</span> <span class=n>element</span><span class=p>)</span>
     <span class=n>max_timestamp</span><span class=o>.</span><span class=n>add</span><span class=p>(</span><span class=n>t</span><span class=o>.</span><span class=n>micros</span><span class=p>)</span>
-    
-    <span class=c1># Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so </span>
+
+    <span class=c1># Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so</span>
     <span class=c1># as long as there is activity on this key the state will stay active. Once the key goes inactive for one hour&#39;s</span>
     <span class=c1># worth of event time (as measured by the watermark), then the gc timer will fire.</span>
     <span class=n>expiration_time</span> <span class=o>=</span> <span class=n>Timestamp</span><span class=p>(</span><span class=n>micros</span><span class=o>=</span><span class=n>max_timestamp</span><span class=o>.</span><span class=n>read</span><span class=p>())</span> <span class=o>+</span> <span class=n>Duration</span><span class=p>(</span><span class=n>seconds</span><span class=o>=</span><span class=mi>60</span><span class=o>*</span><span class=mi>60</span><span class=p>)</span>
     <span class=n>timer</span><span class=o>.</span><span class=n>set</span><span class=p>(</span><span class=n>expiration_time</span><span class=p>)</span>
-  
+
   <span class=nd>@on_timer</span><span class=p>(</span><span class=n>TIMER</span><span class=p>)</span>
-  <span class=k>def</span> <span class=nf>expiry_callback</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> 
+  <span class=k>def</span> <span class=nf>expiry_callback</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span>
                       <span class=n>state</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>StateParam</span><span class=p>(</span><span class=n>ALL_ELEMENTS</span><span class=p>),</span>
                       <span class=n>max_timestamp</span> <span class=o>=</span> <span class=n>DoFn</span><span class=o>.</span><span class=n>StateParam</span><span class=p>(</span><span class=n>MAX_TIMESTAMP</span><span class=p>)):</span>
     <span class=n>state</span><span class=o>.</span><span class=n>clear</span><span class=p>()</span>
     <span class=n>max_timestamp</span><span class=o>.</span><span class=n>clear</span><span class=p>()</span>
-  
-    
+
+
 <span class=n>_</span> <span class=o>=</span> <span class=p>(</span><span class=n>p</span> <span class=o>|</span> <span class=s1>&#39;Read per user&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>ReadPerUser</span><span class=p>()</span>
        <span class=o>|</span> <span class=s1>&#39;User DoFn&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>UserDoFn</span><span class=p>()))</span></code></pre></div></div><h3 id=state-timers-examples>11.5 State and timers examples</h3><p>Following are some example uses of state and timers</p><h4 id=joining-clicks-and-views>11.5.1. Joining clicks and views</h4><p>In this example, the pipeline is processing data from an e-commerce site&rsquo;s home page. There are two input streams:
 a stream of views, representing suggested product links displayed to the user on the home page, and a stream of
@@ -2628,7 +2626,7 @@ will give up on this join. While every click event should have a view event, som
 lost and never make it to the Beam pipeline; the pipeline will similarly wait one hour after seeing a click event, and
 give up if the view event does not arrive in that time. Input events are not ordered - it is possible to see the click
 event before the view event. The one hour join timeout should be based on event time, not on processing time.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=c1>// Read the event stream and key it by the link id.
-</span><span class=c1></span><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>Event</span><span class=o>&gt;&gt;</span> <span class=n>eventsPerLinkId</span> <span class=o>=</span> 
+</span><span class=c1></span><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>Event</span><span class=o>&gt;&gt;</span> <span class=n>eventsPerLinkId</span> <span class=o>=</span>
     <span class=n>readEvents</span><span class=o>()</span>
     <span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>WithKeys</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=n>Event</span><span class=o>::</span><span class=n>getLinkId</span><span class=o>).</span><span class=na>withKeyType</span><span class=o>(</span><span class=n>TypeDescriptors</span><span class=o>.</span><span class=na>strings</span><span class=o>()));</span>
 
@@ -2639,7 +2637,7 @@ event before the view event. The one hour join timeout should be based on event 
 </span><span class=c1></span>  <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;click&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Event</span><span class=o>&gt;&gt;</span> <span class=n>clickState</span> <span class=o>=</span> <span class=n>StateSpecs</span><span class=o>.</span><span class=na>value</span><span class=o>();</span>
 
   <span class=c1>// The maximum element timestamp seen so far.
-</span><span class=c1></span>  <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;maxTimestampSeen&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>CombiningState</span><span class=o>&lt;</span><span class=n>Long</span><span class=o>,</span> <span class=kt>long</span><span class=o>[],</span> <span class=n>Long</span><span class=o>&gt;&gt;</span> 
+</span><span class=c1></span>  <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;maxTimestampSeen&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>CombiningState</span><span class=o>&lt;</span><span class=n>Long</span><span class=o>,</span> <span class=kt>long</span><span class=o>[],</span> <span class=n>Long</span><span class=o>&gt;&gt;</span>
      <span class=n>maxTimestamp</span> <span class=o>=</span> <span class=n>StateSpecs</span><span class=o>.</span><span class=na>combining</span><span class=o>(</span><span class=n>Max</span><span class=o>.</span><span class=na>ofLongs</span><span class=o>());</span>
 
   <span class=c1>// Timer that fires when an hour goes by with an incomplete join.
@@ -2652,12 +2650,12 @@ event before the view event. The one hour join timeout should be based on event 
       <span class=nd>@AlwaysFetched</span> <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;click&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Event</span><span class=o>&gt;</span> <span class=n>clickState</span><span class=o>,</span>
       <span class=nd>@AlwaysFetched</span> <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;maxTimestampSeen&#34;</span><span class=o>)</span> <span class=n>CombiningState</span><span class=o>&lt;</span><span class=n>Long</span><span class=o>,</span> <span class=kt>long</span><span class=o>[],</span> <span class=n>Long</span><span class=o>&gt;</span> <span class=n>maxTimestampState</span><span class=o>,</span>
       <span class=nd>@TimerId</span><span class=o>(</span><span class=s>&#34;gcTimer&#34;</span><span class=o>)</span> <span class=n>gcTimer</span><span class=o>,</span>
-      <span class=n>OutputReceiver</span><span class=o>&lt;</span><span class=n>JoinedEvent</span><span class=o>&gt;</span> <span class=n>output</span><span class=o>)</span> <span class=o>{</span> 
+      <span class=n>OutputReceiver</span><span class=o>&lt;</span><span class=n>JoinedEvent</span><span class=o>&gt;</span> <span class=n>output</span><span class=o>)</span> <span class=o>{</span>
     <span class=c1>// Store the event into the correct state variable.
 </span><span class=c1></span>    <span class=n>Event</span> <span class=n>event</span> <span class=o>=</span> <span class=n>element</span><span class=o>.</span><span class=na>getValue</span><span class=o>();</span>
     <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Event</span><span class=o>&gt;</span> <span class=n>valueState</span> <span class=o>=</span> <span class=n>event</span><span class=o>.</span><span class=na>getType</span><span class=o>().</span><span class=na>equals</span><span class=o>(</span><span class=n>VIEW</span><span class=o>)</span> <span class=o>?</span> <span class=n>viewState</span> <span class=o>:</span> <span class=n>clickState</span><span class=o>;</span>
     <span class=n>valueState</span><span class=o>.</span><span class=na>write</span><span class=o>(</span><span class=n>event</span><span class=o>);</span>
-  
+
     <span class=n>Event</span> <span class=n>view</span> <span class=o>=</span> <span class=n>viewState</span><span class=o>.</span><span class=na>read</span><span class=o>();</span>
     <span class=n>Event</span> <span class=n>click</span> <span class=o>=</span> <span class=n>clickState</span><span class=o>.</span><span class=na>read</span><span class=o>();</span>
     <span class=o>(</span><span class=k>if</span> <span class=n>view</span> <span class=o>!=</span> <span class=kc>null</span> <span class=o>&amp;&amp;</span> <span class=n>click</span> <span class=o>!=</span> <span class=kc>null</span><span class=o>)</span> <span class=o>{</span>
@@ -2666,7 +2664,7 @@ event before the view event. The one hour join timeout should be based on event 
       <span class=n>clearState</span><span class=o>(</span><span class=n>viewState</span><span class=o>,</span> <span class=n>clickState</span><span class=o>,</span> <span class=n>maxTimestampState</span><span class=o>);</span>
     <span class=o>}</span> <span class=k>else</span> <span class=o>{</span>
        <span class=c1>// We&#39;ve only seen on half of the join.
-</span><span class=c1></span>       <span class=c1>// Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so 
+</span><span class=c1></span>       <span class=c1>// Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so
 </span><span class=c1></span>       <span class=c1>// as long as there is activity on this key the state will stay active. Once the key goes inactive for one hour&#39;s
 </span><span class=c1></span>       <span class=c1>// worth of event time (as measured by the watermark), then the gc timer will fire.
 </span><span class=c1></span>        <span class=n>maxTimestampState</span><span class=o>.</span><span class=na>add</span><span class=o>(</span><span class=n>ts</span><span class=o>.</span><span class=na>getMillis</span><span class=o>());</span>
@@ -2682,7 +2680,7 @@ event before the view event. The one hour join timeout should be based on event 
        <span class=c1>// An hour has gone by with an incomplete join. Give up and clear the state.
 </span><span class=c1></span>       <span class=n>clearState</span><span class=o>(</span><span class=n>viewState</span><span class=o>,</span> <span class=n>clickState</span><span class=o>,</span> <span class=n>maxTimestampState</span><span class=o>);</span>
     <span class=o>}</span>
-   
+
     <span class=kd>private</span> <span class=kt>void</span> <span class=nf>clearState</span><span class=o>(</span>
       <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;view&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Event</span><span class=o>&gt;</span> <span class=n>viewState</span><span class=o>,</span>
       <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;click&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Event</span><span class=o>&gt;</span> <span class=n>clickState</span><span class=o>,</span>
@@ -2701,9 +2699,9 @@ we want to batch ten seconds worth of events together in order to reduce the num
 </span><span class=c1></span>  <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;isTimerSet&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Boolean</span><span class=o>&gt;&gt;</span> <span class=n>isTimerSet</span> <span class=o>=</span> <span class=n>StateSpecs</span><span class=o>.</span><span class=na>value</span><span class=o>();</span>
   <span class=c1>// The processing-time timer user to publish the RPC.
 </span><span class=c1></span>  <span class=nd>@TimerId</span><span class=o>(</span><span class=s>&#34;outputState&#34;</span><span class=o>)</span> <span class=kd>private</span> <span class=kd>final</span> <span class=n>TimerSpec</span> <span class=n>timer</span> <span class=o>=</span> <span class=n>TimerSpecs</span><span class=o>.</span><span class=na>timer</span><span class=o>(</span><span class=n>TimeDomain</span><span class=o>.</span><span class=na>PROCESSING_TIME</span><span class=o>);</span>
-  
+
   <span class=nd>@ProcessElement</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>process</span><span class=o>(</span>
-    <span class=nd>@Element</span> <span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>element</span><span class=o>,</span> 
+    <span class=nd>@Element</span> <span class=n>KV</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>element</span><span class=o>,</span>
     <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;state&#34;</span><span class=o>)</span> <span class=n>BagState</span><span class=o>&lt;</span><span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>elementsState</span><span class=o>,</span>
     <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;isTimerSet&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Boolean</span><span class=o>&gt;</span> <span class=n>isTimerSetState</span><span class=o>,</span>
     <span class=nd>@TimerId</span><span class=o>(</span><span class=s>&#34;outputState&#34;</span><span class=o>)</span> <span class=n>Timer</span> <span class=n>timer</span><span class=o>)</span> <span class=o>{</span>
@@ -2715,7 +2713,7 @@ we want to batch ten seconds worth of events together in order to reduce the num
       <span class=n>isTimerSetState</span><span class=o>.</span><span class=na>write</span><span class=o>(</span><span class=kc>true</span><span class=o>);</span>
    <span class=o>}</span>
   <span class=o>}</span>
- 
+
   <span class=nd>@OnTimer</span><span class=o>(</span><span class=s>&#34;outputState&#34;</span><span class=o>)</span> <span class=kd>public</span> <span class=kt>void</span> <span class=nf>onTimer</span><span class=o>(</span>
     <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;state&#34;</span><span class=o>)</span> <span class=n>BagState</span><span class=o>&lt;</span><span class=n>ValueT</span><span class=o>&gt;</span> <span class=n>elementsState</span><span class=o>,</span>
     <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;isTimerSet&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Boolean</span><span class=o>&gt;</span> <span class=n>isTimerSetState</span><span class=o>)</span> <span class=o>{</span>

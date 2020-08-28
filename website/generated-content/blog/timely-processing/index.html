@@ -88,7 +88,7 @@ elements we have buffered. Here are the state cells in code:</p><div class=langu
   <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;count&#34;</span><span class=o>)</span>
   <span class=kd>private</span> <span class=kd>final</span> <span class=n>StateSpec</span><span class=o>&lt;</span><span class=n>ValueState</span><span class=o>&lt;</span><span class=n>Integer</span><span class=o>&gt;&gt;</span> <span class=n>countState</span> <span class=o>=</span> <span class=n>StateSpecs</span><span class=o>.</span><span class=na>value</span><span class=o>();</span>
 
-  <span class=err>…</span> <span class=n>TBD</span> <span class=err>…</span> 
+  <span class=err>…</span> <span class=n>TBD</span> <span class=err>…</span>
 <span class=o>}</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>class</span> <span class=nc>StatefulBufferingFn</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=p>):</span>
 
   <span class=n>BUFFER_STATE</span> <span class=o>=</span> <span class=n>BagStateSpec</span><span class=p>(</span><span class=s1>&#39;buffer&#39;</span><span class=p>,</span> <span class=n>EventCoder</span><span class=p>())</span>
@@ -128,7 +128,7 @@ events, and output.</p><div class=language-java><div class=highlight><pre class=
     <span class=o>}</span>
   <span class=o>}</span>
 
-  <span class=err>…</span> <span class=n>TBD</span> <span class=err>…</span> 
+  <span class=err>…</span> <span class=n>TBD</span> <span class=err>…</span>
 <span class=o>}</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>class</span> <span class=nc>StatefulBufferingFn</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=p>):</span>
 
   <span class=n>MAX_BUFFER_SIZE</span> <span class=o>=</span> <span class=mi>500</span><span class=p>;</span>

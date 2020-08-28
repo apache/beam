@@ -518,7 +518,7 @@ timestamp sometime in a 2-hour period.</p><div class=language-java><div class=hi
     <span class=n>c</span><span class=o>.</span><span class=na>outputWithTimestamp</span><span class=o>(</span><span class=n>c</span><span class=o>.</span><span class=na>element</span><span class=o>(),</span> <span class=k>new</span> <span class=n>Instant</span><span class=o>(</span><span class=n>randomTimestamp</span><span class=o>));</span>
   <span class=o>}</span>
 <span class=o>}</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>class</span> <span class=nc>AddTimestampFn</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=p>):</span>
-  
+
   <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>min_timestamp</span><span class=p>,</span> <span class=n>max_timestamp</span><span class=p>):</span>
      <span class=bp>self</span><span class=o>.</span><span class=n>min_timestamp</span> <span class=o>=</span> <span class=n>min_timestamp</span>
      <span class=bp>self</span><span class=o>.</span><span class=n>max_timestamp</span> <span class=o>=</span> <span class=n>max_timestamp</span>

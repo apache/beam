@@ -1299,8 +1299,7 @@ barrenly: 1
 ...&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;div class=runner-samza-local>
-&lt;pre>&lt;code>
-$ more /tmp/counts*
+&lt;pre>&lt;code>$ more /tmp/counts*
 api: 7
 are: 2
 can: 2
