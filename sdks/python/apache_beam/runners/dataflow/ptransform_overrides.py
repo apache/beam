@@ -150,6 +150,40 @@ class CombineValuesPTransformOverride(PTransformOverride):
     return CombineValuesReplacement(self.transform)
 
 
+class ReadBigQuerySourcePTransformOverride(PTransformOverride):
+  """A ``PTransformOverride`` for ``Read(BigQuerySource(...)``."""
+  def matches(self, applied_ptransform):
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.io import Read
+    from apache_beam.io.gcp.bigquery import BigQuerySource
+
+    # Consider the native Read to be a primitive for Dataflow by replacing.
+    return (
+        isinstance(applied_ptransform.transform, Read) and
+        not getattr(applied_ptransform.transform, 'override', False) and
+        hasattr(applied_ptransform.transform, 'source') and
+        isinstance(applied_ptransform.transfor.source, BigQuerySource))
+        
+
+  def get_replacement_transform(self, ptransform):
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.io.gcp.bigquery import ReadFromBigQuery
+
+    source = ptransform.source
+
+    # Use the source's coder type hint as this replacement's output. Otherwise,
+    # the typing information is not properly forwarded to the DataflowRunner and
+    # will choose the incorrect coder for this transform.
+    return ReadFromBigQuery(
+        query=source.query,
+        table=source.table_reference,
+        use_legacy_sql=source.use_legacy_sql,
+        kms_key=source.kms_key
+    ).with_output_types(ptransform.source.coder.to_type_hint())
+
+
 class NativeReadPTransformOverride(PTransformOverride):
   """A ``PTransformOverride`` for ``Read`` using native sources.
 
