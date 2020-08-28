@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
 import com.google.api.services.healthcare.v1beta1.model.Empty;
 import com.google.api.services.healthcare.v1beta1.model.FhirStore;
 import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
@@ -27,6 +28,7 @@ import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.List;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -138,6 +140,10 @@ public interface HealthcareApiClient {
   Operation exportFhirResourceToGcs(String fhirStore, String gcsDestinationPrefix)
       throws IOException;
 
+  Operation deidentifyFhirStore(
+      String sourceFhirStore, String destinationFhirStore, DeidentifyConfig deidConfig)
+      throws IOException;
+
   Operation pollOperation(Operation operation, Long sleepMs)
       throws InterruptedException, IOException;
 
@@ -175,6 +181,15 @@ public interface HealthcareApiClient {
       throws IOException;
 
   FhirStore createFhirStore(String dataset, String name, String version) throws IOException;
+
+  /**
+   * List all FHIR stores in a dataset.
+   *
+   * @param dataset, in the format: projects/project_id/locations/location_id/datasets/dataset_id
+   * @return
+   * @throws IOException
+   */
+  List<FhirStore> listAllFhirStores(String dataset) throws IOException;
 
   /**
    * Delete hl 7 v 2 store empty.

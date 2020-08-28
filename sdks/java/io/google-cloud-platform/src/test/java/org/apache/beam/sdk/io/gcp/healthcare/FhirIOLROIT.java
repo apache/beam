@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_BUCKET;
-import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
+// import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_BUCKET;
+// import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
+import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
+import com.google.api.services.healthcare.v1beta1.model.FhirStore;
+import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
 import java.security.SecureRandom;
+import java.util.List;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -38,6 +42,8 @@ public class FhirIOLROIT {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   private transient HealthcareApiClient client;
+  private String DEFAULT_TEMP_BUCKET;
+  private String HEALTHCARE_DATASET_TEMPLATE;
   private final String project;
   private String healthcareDataset;
   private final String fhirStoreId;
@@ -47,10 +53,13 @@ public class FhirIOLROIT {
     long testTime = System.currentTimeMillis();
     this.fhirStoreId = "FHIR_store_" + testTime + "_" + (new SecureRandom().nextInt(32));
     this.version = "STU3";
-    this.project =
-        TestPipeline.testingPipelineOptions()
-            .as(HealthcareStoreTestPipelineOptions.class)
-            .getStoreProjectId();
+    // this.project =
+    //     TestPipeline.testingPipelineOptions()
+    //         .as(HealthcareStoreTestPipelineOptions.class)
+    //         .getStoreProjectId();
+    DEFAULT_TEMP_BUCKET = "trucleduc-test-export";
+    HEALTHCARE_DATASET_TEMPLATE = "projects/%s/locations/us-central1/datasets/test-dataset";
+    this.project = "trucleduc-test";
   }
 
   @Before
@@ -69,25 +78,46 @@ public class FhirIOLROIT {
   }
 
   @After
-  public void deleteFHIRtore() throws IOException {
+  public void deleteAllFhirStores() throws IOException {
+    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
     HealthcareApiClient client = new HttpHealthcareApiClient();
-    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreId);
+    List<FhirStore> fhirStores = client.listAllFhirStores(healthcareDataset);
+    for (FhirStore fs : fhirStores) {
+      client.deleteFhirStore(fs.getName());
+    }
   }
 
   @AfterClass
   public static void teardownBucket() throws IOException {
-    FhirIOTestUtil.tearDownTempBucket();
+    // FhirIOTestUtil.tearDownTempBucket();
   }
 
   @Test
   public void test_FhirIO_exportFhirResourcesGcs() {
     String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
     String exportGcsUriPrefix =
-        "gs://" + DEFAULT_TEMP_BUCKET + "/" + (new SecureRandom().nextInt(32));
-    FhirIO.ExportGcs.Result exportResults =
+        "gs://" + DEFAULT_TEMP_BUCKET + "/export/" + (new SecureRandom().nextInt(32));
+    FhirIO.ExportGcs.Result exportResult =
         pipeline.apply(FhirIO.exportResourcesToGcs(fhirStoreName, exportGcsUriPrefix));
-    PCollection<String> resources = exportResults.getResources();
+    PCollection<String> resources = exportResult.getResources();
     resources.apply(TextIO.write().to(exportGcsUriPrefix + "/write"));
+    pipeline.run();
+  }
+
+  @Test
+  public void test_FhirIO_deidentify() throws IOException {
+    String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
+    String destinationFhirStoreId = fhirStoreId + "_deid";
+    client.createFhirStore(healthcareDataset, destinationFhirStoreId, version, null);
+    String destinationFhirStoreName = healthcareDataset + "/fhirStores/" + destinationFhirStoreId;
+    String gcsTempPath =
+        "gs://" + DEFAULT_TEMP_BUCKET + "/deidentify/" + (new SecureRandom().nextInt(32));
+    DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
+    FhirIO.Deidentify.Result deidResult =
+        pipeline.apply(
+            FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig, gcsTempPath));
+    PCollection<String> deidResources = deidResult.getResources();
+    deidResources.apply(TextIO.write().to(gcsTempPath + "/write"));
     pipeline.run();
   }
 }
