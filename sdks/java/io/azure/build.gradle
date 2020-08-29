@@ -40,3 +40,7 @@ task StartAzuriteContainer(type: Exec) {
   commandLine 'docker', 'start', 
     "${->CreateAzuriteContainer.output()}"
 }
+
+task StopAzuriteContainer(type: Exec) {
+  commandLine 'docker', 'rm', '-f', "${->CreateAzuriteContainer.output()}"
+}
