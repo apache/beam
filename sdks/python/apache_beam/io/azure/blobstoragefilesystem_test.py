@@ -1,4 +1,3 @@
-#
 # -*- coding: utf-8 -*-
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -31,7 +30,6 @@ import mock
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import FileMetadata
-from apache_beam.options.pipeline_options import AzureFileSystemOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 
 # Protect against environments where azure library is not available.
@@ -49,15 +47,9 @@ except ImportError:
 class BlobStorageFileSystemTest(unittest.TestCase):
   def setUp(self):
     pipeline_options = PipelineOptions()
-    # azfs_options = pipeline_options.view_as(AzureFileSystemOptions)
-    # azfs_options.azfs_connection_string = (
-    #     "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;" +
-    #     "AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFs" +
-    #     "uFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;" +
-    #     "BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;")
-    # azfs_options.use_local_azurite = True
+    mock_client = mock.MagicMock()
     self.fs = blobstoragefilesystem.BlobStorageFileSystem(
-        pipeline_options=pipeline_options)
+        pipeline_options=pipeline_options, client=mock_client)
 
   def test_scheme(self):
     self.assertEqual(self.fs.scheme(), 'azfs')
@@ -95,13 +87,9 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       self.fs.split('/no/azfs/prefix')
 
-  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
-  def test_match_multiples(self, unused_mock_blobstorageio):
-    # Prepare mocks.
-    blobstorageio_mock = mock.MagicMock()
-    blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
-    blobstorageio_mock.list_prefix.return_value = {
+  def test_match_multiples(self):
+    # self.fs.azfs is a mock.
+    self.fs.azfs.list_prefix.return_value = {
         'azfs://storageaccount/container/file1': 1,
         'azfs://storageaccount/container/file2': 2,
     }
@@ -110,19 +98,16 @@ class BlobStorageFileSystemTest(unittest.TestCase):
         FileMetadata('azfs://storageaccount/container/file2', 2),
     ])
     match_result = self.fs.match(['azfs://storageaccount/container/'])[0]
-
+    print()
     self.assertEqual(set(match_result.metadata_list), expected_results)
-    blobstorageio_mock.list_prefix.assert_called_once_with(
+    # self.fs.azfs is a mock.
+    self.fs.azfs.list_prefix.assert_called_once_with(
         'azfs://storageaccount/container/')
 
-  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
-  def test_match_multiples_limit(self, unused_mock_blobstorageio):
-    # Prepare mocks.
-    blobstorageio_mock = mock.MagicMock()
+  def test_match_multiples_limit(self):
     limit = 1
-    blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
-    blobstorageio_mock.list_prefix.return_value = {
+    # self.fs.azfs is a mock.
+    self.fs.azfs.list_prefix.return_value = {
         'azfs://storageaccount/container/file1': 1
     }
     expected_results = set(
@@ -131,17 +116,14 @@ class BlobStorageFileSystemTest(unittest.TestCase):
                                  [limit])[0]
     self.assertEqual(set(match_result.metadata_list), expected_results)
     self.assertEqual(len(match_result.metadata_list), limit)
-    blobstorageio_mock.list_prefix.assert_called_once_with(
+    # self.fs.azfs is a mock.
+    self.fs.azfs.list_prefix.assert_called_once_with(
         'azfs://storageaccount/container/')
 
-  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
-  def test_match_multiples_error(self, unused_mock_blobstorageio):
-    # Prepare mocks.
-    blobstorageio_mock = mock.MagicMock()
-    blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+  def test_match_multiples_error(self):
     exception = IOError('Failed')
-    blobstorageio_mock.list_prefix.side_effect = exception
+    # self.fs.azfs is a mock.
+    self.fs.azfs.list_prefix.side_effect = exception
 
     with self.assertRaisesRegex(BeamIOError,
                                 r'^Match operation failed') as error:
@@ -150,16 +132,13 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     self.assertRegex(
         str(error.exception.exception_details),
         r'azfs://storageaccount/container/.*%s' % exception)
-    blobstorageio_mock.list_prefix.assert_called_once_with(
+    # self.fs.azfs is a mock.
+    self.fs.azfs.list_prefix.assert_called_once_with(
         'azfs://storageaccount/container/')
 
-  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
-  def test_match_multiple_patterns(self, unused_mock_blobstorageio):
-    # Prepare mocks.
-    blobstorageio_mock = mock.MagicMock()
-    blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
-    blobstorageio_mock.list_prefix.side_effect = [
+  def test_match_multiple_patterns(self):
+    # self.fs.azfs is a mock.
+    self.fs.azfs.list_prefix.side_effect = [
         {
             'azfs://storageaccount/container/file1': 1
         },
@@ -177,42 +156,27 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     ])
     self.assertEqual([mr.metadata_list for mr in result], expected_results)
 
-  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
-  def test_create(self, unused_mock_blobstorageio):
-    # Prepare mocks.
-    blobstorageio_mock = mock.MagicMock()
-    blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+  def test_create(self):
     # Issue file copy.
     _ = self.fs.create(
         'azfs://storageaccount/container/file1', 'application/octet-stream')
-
-    blobstorageio_mock.open.assert_called_once_with(
+    # self.fs.azfs is a mock.
+    self.fs.azfs.open.assert_called_once_with(
         'azfs://storageaccount/container/file1',
         'wb',
         mime_type='application/octet-stream')
 
-  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
-  def test_open(self, unused_mock_blobstorageio):
-    # Prepare mocks.
-    blobstorageio_mock = mock.MagicMock()
-    blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+  def test_open(self):
     # Issue file copy.
     _ = self.fs.open(
         'azfs://storageaccount/container/file1', 'application/octet-stream')
-
-    blobstorageio_mock.open.assert_called_once_with(
+    # self.fs.azfs is a mock.
+    self.fs.azfs.open.assert_called_once_with(
         'azfs://storageaccount/container/file1',
         'rb',
         mime_type='application/octet-stream')
 
-  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
-  def test_copy_file(self, unused_mock_blobstorageio):
-    # Prepare mocks.
-    blobstorageio_mock = mock.MagicMock()
-    blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+  def test_copy_file(self):
     sources = [
         'azfs://storageaccount/container/from1',
         'azfs://storageaccount/container/from2',
@@ -226,14 +190,10 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     self.fs.copy(sources, destinations)
 
     src_dest_pairs = list(zip(sources, destinations))
-    blobstorageio_mock.copy_paths.assert_called_once_with(src_dest_pairs)
+    # self.fs.azfs is a mock.
+    self.fs.azfs.copy_paths.assert_called_once_with(src_dest_pairs)
 
-  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
-  def test_copy_file_error(self, unused_mock_blobstorageio):
-    # Prepare mocks.
-    blobstorageio_mock = mock.MagicMock()
-    blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+  def test_copy_file_error(self):
     sources = [
         'azfs://storageaccount/container/from1',
         'azfs://storageaccount/container/from2',
@@ -248,13 +208,9 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     with self.assertRaises(BeamIOError):
       self.fs.copy(sources, destinations)
 
-  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
-  def test_delete(self, unused_mock_blobstorageio):
-    # Prepare mocks.
-    blobstorageio_mock = mock.MagicMock()
-    blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
-    blobstorageio_mock.size.return_value = 0
+  def test_delete(self):
+    # self.fs.azfs is a mock.
+    self.fs.azfs.size.return_value = 0
     files = [
         'azfs://storageaccount/container/from1',
         'azfs://storageaccount/container/from2',
@@ -262,24 +218,20 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     ]
     # Issue batch delete operation.
     self.fs.delete(files)
-    blobstorageio_mock.delete_paths.assert_called_once_with(files)
+    # self.fs.azfs is a mock.
+    self.fs.azfs.delete_paths.assert_called_once_with(files)
 
-  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
-  def test_delete_error(self, unused_mock_blobstorageio):
-    # Prepare mocks.
-    blobstorageio_mock = mock.MagicMock()
-    blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+  def test_delete_error(self):
     nonexistent_directory = 'azfs://storageaccount/nonexistent-container/tree/'
     exception = blobstorageio.BlobStorageError('Not found', 404)
-
-    blobstorageio_mock.delete_paths.return_value = {
+    # self.fs.azfs is a mock.
+    self.fs.azfs.delete_paths.return_value = {
         nonexistent_directory: exception,
         'azfs://storageaccount/container/blob1': None,
         'azfs://storageaccount/container/blob2': None,
     }
-
-    blobstorageio_mock.size.return_value = 0
+    # self.fs.azfs is a mock.
+    self.fs.azfs.size.return_value = 0
     files = [
         nonexistent_directory,
         'azfs://storageaccount/container/blob1',
@@ -293,14 +245,10 @@ class BlobStorageFileSystemTest(unittest.TestCase):
 
     self.assertIn('Delete operation failed', str(error.exception))
     self.assertEqual(error.exception.exception_details, expected_results)
-    blobstorageio_mock.delete_paths.assert_called()
+    # self.fs.azfs is a mock.
+    self.fs.azfs.delete_paths.assert_called()
 
-  @mock.patch('apache_beam.io.azure.blobstoragefilesystem.blobstorageio')
-  def test_rename(self, unused_mock_blobstorageio):
-    # Prepare mocks.
-    blobstorageio_mock = mock.MagicMock()
-    blobstoragefilesystem.blobstorageio.BlobStorageIO = \
-        lambda: blobstorageio_mock
+  def test_rename(self):
 
     sources = [
         'azfs://storageaccount/container/original_blob1',
@@ -315,7 +263,8 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     self.fs.rename(sources, destinations)
 
     src_dest_pairs = list(zip(sources, destinations))
-    blobstorageio_mock.rename_files.assert_called_once_with(src_dest_pairs)
+    # self.fs.azfs is a mock.
+    self.fs.azfs.rename_files.assert_called_once_with(src_dest_pairs)
 
 
 if __name__ == '__main__':

@@ -30,7 +30,6 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
 from apache_beam.options.pipeline_options import AzureFileSystemOptions
-from apache_beam.options.pipeline_options import PipelineOptions
 
 __all__ = ['BlobStorageFileSystem']
 
@@ -43,7 +42,7 @@ class BlobStorageFileSystem(FileSystem):
   CHUNK_SIZE = blobstorageio.MAX_BATCH_OPERATION_SIZE
   AZURE_FILE_SYSTEM_PREFIX = 'azfs://'
 
-  def __init__(self, pipeline_options):
+  def __init__(self, pipeline_options, client=None):
     """Initializes a connection to Azure Blob Storage
     via connection string.
 
@@ -51,21 +50,26 @@ class BlobStorageFileSystem(FileSystem):
     See : clas:`~apache_beam.options.pipeline_options.AzureFileSystemOptions`.
     """
     super(BlobStorageFileSystem, self).__init__(pipeline_options)
-    if pipeline_options is None:
-      raise ValueError('Pipeline options is not set.')
-    azfs_options = pipeline_options.view_as(AzureFileSystemOptions)
-    azfs_connection_string = azfs_options.azfs_connection_string
-    azfs_use_local_azurite = azfs_options.use_local_azurite
+    # Client is only use for testing.
+    if client:
+      # mock client.
+      self.azfs = client
+    else:
+      if pipeline_options is None:
+        raise ValueError('Pipeline options is not set.')
+      azfs_options = pipeline_options.view_as(AzureFileSystemOptions)
+      azfs_connection_string = azfs_options.azfs_connection_string
+      azfs_use_local_azurite = azfs_options.use_local_azurite
 
-    if azfs_connection_string is None:
-      raise ValueError('azfs_connection_string is not set.')
+      if azfs_connection_string is None:
+        raise ValueError('azfs_connection_string is not set.')
 
-    if not isinstance(azfs_use_local_azurite, bool):
-      raise ValueError('azfs_use_local_azurite should be bool, got: %s',
-                       azfs_use_local_azurite)
+      if not isinstance(azfs_use_local_azurite, bool):
+        raise ValueError('azfs_use_local_azurite should be bool, got: %s',
+                        azfs_use_local_azurite)
 
-    self.azfs = blobstorageio.BlobStorageIO(
-        azfs_connection_string, azfs_use_local_azurite)
+      self.azfs = blobstorageio.BlobStorageIO(
+          azfs_connection_string, azfs_use_local_azurite)
 
   @classmethod
   def scheme(cls):
@@ -149,7 +153,7 @@ class BlobStorageFileSystem(FileSystem):
     """
     try:
       for path, size in \
-          iteritems(self.azfs.client.list_prefix(dir_or_prefix)):
+          iteritems(self.azfs.list_prefix(dir_or_prefix)):
         yield FileMetadata(path, size)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
@@ -164,7 +168,7 @@ class BlobStorageFileSystem(FileSystem):
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
     mime_type = CompressionTypes.mime_type(compression_type, mime_type)
-    raw_file = self.azfs.client.open(
+    raw_file = self.azfs.open(
         path, mode, mime_type=mime_type)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
@@ -220,7 +224,7 @@ class BlobStorageFileSystem(FileSystem):
       message = 'Unable to copy unequal number of sources and destinations.'
       raise BeamIOError(message)
     src_dest_pairs = list(zip(source_file_names, destination_file_names))
-    return self.azfs.client.copy_paths(src_dest_pairs)
+    return self.azfs.copy_paths(src_dest_pairs)
 
   def rename(self, source_file_names, destination_file_names):
     """Rename the files at the source list to the destination list.
@@ -237,7 +241,7 @@ class BlobStorageFileSystem(FileSystem):
       message = 'Unable to rename unequal number of sources and destinations.'
       raise BeamIOError(message)
     src_dest_pairs = list(zip(source_file_names, destination_file_names))
-    results = self.azfs.client.rename_files(src_dest_pairs)
+    results = self.azfs.rename_files(src_dest_pairs)
     # Retrieve exceptions.
     exceptions = {(src, dest): error
                   for (src, dest, error) in results if error is not None}
@@ -253,7 +257,7 @@ class BlobStorageFileSystem(FileSystem):
     Returns: boolean flag indicating if path exists
     """
     try:
-      return self.azfs.client.exists(path)
+      return self.azfs.exists(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Exists operation failed", {path: e})
 
@@ -269,7 +273,7 @@ class BlobStorageFileSystem(FileSystem):
       ``BeamIOError``: if path doesn't exist.
     """
     try:
-      return self.azfs.client.size(path)
+      return self.azfs.size(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Size operation failed", {path: e})
 
@@ -285,7 +289,7 @@ class BlobStorageFileSystem(FileSystem):
       ``BeamIOError``: if path doesn't exist.
     """
     try:
-      return self.azfs.client.last_updated(path)
+      return self.azfs.last_updated(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Last updated operation failed", {path: e})
 
@@ -302,7 +306,7 @@ class BlobStorageFileSystem(FileSystem):
       ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     try:
-      return self.azfs.client.checksum(path)
+      return self.azfs.checksum(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Checksum operation failed", {path, e})
 
@@ -316,7 +320,7 @@ class BlobStorageFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if any of the delete operations fail
     """
-    results = self.azfs.client.delete_paths(paths)
+    results = self.azfs.delete_paths(paths)
     # Retrieve exceptions.
     exceptions = {
         path: error
