@@ -73,7 +73,7 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
     RelNode inputTable = inputs.get(0);
 
     RelDataType expectedRowType =
-        getExpressionConverter().rexBuilder().getTypeFactory().copyType(inputTable.getRowType());
+        getCluster().getRexBuilder().getTypeFactory().copyType(inputTable.getRowType());
 
     List<RexLiteral> constants = Lists.newArrayList();
     List<Group> groups = Lists.newArrayList();
@@ -171,8 +171,8 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
                   obtainValue(aggCall.getWindowFrame().getStartExpr()).toString()));
 
           rexPreceding =
-              getExpressionConverter()
-                  .rexBuilder()
+              getCluster()
+                  .getRexBuilder()
                   .makeCall(
                       aggCall.getWindowFrame().getStartExpr().getBoundaryType()
                               == ResolvedWindowFrameExprEnums.BoundaryType.OFFSET_PRECEDING
@@ -194,8 +194,8 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
                   obtainValue(aggCall.getWindowFrame().getStartExpr()).toString()));
 
           rexFollowing =
-              getExpressionConverter()
-                  .rexBuilder()
+              getCluster()
+                  .getRexBuilder()
                   .makeCall(
                       aggCall.getWindowFrame().getEndExpr().getBoundaryType()
                               == ResolvedWindowFrameExprEnums.BoundaryType.OFFSET_FOLLOWING
@@ -236,8 +236,8 @@ public class AnalyticScanConverter extends RelConverter<ResolvedAnalyticScan> {
                 Collections.singletonList(rexWinAggCall)));
         String aggColumnName = getTrait().resolveAlias(aggColumn.getColumn());
         expectedRowType =
-            getExpressionConverter()
-                .rexBuilder()
+            getCluster()
+                .getRexBuilder()
                 .getTypeFactory()
                 .builder()
                 .addAll(expectedRowType.getFieldList())
