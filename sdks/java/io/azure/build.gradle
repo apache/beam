@@ -44,3 +44,8 @@ task StartAzuriteContainer(type: Exec) {
 task StopAzuriteContainer(type: Exec) {
   commandLine 'docker', 'rm', '-f', "${->CreateAzuriteContainer.output()}"
 }
+
+task AzureLocalIT(type: Test) {
+  dependsOn StartAzuriteContainer
+  finalizedBy StopAzuriteContainer
+}
