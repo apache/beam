@@ -74,10 +74,9 @@ class CacheManager(object):
 
     Args:
       *labels: List of labels for PCollection instance.
-      **args: Dict of additional arguments. Currently only supports 'limiters'
-        as a list of ElementLimiters, and 'tail' as a boolean. Limiters limits
-        the amount of elements read and duration with respect to processing
-        time.
+      **args: Dict of additional arguments. Currently only 'tail' as a boolean.
+        When tail is True, will wait and read new elements until the cache is
+        complete.
 
     Returns:
       A tuple containing an iterator for the items in the PCollection and the
@@ -157,6 +156,12 @@ class CacheManager(object):
     """Cleans up all the PCollection caches."""
     raise NotImplementedError
 
+  def size(self, *labels):
+    # type: (*str) -> int
+
+    """Returns the size of the PCollection on disk in bytes."""
+    raise NotImplementedError
+
 
 class FileBasedCacheManager(CacheManager):
   """Maps PCollections to local temp files for materialization."""
@@ -173,6 +178,7 @@ class FileBasedCacheManager(CacheManager):
       self._cache_dir = tempfile.mkdtemp(
           prefix='it-', dir=os.environ.get('TEST_TMPDIR', None))
     self._versions = collections.defaultdict(lambda: self._CacheVersion())
+    self.cache_format = cache_format
 
     if cache_format not in self._available_formats:
       raise ValueError("Unsupported cache format: '%s'." % cache_format)
@@ -192,6 +198,11 @@ class FileBasedCacheManager(CacheManager):
     # to take care of keeping consistency between the cached PCollection
     # and its PCoder type.
     self._saved_pcoders = {}
+
+  def size(self, *labels):
+    if self.exists(*labels):
+      return sum(os.path.getsize(path) for path in self._match(*labels))
+    return 0
 
   def exists(self, *labels):
     return bool(self._match(*labels))
@@ -216,30 +227,13 @@ class FileBasedCacheManager(CacheManager):
     if not self.exists(*labels):
       return iter([]), -1
 
-    limiters = args.pop('limiters', [])
-
     # Otherwise, return a generator to the cached PCollection.
     source = self.source(*labels)._source
     range_tracker = source.get_range_tracker(None, None)
     reader = source.read(range_tracker)
     version = self._latest_version(*labels)
 
-    # The return type is a generator, so in order to implement the limiter for
-    # the FileBasedCacheManager we wrap the original generator with the logic
-    # to limit yielded elements.
-    def limit_reader(r):
-      for e in r:
-        # Update the limiters and break early out of reading from cache if any
-        # are triggered.
-        for l in limiters:
-          l.update(e)
-
-        if any(l.is_triggered() for l in limiters):
-          break
-
-        yield e
-
-    return limit_reader(reader), version
+    return reader, version
 
   def write(self, values, *labels):
     sink = self.sink(labels)._sink
