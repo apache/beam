@@ -34,3 +34,9 @@ task CreateAzuriteContainer(type: Exec) {
   commandLine 'docker', 'create', '-p=10000:10000',
   'mcr.microsoft.com/azure-storage/azurite'
 }
+
+task StartAzuriteContainer(type: Exec) {
+  dependsOn CreateAzuriteContainer
+  commandLine 'docker', 'start', 
+    "${->CreateAzuriteContainer.output()}"
+}
