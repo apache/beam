@@ -23,7 +23,8 @@ job('beam_Metrics_Report') {
   description('Runs Beam metrics report.')
 
   // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+  commonJobProperties.setTopLevelMainJobProperties(
+      delegate, 'master', 100, true, 'beam', false)
   InfluxDBCredentialsHelper.useCredentials(delegate)
 
   // Allows triggering this build against pull requests.
@@ -63,6 +64,9 @@ job('beam_Metrics_Report') {
     archiveArtifacts {
       pattern('src/.test-infra/jenkins/metrics_report/beam-metrics_report.html')
       onlyIfSuccessful()
+    }
+    wsCleanup {
+      excludePattern('src/.test-infra/jenkins/metrics_report/beam-metrics_report.html')
     }
   }
 }
