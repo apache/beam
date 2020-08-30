@@ -55,3 +55,20 @@ task unpackFilesToLint(type: Copy) {
 whitespacelint.dependsOn archiveFilesToLint, unpackFilesToLint
 unpackFilesToLint.dependsOn archiveFilesToLint
 archiveFilesToLint.dependsOn cleanPython
+
+toxTask "jest", "jest"
+
+toxTask "eslint", "eslint"
+
+task copyTsSource(type: Copy) {
+  from ("$rootProject.projectDir") {
+    include "sdks/python/apache_beam/runners/interactive/extensions/**/*"
+    exclude "sdks/python/apache_beam/runners/interactive/extensions/**/lib/*"
+    exclude "sdks/python/apache_beam/runners/interactive/extensions/**/node_modules/*"
+  }
+  into "$buildDir/ts"
+}
+
+jest.dependsOn copyTsSource
+eslint.dependsOn copyTsSource
+copyTsSource.dependsOn cleanPython
