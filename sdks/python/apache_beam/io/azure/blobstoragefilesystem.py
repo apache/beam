@@ -65,8 +65,9 @@ class BlobStorageFileSystem(FileSystem):
         raise ValueError('azfs_connection_string is not set.')
 
       if not isinstance(azfs_use_local_azurite, bool):
-        raise ValueError('azfs_use_local_azurite should be bool, got: %s',
-                        azfs_use_local_azurite)
+        raise ValueError(
+            'azfs_use_local_azurite should be bool, got: %s',
+            azfs_use_local_azurite)
 
       self.azfs = blobstorageio.BlobStorageIO(
           azfs_connection_string, azfs_use_local_azurite)
@@ -168,8 +169,7 @@ class BlobStorageFileSystem(FileSystem):
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
     mime_type = CompressionTypes.mime_type(compression_type, mime_type)
-    raw_file = self.azfs.open(
-        path, mode, mime_type=mime_type)
+    raw_file = self.azfs.open(path, mode, mime_type=mime_type)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
     return CompressedFile(raw_file, compression_type=compression_type)

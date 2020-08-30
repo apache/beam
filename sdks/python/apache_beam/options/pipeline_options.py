@@ -656,6 +656,7 @@ class AzureFileSystemOptions(PipelineOptions):
         action='store_true',
         help=('If set, Azurite will be used.'))
 
+
 class HadoopFileSystemOptions(PipelineOptions):
   """``HadoopFileSystem`` connection options."""
   @classmethod

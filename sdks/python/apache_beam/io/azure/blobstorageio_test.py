@@ -31,8 +31,6 @@ from nose.plugins.attrib import attr
 # Protect against environments where azure library is not available.
 try:
   from apache_beam.io.azure import blobstorageio
-  from azure.storage.blob import (
-      BlobServiceClient, )
 except ImportError:
   blobstorageio = None  # type: ignore[assignment]
 # pylint: enable=wrong-import-order, wrong-import-position
@@ -113,10 +111,11 @@ class TestBlobStorageIO(unittest.TestCase):
     self.azfs = blobstorageio.BlobStorageIO(connect_str, True)
     try:
       self.azfs.client.create_container("gsoc")
-    except:
+    except: # pylint: disable=bare-except
       pass
     self.TEST_DATA_PATH = 'azfs://devstoreaccount1/gsoc/'
 
+  @attr('AzuriteIT')
   def test_file_mode(self):
     file_name = self.TEST_DATA_PATH + 'sloth/pictures/sleeping'
     with self.azfs.open(file_name, 'w') as f:
