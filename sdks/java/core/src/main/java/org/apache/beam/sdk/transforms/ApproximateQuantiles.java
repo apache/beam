@@ -41,7 +41,9 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.util.WeightedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
@@ -54,10 +56,37 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * {@code PTransform}s for getting an idea of a {@code PCollection}'s data distribution using
  * approximate {@code N}-tiles (e.g. quartiles, percentiles, etc.), either globally or per-key.
+ *
+ * <p>{@link #combineFn} can also be used manually, with the {@link Combine} transform.
  */
 public class ApproximateQuantiles {
   private ApproximateQuantiles() {
     // do not instantiate
+  }
+
+  /**
+   * Returns a {@link CombineFn} that gives an idea of the distribution of a collection of values
+   * using approximate {@code N}-tiles.
+   *
+   * @param <T> the type of the elements in the input {@code PCollection}
+   * @param numQuantiles the number of elements in the resulting quantile values {@code List}
+   * @param compareFn the function to use to order the elements
+   */
+  public static <T, ComparatorT extends Comparator<T> & Serializable>
+      CombineFn<T, ?, List<T>> combineFn(int numQuantiles, ComparatorT compareFn) {
+    checkArgument(compareFn != null, "compareFn should not be null");
+    return ApproximateQuantilesCombineFn.create(numQuantiles, compareFn);
+  }
+
+  /**
+   * Returns a {@link CombineFn} that gives an idea of the distribution of a collection of values
+   * using approximate {@code N}-tiles.
+   *
+   * @param <T> the type of the elements in the input {@code PCollection}
+   * @param numQuantiles the number of elements in the resulting quantile values {@code List}
+   */
+  public static <T extends Comparable<T>> CombineFn<T, ?, List<T>> combineFn(int numQuantiles) {
+    return ApproximateQuantilesCombineFn.create(numQuantiles);
   }
 
   /**
@@ -84,6 +113,10 @@ public class ApproximateQuantiles {
    *     pc.apply(ApproximateQuantiles.globally(11, stringCompareFn));
    * }</pre>
    *
+   * <p>Note: if the input collection uses a windowing strategy other than {@link GlobalWindows},
+   * use {@code Combine.globally(ApproximateQuantiles.<T, ComparatorT>combineFn(numQuantiles,
+   * compareFn)).withoutDefaults()} instead.
+   *
    * @param <T> the type of the elements in the input {@code PCollection}
    * @param numQuantiles the number of elements in the resulting quantile values {@code List}
    * @param compareFn the function to use to order the elements
@@ -96,6 +129,10 @@ public class ApproximateQuantiles {
 
   /**
    * Like {@link #globally(int, Comparator)}, but sorts using the elements' natural ordering.
+   *
+   * <p>Note: if the input collection uses a windowing strategy other than {@link GlobalWindows},
+   * use {@code Combine.globally(ApproximateQuantiles.<T>combineFn(numQuantiles)).withoutDefaults()}
+   * instead.
    *
    * @param <T> the type of the elements in the input {@code PCollection}
    * @param numQuantiles the number of elements in the resulting quantile values {@code List}
@@ -320,6 +357,13 @@ public class ApproximateQuantiles {
       builder
           .add(DisplayData.item("numQuantiles", numQuantiles).withLabel("Quantile Count"))
           .add(DisplayData.item("comparer", compareFn.getClass()).withLabel("Record Comparer"));
+    }
+
+    @Override
+    public String getIncompatibleGlobalWindowErrorMessage() {
+      return "If the input collection uses a windowing strategy other than GlobalWindows, "
+          + "use Combine.globally(ApproximateQuantiles.<T, ComparatorT>combineFn(numQuantiles, compareFn).withoutDefaults() "
+          + "or Combine.globally(ApproximateQuantiles.<T>combineFn(numQuantiles).withoutDefaults() instead.";
     }
 
     int getNumBuffers() {

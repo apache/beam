@@ -43,15 +43,19 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ApproximateUnique.ApproximateUniqueCombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matcher;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
@@ -61,6 +65,7 @@ public class ApproximateUniqueTest implements Serializable {
   // implements Serializable just to make it easy to use anonymous inner DoFn subclasses
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
+  @Rule public ExpectedException exceptionRule = ExpectedException.none();
 
   private static class VerifyEstimateFn implements SerializableFunction<Long, Void> {
     private final long uniqueCount;
@@ -407,6 +412,22 @@ public class ApproximateUniqueTest implements Serializable {
           "calculated sampleSize should be included",
           maxErrorDisplayData,
           hasDisplayItem("sampleSize"));
+    }
+
+    @Test
+    public void testGlobalWindowErrorMessageShows() {
+
+      PCollection<Integer> input = p.apply(Create.of(1, 2, 3, 4));
+      PCollection<Integer> windowed =
+          input.apply(Window.into(FixedWindows.of(Duration.standardDays(1))));
+
+      String expectedMsg =
+          ApproximateUnique.combineFn(16, input.getCoder())
+              .getFn()
+              .getIncompatibleGlobalWindowErrorMessage();
+      exceptionRule.expect(IllegalStateException.class);
+      exceptionRule.expectMessage(expectedMsg);
+      windowed.apply(ApproximateUnique.globally(16));
     }
   }
 }

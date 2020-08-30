@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Iterator;
@@ -29,6 +31,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
@@ -54,7 +57,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *     input.apply(HllCount.Init.forStrings().globally()).apply(HllCount.Extract.globally());
  * }</pre>
  *
- * For more details about using {@code HllCount} and the {@code zetasketch} extension module, see
+ * <p>{@link #combineFn} can also be used manually, with the {@link Combine} transform.
+ *
+ * <p>For more details about using {@code HllCount} and the {@code zetasketch} extension module, see
  * https://s.apache.org/hll-in-beam#bookmark=id.v6chsij1ixo7.
  */
 public class ApproximateUnique {
@@ -86,6 +91,9 @@ public class ApproximateUnique {
    *     pc.apply(ApproximateUnique.<String>globally(1000));
    * }</pre>
    *
+   * <p>Note: if the input collection uses a windowing strategy other than {@link GlobalWindows},
+   * use {@code ApproximateUnique.<T>combineFn(sampleSize, inputCoder).withoutDefaults()} instead.
+   *
    * @param <T> the type of the elements in the input {@code PCollection}
    * @param sampleSize the number of entries in the statistical sample; the higher this number, the
    *     more accurate the estimate will be; should be {@code >= 16}
@@ -99,6 +107,10 @@ public class ApproximateUnique {
    * Like {@link #globally(int)}, but specifies the desired maximum estimation error instead of the
    * sample size.
    *
+   * <p>Note: if the input collection uses a windowing strategy other than {@link GlobalWindows},
+   * use {@code ApproximateUnique.<T>combineFn(maximumEstimationError,
+   * inputCoder).withoutDefaults()} instead.
+   *
    * @param <T> the type of the elements in the input {@code PCollection}
    * @param maximumEstimationError the maximum estimation error, which should be in the range {@code
    *     [0.01, 0.5]}
@@ -106,6 +118,38 @@ public class ApproximateUnique {
    */
   public static <T> Globally<T> globally(double maximumEstimationError) {
     return new Globally<>(maximumEstimationError);
+  }
+
+  /**
+   * Returns a {@link Combine.Globally} that gives a single value that is an estimate of the number
+   * of distinct elements in the input {@code PCollection}.
+   *
+   * @param <T> the type of the elements in the input {@code PCollection}
+   * @param sampleSize the number of entries in the statistical sample; the higher this number, the
+   *     more accurate the estimate will be; should be {@code >= 16}
+   * @param inputCoder the coder for {@code PCollection<T>} where the combineFn will be applied on.
+   * @throws IllegalArgumentException if the {@code sampleSize} argument is too small
+   */
+  public static <T> Combine.Globally<T, Long> combineFn(int sampleSize, Coder<T> inputCoder) {
+    checkArgument(inputCoder != null, "inputCoder should not be null");
+    return new Globally<T>(sampleSize).combineFn(inputCoder);
+  }
+
+  /**
+   * Returns a {@link Combine.Globally} that gives a single value that is an estimate of the number
+   * of distinct elements in the input {@code PCollection}, but specifies the desired maximum
+   * estimation error instead of the sample size.
+   *
+   * @param <T> the type of the elements in the input {@code PCollection}
+   * @param maximumEstimationError the maximum estimation error, which should be in the range {@code
+   *     [0.01, 0.5]}
+   * @param inputCoder the coder for {@code PCollection<T>} where the combineFn will be applied on.
+   * @throws IllegalArgumentException if the {@code maximumEstimationError} argument is out of range
+   */
+  public static <T> Combine.Globally<T, Long> combineFn(
+      double maximumEstimationError, Coder<T> inputCoder) {
+    checkArgument(inputCoder != null, "inputCoder should not be null");
+    return new Globally<T>(maximumEstimationError).combineFn(inputCoder);
   }
 
   /**
@@ -169,6 +213,10 @@ public class ApproximateUnique {
     /** The desired maximum estimation error or null if not specified. */
     private final @Nullable Double maximumEstimationError;
 
+    private Combine.Globally<T, Long> combineFn(Coder<T> coder) {
+      return Combine.globally(new ApproximateUniqueCombineFn<>(sampleSize, coder));
+    }
+
     /** @see ApproximateUnique#globally(int) */
     public Globally(int sampleSize) {
       if (sampleSize < 16) {
@@ -197,7 +245,7 @@ public class ApproximateUnique {
     @Override
     public PCollection<Long> expand(PCollection<T> input) {
       Coder<T> coder = input.getCoder();
-      return input.apply(Combine.globally(new ApproximateUniqueCombineFn<>(sampleSize, coder)));
+      return input.apply(combineFn(coder));
     }
 
     @Override
@@ -370,6 +418,13 @@ public class ApproximateUnique {
     public ApproximateUniqueCombineFn(long sampleSize, Coder<T> coder) {
       this.sampleSize = sampleSize;
       this.coder = coder;
+    }
+
+    @Override
+    public String getIncompatibleGlobalWindowErrorMessage() {
+      return "If the input collection uses a windowing strategy other than GlobalWindows, "
+          + "use ApproximateUnique.<T>combineFn(sampleSize, inputCoder).withoutDefaults() "
+          + "or ApproximateUnique.<T>combineFn(maximumEstimationError, inputCoder).withoutDefaults() instead.";
     }
 
     @Override
