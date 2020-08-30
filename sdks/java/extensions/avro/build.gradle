@@ -1,0 +1,60 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+  enableChecker:false,
+  ignoreRawtypeErrors:true,
+  automaticModuleName: 'org.apache.beam.sdk.extensions.avro',
+  mavenRepositories: [
+    [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
+  ]
+)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: SDKs :: Java :: Extensions :: Avro"
+ext.summary = "Add support to Apache Beam for Avro."
+
+dependencies {
+  compile library.java.vendored_guava_26_0_jre
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:expansion-service")
+  // Get back to "provided" since 2.14
+  provided library.java.kafka_clients
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.jackson_annotations
+  compile library.java.jackson_databind
+  compile "org.springframework:spring-expression:4.3.18.RELEASE"
+  provided library.java.jackson_dataformat_csv
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(":sdks:java:io:synthetic")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  // For testing Cross-language transforms
+  testCompile project(":runners:core-construction-java")
+  testCompile library.java.avro
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.junit
+  testCompile library.java.powermock
+  testCompile library.java.powermock_mockito
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+}
