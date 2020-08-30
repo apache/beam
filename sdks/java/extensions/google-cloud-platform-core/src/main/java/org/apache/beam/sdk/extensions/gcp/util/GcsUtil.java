@@ -321,10 +321,11 @@ public class GcsUtil {
     return listObjects(bucket, prefix, pageToken, null);
   }
 
-  /** Lists {@link Objects} given the {@code bucket}, {@code prefix}, {@code pageToken}.
+  /**
+   * Lists {@link Objects} given the {@code bucket}, {@code prefix}, {@code pageToken}.
    *
-   * For more details, see https://cloud.google.com/storage/docs/json_api/v1/objects/list.
-   **/
+   * <p>For more details, see https://cloud.google.com/storage/docs/json_api/v1/objects/list.
+   */
   public Objects listObjects(
       String bucket, String prefix, @Nullable String pageToken, @Nullable String delimiter)
       throws IOException {
