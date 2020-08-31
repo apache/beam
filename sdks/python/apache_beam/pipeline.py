@@ -1347,6 +1347,7 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
 
   def get_replacement_inputs(self, applied_ptransform):
     # type: (AppliedPTransform) -> Iterable[pvalue.PValue]
+
     """Provides inputs that will be passed to the replacement PTransform.
 
     Args:
@@ -1358,8 +1359,7 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
       replacement PTransform.
     """
     return tuple(applied_ptransform.inputs) + tuple(
-        side_input.pvalue
-        for side_input in applied_ptransform.side_inputs)
+        side_input.pvalue for side_input in applied_ptransform.side_inputs)
 
 
 class ComponentIdMap(object):
