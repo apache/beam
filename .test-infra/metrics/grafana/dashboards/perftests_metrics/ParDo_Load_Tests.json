@@ -16,7 +16,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1596019686624,
+  "iteration": 1596815471813,
   "links": [],
   "panels": [
     {
@@ -78,7 +78,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT mean(\"value\") FROM \"${sdk}_${processingType}_pardo_5\" WHERE \"metric\" =~ /runtime/ AND $timeFilter GROUP BY time($__interval), \"metric\"",
+          "query": "SELECT mean(\"value\") FROM \"${sdk}_${processingType}_pardo_1\" WHERE \"metric\" =~ /runtime/ AND $timeFilter GROUP BY time($__interval), \"metric\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -103,7 +103,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "$sdk | ParDo | 2GB, 100 byte records, 5 iterations, 10 counter operations, 3 counters, parallelism 5",
+      "title": "$sdk | ParDo | 2GB, 100 byte records, 10 iterations",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -158,7 +158,7 @@
         "y": 0
       },
       "hiddenSeries": false,
-      "id": 4,
+      "id": 3,
       "interval": "1d",
       "legend": {
         "avg": false,
@@ -195,14 +195,15 @@
             },
             {
               "params": [
-                "null"
+                "metric"
               ],
-              "type": "fill"
+              "type": "field"
             }
           ],
+          "measurement": "python_batch_cogbk_2",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT mean(\"value\") FROM \"${sdk}_${processingType}_pardo_5\" WHERE \"metric\" =~ /runtime/ AND $timeFilter GROUP BY time($__interval), \"metric\"",
+          "query": "SELECT mean(\"value\") FROM \"${sdk}_${processingType}_pardo_2\" WHERE \"metric\" =~ /runtime/ AND $timeFilter GROUP BY time($__interval), \"metric\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -227,7 +228,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "$sdk | ParDo | 2GB, 100 byte records, 5 iterations, 10 counter operations, 3 counters, parallelism 5",
+      "title": "$sdk | ParDo | 2GB, 100 byte records, 200 iterations",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -282,7 +283,7 @@
         "y": 8
       },
       "hiddenSeries": false,
-      "id": 5,
+      "id": 4,
       "interval": "1d",
       "legend": {
         "avg": false,
@@ -309,7 +310,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "",
+          "alias": "$tag_metric",
           "groupBy": [
             {
               "params": [
@@ -319,14 +320,15 @@
             },
             {
               "params": [
-                "null"
+                "metric"
               ],
-              "type": "fill"
+              "type": "field"
             }
           ],
+          "measurement": "python_batch_cogbk_3",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT min, max, sum / count\nFROM\n(\n  SELECT max(value)/1000 as min FROM \"${sdk}_${processingType}_pardo_5\" WHERE \"metric\" =~ /min_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as max FROM \"${sdk}_${processingType}_pardo_5\" WHERE \"metric\" =~ /max_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as sum FROM \"${sdk}_${processingType}_pardo_5\" WHERE \"metric\" =~ /sum_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as count FROM \"${sdk}_${processingType}_pardo_5\" WHERE \"metric\" =~ /count_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n)\n\n",
+          "query": "SELECT mean(\"value\") FROM \"${sdk}_${processingType}_pardo_3\" WHERE \"metric\" =~ /runtime/ AND $timeFilter GROUP BY time($__interval), \"metric\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -351,7 +353,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Latency $sdk | ParDo | 2GB, 100 byte records, 5 iterations, 10 counter operations, 3 counters, parallelism 5 (latency)",
+      "title": "$sdk | ParDo | 2GB, 100 byte records, 10 counter increments",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -406,7 +408,7 @@
         "y": 8
       },
       "hiddenSeries": false,
-      "id": 3,
+      "id": 5,
       "interval": "1d",
       "legend": {
         "avg": false,
@@ -433,7 +435,115 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "",
+          "alias": "$tag_metric",
+          "groupBy": [],
+          "measurement": "python_batch_cogbk_4",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT mean(\"value\") FROM \"${sdk}_${processingType}_pardo_4\" WHERE \"metric\" =~ /runtime/ AND $timeFilter GROUP BY time($__interval), \"metric\"",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "$sdk | ParDo | 2GB, 100 byte records, 100 counter increments",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "transparent": true,
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:589",
+          "format": "s",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:590",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "BeamInfluxDB",
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "hiddenSeries": false,
+      "id": 6,
+      "interval": "1d",
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 2,
+      "nullPointMode": "connected",
+      "options": {
+        "dataLinks": []
+      },
+      "percentage": false,
+      "pointradius": 2,
+      "points": true,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "alias": "$tag_metric",
           "groupBy": [
             {
               "params": [
@@ -443,14 +553,15 @@
             },
             {
               "params": [
-                "null"
+                "metric"
               ],
-              "type": "fill"
+              "type": "field"
             }
           ],
+          "measurement": "python_batch_cogbk_3",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT min, max, sum / count\nFROM\n(\n  SELECT max(value)/1000 as min FROM \"${sdk}_${processingType}_pardo_6\" WHERE \"metric\" =~ /loadgenerator\\/impulse.*_min/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as max FROM \"${sdk}_${processingType}_pardo_6\" WHERE \"metric\" =~ /loadgenerator\\/impulse.*_max/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as sum FROM \"${sdk}_${processingType}_pardo_6\" WHERE \"metric\" =~ /loadgenerator\\/impulse.*_sum/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as count FROM \"${sdk}_${processingType}_pardo_6\" WHERE \"metric\" =~ /loadgenerator\\/impulse.*_count/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n)\n\n",
+          "query": "SELECT min, max, sum / count\nFROM\n(\n  SELECT max(value)/1000 as min FROM \"${sdk}_${processingType}_pardo_1\" WHERE \"metric\" =~ /min_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as max FROM \"${sdk}_${processingType}_pardo_1\" WHERE \"metric\" =~ /max_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as sum FROM \"${sdk}_${processingType}_pardo_1\" WHERE \"metric\" =~ /sum_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as count FROM \"${sdk}_${processingType}_pardo_1\" WHERE \"metric\" =~ /count_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n)\n,\n-- Can be removed once the data above is available\n(\n  SELECT max(value)/1000 as min FROM \"${sdk}_${processingType}_pardo_5\" WHERE \"metric\" =~ /min_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as max FROM \"${sdk}_${processingType}_pardo_5\" WHERE \"metric\" =~ /max_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as sum FROM \"${sdk}_${processingType}_pardo_5\" WHERE \"metric\" =~ /sum_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as count FROM \"${sdk}_${processingType}_pardo_5\" WHERE \"metric\" =~ /count_latency/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n)",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -475,7 +586,132 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Checkpoint duration $sdk | ParDo | 2GB, 100 byte records, 5 iterations, 10 counter operations, 3 counters, parallelism 5",
+      "title": "latency | $sdk | ParDo | 2GB, 100 byte records, 5 iterations, 10 counter operations, 3 counters, parallelism 5",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "transparent": true,
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:589",
+          "format": "s",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:590",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "BeamInfluxDB",
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "hiddenSeries": false,
+      "id": 7,
+      "interval": "1d",
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 2,
+      "nullPointMode": "connected",
+      "options": {
+        "dataLinks": []
+      },
+      "percentage": false,
+      "pointradius": 2,
+      "points": true,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "alias": "$tag_metric",
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "metric"
+              ],
+              "type": "field"
+            }
+          ],
+          "measurement": "python_batch_cogbk_3",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT min, max, sum / count\nFROM\n(\n  SELECT max(value)/1000 as min FROM \"${sdk}_${processingType}_pardo_6\" WHERE \"metric\" =~ /loadgenerator\\/impulse.*_min/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as max FROM \"${sdk}_${processingType}_pardo_6\" WHERE \"metric\" =~ /loadgenerator\\/impulse.*_max/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as sum FROM \"${sdk}_${processingType}_pardo_6\" WHERE \"metric\" =~ /loadgenerator\\/impulse.*_sum/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n),\n(\n  SELECT max(value)/1000 as count FROM \"${sdk}_${processingType}_pardo_6\" WHERE \"metric\" =~ /loadgenerator\\/impulse.*_count/ AND $timeFilter GROUP BY time($__interval), \"metric\"\n)",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ]
+          ],
+          "tags": []
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "checkpoint duration | $sdk | ParDo | 2GB, 100 byte records, 5 iterations, 10 counter operations, 3 counters, parallelism 5",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -527,7 +763,7 @@
       {
         "allValue": null,
         "current": {
-          "selected": false,
+          "selected": true,
           "tags": [],
           "text": "streaming",
           "value": "streaming"
@@ -539,13 +775,13 @@
         "name": "processingType",
         "options": [
           {
-            "$$hashKey": "object:283",
+            "$$hashKey": "object:57",
             "selected": false,
             "text": "batch",
             "value": "batch"
           },
           {
-            "$$hashKey": "object:284",
+            "$$hashKey": "object:58",
             "selected": true,
             "text": "streaming",
             "value": "streaming"
@@ -570,19 +806,19 @@
         "name": "sdk",
         "options": [
           {
-            "$$hashKey": "object:272",
+            "$$hashKey": "object:374",
             "selected": false,
             "text": "java",
             "value": "java"
           },
           {
-            "$$hashKey": "object:273",
+            "$$hashKey": "object:375",
             "selected": true,
             "text": "python",
             "value": "python"
           },
           {
-            "$$hashKey": "object:274",
+            "$$hashKey": "object:376",
             "selected": false,
             "text": "go",
             "value": "go"
@@ -619,5 +855,5 @@
   "variables": {
     "list": []
   },
-  "version": 2
+  "version": 8
 }

@@ -23,6 +23,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.kafka.common.TopicPartition;
@@ -71,5 +72,18 @@ public abstract class KafkaSourceDescriptor implements Serializable {
         startReadOffset,
         startReadTime,
         bootstrapServers);
+  }
+
+  @SchemaCreate
+  @SuppressWarnings("all")
+  // TODO(BEAM-10677): Remove this function after AutoValueSchema is fixed.
+  static KafkaSourceDescriptor create(
+      String topic,
+      Integer partition,
+      Long start_read_offset,
+      Instant start_read_time,
+      List<String> bootstrap_servers) {
+    return new AutoValue_KafkaSourceDescriptor(
+        topic, partition, start_read_offset, start_read_time, bootstrap_servers);
   }
 }

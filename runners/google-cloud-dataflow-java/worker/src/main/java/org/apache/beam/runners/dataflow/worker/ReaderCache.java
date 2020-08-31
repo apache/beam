@@ -21,8 +21,6 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -59,7 +57,7 @@ class ReaderCache {
     }
   }
 
-  private final Cache<KV<String, ByteString>, CacheEntry> cache;
+  private final Cache<WindmillComputationKey, CacheEntry> cache;
 
   /** ReaderCache with default 1 minute expiration for readers. */
   ReaderCache() {
@@ -72,39 +70,34 @@ class ReaderCache {
         CacheBuilder.newBuilder()
             .expireAfterWrite(cacheDuration.getMillis(), TimeUnit.MILLISECONDS)
             .removalListener(
-                (RemovalNotification<KV<String, ByteString>, CacheEntry> notification) -> {
+                (RemovalNotification<WindmillComputationKey, CacheEntry> notification) -> {
                   if (notification.getCause() != RemovalCause.EXPLICIT) {
-                    LOG.info("Closing idle reader for {}", keyToString(notification.getKey()));
+                    LOG.info("Closing idle reader for {}", notification.getKey());
                     closeReader(notification.getKey(), notification.getValue());
                   }
                 })
             .build();
   }
 
-  private static String keyToString(KV<String, ByteString> key) {
-    return key.getKey() + "-" + key.getValue().toStringUtf8();
-  }
-
   /** Close the reader and log a warning if close fails. */
-  private void closeReader(KV<String, ByteString> key, CacheEntry entry) {
+  private void closeReader(WindmillComputationKey key, CacheEntry entry) {
     try {
       entry.reader.close();
     } catch (IOException e) {
-      LOG.warn("Failed to close UnboundedReader for {}", keyToString(key), e);
+      LOG.warn("Failed to close UnboundedReader for {}", key, e);
     }
   }
 
   /**
-   * If there is a cached reader for this split and the cache token matches, the reader is
+   * If there is a cached reader for this computationKey and the cache token matches, the reader is
    * <i>removed</i> from the cache and returned. Cache the reader using cacheReader() as required.
    * Note that cache will expire in one minute. If cacheToken does not match the token already
    * cached, it is assumed that the cached reader (if any) is no longer relevant and will be closed.
    * Return null in case of a cache miss.
    */
   UnboundedSource.UnboundedReader<?> acquireReader(
-      String computationId, ByteString splitId, long cacheToken) {
-    KV<String, ByteString> key = KV.of(computationId, splitId);
-    CacheEntry entry = cache.asMap().remove(key);
+      WindmillComputationKey computationKey, long cacheToken) {
+    CacheEntry entry = cache.asMap().remove(computationKey);
 
     cache.cleanUp();
 
@@ -112,7 +105,7 @@ class ReaderCache {
       if (entry.token == cacheToken) {
         return entry.reader;
       } else { // new cacheToken invalidates old one. close the reader.
-        closeReader(key, entry);
+        closeReader(computationKey, entry);
       }
     }
     return null;
@@ -120,21 +113,18 @@ class ReaderCache {
 
   /** Cache the reader for a minute. It will be closed if it is not acquired with in a minute. */
   void cacheReader(
-      String computationId,
-      ByteString splitId,
+      WindmillComputationKey computationKey,
       long cacheToken,
       UnboundedSource.UnboundedReader<?> reader) {
     CacheEntry existing =
-        cache
-            .asMap()
-            .putIfAbsent(KV.of(computationId, splitId), new CacheEntry(reader, cacheToken));
+        cache.asMap().putIfAbsent(computationKey, new CacheEntry(reader, cacheToken));
     Preconditions.checkState(existing == null, "Overwriting existing readers is not allowed");
     cache.cleanUp();
   }
 
   /** If a reader is cached for this key, remove and close it. */
-  void invalidateReader(String computationId, ByteString splitId) {
+  void invalidateReader(WindmillComputationKey computationKey) {
     // use an invalid cache token that will trigger close.
-    acquireReader(computationId, splitId, -1L);
+    acquireReader(computationKey, -1L);
   }
 }

@@ -19,10 +19,10 @@
 Built-in I/Os
 -------------
 
-Beam SDKs provide many out of the box I/O transforms that can be used to read from many different 
+Beam SDKs provide many out of the box I/O transforms that can be used to read from many different
 sources and write to many different sinks.
 
-See the [Beam-provided I/O Transforms](https://beam.apache.org/documentation/io/built-in/) page 
+See the [Beam-provided I/O Transforms](https://beam.apache.org/documentation/io/built-in/) page
 for a list of the currently available I/O transforms.
 
 **Note:** There is no kata for this task. Please proceed to the next task.

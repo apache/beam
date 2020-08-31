@@ -127,6 +127,10 @@ test {
   } else if (project.path == ":runners:flink:1.10") {
     mustRunAfter(":runners:flink:1.8:test")
     mustRunAfter(":runners:flink:1.9:test")
+  } else if (project.path == ":runners:flink:1.11") {
+    mustRunAfter(":runners:flink:1.8:test")
+    mustRunAfter(":runners:flink:1.9:test")
+    mustRunAfter(":runners:flink:1.10:test")
   }
 }
 

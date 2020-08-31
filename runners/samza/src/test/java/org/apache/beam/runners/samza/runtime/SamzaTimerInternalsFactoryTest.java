@@ -24,7 +24,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -57,7 +56,9 @@ import org.apache.samza.storage.kv.RocksDbKeyValueStore;
 import org.apache.samza.storage.kv.SerializedKeyValueStore;
 import org.apache.samza.storage.kv.SerializedKeyValueStoreMetrics;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.rocksdb.FlushOptions;
 import org.rocksdb.Options;
 import org.rocksdb.WriteOptions;
@@ -67,13 +68,15 @@ import org.rocksdb.WriteOptions;
  * timers.
  */
 public class SamzaTimerInternalsFactoryTest {
-  private static KeyValueStore<ByteArray, byte[]> createStore(String name) {
+  @Rule public transient TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+  private KeyValueStore<ByteArray, byte[]> createStore() {
     final Options options = new Options();
     options.setCreateIfMissing(true);
 
     RocksDbKeyValueStore rocksStore =
         new RocksDbKeyValueStore(
-            new File(System.getProperty("java.io.tmpdir") + "/" + name),
+            temporaryFolder.getRoot(),
             options,
             new MapConfig(),
             false,
@@ -137,7 +140,7 @@ public class SamzaTimerInternalsFactoryTest {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
 
-    final KeyValueStore<ByteArray, byte[]> store = createStore("store1");
+    final KeyValueStore<ByteArray, byte[]> store = createStore();
     final SamzaTimerInternalsFactory<String> timerInternalsFactory =
         createTimerInternalsFactory(null, "timer", pipelineOptions, store);
 
@@ -175,7 +178,7 @@ public class SamzaTimerInternalsFactoryTest {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
 
-    KeyValueStore<ByteArray, byte[]> store = createStore("store2");
+    KeyValueStore<ByteArray, byte[]> store = createStore();
     final SamzaTimerInternalsFactory<String> timerInternalsFactory =
         createTimerInternalsFactory(null, "timer", pipelineOptions, store);
 
@@ -195,7 +198,7 @@ public class SamzaTimerInternalsFactoryTest {
     store.close();
 
     // restore by creating a new instance
-    store = createStore("store2");
+    store = createStore();
     final SamzaTimerInternalsFactory<String> restoredFactory =
         createTimerInternalsFactory(null, "timer", pipelineOptions, store);
 
@@ -220,7 +223,7 @@ public class SamzaTimerInternalsFactoryTest {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
 
-    KeyValueStore<ByteArray, byte[]> store = createStore("store3");
+    KeyValueStore<ByteArray, byte[]> store = createStore();
     TestTimerRegistry timerRegistry = new TestTimerRegistry();
 
     final SamzaTimerInternalsFactory<String> timerInternalsFactory =
@@ -243,7 +246,7 @@ public class SamzaTimerInternalsFactoryTest {
     store.close();
 
     // restore by creating a new instance
-    store = createStore("store3");
+    store = createStore();
     TestTimerRegistry restoredRegistry = new TestTimerRegistry();
     final SamzaTimerInternalsFactory<String> restoredFactory =
         createTimerInternalsFactory(restoredRegistry, "timer", pipelineOptions, store);
@@ -264,7 +267,7 @@ public class SamzaTimerInternalsFactoryTest {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
 
-    KeyValueStore<ByteArray, byte[]> store = createStore("store4");
+    KeyValueStore<ByteArray, byte[]> store = createStore();
     final SamzaTimerInternalsFactory<String> timerInternalsFactory =
         createTimerInternalsFactory(null, "timer", pipelineOptions, store);
 

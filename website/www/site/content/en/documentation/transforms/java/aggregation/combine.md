@@ -27,7 +27,7 @@ limitations under the License.
 
 A user-defined `CombineFn` may be applied to combine all elements in a
 `PCollection` (global combine) or to combine all elements associated
-with each key. 
+with each key.
 
 While the result is similar to applying a `GroupByKey` followed by
 aggregating values in each `Iterable`, there is an impact
@@ -75,6 +75,6 @@ PCollection<KV<String, Double>> avgAccuracyPerPlayer =
     new MeanInts())));
 {{< /highlight >}}
 
-## Related transforms 
+## Related transforms
 * [CombineWithContext](/documentation/transforms/java/aggregation/combinewithcontext)
-* [GroupByKey](/documentation/transforms/java/aggregation/groupbykey) 
+* [GroupByKey](/documentation/transforms/java/aggregation/groupbykey)

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.tpcds;
 
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTable;
@@ -30,18 +29,28 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.*;
 import org.apache.commons.csv.CSVFormat;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class executes jobs using PCollection and SqlTransform, it uses SqlTransform.query to run queries.
  */
 public class SqlTransformRunner {
-    private static final String dataDirectory = "gs://beamsql_tpcds_1/data";
-    private static final String resultDirectory = "gs://beamsql_tpcds_1/tpcds_results";
+    private static final String DATA_DIRECTORY = "gs://beamsql_tpcds_1/data";
+    private static final String RESULT_DIRECTORY = "gs://beamsql_tpcds_1/tpcds_results";
+    private static final String SUMMARY_START = "\n" + "TPC-DS Query Execution Summary:";
+    private static final List<String> SUMMARY_HEADERS_LIST = Arrays.asList("Query Name", "Job Name", "Data Size", "Dialect", "Status", "Start Time", "End Time", "Elapsed Time(sec)");
+
+    private static final Logger Log = LoggerFactory.getLogger(SqlTransform.class);
 
     /**
      * Get all tables (in the form of TextTable) needed for a specific query execution
@@ -64,7 +73,7 @@ public class SqlTransformRunner {
             // Only when queryString contains tableName, the table is relevant to this query and will be added. This can avoid reading unnecessary data files.
             if (queryString.contains(tableName)) {
                 // This is location path where the data are stored
-                String filePattern = dataDirectory + "/" + dataSize + "/" + tableName + ".dat";
+                String filePattern = DATA_DIRECTORY + "/" + dataSize + "/" + tableName + ".dat";
 
                 PCollection<Row> table =
                         new TextTable(
@@ -83,6 +92,33 @@ public class SqlTransformRunner {
     }
 
     /**
+     * Print the summary table after all jobs are finished.
+     * @param completion A collection of all TpcdsRunResult that are from finished jobs.
+     * @param numOfResults The number of results in the collection.
+     * @throws Exception
+     */
+    private static void printExecutionSummary(CompletionService<TpcdsRunResult> completion, int numOfResults) throws Exception {
+        List<List<String>> summaryRowsList = new ArrayList<>();
+        for (int i = 0; i < numOfResults; i++) {
+            TpcdsRunResult tpcdsRunResult = completion.take().get();
+            List<String> list = new ArrayList<>();
+            list.add(tpcdsRunResult.getQueryName());
+            list.add(tpcdsRunResult.getJobName());
+            list.add(tpcdsRunResult.getDataSize());
+            list.add(tpcdsRunResult.getDialect());
+            // If the job is not successful, leave the run time related field blank
+            list.add(tpcdsRunResult.getIsSuccessful() ? "Successful" : "Failed");
+            list.add(tpcdsRunResult.getIsSuccessful() ? tpcdsRunResult.getStartDate().toString() : "");
+            list.add(tpcdsRunResult.getIsSuccessful() ? tpcdsRunResult.getEndDate().toString(): "");
+            list.add(tpcdsRunResult.getIsSuccessful() ? Double.toString(tpcdsRunResult.getElapsedTime()) : "");
+            summaryRowsList.add(list);
+        }
+
+        System.out.println(SUMMARY_START);
+        System.out.println(SummaryGenerator.generateTable(SUMMARY_HEADERS_LIST, summaryRowsList));
+    }
+
+    /**
      * This is the default method in BeamTpcds.main method. Run job using SqlTranform.query() method.
      * @param args Command line arguments
      * @throws Exception
@@ -96,7 +132,7 @@ public class SqlTransformRunner {
 
         // Using ExecutorService and CompletionService to fulfill multi-threading functionality
         ExecutorService executor = Executors.newFixedThreadPool(nThreads);
-        CompletionService<PipelineResult> completion = new ExecutorCompletionService<>(executor);
+        CompletionService<TpcdsRunResult> completion = new ExecutorCompletionService<>(executor);
 
         // Make an array of pipelines, each pipeline is responsible for running a corresponding query.
         Pipeline[] pipelines = new Pipeline[queryNameArr.length];
@@ -120,19 +156,26 @@ public class SqlTransformRunner {
             String queryString = QueryReader.readQuery(queryNameArr[i]);
             PCollectionTuple tables = getTables(pipelines[i], csvFormat, queryNameArr[i]);
 
-            tables
-                    .apply(
-                            SqlTransform.query(queryString))
-                    .apply(
-                            MapElements.into(TypeDescriptors.strings()).via((Row row) -> row.toString()))
-                    .apply(TextIO.write()
-                            .to(resultDirectory + "/" + dataSize + "/" + pipelines[i].getOptions().getJobName())
-                            .withSuffix(".txt")
-                            .withNumShards(1));
+            try {
+                tables
+                        .apply(
+                                SqlTransform.query(queryString))
+                        .apply(
+                                MapElements.into(TypeDescriptors.strings()).via((Row row) -> row.toString()))
+                        .apply(TextIO.write()
+                                .to(RESULT_DIRECTORY + "/" + dataSize + "/" + pipelines[i].getOptions().getJobName())
+                                .withSuffix(".txt")
+                                .withNumShards(1));
+            } catch (Exception e) {
+                Log.error("{} failed to execute", queryNameArr[i]);
+                e.printStackTrace();
+            }
 
             completion.submit(new TpcdsRun(pipelines[i]));
         }
 
         executor.shutdown();
+
+        printExecutionSummary(completion, queryNameArr.length);
     }
 }

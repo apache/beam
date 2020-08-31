@@ -45,6 +45,7 @@ from typing import overload
 import grpc
 
 from apache_beam.io import filesystems
+from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
@@ -464,9 +465,13 @@ class GrpcServer(object):
                 self.provision_info.provision_info, worker_manager),
             self.control_server)
 
+      def open_uncompressed(f):
+        return filesystems.FileSystems.open(
+            f, compression_type=CompressionTypes.UNCOMPRESSED)
+
       beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
           artifact_service.ArtifactRetrievalService(
-              file_reader=filesystems.FileSystems.open),
+              file_reader=open_uncompressed),
           self.control_server)
 
     self.data_plane_handler = data_plane.BeamFnDataServicer(

@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+
+# To learn more about GitHub Actions in Apache Beam check the CI.md
 
 name: Build python source distribution and wheels
 
@@ -31,17 +32,17 @@ on:
 
 
 env:
-  GCP_PATH: "gs://beam-wheels-staging/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
+  GCP_PATH: "gs://${{ secrets.GCP_PYTHON_WHEELS_BUCKET }}/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
 
 
 jobs:
 
   check_gcp_variables:
     timeout-minutes: 5
-    name: "Check are GCP variables set"
+    name: "Check GCP variables"
     runs-on: ubuntu-latest
     outputs:
-      are-gcp-variables-set: ${{ steps.check_gcp_variables.outputs.are-gcp-variables-set }}
+      gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
       - uses: actions/checkout@v2
       - name: "Check are GCP variables set"
@@ -50,6 +51,10 @@ jobs:
         env:
           GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          GCP_PYTHON_WHEELS_BUCKET: ${{ secrets.GCP_PYTHON_WHEELS_BUCKET }}
+          GCP_PROJECT_ID: "not-needed-here"
+          GCP_REGION: "not-needed-here"
+          GCP_TESTING_BUCKET: "not-needed-here"
 
   build_source:
     runs-on: ubuntu-latest
@@ -97,7 +102,7 @@ jobs:
       - build_source
       - check_gcp_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true' && github.event_name != 'pull_request'
+    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
       - name: Authenticate on GCP
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -113,7 +118,7 @@ jobs:
       - prepare_gcs
       - check_gcp_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true'
+    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
         uses: actions/download-artifact@v2
@@ -180,7 +185,7 @@ jobs:
       - build_wheels
       - check_gcp_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true' && github.event_name != 'pull_request'
+    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
         os : [ubuntu-latest, macos-latest, windows-latest]
@@ -224,7 +229,7 @@ jobs:
      - upload_wheels_to_gcs
      - check_gcp_variables
     runs-on: ubuntu-latest
-    if: needs.check_gcp_variables.outputs.are-gcp-variables-set == 'true' && github.event_name != 'pull_request'
+    if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Authenticate on GCP
       uses: GoogleCloudPlatform/github-actions/setup-gcloud@master

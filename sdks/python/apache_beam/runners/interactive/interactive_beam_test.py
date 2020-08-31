@@ -86,6 +86,7 @@ class InteractiveBeamTest(unittest.TestCase):
     test_env.watch(self)
     self.assertEqual(ie.current_env().watching(), test_env.watching())
 
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_show_always_watch_given_pcolls(self):
     p = beam.Pipeline(ir.InteractiveRunner())
     # pylint: disable=range-builtin-not-iterating
@@ -96,6 +97,7 @@ class InteractiveBeamTest(unittest.TestCase):
     ib.show(pcoll)
     self.assertTrue(pcoll in _get_watched_pcollections_with_variable_names())
 
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_show_mark_pcolls_computed_when_done(self):
     p = beam.Pipeline(ir.InteractiveRunner())
     # pylint: disable=range-builtin-not-iterating

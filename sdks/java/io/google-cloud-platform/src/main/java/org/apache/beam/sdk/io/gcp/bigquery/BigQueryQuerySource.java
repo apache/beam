@@ -38,8 +38,10 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryQuerySourceDef queryDef,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn) {
-    return new BigQueryQuerySource<>(stepUuid, queryDef, bqServices, coder, parseFn);
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      boolean useAvroLogicalTypes) {
+    return new BigQueryQuerySource<>(
+        stepUuid, queryDef, bqServices, coder, parseFn, useAvroLogicalTypes);
   }
 
   private final BigQueryQuerySourceDef queryDef;
@@ -49,8 +51,9 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryQuerySourceDef queryDef,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn) {
-    super(stepUuid, bqServices, coder, parseFn);
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      boolean useAvroLogicalTypes) {
+    super(stepUuid, bqServices, coder, parseFn, useAvroLogicalTypes);
     this.queryDef = queryDef;
   }
 

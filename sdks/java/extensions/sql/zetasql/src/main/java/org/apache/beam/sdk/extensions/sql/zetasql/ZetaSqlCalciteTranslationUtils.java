@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import com.google.zetasql.CivilTimeEncoder;
 import com.google.zetasql.StructType;
 import com.google.zetasql.StructType.StructField;
 import com.google.zetasql.Type;
@@ -28,7 +27,9 @@ import com.google.zetasql.functions.ZetaSQLDateTime.DateTimestampPart;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
@@ -181,12 +182,15 @@ public final class ZetaSqlCalciteTranslationUtils {
 
   private static List<String> getFieldNameList(List<StructField> fields) {
     ImmutableList.Builder<String> b = ImmutableList.builder();
+    Set<String> usedName = new HashSet<>();
     for (int i = 0; i < fields.size(); i++) {
       String name = fields.get(i).getName();
-      if ("".equals(name)) {
-        name = "$col" + i; // empty field name is not allowed, generate an index-based name for it
+      // Follow the same way that BigQuery handles unspecified or duplicate field name
+      if ("".equals(name) || name.startsWith("_field_") || usedName.contains(name)) {
+        name = "_field_" + (i + 1); // BigQuery uses 1-based default field name
       }
       b.add(name);
+      usedName.add(name);
     }
     return b.build();
   }
@@ -318,14 +322,13 @@ public final class ZetaSqlCalciteTranslationUtils {
   }
 
   private static TimeString timeValueToTimeString(Value value) {
-    LocalTime localTime = CivilTimeEncoder.decodePacked64TimeNanosAsJavaTime(value.getTimeValue());
+    LocalTime localTime = value.getLocalTimeValue();
     return new TimeString(localTime.getHour(), localTime.getMinute(), localTime.getSecond())
         .withNanos(localTime.getNano());
   }
 
   private static TimestampString datetimeValueToTimestampString(Value value) {
-    LocalDateTime dateTime =
-        CivilTimeEncoder.decodePacked96DatetimeNanosAsJavaTime(value.getDatetimeValue());
+    LocalDateTime dateTime = value.getLocalDateTimeValue();
     return new TimestampString(
             dateTime.getYear(),
             dateTime.getMonthValue(),

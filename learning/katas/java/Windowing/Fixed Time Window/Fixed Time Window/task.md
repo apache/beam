@@ -19,15 +19,15 @@
 Fixed Time Window
 -----------------
 
-Windowing subdivides a PCollection according to the timestamps of its individual elements. 
-Transforms that aggregate multiple elements, such as GroupByKey and Combine, work implicitly on a 
-per-window basis — they process each PCollection as a succession of multiple, finite windows, 
+Windowing subdivides a PCollection according to the timestamps of its individual elements.
+Transforms that aggregate multiple elements, such as GroupByKey and Combine, work implicitly on a
+per-window basis — they process each PCollection as a succession of multiple, finite windows,
 though the entire collection itself may be of unbounded size.
 
-In the Beam model, any PCollection (including unbounded PCollections) can be subdivided into 
-logical windows. Each element in a PCollection is assigned to one or more windows according to the 
-PCollection’s windowing function, and each individual window contains a finite number of elements. 
-Grouping transforms then consider each PCollection’s elements on a per-window basis. GroupByKey, 
+In the Beam model, any PCollection (including unbounded PCollections) can be subdivided into
+logical windows. Each element in a PCollection is assigned to one or more windows according to the
+PCollection’s windowing function, and each individual window contains a finite number of elements.
+Grouping transforms then consider each PCollection’s elements on a per-window basis. GroupByKey,
 for example, implicitly groups the elements of a PCollection by key and window.
 
 Beam provides several windowing functions, including:
@@ -36,7 +36,7 @@ Beam provides several windowing functions, including:
 *   Per-Session Windows
 *   Single Global Window
 
-The simplest form of windowing is using fixed time windows. A fixed time window represents a 
+The simplest form of windowing is using fixed time windows. A fixed time window represents a
 consistent duration, non overlapping time interval in the data stream.
 
 **Kata:** Please count the number of events that happened based on fixed window with 1-day duration.

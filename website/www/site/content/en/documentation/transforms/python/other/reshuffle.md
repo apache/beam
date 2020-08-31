@@ -34,7 +34,7 @@ limitations under the License.
  preventing coupled failures.
 
 ## Examples
-See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates. 
+See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates.
 
 ## Related transforms
 N/A

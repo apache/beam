@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -74,6 +75,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIt
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.commons.lang3.SystemUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -577,6 +579,8 @@ public class TextIOWriteTest {
 
   @Test
   public void testWriteDisplayData() {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10737
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     TextIO.Write write =
         TextIO.write()
             .to("/foo")

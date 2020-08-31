@@ -32,7 +32,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
 
       // Publish all test results to Jenkins
       publishers {
-        commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
+        archiveJunit('**/build/test-results/**/*.xml')
       }
 
       // Gradle goals for this job.

@@ -43,7 +43,7 @@ PCollection<Integer> lineLengths = lines.apply(MapElements.via(
 
 **Example 2**: providing the mapping function using a `SerializableFunction`,
 which allows the use of Java 8 lambdas. Due to type erasure, you need
-to provide a hint indicating the desired return type. 
+to provide a hint indicating the desired return type.
 
 {{< highlight java >}}
 PCollection<String> lines = Create.of("Hello World", "Beam is fun");
@@ -52,10 +52,10 @@ PCollection<Integer> lineLengths = lines.apply(MapElements
     .via((String line) -> line.length()));
 {{< /highlight >}}
 
-## Related transforms 
+## Related transforms
 * [FlatMapElements](/documentation/transforms/java/elementwise/flatmapelements) behaves the same as `Map`, but for
   each input it may produce zero or more outputs.
-* [Filter](/documentation/transforms/java/elementwise/filter) is useful if the function is just 
+* [Filter](/documentation/transforms/java/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
 * [ParDo](/documentation/transforms/java/elementwise/pardo) is the most general element-wise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs.

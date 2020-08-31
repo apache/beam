@@ -61,7 +61,7 @@ version of side input data.
 
 To read side input data periodically into distinct PColleciton windows:
 
-1. Use the PeriodicImpulse or PeriodicSequence PTransform to: 
+1. Use the PeriodicImpulse or PeriodicSequence PTransform to:
     * Generate an infinite sequence of elements at required processing time
     intervals
     * Assign them to separate windows.

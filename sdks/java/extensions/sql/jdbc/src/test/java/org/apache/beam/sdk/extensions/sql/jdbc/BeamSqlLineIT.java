@@ -111,7 +111,7 @@ public class BeamSqlLineIT implements Serializable {
                 + "taxi_rides.payload.longitude from taxi_rides LIMIT 3;");
 
     Future<List<List<String>>> expectedResult = runQueryInBackground(args);
-    eventsTopic.checkIfAnySubscriptionExists(project, Duration.standardMinutes(1));
+    eventsTopic.assertSubscriptionEventuallyCreated(project, Duration.standardMinutes(1));
 
     List<PubsubMessage> messages =
         ImmutableList.of(
@@ -150,7 +150,7 @@ public class BeamSqlLineIT implements Serializable {
                 + "         AND taxi_rides.payload.latitude < 40.720 LIMIT 2;");
 
     Future<List<List<String>>> expectedResult = runQueryInBackground(args);
-    eventsTopic.checkIfAnySubscriptionExists(project, Duration.standardMinutes(1));
+    eventsTopic.assertSubscriptionEventuallyCreated(project, Duration.standardMinutes(1));
 
     List<PubsubMessage> messages =
         ImmutableList.of(

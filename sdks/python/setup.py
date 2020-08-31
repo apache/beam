@@ -246,6 +246,12 @@ AZURE_REQUIREMENTS = [
     'azure-core >=1.7.0',
 ]
 
+AZURE_REQUIREMENTS = [
+    'azure-storage-blob >=12.3.2',
+    'azure-core >=1.7.0',
+]
+
+
 
 
 # We must generate protos after setup_requires are installed.

@@ -62,7 +62,6 @@ public class QueryStatementConverter extends RelConverter<ResolvedQueryStmt> {
             .put(RESOLVED_ARRAY_SCAN, new ArrayScanColumnRefToUncollect(context))
             .put(RESOLVED_FILTER_SCAN, new FilterScanConverter(context))
             .put(RESOLVED_JOIN_SCAN, new JoinScanConverter(context))
-            .put(RESOLVED_JOIN_SCAN, new JoinScanWithRefConverter(context))
             .put(RESOLVED_LIMIT_OFFSET_SCAN, new LimitOffsetScanToLimitConverter(context))
             .put(RESOLVED_LIMIT_OFFSET_SCAN, new LimitOffsetScanToOrderByLimitConverter(context))
             .put(RESOLVED_ORDER_BY_SCAN, new OrderByScanUnsupportedConverter(context))

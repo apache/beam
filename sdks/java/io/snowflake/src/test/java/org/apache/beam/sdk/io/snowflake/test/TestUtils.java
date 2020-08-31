@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io.snowflake.test;
 
+import com.google.api.gax.paging.Page;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -165,5 +169,19 @@ public class TestUtils {
     }
 
     return lines;
+  }
+
+  public static void clearStagingBucket(String stagingBucketName, String directory) {
+    Storage storage = StorageOptions.getDefaultInstance().getService();
+    Page<Blob> blobs;
+    if (directory != null) {
+      blobs = storage.list(stagingBucketName, Storage.BlobListOption.prefix(directory));
+    } else {
+      blobs = storage.list(stagingBucketName);
+    }
+
+    for (Blob blob : blobs.iterateAll()) {
+      storage.delete(blob.getBlobId());
+    }
   }
 }

@@ -88,7 +88,7 @@ public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> 
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
-    super(null, null, null, parseFn, outputCoder, bqServices);
+    super(null, null, parseFn, outputCoder, bqServices);
     this.stepUuid = checkNotNull(stepUuid, "stepUuid");
     this.queryProvider = checkNotNull(queryProvider, "queryProvider");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");

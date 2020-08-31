@@ -586,7 +586,7 @@ known as a `CombineFn`.
 ## Working with pipelines
 
 When you receive a pipeline from a user, you will need to translate it. This is
-a tour of the APIs that you'll use to do it.  
+a tour of the APIs that you'll use to do it.
 
 ### Traversing a pipeline
 
