@@ -111,7 +111,10 @@ import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
  *                       //Transforming your T data into KV<String, WriteRequest>
  *                       t -> KV.of(tableName, writeRequest))
  *               .withRetryConfiguration(
- *                    DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
+ *                     DynamoDBIO.RetryConfiguration.builder()
+ *                         .setMaxAttempts(5)
+ *                         .setMaxDuration(Duration.standardMinutes(1))
+ *                         .build())
  *               .withDynamoDbClientProvider(new BasicDynamoDbClientProvider(dynamoDbClientProvider, region));
  * }</pre>
  *
@@ -296,18 +299,29 @@ public final class DynamoDBIO {
     abstract Builder toBuilder();
 
     public static Builder builder() {
-      return new AutoValue_DynamoDBIO_RetryConfiguration.Builder();
+      return new AutoValue_DynamoDBIO_RetryConfiguration.Builder()
+          .setRetryPredicate(DEFAULT_RETRY_PREDICATE);
     }
 
     @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setMaxAttempts(int maxAttempts);
+    public abstract static class Builder {
+      public abstract Builder setMaxAttempts(int maxAttempts);
 
-      abstract Builder setMaxDuration(Duration maxDuration);
+      public abstract Builder setMaxDuration(Duration maxDuration);
 
       abstract Builder setRetryPredicate(RetryPredicate retryPredicate);
 
-      abstract RetryConfiguration build();
+      abstract RetryConfiguration autoBuild();
+
+      public RetryConfiguration build() {
+        RetryConfiguration configuration = autoBuild();
+        checkArgument(configuration.getMaxAttempts() > 0, "maxAttempts should be greater than 0");
+        checkArgument(
+            configuration.getMaxDuration() != null
+                && configuration.getMaxDuration().isLongerThan(Duration.ZERO),
+            "maxDuration should be greater than 0");
+        return configuration;
+      }
     }
 
     /**
@@ -385,7 +399,11 @@ public final class DynamoDBIO {
      *
      * <pre>{@code
      * DynamoDBIO.write()
-     *   .withRetryConfiguration(DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1))
+     *  .withRetryConfiguration(
+     *      DynamoDBIO.RetryConfiguration.builder()
+     *          .setMaxAttempts(4)
+     *          .setMaxDuration(Duration.standardMinutes(1))
+     *          .build())
      *   ...
      * }</pre>
      *
