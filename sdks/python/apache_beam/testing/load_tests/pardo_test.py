@@ -77,7 +77,6 @@ from __future__ import absolute_import
 import logging
 import os
 import time
-from typing import Tuple
 
 import apache_beam as beam
 from apache_beam import pvalue
