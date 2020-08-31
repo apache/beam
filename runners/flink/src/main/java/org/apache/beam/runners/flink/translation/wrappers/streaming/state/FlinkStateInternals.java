@@ -113,6 +113,18 @@ public class FlinkStateInternals<K> implements StateInternals {
     return address.getSpec().bind(address.getId(), new FlinkStateBinder(namespace, context));
   }
 
+  public void clearBagStates(StateNamespace namespace, StateTag<? extends BagState> address)
+      throws Exception {
+    CoderTypeSerializer typeSerializer = new CoderTypeSerializer<>(VoidCoder.of());
+    flinkStateBackend.applyToAllKeys(
+        namespace.stringKey(),
+        StringSerializer.INSTANCE,
+        new ListStateDescriptor<>(address.getId(), typeSerializer),
+        (key, state) -> {
+          state.clear();
+        });
+  }
+
   private class FlinkStateBinder implements StateBinder {
 
     private final StateNamespace namespace;

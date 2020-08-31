@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.iterableWithSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -32,6 +33,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -599,17 +601,33 @@ public class ExecutableStageDoFnOperatorTest {
     KeyedStateBackend keyedStateBackend = Mockito.mock(KeyedStateBackend.class);
     Lock stateBackendLock = Mockito.mock(Lock.class);
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
-    GlobalWindow window = GlobalWindow.INSTANCE;
-    GlobalWindow.Coder windowCoder = GlobalWindow.Coder.INSTANCE;
 
-    // Test that cleanup timer is set correctly
+    // Test that no cleanup timer is set for the global window
+    WindowingStrategy windowingStrategy = WindowingStrategy.globalDefault();
+    BoundedWindow window = GlobalWindow.INSTANCE;
     ExecutableStageDoFnOperator.CleanupTimer cleanupTimer =
         new ExecutableStageDoFnOperator.CleanupTimer<>(
             inMemoryTimerInternals,
             stateBackendLock,
-            WindowingStrategy.globalDefault(),
+            windowingStrategy,
             keyCoder,
-            windowCoder,
+            windowingStrategy.getWindowFn().windowCoder(),
+            keyedStateBackend);
+    cleanupTimer.setForWindow(KV.of("key", "string"), window);
+    Mockito.verify(stateBackendLock, never()).lock();
+    Mockito.verify(stateBackendLock, never()).unlock();
+    assertThat(inMemoryTimerInternals.getNextTimer(TimeDomain.EVENT_TIME), nullValue());
+
+    // Test that cleanup timer is set correctly for non-global window
+    windowingStrategy = WindowingStrategy.of(FixedWindows.of(Duration.millis(10)));
+    window = new IntervalWindow(new Instant(0), new Instant(9));
+    cleanupTimer =
+        new ExecutableStageDoFnOperator.CleanupTimer<>(
+            inMemoryTimerInternals,
+            stateBackendLock,
+            windowingStrategy,
+            keyCoder,
+            windowingStrategy.getWindowFn().windowCoder(),
             keyedStateBackend);
     cleanupTimer.setForWindow(KV.of("key", "string"), window);
 
@@ -831,6 +849,73 @@ public class ExecutableStageDoFnOperatorTest {
 
     testHarness.close();
     verifyNoMoreInteractions(receiver);
+  }
+
+  @Test
+  public void testEnsureStateCleanupOnFinalWatermark() throws Exception {
+    TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
+    DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
+        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, VoidCoder.of());
+
+    StringUtf8Coder keyCoder = StringUtf8Coder.of();
+
+    WindowingStrategy windowingStrategy = WindowingStrategy.globalDefault();
+    Coder<BoundedWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
+
+    KvCoder<String, Integer> kvCoder = KvCoder.of(keyCoder, VarIntCoder.of());
+    ExecutableStageDoFnOperator<Integer, Integer> operator =
+        getOperator(
+            mainOutput,
+            Collections.emptyList(),
+            outputManagerFactory,
+            windowingStrategy,
+            keyCoder,
+            WindowedValue.getFullCoder(kvCoder, windowCoder));
+
+    KeyedOneInputStreamOperatorTestHarness<
+            ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<Integer>>
+        testHarness =
+            new KeyedOneInputStreamOperatorTestHarness(
+                operator,
+                operator.keySelector,
+                new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of()));
+
+    RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
+    when(bundle.getInputReceivers())
+        .thenReturn(
+            ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
+                .put("input", Mockito.mock(FnDataReceiver.class))
+                .build());
+    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(bundle);
+
+    testHarness.open();
+
+    KeyedStateBackend<ByteBuffer> keyedStateBackend = operator.getKeyedStateBackend();
+    ByteBuffer key = FlinkKeyUtils.encodeKey("key1", keyCoder);
+    keyedStateBackend.setCurrentKey(key);
+
+    // create some state which can be cleaned up
+    assertThat(testHarness.numKeyedStateEntries(), is(0));
+    StateNamespace stateNamespace = StateNamespaces.window(windowCoder, GlobalWindow.INSTANCE);
+    BagState<ByteString> state = // State from the SDK Harness is stored as ByteStrings
+        operator.keyedStateInternals.state(
+            stateNamespace, StateTags.bag(stateId, ByteStringCoder.of()));
+    state.add(ByteString.copyFrom("userstate".getBytes(Charsets.UTF_8)));
+    assertThat(testHarness.numKeyedStateEntries(), is(1));
+
+    // Generate final watermark to trigger state cleanup
+    testHarness.processWatermark(
+        new Watermark(BoundedWindow.TIMESTAMP_MAX_VALUE.plus(1).getMillis()));
+
+    assertThat(testHarness.numKeyedStateEntries(), is(0));
+
+    // Close should not repeat state cleanup
+    state.add(ByteString.copyFrom("userstate".getBytes(Charsets.UTF_8)));
+    assertThat(testHarness.numKeyedStateEntries(), is(1));
+
+    testHarness.close();
+
+    assertThat(testHarness.numKeyedStateEntries(), is(1));
   }
 
   @Test
