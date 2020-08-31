@@ -22,22 +22,33 @@ import static com.lyft.streamingplatform.analytics.EventUtils.DB_DATETIME_FORMAT
 import static com.lyft.streamingplatform.analytics.EventUtils.GMT;
 import static com.lyft.streamingplatform.analytics.EventUtils.ISO_DATETIME_FORMATTER;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
+import com.google.common.collect.Lists;
 import com.lyft.streamingplatform.LyftKafkaConsumerBuilder;
 import com.lyft.streamingplatform.LyftKafkaProducerBuilder;
+import com.lyft.streamingplatform.analytics.Event;
 import com.lyft.streamingplatform.analytics.EventField;
+import com.lyft.streamingplatform.eventssource.KinesisAndS3EventSource;
+import com.lyft.streamingplatform.eventssource.config.EventConfig;
+import com.lyft.streamingplatform.eventssource.config.KinesisConfig;
+import com.lyft.streamingplatform.eventssource.config.S3Config;
+import com.lyft.streamingplatform.eventssource.config.SourceContext;
 import com.lyft.streamingplatform.flink.FlinkLyftKinesisConsumer;
 import com.lyft.streamingplatform.flink.InitialRoundRobinKinesisShardAssigner;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAccessor;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.zip.DataFormatException;
@@ -55,9 +66,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -84,6 +97,7 @@ public class LyftFlinkStreamingPortableTranslations {
   private static final String FLINK_KAFKA_URN = "lyft:flinkKafkaInput";
   private static final String FLINK_KAFKA_SINK_URN = "lyft:flinkKafkaSink";
   private static final String FLINK_KINESIS_URN = "lyft:flinkKinesisInput";
+  private static final String FLINK_S3_AND_KINESIS_URN = "lyft:flinkS3AndKinesisInput";
   private static final String BYTES_ENCODING = "bytes";
   private static final String LYFT_BASE64_ZLIB_JSON = "lyft-base64-zlib-json";
 
@@ -93,7 +107,9 @@ public class LyftFlinkStreamingPortableTranslations {
     public boolean test(RunnerApi.PTransform pTransform) {
       return FLINK_KAFKA_URN.equals(PTransformTranslation.urnForTransformOrNull(pTransform))
           || FLINK_KAFKA_SINK_URN.equals(PTransformTranslation.urnForTransformOrNull(pTransform))
-          || FLINK_KINESIS_URN.equals(PTransformTranslation.urnForTransformOrNull(pTransform));
+          || FLINK_KINESIS_URN.equals(PTransformTranslation.urnForTransformOrNull(pTransform))
+          || FLINK_S3_AND_KINESIS_URN.equals(
+              PTransformTranslation.urnForTransformOrNull(pTransform));
     }
   }
 
@@ -103,6 +119,7 @@ public class LyftFlinkStreamingPortableTranslations {
     translatorMap.put(FLINK_KAFKA_URN, this::translateKafkaInput);
     translatorMap.put(FLINK_KAFKA_SINK_URN, this::translateKafkaSink);
     translatorMap.put(FLINK_KINESIS_URN, this::translateKinesisInput);
+    translatorMap.put(FLINK_S3_AND_KINESIS_URN, this::translateS3AndKinesisInputs);
   }
 
   @VisibleForTesting
@@ -355,6 +372,218 @@ public class LyftFlinkStreamingPortableTranslations {
         context
             .getExecutionEnvironment()
             .addSource(source, FlinkLyftKinesisConsumer.class.getSimpleName()));
+  }
+
+  private void translateS3AndKinesisInputs(
+      String id,
+      RunnerApi.Pipeline pipeline,
+      FlinkStreamingPortablePipelineTranslator.StreamingTranslationContext context) {
+    RunnerApi.PTransform pTransform = pipeline.getComponents().getTransformsOrThrow(id);
+
+    ObjectMapper mapper = new ObjectMapper();
+
+    try {
+      JsonNode params = mapper.readTree(pTransform.getSpec().getPayload().toByteArray());
+      Map<?, ?> jsonMap = mapper.convertValue(params, Map.class);
+      String sourceName = (String) jsonMap.get("source_name");
+      Preconditions.checkNotNull(sourceName, "Source name has to be set");
+      Map<String, JsonNode> userKinesisConfig = mapper.convertValue(
+          jsonMap.get("kinesis"), new TypeReference<Map<String, JsonNode>>() {});
+
+      Map<String, JsonNode> userS3Config = mapper.convertValue(
+          jsonMap.get("s3"), new TypeReference<Map<String, JsonNode>>() {});
+
+      List<Map<String, JsonNode>> events = mapper.convertValue(
+          jsonMap.get("events"), new TypeReference<List<Map<String, JsonNode>>>() {});
+
+      KinesisConfig kinesisConfig = getKinesisConfig(userKinesisConfig, mapper);
+      S3Config s3Config = getS3Config(userS3Config);
+      List<EventConfig> eventConfigs = getEventConfigs(events);
+
+      SourceContext sourceContext = new SourceContext.Builder()
+          .withStreamConfig(kinesisConfig)
+          .withS3Config(s3Config)
+          .withEventConfigs(eventConfigs)
+          .withSourceName(sourceName)
+          .build();
+
+      KinesisAndS3EventSource source = new KinesisAndS3EventSource();
+      StreamExecutionEnvironment environment = context.getExecutionEnvironment();
+      Map<String, DataStream<Event>> eventStreams =
+          source.getEventStreams(environment, sourceContext);
+
+      LOG.info("Unioning all the event streams");
+      DataStream<Event> unionedStream = eventStreams.remove(eventConfigs.get(0).eventName);
+      for (Map.Entry<String, DataStream<Event>> entry : eventStreams.entrySet()) {
+        unionedStream = unionedStream.union(entry.getValue());
+      }
+
+      DataStream<WindowedValue<byte[]>> windowedStream = unionedStream
+          .map(new EventToWindowedValue())
+          .name("windowed_value_stream")
+          .uid("windowed_value_stream");
+
+      context.addDataStream(
+          Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+          windowedStream.rebalance());
+
+    } catch (IOException e) {
+      throw new RuntimeException("Could not parse provided source json");
+    }
+
+  }
+
+  @VisibleForTesting
+  List<EventConfig> getEventConfigs(List<Map<String, JsonNode>> events) {
+    List<EventConfig> eventConfigs = Lists.newArrayList();
+    for (Map<String, JsonNode> node : events) {
+      Preconditions.checkNotNull(node.get("name"), "Event name has to be set");
+      EventConfig.Builder builder = new EventConfig.Builder(node.get("name").asText());
+
+      // Add lateness in sec
+      JsonNode latenessInSec = node.get("lateness_in_sec");
+      if (latenessInSec != null) {
+        builder = builder.withLatenessInSec(latenessInSec.asLong());
+      }
+
+      // Add lookback hours
+      JsonNode lookbackDays = node.get("lookback_days");
+      if (lookbackDays != null) {
+        builder = builder.withLookbackInDays(lookbackDays.asInt());
+      }
+
+      eventConfigs.add(builder.build());
+    }
+
+    return eventConfigs;
+  }
+
+  @VisibleForTesting
+  S3Config getS3Config(Map<String, JsonNode> userS3Config) {
+    S3Config.Builder builder = new S3Config.Builder();
+
+    // Add s3 parallelism
+    JsonNode parallelism = userS3Config.get("parallelism");
+    if (parallelism != null) {
+      builder = builder.withParallelism(parallelism.asInt());
+    }
+
+    // Add s3 lookback hours
+    JsonNode lookbackHours = userS3Config.get("lookback_hours");
+    if (lookbackHours != null) {
+      builder = builder.withLookbackHours(lookbackHours.asInt());
+    }
+
+    return builder.build();
+  }
+
+  @VisibleForTesting
+  KinesisConfig getKinesisConfig(
+      Map<String, JsonNode> userKinesisConfig, ObjectMapper mapper) {
+    Properties properties = new Properties();
+    Preconditions.checkNotNull(userKinesisConfig.get("stream"), "Kinesis stream name needs to be set");
+
+    KinesisConfig.Builder builder = new KinesisConfig
+        .Builder(userKinesisConfig.get("stream").asText());
+    // Add kinesis parallelism
+    JsonNode kinesisParallelism = userKinesisConfig.get("parallelism");
+    if (kinesisParallelism != null) {
+      builder = builder.withParallelism(kinesisParallelism.asInt());
+    }
+    // Add kinesis properties
+    Map<String, String> kinesisProps = mapper.convertValue(
+        userKinesisConfig.get("properties"), new TypeReference<Map<String, String>>() {});
+    if (kinesisProps != null) {
+      for (Map.Entry<String ,String> property : kinesisProps.entrySet()) {
+        properties.put(property.getKey(), property.getValue());
+      }
+      builder = builder.withProperties(properties);
+    }
+    // Add kinesis stream start mode
+    JsonNode streamStartMode = userKinesisConfig.get("stream_start_mode");
+    if (streamStartMode != null) {
+      builder = builder.withStreamStartMode(streamStartMode.asText());
+    }
+
+    return builder.build();
+  }
+
+  @VisibleForTesting
+  static class EventToWindowedValue implements MapFunction<Event, WindowedValue<byte[]>> {
+
+    @Override
+    public WindowedValue<byte[]> map(Event value) {
+      return WindowedValue.timestampedValueInGlobalWindow(
+          getBytes(value), new Instant(getTimestamp(value)));
+    }
+
+    long getTimestamp(Event event) {
+      Object occurredAt = event.get(EventField.EventOccurredAt.fieldName());
+      long occurredAtMs = 0L;
+      try {
+        if (occurredAt instanceof String) {
+          occurredAtMs = parseDateTime((String) occurredAt);
+        } else if (occurredAt instanceof Long || occurredAt instanceof Integer) {
+          occurredAtMs = (long) occurredAt;
+        } else if (occurredAt instanceof Timestamp) {
+          occurredAtMs = ((Timestamp) occurredAt).getTime();
+        }
+        else {
+          LOG.warn("Occurred at ts unrecognized");
+        }
+        if (event.contains(EventField.EventLoggedAt.fieldName())) {
+          Object loggedAt = event.get(EventField.EventLoggedAt.fieldName());
+          long loggedAtMs = 0L;
+          if (loggedAt instanceof String) {
+            loggedAtMs = Long.parseLong(
+                event.get(EventField.EventLoggedAt.fieldName()));
+          } else if (loggedAt instanceof Long || loggedAt instanceof Integer) {
+            loggedAtMs = (long) loggedAt;
+          } else if (loggedAt instanceof Timestamp) {
+            loggedAtMs = ((Timestamp) loggedAt).getTime();
+          } else {
+            LOG.warn("Logged at ts unrecognized");
+          }
+          if (loggedAtMs > 0 && loggedAtMs < Integer.MAX_VALUE) {
+            loggedAtMs *= 1000;
+          }
+          if (loggedAtMs != 0) {
+            occurredAtMs = Math.min(occurredAtMs, loggedAtMs);
+          }
+        }
+      } catch (DateTimeParseException | NumberFormatException e) {
+        // skip this event
+        LOG.warn("Skipping event: " + event.get(EventField.EventName.fieldName()));
+      }
+      return occurredAtMs;
+    }
+
+    // TODO: https://jira.lyft.net/browse/STRMCMP-1109
+    private static long parseDateTime(String datetime) {
+      try {
+        DateTimeFormatter formatterToUse =
+            (datetime.length() - datetime.indexOf('.') == 7)
+                ? DB_DATETIME_FORMATTER
+                : BACKUP_DB_DATETIME_FORMATTER;
+        TemporalAccessor temporalAccessor = formatterToUse.parse(datetime);
+        LocalDateTime localDateTime = LocalDateTime.from(temporalAccessor);
+        ZonedDateTime zonedDateTime = ZonedDateTime.of(localDateTime, GMT);
+        return java.time.Instant.from(zonedDateTime).toEpochMilli();
+      } catch (DateTimeParseException e) {
+        return java.time.Instant.from(ISO_DATETIME_FORMATTER.parse(datetime)).toEpochMilli();
+      }
+    }
+
+    private byte[] getBytes(Event event) {
+      ObjectMapper mapper = new ObjectMapper();
+      try {
+        return mapper.writeValueAsBytes(event);
+      } catch (JsonProcessingException e) {
+        LOG.warn("Unable to convert event json to byte[]: " + event.get(
+            EventField.EventName.fieldName()));
+      }
+      return new byte[0];
+    }
   }
 
   /**

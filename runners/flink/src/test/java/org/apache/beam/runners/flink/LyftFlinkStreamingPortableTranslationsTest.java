@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -24,12 +25,27 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Maps;
+import com.google.common.io.Resources;
+import com.lyft.streamingplatform.analytics.Event;
+import com.lyft.streamingplatform.analytics.EventField;
+import com.lyft.streamingplatform.eventssource.config.EventConfig;
+import com.lyft.streamingplatform.eventssource.config.KinesisConfig;
+import com.lyft.streamingplatform.eventssource.config.S3Config;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.Serializable;
+import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.TimeZone;
 import java.util.zip.Deflater;
@@ -326,5 +342,107 @@ public class LyftFlinkStreamingPortableTranslationsTest {
             .build();
 
     return pipeline;
+  }
+
+  @Test
+  public void testGetTimestampFromEvent() {
+    LyftFlinkStreamingPortableTranslations.EventToWindowedValue mapFn =
+        new LyftFlinkStreamingPortableTranslations.EventToWindowedValue();
+
+    Map<String, Serializable> eventFields = Maps.newHashMap();
+    eventFields.put(EventField.EventOccurredAt.fieldName(), "2020-05-05 12:00:00");
+    Event event = new Event(eventFields);
+
+    // Verify if time is String
+    assertEquals(1588680000000L, mapFn.getTimestamp(event));
+
+    eventFields.put(EventField.EventOccurredAt.fieldName(), 1588680000L);
+    event.setFields(eventFields);
+    // Verify if time is Long
+    assertEquals(1588680000L, mapFn.getTimestamp(event));
+
+    Timestamp timestamp = new Timestamp(1588680000L);
+    eventFields.put(EventField.EventOccurredAt.fieldName(), timestamp);
+    event.setFields(eventFields);
+    // Verify if time is Timestamp
+    assertEquals(1588680000L, mapFn.getTimestamp(event));
+
+    eventFields.put(EventField.EventOccurredAt.fieldName(), 3.214F);
+    event.setFields(eventFields);
+    // Verify handling of unrecognized type of occurredAt time
+    assertEquals(0L, mapFn.getTimestamp(event));
+
+    eventFields.put(EventField.EventOccurredAt.fieldName(), "2020-05-05 12:00:00");
+    eventFields.put(EventField.EventLoggedAt.fieldName(), "1588593600");
+    event.setFields(eventFields);
+
+    // Verifies function returns min of occurredAt and loggedAt
+    assertEquals(1588593600000L, mapFn.getTimestamp(event));
+
+    eventFields.put(EventField.EventLoggedAt.fieldName(), 1588593600L);
+    event.setFields(eventFields);
+    assertEquals(1588593600000L, mapFn.getTimestamp(event));
+
+    eventFields.put(EventField.EventLoggedAt.fieldName(), new Timestamp(1588593600L));
+    event.setFields(eventFields);
+    assertEquals(1588593600000L, mapFn.getTimestamp(event));
+  }
+
+  @Test
+  public void testGetEventConfigs() throws IOException {
+    LyftFlinkStreamingPortableTranslations translations =
+        new LyftFlinkStreamingPortableTranslations();
+    ObjectMapper mapper = new ObjectMapper();
+    Map<?, ?> jsonMap = getJsonMap(mapper);
+    List<Map<String, JsonNode>> events = mapper.convertValue(
+        jsonMap.get("events"), new TypeReference<List<Map<String, JsonNode>>>() {});
+
+    List<EventConfig> eventConfigs = translations.getEventConfigs(events);
+
+    assertEquals(1, eventConfigs.size());
+    EventConfig event = eventConfigs.get(0);
+    assertEquals("test_event", event.eventName);
+    assertEquals(5, event.latenessInSeconds);
+    assertEquals(1, event.lookbackInDays);
+  }
+
+  @Test
+  public void testGetKinesisConfig() throws IOException {
+    LyftFlinkStreamingPortableTranslations translations =
+        new LyftFlinkStreamingPortableTranslations();
+    ObjectMapper mapper = new ObjectMapper();
+    Map<?, ?> jsonMap = getJsonMap(mapper);
+    Map<String, JsonNode> userKinesisConfig = mapper.convertValue(
+        jsonMap.get("kinesis"), new TypeReference<Map<String, JsonNode>>() {});
+
+    KinesisConfig kinesisConfig =
+        translations.getKinesisConfig(userKinesisConfig, mapper);
+
+    assertEquals("kinesis_stream", kinesisConfig.getStreamName());
+    assertEquals(1, kinesisConfig.getParallelism());
+    assertEquals("LATEST", kinesisConfig.getStreamStartMode());
+    assertEquals("us-west-2", kinesisConfig.getProperties().getProperty("aws.region"));
+  }
+
+  @Test
+  public void testGetS3Config() throws IOException {
+    LyftFlinkStreamingPortableTranslations translations =
+        new LyftFlinkStreamingPortableTranslations();
+    ObjectMapper mapper = new ObjectMapper();
+    Map<?, ?> jsonMap = getJsonMap(mapper);
+    Map<String, JsonNode> userS3Config = mapper.convertValue(
+        jsonMap.get("s3"), new TypeReference<Map<String, JsonNode>>() {});
+
+    S3Config s3Config = translations.getS3Config(userS3Config);
+    assertEquals(1, s3Config.parallelism);
+    assertEquals(12, s3Config.lookbackHours);
+  }
+
+  private Map<?, ?> getJsonMap(ObjectMapper mapper) throws IOException {
+    URL url = LyftFlinkStreamingPortableTranslationsTest.class.getResource(
+        "/s3_and_kinesis_config.json");
+    String eventsStr = Resources.toString(url, StandardCharsets.UTF_8);
+    JsonNode jsonNode = mapper.readTree(eventsStr);
+    return mapper.convertValue(jsonNode, Map.class);
   }
 }
