@@ -178,7 +178,8 @@ class ReadBigQuerySourcePTransformOverride(PTransformOverride):
         query=source.query,
         table=source.table_reference,
         use_standard_sql=not source.use_legacy_sql,
-        kms_key=source.kms_key)
+        kms_key=source.kms_key).with_output_types(
+            ptransform.source.coder.to_type_hint())
 
 
 class NativeReadPTransformOverride(PTransformOverride):

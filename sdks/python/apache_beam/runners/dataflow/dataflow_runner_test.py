@@ -260,18 +260,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                     PipelineOptions(self.default_properties)) as p:
         _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
 
-  def test_biqquery_read_fn_api_fail(self):
-    remote_runner = DataflowRunner()
-    for flag in ['beam_fn_api', 'use_unified_worker', 'use_runner_v2']:
-      self.default_properties.append("--experiments=%s" % flag)
-      with self.assertRaisesRegex(
-          ValueError,
-          'The Read.BigQuerySource.*is not supported.*'
-          'apache_beam.io.gcp.bigquery.ReadFromBigQuery.*'):
-        with Pipeline(remote_runner,
-                      PipelineOptions(self.default_properties)) as p:
-          _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
-
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
     p = Pipeline(
@@ -636,16 +624,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
     self.expect_correct_override(runner.job, u'Create/Read', u'ParallelRead')
 
-  def test_read_bigquery_translation(self):
-    runner = DataflowRunner()
-
-    with beam.Pipeline(runner=runner,
-                       options=PipelineOptions(self.default_properties)) as p:
-      # pylint: disable=expression-not-assigned
-      p | beam.io.Read(beam.io.BigQuerySource('some.table', coder=BytesCoder()))
-
-    self.expect_correct_override(runner.job, u'Read', u'ParallelRead')
-
   def test_read_pubsub_translation(self):
     runner = DataflowRunner()
 
@@ -708,7 +686,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         s for s in job_dict[u'steps']
         if s[u'properties'][u'user_name'].startswith('TestedRead')
     ][0]
-    print(read_step)
     self.assertEqual('ParallelRead', read_step['kind'])
     source_name = [
         dd['shortValue'] for dd in read_step['properties']['display_data']
