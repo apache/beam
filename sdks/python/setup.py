@@ -106,6 +106,7 @@ if StrictVersion(_PIP_VERSION) < StrictVersion(REQUIRED_PIP_VERSION):
       )
   )
 
+
 REQUIRED_CYTHON_VERSION = '0.28.1'
 try:
   _CYTHON_VERSION = get_distribution('cython').version
@@ -202,12 +203,14 @@ GCP_REQUIREMENTS = [
     'google-apitools>=0.5.31,<0.5.32',
     'google-auth>=1.18.0,<2',
     'google-cloud-datastore>=1.7.1,<2',
-    'google-cloud-pubsub>=0.39.0,<2',  # GCP packages required by tests
+    'google-cloud-pubsub>=0.39.0,<2',
+    # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<2',
     'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<2',
     'google-cloud-spanner>=1.13.0,<2',
-    'grpcio-gcp>=0.2.2,<1',  # GCP Packages required by ML functionality
+    'grpcio-gcp>=0.2.2,<1',
+    # GCP Packages required by ML functionality
     'google-cloud-dlp>=0.12.0,<2',
     'google-cloud-language>=1.3.0,<2',
     'google-cloud-videointelligence>=1.8.0,<2',
@@ -225,7 +228,8 @@ INTERACTIVE_BEAM_TEST = [
     # notebok utils
     'nbformat>=5.0.5,<6',
     'nbconvert>=5.6.1,<6',
-    'jupyter-client>=6.1.2,<7',  # headless chrome based integration tests
+    'jupyter-client>=6.1.2,<7',
+    # headless chrome based integration tests
     'selenium>=3.141.0,<4',
     'needle>=0.5.0,<1',
     'chromedriver-binary>=83,<84',
@@ -233,12 +237,15 @@ INTERACTIVE_BEAM_TEST = [
     'pillow>=7.1.1,<8',
 ]
 
-AWS_REQUIREMENTS = ['boto3 >=1.9']
+AWS_REQUIREMENTS = [
+  'boto3 >=1.9'
+]
 
 AZURE_REQUIREMENTS = [
     'azure-storage-blob >=12.3.2',
     'azure-core >=1.7.0',
 ]
+
 
 
 # We must generate protos after setup_requires are installed.
@@ -252,7 +259,6 @@ def generate_protos_first(original_cmd):
       def run(self):
         gen_protos.generate_proto_files()
         super(cmd, self).run()
-
     return cmd
   except ImportError:
     warnings.warn("Could not import gen_protos, skipping proto generation.")
@@ -287,18 +293,9 @@ setuptools.setup(
     author=PACKAGE_AUTHOR,
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
-    package_data={
-        'apache_beam': [
-            '*/*.pyx',
-            '*/*/*.pyx',
-            '*/*.pxd',
-            '*/*/*.pxd',
-            '*/*.h',
-            '*/*/*.h',
-            'testing/data/*.yaml',
-            'portability/api/*.yaml'
-        ]
-    },
+    package_data={'apache_beam': [
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', '*/*.h', '*/*/*.h',
+        'testing/data/*.yaml', 'portability/api/*.yaml']},
     ext_modules=cythonize([
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
@@ -346,8 +343,7 @@ setuptools.setup(
     entry_points={
         'nose.plugins.0.10': [
             'beam_test_plugin = test_config:BeamTestPlugin',
-        ]
-    },
+        ]},
     cmdclass={
         'build_py': generate_protos_first(build_py),
         'develop': generate_protos_first(develop),
