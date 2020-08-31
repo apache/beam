@@ -267,6 +267,18 @@ class BlobStorageFileSystemTest(unittest.TestCase):
     self.fs.azfs.rename_files.assert_called_once_with(src_dest_pairs)
 
 
+class BlobStorageFileSystemPipelineOptionsTest(unittest.TestCase):
+  """Test pipeline options."""
+  def test_pipeline_options(self):
+    with self.assertRaisesRegex(ValueError, r'azfs_connection_string'):
+      self.fs = blobstoragefilesystem.BlobStorageFileSystem(
+          pipeline_options={'use_local_azurite': True})
+
+    with self.assertRaisesRegex(ValueError, r'azfs_connection_string'):
+      self.fs = blobstoragefilesystem.BlobStorageFileSystem(
+          pipeline_options={'azfs_connection_string': None})
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

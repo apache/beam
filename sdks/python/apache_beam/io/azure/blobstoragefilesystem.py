@@ -30,6 +30,7 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
 from apache_beam.options.pipeline_options import AzureFileSystemOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
 __all__ = ['BlobStorageFileSystem']
 
@@ -57,9 +58,13 @@ class BlobStorageFileSystem(FileSystem):
     else:
       if pipeline_options is None:
         raise ValueError('Pipeline options is not set.')
-      azfs_options = pipeline_options.view_as(AzureFileSystemOptions)
-      azfs_connection_string = azfs_options.azfs_connection_string
-      azfs_use_local_azurite = azfs_options.use_local_azurite
+      if isinstance(pipeline_options, PipelineOptions):
+        azfs_options = pipeline_options.view_as(AzureFileSystemOptions)
+        azfs_connection_string = azfs_options.azfs_connection_string
+        azfs_use_local_azurite = azfs_options.use_local_azurite
+      else:
+        azfs_connection_string = pipeline_options.get('azfs_connection_string')
+        azfs_use_local_azurite = pipeline_options.get('use_local_azurite', False)
 
       if azfs_connection_string is None:
         raise ValueError('azfs_connection_string is not set.')
