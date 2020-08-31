@@ -316,13 +316,24 @@ public class GcsUtil {
     return ret.build();
   }
 
-  /** Lists {@link Objects} given the {@code bucket}, {@code prefix}, {@code pageToken}. */
   public Objects listObjects(String bucket, String prefix, @Nullable String pageToken)
+      throws IOException {
+    return listObjects(bucket, prefix, pageToken, null);
+  }
+
+  /**
+   * Lists {@link Objects} given the {@code bucket}, {@code prefix}, {@code pageToken}.
+   *
+   * <p>For more details, see https://cloud.google.com/storage/docs/json_api/v1/objects/list.
+   */
+  public Objects listObjects(
+      String bucket, String prefix, @Nullable String pageToken, @Nullable String delimiter)
       throws IOException {
     // List all objects that start with the prefix (including objects in sub-directories).
     Storage.Objects.List listObject = storageClient.objects().list(bucket);
     listObject.setMaxResults(MAX_LIST_ITEMS_PER_CALL);
     listObject.setPrefix(prefix);
+    listObject.setDelimiter(delimiter);
 
     if (pageToken != null) {
       listObject.setPageToken(pageToken);
