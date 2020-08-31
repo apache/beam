@@ -106,7 +106,6 @@ if StrictVersion(_PIP_VERSION) < StrictVersion(REQUIRED_PIP_VERSION):
       )
   )
 
-
 REQUIRED_CYTHON_VERSION = '0.28.1'
 try:
   _CYTHON_VERSION = get_distribution('cython').version
@@ -154,18 +153,18 @@ REQUIRED_PACKAGES = [
     'oauth2client>=2.0.1,<4',
     'protobuf>=3.12.2,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
-    ('pyarrow>=0.15.1,<0.18.0; python_version >= "3.0" or '
-     'platform_system != "Windows"'),
+    (
+        'pyarrow>=0.15.1,<0.18.0; python_version >= "3.0" or '
+        'platform_system != "Windows"'),
     'pydot>=1.2.0,<2',
     'python-dateutil>=2.8.0,<3',
-    'pytz>=2018.3',
-    # [BEAM-5628] Beam VCF IO is not supported in Python 3.
+    'pytz>=2018.3',  # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
     # fixes and additions have been made since typing 3.5
     'requests>=2.24.0,<3.0.0',
     'typing>=3.7.0,<3.8.0; python_full_version < "3.5.3"',
     'typing-extensions>=3.7.0,<3.8.0',
-    ]
+]
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
@@ -196,21 +195,19 @@ REQUIRED_TEST_PACKAGES = [
     'psycopg2-binary>=2.8.5,<3.0.0; python_version >= "3.5"',
     # testcontainers is used only for running xlang jdbc test so limit to Py3
     'testcontainers>=3.0.3,<4.0.0; python_version >= "3.5"',
-    ]
+]
 
 GCP_REQUIREMENTS = [
     'cachetools>=3.1.0,<4',
     'google-apitools>=0.5.31,<0.5.32',
     'google-auth>=1.18.0,<2',
     'google-cloud-datastore>=1.7.1,<2',
-    'google-cloud-pubsub>=0.39.0,<2',
-    # GCP packages required by tests
+    'google-cloud-pubsub>=0.39.0,<2',  # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<2',
     'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<2',
     'google-cloud-spanner>=1.13.0,<2',
-    'grpcio-gcp>=0.2.2,<1',
-    # GCP Packages required by ML functionality
+    'grpcio-gcp>=0.2.2,<1',  # GCP Packages required by ML functionality
     'google-cloud-dlp>=0.12.0,<2',
     'google-cloud-language>=1.3.0,<2',
     'google-cloud-videointelligence>=1.8.0,<2',
@@ -228,8 +225,7 @@ INTERACTIVE_BEAM_TEST = [
     # notebok utils
     'nbformat>=5.0.5,<6',
     'nbconvert>=5.6.1,<6',
-    'jupyter-client>=6.1.2,<7',
-    # headless chrome based integration tests
+    'jupyter-client>=6.1.2,<7',  # headless chrome based integration tests
     'selenium>=3.141.0,<4',
     'needle>=0.5.0,<1',
     'chromedriver-binary>=83,<84',
@@ -237,15 +233,12 @@ INTERACTIVE_BEAM_TEST = [
     'pillow>=7.1.1,<8',
 ]
 
-AWS_REQUIREMENTS = [
-    'boto3 >=1.9'
-]
+AWS_REQUIREMENTS = ['boto3 >=1.9']
 
 AZURE_REQUIREMENTS = [
     'azure-storage-blob >=12.3.2',
     'azure-core >=1.7.0',
 ]
-
 
 
 # We must generate protos after setup_requires are installed.
@@ -259,6 +252,7 @@ def generate_protos_first(original_cmd):
       def run(self):
         gen_protos.generate_proto_files()
         super(cmd, self).run()
+
     return cmd
   except ImportError:
     warnings.warn("Could not import gen_protos, skipping proto generation.")
@@ -269,14 +263,19 @@ python_requires = '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
 
 if sys.version_info.major == 2:
   warnings.warn(
-      'You are using Apache Beam with Python 2. '
-      'New releases of Apache Beam will soon support Python 3 only.')
+      'You are using the final Apache Beam release with Python 2 support. '
+      'New releases of Apache Beam will require Python 3.6 or a newer version.')
+
+if sys.version_info.major == 3 and sys.version_info.minor == 5:
+  warnings.warn(
+      'You are using the final Apache Beam release with Python 3.5 support. '
+      'New releases of Apache Beam will require Python 3.6 or a newer version.')
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 9:
   warnings.warn(
       'This version of Apache Beam has not been sufficiently tested on '
-      'Python %s.%s. You may encounter bugs or missing features.' % (
-          sys.version_info.major, sys.version_info.minor))
+      'Python %s.%s. You may encounter bugs or missing features.' %
+      (sys.version_info.major, sys.version_info.minor))
 
 setuptools.setup(
     name=PACKAGE_NAME,
@@ -288,9 +287,18 @@ setuptools.setup(
     author=PACKAGE_AUTHOR,
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
-    package_data={'apache_beam': [
-        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', '*/*.h', '*/*/*.h',
-        'testing/data/*.yaml', 'portability/api/*.yaml']},
+    package_data={
+        'apache_beam': [
+            '*/*.pyx',
+            '*/*/*.pyx',
+            '*/*.pxd',
+            '*/*/*.pxd',
+            '*/*.h',
+            '*/*/*.h',
+            'testing/data/*.yaml',
+            'portability/api/*.yaml'
+        ]
+    },
     ext_modules=cythonize([
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
@@ -338,7 +346,8 @@ setuptools.setup(
     entry_points={
         'nose.plugins.0.10': [
             'beam_test_plugin = test_config:BeamTestPlugin',
-        ]},
+        ]
+    },
     cmdclass={
         'build_py': generate_protos_first(build_py),
         'develop': generate_protos_first(develop),
