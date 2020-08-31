@@ -280,8 +280,9 @@ class Pipeline(object):
         # type: (AppliedPTransform) -> None
         if override.matches(original_transform_node):
           assert isinstance(original_transform_node, AppliedPTransform)
-          replacement_transform = override.get_replacement_transform_for_applied_ptransform(
-              original_transform_node)
+          replacement_transform = (
+              override.get_replacement_transform_for_applied_ptransform(
+                  original_transform_node))
           if replacement_transform is original_transform_node.transform:
             return
 
