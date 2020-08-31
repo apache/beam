@@ -87,11 +87,10 @@ class BackgroundCachingJob(object):
     return any([l.is_triggered() for l in self._limiters])
 
   def is_done(self):
-    is_terminated = self._pipeline_result.state is PipelineState.DONE
+    is_terminated = self._pipeline_result.state in (
+        PipelineState.DONE, PipelineState.CANCELLED)
     is_triggered = self._should_end_condition_checker()
-    is_cancelling = (
-        self._pipeline_result.state in (
-            PipelineState.CANCELLED, PipelineState.CANCELLING))
+    is_cancelling = self._pipeline_result.state is PipelineState.CANCELLING
     return is_terminated or (is_triggered and is_cancelling)
 
   def is_running(self):
@@ -103,6 +102,7 @@ class BackgroundCachingJob(object):
     if not PipelineState.is_terminal(self._pipeline_result.state):
       try:
         self._pipeline_result.cancel()
+        self._pipeline_result.wait_until_finish()
       except NotImplementedError:
         # Ignore the cancel invocation if it is never implemented by the runner.
         pass
