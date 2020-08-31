@@ -414,6 +414,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def proto_google_common_protos_version = "1.17.0"
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
+    def slf4j_version = "1.7.30"
     def spark_version = "2.4.6"
     def spotbugs_version = "4.0.6"
     def testcontainers_localstack_version = "1.14.3"
@@ -556,10 +557,10 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_pubsublite_v1            : "com.google.api.grpc:proto-google-cloud-pubsublite-v1:$google_cloud_pubsublite_version",
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:$google_cloud_spanner_version",
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
-        slf4j_api                                   : "org.slf4j:slf4j-api:1.7.25",
-        slf4j_simple                                : "org.slf4j:slf4j-simple:1.7.25",
-        slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:1.7.25",
-        slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:1.7.25",
+        slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
+        slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
+        slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:$slf4j_version",
+        slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:$slf4j_version",
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.4",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark_version",
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
