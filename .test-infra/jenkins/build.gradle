@@ -20,3 +20,32 @@ plugins {
   id 'org.apache.beam.module'
 }
 applyGroovyNature()
+applyPythonNature()
+
+pythonVersion = '3.8'
+
+task generateMetricsReport {
+  dependsOn setupVirtualenv
+  def metricsReportFilename = "beam-metrics_report.html"
+  def generateMetricsReportDir = "${rootDir}/.test-infra/jenkins/metrics_report"
+  def generateMetricsReportPath = "${generateMetricsReportDir}/${metricsReportFilename}"
+  def toxConfigFilePath = "${rootDir}/.test-infra/jenkins/metrics_report/tox.ini"
+
+  def influxDb = project.findProperty('influxDb')
+  def influxHost = project.findProperty('influxHost')
+  def influxPort = project.findProperty('influxPort')
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && tox -e py38-test -c ${toxConfigFilePath}"
+    }
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && tox -e py38-generate-report -c ${toxConfigFilePath} -- --influx-db=${influxDb} --influx-host=${influxHost} --influx-port=${influxPort} --output-file=${generateMetricsReportPath}"
+    }
+    logger.info('Create metrics report file {}', generateMetricsReportPath)
+  }
+  outputs.file "${generateMetricsReportPath}"
+}
+build.dependsOn generateMetricsReport

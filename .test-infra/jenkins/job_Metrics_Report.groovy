@@ -27,6 +27,10 @@ job('beam_Metrics_Report') {
       delegate, 'master', 100, true, 'beam', false)
   InfluxDBCredentialsHelper.useCredentials(delegate)
 
+  def influxDb = InfluxDBCredentialsHelper.InfluxDBDatabaseName
+  def influxHost = InfluxDBCredentialsHelper.InfluxDBHost
+  def influxPort = InfluxDBCredentialsHelper.InfluxDBPort
+
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
@@ -41,11 +45,14 @@ job('beam_Metrics_Report') {
       '0 12 * * 1')
 
   steps {
-    shell('cd ' + commonJobProperties.checkoutDir +
-        ' && bash .test-infra/jenkins/metrics_report/generate_report.sh ' +
-        InfluxDBCredentialsHelper.InfluxDBDatabaseName + ' ' +
-        InfluxDBCredentialsHelper.InfluxDBHost + ' ' +
-        InfluxDBCredentialsHelper.InfluxDBPort)
+   gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      commonJobProperties.setGradleSwitches(delegate)
+      switches("-PinfluxDb=${influxDb}")
+      switches("-PinfluxHost=${influxHost}")
+      switches("-PinfluxPort=${influxPort}")
+      tasks(':beam-test-jenkins:generateMetricsReport')
+    }
   }
 
   def date = new Date().format('yyyy-MM-dd')
@@ -60,7 +67,6 @@ job('beam_Metrics_Report') {
         }
       }
     }
-
     archiveArtifacts {
       pattern('src/.test-infra/jenkins/metrics_report/beam-metrics_report.html')
       onlyIfSuccessful()

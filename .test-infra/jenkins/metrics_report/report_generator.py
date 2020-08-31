@@ -28,12 +28,9 @@ from dashboards_parser import guess_dashboard_by_measurement
 INFLUXDB_USER = os.getenv("INFLUXDB_USER")
 INFLUXDB_USER_PASSWORD = os.getenv("INFLUXDB_USER_PASSWORD")
 WORKING_SPACE = os.getenv("WORKSPACE", "")
-FINAL_REPORT = os.path.join(
-    WORKING_SPACE,
-    "/src/.test-infra/jenkins/metrics_report/beam-metrics_report.html")
 PERF_DASHBOARDS = os.path.join(
     WORKING_SPACE,
-    "/src/.test-infra/metrics/grafana/dashboards/perftests_metrics/")
+    "src/.test-infra/metrics/grafana/dashboards/perftests_metrics/")
 
 TABLE_FIELD_NAMES = [
     "Measurement",
@@ -74,14 +71,16 @@ def parse_arguments():
   parser.add_argument("--influx-host", required=True)
   parser.add_argument("--influx-port", required=True)
   parser.add_argument("--influx-db", required=True)
+  parser.add_argument("--output-file", required=True)
 
   args = parser.parse_args()
 
   influx_host = args.influx_host
   influx_port = args.influx_port
   influx_db = args.influx_db
+  output_file = args.output_file
 
-  return influx_host, influx_port, influx_db
+  return influx_host, influx_port, influx_db, output_file
 
 
 def get_retention_policies_names(client, database):
@@ -195,21 +194,21 @@ def print_table(data):
   print(table)
 
 
-def generate_report(data):
-  logging.info("Generating {}".format(FINAL_REPORT))
+def generate_report(data, output_file):
+  logging.info("Generating {}".format(output_file))
   env = jinja2.Environment(
       loader=jinja2.FileSystemLoader(
           os.path.join(
               os.path.dirname(os.path.realpath(__file__)), "templates")),
   )
   template = env.get_template("Metrics_Report.template")
-  with open(FINAL_REPORT, "w") as file:
+  with open(output_file, "w") as file:
     file.write(template.render(headers=TABLE_FIELD_NAMES, metrics_data=data))
-  logging.info("{} saved.".format(FINAL_REPORT))
+  logging.info("{} saved.".format(output_file))
 
 
 def main():
-  influx_host, influx_port, influx_db = parse_arguments()
+  influx_host, influx_port, influx_db, output_file = parse_arguments()
 
   client = InfluxDBClient(
       host=influx_host,
@@ -221,7 +220,7 @@ def main():
 
   data = get_metrics_data(client, influx_db)
   print_table(data)
-  generate_report(data)
+  generate_report(data, output_file)
 
 
 if __name__ == "__main__":
