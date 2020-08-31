@@ -1642,43 +1642,45 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .build());
     }
 
-    ByteString.Output primaryBytes = ByteString.newOutput();
-    ByteString.Output residualBytes = ByteString.newOutput();
-    try {
-      fullInputCoder.encode(windowedSplitResult.getPrimarySplitRoot(), primaryBytes);
-      fullInputCoder.encode(windowedSplitResult.getResidualSplitRoot(), residualBytes);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    primaryRoots.add(
-        BundleApplication.newBuilder()
-            .setTransformId(pTransformId)
-            .setInputId(mainInputId)
-            .setElement(primaryBytes.toByteString())
-            .build());
-    BundleApplication.Builder residualApplication =
-        BundleApplication.newBuilder()
-            .setTransformId(pTransformId)
-            .setInputId(mainInputId)
-            .setElement(residualBytes.toByteString());
-    Map<String, org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp>
-        outputWatermarkMap = new HashMap<>();
-    if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
-      org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp outputWatermark =
-          org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
-              .setSeconds(watermarkAndState.getKey().getMillis() / 1000)
-              .setNanos((int) (watermarkAndState.getKey().getMillis() % 1000) * 1000000)
-              .build();
-      for (String outputId : pTransform.getOutputsMap().keySet()) {
-        outputWatermarkMap.put(outputId, outputWatermark);
+    if (windowedSplitResult.getResidualSplitRoot() != null) {
+      ByteString.Output primaryBytes = ByteString.newOutput();
+      ByteString.Output residualBytes = ByteString.newOutput();
+      try {
+        fullInputCoder.encode(windowedSplitResult.getPrimarySplitRoot(), primaryBytes);
+        fullInputCoder.encode(windowedSplitResult.getResidualSplitRoot(), residualBytes);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
       }
+      primaryRoots.add(
+          BundleApplication.newBuilder()
+              .setTransformId(pTransformId)
+              .setInputId(mainInputId)
+              .setElement(primaryBytes.toByteString())
+              .build());
+      BundleApplication.Builder residualApplication =
+          BundleApplication.newBuilder()
+              .setTransformId(pTransformId)
+              .setInputId(mainInputId)
+              .setElement(residualBytes.toByteString());
+      Map<String, org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp>
+          outputWatermarkMap = new HashMap<>();
+      if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
+        org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp outputWatermark =
+            org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                .setSeconds(watermarkAndState.getKey().getMillis() / 1000)
+                .setNanos((int) (watermarkAndState.getKey().getMillis() % 1000) * 1000000)
+                .build();
+        for (String outputId : pTransform.getOutputsMap().keySet()) {
+          outputWatermarkMap.put(outputId, outputWatermark);
+        }
+      }
+      residualApplication.putAllOutputWatermarks(outputWatermarkMap);
+      residualRoots.add(
+          DelayedBundleApplication.newBuilder()
+              .setApplication(residualApplication)
+              .setRequestedTimeDelay(Durations.fromMillis(resumeDelay.getMillis()))
+              .build());
     }
-    residualApplication.putAllOutputWatermarks(outputWatermarkMap);
-    residualRoots.add(
-        DelayedBundleApplication.newBuilder()
-            .setApplication(residualApplication)
-            .setRequestedTimeDelay(Durations.fromMillis(resumeDelay.getMillis()))
-            .build());
 
     return HandlesSplits.SplitResult.of(primaryRoots, residualRoots);
   }
