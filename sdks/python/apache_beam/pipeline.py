@@ -1333,8 +1333,8 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
     """
     raise NotImplementedError
 
-  def get_replacement_transform_for_applied_ptransform(self,
-                                                       applied_ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
     # type: (AppliedPTransform) -> ptransform.PTransform
 
     """Provides a runner specific override for a given `AppliedPTransform`.

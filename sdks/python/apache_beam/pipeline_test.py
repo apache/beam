@@ -374,8 +374,8 @@ class PipelineTest(unittest.TestCase):
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
-      def get_replacement_transform_for_applied_ptransform(self,
-                                                           applied_ptransform):
+      def get_replacement_transform_for_applied_ptransform(
+          self, applied_ptransform):
         ptransform = applied_ptransform.transform
         if isinstance(ptransform, DoubleParDo):
           return TripleParDo()
@@ -393,16 +393,16 @@ class PipelineTest(unittest.TestCase):
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
-      def get_replacement_transform_for_applied_ptransform(self,
-                                                           applied_ptransform):
+      def get_replacement_transform_for_applied_ptransform(
+          self, applied_ptransform):
         return ToStringParDo()
 
     class WithTypeHintOverride(PTransformOverride):
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
-      def get_replacement_transform_for_applied_ptransform(self,
-                                                           applied_ptransform):
+      def get_replacement_transform_for_applied_ptransform(
+          self, applied_ptransform):
         return ToStringParDo().with_input_types(int).with_output_types(str)
 
     for override, expected_type in [(NoTypeHintOverride(), typehints.Any),
@@ -445,8 +445,8 @@ class PipelineTest(unittest.TestCase):
       def matches(self, applied_ptransform):
         return applied_ptransform.full_label == 'MyMultiOutput'
 
-      def get_replacement_transform_for_applied_ptransform(self,
-                                                           applied_ptransform):
+      def get_replacement_transform_for_applied_ptransform(
+          self, applied_ptransform):
         return MultiOutputComposite()
 
     def mux_input(x):

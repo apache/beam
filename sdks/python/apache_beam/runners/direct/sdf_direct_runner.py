@@ -67,8 +67,8 @@ class SplittableParDoOverride(PTransformOverride):
       signature = DoFnSignature(transform.fn)
       return signature.is_splittable_dofn()
 
-  def get_replacement_transform_for_applied_ptransform(self,
-                                                       applied_ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
     ptransform = applied_ptransform.transform
     assert isinstance(ptransform, ParDo)
     do_fn = ptransform.fn
@@ -206,8 +206,8 @@ class ProcessKeyedElementsViaKeyedWorkItemsOverride(PTransformOverride):
   def matches(self, applied_ptransform):
     return isinstance(applied_ptransform.transform, ProcessKeyedElements)
 
-  def get_replacement_transform_for_applied_ptransform(self,
-                                                       applied_ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
     return ProcessKeyedElementsViaKeyedWorkItems(applied_ptransform.transform)
 
 

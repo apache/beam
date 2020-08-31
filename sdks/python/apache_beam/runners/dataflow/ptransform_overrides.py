@@ -40,8 +40,8 @@ class CreatePTransformOverride(PTransformOverride):
     else:
       return False
 
-  def get_replacement_transform_for_applied_ptransform(self,
-                                                       applied_ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam import PTransform
@@ -54,8 +54,7 @@ class CreatePTransformOverride(PTransformOverride):
       def expand(self, pbegin):
         return pbegin | ptransform.as_read()
 
-    return LegacyCreate().with_output_types(
-        ptransform.get_output_type())
+    return LegacyCreate().with_output_types(ptransform.get_output_type())
 
 
 class ReadPTransformOverride(PTransformOverride):
@@ -70,8 +69,8 @@ class ReadPTransformOverride(PTransformOverride):
         return True
     return False
 
-  def get_replacement_transform_for_applied_ptransform(self,
-                                                       applied_ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
 
     from apache_beam import pvalue
     from apache_beam.io import iobase
@@ -98,8 +97,7 @@ class JrhReadPTransformOverride(PTransformOverride):
         isinstance(applied_ptransform.transform, Read) and
         isinstance(applied_ptransform.transform.source, BoundedSource))
 
-  def get_replacement_transformfor_applied_ptransform(self,
-                                                      applied_ptransform):
+  def get_replacement_transformfor_applied_ptransform(self, applied_ptransform):
     from apache_beam.io import Read
     from apache_beam.transforms import core
     from apache_beam.transforms import util
@@ -121,7 +119,8 @@ class JrhReadPTransformOverride(PTransformOverride):
                         split.start_position, split.stop_position))))
 
     return JrhRead().with_output_types(
-        applied_ptransform.transform.get_type_hints().simple_output_type('Read'))
+        applied_ptransform.transform.get_type_hints().simple_output_type(
+            'Read'))
 
 
 class CombineValuesPTransformOverride(PTransformOverride):
