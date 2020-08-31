@@ -117,6 +117,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_file_mode(self):
+    self.skipTest('BEAM-10836')
     file_name = self.TEST_DATA_PATH + 'sloth/pictures/sleeping'
     with self.azfs.open(file_name, 'w') as f:
       assert f.mode == 'w'
@@ -128,6 +129,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_full_file_read(self):
+    self.skipTest('BEAM-10836')
     file_name = self.TEST_DATA_PATH + 'test_file_read'
     file_size = 1024
 
@@ -146,6 +148,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_file_write(self):
+    self.skipTest('BEAM-10836')
     file_name = self.TEST_DATA_PATH + 'test_file_write'
     # file_size = 5 * 1024 * 1024 + 2000
     file_size = 1024
@@ -164,6 +167,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_copy(self):
+    self.skipTest('BEAM-10836')
     src_file_name = self.TEST_DATA_PATH + 'mysource'
     dest_file_name = self.TEST_DATA_PATH + 'mydest'
     file_size = 1024
@@ -194,6 +198,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_copy_tree(self):
+    self.skipTest('BEAM-10836')
     src_dir_name = self.TEST_DATA_PATH + 'mysource/'
     dest_dir_name = self.TEST_DATA_PATH + 'mydest/'
     file_size = 1024
@@ -228,6 +233,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_copy_paths(self):
+    self.skipTest('BEAM-10836')
     from_name_pattern = self.TEST_DATA_PATH + 'copy_me_%d'
     to_name_pattern = self.TEST_DATA_PATH + 'destination_%d'
     file_size = 1024
@@ -276,6 +282,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_rename(self):
+    self.skipTest('BEAM-10836')
     src_file_name = self.TEST_DATA_PATH + 'mysource'
     dest_file_name = self.TEST_DATA_PATH + 'mydest'
     file_size = 1024
@@ -298,6 +305,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_rename_files(self):
+    self.skipTest('BEAM-10836')
     from_name_pattern = self.TEST_DATA_PATH + 'to_rename_%d'
     to_name_pattern = self.TEST_DATA_PATH + 'been_renamed_%d'
     file_size = 1024
@@ -341,6 +349,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_rename_directory_error(self):
+    self.skipTest('BEAM-10836')
     dir_name = self.TEST_DATA_PATH + 'rename_dir/'
     file_name = dir_name + 'test_rename_file'
     file_size = 1024
@@ -360,6 +369,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_exists(self):
+    self.skipTest('BEAM-10836')
     file_name = self.TEST_DATA_PATH + 'test_exists'
     file_size = 1024
 
@@ -373,6 +383,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_size(self):
+    self.skipTest('BEAM-10836')
     file_name = self.TEST_DATA_PATH + 'test_size'
     file_size = 1024
 
@@ -387,6 +398,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_last_updated(self):
+    self.skipTest('BEAM-10836')
     file_name = self.TEST_DATA_PATH + 'test_last_updated'
     file_size = 1024
     tolerance = 60
@@ -401,6 +413,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_checksum(self):
+    self.skipTest('BEAM-10836')
     file_name = self.TEST_DATA_PATH + 'test_checksum'
     file_size = 1024
 
@@ -420,6 +433,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_delete(self):
+    self.skipTest('BEAM-10836')
     file_name = self.TEST_DATA_PATH + 'test_delete'
     file_size = 1024
 
@@ -435,6 +449,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_delete_paths(self):
+    self.skipTest('BEAM-10836')
     # Create files.
     prefix = self.TEST_DATA_PATH + 'test_delete_paths/'
     file_names = [prefix + 'x', prefix + 'y/z']
@@ -454,6 +469,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_delete_tree(self):
+    self.skipTest('BEAM-10836')
     root_path = self.TEST_DATA_PATH + 'test_delete_tree/'
     leaf_paths = ['x', 'y/a', 'y/b', 'y/b/c']
 
@@ -478,6 +494,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_delete_files(self):
+    self.skipTest('BEAM-10836')
     file_name_pattern = self.TEST_DATA_PATH + 'test_delete_files/%d'
     file_size = 1024
     num_files = 5
@@ -508,6 +525,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_delete_files_with_errors(self):
+    self.skipTest('BEAM-10836')
     real_file = self.TEST_DATA_PATH + 'test_delete_files/file'
     fake_file = 'azfs://fake/fake-container/test_fake_file'
     filenames = [real_file, fake_file]
@@ -527,6 +545,7 @@ class TestBlobStorageIO(unittest.TestCase):
 
   @attr('AzuriteIT')
   def test_list_prefix(self):
+    self.skipTest('BEAM-10836')
     blobs = [
         ('sloth/pictures/sleeping', 2),
         ('sloth/videos/smiling', 3),
