@@ -22,10 +22,17 @@ import static org.junit.Assert.assertEquals;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import io.confluent.kafka.schemaregistry.testutil.MockSchemaRegistry;
+import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.kafka.common.serialization.Serializer;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -53,6 +60,45 @@ public class ConfluentSchemaRegistryDeserializerProviderTest {
     } catch (IOException | RestClientException e) {
       throw new RuntimeException("Unable to register schema for subject: " + subject, e);
     }
+  }
+
+  @Test
+  public void testDeserialize() {
+    // Test deserializing evolved schema.
+    // Verify that records from older schemas are deserialized to the latest schema
+    String schemaRegistryUrl = "mock://my-scope-name";
+    String subject = "mytopic";
+    SchemaRegistryClient mockRegistryClient = mockSchemaRegistryClient(schemaRegistryUrl, subject);
+
+    Map<String, Object> map = new HashMap<>();
+    map.put(AbstractKafkaAvroSerDeConfig.AUTO_REGISTER_SCHEMAS, true);
+    map.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
+    Serializer<GenericRecord> serializer = (Serializer) new KafkaAvroSerializer(mockRegistryClient);
+    serializer.configure(map, true);
+
+    byte[] bytes =
+        serializer.serialize(
+            subject,
+            new GenericRecordBuilder(AVRO_SCHEMA_V1)
+                .set("name", "KeyName")
+                .set("age", 1)
+                .set("favorite_number", 2)
+                .set("favorite_color", "color3")
+                .build());
+
+    Object deserialized =
+        mockDeserializerProvider(schemaRegistryUrl, subject, null)
+            .getDeserializer(new HashMap<>(), true)
+            .deserialize(subject, bytes);
+
+    GenericRecord expected =
+        new GenericRecordBuilder(AVRO_SCHEMA)
+            .set("name", "KeyName")
+            .set("favorite_number", 2)
+            .set("favorite_color", "color3")
+            .build();
+
+    assertEquals(expected, deserialized);
   }
 
   static <T> DeserializerProvider<T> mockDeserializerProvider(
@@ -103,6 +149,6 @@ public class ConfluentSchemaRegistryDeserializerProviderTest {
           + "     {\"name\": \"favorite_color\", \"type\": [\"string\", \"null\"]}\n"
           + " ]\n"
           + "}";
-  static final org.apache.avro.Schema AVRO_SCHEMA_V1 =
+  private static final org.apache.avro.Schema AVRO_SCHEMA_V1 =
       new org.apache.avro.Schema.Parser().parse(AVRO_SCHEMA_V1_STRING);
 }
