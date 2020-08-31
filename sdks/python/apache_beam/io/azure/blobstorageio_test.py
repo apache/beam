@@ -111,7 +111,7 @@ class TestBlobStorageIO(unittest.TestCase):
     self.azfs = blobstorageio.BlobStorageIO(connect_str, True)
     try:
       self.azfs.client.create_container("gsoc")
-    except: # pylint: disable=bare-except
+    except:  # pylint: disable=bare-except
       pass
     self.TEST_DATA_PATH = 'azfs://devstoreaccount1/gsoc/'
 
