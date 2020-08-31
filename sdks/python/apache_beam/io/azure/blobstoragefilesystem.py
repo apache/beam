@@ -64,7 +64,8 @@ class BlobStorageFileSystem(FileSystem):
         azfs_use_local_azurite = azfs_options.use_local_azurite
       else:
         azfs_connection_string = pipeline_options.get('azfs_connection_string')
-        azfs_use_local_azurite = pipeline_options.get('use_local_azurite', False)
+        azfs_use_local_azurite = \
+            pipeline_options.get('use_local_azurite', False)
 
       if azfs_connection_string is None:
         raise ValueError('azfs_connection_string is not set.')
