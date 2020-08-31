@@ -37,11 +37,18 @@ To run a process for a certain duration, define in the code:
 from __future__ import absolute_import
 from __future__ import print_function
 
+import json
 import logging
 import threading
 
 import apache_beam as beam
+from apache_beam.metrics import MetricsFilter
+from apache_beam.runners.runner import PipelineResult  # pylint: disable=unused-import
+from apache_beam.testing.benchmarks.nexmark.models import auction_bid
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
+from apache_beam.testing.benchmarks.nexmark.models.field_name import FieldNames
+from apache_beam.transforms import window
+from apache_beam.utils.timestamp import Timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,23 +75,34 @@ class Command(object):
     thread.join(timeout)
 
 
+def setup_coder():
+  beam.coders.registry.register_coder(
+      nexmark_model.Auction, nexmark_model.AuctionCoder)
+  beam.coders.registry.register_coder(
+      nexmark_model.Person, nexmark_model.PersonCoder)
+  beam.coders.registry.register_coder(nexmark_model.Bid, nexmark_model.BidCoder)
+  beam.coders.registry.register_coder(
+      auction_bid.AuctionBid, auction_bid.AuctionBidCoder)
+
+
 class ParseEventFn(beam.DoFn):
-  """Parses the raw event info into a Python objects.
+  """
+  Original parser for parsing raw events info into a Python objects.
 
   Each event line has the following format:
 
     person: <id starting with 'p'>,name,email,credit_card,city, \
-                          state,timestamp,extra
+            state,timestamp,extra
     auction: <id starting with 'a'>,item_name, description,initial_bid, \
-                          reserve_price,timestamp,expires,seller,category,extra
+             reserve_price,timestamp,expires,seller,category,extra
     bid: <auction starting with 'b'>,bidder,price,timestamp,extra
 
   For example:
 
     'p12345,maria,maria@maria.com,1234-5678-9012-3456, \
-                                        sunnyvale,CA,1528098831536'
+     sunnyvale,CA,1528098831536'
     'a12345,car67,2012 hyundai elantra,15000,20000, \
-                                        1528098831536,20180630,maria,vehicle'
+     1528098831536,20180630,maria,vehicle'
     'b12345,maria,20000,1528098831536'
   """
   def process(self, elem):
@@ -103,6 +121,136 @@ class ParseEventFn(beam.DoFn):
     yield event
 
 
+class ParseJsonEvnetFn(beam.DoFn):
+  """Parses the raw event info into a Python objects.
+
+  Each event line has the following format:
+
+    person:  {id,name,email,credit_card,city, \
+              state,timestamp,extra}
+    auction: {id,item_name, description,initial_bid, \
+              reserve_price,timestamp,expires,seller,category,extra}
+    bid:     {auction,bidder,price,timestamp,extra}
+
+  For example:
+
+    {"id":1000,"name":"Peter Jones","emailAddress":"nhd@xcat.com",\
+     "creditCard":"7241 7320 9143 4888","city":"Portland","state":"WY",\
+     "dateTime":1528098831026,\"extra":"WN_HS_bnpVQ\\[["}
+
+    {"id":1000,"itemName":"wkx mgee","description":"eszpqxtdxrvwmmywkmogoahf",\
+     "initialBid":28873,"reserve":29448,"dateTime":1528098831036,\
+     "expires":1528098840451,"seller":1000,"category":13,"extra":"zcuupiz"}
+
+    {"auction":1000,"bidder":1001,"price":32530001,"dateTime":1528098831066,\
+     "extra":"fdiysaV^]NLVsbolvyqwgticfdrwdyiyofWPYTOuwogvszlxjrcNOORM"}
+  """
+  def process(self, elem):
+    json_dict = json.loads(elem)
+    if type(json_dict[FieldNames.DATE_TIME]) is dict:
+      json_dict[FieldNames.DATE_TIME] = json_dict[
+          FieldNames.DATE_TIME]['millis']
+    if FieldNames.NAME in json_dict:
+      yield nexmark_model.Person(
+          json_dict[FieldNames.ID],
+          json_dict[FieldNames.NAME],
+          json_dict[FieldNames.EMAIL_ADDRESS],
+          json_dict[FieldNames.CREDIT_CARD],
+          json_dict[FieldNames.CITY],
+          json_dict[FieldNames.STATE],
+          millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
+          json_dict[FieldNames.EXTRA])
+    elif FieldNames.ITEM_NAME in json_dict:
+      if type(json_dict[FieldNames.EXPIRES]) is dict:
+        json_dict[FieldNames.EXPIRES] = json_dict[FieldNames.EXPIRES]['millis']
+      yield nexmark_model.Auction(
+          json_dict[FieldNames.ID],
+          json_dict[FieldNames.ITEM_NAME],
+          json_dict[FieldNames.DESCRIPTION],
+          json_dict[FieldNames.INITIAL_BID],
+          json_dict[FieldNames.RESERVE],
+          millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
+          millis_to_timestamp(json_dict[FieldNames.EXPIRES]),
+          json_dict[FieldNames.SELLER],
+          json_dict[FieldNames.CATEGORY],
+          json_dict[FieldNames.EXTRA])
+    elif FieldNames.AUCTION in json_dict:
+      yield nexmark_model.Bid(
+          json_dict[FieldNames.AUCTION],
+          json_dict[FieldNames.BIDDER],
+          json_dict[FieldNames.PRICE],
+          millis_to_timestamp(json_dict[FieldNames.DATE_TIME]),
+          json_dict[FieldNames.EXTRA])
+    else:
+      raise ValueError('Invalid event: %s.' % str(json_dict))
+
+
+class CountAndLog(beam.PTransform):
+  def expand(self, pcoll):
+    return (
+        pcoll
+        | 'window' >> beam.WindowInto(window.GlobalWindows())
+        | "Count" >> beam.combiners.Count.Globally()
+        | "Log" >> beam.Map(log_count_info))
+
+
+def log_count_info(count):
+  logging.info('Query resulted in %d results', count)
+  return count
+
+
 def display(elm):
   logging.debug(elm)
   return elm
+
+
+def model_to_json(model):
+  return json.dumps(construct_json_dict(model), separators=(',', ':'))
+
+
+def construct_json_dict(model):
+  return {k: unnest_to_json(v) for k, v in model.__dict__.items()}
+
+
+def unnest_to_json(cand):
+  if isinstance(cand, Timestamp):
+    return cand.micros // 1000
+  elif isinstance(
+      cand, (nexmark_model.Auction, nexmark_model.Bid, nexmark_model.Person)):
+    return construct_json_dict(cand)
+  else:
+    return cand
+
+
+def millis_to_timestamp(millis):
+  # type: (int) -> Timestamp
+  micro_second = millis * 1000
+  return Timestamp(micros=micro_second)
+
+
+def get_counter_metric(result, namespace, name):
+  # type: (PipelineResult, str, str) -> int
+  metrics = result.metrics().query(
+      MetricsFilter().with_namespace(namespace).with_name(name))
+  counters = metrics['counters']
+  if len(counters) > 1:
+    raise RuntimeError(
+        '%d instead of one metric result matches name: %s in namespace %s' %
+        (len(counters), name, namespace))
+  return counters[0].result if len(counters) > 0 else -1
+
+
+def get_start_time_metric(result, namespace, name):
+  # type: (PipelineResult, str, str) -> int
+  distributions = result.metrics().query(
+      MetricsFilter().with_namespace(namespace).with_name(
+          name))['distributions']
+  return min(map(lambda m: m.result.min, distributions))
+
+
+def get_end_time_metric(result, namespace, name):
+  # type: (PipelineResult, str, str) -> int
+  distributions = result.metrics().query(
+      MetricsFilter().with_namespace(namespace).with_name(
+          name))['distributions']
+  return max(map(lambda m: m.result.max, distributions))

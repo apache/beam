@@ -20,33 +20,39 @@ package org.apache.beam.sdk.io.azure.blobstore;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import java.util.Date;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 class AzfsResourceId implements ResourceId {
 
   static final String SCHEME = "azfs";
-
   private static final Pattern AZFS_URI =
       Pattern.compile("(?<SCHEME>[^:]+)://(?<ACCOUNT>[^/]+)/(?<CONTAINER>[^/]+)(?:/(?<BLOB>.*))?");
-
   /** Matches a glob containing a wildcard, capturing the portion before the first wildcard. */
   private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*");
 
   private final String account;
   private final String container;
   private final String blob;
+  private final Long size;
+  private final Date lastModified;
 
-  private AzfsResourceId(String account, String container, @Nullable String blob) {
+  private AzfsResourceId(
+      String account,
+      String container,
+      @Nullable String blob,
+      @Nullable Long size,
+      @Nullable Date lastModified) {
     // We are assuming that every resource id is either a container or a blob in a container, not
-    // just an account.
-    // This is because we will not enable users to create Azure containers through beam at this
-    // time.
+    // just an account. This is because we will not enable users to create Azure containers through
+    // beam at this time.
     checkArgument(!Strings.isNullOrEmpty(container), "container");
     checkArgument(!container.contains("/"), "container must not contain '/': [%s]", container);
     this.account = account;
@@ -56,14 +62,16 @@ class AzfsResourceId implements ResourceId {
     } else {
       this.blob = blob;
     }
+    this.size = size;
+    this.lastModified = lastModified;
   }
 
   static AzfsResourceId fromComponents(String account, String container, String blob) {
-    return new AzfsResourceId(account, container, blob);
+    return new AzfsResourceId(account, container, blob, null, null);
   }
 
   static AzfsResourceId fromComponents(String account, String container) {
-    return new AzfsResourceId(account, container, null);
+    return new AzfsResourceId(account, container, null, null, null);
   }
 
   static AzfsResourceId fromUri(String uri) {
@@ -93,6 +101,22 @@ class AzfsResourceId implements ResourceId {
     return SCHEME;
   }
 
+  Long getSize() {
+    return size;
+  }
+
+  AzfsResourceId withSize(long size) {
+    return new AzfsResourceId(account, container, blob, size, lastModified);
+  }
+
+  Optional<Date> getLastModified() {
+    return Optional.fromNullable(lastModified);
+  }
+
+  AzfsResourceId withLastModified(Date lastModified) {
+    return new AzfsResourceId(account, container, blob, size, lastModified);
+  }
+
   @Override
   public boolean isDirectory() {
     return (blob == null) || (blob.endsWith("/"));
@@ -103,6 +127,17 @@ class AzfsResourceId implements ResourceId {
       return false;
     }
     return GLOB_PREFIX.matcher(blob).matches();
+  }
+
+  String getBlobNonWildcardPrefix() {
+    Matcher m = GLOB_PREFIX.matcher(getBlob());
+    checkArgument(
+        m.matches(), String.format("Glob expression: [%s] is not expandable.", getBlob()));
+    return m.group("PREFIX");
+  }
+
+  public boolean isContainer() {
+    return blob == null;
   }
 
   @Override
@@ -129,7 +164,6 @@ class AzfsResourceId implements ResourceId {
     return blobWithoutTrailingSlash.substring(blobWithoutTrailingSlash.lastIndexOf('/') + 1);
   }
 
-  // TODO: ensure that this function lines up with what the filesystem match method expects
   @Override
   public String toString() {
     if (blob != null) {
@@ -156,8 +190,6 @@ class AzfsResourceId implements ResourceId {
   @Override
   public ResourceId resolve(String other, ResolveOptions resolveOptions) {
     checkState(isDirectory(), "Expected this resource to be a directory, but was [%s]", toString());
-    // TODO: check if resolve options are an illegal name in any way, see:
-    // https://docs.microsoft.com/en-us/rest/api/storageservices/Naming-and-Referencing-Containers--Blobs--and-Metadata
 
     if (resolveOptions == ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY) {
       if ("..".equals(other)) {
@@ -167,11 +199,9 @@ class AzfsResourceId implements ResourceId {
         int parentStopsAt = blob.substring(0, blob.length() - 1).lastIndexOf('/');
         return fromComponents(account, container, blob.substring(0, parentStopsAt + 1));
       }
-
       if ("".equals(other)) {
         return this;
       }
-
       if (!other.endsWith("/")) {
         other += "/";
       }
@@ -183,7 +213,6 @@ class AzfsResourceId implements ResourceId {
       }
       return fromComponents(account, container, blob + other);
     }
-
     if (resolveOptions == ResolveOptions.StandardResolveOptions.RESOLVE_FILE) {
       checkArgument(
           !other.endsWith("/"), "Cannot resolve a file with a directory path: [%s]", other);
@@ -196,7 +225,6 @@ class AzfsResourceId implements ResourceId {
       }
       return fromComponents(account, container, blob + other);
     }
-
     throw new UnsupportedOperationException(
         String.format("Unexpected StandardResolveOptions [%s]", resolveOptions));
   }

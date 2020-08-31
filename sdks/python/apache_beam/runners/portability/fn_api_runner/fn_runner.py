@@ -292,6 +292,7 @@ class FnApiRunner(runner.PipelineRunner):
         phases=[
             translations.annotate_downstream_side_inputs,
             translations.fix_side_input_pcoll_coders,
+            translations.pack_combiners,
             translations.lift_combiners,
             translations.expand_sdf,
             translations.expand_gbk,
@@ -305,7 +306,7 @@ class FnApiRunner(runner.PipelineRunner):
         ],
         known_runner_urns=frozenset([
             common_urns.primitives.FLATTEN.urn,
-            common_urns.primitives.GROUP_BY_KEY.urn
+            common_urns.primitives.GROUP_BY_KEY.urn,
         ]),
         use_state_iterables=self._use_state_iterables,
         is_drain=self._is_drain)

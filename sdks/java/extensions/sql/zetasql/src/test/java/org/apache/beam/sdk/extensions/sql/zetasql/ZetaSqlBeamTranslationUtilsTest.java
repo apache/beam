@@ -21,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.protobuf.ByteString;
 import com.google.zetasql.ArrayType;
-import com.google.zetasql.CivilTimeEncoder;
 import com.google.zetasql.StructType;
 import com.google.zetasql.StructType.StructField;
 import com.google.zetasql.TypeFactory;
@@ -100,8 +99,8 @@ public class ZetaSqlBeamTranslationUtilsTest {
           .addValue("Hello")
           .addValue(new byte[] {0x11, 0x22})
           .addValue(LocalDate.of(2020, 6, 4))
-          .addValue(LocalDateTime.of(2008, 12, 25, 15, 30, 0))
-          .addValue(LocalTime.of(15, 30, 45))
+          .addValue(LocalDateTime.of(2008, 12, 25, 15, 30, 0).withNano(123456000))
+          .addValue(LocalTime.of(15, 30, 45).withNano(123456000))
           .addValue(Instant.ofEpochMilli(12345678L))
           .addArray(3.0, 6.5)
           .addValue(Row.withSchema(TEST_INNER_SCHEMA).addValues(0L, "world").build())
@@ -118,13 +117,10 @@ public class ZetaSqlBeamTranslationUtilsTest {
               Value.createBoolValue(false),
               Value.createStringValue("Hello"),
               Value.createBytesValue(ByteString.copyFrom(new byte[] {0x11, 0x22})),
-              Value.createDateValue((int) LocalDate.of(2020, 6, 4).toEpochDay()),
+              Value.createDateValue(LocalDate.of(2020, 6, 4)),
               Value.createDatetimeValue(
-                  CivilTimeEncoder.encodePacked64DatetimeSeconds(
-                      LocalDateTime.of(2008, 12, 25, 15, 30, 0)),
-                  LocalDateTime.of(2008, 12, 25, 15, 30, 0).getNano()),
-              Value.createTimeValue(
-                  CivilTimeEncoder.encodePacked64TimeNanos(LocalTime.of(15, 30, 45))),
+                  LocalDateTime.of(2008, 12, 25, 15, 30, 0).withNano(123456000)),
+              Value.createTimeValue(LocalTime.of(15, 30, 45).withNano(123456000)),
               Value.createTimestampValueFromUnixMicros(12345678000L),
               Value.createArrayValue(
                   TEST_INNER_ARRAY_TYPE,

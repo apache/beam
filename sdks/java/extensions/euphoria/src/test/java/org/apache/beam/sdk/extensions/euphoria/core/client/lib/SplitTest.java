@@ -28,8 +28,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.TestUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test suite for {@link Split} library. */
+@RunWith(JUnit4.class)
 public class SplitTest {
 
   @Test

@@ -32,6 +32,10 @@ from builtins import object
 from typing import TYPE_CHECKING
 from typing import Optional
 
+from future.utils import raise_with_traceback
+
+from apache_beam.typehints import TypeCheckError
+from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.utils import counters
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
@@ -189,7 +193,8 @@ class OperationCounters(object):
       step_name,  # type: str
       coder,
       index,
-      suffix='out'):
+      suffix='out',
+      producer_type_hints=None):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(
         '%s-%s%s-ElementCount' % (step_name, suffix, index), Counter.SUM)
@@ -201,6 +206,7 @@ class OperationCounters(object):
     self.current_size = None  # type: Optional[int]
     self._sample_counter = 0
     self._next_sample = 0
+    self.output_type_constraints = producer_type_hints or {}
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
@@ -224,8 +230,26 @@ class OperationCounters(object):
 
     return _observable_callback_inner
 
+  def type_check(self, value):
+    # type: (any, bool) -> None
+    for transform_label, type_constraint_tuple in (
+            self.output_type_constraints.items()):
+      parameter_name, constraint = type_constraint_tuple
+      try:
+        _check_instance_type(constraint, value, parameter_name, verbose=True)
+      except TypeCheckError as e:
+        # TODO: Remove the 'ParDo' prefix for the label name (BEAM-10710)
+        if not transform_label.startswith('ParDo'):
+          transform_label = 'ParDo(%s)' % transform_label
+        error_msg = (
+            'Runtime type violation detected within %s: '
+            '%s' % (transform_label, e))
+        raise_with_traceback(TypeCheckError(error_msg))
+
   def do_sample(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
+    self.type_check(windowed_value.value)
+
     size, observables = (
         self.coder_impl.get_estimated_size_and_observables(windowed_value))
     if not observables:

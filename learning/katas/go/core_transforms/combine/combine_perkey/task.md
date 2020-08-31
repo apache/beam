@@ -18,10 +18,10 @@
 
 # CombinePerKey
 
-After creating a keyed PCollection, a common pattern  is to combine the collection of values associated with 
+After creating a keyed PCollection, a common pattern  is to combine the collection of values associated with
 each key into a single, merged value. The Go SDK inserts a GroupByKey and per-key Combine transform into the pipeline.
 
-**Kata:** Implement the sum of scores per player using 
+**Kata:** Implement the sum of scores per player using
 [beam.CombinePerKey](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#CombinePerKey).
 
 <div class="hint">
@@ -31,7 +31,7 @@ each key into a single, merged value. The Go SDK inserts a GroupByKey and per-ke
 </div>
 
 <div class="hint">
-  Provide a function to 
+  Provide a function to
   <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#CombinePerKey">
     beam.CombinePerKey</a>
     that returns a sum of two numbers.

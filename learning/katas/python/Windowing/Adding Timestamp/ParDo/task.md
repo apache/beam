@@ -19,10 +19,10 @@
 Adding Timestamp - ParDo
 ------------------------
 
-Bounded sources (such as a file from TextIO) do not provide timestamps for elements. If you need 
+Bounded sources (such as a file from TextIO) do not provide timestamps for elements. If you need
 timestamps, you must add them to your PCollection’s elements.
 
-You can assign new timestamps to the elements of a PCollection by applying a ParDo transform that 
+You can assign new timestamps to the elements of a PCollection by applying a ParDo transform that
 outputs new elements with timestamps that you set.
 
 **Kata:** Please assign each element a timestamp based on the the `Event.timestamp`.

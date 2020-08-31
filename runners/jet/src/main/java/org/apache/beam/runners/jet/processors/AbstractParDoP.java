@@ -26,6 +26,7 @@ import com.hazelcast.jet.core.Watermark;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
@@ -110,6 +111,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
       Coder<InputT> inputValueCoder,
       Map<TupleTag<?>, Coder<?>> outputValueCoders,
       Map<Integer, PCollectionView<?>> ordinalToSideInput,
+      Map<String, PCollectionView<?>> sideInputMapping,
       String ownerId,
       String stepId) {
     this.pipelineOptions = pipelineOptions;
@@ -131,6 +133,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
     this.inputValueCoder = inputValueCoder;
     this.outputValueCoders = outputValueCoders;
     this.ordinalToSideInput = ordinalToSideInput;
+    this.sideInputMapping = sideInputMapping;
     this.ownerId = ownerId;
     this.stepId = stepId;
     this.cooperative = isCooperativenessAllowed(pipelineOptions) && hasOutput();
@@ -391,7 +394,8 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
     private final Map<TupleTag<?>, Coder<?>> outputCoders;
     private final Coder<InputT> inputValueCoder;
     private final Map<TupleTag<?>, Coder<?>> outputValueCoders;
-    private final List<PCollectionView<?>> sideInputs;
+    private final Collection<PCollectionView<?>> sideInputs;
+    private final Map<String, PCollectionView<?>> sideInputMapping;
 
     private final Map<Integer, PCollectionView<?>> ordinalToSideInput = new HashMap<>();
 
@@ -409,7 +413,8 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
         Map<TupleTag<?>, Coder<?>> outputCoders,
         Coder<InputT> inputValueCoder,
         Map<TupleTag<?>, Coder<?>> outputValueCoders,
-        List<PCollectionView<?>> sideInputs) {
+        Collection<PCollectionView<?>> sideInputs,
+        Map<String, PCollectionView<?>> sideInputMapping) {
       this.stepId = stepId;
       this.ownerId = ownerId;
       this.pipelineOptions = pipelineOptions;
@@ -426,6 +431,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
       this.inputValueCoder = inputValueCoder;
       this.outputValueCoders = outputValueCoders;
       this.sideInputs = sideInputs;
+      this.sideInputMapping = sideInputMapping;
     }
 
     @Override
@@ -449,6 +455,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
           inputValueCoder,
           Collections.unmodifiableMap(outputValueCoders),
           Collections.unmodifiableMap(ordinalToSideInput),
+          sideInputMapping,
           ownerId,
           stepId);
     }
@@ -466,6 +473,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
         Coder<InputT> inputValueCoder,
         Map<TupleTag<?>, Coder<?>> outputValueCoders,
         Map<Integer, PCollectionView<?>> ordinalToSideInput,
+        Map<String, PCollectionView<?>> sideInputMapping,
         String ownerId,
         String stepId);
 

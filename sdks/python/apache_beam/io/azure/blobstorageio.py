@@ -438,7 +438,7 @@ class BlobStorageIO(object):
 
     Returns:
       List of tuples of (src, dest, exception) in the same order as the
-      src_dest_pairs argument, where exception is 202 if the operation
+      src_dest_pairs argument, where exception is None if the operation
       succeeded or the relevant exception if the operation failed.
     """
     directories, blobs = [], []
@@ -475,7 +475,7 @@ class BlobStorageIO(object):
 
     Returns:
       List of tuples of (path, exception), where each path is a blob
-      under the given root. exception is 202 if the operation succeeded
+      under the given root. exception is None if the operation succeeded
       or the relevant exception if the operation failed.
     """
     assert root.endswith('/')
@@ -498,7 +498,7 @@ class BlobStorageIO(object):
 
     Returns:
       List of tuples of (src, dest, exception) in the same order as the
-      src_dest_pairs argument, where exception is 202 if the operation
+      src_dest_pairs argument, where exception is None if the operation
       succeeded or the relevant exception if the operation failed.
     """
     if not paths:
@@ -540,10 +540,11 @@ class BlobStorageIO(object):
 
     Returns:
       Dictionary of the form {(container, blob): error}, where error is
-      202 if the operation succeeded.
+      None if the operation succeeded.
     """
     container_client = self.client.get_container_client(container)
     results = {}
+
     for blob in blobs:
       try:
         response = container_client.delete_blob(blob)

@@ -1250,8 +1250,8 @@ public class DatastoreV1 {
     private int mutationsSize = 0; // Accumulated size of protos in mutations.
     private WriteBatcher writeBatcher;
     private transient AdaptiveThrottler throttler;
-    private final Counter throttledSeconds =
-        Metrics.counter(DatastoreWriterFn.class, "cumulativeThrottlingSeconds");
+    private final Counter throttlingMsecs =
+        Metrics.counter(DatastoreWriterFn.class, "throttling-msecs");
     private final Counter rpcErrors =
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcErrors");
     private final Counter rpcSuccesses =
@@ -1343,7 +1343,7 @@ public class DatastoreV1 {
 
         if (throttler.throttleRequest(startTime)) {
           LOG.info("Delaying request due to previous failures");
-          throttledSeconds.inc(WriteBatcherImpl.DATASTORE_BATCH_TARGET_LATENCY_MS / 1000);
+          throttlingMsecs.inc(WriteBatcherImpl.DATASTORE_BATCH_TARGET_LATENCY_MS);
           sleeper.sleep(WriteBatcherImpl.DATASTORE_BATCH_TARGET_LATENCY_MS);
           continue;
         }

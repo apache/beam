@@ -19,12 +19,12 @@
 CoGroupByKey
 ------------
 
-CoGroupByKey performs a relational join of two or more key/value PCollections that have the same 
+CoGroupByKey performs a relational join of two or more key/value PCollections that have the same
 key type.
 
-**Kata:** Implement a 
-[CoGroupByKey](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/join/CoGroupByKey.html) 
-transform that join words by its first alphabetical letter, and then produces the toString() 
+**Kata:** Implement a
+[CoGroupByKey](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/join/CoGroupByKey.html)
+transform that join words by its first alphabetical letter, and then produces the toString()
 representation of the WordsAlphabet model.
 
 <div class="hint">

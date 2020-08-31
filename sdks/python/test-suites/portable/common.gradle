@@ -101,6 +101,30 @@ task flinkTriggerTranscript() {
   }
 }
 
+// Verifies BEAM-10702.
+task portableLocalRunnerJuliaSetWithSetupPy {
+  dependsOn 'setupVirtualenv'
+  dependsOn ":sdks:python:container:py${pythonVersionSuffix}:docker"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', """
+          . ${envdir}/bin/activate \\
+          && cd ${pythonRootDir} \\
+          && pip install -e . \\
+          && cd apache_beam/examples/complete/juliaset \\
+          && python juliaset_main.py \\
+              --runner=PortableRunner \\
+              --job_endpoint=embed \\
+              --setup_file=./setup.py \\
+              --coordinate_output=/tmp/juliaset \\
+              --grid_size=1
+          """
+    }
+  }
+}
+
 task createProcessWorker {
   dependsOn ':sdks:python:container:build'
   dependsOn 'setupVirtualenv'
@@ -181,6 +205,7 @@ project.task("postCommitPy${pythonVersionSuffix}") {
   dependsOn = ['setupVirtualenv',
                "postCommitPy${pythonVersionSuffix}IT",
                ':runners:spark:job-server:shadowJar',
+               'portableLocalRunnerJuliaSetWithSetupPy',
                'portableWordCountSparkRunnerBatch']
 }
 
@@ -190,8 +215,8 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
           'installGcpTest',
           ':runners:flink:1.10:job-server:shadowJar',
           ':sdks:java:container:docker',
-          ':sdks:java:io:expansion-service:shadowJar',
-          ':sdks:java:testing:kafka-service:buildTestKafkaServiceJar'
+          ':sdks:java:testing:kafka-service:buildTestKafkaServiceJar',
+          ':sdks:java:extensions:schemaio-expansion-service:shadowJar',
   ]
 
   doLast {

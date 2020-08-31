@@ -49,7 +49,7 @@ For more information on changes in 2.18.0, check out the
 * [BEAM-8660](https://issues.apache.org/jira/browse/BEAM-8660) - Override returned artifact staging endpoint
 
 ### SQL
-* [BEAM-8343](https://issues.apache.org/jira/browse/BEAM-8343) - [SQL] Add means for IO APIs to support predicate and/or project push-down when running SQL pipelines. And [BEAM-8468](https://issues.apache.org/jira/browse/BEAM-8468), [BEAM-8365](https://issues.apache.org/jira/browse/BEAM-8365), [BEAM-8508](https://issues.apache.org/jira/browse/BEAM-8508).    
+* [BEAM-8343](https://issues.apache.org/jira/browse/BEAM-8343) - [SQL] Add means for IO APIs to support predicate and/or project push-down when running SQL pipelines. And [BEAM-8468](https://issues.apache.org/jira/browse/BEAM-8468), [BEAM-8365](https://issues.apache.org/jira/browse/BEAM-8365), [BEAM-8508](https://issues.apache.org/jira/browse/BEAM-8508).
 * [BEAM-8427](https://issues.apache.org/jira/browse/BEAM-8427) - [SQL] Add support for MongoDB source.
 * [BEAM-8456](https://issues.apache.org/jira/browse/BEAM-8456) - Add pipeline option to control truncate of BigQuery data processed by Beam SQL.
 
@@ -95,7 +95,7 @@ For more information on changes in 2.18.0, check out the
 
 * [BEAM-8882](https://issues.apache.org/jira/browse/BEAM-8882) - Python: `beam.Create` no longer preserves order unless `reshuffle=False` is passed in as an argument.
 
-  You may encounter this issue when using DirectRunner. 
+  You may encounter this issue when using DirectRunner.
 * [BEAM-9065](https://issues.apache.org/jira/browse/BEAM-9065) - Spark runner accumulates metrics (incorrectly) between runs
 * [BEAM-9123](https://issues.apache.org/jira/browse/BEAM-9123) - HadoopResourceId returns wrong directory name
 * See a full list of open [issues that affect](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.18.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) this version.

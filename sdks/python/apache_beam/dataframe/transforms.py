@@ -44,7 +44,15 @@ class DataframeTransform(transforms.PTransform):
   """A PTransform for applying function that takes and returns dataframes
   to one or more PCollections.
 
-  For example, if pcoll is a PCollection of dataframes, one could write::
+  DataframeTransform will accept a PCollection with a schema and batch it
+  into dataframes if necessary. In this case the proxy can be omitted:
+
+      (pcoll | beam.Row(key=..., foo=..., bar=...)
+             | DataframeTransform(lambda df: df.group_by('key').sum()))
+
+  It is also possible to process a PCollection of dataframes directly, in this
+  case a proxy must be provided. For example, if pcoll is a PCollection of
+  dataframes, one could write::
 
       pcoll | DataframeTransform(lambda df: df.group_by('key').sum(), proxy=...)
 
@@ -52,7 +60,7 @@ class DataframeTransform(transforms.PTransform):
   passed to the callable as positional arguments, or a dictionary of
   PCollections, in which case they will be passed as keyword arguments.
   """
-  def __init__(self, func, proxy):
+  def __init__(self, func, proxy=None):
     self._func = func
     self._proxy = proxy
 
@@ -62,7 +70,10 @@ class DataframeTransform(transforms.PTransform):
 
     # Convert inputs to a flat dict.
     input_dict = _flatten(input_pcolls)  # type: Dict[Any, PCollection]
-    proxies = _flatten(self._proxy)
+    proxies = _flatten(self._proxy) if self._proxy is not None else {
+        tag: None
+        for tag in input_dict.keys()
+    }
     input_frames = {
         k: convert.to_dataframe(pc, proxies[k])
         for k, pc in input_dict.items()
@@ -125,6 +136,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         return '%s:%s' % (self.stage.ops, id(self))
 
       def expand(self, pcolls):
+
         scalar_inputs = [expr for expr in self.stage.inputs if is_scalar(expr)]
         tabular_inputs = [
             expr for expr in self.stage.inputs if not is_scalar(expr)
@@ -179,6 +191,22 @@ class _DataframeExpressionsTransform(transforms.PTransform):
           self.partitioning = partitioning
         self.ops = []
         self.outputs = set()
+
+      def __repr__(self, indent=0):
+        if indent:
+          sep = '\n' + ' ' * indent
+        else:
+          sep = ''
+        return (
+            "Stage[%sinputs=%s, %spartitioning=%s, %sops=%s, %soutputs=%s]" % (
+                sep,
+                self.inputs,
+                sep,
+                self.partitioning,
+                sep,
+                self.ops,
+                sep,
+                self.outputs))
 
     # First define some helper functions.
     def output_is_partitioned_by(expr, stage, partitioning):
@@ -244,6 +272,11 @@ class _DataframeExpressionsTransform(transforms.PTransform):
             # It also must be declared as an output of the producing stage.
             expr_to_stage(arg).outputs.add(arg)
       stage.ops.append(expr)
+      # Ensure that any inputs for the overall transform are added
+      # in downstream stages.
+      for arg in expr.args():
+        if arg in inputs:
+          stage.inputs.add(arg)
       # This is a list as given expression may be available in many stages.
       return [stage]
 

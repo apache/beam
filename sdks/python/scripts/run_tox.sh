@@ -44,6 +44,10 @@ fi
 
 # Used in tox.ini to isolate toxworkdir of each environment.
 export ENV_NAME=.tox-$1
+# Force colors in Jenkins jobs.
+if [[ "$JENKINS_HOME" != "" ]]; then
+  export PY_COLORS=1
+fi
 
 if [[ ! -z $2 ]]; then
   tox -c tox.ini --recreate -e $1 --installpkg $2

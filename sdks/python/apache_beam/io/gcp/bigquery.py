@@ -238,6 +238,7 @@ import decimal
 import itertools
 import json
 import logging
+import random
 import time
 import uuid
 from builtins import object
@@ -256,11 +257,13 @@ from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
+from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.iobase import BoundedSource
 from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.iobase import SourceBundle
 from apache_beam.io.textio import _TextSource as TextSource
+from apache_beam.metrics import Metrics
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -275,6 +278,7 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.transforms.sideinputs import get_sideinput_index
+from apache_beam.transforms.util import ReshufflePerKey
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
@@ -304,6 +308,8 @@ Template for BigQuery jobs created by BigQueryIO. This template is:
 NOTE: This job name template does not have backwards compatibility guarantees.
 """
 BQ_JOB_NAME_TEMPLATE = "beam_bq_job_{job_type}_{job_id}_{step_id}{random}"
+"""The number of shards per destination when writing via streaming inserts."""
+DEFAULT_SHARDS_PER_DESTINATION = 500
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
@@ -539,30 +545,31 @@ class BigQuerySource(dataflow_io.NativeSource):
         kms_key=self.kms_key)
 
 
-FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
-
-
-def _to_decimal(value):
-  return decimal.Decimal(value)
-
-
-def _to_bytes(value):
-  """Converts value from str to bytes on Python 3.x. Does nothing on
-  Python 2.7."""
-  return value.encode('utf-8')
-
-
 class _JsonToDictCoder(coders.Coder):
   """A coder for a JSON string to a Python dict."""
+
+  FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
+
   def __init__(self, table_schema):
     self.fields = self._convert_to_tuple(table_schema.fields)
     self._converters = {
         'INTEGER': int,
         'INT64': int,
         'FLOAT': float,
-        'NUMERIC': _to_decimal,
-        'BYTES': _to_bytes,
+        'FLOAT64': float,
+        'NUMERIC': self._to_decimal,
+        'BYTES': self._to_bytes,
     }
+
+  @staticmethod
+  def _to_decimal(value):
+    return decimal.Decimal(value)
+
+  @staticmethod
+  def _to_bytes(value):
+    """Converts value from str to bytes on Python 3.x. Does nothing on
+    Python 2.7."""
+    return value.encode('utf-8')
 
   @classmethod
   def _convert_to_tuple(cls, table_field_schemas):
@@ -574,7 +581,8 @@ class _JsonToDictCoder(coders.Coder):
       return []
 
     return [
-        FieldSchema(cls._convert_to_tuple(x.fields), x.mode, x.name, x.type)
+        cls.FieldSchema(
+            cls._convert_to_tuple(x.fields), x.mode, x.name, x.type)
         for x in table_field_schemas
     ]
 
@@ -592,8 +600,14 @@ class _JsonToDictCoder(coders.Coder):
         continue
 
       if field.type == 'RECORD':
-        value[field.name] = self._decode_with_schema(
-            value[field.name], field.fields)
+        nested_values = value[field.name]
+        if field.mode == 'REPEATED':
+          for i, nested_value in enumerate(nested_values):
+            nested_values[i] = self._decode_with_schema(
+                nested_value, field.fields)
+        else:
+          value[field.name] = self._decode_with_schema(
+              nested_values, field.fields)
       else:
         try:
           converter = self._converters[field.type]
@@ -1013,7 +1027,8 @@ class BigQueryWriteFn(DoFn):
       test_client=None,
       max_buffered_rows=None,
       retry_strategy=None,
-      additional_bq_parameters=None):
+      additional_bq_parameters=None,
+      ignore_insert_ids=False):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1048,6 +1063,12 @@ class BigQueryWriteFn(DoFn):
         to be passed when creating a BigQuery table. These are passed when
         triggering a load job for FILE_LOADS, and when creating a new table for
         STREAMING_INSERTS.
+      ignore_insert_ids: When using the STREAMING_INSERTS method to write data
+        to BigQuery, `insert_ids` are a feature of BigQuery that support
+        deduplication of events. If your use case is not sensitive to
+        duplication of data inserted to BigQuery, set `ignore_insert_ids`
+        to True to increase the throughput for BQ writing. See:
+        https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication
     """
     self.schema = schema
     self.test_client = test_client
@@ -1061,10 +1082,20 @@ class BigQueryWriteFn(DoFn):
     self._max_batch_size = batch_size or BigQueryWriteFn.DEFAULT_MAX_BATCH_SIZE
     self._max_buffered_rows = (
         max_buffered_rows or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS)
-    self._retry_strategy = (
-        retry_strategy or bigquery_tools.RetryStrategy.RETRY_ALWAYS)
+    self._retry_strategy = retry_strategy or RetryStrategy.RETRY_ALWAYS
+    self.ignore_insert_ids = ignore_insert_ids
 
     self.additional_bq_parameters = additional_bq_parameters or {}
+
+    # accumulate the total time spent in exponential backoff
+    self._throttled_secs = Metrics.counter(
+        BigQueryWriteFn, "cumulativeThrottlingSeconds")
+    self.batch_size_metric = Metrics.distribution(self.__class__, "batch_size")
+    self.batch_latency_metric = Metrics.distribution(
+        self.__class__, "batch_latency_ms")
+    self.failed_rows_metric = Metrics.distribution(
+        self.__class__, "rows_failed_per_batch")
+    self.bigquery_wrapper = None
 
   def display_data(self):
     return {
@@ -1073,7 +1104,8 @@ class BigQueryWriteFn(DoFn):
         'retry_strategy': self._retry_strategy,
         'create_disposition': str(self.create_disposition),
         'write_disposition': str(self.write_disposition),
-        'additional_bq_parameters': str(self.additional_bq_parameters)
+        'additional_bq_parameters': str(self.additional_bq_parameters),
+        'ignore_insert_ids': str(self.ignore_insert_ids)
     }
 
   def _reset_rows_buffer(self):
@@ -1103,8 +1135,9 @@ class BigQueryWriteFn(DoFn):
   def start_bundle(self):
     self._reset_rows_buffer()
 
-    self.bigquery_wrapper = bigquery_tools.BigQueryWrapper(
-        client=self.test_client)
+    if not self.bigquery_wrapper:
+      self.bigquery_wrapper = bigquery_tools.BigQueryWrapper(
+          client=self.test_client)
 
     self._backoff_calculator = iter(
         retry.FuzzedExponentialIntervals(
@@ -1193,11 +1226,16 @@ class BigQueryWriteFn(DoFn):
         'Flushing data to %s. Total %s rows.',
         destination,
         len(rows_and_insert_ids))
+    self.batch_size_metric.update(len(rows_and_insert_ids))
 
     rows = [r[0] for r in rows_and_insert_ids]
-    insert_ids = [r[1] for r in rows_and_insert_ids]
+    if self.ignore_insert_ids:
+      insert_ids = None
+    else:
+      insert_ids = [r[1] for r in rows_and_insert_ids]
 
     while True:
+      start = time.time()
       passed, errors = self.bigquery_wrapper.insert_rows(
           project_id=table_reference.projectId,
           dataset_id=table_reference.datasetId,
@@ -1205,12 +1243,14 @@ class BigQueryWriteFn(DoFn):
           rows=rows,
           insert_ids=insert_ids,
           skip_invalid_rows=True)
+      self.batch_latency_metric.update((time.time() - start) * 1000)
 
       failed_rows = [rows[entry.index] for entry in errors]
       should_retry = any(
-          bigquery_tools.RetryStrategy.should_retry(
+          RetryStrategy.should_retry(
               self._retry_strategy, entry.errors[0].reason) for entry in errors)
       if not passed:
+        self.failed_rows_metric.update(len(failed_rows))
         message = (
             'There were errors inserting to BigQuery. Will{} retry. '
             'Errors were {}'.format(("" if should_retry else " not"), errors))
@@ -1228,6 +1268,7 @@ class BigQueryWriteFn(DoFn):
         _LOGGER.info(
             'Sleeping %s seconds before retrying insertion.', retry_backoff)
         time.sleep(retry_backoff)
+        self._throttled_secs.inc(retry_backoff)
 
     self._total_buffered_rows -= len(self._rows_buffer[destination])
     del self._rows_buffer[destination]
@@ -1253,6 +1294,7 @@ class _StreamToBigQuery(PTransform):
       kms_key,
       retry_strategy,
       additional_bq_parameters,
+      ignore_insert_ids,
       test_client=None):
     self.table_reference = table_reference
     self.table_side_inputs = table_side_inputs
@@ -1265,8 +1307,12 @@ class _StreamToBigQuery(PTransform):
     self.retry_strategy = retry_strategy
     self.test_client = test_client
     self.additional_bq_parameters = additional_bq_parameters
+    self.ignore_insert_ids = ignore_insert_ids
 
   class InsertIdPrefixFn(DoFn):
+    def __init__(self, shards=DEFAULT_SHARDS_PER_DESTINATION):
+      self.shards = shards
+
     def start_bundle(self):
       self.prefix = str(uuid.uuid4())
       self._row_count = 0
@@ -1274,6 +1320,7 @@ class _StreamToBigQuery(PTransform):
     def process(self, element):
       key = element[0]
       value = element[1]
+      key = (key, random.randint(0, self.shards))
 
       insert_id = '%s-%s' % (self.prefix, self._row_count)
       self._row_count += 1
@@ -1288,15 +1335,29 @@ class _StreamToBigQuery(PTransform):
         kms_key=self.kms_key,
         retry_strategy=self.retry_strategy,
         test_client=self.test_client,
-        additional_bq_parameters=self.additional_bq_parameters)
+        additional_bq_parameters=self.additional_bq_parameters,
+        ignore_insert_ids=self.ignore_insert_ids)
 
-    return (
+    def drop_shard(elms):
+      key_and_shard = elms[0]
+      key = key_and_shard[0]
+      value = elms[1]
+      return (key, value)
+
+    sharded_data = (
         input
         | 'AppendDestination' >> beam.ParDo(
             bigquery_tools.AppendDestinationsFn(self.table_reference),
             *self.table_side_inputs)
-        | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn())
-        | 'CommitInsertIds' >> beam.Reshuffle()
+        | 'AddInsertIdsWithRandomKeys' >> beam.ParDo(
+            _StreamToBigQuery.InsertIdPrefixFn()))
+
+    if not self.ignore_insert_ids:
+      sharded_data = (sharded_data | 'CommitInsertIds' >> ReshufflePerKey())
+
+    return (
+        sharded_data
+        | 'DropShard' >> beam.Map(drop_shard)
         | 'StreamInsertRows' >> ParDo(
             bigquery_write_fn, *self.schema_side_inputs).with_outputs(
                 BigQueryWriteFn.FAILED_ROWS, main='main'))
@@ -1339,7 +1400,8 @@ class WriteToBigQuery(PTransform):
       schema_side_inputs=None,
       triggering_frequency=None,
       validate=True,
-      temp_file_format=None):
+      temp_file_format=None,
+      ignore_insert_ids=False):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1419,7 +1481,18 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         Default is to retry always. This means that whenever there are rows
         that fail to be inserted to BigQuery, they will be retried indefinitely.
         Other retry strategy settings will produce a deadletter PCollection
-        as output.
+        as output. Appropriate values are:
+
+        * `RetryStrategy.RETRY_ALWAYS`: retry all rows if
+          there are any kind of errors. Note that this will hold your pipeline
+          back if there are errors until you cancel or update it.
+        * `RetryStrategy.RETRY_NEVER`: rows with errors
+          will not be retried. Instead they will be output to a dead letter
+          queue under the `'FailedRows'` tag.
+        * `RetryStrategy.RETRY_ON_TRANSIENT_ERROR`: retry
+          rows with transient errors (e.g. timeouts). Rows with permanent errors
+          will be output to dead letter queue under `'FailedRows'` tag.
+
       additional_bq_parameters (callable): A function that returns a dictionary
         with additional parameters to pass to BQ when creating / loading data
         into a table. These can be 'timePartitioning', 'clustering', etc. They
@@ -1446,6 +1519,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro
         and
         https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json.
+      ignore_insert_ids: When using the STREAMING_INSERTS method to write data
+        to BigQuery, `insert_ids` are a feature of BigQuery that support
+        deduplication of events. If your use case is not sensitive to
+        duplication of data inserted to BigQuery, set `ignore_insert_ids`
+        to True to increase the throughput for BQ writing. See:
+        https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication
     """
     self._table = table
     self._dataset = dataset
@@ -1477,6 +1556,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.additional_bq_parameters = additional_bq_parameters or {}
     self.table_side_inputs = table_side_inputs or ()
     self.schema_side_inputs = schema_side_inputs or ()
+    self._ignore_insert_ids = ignore_insert_ids
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -1531,6 +1611,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           self.kms_key,
           self.insert_retry_strategy,
           self.additional_bq_parameters,
+          self._ignore_insert_ids,
           test_client=self.test_client)
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}

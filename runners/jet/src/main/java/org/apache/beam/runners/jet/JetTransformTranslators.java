@@ -24,7 +24,6 @@ import com.hazelcast.jet.core.Vertex;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
@@ -186,12 +185,14 @@ class JetTransformTranslators {
       SerializablePipelineOptions pipelineOptions = context.getOptions();
       Coder inputValueCoder = ((PCollection) Utils.getInput(appliedTransform)).getCoder();
       Coder inputCoder = Utils.getCoder((PCollection) Utils.getInput(appliedTransform));
-      List<PCollectionView<?>> sideInputs = Utils.getSideInputs(appliedTransform);
+      Collection<PCollectionView<?>> sideInputs = Utils.getSideInputs(appliedTransform);
       Map<? extends PCollectionView<?>, Coder> sideInputCoders =
           sideInputs.stream()
               .collect(Collectors.toMap(si -> si, si -> Utils.getCoder(si.getPCollection())));
       DoFnSchemaInformation doFnSchemaInformation =
           ParDoTranslation.getSchemaInformation(appliedTransform);
+      Map<String, PCollectionView<?>> sideInputMappings =
+          ParDoTranslation.getSideInputMapping(appliedTransform);
       SupplierEx<Processor> processorSupplier =
           usesStateOrTimers
               ? new StatefulParDoP.Supplier(
@@ -208,7 +209,8 @@ class JetTransformTranslators {
                   outputCoders,
                   inputValueCoder,
                   outputValueCoders,
-                  sideInputs)
+                  sideInputs,
+                  sideInputMappings)
               : new ParDoP.Supplier(
                   stepId,
                   vertexId,
@@ -223,7 +225,8 @@ class JetTransformTranslators {
                   outputCoders,
                   inputValueCoder,
                   outputValueCoders,
-                  sideInputs);
+                  sideInputs,
+                  sideInputMappings);
 
       Vertex vertex = dagBuilder.addVertex(vertexId, processorSupplier);
       dagBuilder.registerConstructionListeners((DAGBuilder.WiringListener) processorSupplier);

@@ -53,7 +53,6 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -652,11 +651,7 @@ public class CombineTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class BasicTests extends SharedTestBase {
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesSideInputs.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void testSimpleCombine() {
       runTestSimpleCombine(
@@ -666,11 +661,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesSideInputs.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testSimpleCombineEmpty() {
       runTestSimpleCombine(EMPTY_TABLE, 0, Collections.emptyList());
     }
@@ -707,7 +698,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+    @Category({ValidatesRunner.class})
     public void testHotKeyCombining() {
       PCollection<KV<String, Integer>> input =
           copy(
@@ -1037,7 +1028,7 @@ public class CombineTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class WindowingTests extends SharedTestBase implements Serializable {
     @Test
-    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+    @Category({ValidatesRunner.class})
     public void testFixedWindowsCombine() {
       PCollection<KV<String, Integer>> input =
           pipeline
@@ -1320,7 +1311,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+    @Category({ValidatesRunner.class})
     public void testWindowedCombineEmpty() {
       PCollection<Double> mean =
           pipeline
@@ -1441,11 +1432,7 @@ public class CombineTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class AccumulationTests extends SharedTestBase {
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesSideInputs.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testAccumulatingCombine() {
       runTestAccumulatingCombine(
           Arrays.asList(KV.of("a", 1), KV.of("a", 1), KV.of("a", 4), KV.of("b", 1), KV.of("b", 13)),
@@ -1454,11 +1441,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesSideInputs.class,
-      DataflowPortabilityApiUnsupported.class
-    })
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testAccumulatingCombineEmpty() {
       runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.emptyList());
     }

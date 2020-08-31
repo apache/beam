@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import com.google.zetasql.CivilTimeEncoder;
 import com.google.zetasql.Value;
 import io.grpc.Status;
 import java.time.LocalTime;
@@ -166,7 +165,7 @@ public class DateTimeUtils {
 
   public static Value parseTimeToValue(String timeString) {
     LocalTime localTime = LocalTime.parse(timeString);
-    return Value.createTimeValue(CivilTimeEncoder.encodePacked64TimeNanos(localTime));
+    return Value.createTimeValue(localTime);
   }
 
   public static Value parseTimestampWithTZToValue(String timestampString) {

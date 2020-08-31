@@ -40,7 +40,7 @@ SnowflakeCredentials credentials = SnowflakeCredentialsFactory.of(options);
 SnowflakeIO.DataSourceConfiguration.create(credentials)
         .(other DataSourceConfiguration options)
 {{< /highlight >}}
-### Username and password 
+### Username and password
 To use username/password authentication in SnowflakeIO, invoke your pipeline with the following Pipeline options:
 {{< highlight >}}
 --username=<USERNAME> --password=<PASSWORD>
@@ -84,7 +84,7 @@ Where parameters can be:
   - Server Name - full server name with account, zone and domain.
   - Example: `.withServerName("account.snowflakecomputing.com")`
 - `.withDatabase(...)`
-  - Name of the Snowflake database to use. 
+  - Name of the Snowflake database to use.
   - Example: `.withDatabase("MY_DATABASE")`
 - `.withWarehouse(...)`
   - Name of the Snowflake warehouse to use. This parameter is optional. If no warehouse name is specified, the default warehouse for the user is used.
@@ -188,10 +188,10 @@ All the below parameters are required:
 
 - `.withStorageIntegrationName()` Accepts a name of a Snowflake storage integration object created according to Snowflake documentationt. Example:
 {{< highlight >}}
-CREATE OR REPLACE STORAGE INTEGRATION test_integration 
-TYPE = EXTERNAL_STAGE 
-STORAGE_PROVIDER = GCS 
-ENABLED = TRUE 
+CREATE OR REPLACE STORAGE INTEGRATION test_integration
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = GCS
+ENABLED = TRUE
 STORAGE_ALLOWED_LOCATIONS = ('gcs://bucket/');
 {{< /highlight >}}
 Then:
@@ -273,8 +273,8 @@ data.apply(
 {{< /highlight >}}
 
 #### Table schema disposition
-When the `.withCreateDisposition()` .option is set to `CREATE_IF_NEEDED`, the `.withTableSchema()` option enables specifying the schema for the created target table. 
-A table schema is a list of `SFColumn` objects with name and type corresponding to column type for each column in the table. 
+When the `.withCreateDisposition()` .option is set to `CREATE_IF_NEEDED`, the `.withTableSchema()` option enables specifying the schema for the created target table.
+A table schema is a list of `SFColumn` objects with name and type corresponding to column type for each column in the table.
 
 Usage:
 {{< highlight java >}}
@@ -325,10 +325,10 @@ Where all below parameters are required:
 -  `.withStorageIntegrationName()`
   - Accepts a name of a Snowflake storage integration object created according to Snowflake documentation. Example:
 {{< highlight >}}
-CREATE OR REPLACE STORAGE INTEGRATION test_integration 
-TYPE = EXTERNAL_STAGE 
-STORAGE_PROVIDER = GCS 
-ENABLED = TRUE 
+CREATE OR REPLACE STORAGE INTEGRATION test_integration
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = GCS
+ENABLED = TRUE
 STORAGE_ALLOWED_LOCATIONS = ('gcs://bucket/');
 {{< /highlight >}}
 Then:
@@ -345,7 +345,7 @@ Then:
 SnowflakeIO uses COPY statements behind the scenes to read (using [COPY to location](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html)) files staged in cloud storage.StagingBucketName will be used as a temporary location for storing CSV files. Those temporary directories will be named `sf_copy_csv_DATE_TIME_RANDOMSUFFIX` and they will be removed automatically once Read operation finishes.
 
 ### CSVMapper
-SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html) statement to move data from a Snowflake table to Google Cloud Storage as CSV files. These files are then downloaded via [FileIO](https://beam.apache.org/releases/javadoc/2.3.0/index.html?org/apache/beam/sdk/io/FileIO.html) and processed line by line. Each line is split into an array of Strings using the [OpenCSV](http://opencsv.sourceforge.net/) library. 
+SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html) statement to move data from a Snowflake table to Google Cloud Storage as CSV files. These files are then downloaded via [FileIO](https://beam.apache.org/releases/javadoc/2.3.0/index.html?org/apache/beam/sdk/io/FileIO.html) and processed line by line. Each line is split into an array of Strings using the [OpenCSV](http://opencsv.sourceforge.net/) library.
 
 The CSVMapper’s job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom POJO.
 
