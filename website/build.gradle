@@ -75,7 +75,7 @@ task createDockerContainer(type: Exec) {
     // "jenkins" user ownership. BEAM-9737
     // Otherwise: run as current user, so as to not require sudo to clean up
     // build/ directory.
-    if (!System.getenv('NODE_NAME').startsWith('websites')) {
+    if (!System.getenv('NODE_NAME')?.startsWith('websites')) {
       extraOptions += " -u \$(id -u):\$(id -g)"
     }
     commandLine '/bin/bash', '-c',
