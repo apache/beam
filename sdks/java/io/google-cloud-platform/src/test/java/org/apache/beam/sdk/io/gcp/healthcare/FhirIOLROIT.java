@@ -103,14 +103,8 @@ public class FhirIOLROIT {
     String destinationFhirStoreId = fhirStoreId + "_deid";
     client.createFhirStore(healthcareDataset, destinationFhirStoreId, version, null);
     String destinationFhirStoreName = healthcareDataset + "/fhirStores/" + destinationFhirStoreId;
-    String gcsTempPath =
-        "gs://" + DEFAULT_TEMP_BUCKET + "/deidentify/" + (new SecureRandom().nextInt(32));
     DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
-    FhirIO.Deidentify.Result deidResult =
-        pipeline.apply(
-            FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig, gcsTempPath));
-    PCollection<String> deidResources = deidResult.getResources();
-    deidResources.apply(TextIO.write().to(gcsTempPath + "/write"));
+    pipeline.apply(FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig));
     pipeline.run();
   }
 }

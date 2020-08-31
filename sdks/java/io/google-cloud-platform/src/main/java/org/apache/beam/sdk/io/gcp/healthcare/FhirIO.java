@@ -20,9 +20,11 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import com.google.auto.value.AutoValue;
+import com.google.gson.Gson;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -122,12 +124,23 @@ import org.slf4j.LoggerFactory;
  * store) This requires each resource to contain a client provided ID. It is important that when
  * using import you give the appropriate permissions to the Google Cloud Healthcare Service Agent.
  *
+ * <p>Export This is to export FHIR resources from a FHIR store to Google Cloud Storage. The output
+ * resources are in ndjson (newline delimited json) of FHIR resources. It is important that when
+ * using export you give the appropriate permissions to the Google Cloud Healthcare Service Agent.
+ *
+ * <p>Deidentify This is to de-identify FHIR resources from a source FHIR store and write the result
+ * to a destination FHIR store. It is important that the destination store must already exist.
+ *
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/how-tos/permissions-healthcare-api-gcp-products#fhir_store_cloud_storage_permissions></a>
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/import></a>
+ * @see <a
+ *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/export></a>
+ * @see <a
+ *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/deidentify></a>
  *     A {@link PCollection} of {@link String} can be ingested into an Fhir store using {@link
  *     FhirIO.Write#fhirStoresImport(String, String, String, FhirIO.Import.ContentStructure)} This
  *     will return a {@link FhirIO.Write.Result} on which you can call {@link
@@ -170,6 +183,19 @@ import org.slf4j.LoggerFactory;
  * // Alternatively you could use import for high throughput to a new store.
  * FhirIO.Write.Result writeResult =
  *     output.apply("Import FHIR Resources", FhirIO.executeBundles(options.getNewFhirStore()));
+ *
+ * // Export FHIR resources to Google Cloud Storage.
+ * String fhirStoreName = ...;
+ * String exportGcsUriPrefix = ...;
+ * PCollection<String> resources =
+ *     pipeline.apply(FhirIO.exportResourcesToGcs(fhirStoreName, exportGcsUriPrefix));
+ *
+ * // De-identify FHIR resources.
+ * String sourceFhirStoreName = ...;
+ * String destinationFhirStoreName = ...;
+ * DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
+ * pipeline.apply(FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig));
+ *
  * }***
  * </pre>
  */
@@ -230,10 +256,10 @@ public class FhirIO {
    * @param exportGcsUriPrefix the destination GCS dir, in the format:
    *     gs://YOUR_BUCKET_NAME/path/to/a/dir
    * @return the export
-   * @see ExportGcs
+   * @see Export
    */
-  public static ExportGcs exportResourcesToGcs(String fhirStore, String exportGcsUriPrefix) {
-    return new ExportGcs(
+  public static Export exportResourcesToGcs(String fhirStore, String exportGcsUriPrefix) {
+    return new Export(
         StaticValueProvider.of(fhirStore), StaticValueProvider.of(exportGcsUriPrefix));
   }
 
@@ -245,11 +271,50 @@ public class FhirIO {
    * @param exportGcsUriPrefix the destination GCS dir, in the format:
    *     gs://YOUR_BUCKET_NAME/path/to/a/dir
    * @return the export
-   * @see ExportGcs
+   * @see Export
    */
-  public static ExportGcs exportResourcesToGcs(
+  public static Export exportResourcesToGcs(
       ValueProvider<String> fhirStore, ValueProvider<String> exportGcsUriPrefix) {
-    return new ExportGcs(fhirStore, exportGcsUriPrefix);
+    return new Export(fhirStore, exportGcsUriPrefix);
+  }
+
+  /**
+   * Deidentify FHIR resources. Intended for use on non-empty FHIR stores
+   *
+   * @param sourceFhirStore the source fhir store, in the format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   * @param destinationFhirStore the destination fhir store to write de-identified resources, in the
+   *     format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   * @param deidConfig the DeidentifyConfig
+   * @return the deidentify
+   * @see Deidentify
+   */
+  public static Deidentify deidentify(
+      String sourceFhirStore, String destinationFhirStore, DeidentifyConfig deidConfig) {
+    return new Deidentify(
+        StaticValueProvider.of(sourceFhirStore),
+        StaticValueProvider.of(destinationFhirStore),
+        StaticValueProvider.of(deidConfig));
+  }
+
+  /**
+   * Deidentify FHIR resources. Intended for use on non-empty FHIR stores
+   *
+   * @param sourceFhirStore the source fhir store, in the format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   * @param destinationFhirStore the destination fhir store to write de-identified resources, in the
+   *     format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   * @param deidConfig the DeidentifyConfig
+   * @return the deidentify
+   * @see Deidentify
+   */
+  public static Deidentify deidentify(
+      ValueProvider<String> sourceFhirStore,
+      ValueProvider<String> destinationFhirStore,
+      ValueProvider<DeidentifyConfig> deidConfig) {
+    return new Deidentify(sourceFhirStore, destinationFhirStore, deidConfig);
   }
 
   /** The type Read. */
@@ -1209,67 +1274,29 @@ public class FhirIO {
   }
 
   /** Export FHIR resources from a FHIR store to new line delimited json files on GCS. */
-  public static class ExportGcs extends PTransform<PBegin, ExportGcs.Result> {
-    public static final TupleTag<String> OUT = new TupleTag<String>() {};
-
-    /**
-     * Represents the result of an export, including both the successful parsed messages, and
-     * invalid ones.
-     */
-    public static class Result implements POutput, PInput {
-      private PCollection<String> resources;
-
-      public static Result of(PCollection<String> resources) {
-        return new Result(resources);
-      }
-
-      private Result(PCollection<String> resources) {
-        this.resources = resources;
-      }
-
-      public PCollection<String> getResources() {
-        return resources;
-      }
-
-      @Override
-      public Pipeline getPipeline() {
-        return this.resources.getPipeline();
-      }
-
-      @Override
-      public Map<TupleTag<?>, PValue> expand() {
-        return ImmutableMap.of(OUT, resources);
-      }
-
-      @Override
-      public void finishSpecifyingOutput(
-          String transformName, PInput input, PTransform<?, ?> transform) {}
-    }
-
+  public static class Export extends PTransform<PBegin, PCollection<String>> {
     private final ValueProvider<String> fhirStore;
     private final ValueProvider<String> exportGcsUriPrefix;
 
-    public ExportGcs(ValueProvider<String> fhirStore, ValueProvider<String> exportGcsUriPrefix) {
+    public Export(ValueProvider<String> fhirStore, ValueProvider<String> exportGcsUriPrefix) {
       this.fhirStore = fhirStore;
       this.exportGcsUriPrefix = exportGcsUriPrefix;
     }
 
     @Override
-    public ExportGcs.Result expand(PBegin input) {
-      return ExportGcs.Result.of(
-          input
-              .apply(Create.ofProvider(fhirStore, StringUtf8Coder.of()))
-              .apply(
-                  "ScheduleExportOperations",
-                  ParDo.of(new ExportResourcesToGcsFn(this.exportGcsUriPrefix)))
-              .apply(FileIO.matchAll())
-              .apply(FileIO.readMatches())
-              .apply("ReadResourcesFromFiles", TextIO.readFiles()));
+    public PCollection<String> expand(PBegin input) {
+      return input
+          .apply(Create.ofProvider(fhirStore, StringUtf8Coder.of()))
+          .apply(
+              "ScheduleExportOperations",
+              ParDo.of(new ExportResourcesToGcsFn(this.exportGcsUriPrefix)))
+          .apply(FileIO.matchAll())
+          .apply(FileIO.readMatches())
+          .apply("ReadResourcesFromFiles", TextIO.readFiles());
     }
 
     /** A function that schedules an export operation and monitors the status. */
     public static class ExportResourcesToGcsFn extends DoFn<String, String> {
-
       private HealthcareApiClient client;
       private final ValueProvider<String> exportGcsUriPrefix;
 
@@ -1294,6 +1321,67 @@ public class FhirIO {
               String.format("Export operation (%s) failed.", operation.getName()));
         }
         context.output(String.format("%s/*", gcsPrefix.replaceAll("/+$", "")));
+      }
+    }
+  }
+
+  /** Deidentify FHIR resources from a FHIR store to a destination FHIR store */
+  public static class Deidentify extends PTransform<PBegin, PCollection<String>> {
+    private final ValueProvider<String> sourceFhirStore;
+    private final ValueProvider<String> destinationFhirStore;
+    private final ValueProvider<DeidentifyConfig> deidConfig;
+
+    public Deidentify(
+        ValueProvider<String> sourceFhirStore,
+        ValueProvider<String> destinationFhirStore,
+        ValueProvider<DeidentifyConfig> deidConfig) {
+      this.sourceFhirStore = sourceFhirStore;
+      this.destinationFhirStore = destinationFhirStore;
+      this.deidConfig = deidConfig;
+    }
+
+    @Override
+    public PCollection<String> expand(PBegin input) {
+      return input
+          .getPipeline()
+          .apply(Create.ofProvider(sourceFhirStore, StringUtf8Coder.of()))
+          .apply(
+              "ScheduleDeidentifyFhirStoreOperations",
+              ParDo.of(new DeidentifyFn(destinationFhirStore, deidConfig)));
+    }
+
+    /** A function that schedules a deidentify operation and monitors the status. */
+    public static class DeidentifyFn extends DoFn<String, String> {
+      private HealthcareApiClient client;
+      private final ValueProvider<String> destinationFhirStore;
+      private static final Gson gson = new Gson();
+      private final String deidConfigJson;
+
+      public DeidentifyFn(
+          ValueProvider<String> destinationFhirStore, ValueProvider<DeidentifyConfig> deidConfig) {
+        this.destinationFhirStore = destinationFhirStore;
+        this.deidConfigJson = gson.toJson(deidConfig.get());
+      }
+
+      @Setup
+      public void initClient() throws IOException {
+        this.client = new HttpHealthcareApiClient();
+      }
+
+      @ProcessElement
+      public void deidentify(ProcessContext context)
+          throws IOException, InterruptedException, HealthcareHttpException {
+        String sourceFhirStore = context.element();
+        String destinationFhirStore = this.destinationFhirStore.get();
+        DeidentifyConfig deidConfig = gson.fromJson(this.deidConfigJson, DeidentifyConfig.class);
+        Operation operation =
+            client.deidentifyFhirStore(sourceFhirStore, destinationFhirStore, deidConfig);
+        operation = client.pollOperation(operation, 1000L);
+        if (operation.getError() != null) {
+          throw new IOException(
+              String.format("DeidentifyFhirStore operation (%s) failed.", operation.getName()));
+        }
+        context.output(destinationFhirStore);
       }
     }
   }
