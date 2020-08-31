@@ -18,12 +18,11 @@
 package org.apache.beam.sdk.io.parquet;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -80,18 +79,12 @@ public class ParquetIOTest implements Serializable {
   public void testBlockTracker() throws Exception {
     OffsetRange range = new OffsetRange(0, 1);
     ParquetIO.ReadFiles.BlockTracker tracker = new ParquetIO.ReadFiles.BlockTracker(range, 7, 3);
-    assertTrue(Math.abs(tracker.getProgress().getWorkRemaining() - 6) < 0.01);
-    assertTrue(Math.abs(tracker.getProgress().getWorkCompleted()) < 0.01);
-    tracker.tryClaim((long) 0);
-    tracker.makeProgress();
-    assertTrue(Math.abs(tracker.getProgress().getWorkRemaining() - 4) < 0.01);
-    assertTrue(Math.abs(tracker.getProgress().getWorkCompleted() - 2) < 0.01);
-    assertThrows(RuntimeException.class, () -> tracker.tryClaim((long) 0));
-    tracker.makeProgress();
-    tracker.makeProgress();
-    assertTrue(Math.abs(tracker.getProgress().getWorkRemaining() - 0) < 0.01);
-    assertTrue(Math.abs(tracker.getProgress().getWorkCompleted() - 6) < 0.01);
-    assertThrows("Making progress out of range", IOException.class, () -> tracker.makeProgress());
+    assertEquals(tracker.getProgress().getWorkRemaining(), 1.0, 0.01);
+    assertEquals(tracker.getProgress().getWorkCompleted(), 0.0, 0.01);
+    tracker.tryClaim(0L);
+    tracker.tryClaim(1L);
+    assertEquals(tracker.getProgress().getWorkRemaining(), 0.0, 0.01);
+    assertEquals(tracker.getProgress().getWorkCompleted(), 1.0, 0.01);
   }
 
   @Test
@@ -107,11 +100,11 @@ public class ParquetIOTest implements Serializable {
       blockList.add(testBlock);
     }
     rangeList = testFn.splitBlockWithLimit(1, blockList.size(), blockList, 200);
-    assertTrue(rangeList.get(0).getFrom() == (long) 1);
-    assertTrue(rangeList.get(0).getTo() == (long) 5);
-    assertTrue(rangeList.get(1).getFrom() == (long) 5);
-    assertTrue(rangeList.get(1).getTo() == (long) 6);
-    assertTrue(rangeList.size() == 2);
+    assertEquals(1L, rangeList.get(0).getFrom());
+    assertEquals(5L, rangeList.get(0).getTo());
+    assertEquals(5L, rangeList.get(1).getFrom());
+    assertEquals(6L, rangeList.get(1).getTo());
+    assertEquals(2L, rangeList.size());
   }
 
   @Test

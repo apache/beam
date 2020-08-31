@@ -213,6 +213,7 @@ public class ParquetIO {
       return from(ValueProvider.StaticValueProvider.of(filepattern));
     }
 
+    /** Enable the Splittable reading. */
     public Read withSplit() {
       return toBuilder().setSplittable(true).build();
     }
@@ -278,7 +279,7 @@ public class ParquetIO {
     public ReadFiles withAvroDataModel(GenericData model) {
       return toBuilder().setAvroDataModel(model).build();
     }
-
+    /** Enable the Splittable reading. */
     public ReadFiles withSplit() {
       return toBuilder().setSplittable(true).build();
     }
@@ -319,7 +320,7 @@ public class ParquetIO {
           RestrictionTracker<OffsetRange, Long> tracker,
           OutputReceiver<GenericRecord> outputReceiver)
           throws Exception {
-        LOG.info(
+        LOG.debug(
             "start "
                 + tracker.currentRestriction().getFrom()
                 + " to "
@@ -356,7 +357,7 @@ public class ParquetIO {
 
         while ((tracker).tryClaim(currentBlock)) {
           PageReadStore pages = reader.readNextRowGroup();
-          LOG.info("block {} read in memory. row count = {}", currentBlock, pages.getRowCount());
+          LOG.debug("block {} read in memory. row count = {}", currentBlock, pages.getRowCount());
           currentBlock += 1;
           RecordReader<GenericRecord> recordReader =
               columnIO.getRecordReader(
@@ -378,9 +379,6 @@ public class ParquetIO {
                 LOG.debug("filtered record reader reached end of block");
                 break;
               }
-              if (tracker instanceof BlockTracker) {
-                ((BlockTracker) tracker).makeProgress();
-              }
               if (recordReader.shouldSkipCurrentRecord()) {
                 // this record is being filtered via the filter2 package
                 LOG.debug("skipping record");
@@ -396,7 +394,7 @@ public class ParquetIO {
                   e);
             }
           }
-          LOG.info("Finish processing " + currentRow + " rows from block " + (currentBlock - 1));
+          LOG.debug("Finish processing " + currentRow + " rows from block " + (currentBlock - 1));
         }
       }
 
@@ -431,7 +429,7 @@ public class ParquetIO {
         List<BlockMetaData> rowGroups = reader.getRowGroups();
         for (OffsetRange offsetRange :
             splitBlockWithLimit(
-                restriction.getFrom(), restriction.getTo(), rowGroups, SPLIT_LIMIT / 1000)) {
+                restriction.getFrom(), restriction.getTo(), rowGroups, SPLIT_LIMIT)) {
           out.output(offsetRange);
         }
       }
@@ -461,11 +459,11 @@ public class ParquetIO {
       public RestrictionTracker<OffsetRange, Long> newTracker(
           @Restriction OffsetRange restriction, @Element FileIO.ReadableFile file)
           throws Exception {
-        List<Double> recordCountAndSize = getRecordCountAndSize(file, restriction);
+        CountAndSize recordCountAndSize = getRecordCountAndSize(file, restriction);
         return new BlockTracker(
             restriction,
-            Math.round(recordCountAndSize.get(1)),
-            Math.round(recordCountAndSize.get(0)));
+            Math.round(recordCountAndSize.getSize()),
+            Math.round(recordCountAndSize.getCount()));
       }
 
       @GetRestrictionCoder
@@ -476,10 +474,10 @@ public class ParquetIO {
       @GetSize
       public double getSize(@Element FileIO.ReadableFile file, @Restriction OffsetRange restriction)
           throws Exception {
-        return getRecordCountAndSize(file, restriction).get(1);
+        return getRecordCountAndSize(file, restriction).getSize();
       }
 
-      public List<Double> getRecordCountAndSize(
+      public CountAndSize getRecordCountAndSize(
           @Element FileIO.ReadableFile file, @Restriction OffsetRange restriction)
           throws Exception {
         ParquetFileReader reader = getParquetFileReader(file);
@@ -490,10 +488,19 @@ public class ParquetIO {
           recordCount += block.getRowCount();
           size += block.getTotalByteSize();
         }
-        List<Double> countAndSize = new ArrayList<>();
-        countAndSize.add(recordCount);
-        countAndSize.add(size);
+        CountAndSize countAndSize = CountAndSize.create(recordCount, size);
         return countAndSize;
+      }
+
+      @AutoValue
+      abstract static class CountAndSize {
+        static CountAndSize create(double count, double size) {
+          return new AutoValue_ParquetIO_ReadFiles_SplitReadFn_CountAndSize(count, size);
+        }
+
+        abstract double getCount();
+
+        abstract double getSize();
       }
     }
 
@@ -519,12 +526,9 @@ public class ParquetIO {
       }
 
       @Override
+      // TODO:[BEAM-10842] A more precise progress update
       public Progress getProgress() {
-        if (this.lastAttemptedOffset == null) {
-          return Progress.from(0.0D, this.totalWork);
-        } else {
-          return Progress.from(progress, totalWork - progress);
-        }
+        return super.getProgress();
       }
     }
 
