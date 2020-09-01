@@ -200,6 +200,15 @@ class DeferredSeries(frame_base.DeferredFrame):
 
   view = frame_base.wont_implement_method('memory sharing semantics')
 
+  @property
+  def str(self):
+    expr = expressions.ComputedExpression(
+        'str',
+        lambda df: df.str, [self._expr],
+        requires_partition_by=partitionings.Nothing(),
+        preserves_partition_by=partitionings.Nothing())
+    return _DeferredStringMethods(expr)
+
 
 for base in ['add',
              'sub',
@@ -869,3 +878,52 @@ class _DeferredLoc(object):
                 if len(args) > 1
                 else partitionings.Nothing()),
             preserves_partition_by=partitionings.Singleton()))
+
+class _DeferredStringMethods(frame_base.DeferredBase):
+  pass
+
+ELEMENTWISE_STRING_METHODS = [
+            'capitalize',
+            'casefold',
+            'contains',
+            'count',
+            'endswith',
+            'extract',
+            'extractall',
+            'findall',
+            'get',
+            'get_dummies',
+            'isalpha',
+            'isalnum',
+            'isdecimal',
+            'isdigit',
+            'islower',
+            'isnumeric',
+            'isspace',
+            'istitle',
+            'isupper',
+            'join',
+            'len',
+            'lower',
+            'lstrip',
+            'pad',
+            'partition',
+            'replace',
+            'rpartition',
+            'rsplit',
+            'rstrip',
+            'slice',
+            'slice_replace',
+            'split',
+            'startswith',
+            'strip',
+            'swapcase',
+            'title',
+            'upper',
+            'wrap',
+            'zfill',
+            '__getitem__',
+]
+
+for method in ELEMENTWISE_STRING_METHODS:
+  setattr(_DeferredStringMethods, method, frame_base._elementwise_method(method))
