@@ -21,12 +21,12 @@
 
 from __future__ import absolute_import
 
-from builtins import str
 import json
 import sys
 import unittest
 from builtins import object
 from builtins import range
+from builtins import str
 from datetime import datetime
 
 # patches unittest.TestCase to be python3 compatible
@@ -35,7 +35,6 @@ import mock
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
-from apache_beam.coders import BytesCoder
 from apache_beam.coders import coders
 from apache_beam.io.gcp import bigquery
 from apache_beam.options.pipeline_options import DebugOptions

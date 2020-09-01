@@ -48,8 +48,10 @@ from apache_beam.io.filesystem import BeamIOError
 # TODO(sourabhbajaj): Remove the GCP specific error code to a submodule
 try:
   from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import InvalidDataError
 except ImportError as e:
   HttpError = None
+  InvalidDataError = None
 
 # Protect against environments where aws tools are not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -120,7 +122,7 @@ def retry_on_server_errors_filter(exception):
     return exception.status_code >= 500
   if (S3ClientError is not None) and isinstance(exception, S3ClientError):
     return exception.code >= 500
-  return not isinstance(exception, PermanentException)
+  return not isinstance(exception, (PermanentException, InvalidDataError))
 
 
 # TODO(BEAM-6202): Dataflow returns 404 for job ids that actually exist.
