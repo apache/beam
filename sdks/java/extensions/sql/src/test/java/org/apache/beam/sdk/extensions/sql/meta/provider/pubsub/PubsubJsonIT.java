@@ -167,7 +167,6 @@ public class PubsubJsonIT implements Serializable {
     resultSignal.waitForSuccess(Duration.standardMinutes(5));
   }
 
-  @Ignore("Disable flake tracked at https://issues.apache.org/jira/browse/BEAM-5122")
   @Test
   public void testUsesDlq() throws Exception {
     String createTableString =
@@ -239,7 +238,6 @@ public class PubsubJsonIT implements Serializable {
   }
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-7582")
   public void testSQLLimit() throws Exception {
     String createTableString =
         "CREATE EXTERNAL TABLE message (\n"
