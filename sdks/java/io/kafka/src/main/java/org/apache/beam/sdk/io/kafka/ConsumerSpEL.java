@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -27,6 +28,8 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,8 +40,9 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 
 /**
- * ConsumerSpEL to handle multiple of versions of Consumer API between Kafka 0.9 and 0.10. It auto
- * detects the input type List/Collection/Varargs, to eliminate the method definition differences.
+ * ConsumerSpEL to handle multiple of versions of Consumer API between Kafka 0.9 and 2.1.0 onwards.
+ * It auto detects the input type List/Collection/Varargs, to eliminate the method definition
+ * differences.
  */
 class ConsumerSpEL {
 
@@ -51,8 +55,12 @@ class ConsumerSpEL {
 
   private Expression assignExpression = parser.parseExpression("#consumer.assign(#tp)");
 
+  private Expression deserializeWithHeadersExpression =
+      parser.parseExpression("#deserializer.deserialize(#topic, #headers, #data)");
+
   private boolean hasRecordTimestamp = false;
   private boolean hasOffsetsForTimes = false;
+  private boolean deserializerSupportsHeaders = false;
 
   static boolean hasHeaders() {
     boolean clientHasHeaders = false;
@@ -90,6 +98,16 @@ class ConsumerSpEL {
     } catch (NoSuchMethodException | SecurityException e) {
       LOG.debug("OffsetsForTimes is not available.");
     }
+
+    try {
+      // It is supported by Kafka Client 2.1.0 onwards.
+      Method method =
+          Deserializer.class.getDeclaredMethod(
+              "deserialize", String.class, Headers.class, byte[].class);
+      deserializerSupportsHeaders = method.isDefault();
+    } catch (NoSuchMethodException | SecurityException e) {
+      LOG.debug("Deserializer interface does not support Kafka headers");
+    }
   }
 
   public void evaluateSeek2End(Consumer consumer, TopicPartition topicPartition) {
@@ -104,6 +122,16 @@ class ConsumerSpEL {
     mapContext.setVariable("consumer", consumer);
     mapContext.setVariable("tp", topicPartitions);
     assignExpression.getValue(mapContext);
+  }
+
+  public Object evaluateDeserializeWithHeaders(
+      Deserializer deserializer, ConsumerRecord<byte[], byte[]> rawRecord, Boolean isKey) {
+    StandardEvaluationContext mapContext = new StandardEvaluationContext();
+    mapContext.setVariable("deserializer", deserializer);
+    mapContext.setVariable("topic", rawRecord.topic());
+    mapContext.setVariable("headers", rawRecord.headers());
+    mapContext.setVariable("data", isKey ? rawRecord.key() : rawRecord.value());
+    return deserializeWithHeadersExpression.getValue(mapContext);
   }
 
   public long getRecordTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {
@@ -123,6 +151,30 @@ class ConsumerSpEL {
 
   public boolean hasOffsetsForTimes() {
     return hasOffsetsForTimes;
+  }
+
+  public boolean deserializerSupportsHeaders() {
+    return deserializerSupportsHeaders;
+  }
+
+  public Object deserializeKey(
+      Deserializer deserializer, ConsumerRecord<byte[], byte[]> rawRecord) {
+    if (deserializerSupportsHeaders) {
+      // Kafka API 2.1.0 onwards
+      return evaluateDeserializeWithHeaders(deserializer, rawRecord, true);
+    } else {
+      return deserializer.deserialize(rawRecord.topic(), rawRecord.key());
+    }
+  }
+
+  public Object deserializeValue(
+      Deserializer deserializer, ConsumerRecord<byte[], byte[]> rawRecord) {
+    if (deserializerSupportsHeaders) {
+      // Kafka API 2.1.0 onwards
+      return evaluateDeserializeWithHeaders(deserializer, rawRecord, false);
+    } else {
+      return deserializer.deserialize(rawRecord.topic(), rawRecord.value());
+    }
   }
 
   /**
