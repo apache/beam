@@ -355,7 +355,7 @@ public class ParquetIO {
           reader.skipNextRowGroup();
         }
 
-        while ((tracker).tryClaim(currentBlock)) {
+        while (tracker.tryClaim(currentBlock)) {
           PageReadStore pages = reader.readNextRowGroup();
           LOG.debug("block {} read in memory. row count = {}", currentBlock, pages.getRowCount());
           currentBlock += 1;
