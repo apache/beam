@@ -89,9 +89,12 @@ class CommonJobProperties {
         abortBuild()
       }
 
-      // Set SPARK_LOCAL_IP for spark tests.
       environmentVariables {
+        // Set SPARK_LOCAL_IP for spark tests.
         env('SPARK_LOCAL_IP', '127.0.0.1')
+        // Workaround for setuptools >= 50.0.0.
+        // https://github.com/pypa/setuptools/blob/master/CHANGES.rst#v5000
+        env('SETUPTOOLS_USE_DISTUTILS', 'stdlib')
       }
       credentialsBinding {
         string("CODECOV_TOKEN", "beam-codecov-token")
