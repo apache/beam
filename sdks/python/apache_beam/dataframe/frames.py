@@ -926,4 +926,6 @@ ELEMENTWISE_STRING_METHODS = [
 ]
 
 for method in ELEMENTWISE_STRING_METHODS:
-  setattr(_DeferredStringMethods, method, frame_base._elementwise_method(method))
+  setattr(_DeferredStringMethods,
+          method,
+          frame_base._elementwise_method(method))
