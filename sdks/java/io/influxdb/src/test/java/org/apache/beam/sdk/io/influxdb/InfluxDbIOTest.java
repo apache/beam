@@ -52,124 +52,46 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 @RunWith(PowerMockRunner.class)
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 80a6c0bda3 (spotlessCheck)
 @PrepareForTest({
   org.influxdb.InfluxDBFactory.class,
   org.apache.beam.sdk.io.influxdb.InfluxDbIO.InfluxDBSource.class
 })
 public class InfluxDbIOTest {
-<<<<<<< HEAD
-=======
-@PrepareForTest({org.influxdb.InfluxDBFactory.class, org.apache.beam.sdk.io.influxdb.InfluxDbIO.InfluxDBSource.class})
-public class InfluxDbIOTest  {
->>>>>>> c793375e14 (Addressing the comments)
-=======
->>>>>>> 80a6c0bda3 (spotlessCheck)
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
-  InfluxDB influxDb;
 
   @Before
-<<<<<<< HEAD
-<<<<<<< HEAD
   public void setupTest() {
     PowerMockito.mockStatic(InfluxDBFactory.class);
-    influxDb = Mockito.mock(InfluxDB.class);
-    PowerMockito.when(
-            InfluxDBFactory.connect(
-                anyString(), anyString(), anyString(), any(OkHttpClient.Builder.class)))
-        .thenReturn(influxDb);
-    PowerMockito.when(InfluxDBFactory.connect(anyString(), anyString(), anyString()))
-        .thenReturn(influxDb);
   }
 
-=======
-  public void setupTest(){
-=======
-  public void setupTest() {
->>>>>>> 80a6c0bda3 (spotlessCheck)
-    PowerMockito.mockStatic(InfluxDBFactory.class);
-    influxDb = Mockito.mock(InfluxDB.class);
-    PowerMockito.when(
-            InfluxDBFactory.connect(
-                anyString(), anyString(), anyString(), any(OkHttpClient.Builder.class)))
-        .thenReturn(influxDb);
-    PowerMockito.when(InfluxDBFactory.connect(anyString(), anyString(), anyString()))
-        .thenReturn(influxDb);
-  }
-<<<<<<< HEAD
->>>>>>> c793375e14 (Addressing the comments)
-=======
-
->>>>>>> 80a6c0bda3 (spotlessCheck)
   @Test
   public void validateWriteTest() {
+    InfluxDB influxDb = Mockito.mock(InfluxDB.class);
+    PowerMockito.when(
+            InfluxDBFactory.connect(
+                anyString(), anyString(), anyString(), any(OkHttpClient.Builder.class)))
+        .thenReturn(influxDb);
+    PowerMockito.when(InfluxDBFactory.connect(anyString(), anyString(), anyString()))
+        .thenReturn(influxDb);
     String influxHost = "http://localhost";
     String userName = "admin";
     String password = "admin";
     String influxDatabaseName = "testDataBase";
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 80a6c0bda3 (spotlessCheck)
     AtomicInteger countInvocation = new AtomicInteger();
     Mockito.doAnswer(invocation -> countInvocation.getAndIncrement())
         .when(influxDb)
-        .write(any(String.class));
-<<<<<<< HEAD
+        .write(any(List.class));
     doReturn(getDatabase(influxDatabaseName)).when(influxDb).query(new Query("SHOW DATABASES"));
     final int numOfElementsToWrite = 1000;
     pipeline
-        .apply("Generate data", Create.of(GenerateData.getMetric(numOfElementsToWrite)))
+        .apply("Generate data", Create.of(GenerateData.getMetric("test_m", numOfElementsToWrite)))
         .apply(
             "Write data to InfluxDB",
-            InfluxDbIO.write()
-                .withConfiguration(
-                    InfluxDbIO.DataSourceConfiguration.create(influxHost, userName, password))
-                .withDatabase(influxDatabaseName)
-                .withSslInvalidHostNameAllowed(true)
-                .withSslEnabled(false));
+            InfluxDbIO.write(influxHost, userName, password, influxDatabaseName));
     PipelineResult result = pipeline.run();
-=======
-    AtomicInteger countInvocation= new AtomicInteger();
-    Mockito.doAnswer(invocation -> countInvocation.getAndIncrement()).when(influxDb).write(any(String.class));
-    doReturn(getDatabase(influxDatabaseName)).when(influxDb).query(new Query("SHOW DATABASES"));
-    final int numOfElementsToWrite = 1000;
-    pipeline
-          .apply("Generate data", Create.of(GenerateData.getMetric(numOfElementsToWrite)))
-          .apply(
-              "Write data to InfluxDB",
-              InfluxDbIO.write()
-                  .withConfiguration(
-                      InfluxDbIO.DataSourceConfiguration.create(
-                          influxHost,
-                          userName,
-                          password))
-                  .withDatabase(influxDatabaseName)
-                  .withSslInvalidHostNameAllowed(true)
-                  .withSslEnabled(false));
-    PipelineResult result =  pipeline.run();
->>>>>>> c793375e14 (Addressing the comments)
-=======
-    doReturn(getDatabase(influxDatabaseName)).when(influxDb).query(new Query("SHOW DATABASES"));
-    final int numOfElementsToWrite = 1000;
-    pipeline
-        .apply("Generate data", Create.of(GenerateData.getMetric(numOfElementsToWrite)))
-        .apply(
-            "Write data to InfluxDB",
-            InfluxDbIO.write()
-                .withConfiguration(
-                    InfluxDbIO.DataSourceConfiguration.create(influxHost, userName, password))
-                .withDatabase(influxDatabaseName)
-                .withSslInvalidHostNameAllowed(true)
-                .withSslEnabled(false));
-    PipelineResult result = pipeline.run();
->>>>>>> 80a6c0bda3 (spotlessCheck)
     Assert.assertEquals(State.DONE, result.waitUntilFinish());
-    Assert.assertEquals(numOfElementsToWrite, countInvocation.get());
+    Assert.assertTrue(countInvocation.get() > 0);
   }
 
   @Test
@@ -178,11 +100,19 @@ public class InfluxDbIOTest  {
     String userName = "admin";
     String password = "admin";
     String influxDatabaseName = "testDataBase";
-
+    InfluxDB influxDb = Mockito.mock(InfluxDB.class);
+    PowerMockito.when(
+            InfluxDBFactory.connect(
+                anyString(), anyString(), anyString(), any(OkHttpClient.Builder.class)))
+        .thenReturn(influxDb);
+    PowerMockito.when(InfluxDBFactory.connect(anyString(), anyString(), anyString()))
+        .thenReturn(influxDb);
     doReturn(getDatabase(influxDatabaseName)).when(influxDb).query(new Query("SHOW DATABASES"));
-    doReturn(getDatabase(influxDatabaseName)).when(influxDb).query(new Query("show shards"));
-<<<<<<< HEAD
-<<<<<<< HEAD
+    doReturn(getDatabase(influxDatabaseName)).when(influxDb).query(new Query("SHOW SHARDS"));
+    doReturn(mockResultForNumberAndSizeOfBlocks())
+        .when(influxDb)
+        .query(new Query("EXPLAIN SELECT * FROM cpu", influxDatabaseName));
+
     doReturn(mockResult("cpu", 20))
         .when(influxDb)
         .query(new Query("SELECT * FROM cpu", influxDatabaseName));
@@ -191,61 +121,19 @@ public class InfluxDbIOTest  {
         pipeline
             .apply(
                 "Read data to InfluxDB",
-                InfluxDbIO.read()
-                    .withDataSourceConfiguration(
-                        InfluxDbIO.DataSourceConfiguration.create(influxHost, userName, password))
-                    .withDatabase(influxDatabaseName)
-                    .withQuery("SELECT * FROM cpu")
-                    .withSslInvalidHostNameAllowed(true)
-                    .withSslEnabled(false))
+                InfluxDbIO.read(influxHost, userName, password, influxDatabaseName)
+                    .withQuery("SELECT * FROM cpu"))
             .apply(Count.globally());
     PAssert.that(data).containsInAnyOrder(20L);
     PipelineResult result = pipeline.run();
     Assert.assertEquals(State.DONE, result.waitUntilFinish());
   }
 
-=======
-    doReturn(mockResult("cpu", 20)).when(influxDb).query(new Query("SELECT * FROM cpu", influxDatabaseName));
-=======
-    doReturn(mockResult("cpu", 20))
-        .when(influxDb)
-        .query(new Query("SELECT * FROM cpu", influxDatabaseName));
->>>>>>> 80a6c0bda3 (spotlessCheck)
-
-    PCollection<Long> data =
-        pipeline
-            .apply(
-                "Read data to InfluxDB",
-                InfluxDbIO.read()
-                    .withDataSourceConfiguration(
-                        InfluxDbIO.DataSourceConfiguration.create(influxHost, userName, password))
-                    .withDatabase(influxDatabaseName)
-                    .withQuery("SELECT * FROM cpu")
-                    .withSslInvalidHostNameAllowed(true)
-                    .withSslEnabled(false))
-            .apply(Count.globally());
-    PAssert.that(data).containsInAnyOrder(20L);
-    PipelineResult result = pipeline.run();
-    Assert.assertEquals(State.DONE, result.waitUntilFinish());
-  }
-<<<<<<< HEAD
->>>>>>> c793375e14 (Addressing the comments)
-=======
-
->>>>>>> 80a6c0bda3 (spotlessCheck)
   private QueryResult getDatabase(String name) {
     QueryResult queryResult = new QueryResult();
     QueryResult.Series series = new Series();
     series.setName("databases");
-<<<<<<< HEAD
-<<<<<<< HEAD
     List<Object> db = new ArrayList<>();
-=======
-    List<Object> db= new ArrayList<>();
->>>>>>> c793375e14 (Addressing the comments)
-=======
-    List<Object> db = new ArrayList<>();
->>>>>>> 80a6c0bda3 (spotlessCheck)
     db.add(name);
     List<List<Object>> values = new ArrayList<>();
     values.add(db);
@@ -266,15 +154,7 @@ public class InfluxDbIOTest  {
     series.setName(metricName);
     series.setColumns(Arrays.asList("time", "value"));
     List<List<Object>> values = new ArrayList<>();
-<<<<<<< HEAD
-<<<<<<< HEAD
     for (int i = 0; i < numberOfRecords; i++) {
-=======
-    for (int i=0; i< numberOfRecords; i++) {
->>>>>>> c793375e14 (Addressing the comments)
-=======
-    for (int i = 0; i < numberOfRecords; i++) {
->>>>>>> 80a6c0bda3 (spotlessCheck)
       List<Object> metricData = new ArrayList<>();
       Date now = new Date();
       SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ssZ");
@@ -282,6 +162,28 @@ public class InfluxDbIOTest  {
       metricData.add(new Random().nextInt(100));
       values.add(metricData);
     }
+    series.setValues(values);
+    List<QueryResult.Series> queryResultSeries = new ArrayList<>();
+    queryResultSeries.add(series);
+    QueryResult.Result result = new QueryResult.Result();
+    result.setSeries(queryResultSeries);
+    List<QueryResult.Result> listResult = new ArrayList<>();
+    listResult.add(result);
+    queryResult.setResults(listResult);
+    return queryResult;
+  }
+
+  private QueryResult mockResultForNumberAndSizeOfBlocks() {
+    QueryResult queryResult = new QueryResult();
+    QueryResult.Series series = new Series();
+    series.setColumns(Arrays.asList("time", "value"));
+    List<List<Object>> values = new ArrayList<>();
+    List<Object> sizeOfBlocks = new ArrayList<>();
+    sizeOfBlocks.add("SIZE OF BLOCKS: 1");
+    values.add(sizeOfBlocks);
+    List<Object> numOfShareds = new ArrayList<>();
+    numOfShareds.add("NUMBER OF BLOCKS: 1");
+    values.add(numOfShareds);
     series.setValues(values);
     List<QueryResult.Series> queryResultSeries = new ArrayList<>();
     queryResultSeries.add(series);

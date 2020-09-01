@@ -15,10 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-/**
- * Transforms for reading and writing from/to InfluxDB.
- *
- * <p>{@code org.apache.beam.sdk.io.influxdb.InfluxDbIO}
- */
 package org.apache.beam.sdk.io.influxdb;
+
+import java.io.Serializable;
+import java.util.Comparator;
+import org.influxdb.impl.TimeUtil;
+
+/** Utility class to sort Shard Information based on time. */
+class ShardInformationByStartDate implements Comparator<ShardInformation>, Serializable {
+  @Override
+  public int compare(ShardInformation a, ShardInformation b) {
+    return Long.compare(
+        TimeUtil.fromInfluxDBTimeFormat(a.getStartTime()),
+        TimeUtil.fromInfluxDBTimeFormat(b.getStartTime()));
+  }
+}

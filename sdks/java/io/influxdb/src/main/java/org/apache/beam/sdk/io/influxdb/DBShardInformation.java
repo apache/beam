@@ -17,32 +17,44 @@
  */
 package org.apache.beam.sdk.io.influxdb;
 
+import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.influxdb.dto.QueryResult.Series;
 
-class DBShardInformation {
-
+/**
+ * Utility class to load a ShardInformation from the Series Data. Shard POJO class is defined in
+ * {@code ShardInformation}.
+ */
+class DBShardInformation implements Serializable {
+  /** Map Structure with database as key and shardInformation as Value. */
   private Map<String, List<ShardInformation>> shardInformation = new HashMap<>();
 
   DBShardInformation() {}
 
   public void loadShardInformation(String dbName, Series sData) {
+    List<ShardInformation> shardInfo;
     if (!shardInformation.containsKey(dbName)) {
-      shardInformation.put(dbName, new ArrayList<>());
+      shardInfo = new ArrayList<>();
+    } else {
+      shardInfo = shardInformation.get(dbName);
     }
     if (sData.getName().equals(dbName)) {
-      List<ShardInformation> shardInfo = shardInformation.get(dbName);
       for (List<Object> data : sData.getValues()) {
         shardInfo.add(new ShardInformation(data));
       }
-      shardInformation.put(dbName, shardInfo);
     }
+    shardInformation.put(dbName, shardInfo);
   }
 
   public List<ShardInformation> getShardInformation(String dbName) {
-    return shardInformation.get(dbName);
+    if (shardInformation.containsKey(dbName)) {
+      return shardInformation.get(dbName);
+    } else {
+      return Collections.emptyList();
+    }
   }
 }

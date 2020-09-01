@@ -23,9 +23,9 @@ String jobName = "beam_PerformanceTests_InfluxDbIO_IT"
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
   common.enablePhraseTriggeringFromPullRequest(
-          delegate,
-          'Java InfluxDbIO Performance Test',
-          'Run Java InfluxDbIO Performance Test')
+      delegate,
+      'Java InfluxDbIO Performance Test',
+      'Run Java InfluxDbIO Performance Test')
 
   String namespace = common.getKubernetesNamespace(jobName)
   String kubeconfigPath = common.getKubeconfigLocationForNamespace(namespace)
@@ -35,10 +35,10 @@ job(jobName) {
   String influxDBHostName = "LOAD_BALANCER_IP"
   k8s.loadBalancerIP("influxdb-load-balancer-service", influxDBHostName)
   Map pipelineOptions = [
-          influxDBURL     : "http://\$${influxDBHostName}:8086",
-          influxDBUserName : "superadmin",
-          influxDBPassword : "supersecretpassword",
-          databaseName : "db1"
+    influxDBURL     : "http://\$${influxDBHostName}:8086",
+    influxDBUserName : "superadmin",
+    influxDBPassword : "supersecretpassword",
+    databaseName : "db1"
   ]
 
   steps {

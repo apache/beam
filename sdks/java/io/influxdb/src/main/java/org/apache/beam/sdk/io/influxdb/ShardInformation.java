@@ -17,24 +17,24 @@
  */
 package org.apache.beam.sdk.io.influxdb;
 
+import java.io.Serializable;
 import java.util.List;
-import java.util.Objects;
-import org.joda.time.DateTime;
 
-class ShardInformation implements Comparable {
+/** POJO structure for shard information. */
+class ShardInformation implements Serializable {
 
   private double id;
   private String retentionPolicy;
   private double shardGroup;
-  private DateTime startTime;
-  private DateTime endTime;
+  private String startTime;
+  private String endTime;
 
   ShardInformation(List<Object> data) {
     id = Double.parseDouble(data.get(0).toString());
     retentionPolicy = data.get(2).toString();
     shardGroup = Double.parseDouble(data.get(3).toString());
-    startTime = DateTime.parse(data.get(4).toString());
-    endTime = DateTime.parse(data.get(5).toString());
+    startTime = data.get(4).toString();
+    endTime = data.get(5).toString();
   }
 
   public double getId() {
@@ -49,40 +49,11 @@ class ShardInformation implements Comparable {
     return shardGroup;
   }
 
-  public DateTime getStartTime() {
+  public String getStartTime() {
     return startTime;
   }
 
-  public DateTime getEndTime() {
+  public String getEndTime() {
     return endTime;
-  }
-
-  @Override
-  public int compareTo(Object o) {
-    return getStartTime().compareTo(((ShardInformation) o).getStartTime());
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null) {
-      return false;
-    }
-    if (getClass() != o.getClass()) {
-      return false;
-    }
-    ShardInformation shardInformation = (ShardInformation) o;
-    return Objects.equals(id, shardInformation.id)
-        && Objects.equals(retentionPolicy, shardInformation.retentionPolicy)
-        && Objects.equals(shardGroup, shardInformation.shardGroup)
-        && Objects.equals(startTime, shardInformation.startTime)
-        && Objects.equals(endTime, shardInformation.endTime);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(id, retentionPolicy, shardGroup, startTime, endTime);
   }
 }

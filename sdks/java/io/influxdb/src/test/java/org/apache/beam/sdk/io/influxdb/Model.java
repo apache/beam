@@ -35,6 +35,9 @@ class Model {
   Model() {
     tags = new HashMap<>();
     fields = new HashMap<>();
+    time = 0L;
+    timeUnit = TimeUnit.MILLISECONDS;
+    measurement = "";
   }
 
   public Long getTime() {

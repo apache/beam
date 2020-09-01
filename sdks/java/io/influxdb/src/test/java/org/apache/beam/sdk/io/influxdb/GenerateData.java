@@ -31,13 +31,13 @@ class GenerateData {
 
   private static Random random = new Random();
 
-  static List<String> getMetric(int number) {
+  static List<String> getMetric(String metric, int number) {
     List<String> element = new ArrayList<>();
     for (int i = 0; i < number; i++) {
       Model m = new Model();
-      m.setMeasurement("test_m");
-      m.addField("test1", random.nextInt(100));
-      m.addField("test2", random.nextInt(100));
+      m.setMeasurement(metric);
+      m.addField("field1", random.nextInt(100));
+      m.addField("field2", random.nextInt(100));
       LocalDateTime time =
           LocalDateTime.of(
               LocalDate.now(),
@@ -54,32 +54,27 @@ class GenerateData {
     return element;
   }
 
-  static List<String> getMultipleMetric(int number) {
+  static List<String> getMultipleMetric(List<String> metrics, int number) {
     List<String> element = new ArrayList<>();
-    for (int i = 0; i < number; i++) {
-      Model m = new Model();
-      Model m1 = new Model();
-      m.setMeasurement("test_m");
-      m.addField("test1", random.nextInt(100));
-      m.addField("test2", random.nextInt(100));
-      m1.setMeasurement("test_m1");
-      m1.addField("test1", random.nextInt(100));
-      m1.addField("test2", random.nextInt(100));
-      LocalDateTime time =
-          LocalDateTime.of(
-              LocalDate.now(),
-              LocalTime.of(
-                  random.nextInt(24),
-                  random.nextInt(60),
-                  random.nextInt(60),
-                  random.nextInt(999999999 + 1)));
-      ZonedDateTime zdt = time.atZone(ZoneId.of("America/Los_Angeles"));
-      m.setTime(zdt.toInstant().toEpochMilli());
-      m.setTimeUnit(TimeUnit.MILLISECONDS);
-      m1.setTime(zdt.toInstant().toEpochMilli());
-      m1.setTimeUnit(TimeUnit.MILLISECONDS);
-      element.add(m.getLineProtocol());
-      element.add(m1.getLineProtocol());
+    for (String metric : metrics) {
+      for (int i = 0; i < number; i++) {
+        Model m = new Model();
+        m.setMeasurement(metric);
+        m.addField("field1", random.nextInt(100));
+        m.addField("field2", random.nextInt(100));
+        LocalDateTime time =
+            LocalDateTime.of(
+                LocalDate.now(),
+                LocalTime.of(
+                    random.nextInt(24),
+                    random.nextInt(60),
+                    random.nextInt(60),
+                    random.nextInt(999999999 + 1)));
+        ZonedDateTime zdt = time.atZone(ZoneId.of("America/Los_Angeles"));
+        m.setTime(zdt.toInstant().toEpochMilli());
+        m.setTimeUnit(TimeUnit.MILLISECONDS);
+        element.add(m.getLineProtocol());
+      }
     }
     return element;
   }
