@@ -45,7 +45,7 @@ job('beam_Metrics_Report') {
       '0 12 * * 1')
 
   steps {
-   gradle {
+    gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       commonJobProperties.setGradleSwitches(delegate)
       switches("-PinfluxDb=${influxDb}")
