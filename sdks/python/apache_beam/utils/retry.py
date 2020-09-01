@@ -71,6 +71,12 @@ class PermanentException(Exception):
   pass
 
 
+PERMANENT_ERROR_TYPES = PermanentException
+
+if InvalidDataError:
+  PERMANENT_ERROR_TYPES = (PERMANENT_ERROR_TYPES, InvalidDataError)
+
+
 class FuzzedExponentialIntervals(object):
   """Iterable for intervals that are exponentially spaced, with fuzzing.
 
@@ -122,7 +128,7 @@ def retry_on_server_errors_filter(exception):
     return exception.status_code >= 500
   if (S3ClientError is not None) and isinstance(exception, S3ClientError):
     return exception.code >= 500
-  return not isinstance(exception, (PermanentException, InvalidDataError))
+  return not isinstance(exception, PERMANENT_ERROR_TYPES)
 
 
 # TODO(BEAM-6202): Dataflow returns 404 for job ids that actually exist.
