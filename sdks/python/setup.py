@@ -241,6 +241,12 @@ AWS_REQUIREMENTS = [
     'boto3 >=1.9'
 ]
 
+AZURE_REQUIREMENTS = [
+    'azure-storage-blob >=12.3.2',
+    'azure-core >=1.7.0',
+]
+
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first(original_cmd):
@@ -313,7 +319,8 @@ setuptools.setup(
         'gcp': GCP_REQUIREMENTS,
         'interactive': INTERACTIVE_BEAM,
         'interactive_test': INTERACTIVE_BEAM_TEST,
-        'aws': AWS_REQUIREMENTS
+        'aws': AWS_REQUIREMENTS,
+        'azure': AZURE_REQUIREMENTS
     },
     zip_safe=False,
     # PyPI package information.

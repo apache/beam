@@ -172,7 +172,7 @@ class CaptureControlTest(unittest.TestCase):
 
     limiter = FakeLimiter()
     background_caching_job = bcj.BackgroundCachingJob(
-        runner.PipelineResult(runner.PipelineState.CANCELLED),
+        runner.PipelineResult(runner.PipelineState.CANCELLING),
         limiters=[limiter])
     ie.current_env().set_background_caching_job(p, background_caching_job)
 

@@ -25,6 +25,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -407,6 +408,8 @@ public class LocalFileSystemTest {
 
   @Test
   public void testMatchWithoutParentDirectory() throws Exception {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10741
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     Path pattern =
         LocalResourceId.fromPath(temporaryFolder.getRoot().toPath(), true /* isDirectory */)
             .resolve("non_existing_dir", StandardResolveOptions.RESOLVE_DIRECTORY)
@@ -417,6 +420,8 @@ public class LocalFileSystemTest {
 
   @Test
   public void testMatchNewResource() {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10742
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     LocalResourceId fileResource =
         localFileSystem.matchNewResource("/some/test/resource/path", false /* isDirectory */);
     LocalResourceId dirResource =

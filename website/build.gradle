@@ -71,11 +71,12 @@ task createDockerContainer(type: Exec) {
       extraOptions = "--publish 127.0.0.1:1313:1313"
     }
 
-    // Jenkins websites node: run as root. Files written to /repo will get
-    // "jenkins" user ownership. BEAM-9737
-    // Otherwise: run as current user, so as to not require sudo to clean up
-    // build/ directory.
-    if (System.getenv('NODE_NAME') != 'websites') {
+    if (System.getenv().getOrDefault('NODE_NAME', '').startsWith('websites')) {
+      // Jenkins websites node: run as root. Files written to /repo will get
+      // "jenkins" user ownership. BEAM-9737
+    } else {
+      // Otherwise: run as current user, so as to not require sudo to clean up
+      // build/ directory.
       extraOptions += " -u \$(id -u):\$(id -g)"
     }
     commandLine '/bin/bash', '-c',

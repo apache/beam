@@ -78,6 +78,8 @@ RUN if [ "$pull_licenses" = "true" ] ; then \
 
 # Log complete list of what exact packages and versions are installed.
 RUN pip freeze --all
+# Make sure there are no conflicting dependencies.
+RUN pip check
 
 
 COPY target/LICENSE /opt/apache/beam/

@@ -266,7 +266,8 @@ class TestJsonToDictCoder(unittest.TestCase):
     def _fill_schema(fields):
       for field in fields:
         table_field = bigquery.TableFieldSchema()
-        table_field.name, table_field.type, nested_fields = field
+        table_field.name, table_field.type, table_field.mode, nested_fields, \
+          = field
         if nested_fields:
           table_field.fields = list(_fill_schema(nested_fields))
         yield table_field
@@ -278,10 +279,13 @@ class TestJsonToDictCoder(unittest.TestCase):
   def test_coder_is_pickable(self):
     try:
       schema = self._make_schema([
-          ('record', 'RECORD', [
-              ('float', 'FLOAT', []),
-          ]),
-          ('integer', 'INTEGER', []),
+          (
+              'record',
+              'RECORD',
+              'NULLABLE', [
+                  ('float', 'FLOAT', 'NULLABLE', []),
+              ]),
+          ('integer', 'INTEGER', 'NULLABLE', []),
       ])
       coder = _JsonToDictCoder(schema)
       pickler.loads(pickler.dumps(coder))
@@ -291,8 +295,8 @@ class TestJsonToDictCoder(unittest.TestCase):
   def test_values_are_converted(self):
     input_row = b'{"float": "10.5", "string": "abc"}'
     expected_row = {'float': 10.5, 'string': 'abc'}
-    schema = self._make_schema([('float', 'FLOAT', []),
-                                ('string', 'STRING', [])])
+    schema = self._make_schema([('float', 'FLOAT', 'NULLABLE', []),
+                                ('string', 'STRING', 'NULLABLE', [])])
     coder = _JsonToDictCoder(schema)
 
     actual = coder.decode(input_row)
@@ -301,8 +305,8 @@ class TestJsonToDictCoder(unittest.TestCase):
   def test_null_fields_are_preserved(self):
     input_row = b'{"float": "10.5"}'
     expected_row = {'float': 10.5, 'string': None}
-    schema = self._make_schema([('float', 'FLOAT', []),
-                                ('string', 'STRING', [])])
+    schema = self._make_schema([('float', 'FLOAT', 'NULLABLE', []),
+                                ('string', 'STRING', 'NULLABLE', [])])
     coder = _JsonToDictCoder(schema)
 
     actual = coder.decode(input_row)
@@ -312,10 +316,31 @@ class TestJsonToDictCoder(unittest.TestCase):
     input_row = b'{"record": {"float": "55.5"}, "integer": 10}'
     expected_row = {'record': {'float': 55.5}, 'integer': 10}
     schema = self._make_schema([
-        ('record', 'RECORD', [
-            ('float', 'FLOAT', []),
-        ]),
-        ('integer', 'INTEGER', []),
+        (
+            'record',
+            'RECORD',
+            'NULLABLE', [
+                ('float', 'FLOAT', 'NULLABLE', []),
+            ]),
+        ('integer', 'INTEGER', 'NULLABLE', []),
+    ])
+    coder = _JsonToDictCoder(schema)
+
+    actual = coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
+  def test_record_and_repeatable_field_is_properly_converted(self):
+    input_row = b'{"record": [{"float": "55.5"}, {"float": "65.5"}], ' \
+                b'"integer": 10}'
+    expected_row = {'record': [{'float': 55.5}, {'float': 65.5}], 'integer': 10}
+    schema = self._make_schema([
+        (
+            'record',
+            'RECORD',
+            'REPEATED', [
+                ('float', 'FLOAT', 'NULLABLE', []),
+            ]),
+        ('integer', 'INTEGER', 'NULLABLE', []),
     ])
     coder = _JsonToDictCoder(schema)
 
