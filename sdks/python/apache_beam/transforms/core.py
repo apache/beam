@@ -1442,7 +1442,7 @@ class ParDo(PTransformWithSideInputs):
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
   def from_runner_api_parameter(unused_ptransform, pardo_payload, context):
     fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
-        DoFnInfo.from_runner_api(pardo_payload.do_fn, context).serialized_data())
+        DoFnInfo.from_runner_api(pardo_payload.do_fn, context).serialized_dofn_data())
     if si_tags_and_types:
       raise NotImplementedError('explicit side input data')
     elif windowing:
@@ -1522,7 +1522,7 @@ class DoFnInfo(object):
     # This can be cleaned up once all runners move to portability.
     return pickler.dumps((fn, args, kwargs, None, None))
 
-  def serialized_data(self):
+  def serialized_dofn_data(self):
     raise NotImplementedError(type(self))
 
 
@@ -1530,7 +1530,7 @@ class PickledDoFnInfo(DoFnInfo):
   def __init__(self, serialized_data):
     self._serialized_data = serialized_data
 
-  def serialized_data(self):
+  def serialized_dofn_data(self):
     return self._serialized_data
 
   def to_runner_api(self, unused_context):
@@ -1546,7 +1546,7 @@ class StatelessDoFnInfo(DoFnInfo):
     assert urn in self.REGISTERED_DOFNS
     self._urn = urn
 
-  def serialized_data(self):
+  def serialized_dofn_data(self):
     return self._pickled_do_fn_info(self.REGISTERED_DOFNS[self._urn](), (), {})
 
   def to_runner_api(self, unused_context):

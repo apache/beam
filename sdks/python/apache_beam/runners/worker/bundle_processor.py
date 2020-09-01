@@ -1474,7 +1474,7 @@ def create_process_sized_elements_and_restrictions(
       transform_proto,
       consumers,
       core.DoFnInfo.from_runner_api(parameter.do_fn,
-                                    factory.context).serialized_data(),
+                                    factory.context).serialized_dofn_data(),
       parameter,
       operation_cls=operations.SdfProcessSizedElements)
 
@@ -1522,7 +1522,7 @@ def create_par_do(
       transform_proto,
       consumers,
       core.DoFnInfo.from_runner_api(parameter.do_fn,
-                                    factory.context).serialized_data(),
+                                    factory.context).serialized_dofn_data(),
       parameter)
 
 
