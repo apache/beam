@@ -15,35 +15,19 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
-
-# The script runs jest tests for all known typescript projects in the Beam repo.
+#
+# The script installs nodejs and needs to be executed before run_eslint and
+# run_jest.
 
 set -e
 
-# jlpm needs Node.js to work.
 if ! command -v node; then
-  echo "Node.js is not installed. Cannot execute the tests."
-  exit 1
+  if command -v apt-get; then
+    # From https://github.com/nodesource/distributions.
+    curl -sL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+  elif command -v brew; then
+    brew update
+    brew install node
+  fi
 fi
-
-echo "Running jest tests..."
-
-# Source needed to run tests are copied to this build dir by copySourceForJest
-# task.
-pushd ../../../ts
-
-# Root dir for all Beam jupyterlab extensions.
-LAB_EXT_DIR="sdks/python/apache_beam/runners/interactive/extensions"
-
-known_test_dirs=( \
-  "$LAB_EXT_DIR/apache-beam-jupyterlab-sidepanel" \
-)
-
-for dir in $known_test_dirs; do
-  pushd $dir
-  jlpm
-  jlpm jest
-  popd
-done
-
-popd
