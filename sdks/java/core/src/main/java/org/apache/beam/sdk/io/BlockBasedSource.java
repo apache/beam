@@ -137,7 +137,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
    * byte of the block is within the range {@code [start, end)}.
    */
   @Experimental(Kind.SOURCE_SINK)
-  protected abstract static class BlockBasedReader<T> extends FileBasedReader<T> {
+  public abstract static class BlockBasedReader<T> extends FileBasedReader<T> {
     private boolean atSplitPoint;
 
     protected BlockBasedReader(BlockBasedSource<T> source) {
@@ -192,7 +192,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
      * block boundaries.
      */
     @Override
-    protected boolean isAtSplitPoint() {
+    public boolean isAtSplitPoint() {
       return atSplitPoint;
     }
 

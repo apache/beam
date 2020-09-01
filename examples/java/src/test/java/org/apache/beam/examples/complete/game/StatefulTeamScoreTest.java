@@ -19,7 +19,7 @@ package org.apache.beam.examples.complete.game;
 
 import org.apache.beam.examples.complete.game.StatefulTeamScore.UpdateTeamScoreFn;
 import org.apache.beam.examples.complete.game.UserScore.GameActionInfo;
-import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;

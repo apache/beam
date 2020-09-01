@@ -61,6 +61,7 @@ dependencies {
   compile project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:extensions:sql")
+  compile project(":sdks:java:extensions:avro")
   compile project(":sdks:java:extensions:sql:zetasql")
   compile project(":sdks:java:io:kafka")
   compile project(":sdks:java:testing:test-utils")

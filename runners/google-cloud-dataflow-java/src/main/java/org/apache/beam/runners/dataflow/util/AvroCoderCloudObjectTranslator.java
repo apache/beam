@@ -19,7 +19,7 @@ package org.apache.beam.runners.dataflow.util;
 
 import org.apache.avro.Schema;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 
 /** A {@link CloudObjectTranslator} for {@link AvroCoder}. */
 class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder> {

@@ -29,9 +29,13 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
@@ -42,8 +46,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
@@ -209,7 +214,7 @@ public class TextIOWriteTest {
         DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE);
   }
 
-  @DefaultCoder(AvroCoder.class)
+  @DefaultCoder(UserWriteTypeCoder.class)
   private static class UserWriteType {
     String destination;
     String metadata;
@@ -227,6 +232,26 @@ public class TextIOWriteTest {
     @Override
     public String toString() {
       return String.format("destination: %s metadata : %s", destination, metadata);
+    }
+  }
+
+  private static class UserWriteTypeCoder extends CustomCoder<UserWriteType> {
+
+    @Override
+    public void encode(UserWriteType value, OutputStream outStream)
+        throws CoderException, IOException {
+      DataOutputStream stream = new DataOutputStream(outStream);
+      StringUtf8Coder.of().encode(value.destination, stream);
+      StringUtf8Coder.of().encode(value.metadata, stream);
+    }
+
+    @Override
+    public UserWriteType decode(InputStream inStream) throws CoderException, IOException {
+      DataInputStream stream = new DataInputStream(inStream);
+
+      String dest = StringUtf8Coder.of().decode(inStream);
+      String meta = StringUtf8Coder.of().decode(inStream);
+      return new UserWriteType(dest, meta);
     }
   }
 

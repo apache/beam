@@ -35,6 +35,7 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:expansion-service")
+  compile project(":sdks:java:extensions:avro")
   // Get back to "provided" since 2.14
   provided library.java.kafka_clients
   compile library.java.slf4j_api

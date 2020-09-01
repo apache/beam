@@ -32,6 +32,7 @@ dependencies {
   compile project(path: ":sdks:java:io:parquet")
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:expansion-service")
+  compile project(":sdks:java:extensions:avro")
   testRuntime library.java.hadoop_client
 }
 

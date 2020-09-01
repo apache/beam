@@ -48,6 +48,7 @@ configurations.testRuntimeClasspath {
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:extensions:avro")
   compile library.java.vendored_guava_26_0_jre
   compile library.java.slf4j_api
   compile project(":sdks:java:io:hadoop-common")

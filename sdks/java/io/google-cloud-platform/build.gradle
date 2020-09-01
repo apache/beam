@@ -33,6 +33,7 @@ dependencies {
   compile project(":sdks:java:expansion-service")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:extensions:protobuf")
+  compile project(":sdks:java:extensions:avro")
   compile library.java.avro
   compile library.java.bigdataoss_util
   compile library.java.gax

@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;

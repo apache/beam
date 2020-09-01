@@ -31,6 +31,7 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:io:hadoop-common")
+  compile project(":sdks:java:extensions:avro")
   compile library.java.slf4j_api
   compile "org.apache.parquet:parquet-avro:$parquet_version"
   compile "org.apache.parquet:parquet-common:$parquet_version"

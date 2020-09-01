@@ -70,7 +70,7 @@ public @interface DefaultCoder {
      * A {@link CoderProvider} that uses the {@code @DefaultCoder} annotation to provide {@link
      * CoderProvider coder providers} that create {@link Coder}s.
      */
-    static class DefaultCoderProvider extends CoderProvider {
+    public static class DefaultCoderProvider extends CoderProvider {
       private static final Logger LOG = LoggerFactory.getLogger(DefaultCoderProvider.class);
 
       /**

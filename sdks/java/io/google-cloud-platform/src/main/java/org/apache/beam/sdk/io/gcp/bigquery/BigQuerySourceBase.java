@@ -32,7 +32,7 @@ import java.io.Serializable;
 import java.util.List;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.AvroSource;
+import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;

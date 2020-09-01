@@ -24,7 +24,6 @@ import static org.junit.Assert.assertThat;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.coders.DefaultCoder.DefaultCoderProviderRegistrar.DefaultCoderProvider;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -38,9 +37,6 @@ import org.junit.runners.JUnit4;
 public class DefaultCoderTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
-
-  @DefaultCoder(AvroCoder.class)
-  private static class AvroRecord {}
 
   private static class SerializableBase implements Serializable {}
 
@@ -110,8 +106,8 @@ public class DefaultCoderTest {
   @Test
   public void testCodersWithoutComponents() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
-    registry.registerCoderProvider(new DefaultCoderProvider());
-    assertThat(registry.getCoder(AvroRecord.class), instanceOf(AvroCoder.class));
+    registry.registerCoderProvider(
+        new DefaultCoder.DefaultCoderProviderRegistrar.DefaultCoderProvider());
     assertThat(registry.getCoder(SerializableRecord.class), instanceOf(SerializableCoder.class));
     assertThat(registry.getCoder(CustomRecord.class), instanceOf(CustomSerializableCoder.class));
     assertThat(
@@ -121,11 +117,8 @@ public class DefaultCoderTest {
   @Test
   public void testDefaultCoderInCollection() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
-    registry.registerCoderProvider(new DefaultCoderProvider());
-    Coder<List<AvroRecord>> avroRecordCoder =
-        registry.getCoder(new TypeDescriptor<List<AvroRecord>>() {});
-    assertThat(avroRecordCoder, instanceOf(ListCoder.class));
-    assertThat(((ListCoder) avroRecordCoder).getElemCoder(), instanceOf(AvroCoder.class));
+    registry.registerCoderProvider(
+        new DefaultCoder.DefaultCoderProviderRegistrar.DefaultCoderProvider());
     assertThat(
         registry.getCoder(new TypeDescriptor<List<SerializableRecord>>() {}),
         Matchers.equalTo(ListCoder.of(SerializableCoder.of(SerializableRecord.class))));
@@ -134,6 +127,7 @@ public class DefaultCoderTest {
   @Test
   public void testUnknown() throws Exception {
     thrown.expect(CannotProvideCoderException.class);
-    new DefaultCoderProvider().coderFor(TypeDescriptor.of(Unknown.class), Collections.emptyList());
+    new DefaultCoder.DefaultCoderProviderRegistrar.DefaultCoderProvider()
+        .coderFor(TypeDescriptor.of(Unknown.class), Collections.emptyList());
   }
 }

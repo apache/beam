@@ -266,7 +266,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    * ".txt", with shardNum = 1 and numShards = 100, the following is produced:
    * "path/to/output-001-of-100.txt".
    */
-  static ResourceId constructName(
+  public static ResourceId constructName(
       ResourceId baseFilename,
       String shardTemplate,
       String suffix,

@@ -29,6 +29,7 @@ def tdigest_version = "3.2"
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:extensions:avro")
   compile "com.clearspring.analytics:stream:$streamlib_version"
   compile "com.tdunning:t-digest:$tdigest_version"
   compile library.java.slf4j_api

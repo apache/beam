@@ -24,8 +24,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CounterMarkCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -57,7 +57,7 @@ import org.joda.time.Instant;
 public class CountingSource {
   /**
    * Creates a {@link BoundedSource} that will produce the specified number of elements, from {@code
-   * 0} to {@code numElements - 1}.
+   * 0} to {@code numElements - 1}. extIOWriteTest
    *
    * @deprecated use {@link GenerateSequence} instead
    */
@@ -270,6 +270,8 @@ public class CountingSource {
     /** The function used to produce timestamps for the generated elements. */
     private final SerializableFunction<Long, Instant> timestampFn;
 
+    private final CounterMarkCoder markCoder = new CounterMarkCoder();
+
     /**
      * Creates an {@link UnboundedSource} that will produce numbers starting from {@code 0} up to
      * {@link Long#MAX_VALUE}, with element timestamps supplied by the specified function.
@@ -351,7 +353,7 @@ public class CountingSource {
 
     @Override
     public Coder<CountingSource.CounterMark> getCheckpointMarkCoder() {
-      return AvroCoder.of(CountingSource.CounterMark.class);
+      return markCoder;
     }
 
     @Override
@@ -481,7 +483,7 @@ public class CountingSource {
    * The checkpoint for an unbounded {@link CountingSource} is simply the last value produced. The
    * associated source object encapsulates the information needed to produce the next value.
    */
-  @DefaultCoder(AvroCoder.class)
+  @DefaultCoder(CounterMarkCoder.class)
   public static class CounterMark implements UnboundedSource.CheckpointMark {
     /** The last value emitted. */
     private final long lastEmitted;
@@ -502,14 +504,6 @@ public class CountingSource {
     /** Returns the time the reader was started. */
     public Instant getStartTime() {
       return startTime;
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////
-
-    @SuppressWarnings("unused") // For AvroCoder
-    private CounterMark() {
-      this.lastEmitted = 0L;
-      this.startTime = Instant.now();
     }
 
     @Override

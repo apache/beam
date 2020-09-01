@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -109,8 +108,7 @@ public class LatestTest implements Serializable {
   public void testPerKeyOutputCoder() {
     p.enableAbandonedNodeEnforcement(false);
 
-    KvCoder<String, Long> inputCoder =
-        KvCoder.of(AvroCoder.of(String.class), AvroCoder.of(Long.class));
+    KvCoder<String, Long> inputCoder = KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of());
 
     PCollection<KV<String, Long>> output =
         p.apply(Create.of(KV.of("foo", 1L)).withCoder(inputCoder)).apply(Latest.perKey());

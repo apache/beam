@@ -48,6 +48,7 @@ dependencies {
   compile project(":sdks:java:core")
   compile project(":sdks:java:extensions:join-library")
   compile project(path: ":runners:direct-java", configuration: "shadow")
+  compile project(":sdks:java:extensions:avro")
   compile library.java.commons_codec
   compile library.java.commons_csv
   compile library.java.jackson_databind

@@ -29,6 +29,7 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(path: ":sdks:java:extensions:google-cloud-platform-core")
+  compile project(":sdks:java:extensions:avro")
   compile library.java.slf4j_api
   compile group: 'net.snowflake', name: 'snowflake-jdbc', version: '3.12.11'
   compile group: 'com.opencsv', name: 'opencsv', version: '5.0'
