@@ -124,6 +124,17 @@ import org.slf4j.LoggerFactory;
  * PCollection<GenericRecord> output = files.apply(ParquetIO.readFiles(SCHEMA));
  * }</pre>
  *
+ * <p>Splittable reading can be enabled by allowing the use of Splittable DoFn. It initially split
+ * the files into blocks of 64MB and may dynamically split further for higher read efficiency. It
+ * can be enabled by using {@link ParquetIO.Read#withSplit()}.
+ *
+ * <p>For example:
+ *
+ * <pre>{@code
+ * PCollection<GenericRecord> records = pipeline.apply(ParquetIO.read(SCHEMA).from("/foo/bar").withSplit());
+ * ...
+ * }</pre>
+ *
  * <h3>Writing Parquet files</h3>
  *
  * <p>{@link ParquetIO.Sink} allows you to write a {@link PCollection} of {@link GenericRecord} into
@@ -477,8 +488,7 @@ public class ParquetIO {
         return getRecordCountAndSize(file, restriction).getSize();
       }
 
-      public CountAndSize getRecordCountAndSize(
-          FileIO.ReadableFile file,  OffsetRange restriction)
+      private CountAndSize getRecordCountAndSize(FileIO.ReadableFile file, OffsetRange restriction)
           throws Exception {
         ParquetFileReader reader = getParquetFileReader(file);
         double size = 0;
