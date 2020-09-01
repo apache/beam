@@ -41,6 +41,9 @@ test.dependsOn testPython2
 toxTask "testPy2Cython", "py27-cython"
 test.dependsOn testPy2Cython
 
+toxTask "testPy2CythonMinimum", "py27-cython-minimum"
+test.dependsOn testPy2CythonMinimum
+
 // TODO(BEAM-8954): Remove this once tox uses isolated builds.
 testPy2Cython.mustRunAfter testPython2, testPy2Cloud
 
@@ -48,4 +51,8 @@ toxTask "cover", "cover"
 
 task preCommitPy2() {
   dependsOn "testPy2Cloud"
+}
+
+task preCommitPy2Minimum() {
+  dependsOn "testPy2CythonMinimum"
 }

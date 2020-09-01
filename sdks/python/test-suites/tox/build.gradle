@@ -1,0 +1,45 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyPythonNature()
+
+dependencies {
+  distTarBall project(path: ":sdks:python", configuration: "distTarBall")
+}
+
+task preCommit {
+  // high priority python versions are tested with all of them frequently.
+  getVersionsAsList('high_priority_py_versions').each {
+    def versionSuffix = getVersionSuffix(it)
+    dependsOn.add(":sdks:python:test-suites:tox:py${versionSuffix}:preCommitPy${versionSuffix}")
+  }
+  // low priority python versions are tested the minimum; typehints.
+  // rest of them are tested in tox postCommit task.
+  getVersionsAsList('low_priority_py_versions').each {
+    def versionSuffix = getVersionSuffix(it)
+    dependsOn.add(":sdks:python:test-suites:tox:py${versionSuffix}:preCommitPy${versionSuffix}Minimum")
+  }
+}
+
+task postCommit {
+  getVersionsAsList('low_priority_py_versions').each {
+    def versionSuffix = getVersionSuffix(it)
+    dependsOn.add(":sdks:python:test-suites:tox:py${versionSuffix}:preCommitPy${versionSuffix}")
+  }
+}

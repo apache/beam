@@ -27,6 +27,9 @@ test.dependsOn "testPy${pythonVersionSuffix}Cloud"
 toxTask "testPy${pythonVersionSuffix}Cython", "py${pythonVersionSuffix}-cython"
 test.dependsOn "testPy${pythonVersionSuffix}Cython"
 
+toxTask "testPy${pythonVersionSuffix}CythonMinimum", "py${pythonVersionSuffix}-cython-minimum"
+test.dependsOn "testPy${pythonVersionSuffix}CythonMinimum"
+
 toxTask "testPy38CloudCoverage", "py38-cloudcoverage"
 test.dependsOn "testPy38CloudCoverage"
 
@@ -37,4 +40,8 @@ project.task("preCommitPy${pythonVersionSuffix}") {
       } else {
           dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPy${pythonVersionSuffix}Cython"]
       }
+}
+
+project.task("preCommitPy${pythonVersionSuffix}Minimum") {
+  dependsOn = ["testPy${pythonVersionSuffix}CythonMinimum"]
 }
