@@ -56,7 +56,6 @@ T = TypeVar('T')
 
 _LOGGER = logging.getLogger(__name__)
 
-
 KNOWN_COMPOSITES = frozenset([
     common_urns.primitives.GROUP_BY_KEY.urn,
     common_urns.composites.COMBINE_PER_KEY.urn,
@@ -91,15 +90,15 @@ DataSideInput = Dict[SideInputId, Tuple[bytes, SideInputAccessPattern]]
 
 class Stage(object):
   """A set of Transforms that can be sent to the worker for processing."""
-  def __init__(self,
-               name,  # type: str
-               transforms,  # type: List[beam_runner_api_pb2.PTransform]
-               downstream_side_inputs=None,  # type: Optional[FrozenSet[str]]
-               must_follow=frozenset(),  # type: FrozenSet[Stage]
-               parent=None,  # type: Optional[Stage]
-               environment=None,  # type: Optional[str]
-               forced_root=False
-              ):
+  def __init__(
+      self,
+      name,  # type: str
+      transforms,  # type: List[beam_runner_api_pb2.PTransform]
+      downstream_side_inputs=None,  # type: Optional[FrozenSet[str]]
+      must_follow=frozenset(),  # type: FrozenSet[Stage]
+      parent=None,  # type: Optional[Stage]
+      environment=None,  # type: Optional[str]
+      forced_root=False):
     self.name = name
     self.transforms = transforms
     self.downstream_side_inputs = downstream_side_inputs
@@ -227,11 +226,12 @@ class Stage(object):
       new_transforms.append(transform)
     self.transforms = new_transforms
 
-  def executable_stage_transform(self,
-                                 known_runner_urns,  # type: FrozenSet[str]
-                                 all_consumers,
-                                 components  # type: beam_runner_api_pb2.Components
-                                ):
+  def executable_stage_transform(
+      self,
+      known_runner_urns,  # type: FrozenSet[str]
+      all_consumers,
+      components  # type: beam_runner_api_pb2.Components
+  ):
     # type: (...) -> beam_runner_api_pb2.PTransform
     if (len(self.transforms) == 1 and
         self.transforms[0].spec.urn in known_runner_urns):
@@ -344,12 +344,12 @@ class TransformContext(object):
       value.urn for key,
       value in common_urns.coders.__dict__.items() if not key.startswith('_'))
 
-  def __init__(self,
-               components,  # type: beam_runner_api_pb2.Components
-               known_runner_urns,  # type: FrozenSet[str]
-               use_state_iterables=False,
-               is_drain=False
-              ):
+  def __init__(
+      self,
+      components,  # type: beam_runner_api_pb2.Components
+      known_runner_urns,  # type: FrozenSet[str]
+      use_state_iterables=False,
+      is_drain=False):
     self.components = components
     self.known_runner_urns = known_runner_urns
     self.runner_only_urns = known_runner_urns - frozenset(
@@ -363,10 +363,10 @@ class TransformContext(object):
     self.safe_coders = {self.bytes_coder_id: self.bytes_coder_id}
     self.data_channel_coders = {}
 
-  def add_or_get_coder_id(self,
-                          coder_proto,  # type: beam_runner_api_pb2.Coder
-                          coder_prefix='coder'
-                         ):
+  def add_or_get_coder_id(
+      self,
+      coder_proto,  # type: beam_runner_api_pb2.Coder
+      coder_prefix='coder'):
     # type: (...) -> str
     for coder_id, coder in self.components.coders.items():
       if coder == coder_proto:
@@ -489,11 +489,12 @@ def leaf_transform_stages(
         yield stage
 
 
-def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
-                         stages,  # type: Iterable[Stage]
-                         known_runner_urns,  # type: FrozenSet[str]
-                         partial  # type: bool
-                        ):
+def pipeline_from_stages(
+    pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
+    stages,  # type: Iterable[Stage]
+    known_runner_urns,  # type: FrozenSet[str]
+    partial  # type: bool
+):
   # type: (...) -> beam_runner_api_pb2.Pipeline
 
   # In case it was a generator that mutates components as it
@@ -527,6 +528,15 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
         add_parent(parent, parents.get(parent))
       components.transforms[parent].subtransforms.append(child)
 
+  def copy_subtransforms(transform):
+    for subtransform_id in transform.subtransforms:
+      if subtransform_id not in pipeline_proto.components.transforms:
+        raise RuntimeError(
+            'Could not find subtransform to copy: ' + subtransform_id)
+      subtransform = pipeline_proto.components.transforms[subtransform_id]
+      components.transforms[subtransform_id].CopyFrom(subtransform)
+      copy_subtransforms(subtransform)
+
   all_consumers = collections.defaultdict(
       set)  # type: DefaultDict[str, Set[int]]
   for stage in stages:
@@ -537,6 +547,7 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
   for stage in stages:
     if partial:
       transform = only_element(stage.transforms)
+      copy_subtransforms(transform)
     else:
       transform = stage.executable_stage_transform(
           known_runner_urns, all_consumers, components)
@@ -550,12 +561,12 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
   return new_proto
 
 
-def create_and_optimize_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
-                               phases,
-                               known_runner_urns,  # type: FrozenSet[str]
-                               use_state_iterables=False,
-    is_drain=False
-                              ):
+def create_and_optimize_stages(
+    pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
+    phases,
+    known_runner_urns,  # type: FrozenSet[str]
+    use_state_iterables=False,
+    is_drain=False):
   # type: (...) -> Tuple[TransformContext, List[Stage]]
 
   """Create a set of stages given a pipeline proto, and set of optimizations.
