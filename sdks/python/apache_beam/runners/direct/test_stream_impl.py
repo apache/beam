@@ -282,9 +282,10 @@ class _TestStream(PTransform):
         if not is_alive():
           return
     except grpc.RpcError as e:
-      # This happens when the Python interpreter shuts down or whn in a
-      # notebook environment when the kernel is interrupted.
-      if e.code() == grpc.StatusCode.UNAVAILABLE:
+      # Do not raise an exception in the non-error status codes. These can occur
+      # when the Python interpreter shuts down or when in a notebook environment
+      # when the kernel is interrupted.
+      if e.code() in (grpc.StatusCode.CANCELLED, grpc.StatusCode.UNAVAILABLE):
         return
       raise e
     finally:
