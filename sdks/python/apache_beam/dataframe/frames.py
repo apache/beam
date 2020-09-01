@@ -206,7 +206,7 @@ class DeferredSeries(frame_base.DeferredFrame):
         'str',
         lambda df: df.str, [self._expr],
         requires_partition_by=partitionings.Nothing(),
-        preserves_partition_by=partitionings.Nothing())
+        preserves_partition_by=partitionings.Singleton())
     return _DeferredStringMethods(expr)
 
 
