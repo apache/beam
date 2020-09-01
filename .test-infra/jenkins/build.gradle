@@ -48,4 +48,3 @@ task generateMetricsReport {
   }
   outputs.file "${generateMetricsReportPath}"
 }
-build.dependsOn generateMetricsReport
