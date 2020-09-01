@@ -478,7 +478,7 @@ public class ParquetIO {
       }
 
       public CountAndSize getRecordCountAndSize(
-          @Element FileIO.ReadableFile file, @Restriction OffsetRange restriction)
+          FileIO.ReadableFile file,  OffsetRange restriction)
           throws Exception {
         ParquetFileReader reader = getParquetFileReader(file);
         double size = 0;
