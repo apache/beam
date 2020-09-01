@@ -1442,7 +1442,8 @@ class ParDo(PTransformWithSideInputs):
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
   def from_runner_api_parameter(unused_ptransform, pardo_payload, context):
     fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
-        DoFnInfo.from_runner_api(pardo_payload.do_fn, context).serialized_dofn_data())
+        DoFnInfo.from_runner_api(
+            pardo_payload.do_fn, context).serialized_dofn_data())
     if si_tags_and_types:
       raise NotImplementedError('explicit side input data')
     elif windowing:
