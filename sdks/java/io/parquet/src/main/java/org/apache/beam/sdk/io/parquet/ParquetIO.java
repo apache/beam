@@ -526,7 +526,7 @@ public class ParquetIO {
       }
 
       @Override
-      // TODO:[BEAM-10842] A more precise progress update
+      // TODO(BEAM-10842): Refine the BlockTracker to provide better progress.
       public Progress getProgress() {
         return super.getProgress();
       }
