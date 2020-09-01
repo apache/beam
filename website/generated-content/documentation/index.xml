@@ -10740,19 +10740,60 @@ BigQueryIO allows you to use all of these data types. The following example
 shows the correct format for data types used when reading from and writing to
 BigQuery:&lt;/p>
 &lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">TableRow&lt;/span> &lt;span class="n">row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">TableRow&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="n">row&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;string&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;abc&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="kt">byte&lt;/span>&lt;span class="o">[]&lt;/span> &lt;span class="n">rawbytes&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">{(&lt;/span>&lt;span class="kt">byte&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">0xab&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="kt">byte&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">0xac&lt;/span>&lt;span class="o">};&lt;/span>
-&lt;span class="n">row&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;bytes&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Base64&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getEncoder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">encodeToString&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">rawbytes&lt;/span>&lt;span class="o">));&lt;/span>
-&lt;span class="n">row&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;integer&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">5&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="n">row&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;float&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">0&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">5&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="n">row&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;numeric&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">5&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="n">row&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;boolean&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="kc">true&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="n">row&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;timestamp&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;2018-12-31 12:44:31.744957 UTC&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="n">row&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;date&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;2018-12-31&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="n">row&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;time&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;12:44:31&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="n">row&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;datetime&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;2019-06-11T14:44:31&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
-&lt;span class="n">row&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;geography&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;POINT(30 10)&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kn">import&lt;/span> &lt;span class="nn">com.google.api.services.bigquery.model.TableRow&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">java.math.BigDecimal&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">java.nio.charset.StandardCharsets&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">java.time.Instant&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">java.time.LocalDate&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">java.time.LocalDateTime&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">java.time.LocalTime&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">java.util.AbstractMap.SimpleEntry&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">java.util.Arrays&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">java.util.Base64&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">java.util.stream.Collectors&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">java.util.stream.Stream&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kd">class&lt;/span> &lt;span class="nc">BigQueryTableRowCreate&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">TableRow&lt;/span> &lt;span class="nf">createTableRow&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="n">TableRow&lt;/span> &lt;span class="n">row&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">TableRow&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="c1">// To learn more about BigQuery data types:
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;string_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;UTF-8 strings are supported! 🌱🌳🌍&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;int64_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">432&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;float64_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">3&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">141592653589793&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;numeric_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">BigDecimal&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;1234.56&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">toString&lt;/span>&lt;span class="o">())&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;bool_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="kc">true&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;bytes_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">Base64&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getEncoder&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">encodeToString&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;UTF-8 byte string 🌱🌳🌍&amp;#34;&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getBytes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">StandardCharsets&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">UTF_8&lt;/span>&lt;span class="o">)))&lt;/span>
+&lt;span class="c1">// To learn more about date formatting:
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;date_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">LocalDate&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">parse&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;2020-03-19&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">toString&lt;/span>&lt;span class="o">())&lt;/span> &lt;span class="c1">// ISO_LOCAL_DATE
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;datetime_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">LocalDateTime&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">parse&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;2020-03-19T20:41:25.123&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">toString&lt;/span>&lt;span class="o">())&lt;/span> &lt;span class="c1">// ISO_LOCAL_DATE_TIME
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;time_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">LocalTime&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">parse&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;20:41:25.123&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">toString&lt;/span>&lt;span class="o">())&lt;/span> &lt;span class="c1">// ISO_LOCAL_TIME
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;timestamp_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">Instant&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">parse&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;2020-03-20T03:41:42.123Z&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">toString&lt;/span>&lt;span class="o">())&lt;/span> &lt;span class="c1">// ISO_INSTANT
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="c1">// To learn more about the geography Well-Known Text (WKT) format:
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;geography_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;POINT(30 10)&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="c1">// An array has its mode set to REPEATED.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;array_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Arrays&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">asList&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">2&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">3&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">4&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="c1">// Any class can be written as a STRUCT as long as all the fields in the
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// schema are present and they are encoded correctly as BigQuery types.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;struct_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">Stream&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">SimpleEntry&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;(&lt;/span>&lt;span class="s">&amp;#34;string_value&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;Text 🌱🌳🌍&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">SimpleEntry&lt;/span>&lt;span class="o">&amp;lt;&amp;gt;(&lt;/span>&lt;span class="s">&amp;#34;int64_value&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;42&amp;#34;&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">collect&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Collectors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">toMap&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">SimpleEntry&lt;/span>&lt;span class="o">::&lt;/span>&lt;span class="n">getKey&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">SimpleEntry&lt;/span>&lt;span class="o">::&lt;/span>&lt;span class="n">getValue&lt;/span>&lt;span class="o">)));&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">row&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-py>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">bigquery_data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[{&lt;/span>
@@ -10839,12 +10880,32 @@ table name.&lt;/p>
 &lt;p>The following code reads an entire table that contains weather station data and
 then extracts the &lt;code>max_temperature&lt;/code> column.&lt;/p>
 &lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Double&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">maxTemperatures&lt;/span> &lt;span class="o">=&lt;/span>
-&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">BigQueryIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">readTableRows&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">from&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">tableSpec&lt;/span>&lt;span class="o">))&lt;/span>
-&lt;span class="c1">// Each row is of type TableRow
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="n">MapElements&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TypeDescriptors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">doubles&lt;/span>&lt;span class="o">())&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">via&lt;/span>&lt;span class="o">((&lt;/span>&lt;span class="n">TableRow&lt;/span> &lt;span class="n">row&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">Double&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">row&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">get&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;max_temperature&amp;#34;&lt;/span>&lt;span class="o">)));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.examples.snippets.transforms.io.gcp.bigquery.BigQueryMyData.MyData&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.Pipeline&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.transforms.MapElements&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.values.PCollection&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.values.TypeDescriptor&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kd">class&lt;/span> &lt;span class="nc">BigQueryReadFromTable&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">readFromTable&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">String&lt;/span> &lt;span class="n">project&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">dataset&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">table&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Pipeline&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// String project = &amp;#34;my-project-id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// String dataset = &amp;#34;my_bigquery_dataset_id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// String table = &amp;#34;my_bigquery_table_id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="c1">// Pipeline pipeline = Pipeline.create();
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">rows&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;Read from BigQuery query&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">BigQueryIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">readTableRows&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">from&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">format&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;%s:%s.%s&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">project&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">dataset&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">table&lt;/span>&lt;span class="o">)))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;TableRows to MyData&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">MapElements&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TypeDescriptor&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)).&lt;/span>&lt;span class="na">via&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">::&lt;/span>&lt;span class="n">fromTableRow&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">rows&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-py>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">max_temperatures&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
@@ -10855,19 +10916,39 @@ then extracts the &lt;code>max_temperature&lt;/code> column.&lt;/p>
 &lt;/div>
 &lt;h3 id="reading-with-a-query-string">Reading with a query string&lt;/h3>
 &lt;p class="language-java">If you don&amp;rsquo;t want to read an entire table, you can supply a query string with
-the &lt;code>fromQuery&lt;/code> method. This example uses
-&lt;code>read(SerializableFunction)&lt;/code>.&lt;/p>
+the &lt;code>fromQuery&lt;/code> method.&lt;/p>
 &lt;p class="language-py">If you don&amp;rsquo;t want to read an entire table, you can supply a query string to
 &lt;code>BigQuerySource&lt;/code> by specifying the &lt;code>query&lt;/code> parameter.&lt;/p>
-&lt;p>The following code uses a SQL query to only read the &lt;code>max_temperature&lt;/code> column.&lt;/p>
+&lt;p class="language-py">The following code uses a SQL query to only read the &lt;code>max_temperature&lt;/code> column.&lt;/p>
 &lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Double&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">maxTemperatures&lt;/span> &lt;span class="o">=&lt;/span>
-&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="n">BigQueryIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">read&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="o">(&lt;/span>&lt;span class="n">SchemaAndRecord&lt;/span> &lt;span class="n">elem&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">Double&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">elem&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getRecord&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">get&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;max_temperature&amp;#34;&lt;/span>&lt;span class="o">))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">fromQuery&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="s">&amp;#34;SELECT max_temperature FROM [clouddataflow-readonly:samples.weather_stations]&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">withCoder&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">DoubleCoder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">()));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.examples.snippets.transforms.io.gcp.bigquery.BigQueryMyData.MyData&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.Pipeline&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.transforms.MapElements&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.values.PCollection&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.values.TypeDescriptor&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kd">class&lt;/span> &lt;span class="nc">BigQueryReadFromQuery&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">readFromQuery&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">String&lt;/span> &lt;span class="n">project&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">dataset&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">table&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Pipeline&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// String project = &amp;#34;my-project-id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// String dataset = &amp;#34;my_bigquery_dataset_id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// String table = &amp;#34;my_bigquery_table_id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="c1">// Pipeline pipeline = Pipeline.create();
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">rows&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;Read from BigQuery query&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">BigQueryIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">readTableRows&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">fromQuery&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">format&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;SELECT * FROM `%s.%s.%s`&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">project&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">dataset&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">table&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">usingStandardSql&lt;/span>&lt;span class="o">())&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;TableRows to MyData&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">MapElements&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TypeDescriptor&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)).&lt;/span>&lt;span class="na">via&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">::&lt;/span>&lt;span class="n">fromTableRow&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">rows&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-py>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">max_temperatures&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
@@ -10929,12 +11010,51 @@ the BigQuery Storage API and column projection to read public samples of weather
 data from a BigQuery table. You can view the &lt;a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java">full source code on
 GitHub&lt;/a>.&lt;/p>
 &lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="n">rowsFromBigQuery&lt;/span> &lt;span class="o">=&lt;/span>
-&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kn">import&lt;/span> &lt;span class="nn">java.util.Arrays&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.examples.snippets.transforms.io.gcp.bigquery.BigQueryMyData.MyData&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.Pipeline&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.transforms.MapElements&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.values.PCollection&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.values.TypeDescriptor&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kd">class&lt;/span> &lt;span class="nc">BigQueryReadFromTableWithBigQueryStorageAPI&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">readFromTableWithBigQueryStorageAPI&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">String&lt;/span> &lt;span class="n">project&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">dataset&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">table&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Pipeline&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// String project = &amp;#34;my-project-id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// String dataset = &amp;#34;my_bigquery_dataset_id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// String table = &amp;#34;my_bigquery_table_id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="c1">// Pipeline pipeline = Pipeline.create();
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">rows&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;Read from BigQuery table&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
 &lt;span class="n">BigQueryIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">readTableRows&lt;/span>&lt;span class="o">()&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">from&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getInput&lt;/span>&lt;span class="o">())&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">from&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">format&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;%s:%s.%s&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">project&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">dataset&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">table&lt;/span>&lt;span class="o">))&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">withMethod&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Method&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">DIRECT_READ&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">withSelectedFields&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Lists&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">newArrayList&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;month&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;tornado&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withSelectedFields&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">Arrays&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">asList&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;string_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="s">&amp;#34;int64_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="s">&amp;#34;float64_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="s">&amp;#34;numeric_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="s">&amp;#34;bool_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="s">&amp;#34;bytes_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="s">&amp;#34;date_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="s">&amp;#34;datetime_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="s">&amp;#34;time_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="s">&amp;#34;timestamp_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="s">&amp;#34;geography_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="s">&amp;#34;array_field&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="s">&amp;#34;struct_field&amp;#34;&lt;/span>&lt;span class="o">)))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;TableRows to MyData&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">MapElements&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TypeDescriptor&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)).&lt;/span>&lt;span class="na">via&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">::&lt;/span>&lt;span class="n">fromTableRow&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">rows&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-py>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="c1"># The SDK for Python does not support the BigQuery Storage API.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
@@ -11099,18 +11219,53 @@ a write transform. Set the parameter’s value to the &lt;code>TableSchema&lt;/c
 &lt;p>The following example code shows how to create a &lt;code>TableSchema&lt;/code> for a table with
 two fields (source and quote) of type string.&lt;/p>
 &lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">TableSchema&lt;/span> &lt;span class="n">tableSchema&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kn">import&lt;/span> &lt;span class="nn">com.google.api.services.bigquery.model.TableFieldSchema&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">com.google.api.services.bigquery.model.TableSchema&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">java.util.Arrays&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kd">class&lt;/span> &lt;span class="nc">BigQuerySchemaCreate&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">TableSchema&lt;/span> &lt;span class="nf">createSchema&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// To learn more about BigQuery schemas:
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// https://cloud.google.com/bigquery/docs/schemas
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="n">TableSchema&lt;/span> &lt;span class="n">schema&lt;/span> &lt;span class="o">=&lt;/span>
 &lt;span class="k">new&lt;/span> &lt;span class="n">TableSchema&lt;/span>&lt;span class="o">()&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">setFields&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="n">ImmutableList&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">Arrays&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">asList&lt;/span>&lt;span class="o">(&lt;/span>
 &lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">()&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;source&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;string_field&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STRING&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setMode&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;REQUIRED&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;int64_field&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;INT64&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">setMode&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;NULLABLE&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
 &lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">()&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;quote&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STRING&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">setMode&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;REQUIRED&amp;#34;&lt;/span>&lt;span class="o">)));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;float64_field&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;FLOAT64&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span> &lt;span class="c1">// default mode is &amp;#34;NULLABLE&amp;#34;
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;numeric_field&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;NUMERIC&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;bool_field&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;BOOL&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;bytes_field&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;BYTES&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;date_field&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;DATE&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;datetime_field&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;DATETIME&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;time_field&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;TIME&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;timestamp_field&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;TIMESTAMP&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;geography_field&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;GEOGRAPHY&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;array_field&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;INT64&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setMode&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;REPEATED&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setDescription&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;Setting the mode to REPEATED makes this an ARRAY&amp;lt;INT64&amp;gt;.&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;struct_field&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STRUCT&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setDescription&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;A STRUCT accepts a custom data class, the fields must match the custom class fields.&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">setFields&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">Arrays&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">asList&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;string_value&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;STRING&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
+&lt;span class="k">new&lt;/span> &lt;span class="n">TableFieldSchema&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setName&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;int64_value&amp;#34;&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">setType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;INT64&amp;#34;&lt;/span>&lt;span class="o">)))));&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">schema&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-py>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">table_schema&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>
@@ -11220,29 +11375,53 @@ transform.&lt;/p>
 the transform to a &lt;code>PCollection&lt;/code> of dictionaries. In general, you&amp;rsquo;ll need to use
 another transform, such as &lt;code>ParDo&lt;/code>, to format your output data into a
 collection.&lt;/p>
-&lt;p>The following examples use this &lt;code>PCollection&lt;/code> that contains quotes.&lt;/p>
+&lt;p class="language-py">The following examples use this &lt;code>PCollection&lt;/code> that contains quotes.&lt;/p>
+&lt;p class="language-java">The &lt;code>writeTableRows&lt;/code> method writes a &lt;code>PCollection&lt;/code> of BigQuery &lt;code>TableRow&lt;/code>
+objects to a BigQuery table. Each element in the &lt;code>PCollection&lt;/code> represents a
+single row in the table. This example uses &lt;code>writeTableRows&lt;/code> to write elements to a
+&lt;code>PCollection&amp;lt;TableRow&amp;gt;&lt;/code>. The write operation creates a table if needed; if the
+table already exists, it will be replaced.&lt;/p>
 &lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="cm">/*
-&lt;/span>&lt;span class="cm">@DefaultCoder(AvroCoder.class)
-&lt;/span>&lt;span class="cm">static class Quote {
-&lt;/span>&lt;span class="cm"> final String source;
-&lt;/span>&lt;span class="cm"> final String quote;
-&lt;/span>&lt;span class="cm">
-&lt;/span>&lt;span class="cm"> public Quote() {
-&lt;/span>&lt;span class="cm"> this.source = &amp;#34;&amp;#34;;
-&lt;/span>&lt;span class="cm"> this.quote = &amp;#34;&amp;#34;;
-&lt;/span>&lt;span class="cm"> }
-&lt;/span>&lt;span class="cm"> public Quote(String source, String quote) {
-&lt;/span>&lt;span class="cm"> this.source = source;
-&lt;/span>&lt;span class="cm"> this.quote = quote;
-&lt;/span>&lt;span class="cm"> }
-&lt;/span>&lt;span class="cm">}
-&lt;/span>&lt;span class="cm">*/&lt;/span>
-&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Quote&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">quotes&lt;/span> &lt;span class="o">=&lt;/span>
-&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="n">Create&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="k">new&lt;/span> &lt;span class="n">Quote&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;Mahatma Gandhi&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;My life is my message.&amp;#34;&lt;/span>&lt;span class="o">),&lt;/span>
-&lt;span class="k">new&lt;/span> &lt;span class="n">Quote&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;Yoda&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;Do, or do not. There is no &amp;#39;try&amp;#39;.&amp;#34;&lt;/span>&lt;span class="o">)));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kn">import&lt;/span> &lt;span class="nn">com.google.api.services.bigquery.model.TableRow&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">com.google.api.services.bigquery.model.TableSchema&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.values.PCollection&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kd">class&lt;/span> &lt;span class="nc">BigQueryWriteToTable&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">writeToTable&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">String&lt;/span> &lt;span class="n">project&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">String&lt;/span> &lt;span class="n">dataset&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">String&lt;/span> &lt;span class="n">table&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">TableSchema&lt;/span> &lt;span class="n">schema&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">TableRow&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">rows&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// String project = &amp;#34;my-project-id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// String dataset = &amp;#34;my_bigquery_dataset_id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// String table = &amp;#34;my_bigquery_table_id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="c1">// TableSchema schema = new TableSchema().setFields(Arrays.asList(...));
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="c1">// Pipeline pipeline = Pipeline.create();
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// PCollection&amp;lt;TableRow&amp;gt; rows = ...
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="n">rows&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;Write to BigQuery&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">BigQueryIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">writeTableRows&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">format&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;%s:%s.%s&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">project&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">dataset&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">table&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withSchema&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">schema&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="c1">// For CreateDisposition:
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// - CREATE_IF_NEEDED (default): creates the table if it doesn&amp;#39;t exist, a schema is
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// required
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// - CREATE_NEVER: raises an error if the table doesn&amp;#39;t exist, a schema is not needed
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">withCreateDisposition&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">CreateDisposition&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">CREATE_IF_NEEDED&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="c1">// For WriteDisposition:
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// - WRITE_EMPTY (default): raises an error if the table is not empty
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// - WRITE_APPEND: appends new rows to existing rows
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// - WRITE_TRUNCATE: deletes the existing rows before writing
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">withWriteDisposition&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">WriteDisposition&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">WRITE_TRUNCATE&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="c1">// pipeline.run().waitUntilFinish();
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-py>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">quotes&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
@@ -11254,29 +11433,10 @@ collection.&lt;/p>
 &lt;span class="p">},&lt;/span>
 &lt;span class="p">])&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;!-- writeTableRows and WriteToBigQuery -->
-&lt;p class="language-java">The &lt;code>writeTableRows&lt;/code> method writes a &lt;code>PCollection&lt;/code> of BigQuery &lt;code>TableRow&lt;/code>
-objects to a BigQuery table. Each element in the &lt;code>PCollection&lt;/code> represents a
-single row in the table. This example uses &lt;code>writeTableRows&lt;/code> to write quotes to a
-&lt;code>PCollection&amp;lt;TableRow&amp;gt;&lt;/code>. The write operation creates a table if needed; if the
-table already exists, it will be replaced.&lt;/p>
+&lt;!-- WriteToBigQuery (python-only) -->
 &lt;p class="language-py">The following example code shows how to apply a &lt;code>WriteToBigQuery&lt;/code> transform to
 write a &lt;code>PCollection&lt;/code> of dictionaries to a BigQuery table. The write operation
 creates a table if needed; if the table already exists, it will be replaced.&lt;/p>
-&lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">quotes&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="n">MapElements&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TypeDescriptor&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TableRow&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">via&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="o">(&lt;/span>&lt;span class="n">Quote&lt;/span> &lt;span class="n">elem&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span>
-&lt;span class="k">new&lt;/span> &lt;span class="n">TableRow&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;source&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">elem&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">source&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">set&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;quote&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">elem&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">quote&lt;/span>&lt;span class="o">)))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="n">BigQueryIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">writeTableRows&lt;/span>&lt;span class="o">()&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">to&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">tableSpec&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">withSchema&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">tableSchema&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">withCreateDisposition&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">CreateDisposition&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">CREATE_IF_NEEDED&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">withWriteDisposition&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">WriteDisposition&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">WRITE_TRUNCATE&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
 &lt;div class=language-py>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">quotes&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToBigQuery&lt;/span>&lt;span class="p">(&lt;/span>
 &lt;span class="n">table_spec&lt;/span>&lt;span class="p">,&lt;/span>
@@ -11284,7 +11444,7 @@ creates a table if needed; if the table already exists, it will be replaced.&lt;
 &lt;span class="n">write_disposition&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">BigQueryDisposition&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WRITE_TRUNCATE&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="n">create_disposition&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">BigQueryDisposition&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CREATE_IF_NEEDED&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;!-- write -->
+&lt;!-- write (java-only) -->
 &lt;p class="language-java">The &lt;code>write&lt;/code> transform writes a &lt;code>PCollection&lt;/code> of custom typed objects to a BigQuery
 table. Use &lt;code>.withFormatFunction(SerializableFunction)&lt;/code> to provide a formatting
 function that converts each input element in the &lt;code>PCollection&lt;/code> into a
