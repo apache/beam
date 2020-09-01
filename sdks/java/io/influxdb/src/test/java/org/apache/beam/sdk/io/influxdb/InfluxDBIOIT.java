@@ -40,8 +40,13 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
+<<<<<<< HEAD
  * A test of {@link InfluxDbIO} on an independent InfluxDB instance. Run the docker container using
  * the following command
+=======
+ * A test of {@link InfluxDbIO} on an independent InfluxDB instance.
+ * Run the docker container using the following command
+>>>>>>> c793375e14 (Addressing the comments)
  *
  * <pre>
  * docker run -p 8086:8086 -p 2003:2003 -p 8083:8083 -e INFLUXDB_GRAPHITE_ENABLED=true -e INFLUXDB_USER=supersadmin -e INFLUXDB_USER_PASSWORD=supersecretpassword influxdb
