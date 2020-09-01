@@ -289,10 +289,21 @@ class DoctestTest(unittest.TestCase):
     result = doctests.testmod(
         pd.core.strings,
         use_beam=False,
+        wont_implement_ok={
+            'pandas.core.strings.StringMethods.cat': [
+                "s.str.cat(['A', 'B', 'C', 'D'], sep=',')",
+                "s.str.cat(['A', 'B', 'C', 'D'], sep=',', na_rep='-')",
+                "s.str.cat(['A', 'B', 'C', 'D'], na_rep='-')"
+            ],
+        },
         skip={
-            'pandas.core.strings.StringMethods.cat': ['*'],
-            'pandas.core.strings.StringMethods.repeat': ['*'],
-            'pandas.core.strings.str_repeat': ['*'],
+            # TODO: These should probably raise WontImplement
+            'pandas.core.strings.StringMethods.repeat': [
+                's.str.repeat(repeats=[1, 2, 3])'
+            ],
+            'pandas.core.strings.str_repeat': [
+                's.str.repeat(repeats=[1, 2, 3])'
+            ],
 
             # The rest of the skipped tests represent bad test strings,
             # fixed upstream in
