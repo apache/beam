@@ -512,7 +512,13 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
   def _insert_all_rows(
-      self, project_id, dataset_id, table_id, rows, skip_invalid_rows=False):
+      self,
+      project_id,
+      dataset_id,
+      table_id,
+      rows,
+      skip_invalid_rows=False,
+      latency_recoder=None):
     """Calls the insertAll BigQuery API endpoint.
 
     Docs for this BQ call: https://cloud.google.com/bigquery/docs/reference\
@@ -528,8 +534,13 @@ class BigQueryWrapper(object):
             skipInvalidRows=skip_invalid_rows,
             # TODO(silviuc): Should have an option for ignoreUnknownValues?
             rows=rows))
-    response = self.client.tabledata.InsertAll(request)
-    # response.insertErrors is not [] if errors encountered.
+    started_millis = int(time.time() * 1000) if latency_recoder else None
+    try:
+      response = self.client.tabledata.InsertAll(request)
+      # response.insertErrors is not [] if errors encountered.
+    finally:
+      if latency_recoder:
+        latency_recoder.record(int(time.time() * 1000) - started_millis)
     return not response.insertErrors, response.insertErrors
 
   @retry.with_exponential_backoff(
@@ -935,7 +946,8 @@ class BigQueryWrapper(object):
       table_id,
       rows,
       insert_ids=None,
-      skip_invalid_rows=False):
+      skip_invalid_rows=False,
+      latency_recoder=None):
     """Inserts rows into the specified table.
 
     Args:
@@ -946,6 +958,9 @@ class BigQueryWrapper(object):
         each key in it is the name of a field.
       skip_invalid_rows: If there are rows with insertion errors, whether they
         should be skipped, and all others should be inserted successfully.
+      latency_recoder: The object that records request-to-response latencies.
+        The object should provide `record(int)` method to be invoked with
+        milliseconds latency values.
 
     Returns:
       A tuple (bool, errors). If first element is False then the second element
@@ -966,7 +981,8 @@ class BigQueryWrapper(object):
           bigquery.TableDataInsertAllRequest.RowsValueListEntry(
               insertId=insert_id, json=json_row))
     result, errors = self._insert_all_rows(
-        project_id, dataset_id, table_id, final_rows, skip_invalid_rows)
+        project_id, dataset_id, table_id, final_rows, skip_invalid_rows,
+        latency_recoder)
     return result, errors
 
   def _convert_to_json_row(self, row):
