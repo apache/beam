@@ -496,8 +496,7 @@ class ApproximateUniqueTest(unittest.TestCase):
         'The key coder "Base64PickleCoder" '
         'for ApproximateUniqueCombineFn is not deterministic.')
 
-  def test_approximate_unique_combine_fn_add_values(self):
-    # test if the combiner adds values correctly.
+  def test_approximate_unique_combine_fn_adds_values_correctly(self):
     test_input = [['a', 'b', 'c'], ['b', 'd']]
     sample_size = 30
     coder = coders.StrUtf8Coder()
@@ -510,8 +509,7 @@ class ApproximateUniqueTest(unittest.TestCase):
     result = 4
     self.assertEqual(combine_fn.extract_output(accumulator), result)
 
-  def test_approximate_unique_combine_fn_merge_values(self):
-    # test if the combiner merges values correctly.
+  def test_approximate_unique_combine_fn_merges_values_correctly(self):
     test_input = [['a', 'b', 'c'], ['b', 'd']]
     sample_size = 30
     coder = coders.StrUtf8Coder()
