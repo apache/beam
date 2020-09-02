@@ -22,8 +22,8 @@ limitations under the License.
 
 ## Introduction
 
-SQL is becoming increasingly powerful and useful in the field of data analysis. MATCH\_RECOGNIZE, 
-a new SQL component introduced in 2016, brings extra analytical functionality. This project, 
+SQL is becoming increasingly powerful and useful in the field of data analysis. MATCH\_RECOGNIZE,
+a new SQL component introduced in 2016, brings extra analytical functionality. This project,
 as part of Google Summer of Code, aims to support basic MATCH\_RECOGNIZE functionality. A basic MATCH\_RECOGNIZE
 query would be something like this:
 {{< highlight sql >}}
@@ -44,7 +44,7 @@ FROM MyTable
     ) AS T
 {{< /highlight >}}
 
-The above query finds out ordered sets of events that have names 'a', 'b' and 'c'. Apart from this basic usage of 
+The above query finds out ordered sets of events that have names 'a', 'b' and 'c'. Apart from this basic usage of
 MATCH\_RECOGNIZE, I supported a few of other crucial features such as quantifiers and row pattern navigation. I will spell out
 the details in later sections.
 
@@ -58,7 +58,7 @@ following series of transforms:
 3. A `ParDo` transform that applies pattern-match in each sorted partition.
 
 A pattern-match operation was first done with the java regex library. That is, I first transform rows within a partition into
-a string and then apply regex pattern-match routines. If a row satisfies a condition, then I output the corresponding pattern variable. 
+a string and then apply regex pattern-match routines. If a row satisfies a condition, then I output the corresponding pattern variable.
 This is ok under the assumption that the pattern definitions are mutually exclusive. That is, a pattern definition like `A AS A.price > 0, B AS b.price < 0` is allowed while
 a pattern definition like `A AS A.price > 0, B AS B.proctime > 0` might results in an incomplete match. For the latter case,
 an event can satisfy the conditions A and B at the same time. Mutually exclusive conditions gives deterministic pattern-match:
