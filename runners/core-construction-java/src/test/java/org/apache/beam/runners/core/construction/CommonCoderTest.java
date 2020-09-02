@@ -398,7 +398,13 @@ public class CommonCoderTest {
         }
 
         return row.build();
-      default: // DECIMAL, DATETIME, LOGICAL_TYPE
+      case LOGICAL_TYPE:
+        // Logical types are represented as their representation types in YAML. Parse as the
+        // representation type, then convert to the base type.
+        return fieldType
+            .getLogicalType()
+            .toInputType(parseField(value, fieldType.getLogicalType().getBaseType()));
+      default: // DECIMAL, DATETIME
         throw new IllegalArgumentException("Unsupported type name: " + fieldType.getTypeName());
     }
   }
