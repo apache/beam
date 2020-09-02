@@ -9491,8 +9491,8 @@ figure.&lt;/p>
 retries the entire bundle.&lt;/em>&lt;/p>
 &lt;p>Because we encountered a failure while processing an element in the input
 bundle, we had to reprocess &lt;em>all&lt;/em> of the elements in the input bundle. This means
-the runner must throw away the entire output bundle since all of the results it
-contains will be recomputed.&lt;/p>
+the runner must throw away the entire output of the bundle (including any state
+mutations and set timers) since all of the results it contains will be recomputed.&lt;/p>
 &lt;p>Note that if the failed transform is a &lt;code>ParDo&lt;/code>, then the &lt;code>DoFn&lt;/code> instance is torn
 down and abandoned.&lt;/p>
 &lt;h3 id="coupled-failure">Coupled failure: Failures between transforms&lt;/h3>

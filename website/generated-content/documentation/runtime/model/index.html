@@ -58,8 +58,8 @@ happen on the same worker as the original processing attempt, as shown in the
 figure.</p><p><img src=/images/execution_model_failure_retry.svg alt="Worker two fails to process an element in bundle B. Worker one finishes processing bundle A and then successfully retries to execute bundle B."></p><p><em>Figure 6: The processing of an element within bundle B fails, and another worker
 retries the entire bundle.</em></p><p>Because we encountered a failure while processing an element in the input
 bundle, we had to reprocess <em>all</em> of the elements in the input bundle. This means
-the runner must throw away the entire output bundle since all of the results it
-contains will be recomputed.</p><p>Note that if the failed transform is a <code>ParDo</code>, then the <code>DoFn</code> instance is torn
+the runner must throw away the entire output of the bundle (including any state
+mutations and set timers) since all of the results it contains will be recomputed.</p><p>Note that if the failed transform is a <code>ParDo</code>, then the <code>DoFn</code> instance is torn
 down and abandoned.</p><h3 id=coupled-failure>Coupled failure: Failures between transforms</h3><p>If a failure to process an element in <code>ParDo2</code> causes <code>ParDo1</code> to re-execute,
 these two steps are said to be <em>co-failing</em>.</p><p>For this example, we will use the two <code>ParDo</code>s from figure 4.</p><p>In figure 7, worker two successfully executes <code>ParDo1</code> on all elements in bundle
 B. However, the worker fails to process an element in bundle D, so <code>ParDo2</code>
