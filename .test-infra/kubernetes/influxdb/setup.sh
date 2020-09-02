@@ -14,7 +14,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-# Start HBase cluster.
+# Start InfluxDB.
 set -e
 
 kubectl create -f influxdb.yml
