@@ -18,29 +18,35 @@
 
 plugins { id 'org.apache.beam.vendor-java' }
 
-description = "Apache Beam :: Vendored Dependencies :: Calcite 1.20.0"
+description = "Apache Beam :: Vendored Dependencies :: Calcite 1.26.0"
 
 group = "org.apache.beam"
-version = "0.2"
+version = "0.1"
 
-def calcite_version = "1.20.0"
-def avatica_version = "1.16.0"
-def prefix = "org.apache.beam.vendor.calcite.v1_20_0"
+def calcite_version = "1.26.0"
+def avatica_version = "1.17.0"
+def prefix = "org.apache.beam.vendor.calcite.v1_26_0"
 
 List<String> packagesToRelocate = [
         "com.esri",
-        "com.google.common",
-        "com.google.thirdparty",
-        "com.google.protobuf",
         "com.fasterxml",
+        "com.google.common",
+        "com.google.protobuf",
+        "com.google.thirdparty",
+        "com.google.uzaygezen",
         "com.jayway",
         "com.yahoo",
+        "javax.annotation",
+        "net.minidev",
+        "org.apache.avalon",
         "org.apache.calcite",
         "org.apache.commons",
         "org.apache.http",
+        "org.apiguardian.api",
         "org.codehaus",
+        "org.objectweb",
         "org.pentaho",
-        "org.yaml"
+        "org.yaml",
 ]
 
 vendorJava(
@@ -51,14 +57,31 @@ vendorJava(
                 library.java.protobuf_java,
                 library.java.slf4j_api
         ],
+        runtimeDependencies: [
+                library.java.slf4j_api,
+                "org.apache.logging.log4j:log4j-api:2.13.3",
+                "commons-logging:commons-logging:1.2",
+                "avalon-framework:avalon-framework:4.1.5",
+        ],
         relocations: packagesToRelocate.collectEntries {
             [ (it): "${prefix}.${it}" ] + [ "jdbc:calcite:": "jdbc:beam-vendor-calcite:"]
         },
         exclusions: [
+                // Code quality / Building annotations
+                "com/google/errorprone/**",
+                "com/google/j2objc/annotations/**",
+                "org/checkerframework/**",
+                "org/jmlspecs/**",
+
+                // Logging
                 "org/slf4j/**",
-                "**/module-info.class"
+                "org/apache/log4j/**",
+                "org/apache/logging/log4j/**",
+                "META-INF/versions/9/org/apache/logging/log4j/**",
+
+                "**/module-info.class",
         ],
         groupId: group,
-        artifactId: "beam-vendor-calcite-1_20_0",
+        artifactId: "beam-vendor-calcite-1_26_0",
         version: version,
 )
