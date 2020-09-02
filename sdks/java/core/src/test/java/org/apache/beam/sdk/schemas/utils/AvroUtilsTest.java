@@ -43,6 +43,7 @@ import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -479,6 +480,52 @@ public class AvroUtilsTest {
             .addValue(Lists.newArrayList((Object) null))
             .addValue(nullMapString)
             .build();
+    assertEquals(expectedGenericRecord, AvroUtils.toGenericRecord(row, avroSchema));
+  }
+
+  @Test
+  public void testUnionFieldInAvroSchema() {
+
+    List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
+    List<org.apache.avro.Schema> unionFields = Lists.newArrayList();
+
+    unionFields.add(org.apache.avro.Schema.create(Type.INT));
+    unionFields.add(org.apache.avro.Schema.create(Type.STRING));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "union", org.apache.avro.Schema.createUnion(unionFields), "", null));
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
+    OneOfType oneOfType =
+        OneOfType.create(Field.of("int", FieldType.INT32), Field.of("string", FieldType.STRING));
+
+    Schema expectedSchema = Schema.builder().addLogicalTypeField("union", oneOfType).build();
+    assertEquals(expectedSchema, AvroUtils.toBeamSchema(avroSchema));
+    GenericRecord genericRecord = new GenericRecordBuilder(avroSchema).set("union", 23423).build();
+    Row expectedRow =
+        Row.withSchema(expectedSchema).addValue(oneOfType.createValue(0, 23423)).build();
+    assertEquals(expectedRow, AvroUtils.toBeamRowStrict(genericRecord, expectedSchema));
+  }
+
+  @Test
+  public void testUnionFieldInBeamSchema() {
+    OneOfType oneOfType =
+        OneOfType.create(Field.of("int", FieldType.INT32), Field.of("string", FieldType.STRING));
+
+    Schema beamSchema = Schema.builder().addLogicalTypeField("union", oneOfType).build();
+    List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
+    List<org.apache.avro.Schema> unionFields = Lists.newArrayList();
+
+    unionFields.add(org.apache.avro.Schema.create(Type.INT));
+    unionFields.add(org.apache.avro.Schema.create(Type.STRING));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "union", org.apache.avro.Schema.createUnion(unionFields), "", null));
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createRecord("topLevelRecord", null, null, false, fields);
+    GenericRecord expectedGenericRecord =
+        new GenericRecordBuilder(avroSchema).set("union", 23423).build();
+    Row row = Row.withSchema(beamSchema).addValue(oneOfType.createValue(0, 23423)).build();
     assertEquals(expectedGenericRecord, AvroUtils.toGenericRecord(row, avroSchema));
   }
 
