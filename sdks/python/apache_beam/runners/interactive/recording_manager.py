@@ -300,9 +300,7 @@ class RecordingManager:
 
     """Cancels the current background recording job."""
 
-    bcj = ie.current_env().get_background_caching_job(self.user_pipeline)
-    if bcj:
-      bcj.cancel()
+    bcj.attempt_to_cancel_background_caching_job(self.user_pipeline)
 
     for r in self._recordings:
       r.wait_until_finish()
