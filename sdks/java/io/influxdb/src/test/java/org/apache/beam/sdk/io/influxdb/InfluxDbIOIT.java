@@ -325,4 +325,25 @@ public class InfluxDbIOIT {
         .isEqualTo((long) noOfElementsToReadAndWrite);
     readPipeline.run().waitUntilFinish();
   }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZeroRecordFormNonExistentMetric() {
+    final int numOfElementsToReadAndWrite = 0;
+    createRetentionPolicyInDB(options.getDatabaseName(), options, "autogen");
+    PCollection<String> values =
+        readPipeline.apply(
+            "Read points in Influxdb",
+            InfluxDbIO.read(
+                    options.getInfluxDBURL(),
+                    options.getInfluxDBUserName(),
+                    options.getInfluxDBPassword(),
+                    options.getDatabaseName())
+                .withQuery("SELECT * FROM \"non_existentMetric\"")
+                .withDisableCertificateValidation(true));
+
+    PAssert.thatSingleton(values.apply("Count All", Count.globally()))
+        .isEqualTo((long) numOfElementsToReadAndWrite);
+    readPipeline.run().waitUntilFinish();
+  }
 }

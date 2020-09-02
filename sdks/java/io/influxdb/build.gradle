@@ -17,7 +17,7 @@
 */
  
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableChecker:false, automaticModuleName: 'org.apache.beam.sdk.io.influxdb')
+applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.influxdb')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

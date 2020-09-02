@@ -130,8 +130,6 @@ public class InfluxDbIO {
         .build();
   }
 
-  ///////////////////////// Read  \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-
   /**
    * A {@link PTransform} to read from InfluxDB metric or data related to query. See {@link
    * InfluxDB} for more information on usage and configuration.
@@ -243,17 +241,20 @@ public class InfluxDbIO {
           checkState(spec.metric() != null, "Both query and metrics are empty");
           query = String.format("SELECT * FROM %s.%s", spec.retentionPolicy(), spec.metric());
         }
-        QueryResult result = connection.query(new Query("EXPLAIN " + query, db));
-        List<Result> results = result.getResults();
-        for (Result res : results) {
-          for (Series series : res.getSeries()) {
-            for (List<Object> data : series.getValues()) {
-              String s = data.get(0).toString();
-              if (s.startsWith(numOfBlocks)) {
-                numOfBlocksValue.add(Long.parseLong(s.split(":", -1)[1].trim()));
-              }
-              if (s.startsWith(sizeOfBlocks)) {
-                sizeOfBlocksValue.add(Long.parseLong(s.split(":", -1)[1].trim()));
+        QueryResult queryResult = connection.query(new Query("EXPLAIN " + query, db));
+        Iterator<Result> results = queryResult.getResults().iterator();
+        while (results.hasNext()) {
+          Result result = results.next();
+          if (result.getSeries() != null) {
+            for (Series series : result.getSeries()) {
+              for (List<Object> data : series.getValues()) {
+                String s = data.get(0).toString();
+                if (s.startsWith(numOfBlocks)) {
+                  numOfBlocksValue.add(Long.parseLong(s.split(":", -1)[1].trim()));
+                }
+                if (s.startsWith(sizeOfBlocks)) {
+                  sizeOfBlocksValue.add(Long.parseLong(s.split(":", -1)[1].trim()));
+                }
               }
             }
           }
@@ -271,13 +272,13 @@ public class InfluxDbIO {
 
     @Override
     public List<? extends BoundedSource<String>> split(
-        long desiredElementsInABundle, PipelineOptions options) throws Exception {
+        long desiredElementsInABundle, PipelineOptions options) {
       List<ShardInformation> shardInfo =
           getDBShardedInformation(
               spec.database(), spec.dataSourceConfiguration(), spec.disableCertificateValidation());
       List<BoundedSource<String>> sources = new ArrayList<>();
       String metric = spec.metric();
-      if (spec.query() == null) {
+      if (spec.query() == null && shardInfo.size() > 0) {
         for (ShardInformation sInfo : shardInfo) {
           sources.add(
               new InfluxDBSource(
@@ -570,8 +571,9 @@ public class InfluxDbIO {
   }
 
   private static List<ShardInformation> getDBShardedInformation(
-      String database, DataSourceConfiguration configuration, boolean disableCertificateValidation)
-      throws Exception {
+      String database,
+      DataSourceConfiguration configuration,
+      boolean disableCertificateValidation) {
     String query = "SHOW SHARDS";
     DBShardInformation dbInfo = new DBShardInformation();
     try (InfluxDB connection = getConnection(configuration, disableCertificateValidation)) {

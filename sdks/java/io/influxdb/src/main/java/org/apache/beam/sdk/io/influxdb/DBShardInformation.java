@@ -42,9 +42,11 @@ class DBShardInformation implements Serializable {
     } else {
       shardInfo = shardInformation.get(dbName);
     }
-    if (sData.getName().equals(dbName)) {
+    if (sData.getValues() != null && sData.getName().equals(dbName)) {
       for (List<Object> data : sData.getValues()) {
-        shardInfo.add(new ShardInformation(data));
+        if (data != null) {
+          shardInfo.add(new ShardInformation(data));
+        }
       }
     }
     shardInformation.put(dbName, shardInfo);
