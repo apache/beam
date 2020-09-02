@@ -78,6 +78,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.NoopLock;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -314,8 +315,20 @@ public class DoFnOperator<InputT, OutputT>
       DoFnRunner<InputT, OutputT> wrappedRunner, StepContext stepContext) {
 
     if (keyCoder != null) {
-      StatefulDoFnRunner.CleanupTimer cleanupTimer =
-          new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, windowingStrategy);
+      StatefulDoFnRunner.CleanupTimer<InputT> cleanupTimer =
+          new StatefulDoFnRunner.TimeInternalsCleanupTimer<InputT>(
+              timerInternals, windowingStrategy) {
+            @Override
+            public void setForWindow(InputT input, BoundedWindow window) {
+              if (!window.equals(GlobalWindow.INSTANCE)) {
+                // Skip setting a cleanup timer for the global window as these timers
+                // lead to potentially unbounded state growth in the runner, depending on key
+                // cardinality. Cleanup for global window will be performed upon arrival of the
+                // final watermark.
+                super.setForWindow(input, window);
+              }
+            }
+          };
 
       // we don't know the window type
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -753,6 +766,13 @@ public class DoFnOperator<InputT, OutputT>
       LOG.debug("Emitting watermark {}", watermark);
       currentOutputWatermark = watermark;
       output.emitWatermark(new Watermark(watermark));
+
+      // Check if the final watermark was triggered to perform state cleanup for global window
+      if (keyedStateInternals != null
+          && currentOutputWatermark
+              > adjustTimestampForFlink(GlobalWindow.INSTANCE.maxTimestamp().getMillis())) {
+        keyedStateInternals.clearGlobalState();
+      }
     }
   }
 
