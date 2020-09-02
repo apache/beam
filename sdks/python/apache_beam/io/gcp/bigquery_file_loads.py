@@ -69,8 +69,9 @@ _FILE_TRIGGERING_RECORD_COUNT = 500000
 
 
 def _generate_job_name(job_name, job_type, step_name):
-  return bigquery_tools.generate_bq_job_name(
-      job_name, step_name, job_type, random.randint(0, 1000))
+  return bigquery_tools.generate_bq_job_name(job_name=job_name,
+          sep_id=step_name, job_type=job_type,
+          random=random.randint(0, 1000))
 
 
 def file_prefix_generator(
@@ -356,8 +357,13 @@ class TriggerCopyJobs(beam.DoFn):
       copy_from_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
 
-    copy_job_name = '%s_%s' % (
+    copy_job_name = '%s_%s_%s' % (
         job_name_prefix,
+        _bq_uuid(
+            '%s:%s.%s' % (
+                copy_from_reference.projectId,
+                copy_from_reference.datasetId,
+                copy_from_reference.tableId)),
         _bq_uuid(
             '%s:%s.%s' % (
                 copy_to_reference.projectId,
