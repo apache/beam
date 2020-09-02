@@ -382,7 +382,7 @@ public class ParquetIO {
               try {
                 record = recordReader.read();
               } catch (RecordMaterializer.RecordMaterializationException e) {
-                LOG.debug(
+                LOG.warn(
                     "skipping a corrupt record at {} in block {} in file {}",
                     currentRow,
                     currentBlock,
@@ -475,7 +475,7 @@ public class ParquetIO {
           }
         }
         if (totalSize != 0) {
-          offsetList.add(new OffsetRange(rangeStart, rangeEnd));
+          offsetList.add(new OffsetRange(rangeStart, end));
         }
         return offsetList;
       }
