@@ -15,7 +15,7 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
- 
+
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(enableChecker:false,automaticModuleName: 'org.apache.beam.sdk.io.influxdb')
 provideIntegrationTestingDependencies()
