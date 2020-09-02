@@ -40,7 +40,7 @@ def psio_test = [
     metrics_table             : 'psio_io_2GB_results',
     influx_measurement        : 'python_psio_2GB_results',
     influx_db_name            : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname           : InfluxDBCredentialsHelper.InfluxDBHostname,
+    influx_hostname           : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     input_options             : '\'{' +
     '"num_records": 2097152,' +
     '"key_size": 1,' +
