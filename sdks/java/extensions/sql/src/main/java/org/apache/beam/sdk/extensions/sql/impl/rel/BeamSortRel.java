@@ -112,7 +112,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       RexNode fetch) {
     super(cluster, traits, child, collation, offset, fetch);
 
-    List<RexNode> fieldExps = getChildExps();
+    // https://issues.apache.org/jira/browse/CALCITE-4079?focusedCommentId=17165904&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-17165904
+    List<RexNode> fieldExps = getSortExps();
     RelCollationImpl collationImpl = (RelCollationImpl) collation;
     List<RelFieldCollation> collations = collationImpl.getFieldCollations();
     for (int i = 0; i < fieldExps.size(); i++) {

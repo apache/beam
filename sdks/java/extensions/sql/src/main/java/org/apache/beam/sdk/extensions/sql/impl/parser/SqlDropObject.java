@@ -21,11 +21,11 @@ import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Sta
 
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
+import org.apache.beam.sdk.extensions.sql.impl.SqlExecutableStatement;
 import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlDrop;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperator;

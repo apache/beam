@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.Factory;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
@@ -31,6 +30,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
 import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.Table;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.Contexts;
@@ -58,7 +58,7 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.fun.SqlStdO
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParser;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParserImplFactory;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.util.ChainedSqlOperatorTable;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.util.SqlOperatorTables;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.Planner;
@@ -148,7 +148,7 @@ public class CalciteQueryPlanner implements QueryPlanner {
         .ruleSets(ruleSets.toArray(new RuleSet[0]))
         .costFactory(BeamCostModel.FACTORY)
         .typeSystem(connection.getTypeFactory().getTypeSystem())
-        .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))
+        .operatorTable(SqlOperatorTables.chain(opTab0, catalogReader))
         .build();
   }
 
@@ -244,14 +244,13 @@ public class CalciteQueryPlanner implements QueryPlanner {
       // here and based on the design we also need to remove the cached values
 
       // We need to first remove the cached values.
-      List<List> costKeys =
-          mq.map.entrySet().stream()
+      List<Table.Cell<RelNode, List, Object>> costKeys =
+          mq.map.cellSet().stream()
               .filter(entry -> entry.getValue() instanceof BeamCostModel)
               .filter(entry -> ((BeamCostModel) entry.getValue()).isInfinite())
-              .map(Map.Entry::getKey)
               .collect(Collectors.toList());
 
-      costKeys.forEach(mq.map::remove);
+      costKeys.forEach(cell -> mq.map.remove(cell.getRowKey(), cell.getColumnKey()));
 
       return ((BeamRelNode) rel).beamComputeSelfCost(rel.getCluster().getPlanner(), mq);
     }

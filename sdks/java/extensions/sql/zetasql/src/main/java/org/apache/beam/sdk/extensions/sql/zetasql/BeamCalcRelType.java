@@ -21,7 +21,6 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.CalcRelSplitter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ZetaSqlScalarFunctionImpl;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.CallImplementor;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.enumerable.RexImpTable;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRule;
@@ -68,7 +67,7 @@ class BeamCalcRelType extends CalcRelSplitter.RelType {
   protected boolean canImplement(RexCall call) {
     final SqlOperator operator = call.getOperator();
 
-    CallImplementor implementor = RexImpTable.INSTANCE.get(operator);
+    RexImpTable.RexCallImplementor implementor = RexImpTable.INSTANCE.get(operator);
     if (implementor == null) {
       // Reject methods with no implementation
       return false;

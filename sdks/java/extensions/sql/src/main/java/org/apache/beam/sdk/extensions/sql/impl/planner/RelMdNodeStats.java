@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.Table;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.MetadataDef;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.MetadataHandler;
@@ -71,16 +72,23 @@ public class RelMdNodeStats implements MetadataHandler<NodeStatsMetadata> {
     // wraps the metadata provider with CachingRelMetadataProvider. However,
     // CachingRelMetadataProvider checks timestamp before returning previous results. Therefore,
     // there wouldn't be a problem in that case.
-    List<List> keys =
-        mq.map.entrySet().stream()
-            .filter(entry -> entry.getValue() instanceof NodeStats)
-            .filter(entry -> ((NodeStats) entry.getValue()).isUnknown())
-            .map(Map.Entry::getKey)
-            .collect(Collectors.toList());
-
-    for (List key : keys) {
-      mq.map.remove(key);
+    Set<Table.Cell<RelNode, List, Object>> cells = mq.map.cellSet();
+    List<Table.Cell<RelNode, List, Object>> keys = new ArrayList<>(cells.size());
+    for (Table.Cell<RelNode, List, Object> cell : cells) {
+      if (cell == null) {
+        continue;
+      }
+      Object rawValue = cell.getValue();
+      if (!(rawValue instanceof NodeStats)) {
+        continue;
+      }
+      NodeStats nodeStats = (NodeStats) rawValue;
+      if (nodeStats.isUnknown()) {
+        keys.add(cell);
+      }
     }
+
+    keys.forEach(cell -> mq.map.remove(cell.getRowKey(), cell.getColumnKey()));
 
     return rel.estimateNodeStats(mq);
   }

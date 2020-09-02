@@ -25,13 +25,13 @@ import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Sta
 import com.alibaba.fastjson.JSONObject;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
+import org.apache.beam.sdk.extensions.sql.impl.SqlExecutableStatement;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlCreate;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlNode;

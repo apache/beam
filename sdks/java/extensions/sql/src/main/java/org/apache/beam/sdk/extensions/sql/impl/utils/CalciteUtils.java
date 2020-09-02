@@ -36,6 +36,7 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.By
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlTypeNameSpec;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.Instant;
 import org.joda.time.base.AbstractInstant;
@@ -199,6 +200,10 @@ public class CalciteUtils {
           return typeName;
         }
     }
+  }
+
+  public static FieldType toFieldType(SqlTypeNameSpec sqlTypeName) {
+    return toFieldType(SqlTypeName.get(sqlTypeName.getTypeName().getSimple()));
   }
 
   public static FieldType toFieldType(SqlTypeName sqlTypeName) {

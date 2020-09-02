@@ -173,7 +173,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
       }
     }
 
-    return LogicalProject.create(input, projects, fieldNames);
+    return LogicalProject.create(input, ImmutableList.of(), projects, fieldNames);
   }
 
   private AggregateCall convertAggCall(

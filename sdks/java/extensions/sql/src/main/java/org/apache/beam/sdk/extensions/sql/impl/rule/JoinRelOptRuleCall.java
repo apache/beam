@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rule;
 
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelHintsPropagator;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRuleCall;
@@ -50,6 +51,14 @@ public class JoinRelOptRuleCall extends RelOptRuleCall {
   public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv) {
     if (checker.check(rel)) {
       originalCall.transformTo(rel, equiv);
+    }
+  }
+
+  @Override
+  public void transformTo(
+      RelNode relNode, Map<RelNode, RelNode> map, RelHintsPropagator relHintsPropagator) {
+    if (checker.check(relNode)) {
+      originalCall.transformTo(relNode, map, relHintsPropagator);
     }
   }
 

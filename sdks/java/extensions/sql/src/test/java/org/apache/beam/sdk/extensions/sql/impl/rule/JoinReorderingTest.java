@@ -48,8 +48,8 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelRoot;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Join;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.TableScan;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.rules.CoreRules;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.rules.JoinCommuteRule;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.rules.SortProjectTransposeRule;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.ScannableTable;
@@ -112,7 +112,7 @@ public class JoinReorderingTest {
   public void testBeamJoinAssociationRule() throws Exception {
     RuleSet prepareRules =
         RuleSets.ofList(
-            SortProjectTransposeRule.INSTANCE,
+            CoreRules.SORT_PROJECT_TRANSPOSE,
             EnumerableRules.ENUMERABLE_JOIN_RULE,
             EnumerableRules.ENUMERABLE_PROJECT_RULE,
             EnumerableRules.ENUMERABLE_SORT_RULE,
@@ -141,7 +141,7 @@ public class JoinReorderingTest {
   public void testBeamJoinPushThroughJoinRuleLeft() throws Exception {
     RuleSet prepareRules =
         RuleSets.ofList(
-            SortProjectTransposeRule.INSTANCE,
+            CoreRules.SORT_PROJECT_TRANSPOSE,
             EnumerableRules.ENUMERABLE_JOIN_RULE,
             EnumerableRules.ENUMERABLE_PROJECT_RULE,
             EnumerableRules.ENUMERABLE_SORT_RULE,
@@ -170,7 +170,7 @@ public class JoinReorderingTest {
   public void testBeamJoinPushThroughJoinRuleRight() throws Exception {
     RuleSet prepareRules =
         RuleSets.ofList(
-            SortProjectTransposeRule.INSTANCE,
+            CoreRules.SORT_PROJECT_TRANSPOSE,
             EnumerableRules.ENUMERABLE_JOIN_RULE,
             EnumerableRules.ENUMERABLE_PROJECT_RULE,
             EnumerableRules.ENUMERABLE_SORT_RULE,

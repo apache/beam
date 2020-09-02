@@ -20,9 +20,9 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Static.RESOURCE;
 
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
+import org.apache.beam.sdk.extensions.sql.impl.SqlExecutableStatement;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlSetOption;
