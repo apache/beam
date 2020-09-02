@@ -1,0 +1,141 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+<html>
+<body>
+
+<h1>Beam Metrics Report</h1>
+
+Color legend:
+<table>
+    <tr>
+        <td style="background-color:Red;padding:9px;text-align:center;">>= 20</td>
+        <td style="background-color:Yellow;padding:9px;text-align:center;">>= 10</td>
+        <td style="background-color:YellowGreen;padding:9px;text-align:center;"><= -10</td>
+        <td style="background-color:Green;padding:9px;text-align:center;"><= -20</td>
+    </tr>
+</table>
+
+
+<h2>Possible regression</h2>
+
+<table>
+<tr>
+    {% for header in headers -%}
+        <td style="border-bottom:1px solid #ddd"><b>{{ header }}</b></td>
+    {% endfor %}
+</tr>
+
+{% for row in metrics_data -%}
+    {% if row[5] >= 10 %}
+        <tr>
+            {% for item in row -%}
+                {% if not loop.last %}
+                    {% if loop.index == 6 and item >= 20 %}
+                        <td style="background-color:Red;border-bottom:1px solid #ddd">{{ item }}</td>
+                    {% elif loop.index == 6 and item >= 10 %}
+                        <td style="background-color:Yellow;border-bottom:1px solid #ddd">{{ item }}</td>
+                    {% else %}
+                        <td style="border-bottom: 1px solid #ddd">{{ item }}</td>
+                    {% endif %}
+                {% else %}
+                    <td style="border-bottom:1px solid #ddd">
+                    {% for link in item -%}
+                        <a href={{ link }}>[{{ loop.index }}]</a>
+                    {% endfor %}
+                    </td>
+                {% endif %}
+            {% endfor %}
+        </tr>
+    {% endif %}
+{% endfor %}
+</table>
+
+
+<h2>Possible improvement</h2>
+
+<table>
+<tr>
+    {% for header in headers -%}
+        <td style="border-bottom:1px solid #ddd"><b>{{ header }}</b></td>
+    {% endfor %}
+</tr>
+
+{% for row in metrics_data -%}
+    {% if row[5] <= -10 %}
+        <tr>
+            {% for item in row -%}
+                {% if not loop.last %}
+                    {% if loop.index == 6 and item <= -20 %}
+                        <td style="background-color:Green;border-bottom:1px solid #ddd">{{ item }}</td>
+                    {% elif loop.index == 6 and item <= -10 %}
+                        <td style="background-color:YellowGreen;border-bottom:1px solid s#ddd">{{ item }}</td>
+                    {% else %}
+                        <td style="border-bottom: 1px solid #ddd">{{ item }}</td>
+                    {% endif %}
+                {% else %}
+                    <td style="border-bottom:1px solid #ddd">
+                    {% for link in item -%}
+                        <a href={{ link }}>[{{ loop.index }}]</a>
+                    {% endfor %}
+                    </td>
+                {% endif %}
+            {% endfor %}
+        </tr>
+    {% endif %}
+{% endfor %}
+</table>
+
+
+<h2>All metrics</h2>
+<table>
+<tr>
+    {% for header in headers -%}
+        <td style="border-bottom:1px solid #ddd"><b>{{ header }}</b></td>
+    {% endfor %}
+</tr>
+
+{% for row in metrics_data -%}
+<tr>
+    {% for item in row -%}
+        {% if not loop.last %}
+            {% if loop.index == 6 and item >= 20 %}
+                <td style="background-color:Red;border-bottom:1px solid #ddd">{{ item }}</td>
+            {% elif loop.index == 6 and item >= 10 %}
+                <td style="background-color:Yellow;border-bottom:1px solid #ddd">{{ item }}</td>
+            {% elif loop.index == 6 and item <= -20 %}
+                <td style="background-color:Green;border-bottom:1px solid #ddd">{{ item }}</td>
+            {% elif loop.index == 6 and item <= -10 %}
+                <td style="background-color:YellowGreen;border-bottom:1px solid s#ddd">{{ item }}</td>
+            {% else %}
+                <td style="border-bottom: 1px solid #ddd">{{ item }}</td>
+            {% endif %}
+        {% else %}
+            <td style="border-bottom:1px solid #ddd">
+            {% for link in item -%}
+                <a href={{ link }}>[{{ loop.index }}]</a>
+            {% endfor %}
+            </td>
+        {% endif %}
+    {% endfor %}
+</tr>
+{% endfor %}
+</table>
+
+</body>
+</html>

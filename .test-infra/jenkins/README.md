@@ -165,6 +165,7 @@ Beam Jenkins overview page: [link](https://ci-beam.apache.org/)
 | Name | Link | PR Trigger Phrase | Cron Status |
 |------|------|-------------------|-------------|
 | beam_Dependency_Check | [cron](https://ci-beam.apache.org/job/beam_Dependency_Check/) | `Run Dependency Check` | [![Build Status](https://ci-beam.apache.org/job/beam_Dependency_Check/badge/icon)](https://ci-beam.apache.org/job/beam_Dependency_Check) |
+| beam_Metrics_Report | [cron](https://ci-beam.apache.org/job/beam_Metrics_Report/) | `Run Metrics Report` | [![Build Status](https://ci-beam.apache.org/job/beam_Metrics_Report/badge/icon)](https://ci-beam.apache.org/job/beam_Metrics_Report) |
 | beam_Release_NightlySnapshot | [cron](https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/) | `Run Gradle Publish` | [![Build Status](https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/badge/icon)](https://ci-beam.apache.org/job/beam_Release_NightlySnapshot) |
 | beam_Release_Python_NightlySnapshot | [cron](https://ci-beam.apache.org/job/beam_Release_Python_NightlySnapshot/) | `Run Python Publish` | [![Build Status](https://ci-beam.apache.org/job/beam_Release_Python_NightlySnapshot/badge/icon)](https://ci-beam.apache.org/job/beam_Release_Python_NightlySnapshot) |
 | beam_PostRelease_NightlySnapshot | [cron](https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/) | `Run Dataflow PostRelease` | [![Build Status](https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/badge/icon)](https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot) |
