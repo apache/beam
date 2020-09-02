@@ -484,7 +484,7 @@ class ApproximateUniqueTest(unittest.TestCase):
           label='assert:globally_by_error_with_skewed_data')
 
   def test_approximate_unique_combine_fn_by_nondeterministic_coder(self):
-    # test if the transformation throws an error with a nondeterministic coder.
+    # test if the combiner throws an error with a nondeterministic coder.
     sample_size = 30
     coder = coders.Base64PickleCoder()
 
@@ -495,6 +495,38 @@ class ApproximateUniqueTest(unittest.TestCase):
         e.exception.args[0],
         'The key coder "Base64PickleCoder" '
         'for ApproximateUniqueCombineFn is not deterministic.')
+
+  def test_approximate_unique_combine_fn_add_values(self):
+    # test if the combiner adds values correctly.
+    test_input = [['a', 'b', 'c'], ['b', 'd']]
+    sample_size = 30
+    coder = coders.StrUtf8Coder()
+    combine_fn = ApproximateUniqueCombineFn(sample_size, coder)
+    accumulator = combine_fn.create_accumulator()
+    for batch in test_input:
+      for value in batch:
+        accumulator = combine_fn.add_input(accumulator, value)
+
+    result = 4
+    self.assertEqual(combine_fn.extract_output(accumulator), result)
+
+  def test_approximate_unique_combine_fn_merge_values(self):
+    # test if the combiner merges values correctly.
+    test_input = [['a', 'b', 'c'], ['b', 'd']]
+    sample_size = 30
+    coder = coders.StrUtf8Coder()
+    combine_fn = ApproximateUniqueCombineFn(sample_size, coder)
+
+    accumulators = []
+    for batch in test_input:
+      accumulator = combine_fn.create_accumulator()
+      for value in batch:
+        combine_fn.add_input(accumulator, value)
+      accumulators.append(accumulator)
+    merged_accumulator = combine_fn.merge_accumulators(accumulators)
+
+    result = 4
+    self.assertEqual(combine_fn.extract_output(merged_accumulator), result)
 
 
 class ApproximateQuantilesTest(unittest.TestCase):
