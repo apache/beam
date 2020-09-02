@@ -236,7 +236,7 @@ public interface DataflowPipelineOptions
     }
 
     @VisibleForTesting
-    static String getRegionFromEnvironment() {
+    public static String getRegionFromEnvironment() {
       return System.getenv("CLOUDSDK_COMPUTE_REGION");
     }
 
