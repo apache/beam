@@ -38,7 +38,7 @@
   *Option 1: Use the default expansion service*
 
   This is the recommended and easiest setup option for using Python Kinesis
-  transforms. This option is only available for Beam 2.24.0 and later.
+  transforms. This option is only available for Beam 2.25.0 and later.
 
   This option requires following pre-requisites before running the Beam
   pipeline.
