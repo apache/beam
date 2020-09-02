@@ -81,6 +81,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -592,9 +593,32 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         return currentOutputWatermark;
       }
     } else {
+      // Check if the final watermark was triggered to perform state cleanup for global window
+      if (potentialOutputWatermark > BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()
+          && currentOutputWatermark <= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+        cleanupGlobalWindowState();
+      }
       // No bundle was started when we advanced the input watermark.
       // Thus, we can safely set a new output watermark.
       return potentialOutputWatermark;
+    }
+  }
+
+  private void cleanupGlobalWindowState() {
+    List<String> userStateNames =
+        executableStage.getUserStates().stream()
+            .map(UserStateReference::localName)
+            .collect(Collectors.toList());
+
+    StateNamespace namespace =
+        StateNamespaces.window(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE);
+    for (String userState : userStateNames) {
+      StateTag<BagState<Void>> bagStateStateTag = StateTags.bag(userState, VoidCoder.of());
+      try {
+        keyedStateInternals.clearBagStates(namespace, bagStateStateTag);
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to clear user state in global window.", e);
+      }
     }
   }
 
@@ -902,6 +926,15 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     @Override
     public void setForWindow(InputT input, BoundedWindow window) {
       Preconditions.checkNotNull(input, "Null input passed to CleanupTimer");
+
+      // Skip setting a cleanup timer for the global window as these timers
+      // lead to potentially unbounded state growth in the runner, depending on key cardinality.
+      // Cleanup for global window will be performed upon arrival of the final watermark
+      // in in cleanupGlobalWindowState.
+      if (window.equals(GlobalWindow.INSTANCE)) {
+        return;
+      }
+
       // needs to match the encoding in prepareStateBackend for state request handler
       final ByteBuffer key = FlinkKeyUtils.encodeKey(((KV) input).getKey(), keyCoder);
       // Ensure the state backend is not concurrently accessed by the state requests
