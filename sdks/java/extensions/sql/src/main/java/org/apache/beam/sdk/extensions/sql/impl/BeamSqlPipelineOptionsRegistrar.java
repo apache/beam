@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
 
 /** {@link AutoService} registrar for {@link BeamSqlPipelineOptions}. */
 @AutoService(PipelineOptionsRegistrar.class)

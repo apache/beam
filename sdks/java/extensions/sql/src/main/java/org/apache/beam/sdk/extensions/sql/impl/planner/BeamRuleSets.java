@@ -42,34 +42,13 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnionRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamValuesRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamWindowRule;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.AggregateJoinTransposeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.AggregateRemoveRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.AggregateUnionAggregateRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.CalcMergeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterAggregateTransposeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterCalcMergeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterJoinRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterProjectTransposeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterSetOpTransposeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.FilterToCalcRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinCommuteRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinPushExpressionsRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectCalcMergeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectMergeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectSetOpTransposeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectSortTransposeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectToCalcRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectToWindowRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.PruneEmptyRules;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.SortProjectTransposeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.UnionEliminatorRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.UnionToDistinctRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSets;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.rules.CoreRules;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.rules.PruneEmptyRules;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RuleSets;
 
 /**
  * {@link RuleSet} used in {@code BeamQueryPlanner}. It translates a standard Calcite {@link
@@ -80,66 +59,65 @@ public class BeamRuleSets {
   private static final List<RelOptRule> LOGICAL_OPTIMIZATIONS =
       ImmutableList.of(
           // Rules for window functions
-          ProjectToWindowRule.PROJECT,
+          CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,
           // Rules so we only have to implement Calc
-          FilterCalcMergeRule.INSTANCE,
-          ProjectCalcMergeRule.INSTANCE,
-          FilterToCalcRule.INSTANCE,
-          ProjectToCalcRule.INSTANCE,
+          CoreRules.FILTER_CALC_MERGE,
+          CoreRules.PROJECT_CALC_MERGE,
+          CoreRules.FILTER_TO_CALC,
+          CoreRules.PROJECT_TO_CALC,
           BeamIOPushDownRule.INSTANCE,
           // disabled due to https://issues.apache.org/jira/browse/BEAM-6810
-          // CalcRemoveRule.INSTANCE,
-          CalcMergeRule.INSTANCE,
+          // CoreRules.CALC_REMOVE,
+          CoreRules.CALC_MERGE,
 
           // push a filter into a join
-          FilterJoinRule.FILTER_ON_JOIN,
+          CoreRules.FILTER_INTO_JOIN,
           // push filter into the children of a join
-          FilterJoinRule.JOIN,
+          CoreRules.JOIN_CONDITION_PUSH,
           // push filter through an aggregation
-          FilterAggregateTransposeRule.INSTANCE,
+          CoreRules.FILTER_AGGREGATE_TRANSPOSE,
           // push filter through set operation
-          FilterSetOpTransposeRule.INSTANCE,
+          CoreRules.FILTER_SET_OP_TRANSPOSE,
           // push project through set operation
-          ProjectSetOpTransposeRule.INSTANCE,
+          CoreRules.PROJECT_SET_OP_TRANSPOSE,
 
           // aggregation and projection rules
           BeamAggregateProjectMergeRule.INSTANCE,
           // push a projection past a filter or vice versa
-          ProjectFilterTransposeRule.INSTANCE,
-          FilterProjectTransposeRule.INSTANCE,
+          CoreRules.PROJECT_FILTER_TRANSPOSE,
+          CoreRules.FILTER_PROJECT_TRANSPOSE,
           // push a projection to the children of a join
           // merge projections
-          ProjectMergeRule.INSTANCE,
-          // ProjectRemoveRule.INSTANCE,
+          CoreRules.PROJECT_MERGE,
+          // CoreRules.PROJECT_REMOVE,
           // reorder sort and projection
-          SortProjectTransposeRule.INSTANCE,
-          ProjectSortTransposeRule.INSTANCE,
+          CoreRules.SORT_PROJECT_TRANSPOSE,
 
           // join rules
-          JoinPushExpressionsRule.INSTANCE,
-          JoinCommuteRule.INSTANCE,
+          CoreRules.JOIN_PUSH_EXPRESSIONS,
+          CoreRules.JOIN_COMMUTE,
           BeamJoinAssociateRule.INSTANCE,
           BeamJoinPushThroughJoinRule.RIGHT,
           BeamJoinPushThroughJoinRule.LEFT,
 
           // remove union with only a single child
-          UnionEliminatorRule.INSTANCE,
+          CoreRules.UNION_REMOVE,
           // convert non-all union into all-union + distinct
-          UnionToDistinctRule.INSTANCE,
+          CoreRules.UNION_TO_DISTINCT,
 
           // remove aggregation if it does not aggregate and input is already distinct
-          AggregateRemoveRule.INSTANCE,
+          CoreRules.AGGREGATE_REMOVE,
           // push aggregate through join
-          AggregateJoinTransposeRule.EXTENDED,
+          CoreRules.AGGREGATE_JOIN_TRANSPOSE_EXTENDED,
           // aggregate union rule
-          AggregateUnionAggregateRule.INSTANCE,
+          CoreRules.AGGREGATE_UNION_AGGREGATE,
 
           // reduce aggregate functions like AVG, STDDEV_POP etc.
-          // AggregateReduceFunctionsRule.INSTANCE,
+          CoreRules.AGGREGATE_REDUCE_FUNCTIONS,
 
           // remove unnecessary sort rule
           // https://issues.apache.org/jira/browse/BEAM-5073
-          // SortRemoveRule.INSTANCE,
+          // CoreRules.SORT_REMOVE,,
           BeamTableFunctionScanRule.INSTANCE,
           // prune empty results rules
           PruneEmptyRules.AGGREGATE_INSTANCE,

@@ -18,7 +18,7 @@
 
 /**
  * BeamSQL specified nodes, to replace {@link
- * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode}.
+ * org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode}.
  */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.sql.impl.rel;

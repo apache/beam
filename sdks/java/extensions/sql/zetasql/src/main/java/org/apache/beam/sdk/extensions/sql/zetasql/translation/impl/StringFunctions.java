@@ -19,8 +19,8 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation.impl;
 
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.function.Strict;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.runtime.SqlFunctions;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.linq4j.function.Strict;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.runtime.SqlFunctions;
 
 /** StringFunctions. */
 @Internal

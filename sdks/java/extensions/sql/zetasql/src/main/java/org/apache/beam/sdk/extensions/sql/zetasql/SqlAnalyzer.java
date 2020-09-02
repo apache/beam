@@ -59,10 +59,10 @@ import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.TableResolution.SimpleTableWithPath;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.SchemaPlus;
 
 /** Adapter for {@link Analyzer} to simplify the API for parsing the query and resolving the AST. */
 @SuppressWarnings({
@@ -325,7 +325,7 @@ public class SqlAnalyzer {
 
     SimpleCatalog leafCatalog = createNestedCatalogs(topLevelCatalog, tablePath);
 
-    org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Table calciteTable =
+    org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.Table calciteTable =
         TableResolution.resolveCalciteTable(topLevelSchema, tablePath);
 
     if (calciteTable == null) {

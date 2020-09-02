@@ -39,9 +39,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.function.Parameter;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.TranslatableTable;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.linq4j.function.Parameter;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.TranslatableTable;
 import org.joda.time.Instant;
 import org.junit.Test;
 
@@ -216,7 +216,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   }
 
   /**
-   * test {@link org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.TableMacro} UDF.
+   * test {@link org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.TableMacro} UDF.
    */
   @Test
   public void testTableMacroUdf() throws Exception {
@@ -404,7 +404,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
 
   /**
    * UDF to test support for {@link
-   * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.TableMacro}.
+   * org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.TableMacro}.
    */
   public static final class RangeUdf implements BeamSqlUdf {
     public static TranslatableTable eval(int startInclusive, int endExclusive) {

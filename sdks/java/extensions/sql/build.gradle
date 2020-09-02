@@ -59,7 +59,7 @@ dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
   fmppTask "org.freemarker:freemarker:2.3.28"
-  fmppTemplates library.java.vendored_calcite_1_20_0
+  fmppTemplates library.java.vendored_calcite_1_26_0
   compile project(":sdks:java:core")
   compile project(":sdks:java:extensions:join-library")
   compile project(path: ":runners:direct-java", configuration: "shadow")
@@ -67,7 +67,7 @@ dependencies {
   compile library.java.commons_csv
   compile library.java.jackson_databind
   compile library.java.joda_time
-  compile library.java.vendored_calcite_1_20_0
+  compile library.java.vendored_calcite_1_26_0
   compile "com.alibaba:fastjson:1.2.69"
   compile "org.codehaus.janino:janino:3.0.11"
   compile "org.codehaus.janino:commons-compiler:3.0.11"
@@ -79,7 +79,7 @@ dependencies {
   provided library.java.jackson_dataformat_xml
   provided library.java.hadoop_client
   provided library.java.kafka_clients
-  testCompile library.java.vendored_calcite_1_20_0
+  testCompile library.java.vendored_calcite_1_26_0
   testCompile library.java.vendored_guava_26_0_jre
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
@@ -119,11 +119,11 @@ task copyFmppTemplatesFromCalciteCore(type: Copy) {
   into "${project.buildDir}/templates-fmpp"
   filter{
     line ->
-      line.replace('import org.apache.calcite.', 'import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.')
+      line.replace('import org.apache.calcite.', 'import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.')
   }
   filter{
     line ->
-      line.replace('import static org.apache.calcite.', 'import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.')
+      line.replace('import static org.apache.calcite.', 'import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.')
   }
 }
 

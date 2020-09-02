@@ -21,10 +21,10 @@ data: {
 
       # List of import statements.
       imports: [
-        "org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ColumnStrategy"
-        "org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlCreate"
-        "org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlDrop"
-        "org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName"
+        "org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.ColumnStrategy"
+        "org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlCreate"
+        "org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlDrop"
+        "org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.SqlTypeName"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateExternalTable"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetOptionBeam"
@@ -339,6 +339,16 @@ data: {
         "TBLPROPERTIES"
       ]
 
+      # List of non-reserved keywords to add;
+      # items in this list become non-reserved
+      nonReservedKeywordsToAdd: [
+      ]
+
+      # List of non-reserved keywords to remove;
+      # items in this list become reserved
+      nonReservedKeywordsToRemove: [
+      ]
+
       # List of additional join types. Each is a method with no arguments.
       # Example: LeftSemiJoin()
       joinTypes: [
@@ -357,6 +367,12 @@ data: {
 
       # List of methods for parsing custom data types.
       dataTypeParserMethods: [
+      ]
+
+      # List of methods for parsing builtin function calls.
+      # Return type of method implementation should be "SqlNode".
+      # Example: DateFunctionCall().
+      builtinFunctionCallMethods: [
       ]
 
       # List of methods for parsing extensions to "ALTER <scope>" calls.
@@ -389,6 +405,15 @@ data: {
       builtinFunctionCallMethods: [
       ]
 
+      # Binary operators tokens
+      binaryOperatorsTokens: [
+      ]
+
+      # Binary operators initialization
+      extraBinaryExpressions: [
+      ]
+
+      includePosixOperators: false
       includeCompoundIdentifier: true
       includeBraces: true
       includeAdditionalDeclarations: false

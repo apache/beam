@@ -18,16 +18,17 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollation;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelDistribution;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelDistributionTraitDef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelReferentialConstraint;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Statistic;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.ImmutableBitSet;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelCollation;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelDistribution;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelDistributionTraitDef;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelReferentialConstraint;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.Statistic;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.ImmutableBitSet;
 
 /** This class stores row count statistics. */
 @Experimental
@@ -74,6 +75,11 @@ public class BeamTableStatistics implements Serializable, Statistic {
   @Override
   public boolean isKey(ImmutableBitSet columns) {
     return false;
+  }
+
+  @Override
+  public List<ImmutableBitSet> getKeys() {
+    return Collections.emptyList(); // FIXME BEAM-9379: Is this correct???
   }
 
   @Override

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import java.util.List;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableMap;
 
 /** Holds user defined function definitions. */
 public class UserFunctionDefinitions {

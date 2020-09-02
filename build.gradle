@@ -54,6 +54,10 @@ rat {
 
     // Default eclipse excludes neglect subprojects
 
+    // Generated AutoValue java sources outside the build directory
+    "**/src/main/generated/**/AutoValue_*.java",
+    "**/src/test/generated_tests/**/AutoValue_*.java",
+
     // Proto/grpc generated wrappers
     "**/apache_beam/portability/api/*_pb2*.py",
     "**/go/pkg/beam/**/*.pb.go",
@@ -74,6 +78,7 @@ rat {
     "**/Gemfile.lock",
     "**/Rakefile",
     "**/.htaccess",
+    "website/www/node_modules/**/*",
     "website/www/site/assets/scss/_bootstrap.scss",
     "website/www/site/assets/scss/bootstrap/**/*",
     "website/www/site/static/images/mascot/*.ai",

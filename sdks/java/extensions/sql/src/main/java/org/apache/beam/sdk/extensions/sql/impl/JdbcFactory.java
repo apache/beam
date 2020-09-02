@@ -18,26 +18,26 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import static org.apache.beam.sdk.extensions.sql.impl.JdbcDriver.TOP_LEVEL_BEAM_SCHEMA;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.BuiltInConnectionProperty.TIME_ZONE;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionProperty.LEX;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionProperty.PARSER_FACTORY;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionProperty.SCHEMA;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionProperty.SCHEMA_FACTORY;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionProperty.TYPE_SYSTEM;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.BuiltInConnectionProperty.TIME_ZONE;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.config.CalciteConnectionProperty.LEX;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.config.CalciteConnectionProperty.PARSER_FACTORY;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.config.CalciteConnectionProperty.SCHEMA;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.config.CalciteConnectionProperty.SCHEMA_FACTORY;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.config.CalciteConnectionProperty.TYPE_SYSTEM;
 
 import java.util.Properties;
 import org.apache.beam.sdk.extensions.sql.impl.parser.impl.BeamSqlParserImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.util.ReleaseInfo;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.AvaticaConnection;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.AvaticaFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.ConnectionProperty;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.UnregisteredDriver;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.Lex;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.AvaticaConnection;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.AvaticaFactory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.ConnectionProperty;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.UnregisteredDriver;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.config.Lex;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalciteFactory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalciteSchema;
 
 /**
  * Implements {@link CalciteFactory} that is used by Clacite JDBC driver to instantiate different
@@ -45,9 +45,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSch
  *
  * <p>The purpose of this class is to intercept the connection creation and force a cache-less root
  * schema ({@link
- * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.SimpleCalciteSchema}). Otherwise
+ * org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.SimpleCalciteSchema}). Otherwise
  * Calcite uses {@link
- * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CachingCalciteSchema} that eagerly
+ * org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CachingCalciteSchema} that eagerly
  * caches table information. This behavior does not work well for dynamic table providers.
  */
 class JdbcFactory extends CalciteFactoryWrapper {

@@ -22,7 +22,7 @@ import static org.junit.Assert.assertNotNull;
 
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.Iterables;
 
 /** Contain helpers to assert {@link Row}s. */
 @SuppressWarnings({

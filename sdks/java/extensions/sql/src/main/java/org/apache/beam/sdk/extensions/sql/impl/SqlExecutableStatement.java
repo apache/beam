@@ -15,26 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql.translation;
+package org.apache.beam.sdk.extensions.sql.impl;
 
-import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedSingleRowScan;
-import java.util.List;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalcitePrepare;
 
-/** Converts a single row value. */
-class SingleRowScanConverter extends RelConverter<ResolvedSingleRowScan> {
-
-  SingleRowScanConverter(ConversionContext context) {
-    super(context);
-  }
-
-  @Override
-  public boolean canConvert(ResolvedSingleRowScan zetaNode) {
-    return zetaNode.getColumnList() == null || zetaNode.getColumnList().isEmpty();
-  }
-
-  @Override
-  public RelNode convert(ResolvedSingleRowScan zetaNode, List<RelNode> inputs) {
-    return createOneRow(getCluster());
-  }
+public interface SqlExecutableStatement {
+  void execute(CalcitePrepare.Context context);
 }

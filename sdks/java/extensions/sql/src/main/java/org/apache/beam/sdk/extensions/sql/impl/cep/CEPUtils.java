@@ -21,14 +21,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollation;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelCollation;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelFieldCollation;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.ImmutableBitSet;
 
 /**
  * Some utility methods for transforming Calcite's constructs into our own Beam constructs (for
@@ -156,11 +156,11 @@ public class CEPUtils {
   }
 
   /** Transform the partition columns into serializable CEPFieldRef. */
-  public static List<CEPFieldRef> getCEPFieldRefFromParKeys(List<RexNode> parKeys) {
+  public static List<CEPFieldRef> getCEPFieldRefFromParKeys(ImmutableBitSet parKeys) {
     ArrayList<CEPFieldRef> fieldList = new ArrayList<>();
-    for (RexNode i : parKeys) {
-      RexInputRef parKey = (RexInputRef) i;
-      fieldList.add(new CEPFieldRef(parKey.getName(), parKey.getIndex()));
+    for (int index : parKeys.asList()) {
+      // FIXME: Don't know where to get a better name.
+      fieldList.add(new CEPFieldRef("Partition Key " + index, index));
     }
     return fieldList;
   }

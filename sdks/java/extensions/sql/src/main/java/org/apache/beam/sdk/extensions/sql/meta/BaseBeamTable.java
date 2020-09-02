@@ -21,7 +21,7 @@ import java.util.List;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
 
 /** Basic implementation of {@link BeamSqlTable} methods used by predicate and filter push-down. */
 public abstract class BaseBeamTable implements BeamSqlTable {

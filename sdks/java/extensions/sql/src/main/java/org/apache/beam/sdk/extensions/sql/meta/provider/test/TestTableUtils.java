@@ -27,7 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.Lists;
 
 /** Utility functions for mock classes. */
 @Experimental

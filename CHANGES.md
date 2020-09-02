@@ -139,6 +139,7 @@
   This has not enabled by default to preserve backwards compatibility; use the
   `--type_check_additional=ptransform_fn` flag to enable. It may be enabled by
   default in future versions of Beam.
+* Updated Calcite to version 1.26
 
 ## Breaking Changes
 

@@ -21,18 +21,18 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.TimeZone;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.AvaticaConnection;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.AvaticaFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.AvaticaPreparedStatement;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.AvaticaResultSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.AvaticaSpecificDatabaseMetaData;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.AvaticaStatement;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.Meta;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.QueryState;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.UnregisteredDriver;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.AvaticaConnection;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.AvaticaFactory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.AvaticaPreparedStatement;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.AvaticaResultSet;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.AvaticaSpecificDatabaseMetaData;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.AvaticaStatement;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.Meta;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.QueryState;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.UnregisteredDriver;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalciteFactory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.jdbc.CalciteSchema;
 
 /**
  * Wrapper for {@link CalciteFactory}.

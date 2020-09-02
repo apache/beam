@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation.Direction.DESCENDING;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING;
+import static org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelFieldCollation.Direction.DESCENDING;
 
 import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLimitOffsetScan;
@@ -27,15 +27,16 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByItem;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByScan;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollation;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollationImpl;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation.Direction;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalProject;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalSort;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelCollation;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelCollationImpl;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelFieldCollation;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelFieldCollation.Direction;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.logical.LogicalSort;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts ORDER BY LIMIT. */
@@ -109,6 +110,6 @@ class LimitOffsetScanToOrderByLimitConverter extends RelConverter<ResolvedLimitO
             .retrieveRexNodeFromOrderByScan(getCluster(), node, input.getRowType().getFieldList());
     List<String> fieldNames = getTrait().retrieveFieldNames(node.getColumnList());
 
-    return LogicalProject.create(input, projects, fieldNames);
+    return LogicalProject.create(input, ImmutableList.of(), projects, fieldNames);
   }
 }

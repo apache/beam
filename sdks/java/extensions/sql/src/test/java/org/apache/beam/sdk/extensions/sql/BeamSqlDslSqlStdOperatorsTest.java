@@ -44,14 +44,14 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.integrationtest.BeamSqlBuiltinFunctionsIntegrationTestBase;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Ordering;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.runtime.SqlFunctions;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.runtime.SqlFunctions;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,7 +59,7 @@ import org.junit.rules.ExpectedException;
 
 /**
  * DSL compliance tests for the row-level operators of {@link
- * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable}.
+ * org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.fun.SqlStdOperatorTable}.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
@@ -236,9 +236,11 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "OR", kind = "OR")
-  @SqlOperatorTest(name = "NOT", kind = "NOT")
-  @SqlOperatorTest(name = "AND", kind = "AND")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "OR", kind = "OR"),
+    @SqlOperatorTest(name = "NOT", kind = "NOT"),
+    @SqlOperatorTest(name = "AND", kind = "AND"),
+  })
   public void testLogicOperators() {
     ExpressionChecker checker =
         new ExpressionChecker()
@@ -283,11 +285,13 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "+", kind = "PLUS")
-  @SqlOperatorTest(name = "-", kind = "MINUS")
-  @SqlOperatorTest(name = "*", kind = "TIMES")
-  @SqlOperatorTest(name = "/", kind = "DIVIDE")
-  @SqlOperatorTest(name = "MOD", kind = "MOD")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "+", kind = "PLUS"),
+    @SqlOperatorTest(name = "-", kind = "MINUS"),
+    @SqlOperatorTest(name = "*", kind = "TIMES"),
+    @SqlOperatorTest(name = "/", kind = "DIVIDE"),
+    @SqlOperatorTest(name = "MOD", kind = "MOD"),
+  })
   public void testArithmeticOperator() {
     ExpressionChecker checker =
         new ExpressionChecker()
@@ -374,8 +378,10 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "LIKE", kind = "LIKE")
-  @SqlOperatorTest(name = "NOT LIKE", kind = "LIKE")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "LIKE", kind = "LIKE"),
+    @SqlOperatorTest(name = "NOT LIKE", kind = "LIKE"),
+  })
   public void testLikeAndNotLike() {
     ExpressionChecker checker =
         new ExpressionChecker()
@@ -454,22 +460,24 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "<", kind = "LESS_THAN")
-  @SqlOperatorTest(name = ">", kind = "GREATER_THAN")
-  @SqlOperatorTest(name = "<=", kind = "LESS_THAN_OR_EQUAL")
-  @SqlOperatorTest(name = "<>", kind = "NOT_EQUALS")
-  @SqlOperatorTest(name = "=", kind = "EQUALS")
-  @SqlOperatorTest(name = ">=", kind = "GREATER_THAN_OR_EQUAL")
-  @SqlOperatorTest(name = "IS NOT NULL", kind = "IS_NOT_NULL")
-  @SqlOperatorTest(name = "IS NULL", kind = "IS_NULL")
-  @SqlOperatorTest(name = "IS TRUE", kind = "IS_TRUE")
-  @SqlOperatorTest(name = "IS NOT TRUE", kind = "IS_NOT_TRUE")
-  @SqlOperatorTest(name = "IS FALSE", kind = "IS_FALSE")
-  @SqlOperatorTest(name = "IS NOT FALSE", kind = "IS_NOT_FALSE")
-  @SqlOperatorTest(name = "IS UNKNOWN", kind = "IS_NULL")
-  @SqlOperatorTest(name = "IS NOT UNKNOWN", kind = "IS_NOT_NULL")
-  @SqlOperatorTest(name = "IS DISTINCT FROM", kind = "IS_DISTINCT_FROM")
-  @SqlOperatorTest(name = "IS NOT DISTINCT FROM", kind = "IS_NOT_DISTINCT_FROM")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "<", kind = "LESS_THAN"),
+    @SqlOperatorTest(name = ">", kind = "GREATER_THAN"),
+    @SqlOperatorTest(name = "<=", kind = "LESS_THAN_OR_EQUAL"),
+    @SqlOperatorTest(name = "<>", kind = "NOT_EQUALS"),
+    @SqlOperatorTest(name = "=", kind = "EQUALS"),
+    @SqlOperatorTest(name = ">=", kind = "GREATER_THAN_OR_EQUAL"),
+    @SqlOperatorTest(name = "IS NOT NULL", kind = "IS_NOT_NULL"),
+    @SqlOperatorTest(name = "IS NULL", kind = "IS_NULL"),
+    @SqlOperatorTest(name = "IS TRUE", kind = "IS_TRUE"),
+    @SqlOperatorTest(name = "IS NOT TRUE", kind = "IS_NOT_TRUE"),
+    @SqlOperatorTest(name = "IS FALSE", kind = "IS_FALSE"),
+    @SqlOperatorTest(name = "IS NOT FALSE", kind = "IS_NOT_FALSE"),
+    @SqlOperatorTest(name = "IS UNKNOWN", kind = "IS_NULL"),
+    @SqlOperatorTest(name = "IS NOT UNKNOWN", kind = "IS_NOT_NULL"),
+    @SqlOperatorTest(name = "IS DISTINCT FROM", kind = "IS_DISTINCT_FROM"),
+    @SqlOperatorTest(name = "IS NOT DISTINCT FROM", kind = "IS_NOT_DISTINCT_FROM"),
+  })
   public void testComparisonOperatorFunction() {
     ExpressionChecker checker =
         new ExpressionChecker()
@@ -701,16 +709,18 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "CHARACTER_LENGTH", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "CHAR_LENGTH", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "INITCAP", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "LOWER", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "POSITION", kind = "POSITION")
-  @SqlOperatorTest(name = "OVERLAY", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "SUBSTRING", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "TRIM", kind = "TRIM")
-  @SqlOperatorTest(name = "UPPER", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "||", kind = "OTHER")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "CHARACTER_LENGTH", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "CHAR_LENGTH", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "INITCAP", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "LOWER", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "POSITION", kind = "POSITION"),
+    @SqlOperatorTest(name = "OVERLAY", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "SUBSTRING", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "TRIM", kind = "TRIM"),
+    @SqlOperatorTest(name = "UPPER", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "||", kind = "OTHER"),
+  })
   public void testStringFunctions() throws Exception {
     SqlExpressionChecker checker =
         new SqlExpressionChecker()
@@ -756,7 +766,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("ABS(c_tinyint)", (byte) Math.abs(BYTE_VALUE))
             .addExpr("ABS(c_double)", Math.abs(DOUBLE_VALUE))
             .addExpr("ABS(c_float)", Math.abs(FLOAT_VALUE))
-            .addExpr("ABS(c_decimal)", new BigDecimal(Math.abs(ONE.doubleValue())));
+            .addExpr("ABS(c_decimal)", BigDecimal.valueOf(Math.abs(ONE.doubleValue())));
     checker.buildRunAndCheck();
   }
 
@@ -802,7 +812,8 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("ROUND(c_double, 0)", SqlFunctions.sround(DOUBLE_VALUE, 0))
             .addExpr("ROUND(c_float, 0)", (float) SqlFunctions.sround(FLOAT_VALUE, 0))
             .addExpr(
-                "ROUND(c_decimal, 0)", new BigDecimal(SqlFunctions.sround(ONE.doubleValue(), 0)));
+                "ROUND(c_decimal, 0)",
+                BigDecimal.valueOf(SqlFunctions.sround(ONE.doubleValue(), 0)));
     checker.buildRunAndCheck();
   }
 
@@ -1006,7 +1017,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
 
   @Test
   @SqlOperatorTest(name = "PI", kind = "OTHER_FUNCTION")
-  public void testPi() throws Exception {
+  public void testPi() {
     ExpressionChecker checker = new ExpressionChecker().addExpr("PI", Math.PI);
 
     checker.buildRunAndCheck();
@@ -1068,9 +1079,11 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "ARRAY", kind = "ARRAY_VALUE_CONSTRUCTOR")
-  @SqlOperatorTest(name = "CARDINALITY", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "ELEMENT", kind = "OTHER_FUNCTION")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "ARRAY", kind = "ARRAY_VALUE_CONSTRUCTOR"),
+    @SqlOperatorTest(name = "CARDINALITY", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "ELEMENT", kind = "OTHER_FUNCTION"),
+  })
   public void testArrayFunctions() {
     ExpressionChecker checker =
         new ExpressionChecker()
@@ -1089,17 +1102,19 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "DAYOFMONTH", kind = "OTHER")
-  @SqlOperatorTest(name = "DAYOFWEEK", kind = "OTHER")
-  @SqlOperatorTest(name = "DAYOFYEAR", kind = "OTHER")
-  @SqlOperatorTest(name = "EXTRACT", kind = "EXTRACT")
-  @SqlOperatorTest(name = "YEAR", kind = "OTHER")
-  @SqlOperatorTest(name = "QUARTER", kind = "OTHER")
-  @SqlOperatorTest(name = "MONTH", kind = "OTHER")
-  @SqlOperatorTest(name = "WEEK", kind = "OTHER")
-  @SqlOperatorTest(name = "HOUR", kind = "OTHER")
-  @SqlOperatorTest(name = "MINUTE", kind = "OTHER")
-  @SqlOperatorTest(name = "SECOND", kind = "OTHER")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "DAYOFMONTH", kind = "OTHER"),
+    @SqlOperatorTest(name = "DAYOFWEEK", kind = "OTHER"),
+    @SqlOperatorTest(name = "DAYOFYEAR", kind = "OTHER"),
+    @SqlOperatorTest(name = "EXTRACT", kind = "EXTRACT"),
+    @SqlOperatorTest(name = "YEAR", kind = "OTHER"),
+    @SqlOperatorTest(name = "QUARTER", kind = "OTHER"),
+    @SqlOperatorTest(name = "MONTH", kind = "OTHER"),
+    @SqlOperatorTest(name = "WEEK", kind = "OTHER"),
+    @SqlOperatorTest(name = "HOUR", kind = "OTHER"),
+    @SqlOperatorTest(name = "MINUTE", kind = "OTHER"),
+    @SqlOperatorTest(name = "SECOND", kind = "OTHER"),
+  })
   public void testBasicDateTimeFunctions() {
     ExpressionChecker checker =
         new ExpressionChecker()
@@ -1368,9 +1383,11 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "CASE", kind = "CASE")
-  @SqlOperatorTest(name = "NULLIF", kind = "NULLIF")
-  @SqlOperatorTest(name = "COALESCE", kind = "COALESCE")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "CASE", kind = "CASE"),
+    @SqlOperatorTest(name = "NULLIF", kind = "NULLIF"),
+    @SqlOperatorTest(name = "COALESCE", kind = "COALESCE"),
+  })
   public void testConditionalOperatorsAndFunctions() {
     ExpressionChecker checker =
         new ExpressionChecker()

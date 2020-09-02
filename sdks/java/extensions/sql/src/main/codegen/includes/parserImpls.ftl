@@ -294,7 +294,7 @@ List<Schema.Field> RowFields() :
 Schema.FieldType SimpleType() :
 {
     final Span s = Span.of();
-    final SqlTypeName simpleTypeName;
+    final SqlTypeNameSpec simpleTypeName;
 }
 {
     simpleTypeName = SqlTypeName(s)

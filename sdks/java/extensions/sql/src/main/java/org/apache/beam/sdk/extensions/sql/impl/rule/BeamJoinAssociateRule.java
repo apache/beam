@@ -18,15 +18,15 @@
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRel;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Join;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.RelFactories;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinAssociateRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilderFactory;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Join;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.RelFactories;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.rules.JoinAssociateRule;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.RelBuilderFactory;
 
 /**
  * This is very similar to {@link
- * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinAssociateRule}. It only
+ * org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.rules.JoinAssociateRule}. It only
  * checks if the resulting condition is supported before transforming.
  */
 public class BeamJoinAssociateRule extends JoinAssociateRule {
