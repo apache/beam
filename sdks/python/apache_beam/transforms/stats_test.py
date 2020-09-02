@@ -29,10 +29,9 @@ from collections import defaultdict
 
 import hamcrest as hc
 from parameterized import parameterized
-from tenacity import retry
-from tenacity import stop_after_attempt
 
 import apache_beam as beam
+from apache_beam.coders import coders
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import assert_that
@@ -41,13 +40,13 @@ from apache_beam.transforms.core import Create
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.stats import ApproximateQuantilesCombineFn
+from apache_beam.transforms.stats import ApproximateUniqueCombineFn
 
 
 class ApproximateUniqueTest(unittest.TestCase):
-  """Unit tests for ApproximateUnique.Globally and ApproximateUnique.PerKey.
-  Hash() with Python3 is nondeterministic, so Approximation algorithm generates
-  different result each time and sometimes error rate is out of range, so add
-  retries for all tests who actually running approximation algorithm."""
+  """Unit tests for ApproximateUnique.Globally, ApproximateUnique.PerKey,
+  and ApproximateUniqueCombineFn.
+  """
   def test_approximate_unique_global_by_invalid_size(self):
     # test if the transformation throws an error as expected with an invalid
     # small input size (< 16).
@@ -160,9 +159,6 @@ class ApproximateUniqueTest(unittest.TestCase):
     assert beam.ApproximateUnique._get_sample_size_from_est_error(0.05) == 1600
     assert beam.ApproximateUnique._get_sample_size_from_est_error(0.01) == 40000
 
-  @unittest.skip(
-      'Skip it because hash function is not good enough. '
-      'TODO: BEAM-7654')
   def test_approximate_unique_global_by_sample_size(self):
     # test if estimation error with a given sample size is not greater than
     # expected max error.
@@ -224,7 +220,6 @@ class ApproximateUniqueTest(unittest.TestCase):
 
       assert_that(result, equal_to([True]), label='assert:global_by_size')
 
-  @retry(reraise=True, stop=stop_after_attempt(5))
   def test_approximate_unique_global_by_sample_size_with_duplicates(self):
     # test if estimation error with a given sample size is not greater than
     # expected max error with duplicated input.
@@ -247,7 +242,6 @@ class ApproximateUniqueTest(unittest.TestCase):
           equal_to([True]),
           label='assert:global_by_size_with_duplicates')
 
-  @retry(reraise=True, stop=stop_after_attempt(5))
   def test_approximate_unique_global_by_sample_size_with_small_population(self):
     # test if estimation is exactly same to actual value when sample size is
     # not smaller than population size (sample size > 100% of population).
@@ -297,9 +291,6 @@ class ApproximateUniqueTest(unittest.TestCase):
           equal_to([actual_count]),
           label='assert:global_by_sample_size_with_small_population')
 
-  @unittest.skip(
-      'Skip because hash function is not good enough. '
-      'TODO: BEAM-7654')
   def test_approximate_unique_global_by_error(self):
     # test if estimation error from input error is not greater than input error.
     est_err = 0.3
@@ -348,7 +339,6 @@ class ApproximateUniqueTest(unittest.TestCase):
 
       assert_that(result, equal_to([True]), label='assert:global_by_error')
 
-  @retry(reraise=True, stop=stop_after_attempt(5))
   def test_approximate_unique_global_by_error_with_small_population(self):
     # test if estimation error from input error of a small dataset is not
     # greater than input error. Sample size is always not smaller than 16, so
@@ -385,7 +375,6 @@ class ApproximateUniqueTest(unittest.TestCase):
           equal_to([actual_count]),
           label='assert:global_by_error_with_small_population')
 
-  @retry(reraise=True, stop=stop_after_attempt(5))
   def test_approximate_unique_perkey_by_size(self):
     # test if est error per key from sample size is in a expected range.
     sample_size = 20
@@ -417,7 +406,6 @@ class ApproximateUniqueTest(unittest.TestCase):
           equal_to([True] * len(actual_count_dict)),
           label='assert:perkey_by_size')
 
-  @retry(reraise=True, stop=stop_after_attempt(5))
   def test_approximate_unique_perkey_by_error(self):
     # test if estimation error per key from input err is in the expected range.
     est_err = 0.01
@@ -444,7 +432,6 @@ class ApproximateUniqueTest(unittest.TestCase):
           equal_to([True] * len(actual_count_dict)),
           label='assert:perkey_by_error')
 
-  @retry(reraise=True, stop=stop_after_attempt(5))
   def test_approximate_unique_globally_by_error_with_skewed_data(self):
     # test if estimation error is within the expected range with skewed data.
     est_err = 0.01
@@ -495,6 +482,19 @@ class ApproximateUniqueTest(unittest.TestCase):
           result,
           equal_to([True]),
           label='assert:globally_by_error_with_skewed_data')
+
+  def test_approximate_unique_combine_fn_by_nondeterministic_coder(self):
+    # test if the transformation throws an error with a nondeterministic coder.
+    sample_size = 30
+    coder = coders.Base64PickleCoder()
+
+    with self.assertRaises(ValueError) as e:
+      _ = ApproximateUniqueCombineFn(sample_size, coder)
+
+    self.assertRegex(
+        e.exception.args[0],
+        'The key coder "Base64PickleCoder" '
+        'for ApproximateUniqueCombineFn is not deterministic.')
 
 
 class ApproximateQuantilesTest(unittest.TestCase):
@@ -647,24 +647,24 @@ class ApproximateQuantilesTest(unittest.TestCase):
     with TestPipeline() as p:
       data = [389]
       pc = p | Create(data)
-      qunatiles = pc | beam.ApproximateQuantiles.Globally(5)
-      assert_that(qunatiles, equal_to([[389, 389, 389, 389, 389]]))
+      quantiles = pc | beam.ApproximateQuantiles.Globally(5)
+      assert_that(quantiles, equal_to([[389, 389, 389, 389, 389]]))
 
   def test_uneven_quantiles(self):
     with TestPipeline() as p:
       pc = p | Create(list(range(5000)))
-      qunatiles = pc | beam.ApproximateQuantiles.Globally(37)
-      aprox_quantiles = self._approx_quantile_generator(
+      quantiles = pc | beam.ApproximateQuantiles.Globally(37)
+      approx_quantiles = self._approx_quantile_generator(
           size=5000, num_of_quantiles=37, absoluteError=20)
-      assert_that(qunatiles, self._quantiles_matcher(aprox_quantiles))
+      assert_that(quantiles, self._quantiles_matcher(approx_quantiles))
 
   def test_large_quantiles(self):
     with TestPipeline() as p:
       pc = p | Create(list(range(10001)))
-      qunatiles = pc | beam.ApproximateQuantiles.Globally(50)
-      aprox_quantiles = self._approx_quantile_generator(
+      quantiles = pc | beam.ApproximateQuantiles.Globally(50)
+      approx_quantiles = self._approx_quantile_generator(
           size=10001, num_of_quantiles=50, absoluteError=20)
-      assert_that(qunatiles, self._quantiles_matcher(aprox_quantiles))
+      assert_that(quantiles, self._quantiles_matcher(approx_quantiles))
 
   def test_random_quantiles(self):
     with TestPipeline() as p:

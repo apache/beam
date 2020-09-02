@@ -22,6 +22,7 @@
 from __future__ import absolute_import
 from __future__ import division
 
+import hashlib
 import heapq
 import itertools
 import math
@@ -137,7 +138,7 @@ class _LargestUnique(object):
   An object to keep samples and calculate sample hash space. It is an
   accumulator of a combine function.
   """
-  _HASH_SPACE_SIZE = 2.0 * sys.maxsize
+  _HASH_SPACE_SIZE = 2.0**64
 
   def __init__(self, sample_size):
     self._sample_size = sample_size
@@ -192,7 +193,7 @@ class _LargestUnique(object):
     if len(self._sample_heap) < self._sample_size:
       return len(self._sample_heap)
     else:
-      sample_space_size = sys.maxsize - 1.0 * self._min_hash
+      sample_space_size = self._HASH_SPACE_SIZE - 1.0 * self._min_hash
       est = (
           math.log1p(-self._sample_size / sample_space_size) /
           math.log1p(-1 / sample_space_size) * self._HASH_SPACE_SIZE /
@@ -208,6 +209,8 @@ class ApproximateUniqueCombineFn(CombineFn):
   """
   def __init__(self, sample_size, coder):
     self._sample_size = sample_size
+    coder = coders.typecoders.registry.verify_deterministic(
+        coder, 'ApproximateUniqueCombineFn')
     self._coder = coder
 
   def create_accumulator(self, *args, **kwargs):
@@ -215,7 +218,12 @@ class ApproximateUniqueCombineFn(CombineFn):
 
   def add_input(self, accumulator, element, *args, **kwargs):
     try:
-      accumulator.add(hash(self._coder.encode(element)))
+      # md5 is a 128-bit hash, so we truncate the hexdigest (string of 32
+      # hexadecimal digits) to 16 digits and convert to int to get the 64-bit
+      # integer fingerprint.
+      hashed_value = int(
+          hashlib.md5(self._coder.encode(element)).hexdigest()[:16], 16)
+      accumulator.add(hashed_value)
       return accumulator
     except Exception as e:
       raise RuntimeError("Runtime exception: %s", e)
