@@ -322,12 +322,14 @@ class TriggerCopyJobs(beam.DoFn):
     See: https://issues.apache.org/jira/browse/BEAM-7822
   """
   def __init__(
-      self, create_disposition=None, write_disposition=None, test_client=None):
+      self, create_disposition=None, write_disposition=None, test_client=None,
+      step_name=None):
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.test_client = test_client
     self._observed_tables = set()
     self.bq_io_metadata = None
+    self._step_name = step_name
 
   def display_data(self):
     return {
@@ -339,7 +341,7 @@ class TriggerCopyJobs(beam.DoFn):
     self._observed_tables = set()
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
     if not self.bq_io_metadata:
-      self.bq_io_metadata = create_bigquery_io_metadata()
+      self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
 
   def process(self, element, job_name_prefix=None):
     destination = element[0]
@@ -385,7 +387,7 @@ class TriggerCopyJobs(beam.DoFn):
       write_disposition = 'WRITE_APPEND'
 
     if not self.bq_io_metadata:
-      self.bq_io_metadata = create_bigquery_io_metadata()
+      self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     job_reference = self.bq_wrapper._insert_copy_job(
         copy_to_reference.projectId,
         copy_job_name,
@@ -417,13 +419,15 @@ class TriggerLoadJobs(beam.DoFn):
       test_client=None,
       temporary_tables=False,
       additional_bq_parameters=None,
-      source_format=None):
+      source_format=None,
+      step_name=None):
     self.schema = schema
     self.test_client = test_client
     self.temporary_tables = temporary_tables
     self.additional_bq_parameters = additional_bq_parameters or {}
     self.source_format = source_format
     self.bq_io_metadata = None
+    self._step_name = step_name
     if self.temporary_tables:
       # If we are loading into temporary tables, we rely on the default create
       # and write dispositions, which mean that a new table will be created.
@@ -446,7 +450,7 @@ class TriggerLoadJobs(beam.DoFn):
   def start_bundle(self):
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
     if not self.bq_io_metadata:
-      self.bq_io_metadata = create_bigquery_io_metadata()
+      self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
 
   def process(self, element, load_job_name_prefix, *schema_side_inputs):
     # Each load job is assumed to have files respecting these constraints:
@@ -505,7 +509,7 @@ class TriggerLoadJobs(beam.DoFn):
         schema,
         additional_parameters)
     if not self.bq_io_metadata:
-      self.bq_io_metadata = create_bigquery_io_metadata()
+      self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     job_reference = self.bq_wrapper.perform_load_job(
         table_reference,
         files,
@@ -620,6 +624,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
   DESTINATION_JOBID_PAIRS = 'destination_load_jobid_pairs'
   DESTINATION_FILE_PAIRS = 'destination_file_pairs'
   DESTINATION_COPY_JOBID_PAIRS = 'destination_copy_jobid_pairs'
+  COUNT = 0
 
   def __init__(
       self,
@@ -782,7 +787,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
       partitions_direct_to_destination,
       load_job_name_pcv,
       copy_job_name_pcv,
-      singleton_pc):
+      singleton_pc,
+      step_name):
     """Load data to BigQuery
 
     Data is loaded into BigQuery in the following two ways:
@@ -809,7 +815,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 test_client=self.test_client,
                 temporary_tables=True,
                 additional_bq_parameters=self.additional_bq_parameters,
-                source_format=self._temp_file_format),
+                source_format=self._temp_file_format,
+                step_name=step_name),
             load_job_name_pcv,
             *self.schema_side_inputs).with_outputs(
                 TriggerLoadJobs.TEMP_TABLES, main='main'))
@@ -826,7 +833,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
             TriggerCopyJobs(
                 create_disposition=self.create_disposition,
                 write_disposition=self.write_disposition,
-                test_client=self.test_client),
+                test_client=self.test_client,
+                step_name=step_name),
             copy_job_name_pcv))
 
     finished_copy_jobs_pc = (
@@ -858,7 +866,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 test_client=self.test_client,
                 temporary_tables=False,
                 additional_bq_parameters=self.additional_bq_parameters,
-                source_format=self._temp_file_format),
+                source_format=self._temp_file_format,
+                step_name=step_name),
             load_job_name_pcv,
             *self.schema_side_inputs))
 
@@ -876,6 +885,11 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
   def expand(self, pcoll):
     p = pcoll.pipeline
+    try:
+      step_name = self.label
+    except AttributeError:
+      step_name = 'BigQueryBatchFileLoads_%d' % BigQueryBatchFileLoads.COUNT
+      BigQueryBatchFileLoads.COUNT += 1
 
     temp_location = p.options.view_as(GoogleCloudOptions).temp_location
     job_name = (
@@ -890,7 +904,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
             lambda _: _generate_job_name(
                 job_name,
                 bigquery_tools.BigQueryJobTypes.LOAD,
-                'LOAD_NAME_STEP')))
+                step_name)))
 
     copy_job_name_pcv = pvalue.AsSingleton(
         singleton_pc
@@ -898,7 +912,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
             lambda _: _generate_job_name(
                 job_name,
                 bigquery_tools.BigQueryJobTypes.COPY,
-                'COPY_NAME_STEP')))
+                step_name)))
 
     file_prefix_pcv = pvalue.AsSingleton(
         singleton_pc
@@ -947,7 +961,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                           empty_pc,
                           load_job_name_pcv,
                           copy_job_name_pcv,
-                          singleton_pc))
+                          singleton_pc,
+                          step_name))
     else:
       destination_load_job_ids_pc, destination_copy_job_ids_pc = (
           self._load_data(multiple_partitions_per_destination_pc,
