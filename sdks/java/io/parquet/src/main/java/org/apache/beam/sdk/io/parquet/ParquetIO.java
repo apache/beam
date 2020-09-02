@@ -382,17 +382,28 @@ public class ParquetIO {
               try {
                 record = recordReader.read();
               } catch (RecordMaterializer.RecordMaterializationException e) {
-                LOG.debug("skipping a corrupt record");
+                LOG.debug(
+                    "skipping a corrupt record at {} in block {} in file {}",
+                    currentRow,
+                    currentBlock,
+                    file.toString());
                 continue;
               }
               if (record == null) {
                 // only happens with FilteredRecordReader at end of block
-                LOG.debug("filtered record reader reached end of block");
+                LOG.debug(
+                    "filtered record reader reached end of block in block {} in file {}",
+                    currentBlock,
+                    file.toString());
                 break;
               }
               if (recordReader.shouldSkipCurrentRecord()) {
                 // this record is being filtered via the filter2 package
-                LOG.debug("skipping record");
+                LOG.debug(
+                    "skipping record at {} in block {} in file {}",
+                    currentRow,
+                    currentBlock,
+                    file.toString());
                 continue;
               }
               outputReceiver.output(record);
@@ -405,7 +416,11 @@ public class ParquetIO {
                   e);
             }
           }
-          LOG.debug("Finish processing " + currentRow + " rows from block " + (currentBlock - 1));
+          LOG.debug(
+              "Finish processing {} rows from block {} in file {}",
+              currentRow,
+              currentBlock - 1,
+              file.toString());
         }
       }
 
@@ -451,12 +466,11 @@ public class ParquetIO {
         long totalSize = 0;
         long rangeStart = start;
         long rangeEnd = start;
-        for (long i = start; i < end; i++) {
-          totalSize += blockList.get((int) i).getTotalByteSize();
-          rangeEnd += 1;
+        for (rangeEnd = start; rangeEnd < end; rangeEnd++) {
+          totalSize += blockList.get((int) rangeEnd).getTotalByteSize();
           if (totalSize >= limit) {
-            offsetList.add(new OffsetRange(rangeStart, rangeEnd));
-            rangeStart = rangeEnd;
+            offsetList.add(new OffsetRange(rangeStart, rangeEnd + 1));
+            rangeStart = rangeEnd + 1;
             totalSize = 0;
           }
         }
@@ -523,6 +537,7 @@ public class ParquetIO {
         super(range);
         if (recordCount != 0) {
           this.approximateRecordSize = totalByteSize / recordCount;
+          // Ensure that totalWork = approximateRecordSize * recordCount
           this.totalWork = approximateRecordSize * recordCount;
           this.progress = 0;
         }
