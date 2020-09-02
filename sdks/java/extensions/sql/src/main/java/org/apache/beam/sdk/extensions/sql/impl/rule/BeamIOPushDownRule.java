@@ -141,7 +141,7 @@ public class BeamIOPushDownRule extends RelOptRule {
 
     if (canDropCalc(program, beamSqlTable.supportsProjects(), tableFilter)) {
       // Tell the optimizer to not use old IO, since the new one is better.
-      call.getPlanner().setImportance(ioSourceRel, 0.0);
+      call.getPlanner().prune(ioSourceRel);
       call.transformTo(
           ioSourceRel.createPushDownRel(
               calc.getRowType(),
@@ -174,7 +174,7 @@ public class BeamIOPushDownRule extends RelOptRule {
       // Smaller Calc programs are indisputably better, as well as IOs with less projected fields.
       // We can consider something with the same number of filters.
       // Tell the optimizer not to use old Calc and IO.
-      call.getPlanner().setImportance(ioSourceRel, 0);
+      call.getPlanner().prune(ioSourceRel);
       call.transformTo(result);
     }
   }

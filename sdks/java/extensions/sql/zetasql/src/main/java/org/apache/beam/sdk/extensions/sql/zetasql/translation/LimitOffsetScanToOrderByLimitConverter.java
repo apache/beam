@@ -36,6 +36,7 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.logical.Log
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts ORDER BY LIMIT. */
@@ -110,6 +111,6 @@ class LimitOffsetScanToOrderByLimitConverter extends RelConverter<ResolvedLimitO
             .retrieveRexNodeFromOrderByScan(getCluster(), node, input.getRowType().getFieldList());
     List<String> fieldNames = getTrait().retrieveFieldNames(node.getColumnList());
 
-    return LogicalProject.create(input, projects, fieldNames);
+    return LogicalProject.create(input, ImmutableList.of(), projects, fieldNames);
   }
 }
