@@ -47,6 +47,7 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -89,6 +90,7 @@ import org.apache.beam.runners.dataflow.DataflowRunner.BatchGroupIntoBatches;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions.DefaultGcpRegionFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.Pipeline;
@@ -160,16 +162,19 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
  * Tests for the {@link DataflowRunner}.
  *
  * <p>Implements {@link Serializable} because it is caught in closures.
  */
-@RunWith(JUnit4.class)
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(DefaultGcpRegionFactory.class)
 public class DataflowRunnerTest implements Serializable {
 
   private static final String VALID_BUCKET = "valid-bucket";
@@ -454,6 +459,39 @@ public class DataflowRunnerTest implements Serializable {
         optionsMap,
         hasEntry(
             "numberOfWorkerHarnessThreads", (Object) options.getNumberOfWorkerHarnessThreads()));
+    assertThat(optionsMap, hasEntry("region", (Object) options.getRegion()));
+  }
+
+  /**
+   * Test that the region is set in the generated JSON pipeline options even when a default value is
+   * grabbed from the environment.
+   */
+  @Test
+  public void testDefaultRegionSet() throws Exception {
+    mockStatic(DefaultGcpRegionFactory.class);
+    PowerMockito.when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(REGION_ID);
+
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setRunner(DataflowRunner.class);
+    options.setProject(PROJECT_ID);
+    options.setTempLocation(VALID_TEMP_BUCKET);
+    // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
+    options.setFilesToStage(new ArrayList<>());
+    options.setDataflowClient(buildMockDataflow());
+    options.setGcsUtil(mockGcsUtil);
+    options.setGcpCredential(new TestCredential());
+
+    Pipeline p = Pipeline.create(options);
+    p.run();
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
+    Map<String, Object> sdkPipelineOptions =
+        jobCaptor.getValue().getEnvironment().getSdkPipelineOptions();
+
+    assertThat(sdkPipelineOptions, hasKey("options"));
+    Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
+    assertThat(optionsMap, hasEntry("region", (Object) options.getRegion()));
   }
 
   @Test
