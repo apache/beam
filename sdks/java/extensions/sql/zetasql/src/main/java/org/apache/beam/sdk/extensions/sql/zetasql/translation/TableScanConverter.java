@@ -32,6 +32,7 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.prepare.Calcite
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.prepare.RelOptTableImpl;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelRoot;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.hint.RelHint;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.schema.Table;
@@ -104,6 +105,11 @@ class TableScanConverter extends RelConverter<ResolvedTableScan> {
       @Override
       public RelOptCluster getCluster() {
         return TableScanConverter.this.getCluster();
+      }
+
+      @Override
+      public List<RelHint> getTableHints() {
+        return ImmutableList.of();
       }
     };
   }

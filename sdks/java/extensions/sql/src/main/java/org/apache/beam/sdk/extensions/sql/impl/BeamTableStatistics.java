@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
@@ -74,6 +75,11 @@ public class BeamTableStatistics implements Serializable, Statistic {
   @Override
   public boolean isKey(ImmutableBitSet columns) {
     return false;
+  }
+
+  @Override
+  public List<ImmutableBitSet> getKeys() {
+    return Collections.emptyList();
   }
 
   @Override

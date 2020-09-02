@@ -51,6 +51,7 @@ class ArrayScanLiteralToUncollectConverter extends RelConverter<ResolvedArraySca
     RelNode projectNode =
         LogicalProject.create(
             createOneRow(getCluster()),
+            ImmutableList.of(),
             Collections.singletonList(arrayLiteralExpression),
             ImmutableList.of(fieldName));
 

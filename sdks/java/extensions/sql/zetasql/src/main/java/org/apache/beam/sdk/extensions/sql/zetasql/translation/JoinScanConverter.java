@@ -92,6 +92,7 @@ class JoinScanConverter extends RelConverter<ResolvedJoinScan> {
     return LogicalJoin.create(
         convertedLeftInput,
         convertedRightInput,
+        ImmutableList.of(),
         condition,
         ImmutableSet.of(),
         convertResolvedJoinType(zetaNode.getJoinType()));

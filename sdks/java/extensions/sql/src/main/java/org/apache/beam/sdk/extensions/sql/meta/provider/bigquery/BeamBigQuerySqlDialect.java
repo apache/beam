@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.Casing;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.config.NullCollation;
@@ -38,11 +39,14 @@ import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlOperator
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlSetOperator;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlSyntax;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlTimestampLiteral;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlTypeNameSpec;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlWriter;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.dialect.BigQuerySqlDialect;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.fun.SqlTrimFunction;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.type.BasicSqlType;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.util.Litmus;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
@@ -411,14 +415,41 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
     return super.getCastSpec(type);
   }
 
+  public static class SqlBigQueryTypeNameSpec extends SqlTypeNameSpec {
+    private final RelDataType relDataType;
+    private final String name;
+
+    SqlBigQueryTypeNameSpec(RelDataType relDataType, String name) {
+      super(new SqlIdentifier(name, SqlParserPos.ZERO), SqlParserPos.ZERO);
+      this.relDataType = relDataType;
+      this.name = name;
+    }
+
+    @Override
+    public RelDataType deriveType(SqlValidator sqlValidator) {
+      return relDataType;
+    }
+
+    @Override
+    public void unparse(SqlWriter sqlWriter, int i, int i1) {
+      // TODO: NO idea yet what to put here
+    }
+
+    @Override
+    public boolean equalsDeep(SqlTypeNameSpec node, Litmus litmus) {
+      if (node instanceof SqlBigQueryTypeNameSpec) {
+        SqlBigQueryTypeNameSpec that = (SqlBigQueryTypeNameSpec) node;
+        if (Objects.equals(this.relDataType, that.relDataType)
+            && Objects.equals(this.name, that.name)) {
+          return litmus.succeed();
+        }
+      }
+      return litmus.fail("{} != {}", this, node);
+    }
+  }
+
   private static SqlNode typeFromName(RelDataType type, String name) {
-    return new SqlDataTypeSpec(
-        new SqlIdentifier(name, SqlParserPos.ZERO),
-        type.getPrecision(),
-        -1,
-        null,
-        null,
-        SqlParserPos.ZERO);
+    return new SqlDataTypeSpec(new SqlBigQueryTypeNameSpec(type, name), SqlParserPos.ZERO);
   }
 
   @Override

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static org.apache.beam.vendor.calcite.v1_26_0.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Collections;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -44,7 +45,7 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
 
   public BeamUncollectRel(
       RelOptCluster cluster, RelTraitSet traitSet, RelNode input, boolean withOrdinality) {
-    super(cluster, traitSet, input, withOrdinality);
+    super(cluster, traitSet, input, withOrdinality, Collections.emptyList());
   }
 
   @Override
