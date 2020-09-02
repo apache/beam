@@ -27,6 +27,14 @@ np.float32  <-----> FLOAT
 np.float64  <-----> DOUBLE
 float       ---/
 bool        <-----> BOOLEAN
+Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
+Mapping     <-----> MapType
+Sequence    <-----> ArrayType
+NamedTuple  <-----> RowType
+beam.Row    ---/
+
+nullable=True on a Beam FieldType is represented in Python by wrapping the
+typing in Optional.
 
 The mappings for STRING and BYTES are different between python 2 and python 3,
 because of the changes to str:
@@ -443,3 +451,34 @@ class NoArgumentLogicalType(LogicalType[LanguageT, RepresentationT, None]):
     # Sicne there's no argument, there can be no additional information encoded
     # in the typing. Just construct an instance.
     return cls()
+
+
+MicrosInstantRepresentation = NamedTuple(
+    'MicrosInstantRepresentation', [('seconds', np.int64),
+                                    ('micros', np.int64)])
+
+
+@LogicalType.register_logical_type
+class MicrosInstant(NoArgumentLogicalType[Timestamp,
+                                          MicrosInstantRepresentation]):
+  @classmethod
+  def urn(cls):
+    return "beam:logical_type:micros_instant:v1"
+
+  @classmethod
+  def representation_type(cls):
+    # type: () -> type
+    return MicrosInstantRepresentation
+
+  @classmethod
+  def language_type(cls):
+    return Timestamp
+
+  def to_representation_type(self, value):
+    # type: (Timestamp) -> MicrosInstantRepresentation
+    return MicrosInstantRepresentation(
+        value.micros // 1000000, value.micros % 1000000)
+
+  def to_language_type(self, value):
+    # type: (MicrosInstantRepresentation) -> Timestamp
+    return Timestamp(seconds=int(value.seconds), micros=int(value.micros))
