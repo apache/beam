@@ -36,5 +36,5 @@ Batches contain elements from the same window, so windows are preserved. Batches
 ## Examples
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
-## Related transforms 
+## Related transforms
 * [GroupByKey](/documentation/transforms/java/aggregation/groupbykey) takes one input collection.

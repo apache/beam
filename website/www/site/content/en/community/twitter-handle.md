@@ -14,7 +14,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-# Beam Twitter handle 
+# Beam Twitter handle
 ## What is it and what are the goals?
 Apache Beam community thrives to be inclusive to everyone. As part of this effort, we want to enable any community member to share anything interesting and fun related to Beam via its [official Twitter handle](https://twitter.com/ApacheBeam).
 
@@ -32,7 +32,7 @@ The Twitter feed found here is owned by the Apache Beam PMC, and the process of 
 	- Topic - what is the tweet about
 	- Content - the actual text of the tweet or link to the tweet that need to be retweeted
 	- Links/media - anything you want to add to the tweet, eg. photos, videos, references
-	- Deadline - by when the tweet needs to be out, or preferred date when it needs to be out 
+	- Deadline - by when the tweet needs to be out, or preferred date when it needs to be out
 - After you type in your tweets, PMC members that are subscribed to the document will get notified and review the content.
 - After approval, a PMC member with access to the Twitter handle will publish the tweet.
 - Follow [Apache Beam handle](https://twitter.com/ApacheBeam) to see if your content is published!

@@ -22,7 +22,7 @@ import (
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
-func AddCoderID(c *pipepb.Components, idMap map[string]string, cid string, newID func(string) string) string {
+func addCoderID(c *pipepb.Components, idMap map[string]string, cid string, newID func(string) string) string {
 	if _, exists := idMap[cid]; exists {
 		return idMap[cid]
 	}
@@ -38,7 +38,7 @@ func AddCoderID(c *pipepb.Components, idMap map[string]string, cid string, newID
 		updatedComponentCoderIDs = append(updatedComponentCoderIDs, coder.ComponentCoderIds...)
 
 		for i, ccid := range coder.ComponentCoderIds {
-			updatedComponentCoderIDs[i] = AddCoderID(c, idMap, ccid, newID)
+			updatedComponentCoderIDs[i] = addCoderID(c, idMap, ccid, newID)
 		}
 		coder.ComponentCoderIds = updatedComponentCoderIDs
 	}
@@ -52,7 +52,7 @@ func AddCoderID(c *pipepb.Components, idMap map[string]string, cid string, newID
 	return idMap[cid]
 }
 
-func AddWindowingStrategyID(c *pipepb.Components, idMap map[string]string, wid string, newID func(string) string) string {
+func addWindowingStrategyID(c *pipepb.Components, idMap map[string]string, wid string, newID func(string) string) string {
 	if _, exists := idMap[wid]; exists {
 		return idMap[wid]
 	}
@@ -64,12 +64,12 @@ func AddWindowingStrategyID(c *pipepb.Components, idMap map[string]string, wid s
 
 	// Updating WindowCoderID of WindowingStrategy
 	if windowingStrategy.WindowCoderId != "" {
-		windowingStrategy.WindowCoderId = AddCoderID(c, idMap, windowingStrategy.WindowCoderId, newID)
+		windowingStrategy.WindowCoderId = addCoderID(c, idMap, windowingStrategy.WindowCoderId, newID)
 	}
 
 	// Updating EnvironmentId of WindowingStrategy
 	if windowingStrategy.EnvironmentId != "" {
-		windowingStrategy.EnvironmentId = AddEnvironmentID(c, idMap, windowingStrategy.EnvironmentId, newID)
+		windowingStrategy.EnvironmentId = addEnvironmentID(c, idMap, windowingStrategy.EnvironmentId, newID)
 	}
 
 	idMap[wid] = newID(wid)
@@ -81,7 +81,7 @@ func AddWindowingStrategyID(c *pipepb.Components, idMap map[string]string, wid s
 	return idMap[wid]
 }
 
-func AddEnvironmentID(c *pipepb.Components, idMap map[string]string, eid string, newID func(string) string) string {
+func addEnvironmentID(c *pipepb.Components, idMap map[string]string, eid string, newID func(string) string) string {
 	if _, exists := idMap[eid]; exists {
 		return idMap[eid]
 	}
@@ -109,16 +109,41 @@ func AddNamespace(t *pipepb.PTransform, c *pipepb.Components, namespace string) 
 
 	// Update Environment ID of PTransform
 	if t.EnvironmentId != "" {
-		t.EnvironmentId = AddEnvironmentID(c, idMap, t.EnvironmentId, newID)
+		t.EnvironmentId = addEnvironmentID(c, idMap, t.EnvironmentId, newID)
 	}
 	for _, pcolsMap := range []map[string]string{t.Inputs, t.Outputs} {
 		for _, pid := range pcolsMap {
 			if pcol, exists := c.Pcollections[pid]; exists {
 				// Update Coder ID of PCollection
-				pcol.CoderId = AddCoderID(c, idMap, pcol.CoderId, newID)
+				pcol.CoderId = addCoderID(c, idMap, pcol.CoderId, newID)
 
 				// Update WindowingStrategyID of PCollection
-				pcol.WindowingStrategyId = AddWindowingStrategyID(c, idMap, pcol.WindowingStrategyId, newID)
+				pcol.WindowingStrategyId = addWindowingStrategyID(c, idMap, pcol.WindowingStrategyId, newID)
+			}
+		}
+	}
+
+	// c.Transforms = make(map[string]*pipepb.PTransform)
+	sourceName := t.UniqueName
+	for _, t := range c.Transforms {
+		if t.UniqueName != sourceName {
+			if id, exists := idMap[t.EnvironmentId]; exists {
+				t.EnvironmentId = id
+			}
+			for _, pcolsMap := range []map[string]string{t.Inputs, t.Outputs} {
+				for _, pid := range pcolsMap {
+					if pcol, exists := c.Pcollections[pid]; exists {
+						// Update Coder ID of PCollection
+						if id, exists := idMap[pcol.CoderId]; exists {
+							pcol.CoderId = id
+						}
+
+						// Update WindowingStrategyID of PCollection
+						if id, exists := idMap[pcol.WindowingStrategyId]; exists {
+							pcol.WindowingStrategyId = id
+						}
+					}
+				}
 			}
 		}
 	}

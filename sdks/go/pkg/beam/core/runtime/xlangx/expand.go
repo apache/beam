@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Expand queries the expansion service to resolve the ExpansionRequest
 func Expand(ctx context.Context, req *jobpb.ExpansionRequest, expansionAddr string) (*jobpb.ExpansionResponse, error) {
 	// Querying Expansion Service
 

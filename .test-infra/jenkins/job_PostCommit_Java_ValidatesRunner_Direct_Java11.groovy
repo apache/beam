@@ -32,7 +32,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Direct_
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
       publishers {
-        commonJobProperties.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
+        archiveJunit('**/build/test-results/**/*.xml')
       }
 
       steps {

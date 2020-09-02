@@ -31,6 +31,7 @@
 [![Compat Check at master](https://python-compatibility-tools.appspot.com/one_badge_image?package=git%2Bgit%3A//github.com/apache/beam.git%23subdirectory%3Dsdks/python)](https://python-compatibility-tools.appspot.com/one_badge_target?package=git%2Bgit%3A//github.com/apache/beam.git%23subdirectory%3Dsdks/python)
 ![Build python source distribution and wheels](https://github.com/apache/beam/workflows/Build%20python%20source%20distribution%20and%20wheels/badge.svg)
 ![Python tests](https://github.com/apache/beam/workflows/Python%20tests/badge.svg)
+![Java Tests](https://github.com/apache/beam/workflows/Java%20Tests/badge.svg)
 
 ### Post-commit tests status (on master branch)
 
@@ -85,7 +86,7 @@ Have ideas for new Runners? See the [JIRA](https://issues.apache.org/jira/issues
 
 ## Getting Started
 
-To learn how to write Beam pipelines, read the Quickstart for [[Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), or 
+To learn how to write Beam pipelines, read the Quickstart for [[Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py), or
 [Go](https://beam.apache.org/get-started/quickstart-go)] available on our website.
 
 ## Contact Us

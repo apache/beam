@@ -23,7 +23,7 @@ The Beam SDKs provide language-specific ways to simplify how you provide your Do
 
 MapElements can be used to simplify a DoFn that maps an element to another element (one to one).
 
-**Kata:** Implement a simple map function that multiplies all input elements by 5 using 
+**Kata:** Implement a simple map function that multiplies all input elements by 5 using
 [MapElements.into(...).via(...)](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/MapElements.html).
 
 <div class="hint">

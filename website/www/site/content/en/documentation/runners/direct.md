@@ -80,7 +80,7 @@ Python [FnApiRunner](https://beam.apache.org/contribute/runner-guide/#the-fn-api
 
 <strong>Setting parallelism</strong>
 
-Number of threads or subprocesses is defined by setting the `direct_num_workers` option. 
+Number of threads or subprocesses is defined by setting the `direct_num_workers` option.
 From 2.22.0, `direct_num_workers = 0` is supported. When `direct_num_workers` is set to 0, it will set the number of threads/subprocess to the number of cores of the machine where the pipelien is running.
 
 There are several ways to set this option.

@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
+import org.apache.beam.sdk.util.Histogram;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
@@ -65,6 +66,11 @@ public class FakeBigQueryServices implements BigQueryServices {
 
   @Override
   public DatasetService getDatasetService(BigQueryOptions bqOptions) {
+    return datasetService;
+  }
+
+  @Override
+  public DatasetService getDatasetService(BigQueryOptions bqOptions, Histogram requestLatencies) {
     return datasetService;
   }
 

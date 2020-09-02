@@ -1869,10 +1869,10 @@ public class SnowflakeIO {
   }
 
   private static String getValueOrNull(ValueProvider<String> valueProvider) {
-    return valueProvider != null ? valueProvider.get() : null;
+    return valueProvider != null && valueProvider.get() != null ? valueProvider.get() : null;
   }
 
   private static boolean isNotEmpty(ValueProvider<String> valueProvider) {
-    return valueProvider != null && valueProvider.isAccessible() && !valueProvider.get().isEmpty();
+    return valueProvider != null && valueProvider.get() != null && !valueProvider.get().isEmpty();
   }
 }

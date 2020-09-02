@@ -408,12 +408,13 @@ class BeamModulePlugin implements Plugin<Project> {
     def jaxb_api_version = "2.3.3"
     def kafka_version = "1.0.0"
     def nemo_version = "0.1"
-    def netty_version = "4.1.30.Final"
+    def netty_version = "4.1.51.Final"
     def postgres_version = "42.2.2"
     def powermock_version = "2.0.2"
     def proto_google_common_protos_version = "1.17.0"
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
+    def slf4j_version = "1.7.30"
     def spark_version = "2.4.6"
     def spotbugs_version = "4.0.6"
     def testcontainers_localstack_version = "1.14.3"
@@ -497,7 +498,8 @@ class BeamModulePlugin implements Plugin<Project> {
         google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf:$google_http_clients_version",
         google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_oauth_clients_version",
         google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_oauth_clients_version",
-        grpc_all                                    : "io.grpc:grpc-all:$grpc_version",
+        // Don't use grpc_all, it can cause issues in Bazel builds. Reference the gRPC libraries you need individually instead.
+        grpc_api                                    : "io.grpc:grpc-api:$grpc_version",
         grpc_alts                                   : "io.grpc:grpc-alts:$grpc_version",
         grpc_auth                                   : "io.grpc:grpc-auth:$grpc_version",
         grpc_core                                   : "io.grpc:grpc-core:$grpc_version",
@@ -541,7 +543,7 @@ class BeamModulePlugin implements Plugin<Project> {
         mockito_core                                : "org.mockito:mockito-core:3.0.0",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
-        netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.17.Final",
+        netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.33.Final",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         powermock                                   : "org.powermock:powermock-module-junit4:$powermock_version",
@@ -555,10 +557,10 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_pubsublite_v1            : "com.google.api.grpc:proto-google-cloud-pubsublite-v1:$google_cloud_pubsublite_version",
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:$google_cloud_spanner_version",
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
-        slf4j_api                                   : "org.slf4j:slf4j-api:1.7.25",
-        slf4j_simple                                : "org.slf4j:slf4j-simple:1.7.25",
-        slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:1.7.25",
-        slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:1.7.25",
+        slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
+        slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
+        slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:$slf4j_version",
+        slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:$slf4j_version",
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.4",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark_version",
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
@@ -583,7 +585,7 @@ class BeamModulePlugin implements Plugin<Project> {
         maven_exec_plugin    : "maven-plugins:maven-exec-plugin:1.6.0",
         maven_jar_plugin     : "maven-plugins:maven-jar-plugin:3.0.2",
         maven_shade_plugin   : "maven-plugins:maven-shade-plugin:3.1.0",
-        maven_surefire_plugin: "maven-plugins:maven-surefire-plugin:2.21.0",
+        maven_surefire_plugin: "maven-plugins:maven-surefire-plugin:3.0.0-M5",
       ],
     ]
 
@@ -1377,9 +1379,15 @@ class BeamModulePlugin implements Plugin<Project> {
         include "**/*IT.class"
 
         def pipelineOptionsString = configuration.integrationTestPipelineOptions
+        def pipelineOptionsStringFormatted
+        def allOptionsList
+
+        if(pipelineOptionsString) {
+          allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
+        }
+
         if(pipelineOptionsString && configuration.runner?.equalsIgnoreCase('dataflow')) {
           project.evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
-          def allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
           def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
               project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
           def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
@@ -1388,11 +1396,17 @@ class BeamModulePlugin implements Plugin<Project> {
             "--dataflowWorkerJar=${dataflowWorkerJar}",
             "--region=${dataflowRegion}"
           ])
-
-          pipelineOptionsString = JsonOutput.toJson(allOptionsList)
         }
 
-        systemProperties.beamTestPipelineOptions = pipelineOptionsString
+        // Windows handles quotation marks differently
+        if (pipelineOptionsString && System.properties['os.name'].toLowerCase().contains('windows')) {
+          def allOptionsListFormatted = allOptionsList.collect{ "\"$it\"" }
+          pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsListFormatted)
+        } else if (pipelineOptionsString) {
+          pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsList)
+        }
+
+        systemProperties.beamTestPipelineOptions = pipelineOptionsStringFormatted ?: pipelineOptionsString
       }
     }
 
@@ -1497,6 +1511,9 @@ class BeamModulePlugin implements Plugin<Project> {
       project.tasks.dockerPrepare.dependsOn project.tasks.copyLicenses
     }
 
+    project.ext.applyDockerRunNature = {
+      project.apply plugin: "com.palantir.docker-run"
+    }
     /** ***********************************************************************************************/
 
     project.ext.applyGroovyNature = {
@@ -1973,7 +1990,7 @@ class BeamModulePlugin implements Plugin<Project> {
           def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 ${distTarBall}[gcp,test,aws]"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 ${distTarBall}[gcp,test,aws,azure]"
           }
         }
       }

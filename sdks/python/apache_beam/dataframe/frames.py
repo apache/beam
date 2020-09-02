@@ -201,7 +201,16 @@ class DeferredSeries(frame_base.DeferredFrame):
   view = frame_base.wont_implement_method('memory sharing semantics')
 
 
-for base in ['add', 'sub', 'mul', 'div', 'truediv', 'floordiv', 'mod', 'pow']:
+for base in ['add',
+             'sub',
+             'mul',
+             'div',
+             'truediv',
+             'floordiv',
+             'mod',
+             'pow',
+             'and',
+             'or']:
   for p in ['%s', 'r%s', '__%s__', '__r%s__']:
     # TODO: non-trivial level?
     name = p % base
@@ -245,7 +254,10 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       return object.__getattribute__(self, name)
 
   def __getitem__(self, key):
-    if key in self._expr.proxy().columns:
+    # TODO: Replicate pd.DataFrame.__getitem__ logic
+    if (isinstance(key, list) and
+        all(key_column in self._expr.proxy().columns
+            for key_column in key)) or key in self._expr.proxy().columns:
       return self._elementwise(lambda df: df[key], 'get_column')
     else:
       raise NotImplementedError(key)
@@ -261,15 +273,21 @@ class DeferredDataFrame(frame_base.DeferredFrame):
     else:
       raise NotImplementedError(key)
 
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
   def set_index(self, keys, **kwargs):
     if isinstance(keys, str):
       keys = [keys]
     if not set(keys).issubset(self._expr.proxy().columns):
       raise NotImplementedError(keys)
-    return self._elementwise(
-        lambda df: df.set_index(keys, **kwargs),
-        'set_index',
-        inplace=kwargs.get('inplace', False))
+    return frame_base.DeferredFrame.wrap(
+      expressions.ComputedExpression(
+          'set_index',
+          lambda df: df.set_index(keys, **kwargs),
+          [self._expr],
+          requires_partition_by=partitionings.Nothing(),
+          preserves_partition_by=partitionings.Nothing()))
 
   def at(self, *args, **kwargs):
     raise NotImplementedError()

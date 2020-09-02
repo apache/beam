@@ -19,13 +19,13 @@
 Window Accumulation Mode
 ------------------------
 
-When you specify a trigger, you must also set the the window’s accumulation mode. When a trigger 
-fires, it emits the current contents of the window as a pane. Since a trigger can fire multiple 
-times, the accumulation mode determines whether the system accumulates the window panes as the 
+When you specify a trigger, you must also set the the window’s accumulation mode. When a trigger
+fires, it emits the current contents of the window as a pane. Since a trigger can fire multiple
+times, the accumulation mode determines whether the system accumulates the window panes as the
 trigger fires, or discards them.
 
-**Kata:** Given that events are being generated every second and a fixed window of 1-day duration, 
-please implement an early trigger that emits the number of events count immediately after new 
+**Kata:** Given that events are being generated every second and a fixed window of 1-day duration,
+please implement an early trigger that emits the number of events count immediately after new
 element is processed in accumulating mode.
 
 <div class="hint">

@@ -320,6 +320,17 @@ task runBeamDependencyCheck() {
   dependsOn ":sdks:python:dependencyUpdates"
 }
 
+task whitespacePreCommit() {
+  dependsOn ":sdks:python:test-suites:tox:py38:archiveFilesToLint"
+  dependsOn ":sdks:python:test-suites:tox:py38:unpackFilesToLint"
+  dependsOn ":sdks:python:test-suites:tox:py38:whitespacelint"
+}
+
+task typescriptPreCommit() {
+  dependsOn ":sdks:python:test-suites:tox:py38:eslint"
+  dependsOn ":sdks:python:test-suites:tox:py38:jest"
+}
+
 // Configure the release plugin to do only local work; the release manager determines what, if
 // anything, to push. On failure, the release manager can reset the branch without pushing.
 release {

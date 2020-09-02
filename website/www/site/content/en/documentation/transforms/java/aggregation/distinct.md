@@ -34,7 +34,7 @@ values for each key.
 ## Examples
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
-## Related transforms 
+## Related transforms
 * [Count](/documentation/transforms/java/aggregation/count)
   counts the number of elements within each aggregation.
 * [ApproximateUnique](/documentation/transforms/java/aggregation/approximateunique)

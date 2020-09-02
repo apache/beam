@@ -689,8 +689,7 @@ def examples_wordcount_streaming(argv):
 
     output = (
         lines
-        | 'DecodeUnicode' >>
-        beam.FlatMap(lambda encoded: encoded.decode('utf-8'))
+        | 'DecodeUnicode' >> beam.Map(lambda encoded: encoded.decode('utf-8'))
         | 'ExtractWords' >>
         beam.FlatMap(lambda x: __import__('re').findall(r'[A-Za-z\']+', x))
         | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))

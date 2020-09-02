@@ -121,7 +121,7 @@ private void createPostCommitJob(jobConfig) {
     common.enablePhraseTriggeringFromPullRequest(delegate, jobConfig.title, jobConfig.triggerPhrase)
     common.setAutoJob(delegate, 'H */6 * * *')
     publishers {
-      common.setArchiveJunitWithStabilityHistory(delegate, '**/build/test-results/**/*.xml')
+      archiveJunit('**/build/test-results/**/*.xml')
     }
     InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [

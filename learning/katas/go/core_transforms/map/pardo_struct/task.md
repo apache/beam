@@ -28,7 +28,7 @@ a `ProcessElement` method.
   Use <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#ParDo">
   beam.ParDo</a>
   with <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#hdr-DoFns">
-  DoFn</a> as a struct with the ProcessElement method 
+  DoFn</a> as a struct with the ProcessElement method
   <a href="https://github.com/apache/beam/blob/master/sdks/go/examples/contains/contains.go#L66">
   as in this example</a>.
 </div>

@@ -34,7 +34,8 @@ class CommonJobProperties {
       String defaultBranch = 'master',
       int defaultTimeout = 100,
       boolean allowRemotePoll = true,
-      String jenkinsExecutorLabel =  'beam') {
+      String jenkinsExecutorLabel = 'beam',
+      boolean cleanWorkspace = true) {
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/beam/')
@@ -88,20 +89,26 @@ class CommonJobProperties {
         abortBuild()
       }
 
-      // Set SPARK_LOCAL_IP for spark tests.
       environmentVariables {
+        // Set SPARK_LOCAL_IP for spark tests.
         env('SPARK_LOCAL_IP', '127.0.0.1')
+        // Set SETUPTOOLS_USE_DISTUTILS to workaround issue with setuptools
+        // 50.0 and Ubuntu executors (BEAM-10841)
+        env('SETUPTOOLS_USE_DISTUTILS', 'stdlib')
       }
       credentialsBinding {
         string("CODECOV_TOKEN", "beam-codecov-token")
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
       }
       timestamps()
+      colorizeOutput()
     }
 
-    context.publishers {
-      // Clean after job completes.
-      wsCleanup()
+    if (cleanWorkspace) {
+      context.publishers {
+        // Clean after job completes.
+        wsCleanup()
+      }
     }
   }
 
@@ -199,14 +206,6 @@ class CommonJobProperties {
   static void setCronJob(context, String buildSchedule) {
     context.triggers {
       cron(buildSchedule)
-    }
-  }
-
-  static void setArchiveJunitWithStabilityHistory(context, String glob) {
-    context.archiveJunit(glob) {
-      testDataPublishers {
-        publishTestStabilityData()
-      }
     }
   }
 

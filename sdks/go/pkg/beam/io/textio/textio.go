@@ -19,6 +19,7 @@ package textio
 import (
 	"bufio"
 	"context"
+	"io"
 	"os"
 	"reflect"
 	"strings"
@@ -93,11 +94,21 @@ func readFn(ctx context.Context, filename string, emit func(string)) error {
 	}
 	defer fd.Close()
 
-	scanner := bufio.NewScanner(fd)
-	for scanner.Scan() {
-		emit(scanner.Text())
+	rd := bufio.NewReader(fd)
+	for {
+		line, err := rd.ReadString('\n')
+		if err == io.EOF {
+			if len(line) != 0 {
+				emit(strings.TrimSuffix(line, "\n"))
+			}
+			break
+		}
+		if err != nil {
+			return (err)
+		}
+		emit(strings.TrimSuffix(line, "\n"))
 	}
-	return scanner.Err()
+	return nil
 }
 
 // TODO(herohde) 7/12/2017: extend Write to write to a series of files

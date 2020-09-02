@@ -19,9 +19,9 @@
 Side Output
 -----------
 
-While ParDo always produces a main output PCollection (as the return value from apply), you can 
-also have your ParDo produce any number of additional output PCollections. If you choose to have 
-multiple outputs, your ParDo returns all of the output PCollections (including the main output) 
+While ParDo always produces a main output PCollection (as the return value from apply), you can
+also have your ParDo produce any number of additional output PCollections. If you choose to have
+multiple outputs, your ParDo returns all of the output PCollections (including the main output)
 bundled together.
 
 **Kata:** Implement additional output to your ParDo for numbers bigger than 100.

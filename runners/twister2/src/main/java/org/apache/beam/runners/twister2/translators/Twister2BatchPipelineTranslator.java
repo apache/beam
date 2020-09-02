@@ -26,6 +26,7 @@ import org.apache.beam.runners.twister2.Twister2PipelineOptions;
 import org.apache.beam.runners.twister2.translators.batch.AssignWindowTranslatorBatch;
 import org.apache.beam.runners.twister2.translators.batch.FlattenTranslatorBatch;
 import org.apache.beam.runners.twister2.translators.batch.GroupByKeyTranslatorBatch;
+import org.apache.beam.runners.twister2.translators.batch.ImpulseTranslatorBatch;
 import org.apache.beam.runners.twister2.translators.batch.PCollectionViewTranslatorBatch;
 import org.apache.beam.runners.twister2.translators.batch.ParDoMultiOutputTranslatorBatch;
 import org.apache.beam.runners.twister2.translators.batch.ReadSourceTranslatorBatch;
@@ -50,6 +51,8 @@ public class Twister2BatchPipelineTranslator extends Twister2PipelineTranslator 
   private final Twister2BatchTranslationContext translationContext;
 
   static {
+    TRANSFORM_TRANSLATORS.put(
+        PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslatorBatch());
     TRANSFORM_TRANSLATORS.put(
         PTransformTranslation.READ_TRANSFORM_URN, new ReadSourceTranslatorBatch());
     TRANSFORM_TRANSLATORS.put(
