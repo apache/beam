@@ -69,9 +69,11 @@ _FILE_TRIGGERING_RECORD_COUNT = 500000
 
 
 def _generate_job_name(job_name, job_type, step_name):
-  return bigquery_tools.generate_bq_job_name(job_name=job_name,
-          sep_id=step_name, job_type=job_type,
-          random=random.randint(0, 1000))
+  return bigquery_tools.generate_bq_job_name(
+      job_name=job_name,
+      sep_id=step_name,
+      job_type=job_type,
+      random=random.randint(0, 1000))
 
 
 def file_prefix_generator(
