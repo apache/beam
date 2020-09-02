@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeThat;
 
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
@@ -30,7 +28,6 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -57,8 +54,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Test;
@@ -89,10 +84,6 @@ public class AvroUtilsTest {
   @SuppressWarnings("unchecked")
   public void avroToBeamRoundTrip(
       @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
-    // roundtrip for enums returns strings because Beam doesn't have enum type
-    assumeThat(avroSchema, not(containsField(x -> x.getType() == Type.ENUM)));
-    // roundtrip for fixed returns bytes because Beam doesn't have FIXED type
-    assumeThat(avroSchema, not(containsField(x -> x.getType() == Type.FIXED)));
 
     Schema schema = AvroUtils.toBeamSchema(avroSchema);
     Iterable iterable = new RandomData(avroSchema, 10);
@@ -552,51 +543,5 @@ public class AvroUtilsTest {
     users.setCoder(AvroUtils.schemaCoder((AvroCoder<AvroGeneratedUser>) users.getCoder()));
     assertTrue(users.hasSchema());
     CoderProperties.coderSerializable(users.getCoder());
-  }
-
-  public static ContainsField containsField(Function<org.apache.avro.Schema, Boolean> predicate) {
-    return new ContainsField(predicate);
-  }
-
-  static class ContainsField extends BaseMatcher<org.apache.avro.Schema> {
-
-    private final Function<org.apache.avro.Schema, Boolean> predicate;
-
-    ContainsField(final Function<org.apache.avro.Schema, Boolean> predicate) {
-      this.predicate = predicate;
-    }
-
-    @Override
-    public boolean matches(final Object item0) {
-      if (!(item0 instanceof org.apache.avro.Schema)) {
-        return false;
-      }
-
-      org.apache.avro.Schema item = (org.apache.avro.Schema) item0;
-
-      if (predicate.apply(item)) {
-        return true;
-      }
-
-      switch (item.getType()) {
-        case RECORD:
-          return item.getFields().stream().anyMatch(x -> matches(x.schema()));
-
-        case UNION:
-          return item.getTypes().stream().anyMatch(this::matches);
-
-        case ARRAY:
-          return matches(item.getElementType());
-
-        case MAP:
-          return matches(item.getValueType());
-
-        default:
-          return false;
-      }
-    }
-
-    @Override
-    public void describeTo(final Description description) {}
   }
 }
