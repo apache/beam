@@ -75,8 +75,6 @@ public class AvroUtilsTest {
   @SuppressWarnings("unchecked")
   public void supportsAnyAvroSchema(
       @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
-    // not everything is possible to translate
-    assumeThat(avroSchema, not(containsField(AvroUtilsTest::hasNonNullUnion)));
 
     Schema schema = AvroUtils.toBeamSchema(avroSchema);
     Iterable iterable = new RandomData(avroSchema, 10);
@@ -91,8 +89,6 @@ public class AvroUtilsTest {
   @SuppressWarnings("unchecked")
   public void avroToBeamRoundTrip(
       @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
-    // not everything is possible to translate
-    assumeThat(avroSchema, not(containsField(AvroUtilsTest::hasNonNullUnion)));
     // roundtrip for enums returns strings because Beam doesn't have enum type
     assumeThat(avroSchema, not(containsField(x -> x.getType() == Type.ENUM)));
     // roundtrip for fixed returns bytes because Beam doesn't have FIXED type
@@ -560,21 +556,6 @@ public class AvroUtilsTest {
 
   public static ContainsField containsField(Function<org.apache.avro.Schema, Boolean> predicate) {
     return new ContainsField(predicate);
-  }
-
-  // doesn't work because Beam doesn't have unions, only nullable fields
-  public static boolean hasNonNullUnion(org.apache.avro.Schema schema) {
-    if (schema.getType() == Type.UNION) {
-      final List<org.apache.avro.Schema> types = schema.getTypes();
-
-      if (types.size() == 2) {
-        return !types.contains(NULL_SCHEMA);
-      } else {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   static class ContainsField extends BaseMatcher<org.apache.avro.Schema> {

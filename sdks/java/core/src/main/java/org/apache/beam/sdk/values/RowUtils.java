@@ -518,7 +518,7 @@ class RowUtils {
         RowPosition rowPosition, LogicalType logicalType, Object value, RowFieldMatcher matcher) {
       Object retValue = null;
       FieldOverride override = override(rowPosition);
-      if (override != null) {
+      if (override != null && override.getOverrideValue() != null) {
         retValue = logicalType.toInputType(logicalType.toBaseType(override.getOverrideValue()));
       } else if (value != null) {
         retValue = logicalType.toInputType(logicalType.toBaseType(value));
