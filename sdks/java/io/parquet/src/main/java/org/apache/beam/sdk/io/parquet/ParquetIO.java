@@ -465,8 +465,7 @@ public class ParquetIO {
         ArrayList<OffsetRange> offsetList = new ArrayList<OffsetRange>();
         long totalSize = 0;
         long rangeStart = start;
-        long rangeEnd = start;
-        for (rangeEnd = start; rangeEnd < end; rangeEnd++) {
+        for (long rangeEnd = start; rangeEnd < end; rangeEnd++) {
           totalSize += blockList.get((int) rangeEnd).getTotalByteSize();
           if (totalSize >= limit) {
             offsetList.add(new OffsetRange(rangeStart, rangeEnd + 1));
