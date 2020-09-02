@@ -322,7 +322,10 @@ class TriggerCopyJobs(beam.DoFn):
     See: https://issues.apache.org/jira/browse/BEAM-7822
   """
   def __init__(
-      self, create_disposition=None, write_disposition=None, test_client=None,
+      self,
+      create_disposition=None,
+      write_disposition=None,
+      test_client=None,
       step_name=None):
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
@@ -902,17 +905,13 @@ class BigQueryBatchFileLoads(beam.PTransform):
         singleton_pc
         | "LoadJobNamePrefix" >> beam.Map(
             lambda _: _generate_job_name(
-                job_name,
-                bigquery_tools.BigQueryJobTypes.LOAD,
-                step_name)))
+                job_name, bigquery_tools.BigQueryJobTypes.LOAD, step_name)))
 
     copy_job_name_pcv = pvalue.AsSingleton(
         singleton_pc
         | "CopyJobNamePrefix" >> beam.Map(
             lambda _: _generate_job_name(
-                job_name,
-                bigquery_tools.BigQueryJobTypes.COPY,
-                step_name)))
+                job_name, bigquery_tools.BigQueryJobTypes.COPY, step_name)))
 
     file_prefix_pcv = pvalue.AsSingleton(
         singleton_pc
