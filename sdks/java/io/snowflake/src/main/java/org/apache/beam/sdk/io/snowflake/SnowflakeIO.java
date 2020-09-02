@@ -408,7 +408,7 @@ public class SnowflakeIO {
      */
     public Read<T> withQuotationMark(String quotationMark) {
       return toBuilder()
-          .setStorageIntegrationName(ValueProvider.StaticValueProvider.of(quotationMark))
+          .setQuotationMark(ValueProvider.StaticValueProvider.of(quotationMark))
           .build();
     }
 
@@ -1873,6 +1873,6 @@ public class SnowflakeIO {
   }
 
   private static boolean isNotEmpty(ValueProvider<String> valueProvider) {
-    return valueProvider != null && valueProvider.get() != null && !valueProvider.get().isEmpty();
+    return valueProvider != null && valueProvider.isAccessible() && !valueProvider.get().isEmpty();
   }
 }
