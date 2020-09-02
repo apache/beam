@@ -33,7 +33,12 @@
     "watch": "tsc -w"
   },
   "dependencies": {
-    "@jupyterlab/application": "^2.0.0"
+    "@jupyterlab/application": "^2.0.0",
+    "@rmwc/checkbox": "^6.1.3",
+    "@rmwc/drawer": "^6.0.14",
+    "@rmwc/list": "^6.1.3",
+    "@rmwc/top-app-bar": "^6.1.3",
+    "material-design-icons": "^3.0.1"
   },
   "devDependencies": {
     "@types/jest": "^26.0.7",
