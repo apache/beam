@@ -1210,16 +1210,17 @@ class BigQueryWriteFn(DoFn):
 
   def finish_bundle(self):
     current_millis = int(time.time() * 1000)
-    if (BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.total_count() > 0 and
-        (current_millis - BigQueryWriteFn.LATENCY_LOGGING_LAST_REPORTED_MILLIS)
-        > self._latency_logging_frequency * 1000):
-      if BigQueryWriteFn.LATENCY_LOGGING_LOCK.acquire(False):
-        try:
+    if BigQueryWriteFn.LATENCY_LOGGING_LOCK.acquire(False):
+      try:
+        if (BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.total_count() > 0 and
+            (current_millis -
+             BigQueryWriteFn.LATENCY_LOGGING_LAST_REPORTED_MILLIS) >
+            self._latency_logging_frequency * 1000):
           self._log_percentiles()
           BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.clear()
           BigQueryWriteFn.LATENCY_LOGGING_LAST_REPORTED_MILLIS = current_millis
-        finally:
-          BigQueryWriteFn.LATENCY_LOGGING_LOCK.release()
+      finally:
+        BigQueryWriteFn.LATENCY_LOGGING_LOCK.release()
     return self._flush_all_batches()
 
   @classmethod
