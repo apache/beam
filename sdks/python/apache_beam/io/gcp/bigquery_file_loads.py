@@ -905,13 +905,13 @@ class BigQueryBatchFileLoads(beam.PTransform):
         singleton_pc
         | "LoadJobNamePrefix" >> beam.Map(
             lambda _: _generate_job_name(
-                job_name, bigquery_tools.BigQueryJobTypes.LOAD, step_name)))
+                job_name, bigquery_tools.BigQueryJobTypes.LOAD, 'LOAD_STEP')))
 
     copy_job_name_pcv = pvalue.AsSingleton(
         singleton_pc
         | "CopyJobNamePrefix" >> beam.Map(
             lambda _: _generate_job_name(
-                job_name, bigquery_tools.BigQueryJobTypes.COPY, step_name)))
+                job_name, bigquery_tools.BigQueryJobTypes.COPY, 'COPY_STEP')))
 
     file_prefix_pcv = pvalue.AsSingleton(
         singleton_pc

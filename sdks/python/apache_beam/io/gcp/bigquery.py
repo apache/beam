@@ -625,6 +625,7 @@ class _JsonToDictCoder(coders.Coder):
 
 
 class _CustomBigQuerySource(BoundedSource):
+
   def __init__(
       self,
       gcs_location=None,
@@ -712,7 +713,7 @@ class _CustomBigQuerySource(BoundedSource):
       project = self._get_project()
       query_job_name = bigquery_tools.generate_bq_job_name(
           self._job_name,
-          self._step_name,
+          'READ_STEP',
           bigquery_tools.BigQueryJobTypes.QUERY,
           random.randint(0, 100))
       job = bq._start_query_job(
@@ -797,7 +798,7 @@ class _CustomBigQuerySource(BoundedSource):
   def _execute_query(self, bq):
     query_job_name = bigquery_tools.generate_bq_job_name(
         self._job_name,
-        self._step_name,
+        'READ_STEP',
         bigquery_tools.BigQueryJobTypes.QUERY,
         random.randint(0, 100))
     job = bq._start_query_job(
@@ -823,7 +824,7 @@ class _CustomBigQuerySource(BoundedSource):
         self.bigquery_job_labels)
     export_job_name = bigquery_tools.generate_bq_job_name(
         self._job_name,
-        self._step_name,
+        'EXPORT_STEP',
         bigquery_tools.BigQueryJobTypes.EXPORT,
         random.randint(0, 100))
     if self.use_json_exports:
