@@ -71,6 +71,7 @@ from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import TimeDomain
+from apache_beam.transforms import core
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms import userstate
 from apache_beam.utils import counters
@@ -1467,14 +1468,13 @@ def create_process_sized_elements_and_restrictions(
     parameter,  # type: beam_runner_api_pb2.ParDoPayload
     consumers  # type: Dict[str, List[operations.Operation]]
 ):
-  assert parameter.do_fn.urn == python_urns.PICKLED_DOFN_INFO
-  serialized_fn = parameter.do_fn.payload
   return _create_pardo_operation(
       factory,
       transform_id,
       transform_proto,
       consumers,
-      serialized_fn,
+      core.DoFnInfo.from_runner_api(parameter.do_fn,
+                                    factory.context).serialized_dofn_data(),
       parameter,
       operation_cls=operations.SdfProcessSizedElements)
 
@@ -1516,14 +1516,13 @@ def create_par_do(
     consumers  # type: Dict[str, List[operations.Operation]]
 ):
   # type: (...) -> operations.DoOperation
-  assert parameter.do_fn.urn == python_urns.PICKLED_DOFN_INFO
-  serialized_fn = parameter.do_fn.payload
   return _create_pardo_operation(
       factory,
       transform_id,
       transform_proto,
       consumers,
-      serialized_fn,
+      core.DoFnInfo.from_runner_api(parameter.do_fn,
+                                    factory.context).serialized_dofn_data(),
       parameter)
 
 

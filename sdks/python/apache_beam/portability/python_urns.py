@@ -33,6 +33,7 @@ IMPULSE_READ_TRANSFORM = "beam:transform:read_from_impulse_python:v1"
 
 GENERIC_COMPOSITE_TRANSFORM = "beam:transform:generic_composite:v1"
 
+KEY_WITH_NONE_DOFN = "beam:dofn:python_key_with_none:v1"
 PACKED_COMBINE_FN = "beam:combinefn:packed_python:v1"
 
 # A coder for a tuple.
