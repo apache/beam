@@ -25,7 +25,6 @@ import com.google.api.services.healthcare.v1beta1.model.FhirStore;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.List;
-import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
@@ -90,10 +89,8 @@ public class FhirIOLROIT {
     String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
     String exportGcsUriPrefix =
         "gs://" + DEFAULT_TEMP_BUCKET + "/export/" + (new SecureRandom().nextInt(32));
-    FhirIO.ExportGcs.Result exportResult =
+    PCollection<String> resources =
         pipeline.apply(FhirIO.exportResourcesToGcs(fhirStoreName, exportGcsUriPrefix));
-    PCollection<String> resources = exportResult.getResources();
-    resources.apply(TextIO.write().to(exportGcsUriPrefix + "/write"));
     pipeline.run();
   }
 
