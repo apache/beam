@@ -57,11 +57,13 @@ public class BeamSqlLineIT implements Serializable {
 
   @Rule public transient TestPubsub eventsTopic = TestPubsub.create();
 
-  private static String project;
-  private static String createPubsubTableStatement;
-  private static String setProject;
+  private static String project = "";
+  private static String createPubsubTableStatement = "";
+  private static String setProject = "";
   private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
+  // Suppressing initialization warning as it is being initialized while setting up the test
+  @SuppressWarnings("initialization.fields.uninitialized")
   private ExecutorService pool;
 
   @BeforeClass
@@ -198,6 +200,8 @@ public class BeamSqlLineIT implements Serializable {
     return objectNode.toString();
   }
 
+  /** Suppressing this due to https://github.com/typetools/checker-framework/issues/979. */
+  @SuppressWarnings("return.type.incompatible")
   private Future<List<List<String>>> runQueryInBackground(String[] args) {
     return pool.submit(
         (Callable)
