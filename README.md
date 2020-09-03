@@ -29,9 +29,9 @@
 [![Coverage Status](https://coveralls.io/repos/github/apache/beam/badge.svg?branch=master)](https://coveralls.io/github/apache/beam?branch=master)
 [![Compat Check PyPI](https://python-compatibility-tools.appspot.com/one_badge_image?package=apache-beam%5Bgcp%5D)](https://python-compatibility-tools.appspot.com/one_badge_target?package=apache-beam%5Bgcp%5D)
 [![Compat Check at master](https://python-compatibility-tools.appspot.com/one_badge_image?package=git%2Bgit%3A//github.com/apache/beam.git%23subdirectory%3Dsdks/python)](https://python-compatibility-tools.appspot.com/one_badge_target?package=git%2Bgit%3A//github.com/apache/beam.git%23subdirectory%3Dsdks/python)
-![Build python source distribution and wheels](https://github.com/apache/beam/workflows/Build%20python%20source%20distribution%20and%20wheels/badge.svg)
-![Python tests](https://github.com/apache/beam/workflows/Python%20tests/badge.svg)
-![Java Tests](https://github.com/apache/beam/workflows/Java%20Tests/badge.svg)
+[![Build python source distribution and wheels](https://github.com/apache/beam/workflows/Build%20python%20source%20distribution%20and%20wheels/badge.svg?branch=master&event=schedule)](https://github.com/apache/beam/actions?query=workflow%3A%22Build+python+source+distribution+and+wheels%22+branch%3Amaster+event%3Aschedule)
+[![Python tests](https://github.com/apache/beam/workflows/Python%20tests/badge.svg?branch=master&event=schedule)](https://github.com/apache/beam/actions?query=workflow%3A%22Python+Tests%22+branch%3Amaster+event%3Aschedule)
+[![Java tests](https://github.com/apache/beam/workflows/Java%20Tests/badge.svg?branch=master&event=schedule)](https://github.com/apache/beam/actions?query=workflow%3A%22Java+Tests%22+branch%3Amaster+event%3Aschedule)
 
 ### Post-commit tests status (on master branch)
 
