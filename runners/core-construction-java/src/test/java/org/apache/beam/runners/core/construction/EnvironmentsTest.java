@@ -104,13 +104,12 @@ public class EnvironmentsTest implements Serializable {
     assertThat(
         Environments.getJavaCapabilities(),
         hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING)));
-    // TODO(BEAM-10505): Add the check back.
-    // assertThat(
-    //     Environments.getJavaCapabilities(),
-    //     hasItem(
-    //         BeamUrns.getUrn(
-    //             RunnerApi.StandardPTransforms.SplittableParDoComponents
-    //                 .TRUNCATE_SIZED_RESTRICTION)));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(
+            BeamUrns.getUrn(
+                RunnerApi.StandardPTransforms.SplittableParDoComponents
+                    .TRUNCATE_SIZED_RESTRICTION)));
   }
 
   @Test
