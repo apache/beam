@@ -2504,7 +2504,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-10459")
   public void testSumNumeric() {
     String sql = "SELECT SUM(numeric_field) FROM table_with_numeric";
 
@@ -2521,7 +2520,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-10459")
   public void testAvgNumeric() {
     String sql = "SELECT AVG(numeric_field) FROM table_with_numeric";
 

@@ -36,6 +36,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Aggregat
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.FunctionParameter;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ScalarFunction;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlAggFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
@@ -72,7 +73,7 @@ public class SqlOperators {
   private static final RelDataType BIGINT = createSqlType(SqlTypeName.BIGINT, false);
   private static final RelDataType NULLABLE_BIGINT = createSqlType(SqlTypeName.BIGINT, true);
 
-  public static final SqlOperator STRING_AGG_STRING_FN =
+  public static final SqlAggFunction STRING_AGG_STRING_FN =
       createUdafOperator(
           "string_agg",
           x -> createTypeFactory().createSqlType(SqlTypeName.VARCHAR),
@@ -153,6 +154,25 @@ public class SqlOperators {
         null, // operandTypeInference
         null, // operandTypeChecker
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
+  }
+
+  /**
+   * Create a dummy SqlAggFunction of type OTHER_FUNCTION from given function name and return type.
+   * These functions will be executed by Beam CombineFns implemented in {@link
+   * org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations}.
+   */
+  public static SqlAggFunction createZetaSqlAggFunction(String name, RelDataType returnType) {
+    return new SqlAggFunction(
+        name,
+        null, // sqlIdentifier
+        SqlKind.OTHER_FUNCTION,
+        x -> returnType,
+        null, // operandTypeInference
+        null, // operandTypeChecker
+        SqlFunctionCategory.USER_DEFINED_FUNCTION,
+        false, // requiresOrder
+        false, // requiresOver
+        Optionality.FORBIDDEN) {};
   }
 
   private static SqlUserDefinedAggFunction createUdafOperator(

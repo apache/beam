@@ -31,8 +31,10 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedExpr;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollations;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
@@ -48,6 +50,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 /** Converts aggregate calls. */
 class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
+  private static final Map<String, SqlAggFunction> ZETASQL_UDAF_OPERATORS =
+      ImmutableMap.<String, SqlAggFunction>builder()
+          .put("string_agg", SqlOperators.STRING_AGG_STRING_FN) // NULL values not supported
+          .build();
+
   private static final String AVG_ILLEGAL_LONG_INPUT_TYPE =
       "AVG(LONG) is not supported. You might want to use AVG(CAST(expression AS DOUBLE).";
 
@@ -197,16 +204,6 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
               + " aggregation.");
     }
 
-    SqlAggFunction sqlAggFunction =
-        (SqlAggFunction)
-            SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-                aggregateFunctionCall.getFunction().getName());
-    if (sqlAggFunction == null) {
-      throw new UnsupportedOperationException(
-          "Does not support ZetaSQL aggregate function: "
-              + aggregateFunctionCall.getFunction().getName());
-    }
-
     List<Integer> argList = new ArrayList<>();
     for (ResolvedExpr expr :
         ((ResolvedAggregateFunctionCall) computedColumn.getExpr()).getArgumentList()) {
@@ -227,8 +224,35 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
         ZetaSqlCalciteTranslationUtils.toCalciteType(
             computedColumn.getColumn().getType(), nullable, getCluster().getRexBuilder());
 
+    SqlAggFunction sqlAggFunction =
+        getSqlAggFunction(aggregateFunctionCall.getFunction().getName(), returnType);
+
     String aggName = getTrait().resolveAlias(computedColumn.getColumn());
     return AggregateCall.create(
         sqlAggFunction, false, false, false, argList, -1, RelCollations.EMPTY, returnType, aggName);
+  }
+
+  private static SqlAggFunction getSqlAggFunction(
+      String zetaSqlAggFunctionName, RelDataType returnType) {
+    // ZetaSQL specific aggregation functions, implemented with a user-defined CombineFn
+    if (ZETASQL_UDAF_OPERATORS.containsKey(zetaSqlAggFunctionName)) {
+      return ZETASQL_UDAF_OPERATORS.get(zetaSqlAggFunctionName);
+    }
+
+    if ("$count_star".equals(zetaSqlAggFunctionName)) {
+      zetaSqlAggFunctionName = "COUNT"; // $count_star and count both map to the same implementation
+    } else {
+      // BeamBuiltinAggregations.BUILTIN_AGGREGATOR_FACTORIES uses upper-case function names
+      zetaSqlAggFunctionName = zetaSqlAggFunctionName.toUpperCase();
+    }
+
+    // Beam builtin aggregation functions (available in both ZetaSQL and CalciteSQL), implemented in
+    // {@link org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations}
+    if (BeamBuiltinAggregations.BUILTIN_AGGREGATOR_FACTORIES.containsKey(zetaSqlAggFunctionName)) {
+      return SqlOperators.createZetaSqlAggFunction(zetaSqlAggFunctionName, returnType);
+    } else {
+      throw new UnsupportedOperationException(
+          "Does not support ZetaSQL aggregate function: " + zetaSqlAggFunctionName);
+    }
   }
 }
