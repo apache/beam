@@ -2010,8 +2010,8 @@ class CombineGlobally(PTransform):
 
 @DoFnInfo.register_stateless_dofn(python_urns.KEY_WITH_NONE_DOFN)
 class _KeyWithNone(DoFn):
-  def process(self, element):
-    yield None, element
+  def process(self, v):
+    yield None, v
 
 
 class CombinePerKey(PTransformWithSideInputs):
