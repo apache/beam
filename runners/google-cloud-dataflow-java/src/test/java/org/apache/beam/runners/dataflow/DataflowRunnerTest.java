@@ -90,8 +90,8 @@ import org.apache.beam.runners.dataflow.DataflowRunner.BatchGroupIntoBatches;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions.DefaultGcpRegionFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.options.DefaultGcpRegionFactory;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
@@ -162,6 +162,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
@@ -173,8 +174,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
  *
  * <p>Implements {@link Serializable} because it is caught in closures.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(DefaultGcpRegionFactory.class)
+@RunWith(JUnit4.class)
 public class DataflowRunnerTest implements Serializable {
 
   private static final String VALID_BUCKET = "valid-bucket";
@@ -207,7 +207,58 @@ public class DataflowRunnerTest implements Serializable {
 
   @Before
   public void setUp() throws IOException {
-    this.mockGcsUtil = mock(GcsUtil.class);
+    mockGcsUtil = buildMockGcsUtil();
+    mockJobs = mock(Dataflow.Projects.Locations.Jobs.class);
+  }
+
+  private Pipeline buildDataflowPipeline(DataflowPipelineOptions options) {
+    options.setStableUniqueNames(CheckEnabled.ERROR);
+    options.setRunner(DataflowRunner.class);
+    Pipeline p = Pipeline.create(options);
+
+    p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
+        .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
+
+    // Enable the FileSystems API to know about gs:// URIs in this test.
+    FileSystems.setDefaultPipelineOptions(options);
+
+    return p;
+  }
+
+  private static Dataflow buildMockDataflow(Dataflow.Projects.Locations.Jobs mockJobs)
+      throws IOException {
+    Dataflow mockDataflowClient = mock(Dataflow.class);
+    Dataflow.Projects mockProjects = mock(Dataflow.Projects.class);
+    Dataflow.Projects.Locations mockLocations = mock(Dataflow.Projects.Locations.class);
+    Dataflow.Projects.Locations.Jobs.Create mockRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Create.class);
+    Dataflow.Projects.Locations.Jobs.List mockList =
+        mock(Dataflow.Projects.Locations.Jobs.List.class);
+
+    when(mockDataflowClient.projects()).thenReturn(mockProjects);
+    when(mockProjects.locations()).thenReturn(mockLocations);
+    when(mockLocations.jobs()).thenReturn(mockJobs);
+    when(mockJobs.create(eq(PROJECT_ID), eq(REGION_ID), isA(Job.class))).thenReturn(mockRequest);
+    when(mockJobs.list(eq(PROJECT_ID), eq(REGION_ID))).thenReturn(mockList);
+    when(mockList.setPageToken(any())).thenReturn(mockList);
+    when(mockList.execute())
+        .thenReturn(
+            new ListJobsResponse()
+                .setJobs(
+                    Arrays.asList(
+                        new Job()
+                            .setName("oldjobname")
+                            .setId("oldJobId")
+                            .setCurrentState("JOB_STATE_RUNNING"))));
+
+    Job resultJob = new Job();
+    resultJob.setId("newid");
+    when(mockRequest.execute()).thenReturn(resultJob);
+    return mockDataflowClient;
+  }
+
+  private static GcsUtil buildMockGcsUtil() throws IOException {
+    GcsUtil mockGcsUtil = mock(GcsUtil.class);
 
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
         .then(
@@ -258,65 +309,6 @@ public class DataflowRunnerTest implements Serializable {
     // The dataflow pipeline attempts to output to this location.
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri("gs://bucket/object"))).thenReturn(true);
 
-    mockJobs = mock(Dataflow.Projects.Locations.Jobs.class);
-  }
-
-  private Pipeline buildDataflowPipeline(DataflowPipelineOptions options) {
-    options.setStableUniqueNames(CheckEnabled.ERROR);
-    options.setRunner(DataflowRunner.class);
-    Pipeline p = Pipeline.create(options);
-
-    p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
-        .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
-
-    // Enable the FileSystems API to know about gs:// URIs in this test.
-    FileSystems.setDefaultPipelineOptions(options);
-
-    return p;
-  }
-
-  private Dataflow buildMockDataflow() throws IOException {
-    Dataflow mockDataflowClient = mock(Dataflow.class);
-    Dataflow.Projects mockProjects = mock(Dataflow.Projects.class);
-    Dataflow.Projects.Locations mockLocations = mock(Dataflow.Projects.Locations.class);
-    Dataflow.Projects.Locations.Jobs.Create mockRequest =
-        mock(Dataflow.Projects.Locations.Jobs.Create.class);
-    Dataflow.Projects.Locations.Jobs.List mockList =
-        mock(Dataflow.Projects.Locations.Jobs.List.class);
-
-    when(mockDataflowClient.projects()).thenReturn(mockProjects);
-    when(mockProjects.locations()).thenReturn(mockLocations);
-    when(mockLocations.jobs()).thenReturn(mockJobs);
-    when(mockJobs.create(eq(PROJECT_ID), eq(REGION_ID), isA(Job.class))).thenReturn(mockRequest);
-    when(mockJobs.list(eq(PROJECT_ID), eq(REGION_ID))).thenReturn(mockList);
-    when(mockList.setPageToken(any())).thenReturn(mockList);
-    when(mockList.execute())
-        .thenReturn(
-            new ListJobsResponse()
-                .setJobs(
-                    Arrays.asList(
-                        new Job()
-                            .setName("oldjobname")
-                            .setId("oldJobId")
-                            .setCurrentState("JOB_STATE_RUNNING"))));
-
-    Job resultJob = new Job();
-    resultJob.setId("newid");
-    when(mockRequest.execute()).thenReturn(resultJob);
-    return mockDataflowClient;
-  }
-
-  private GcsUtil buildMockGcsUtil() throws IOException {
-    GcsUtil mockGcsUtil = mock(GcsUtil.class);
-    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
-        .then(
-            invocation ->
-                FileChannel.open(
-                    Files.createTempFile("channel-", ".tmp"),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.DELETE_ON_CLOSE));
-    when(mockGcsUtil.expand(any(GcsPath.class)))
-        .then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
     return mockGcsUtil;
   }
 
@@ -328,7 +320,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setRegion(REGION_ID);
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
     options.setFilesToStage(new ArrayList<>());
-    options.setDataflowClient(buildMockDataflow());
+    options.setDataflowClient(buildMockDataflow(mockJobs));
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
 
@@ -466,32 +458,37 @@ public class DataflowRunnerTest implements Serializable {
    * Test that the region is set in the generated JSON pipeline options even when a default value is
    * grabbed from the environment.
    */
-  @Test
-  public void testDefaultRegionSet() throws Exception {
-    mockStatic(DefaultGcpRegionFactory.class);
-    PowerMockito.when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(REGION_ID);
+  @RunWith(PowerMockRunner.class)
+  @PrepareForTest(DefaultGcpRegionFactory.class)
+  public static class DefaultRegionTest {
+    @Test
+    public void testDefaultRegionSet() throws Exception {
+      mockStatic(DefaultGcpRegionFactory.class);
+      PowerMockito.when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(REGION_ID);
+      Dataflow.Projects.Locations.Jobs mockJobs = mock(Dataflow.Projects.Locations.Jobs.class);
 
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowRunner.class);
-    options.setProject(PROJECT_ID);
-    options.setTempLocation(VALID_TEMP_BUCKET);
-    // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
-    options.setFilesToStage(new ArrayList<>());
-    options.setDataflowClient(buildMockDataflow());
-    options.setGcsUtil(mockGcsUtil);
-    options.setGcpCredential(new TestCredential());
+      DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+      options.setRunner(DataflowRunner.class);
+      options.setProject(PROJECT_ID);
+      options.setTempLocation(VALID_TEMP_BUCKET);
+      // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
+      options.setFilesToStage(new ArrayList<>());
+      options.setDataflowClient(buildMockDataflow(mockJobs));
+      options.setGcsUtil(buildMockGcsUtil());
+      options.setGcpCredential(new TestCredential());
 
-    Pipeline p = Pipeline.create(options);
-    p.run();
+      Pipeline p = Pipeline.create(options);
+      p.run();
 
-    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
-    Map<String, Object> sdkPipelineOptions =
-        jobCaptor.getValue().getEnvironment().getSdkPipelineOptions();
+      ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+      Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
+      Map<String, Object> sdkPipelineOptions =
+          jobCaptor.getValue().getEnvironment().getSdkPipelineOptions();
 
-    assertThat(sdkPipelineOptions, hasKey("options"));
-    Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
-    assertThat(optionsMap, hasEntry("region", (Object) options.getRegion()));
+      assertThat(sdkPipelineOptions, hasKey("options"));
+      Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
+      assertThat(optionsMap, hasEntry("region", (Object) options.getRegion()));
+    }
   }
 
   @Test
@@ -852,7 +849,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setProject(PROJECT_ID);
     options.setRegion(REGION_ID);
     options.setJobName("job");
-    options.setDataflowClient(buildMockDataflow());
+    options.setDataflowClient(buildMockDataflow(mockJobs));
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
 
@@ -920,7 +917,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setProject(PROJECT_ID);
     options.setRegion(REGION_ID);
     options.setJobName("job");
-    options.setDataflowClient(buildMockDataflow());
+    options.setDataflowClient(buildMockDataflow(mockJobs));
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
 

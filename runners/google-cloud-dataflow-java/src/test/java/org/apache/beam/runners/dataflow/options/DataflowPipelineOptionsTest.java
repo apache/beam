@@ -26,7 +26,6 @@ import static org.powermock.api.mockito.PowerMockito.when;
 
 import java.io.IOException;
 import java.util.List;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions.DefaultGcpRegionFactory;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
