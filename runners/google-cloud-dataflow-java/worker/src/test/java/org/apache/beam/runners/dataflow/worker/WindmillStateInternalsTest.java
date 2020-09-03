@@ -119,7 +119,11 @@ public class WindmillStateInternalsTest {
             false,
             cache
                 .forComputation("comp")
-                .forKey(ByteString.EMPTY, 123, STATE_FAMILY, 17L, workToken),
+                .forKey(
+                    WindmillComputationKey.create("comp", ByteString.EMPTY, 123),
+                    STATE_FAMILY,
+                    17L,
+                    workToken),
             readStateSupplier);
     underTestNewKey =
         new WindmillStateInternals<String>(
@@ -129,7 +133,11 @@ public class WindmillStateInternalsTest {
             true,
             cache
                 .forComputation("comp")
-                .forKey(ByteString.EMPTY, 123, STATE_FAMILY, 17L, workToken),
+                .forKey(
+                    WindmillComputationKey.create("comp", ByteString.EMPTY, 123),
+                    STATE_FAMILY,
+                    17L,
+                    workToken),
             readStateSupplier);
   }
 

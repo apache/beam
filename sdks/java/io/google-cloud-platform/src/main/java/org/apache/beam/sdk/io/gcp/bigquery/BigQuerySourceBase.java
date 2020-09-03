@@ -76,16 +76,19 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   private transient List<BoundedSource<T>> cachedSplitResult;
   private SerializableFunction<SchemaAndRecord, T> parseFn;
   private Coder<T> coder;
+  private final boolean useAvroLogicalTypes;
 
   BigQuerySourceBase(
       String stepUuid,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn) {
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      boolean useAvroLogicalTypes) {
     this.stepUuid = checkNotNull(stepUuid, "stepUuid");
     this.bqServices = checkNotNull(bqServices, "bqServices");
     this.coder = checkNotNull(coder, "coder");
     this.parseFn = checkNotNull(parseFn, "parseFn");
+    this.useAvroLogicalTypes = useAvroLogicalTypes;
   }
 
   protected static class ExtractResult {
@@ -133,7 +136,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
             jobService,
             bqOptions.getProject(),
             extractDestinationDir,
-            bqLocation);
+            bqLocation,
+            useAvroLogicalTypes);
     return new ExtractResult(schema, tempFiles);
   }
 
@@ -189,7 +193,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       JobService jobService,
       String executingProject,
       String extractDestinationDir,
-      String bqLocation)
+      String bqLocation,
+      boolean useAvroLogicalTypes)
       throws InterruptedException, IOException {
 
     JobReference jobRef =
@@ -200,6 +205,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
         new JobConfigurationExtract()
             .setSourceTable(table)
             .setDestinationFormat("AVRO")
+            .setUseAvroLogicalTypes(useAvroLogicalTypes)
             .setDestinationUris(ImmutableList.of(destinationUri));
 
     LOG.info("Starting BigQuery extract job: {}", jobId);

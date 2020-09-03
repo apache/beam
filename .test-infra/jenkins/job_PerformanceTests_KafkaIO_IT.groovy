@@ -53,7 +53,7 @@ job(jobName) {
     bigQueryTable                : 'kafkaioit_results',
     influxMeasurement            : 'kafkaioit_results',
     influxDatabase               : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influxHost                   : InfluxDBCredentialsHelper.InfluxDBHostname,
+    influxHost                   : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     kafkaBootstrapServerAddresses: "\$KAFKA_BROKER_0:32400,\$KAFKA_BROKER_1:32401,\$KAFKA_BROKER_2:32402",
     kafkaTopic                   : 'beam',
     readTimeout                  : '900',

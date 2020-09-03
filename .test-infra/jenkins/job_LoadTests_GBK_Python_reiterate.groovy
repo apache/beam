@@ -25,7 +25,7 @@ import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def loadTestConfigurations = { datasetName ->
+def loadTestConfigurations = { mode, datasetName ->
   [
     [
       title          : 'GroupByKey Python Load test: reiterate 4 times 10kB values',
@@ -34,21 +34,21 @@ def loadTestConfigurations = { datasetName ->
       pipelineOptions: [
         project              : 'apache-beam-testing',
         region               : 'us-central1',
-        job_name             : 'load-tests-python-dataflow-batch-gbk-6-' + now,
+        job_name             : "load-tests-python-dataflow-${mode}-gbk-6-${now}",
         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
         publish_to_big_query : true,
         metrics_dataset      : datasetName,
-        metrics_table        : "python_dataflow_batch_gbk_6",
-        influx_measurement   : 'python_batch_gbk_6',
+        metrics_table        : "python_dataflow_${mode}_gbk_6",
+        influx_measurement   : "python_${mode}_gbk_6",
         input_options        : '\'{"num_records": 20000000,' +
         '"key_size": 10,' +
         '"value_size": 90,' +
         '"num_hot_keys": 200,' +
         '"hot_key_fraction": 1}\'',
-        fanout               : 1,
         iterations           : 4,
+        fanout               : 1,
         num_workers          : 5,
-        autoscaling_algorithm: "NONE"
+        autoscaling_algorithm: 'NONE',
       ]
     ],
     [
@@ -58,43 +58,52 @@ def loadTestConfigurations = { datasetName ->
       pipelineOptions: [
         project              : 'apache-beam-testing',
         region               : 'us-central1',
-        job_name             : 'load-tests-python-dataflow-batch-gbk-7-' + now,
+        job_name             : "load-tests-python-dataflow-${mode}-gbk-7-${now}",
         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
         publish_to_big_query : true,
         metrics_dataset      : datasetName,
-        metrics_table        : 'python_dataflow_batch_gbk_7',
-        influx_measurement   : 'python_batch_gbk_7',
+        metrics_table        : "python_dataflow_${mode}_gbk_7",
+        influx_measurement   : "python_${mode}_gbk_7",
         input_options        : '\'{"num_records": 20000000,' +
         '"key_size": 10,' +
         '"value_size": 90,' +
         '"num_hot_keys": 10,' +
         '"hot_key_fraction": 1}\'',
-        fanout               : 1,
         iterations           : 4,
+        fanout               : 1,
         num_workers          : 5,
-        autoscaling_algorithm: 'NONE'
+        autoscaling_algorithm: 'NONE',
       ]
     ]
-  ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
-}
-
-def batchLoadTestJob = { scope, triggeringContext ->
-  scope.description('Runs Python GBK reiterate load tests on Dataflow runner in batch mode')
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
-
-  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  for (testConfiguration in loadTestConfigurations(datasetName)) {
-    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON_37, testConfiguration.pipelineOptions, testConfiguration.test)
-  }
-}
-
-CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_reiterate_Dataflow_Batch', 'H 14 * * *', this) {
-  additionalPipelineArgs = [
-    influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
   ]
-  batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
+  .each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+  .each { test -> (mode != 'streaming') ?: addStreamingOptions(test) }
 }
+
+def addStreamingOptions(test) {
+  test.pipelineOptions << [
+    streaming: null,
+    // Use the new Dataflow runner, which offers improved efficiency of Dataflow jobs.
+    // See https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2
+    // for more details.
+    experiments: 'use_runner_v2',
+  ]
+}
+
+def loadTestJob = { scope, triggeringContext, mode ->
+  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37,
+      loadTestConfigurations(mode, datasetName), 'GBK reiterate', mode)
+}
+
+CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_reiterate_Dataflow_Batch',
+    'H 14 * * *', this) {
+      additionalPipelineArgs = [
+        influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
+      ]
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
+    }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Python_GBK_reiterate_Dataflow_Batch',
@@ -103,5 +112,24 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     this
     ) {
       additionalPipelineArgs = [:]
-      batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'batch')
+    }
+
+CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_reiterate_Dataflow_Streaming',
+    'H 14 * * *', this) {
+      additionalPipelineArgs = [
+        influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
+      ]
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
+    }
+
+PhraseTriggeringPostCommitBuilder.postCommitJob(
+    'beam_LoadTests_Python_GBK_reiterate_Dataflow_Streaming',
+    'Run Load Tests Python GBK reiterate Dataflow Streaming',
+    'Load Tests Python GBK reiterate Dataflow Streaming suite',
+    this
+    ) {
+      additionalPipelineArgs = [:]
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, 'streaming')
     }

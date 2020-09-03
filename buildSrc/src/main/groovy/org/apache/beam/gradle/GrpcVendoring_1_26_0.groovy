@@ -27,7 +27,7 @@ class GrpcVendoring_1_26_0 {
   static def protobuf_version = "3.11.0"
   static def grpc_version = "1.26.0"
   static def gson_version = "2.8.6"
-  static def netty_version = "4.1.42.Final"
+  static def netty_version = "4.1.51.Final"
   static def google_auth_version = "0.18.0"
   static def proto_google_common_protos_version = "1.12.0"
   static def opencensus_version = "0.24.0"
@@ -59,7 +59,7 @@ class GrpcVendoring_1_26_0 {
       "io.grpc:grpc-stub:$grpc_version",
       "io.netty:netty-transport-native-epoll:$netty_version",
       // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
-      "io.netty:netty-tcnative-boringssl-static:2.0.26.Final",
+      "io.netty:netty-tcnative-boringssl-static:2.0.33.Final",
       "com.google.auth:google-auth-library-credentials:$google_auth_version",
       "io.grpc:grpc-testing:$grpc_version",
       "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
@@ -89,7 +89,7 @@ class GrpcVendoring_1_26_0 {
       'com.google.errorprone:error_prone_annotations:2.3.3',
       'commons-logging:commons-logging:1.2',
       'org.apache.logging.log4j:log4j-api:2.6.2',
-      'org.slf4j:slf4j-api:1.7.21',
+      'org.slf4j:slf4j-api:1.7.30',
       // TODO(BEAM-9288): Enable relocation for conscrypt
       "org.conscrypt:conscrypt-openjdk-uber:$conscrypt_version"
     ]

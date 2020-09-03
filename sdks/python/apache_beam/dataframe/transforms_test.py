@@ -99,14 +99,16 @@ class TransformTest(unittest.TestCase):
     })
     self.run_scenario(df, lambda x: x)
 
-  def test_sum_mean(self):
+  def test_groupby_sum_mean(self):
     df = pd.DataFrame({
         'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
         'Speed': [380., 370., 24., 26.]
     })
+    self.run_scenario(df, lambda df: df.groupby('Animal').sum())
     with expressions.allow_non_parallel_operations():
-      self.run_scenario(df, lambda df: df.groupby('Animal').sum())
       self.run_scenario(df, lambda df: df.groupby('Animal').mean())
+    self.run_scenario(
+        df, lambda df: df.loc[df.Speed > 25].groupby('Animal').sum())
 
   def test_filter(self):
     df = pd.DataFrame({
@@ -133,6 +135,14 @@ class TransformTest(unittest.TestCase):
       df = pd.DataFrame({'key': ['a', 'a', 'b'], 'val': [1, 2, 6]})
       self.run_scenario(
           df, lambda df: df.groupby('key').sum().val / df.val.agg(sum))
+
+  def test_getitem_projection(self):
+    df = pd.DataFrame({
+        'Animal': ['Aardvark', 'Ant', 'Elephant', 'Zebra'],
+        'Speed': [5, 2, 35, 40],
+        'Size': ['Small', 'Extra Small', 'Large', 'Medium']
+    })
+    self.run_scenario(df, lambda df: df[['Speed', 'Size']])
 
   def test_batching_named_tuple_input(self):
     with beam.Pipeline() as p:

@@ -31,7 +31,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -114,6 +113,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -248,8 +248,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   /** Only valid during {@code processElement...} methods, null otherwise. */
   private WindowedValue<InputT> currentElement;
 
-  /** Only valid during {@link #processElementForSizedElementAndRestriction}. */
-  private ListIterator<BoundedWindow> currentWindowIterator;
+  /**
+   * Only valud during {@link
+   * #processElementForWindowObservingSizedElementAndRestriction(WindowedValue)} and {@link
+   * #processElementForWindowObservingTruncateRestriction(WindowedValue)}.
+   */
+  private List<BoundedWindow> currentWindows;
 
   /**
    * Only valud during {@link
@@ -257,6 +261,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
    * #processElementForWindowObservingTruncateRestriction(WindowedValue)}.
    */
   private int windowStopIndex;
+
+  /**
+   * Only valud during {@link
+   * #processElementForWindowObservingSizedElementAndRestriction(WindowedValue)} and {@link
+   * #processElementForWindowObservingTruncateRestriction(WindowedValue)}.
+   */
+  private int windowCurrentIndex;
 
   /**
    * Only valid during {@link #processElementForPairWithRestriction}, {@link
@@ -270,6 +281,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
    * #processElementForSizedElementAndRestriction}, null otherwise.
    */
   private WatermarkEstimatorStateT currentWatermarkEstimatorState;
+
+  /**
+   * Only valud during {@link
+   * #processElementForWindowObservingSizedElementAndRestriction(WindowedValue)} and {@link
+   * #processElementForWindowObservingTruncateRestriction(WindowedValue)}.
+   */
+  private Instant initialWatermark;
 
   /** Only valid during {@link #processElementForSizedElementAndRestriction}, null otherwise. */
   private WatermarkEstimators.WatermarkAndStateObserver<WatermarkEstimatorStateT>
@@ -532,10 +550,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     processElementForWindowObservingTruncateRestriction(input);
                   }
 
-                  // TODO(BEAM-10303): Split should work with window observing optimization.
                   @Override
                   public SplitResult trySplit(double fractionOfRemainder) {
-                    return null;
+                    return trySplitForWindowObservingTruncateRestriction(
+                        fractionOfRemainder, splitDelegate);
                   }
 
                   @Override
@@ -893,23 +911,34 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private void processElementForWindowObservingTruncateRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
-    currentRestriction = elem.getValue().getKey().getValue().getKey();
-    currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
     try {
-      Iterator<BoundedWindow> windowIterator =
-          (Iterator<BoundedWindow>) elem.getWindows().iterator();
-      while (windowIterator.hasNext()) {
-        currentWindow = windowIterator.next();
-        currentTracker =
-            RestrictionTrackers.observe(
-                doFnInvoker.invokeNewTracker(processContext),
-                new ClaimObserver<PositionT>() {
-                  @Override
-                  public void onClaimed(PositionT position) {}
+      windowCurrentIndex = -1;
+      windowStopIndex = currentElement.getWindows().size();
+      currentWindows = ImmutableList.copyOf(currentElement.getWindows());
+      while (true) {
+        synchronized (splitLock) {
+          windowCurrentIndex++;
+          if (windowCurrentIndex >= windowStopIndex) {
+            break;
+          }
+          currentRestriction = elem.getValue().getKey().getValue().getKey();
+          currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
+          currentWindow = currentWindows.get(windowCurrentIndex);
+          currentTracker =
+              RestrictionTrackers.observe(
+                  doFnInvoker.invokeNewTracker(processContext),
+                  new ClaimObserver<PositionT>() {
+                    @Override
+                    public void onClaimed(PositionT position) {}
 
-                  @Override
-                  public void onClaimFailed(PositionT position) {}
-                });
+                    @Override
+                    public void onClaimFailed(PositionT position) {}
+                  });
+          currentWatermarkEstimator =
+              WatermarkEstimators.threadSafe(
+                  doFnInvoker.invokeNewWatermarkEstimator(processContext));
+          initialWatermark = currentWatermarkEstimator.getWatermarkAndState().getKey();
+        }
         TruncateResult<OutputT> truncatedRestriction =
             doFnInvoker.invokeTruncateRestriction(processContext);
         if (truncatedRestriction != null) {
@@ -921,7 +950,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentElement = null;
       currentRestriction = null;
       currentWatermarkEstimatorState = null;
+      currentWatermarkEstimator = null;
       currentWindow = null;
+      currentWindows = null;
+      initialWatermark = null;
     }
 
     // TODO(BEAM-10212): Support caching state data across bundle boundaries.
@@ -945,30 +977,46 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     public abstract @Nullable WindowedValue getPrimaryInFullyProcessedWindowsRoot();
 
-    public abstract WindowedValue getPrimarySplitRoot();
+    public abstract @Nullable WindowedValue getPrimarySplitRoot();
 
-    public abstract WindowedValue getResidualSplitRoot();
+    public abstract @Nullable WindowedValue getResidualSplitRoot();
 
     public abstract @Nullable WindowedValue getResidualInUnprocessedWindowsRoot();
+  }
+
+  @AutoValue
+  abstract static class SplitResultsWithStopIndex {
+    public static SplitResultsWithStopIndex of(
+        WindowedSplitResult windowSplit,
+        HandlesSplits.SplitResult downstreamSplit,
+        int newWindowStopIndex) {
+      return new AutoValue_FnApiDoFnRunner_SplitResultsWithStopIndex(
+          windowSplit, downstreamSplit, newWindowStopIndex);
+    }
+
+    public abstract @Nullable WindowedSplitResult getWindowSplit();
+
+    public abstract HandlesSplits.@Nullable SplitResult getDownstreamSplit();
+
+    public abstract int getNewWindowStopIndex();
   }
 
   private void processElementForWindowObservingSizedElementAndRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
     try {
-      currentWindowIterator =
-          currentElement.getWindows() instanceof List
-              ? ((List) currentElement.getWindows()).listIterator()
-              : ImmutableList.<BoundedWindow>copyOf(elem.getWindows()).listIterator();
+      windowCurrentIndex = -1;
       windowStopIndex = currentElement.getWindows().size();
+      currentWindows = ImmutableList.copyOf(currentElement.getWindows());
       while (true) {
         synchronized (splitLock) {
-          if (!currentWindowIterator.hasNext()) {
+          windowCurrentIndex++;
+          if (windowCurrentIndex >= windowStopIndex) {
             return;
           }
           currentRestriction = elem.getValue().getKey().getValue().getKey();
           currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
-          currentWindow = currentWindowIterator.next();
+          currentWindow = currentWindows.get(windowCurrentIndex);
           currentTracker =
               RestrictionTrackers.observe(
                   doFnInvoker.invokeNewTracker(processContext),
@@ -982,6 +1030,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           currentWatermarkEstimator =
               WatermarkEstimators.threadSafe(
                   doFnInvoker.invokeNewWatermarkEstimator(processContext));
+          initialWatermark = currentWatermarkEstimator.getWatermarkAndState().getKey();
         }
 
         // It is important to ensure that {@code splitLock} is not held during #invokeProcessElement
@@ -1015,10 +1064,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         currentElement = null;
         currentRestriction = null;
         currentWatermarkEstimatorState = null;
-        currentWindowIterator = null;
         currentWindow = null;
         currentTracker = null;
         currentWatermarkEstimator = null;
+        currentWindows = null;
+        initialWatermark = null;
       }
     }
   }
@@ -1051,9 +1101,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     synchronized (splitLock) {
       if (currentTracker instanceof RestrictionTracker.HasProgress) {
         return scaleProgress(
-            ((HasProgress) currentTracker).getProgress(),
-            currentWindowIterator.previousIndex(),
-            windowStopIndex);
+            ((HasProgress) currentTracker).getProgress(), windowCurrentIndex, windowStopIndex);
       }
     }
     return null;
@@ -1064,15 +1112,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       if (currentWindow != null) {
         return scaleProgress(
             Progress.from(elementCompleted, 1 - elementCompleted),
-            currentWindowIterator.previousIndex(),
+            windowCurrentIndex,
             windowStopIndex);
       }
     }
     return null;
   }
 
-  private static Progress scaleProgress(
-      Progress progress, int currentWindowIndex, int stopWindowIndex) {
+  @VisibleForTesting
+  static Progress scaleProgress(Progress progress, int currentWindowIndex, int stopWindowIndex) {
     double totalWorkPerWindow = progress.getWorkCompleted() + progress.getWorkRemaining();
     double completed = totalWorkPerWindow * currentWindowIndex + progress.getWorkCompleted();
     double remaining =
@@ -1081,136 +1129,338 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     return Progress.from(completed, remaining);
   }
 
-  private HandlesSplits.SplitResult trySplitForElementAndRestriction(
-      double fractionOfRemainder, Duration resumeDelay) {
-    KV<Instant, WatermarkEstimatorStateT> watermarkAndState;
-    WindowedSplitResult windowedSplitResult;
+  private WindowedSplitResult calculateRestrictionSize(
+      WindowedSplitResult splitResult, String errorContext) {
+    double fullSize =
+        splitResult.getResidualInUnprocessedWindowsRoot() == null
+                && splitResult.getPrimaryInFullyProcessedWindowsRoot() == null
+            ? 0
+            : doFnInvoker.invokeGetSize(
+                new DelegatingArgumentProvider<InputT, OutputT>(processContext, errorContext) {
+                  @Override
+                  public Object restriction() {
+                    return currentRestriction;
+                  }
+
+                  @Override
+                  public RestrictionTracker<?, ?> restrictionTracker() {
+                    return doFnInvoker.invokeNewTracker(this);
+                  }
+                });
+    double primarySize =
+        splitResult.getPrimarySplitRoot() == null
+            ? 0
+            : doFnInvoker.invokeGetSize(
+                new DelegatingArgumentProvider<InputT, OutputT>(processContext, errorContext) {
+                  @Override
+                  public Object restriction() {
+                    return ((KV<?, KV<?, ?>>) splitResult.getPrimarySplitRoot().getValue())
+                        .getValue()
+                        .getKey();
+                  }
+
+                  @Override
+                  public RestrictionTracker<?, ?> restrictionTracker() {
+                    return doFnInvoker.invokeNewTracker(this);
+                  }
+                });
+    double residualSize =
+        splitResult.getResidualSplitRoot() == null
+            ? 0
+            : doFnInvoker.invokeGetSize(
+                new DelegatingArgumentProvider<InputT, OutputT>(processContext, errorContext) {
+                  @Override
+                  public Object restriction() {
+                    return ((KV<?, KV<?, ?>>) splitResult.getResidualSplitRoot().getValue())
+                        .getValue()
+                        .getKey();
+                  }
+
+                  @Override
+                  public RestrictionTracker<?, ?> restrictionTracker() {
+                    return doFnInvoker.invokeNewTracker(this);
+                  }
+                });
+    return WindowedSplitResult.forRoots(
+        splitResult.getPrimaryInFullyProcessedWindowsRoot() == null
+            ? null
+            : WindowedValue.of(
+                KV.of(splitResult.getPrimaryInFullyProcessedWindowsRoot().getValue(), fullSize),
+                splitResult.getPrimaryInFullyProcessedWindowsRoot().getTimestamp(),
+                splitResult.getPrimaryInFullyProcessedWindowsRoot().getWindows(),
+                splitResult.getPrimaryInFullyProcessedWindowsRoot().getPane()),
+        splitResult.getPrimarySplitRoot() == null
+            ? null
+            : WindowedValue.of(
+                KV.of(splitResult.getPrimarySplitRoot().getValue(), primarySize),
+                splitResult.getPrimarySplitRoot().getTimestamp(),
+                splitResult.getPrimarySplitRoot().getWindows(),
+                splitResult.getPrimarySplitRoot().getPane()),
+        splitResult.getResidualSplitRoot() == null
+            ? null
+            : WindowedValue.of(
+                KV.of(splitResult.getResidualSplitRoot().getValue(), residualSize),
+                splitResult.getResidualSplitRoot().getTimestamp(),
+                splitResult.getResidualSplitRoot().getWindows(),
+                splitResult.getResidualSplitRoot().getPane()),
+        splitResult.getResidualInUnprocessedWindowsRoot() == null
+            ? null
+            : WindowedValue.of(
+                KV.of(splitResult.getResidualInUnprocessedWindowsRoot().getValue(), fullSize),
+                splitResult.getResidualInUnprocessedWindowsRoot().getTimestamp(),
+                splitResult.getResidualInUnprocessedWindowsRoot().getWindows(),
+                splitResult.getResidualInUnprocessedWindowsRoot().getPane()));
+  }
+
+  private HandlesSplits.SplitResult trySplitForWindowObservingTruncateRestriction(
+      double fractionOfRemainder, HandlesSplits splitDelegate) {
+    WindowedSplitResult windowedSplitResult = null;
+    HandlesSplits.SplitResult downstreamSplitResult = null;
     synchronized (splitLock) {
-      // There is nothing to split if we are between element and restriction processing calls.
-      if (currentTracker == null) {
+      // There is nothing to split if we are between truncate processing calls.
+      if (currentWindow == null) {
         return null;
       }
 
-      // Make sure to get the output watermark before we split to ensure that the lower bound
-      // applies to the residual.
-      watermarkAndState = currentWatermarkEstimator.getWatermarkAndState();
-      SplitResult<RestrictionT> splitResult = currentTracker.trySplit(fractionOfRemainder);
+      SplitResultsWithStopIndex splitResult =
+          computeSplitForProcessOrTruncate(
+              currentElement,
+              currentRestriction,
+              currentWindow,
+              currentWindows,
+              currentWatermarkEstimatorState,
+              fractionOfRemainder,
+              null,
+              splitDelegate,
+              null,
+              windowCurrentIndex,
+              windowStopIndex);
       if (splitResult == null) {
         return null;
       }
-
-      // We have a successful self split, either runner initiated or via a self checkpoint.
-      // Convert the split taking into account the processed windows, the current window and the
-      // yet to be processed windows.
-      List<BoundedWindow> primaryFullyProcessedWindows =
-          ImmutableList.copyOf(
-              Iterables.limit(currentElement.getWindows(), currentWindowIterator.previousIndex()));
-      windowStopIndex = currentWindowIterator.nextIndex();
-      // Advances the iterator consuming the remaining windows.
-      List<BoundedWindow> residualUnprocessedWindows = ImmutableList.copyOf(currentWindowIterator);
-      // If the window has been observed then the splitAndSize method would have already
-      // output sizes for each window separately.
-      //
-      // TODO: Consider using the original size on the element instead of recomputing
-      // this here.
-      double fullSize =
-          primaryFullyProcessedWindows.isEmpty() && residualUnprocessedWindows.isEmpty()
-              ? 0
-              : doFnInvoker.invokeGetSize(
-                  new DelegatingArgumentProvider<InputT, OutputT>(
-                      processContext,
-                      PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN
-                          + "/GetPrimarySize") {
-                    @Override
-                    public Object restriction() {
-                      return currentRestriction;
-                    }
-
-                    @Override
-                    public RestrictionTracker<?, ?> restrictionTracker() {
-                      return doFnInvoker.invokeNewTracker(this);
-                    }
-                  });
-      double primarySize =
-          doFnInvoker.invokeGetSize(
-              new DelegatingArgumentProvider<InputT, OutputT>(
-                  processContext,
-                  PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN
-                      + "/GetPrimarySize") {
-                @Override
-                public Object restriction() {
-                  return splitResult.getPrimary();
-                }
-
-                @Override
-                public RestrictionTracker<?, ?> restrictionTracker() {
-                  return doFnInvoker.invokeNewTracker(this);
-                }
-              });
-      double residualSize =
-          doFnInvoker.invokeGetSize(
-              new DelegatingArgumentProvider<InputT, OutputT>(
-                  processContext,
-                  PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN
-                      + "/GetResidualSize") {
-                @Override
-                public Object restriction() {
-                  return splitResult.getResidual();
-                }
-
-                @Override
-                public RestrictionTracker<?, ?> restrictionTracker() {
-                  return doFnInvoker.invokeNewTracker(this);
-                }
-              });
+      windowStopIndex = splitResult.getNewWindowStopIndex();
       windowedSplitResult =
-          WindowedSplitResult.forRoots(
-              primaryFullyProcessedWindows.isEmpty()
-                  ? null
-                  : WindowedValue.of(
-                      KV.of(
-                          KV.of(
-                              currentElement.getValue(),
-                              KV.of(currentRestriction, currentWatermarkEstimatorState)),
-                          fullSize),
-                      currentElement.getTimestamp(),
-                      primaryFullyProcessedWindows,
-                      currentElement.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of(
-                          currentElement.getValue(),
-                          KV.of(splitResult.getPrimary(), currentWatermarkEstimatorState)),
-                      primarySize),
-                  currentElement.getTimestamp(),
-                  currentWindow,
-                  currentElement.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of(
-                          currentElement.getValue(),
-                          KV.of(splitResult.getResidual(), watermarkAndState.getValue())),
-                      residualSize),
-                  currentElement.getTimestamp(),
-                  currentWindow,
-                  currentElement.getPane()),
-              residualUnprocessedWindows.isEmpty()
-                  ? null
-                  : WindowedValue.of(
-                      KV.of(
-                          KV.of(
-                              currentElement.getValue(),
-                              KV.of(currentRestriction, currentWatermarkEstimatorState)),
-                          fullSize),
-                      currentElement.getTimestamp(),
-                      residualUnprocessedWindows,
-                      currentElement.getPane()));
+          calculateRestrictionSize(
+              splitResult.getWindowSplit(),
+              PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN + "/GetSize");
+      downstreamSplitResult = splitResult.getDownstreamSplit();
+    }
+    // Note that the assumption here is the fullInputCoder of the Truncate transform should be the
+    // the same as the SDF/Process transform.
+    Coder fullInputCoder = WindowedValue.getFullCoder(inputCoder, windowCoder);
+    return constructSplitResult(
+        windowedSplitResult,
+        downstreamSplitResult,
+        fullInputCoder,
+        initialWatermark,
+        null,
+        pTransformId,
+        mainInputId,
+        pTransform.getOutputsMap().keySet(),
+        null);
+  }
+
+  private static <WatermarkEstimatorStateT> WindowedSplitResult computeWindowSplitResult(
+      WindowedValue currentElement,
+      Object currentRestriction,
+      BoundedWindow currentWindow,
+      List<BoundedWindow> windows,
+      WatermarkEstimatorStateT currentWatermarkEstimatorState,
+      int toIndex,
+      int fromIndex,
+      int stopWindowIndex,
+      SplitResult<?> splitResult,
+      KV<Instant, WatermarkEstimatorStateT> watermarkAndState) {
+    List<BoundedWindow> primaryFullyProcessedWindows = windows.subList(0, toIndex);
+    List<BoundedWindow> residualUnprocessedWindows = windows.subList(fromIndex, stopWindowIndex);
+    WindowedSplitResult windowedSplitResult;
+
+    windowedSplitResult =
+        WindowedSplitResult.forRoots(
+            primaryFullyProcessedWindows.isEmpty()
+                ? null
+                : WindowedValue.of(
+                    KV.of(
+                        currentElement.getValue(),
+                        KV.of(currentRestriction, currentWatermarkEstimatorState)),
+                    currentElement.getTimestamp(),
+                    primaryFullyProcessedWindows,
+                    currentElement.getPane()),
+            splitResult == null
+                ? null
+                : WindowedValue.of(
+                    KV.of(
+                        currentElement.getValue(),
+                        KV.of(splitResult.getPrimary(), currentWatermarkEstimatorState)),
+                    currentElement.getTimestamp(),
+                    currentWindow,
+                    currentElement.getPane()),
+            splitResult == null
+                ? null
+                : WindowedValue.of(
+                    KV.of(
+                        currentElement.getValue(),
+                        KV.of(splitResult.getResidual(), watermarkAndState.getValue())),
+                    currentElement.getTimestamp(),
+                    currentWindow,
+                    currentElement.getPane()),
+            residualUnprocessedWindows.isEmpty()
+                ? null
+                : WindowedValue.of(
+                    KV.of(
+                        currentElement.getValue(),
+                        KV.of(currentRestriction, currentWatermarkEstimatorState)),
+                    currentElement.getTimestamp(),
+                    residualUnprocessedWindows,
+                    currentElement.getPane()));
+    return windowedSplitResult;
+  }
+
+  @VisibleForTesting
+  static <WatermarkEstimatorStateT> SplitResultsWithStopIndex computeSplitForProcessOrTruncate(
+      WindowedValue currentElement,
+      Object currentRestriction,
+      BoundedWindow currentWindow,
+      List<BoundedWindow> windows,
+      WatermarkEstimatorStateT currentWatermarkEstimatorState,
+      double fractionOfRemainder,
+      RestrictionTracker currentTracker,
+      HandlesSplits splitDelegate,
+      KV<Instant, WatermarkEstimatorStateT> watermarkAndState,
+      int currentWindowIndex,
+      int stopWindowIndex) {
+    // We should only have currentTracker or splitDelegate.
+    checkArgument((currentTracker != null) ^ (splitDelegate != null));
+    // When we have currentTracker, the watermarkAndState should not be null.
+    if (currentTracker != null) {
+      checkNotNull(watermarkAndState);
     }
 
+    WindowedSplitResult windowedSplitResult = null;
+    HandlesSplits.SplitResult downstreamSplitResult = null;
+    int newWindowStopIndex = stopWindowIndex;
+    // If we are not on the last window, try to compute the split which is on the current window or
+    // on a future window.
+    if (currentWindowIndex != stopWindowIndex - 1) {
+      // Compute the fraction of the remainder relative to the scaled progress.
+      Progress elementProgress;
+      if (currentTracker != null) {
+        if (currentTracker instanceof HasProgress) {
+          elementProgress = ((HasProgress) currentTracker).getProgress();
+        } else {
+          elementProgress = Progress.from(0, 1);
+        }
+      } else {
+        double elementCompleted = splitDelegate.getProgress();
+        elementProgress = Progress.from(elementCompleted, 1 - elementCompleted);
+      }
+      Progress scaledProgress = scaleProgress(elementProgress, currentWindowIndex, stopWindowIndex);
+      double scaledFractionOfRemainder = scaledProgress.getWorkRemaining() * fractionOfRemainder;
+
+      // The fraction is out of the current window and hence we will split at the closest window
+      // boundary.
+      if (scaledFractionOfRemainder >= elementProgress.getWorkRemaining()) {
+        newWindowStopIndex =
+            (int)
+                Math.min(
+                    stopWindowIndex - 1,
+                    currentWindowIndex
+                        + Math.max(
+                            1,
+                            Math.round(
+                                (elementProgress.getWorkCompleted() + scaledFractionOfRemainder)
+                                    / (elementProgress.getWorkCompleted()
+                                        + elementProgress.getWorkRemaining()))));
+        windowedSplitResult =
+            computeWindowSplitResult(
+                currentElement,
+                currentRestriction,
+                currentWindow,
+                windows,
+                currentWatermarkEstimatorState,
+                newWindowStopIndex,
+                newWindowStopIndex,
+                stopWindowIndex,
+                null,
+                watermarkAndState);
+      } else {
+        // Compute the element split with the scaled fraction.
+        SplitResult<?> elementSplit = null;
+        if (currentTracker != null) {
+          elementSplit =
+              currentTracker.trySplit(
+                  scaledFractionOfRemainder / elementProgress.getWorkRemaining());
+        } else {
+          downstreamSplitResult = splitDelegate.trySplit(scaledFractionOfRemainder);
+        }
+        newWindowStopIndex = currentWindowIndex + 1;
+        int toIndex =
+            (elementSplit == null && downstreamSplitResult == null)
+                ? newWindowStopIndex
+                : currentWindowIndex;
+        windowedSplitResult =
+            computeWindowSplitResult(
+                currentElement,
+                currentRestriction,
+                currentWindow,
+                windows,
+                currentWatermarkEstimatorState,
+                toIndex,
+                newWindowStopIndex,
+                stopWindowIndex,
+                elementSplit,
+                watermarkAndState);
+      }
+    } else {
+      // We are on the last window then compute the element split with given fraction.
+      SplitResult<?> elementSplitResult = null;
+      newWindowStopIndex = stopWindowIndex;
+      if (currentTracker != null) {
+        elementSplitResult = currentTracker.trySplit(fractionOfRemainder);
+      } else {
+        downstreamSplitResult = splitDelegate.trySplit(fractionOfRemainder);
+      }
+      if (elementSplitResult == null && downstreamSplitResult == null) {
+        return null;
+      }
+      windowedSplitResult =
+          computeWindowSplitResult(
+              currentElement,
+              currentRestriction,
+              currentWindow,
+              windows,
+              currentWatermarkEstimatorState,
+              currentWindowIndex,
+              stopWindowIndex,
+              stopWindowIndex,
+              elementSplitResult,
+              watermarkAndState);
+    }
+    return SplitResultsWithStopIndex.of(
+        windowedSplitResult, downstreamSplitResult, newWindowStopIndex);
+  }
+
+  @VisibleForTesting
+  static <WatermarkEstimatorStateT> HandlesSplits.SplitResult constructSplitResult(
+      WindowedSplitResult windowedSplitResult,
+      HandlesSplits.SplitResult downstreamElementSplit,
+      Coder fullInputCoder,
+      Instant initialWatermark,
+      KV<Instant, WatermarkEstimatorStateT> watermarkAndState,
+      String pTransformId,
+      String mainInputId,
+      Collection<String> outputIds,
+      Duration resumeDelay) {
+    // The element split cannot from both windowedSplitResult and downstreamElementSplit.
+    checkArgument(
+        (windowedSplitResult == null || windowedSplitResult.getResidualSplitRoot() == null)
+            || downstreamElementSplit == null);
     List<BundleApplication> primaryRoots = new ArrayList<>();
     List<DelayedBundleApplication> residualRoots = new ArrayList<>();
-    Coder fullInputCoder = WindowedValue.getFullCoder(inputCoder, windowCoder);
-    if (windowedSplitResult.getPrimaryInFullyProcessedWindowsRoot() != null) {
+
+    // Encode window splits.
+    if (windowedSplitResult != null
+        && windowedSplitResult.getPrimaryInFullyProcessedWindowsRoot() != null) {
       ByteString.Output primaryInOtherWindowsBytes = ByteString.newOutput();
       try {
         fullInputCoder.encode(
@@ -1226,7 +1476,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .setElement(primaryInOtherWindowsBytes.toByteString());
       primaryRoots.add(primaryApplicationInOtherWindows.build());
     }
-    if (windowedSplitResult.getResidualInUnprocessedWindowsRoot() != null) {
+    if (windowedSplitResult != null
+        && windowedSplitResult.getResidualInUnprocessedWindowsRoot() != null) {
       ByteString.Output bytesOut = ByteString.newOutput();
       try {
         fullInputCoder.encode(windowedSplitResult.getResidualInUnprocessedWindowsRoot(), bytesOut);
@@ -1240,6 +1491,20 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               .setElement(bytesOut.toByteString());
       // We don't want to change the output watermarks or set the checkpoint resume time since
       // that applies to the current window.
+      Map<String, org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp>
+          outputWatermarkMapForUnprocessedWindows = new HashMap<>();
+      if (!initialWatermark.equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
+        org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp outputWatermark =
+            org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                .setSeconds(initialWatermark.getMillis() / 1000)
+                .setNanos((int) (initialWatermark.getMillis() % 1000) * 1000000)
+                .build();
+        for (String outputId : outputIds) {
+          outputWatermarkMapForUnprocessedWindows.put(outputId, outputWatermark);
+        }
+      }
+      residualInUnprocessedWindowsRoot.putAllOutputWatermarks(
+          outputWatermarkMapForUnprocessedWindows);
       residualRoots.add(
           DelayedBundleApplication.newBuilder()
               .setApplication(residualInUnprocessedWindowsRoot)
@@ -1248,41 +1513,102 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     ByteString.Output primaryBytes = ByteString.newOutput();
     ByteString.Output residualBytes = ByteString.newOutput();
-    try {
-      fullInputCoder.encode(windowedSplitResult.getPrimarySplitRoot(), primaryBytes);
-      fullInputCoder.encode(windowedSplitResult.getResidualSplitRoot(), residualBytes);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    primaryRoots.add(
-        BundleApplication.newBuilder()
-            .setTransformId(pTransformId)
-            .setInputId(mainInputId)
-            .setElement(primaryBytes.toByteString())
-            .build());
-    BundleApplication.Builder residualApplication =
-        BundleApplication.newBuilder()
-            .setTransformId(pTransformId)
-            .setInputId(mainInputId)
-            .setElement(residualBytes.toByteString());
-
-    if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
-      for (String outputId : pTransform.getOutputsMap().keySet()) {
-        residualApplication.putOutputWatermarks(
-            outputId,
+    // Encode element split from windowedSplitResult or from downstream element split. It's possible
+    // that there is no element split.
+    if (windowedSplitResult != null && windowedSplitResult.getResidualSplitRoot() != null) {
+      // When there is element split in windowedSplitResult, the resumeDelay should not be null.
+      checkNotNull(resumeDelay);
+      try {
+        fullInputCoder.encode(windowedSplitResult.getPrimarySplitRoot(), primaryBytes);
+        fullInputCoder.encode(windowedSplitResult.getResidualSplitRoot(), residualBytes);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      primaryRoots.add(
+          BundleApplication.newBuilder()
+              .setTransformId(pTransformId)
+              .setInputId(mainInputId)
+              .setElement(primaryBytes.toByteString())
+              .build());
+      BundleApplication.Builder residualApplication =
+          BundleApplication.newBuilder()
+              .setTransformId(pTransformId)
+              .setInputId(mainInputId)
+              .setElement(residualBytes.toByteString());
+      Map<String, org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp>
+          outputWatermarkMap = new HashMap<>();
+      if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
+        org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp outputWatermark =
             org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
                 .setSeconds(watermarkAndState.getKey().getMillis() / 1000)
                 .setNanos((int) (watermarkAndState.getKey().getMillis() % 1000) * 1000000)
-                .build());
+                .build();
+        for (String outputId : outputIds) {
+          outputWatermarkMap.put(outputId, outputWatermark);
+        }
       }
+      residualApplication.putAllOutputWatermarks(outputWatermarkMap);
+      residualRoots.add(
+          DelayedBundleApplication.newBuilder()
+              .setApplication(residualApplication)
+              .setRequestedTimeDelay(Durations.fromMillis(resumeDelay.getMillis()))
+              .build());
+
+    } else if (downstreamElementSplit != null) {
+      primaryRoots.add(Iterables.getOnlyElement(downstreamElementSplit.getPrimaryRoots()));
+      residualRoots.add(Iterables.getOnlyElement(downstreamElementSplit.getResidualRoots()));
     }
-    residualRoots.add(
-        DelayedBundleApplication.newBuilder()
-            .setApplication(residualApplication)
-            .setRequestedTimeDelay(Durations.fromMillis(resumeDelay.getMillis()))
-            .build());
 
     return HandlesSplits.SplitResult.of(primaryRoots, residualRoots);
+  }
+
+  private HandlesSplits.SplitResult trySplitForElementAndRestriction(
+      double fractionOfRemainder, Duration resumeDelay) {
+    KV<Instant, WatermarkEstimatorStateT> watermarkAndState;
+    WindowedSplitResult windowedSplitResult = null;
+    synchronized (splitLock) {
+      // There is nothing to split if we are between element and restriction processing calls.
+      if (currentTracker == null) {
+        return null;
+      }
+      // Make sure to get the output watermark before we split to ensure that the lower bound
+      // applies to the residual.
+      watermarkAndState = currentWatermarkEstimator.getWatermarkAndState();
+      SplitResultsWithStopIndex splitResult =
+          computeSplitForProcessOrTruncate(
+              currentElement,
+              currentRestriction,
+              currentWindow,
+              currentWindows,
+              currentWatermarkEstimatorState,
+              fractionOfRemainder,
+              currentTracker,
+              null,
+              watermarkAndState,
+              windowCurrentIndex,
+              windowStopIndex);
+      if (splitResult == null) {
+        return null;
+      }
+      windowStopIndex = splitResult.getNewWindowStopIndex();
+      // Populate the size of primary/residual.
+      windowedSplitResult =
+          calculateRestrictionSize(
+              splitResult.getWindowSplit(),
+              PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN
+                  + "/GetSize");
+    }
+    Coder fullInputCoder = WindowedValue.getFullCoder(inputCoder, windowCoder);
+    return constructSplitResult(
+        windowedSplitResult,
+        null,
+        fullInputCoder,
+        initialWatermark,
+        watermarkAndState,
+        pTransformId,
+        mainInputId,
+        pTransform.getOutputsMap().keySet(),
+        resumeDelay);
   }
 
   private <K> void processTimer(

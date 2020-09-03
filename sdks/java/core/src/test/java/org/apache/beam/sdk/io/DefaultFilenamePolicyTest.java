@@ -18,10 +18,13 @@
 package org.apache.beam.sdk.io;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.IOException;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.commons.lang3.SystemUtils;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -29,6 +32,12 @@ import org.junit.runners.JUnit4;
 /** Tests of {@link DefaultFilenamePolicy}. */
 @RunWith(JUnit4.class)
 public class DefaultFilenamePolicyTest {
+
+  @Before
+  public void setup() {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10738
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
+  }
 
   private static String constructName(
       String baseFilename,
