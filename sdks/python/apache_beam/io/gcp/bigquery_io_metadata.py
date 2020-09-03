@@ -28,6 +28,11 @@ from apache_beam.io.gcp import gce_metadata_util
 _VALID_CLOUD_LABEL_PATTERN = re.compile(r'^[a-z0-9\_\-]{1,63}$')
 
 
+def _sanitize_value(value):
+  """Sanitizes a value into a valid BigQuery label value."""
+  return re.sub('[^\w-]+', '', value.lower().replace('/', '-'))[0:63]
+
+
 def _is_valid_cloud_label_value(label_value):
   """Returns true if label_value is a valid cloud label string.
 
@@ -65,7 +70,9 @@ def create_bigquery_io_metadata(step_name=None):
     if _is_valid_cloud_label_value(dataflow_job_id):
       kwargs['beam_job_id'] = dataflow_job_id
   if step_name:
-    kwargs['step_name'] = step_name
+    step_name = _sanitize_value(step_name)
+    if _is_valid_cloud_label_value(step_name):
+      kwargs['step_name'] = step_name
   return BigQueryIOMetadata(**kwargs)
 
 
