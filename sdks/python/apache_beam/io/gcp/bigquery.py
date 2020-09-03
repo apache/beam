@@ -239,6 +239,7 @@ import itertools
 import json
 import logging
 import random
+import threading
 import time
 import uuid
 from builtins import object
@@ -1019,6 +1020,9 @@ class BigQueryWriteFn(DoFn):
   DEFAULT_MAX_BATCH_SIZE = 500
 
   FAILED_ROWS = 'FailedRows'
+  LATENCY_LOGGING_HISTOGRAM = Histogram(LinearBucket(0, 20, 3000))
+  LATENCY_LOGGING_LAST_REPORTED_MILLIS = int(time.time() * 1000)
+  LATENCY_LOGGING_LOCK = threading.Lock()
 
   def __init__(
       self,
@@ -1102,9 +1106,7 @@ class BigQueryWriteFn(DoFn):
     self.failed_rows_metric = Metrics.distribution(
         self.__class__, "rows_failed_per_batch")
     self.bigquery_wrapper = None
-    self._request_latencies = Histogram(LinearBucket(0, 20, 3000))
     self._latency_logging_frequency = latency_logging_frequency or 180
-    self._last_reported_system_clock_millis = int(time.time() * 1000)
 
   def display_data(self):
     return {
@@ -1208,21 +1210,31 @@ class BigQueryWriteFn(DoFn):
 
   def finish_bundle(self):
     current_millis = int(time.time() * 1000)
-    if (self._request_latencies.total_count() > 0 and
-        (current_millis - self._last_reported_system_clock_millis) >
-        self._latency_logging_frequency * 1000):
-      self._log_percentiles()
-      self._request_latencies.clear()
-      self._last_reported_system_clock_millis = current_millis
+    if (BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.total_count() > 0 and
+        (current_millis - BigQueryWriteFn.LATENCY_LOGGING_LAST_REPORTED_MILLIS)
+        > self._latency_logging_frequency * 1000):
+      if BigQueryWriteFn.LATENCY_LOGGING_LOCK.acquire(False):
+        try:
+          self._log_percentiles()
+          BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.clear()
+          BigQueryWriteFn.LATENCY_LOGGING_LAST_REPORTED_MILLIS = current_millis
+        finally:
+          BigQueryWriteFn.LATENCY_LOGGING_LOCK.release()
     return self._flush_all_batches()
 
-  def _log_percentiles(self):
+  @classmethod
+  def _log_percentiles(cls):
+    # Note that the total count and each percentile value may not be correlated
+    # each other. Histogram releases lock between each percentile calculation
+    # so additional latencies could be added anytime.
+    # pylint: disable=round-builtin
     _LOGGER.info(
-        'Total number of streaming insert requests: %s, P99: %sms, P90: %sms, P50: %sms',
-        self._request_latencies.total_count(),
-        round(self._request_latencies.p99()),
-        round(self._request_latencies.p90()),
-        round(self._request_latencies.p50()))
+        'Total number of streaming insert requests: %s, '
+        'P99: %sms, P90: %sms, P50: %sms',
+        cls.LATENCY_LOGGING_HISTOGRAM.total_count(),
+        round(cls.LATENCY_LOGGING_HISTOGRAM.p99()),
+        round(cls.LATENCY_LOGGING_HISTOGRAM.p90()),
+        round(cls.LATENCY_LOGGING_HISTOGRAM.p50()))
 
   def _flush_all_batches(self):
     _LOGGER.debug(
@@ -1267,7 +1279,7 @@ class BigQueryWriteFn(DoFn):
           rows=rows,
           insert_ids=insert_ids,
           skip_invalid_rows=True,
-          latency_recoder=self._request_latencies)
+          latency_recoder=BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM)
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
       failed_rows = [rows[entry.index] for entry in errors]
