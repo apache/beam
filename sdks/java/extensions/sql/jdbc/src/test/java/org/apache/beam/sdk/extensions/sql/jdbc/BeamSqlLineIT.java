@@ -23,9 +23,7 @@ import static org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLineTestingUtils.to
 import static org.hamcrest.CoreMatchers.everyItem;
 import static org.junit.Assert.assertThat;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.io.Serializable;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -209,8 +207,7 @@ public class BeamSqlLineIT implements Serializable {
         (Callable)
             () -> {
               ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-              InputStream inputStream = new ByteArrayInputStream(new byte[0]);
-              BeamSqlLine.runSqlLine(args, inputStream, outputStream, null);
+              BeamSqlLine.runSqlLine(args, null, outputStream, null);
               return toLines(outputStream);
             });
   }

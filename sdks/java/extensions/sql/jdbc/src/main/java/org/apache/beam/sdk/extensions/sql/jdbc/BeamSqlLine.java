@@ -58,9 +58,11 @@ public class BeamSqlLine {
     return argsList.toArray(new String[argsList.size()]);
   }
 
+  /** Nullable InputStream is being handled inside sqlLine.begin. */
+  @SuppressWarnings("argument.type.incompatible")
   static Status runSqlLine(
       String[] args,
-      InputStream inputStream,
+      @Nullable InputStream inputStream,
       @Nullable OutputStream outputStream,
       @Nullable OutputStream errorStream)
       throws IOException {
