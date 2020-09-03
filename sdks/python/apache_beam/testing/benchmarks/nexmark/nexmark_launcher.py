@@ -67,6 +67,8 @@ import argparse
 import logging
 import sys
 import uuid
+from time import sleep
+from time import time
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -74,9 +76,11 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
+from apache_beam.runners import PipelineState
 from apache_beam.testing.benchmarks.nexmark import nexmark_util
 from apache_beam.testing.benchmarks.nexmark.monitor import Monitor
 from apache_beam.testing.benchmarks.nexmark.monitor import MonitorSuffix
+from apache_beam.testing.benchmarks.nexmark.nexmark_perf import NexmarkPerf
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import Command
 from apache_beam.testing.benchmarks.nexmark.queries import query0
 from apache_beam.testing.benchmarks.nexmark.queries import query1
@@ -91,10 +95,19 @@ from apache_beam.testing.benchmarks.nexmark.queries import query9
 from apache_beam.testing.benchmarks.nexmark.queries import query11
 from apache_beam.testing.benchmarks.nexmark.queries import query12
 from apache_beam.transforms import window
-from apache_beam.utils.timestamp import Timestamp
 
 
 class NexmarkLauncher(object):
+
+  # how long after some result is seen and no activity seen do we cancel job
+  DONE_DELAY = 5 * 60
+  # delay in seconds between sample perf data
+  PERF_DELAY = 20
+  # delay before cancelling the job when pipeline appears to be stuck
+  TERMINATE_DELAY = 1 * 60 * 60
+  # delay before warning when pipeline appears to be stuck
+  WARNING_DELAY = 10 * 60
+
   def __init__(self):
     self.parse_args()
     self.manage_resources = self.args.manage_resources
@@ -150,6 +163,11 @@ class NexmarkLauncher(object):
         '--input',
         type=str,
         help='Path to the data file containing nexmark events.')
+    parser.add_argument(
+        '--num_events',
+        type=int,
+        default=100000,
+        help='number of events expected to process')
     parser.add_argument(
         '--manage_resources',
         default=False,
@@ -226,23 +244,20 @@ class NexmarkLauncher(object):
   def read_from_pubsub(self):
     # Read from PubSub into a PCollection.
     if self.subscription_name:
-      raw_events = self.pipeline | 'ReadPubSub' >> beam.io.ReadFromPubSub(
+      raw_events = self.pipeline | 'ReadPubSub_sub' >> beam.io.ReadFromPubSub(
           subscription=self.subscription_name,
           with_attributes=True,
           id_label='id',
           timestamp_attribute='timestamp')
     else:
-      raw_events = self.pipeline | 'ReadPubSub' >> beam.io.ReadFromPubSub(
+      raw_events = self.pipeline | 'ReadPubSub_topic' >> beam.io.ReadFromPubSub(
           topic=self.topic_name,
           with_attributes=True,
           id_label='id',
           timestamp_attribute='timestamp')
     events = (
         raw_events
-        | 'pubsub_stamp' >> beam.Map(
-            lambda m: window.TimestampedValue(
-                m.data, Timestamp(micros=int(m.attributes['timestamp']) * 1000))
-        )
+        | 'pubsub_unwrap' >> beam.Map(lambda m: m.data)
         | 'deserialization' >> beam.ParDo(nexmark_util.ParseJsonEventFn()))
     return events
 
@@ -270,13 +285,76 @@ class NexmarkLauncher(object):
       result = self.pipeline.run()
       if self.runner == 'DataflowRunner':
         result.wait_until_finish(duration=self.wait_until_finish_duration)
-        result.cancel()
       else:
         result.wait_until_finish()
-      self.__class__.get_performance(result, event_monitor, result_monitor)
+      perf = self.monitor(result, event_monitor, result_monitor)
+      self.__class__.log_performance(perf)
+
     except Exception as exc:
       query_errors.append(str(exc))
       raise
+
+  def monitor(self, job, event_monitor, result_monitor):
+    last_active_ms = -1
+    perf = None
+    cancel_job = False
+    waiting_for_shutdown = False
+
+    while True:
+      now = int(time() * 1000)  # current time in ms
+      logging.debug('now is %d', now)
+
+      curr_perf = NexmarkLauncher.get_performance(
+          job, event_monitor, result_monitor)
+      if perf is None or curr_perf.is_active(perf):
+        last_active_ms = now
+      if self.streaming and not waiting_for_shutdown:
+        quiet_duration = (now - last_active_ms) // 1000
+        if curr_perf.event_count >= self.args.num_events and\
+           curr_perf.result_count >= 0 and quiet_duration > self.DONE_DELAY:
+          logging.info('streaming query appears to have finished executing')
+          waiting_for_shutdown = True
+          cancel_job = True
+        elif quiet_duration > self.TERMINATE_DELAY:
+          logging.error(
+              'streaming query have been stuck for %d seconds', quiet_duration)
+          logging.error('canceling streaming job')
+          waiting_for_shutdown = True
+          cancel_job = True
+        elif quiet_duration > self.WARNING_DELAY:
+          logging.warning(
+              'streaming query have been stuck for %d seconds', quiet_duration)
+
+        if cancel_job:
+          job.cancel()
+
+      perf = curr_perf
+
+      stopped = PipelineState.is_terminal(job.state)
+      if stopped:
+        break
+
+      if not waiting_for_shutdown:
+        if last_active_ms == now:
+          logging.info('acticity seen, new performance data extracted')
+        else:
+          logging.info('no activity seen')
+      else:
+        logging.info('waiting for shutdown')
+
+      sleep(self.PERF_DELAY)
+
+    return perf
+
+  @staticmethod
+  def log_performance(perf):
+    # type: (NexmarkPerf) -> None
+    logging.info(
+        'input event count: %d, output event count: %d' %
+        (perf.event_count, perf.result_count))
+    logging.info(
+        'query run took %.1f seconds and processed %.1f events per second' %
+        (perf.runtime_sec, perf.event_per_sec))
 
   @staticmethod
   def get_performance(result, event_monitor, result_monitor):
@@ -301,15 +379,16 @@ class NexmarkLauncher(object):
         result_monitor.namespace,
         result_monitor.name_prefix + MonitorSuffix.EVENT_TIME)
 
+    perf = NexmarkPerf()
+    perf.event_count = event_count
+    perf.result_count = result_count
     effective_end = max(event_end, result_end)
-    runtime_sec = (effective_end - event_start) / 1000
-    event_per_sec = event_count / runtime_sec
-    logging.info(
-        'input event count: %d, output event count: %d' %
-        (event_count, result_count))
-    logging.info(
-        'query run took %.1f seconds and processed %.1f events per second' %
-        (runtime_sec, event_per_sec))
+    if effective_end >= 0 and event_start >= 0:
+      perf.runtime_sec = (effective_end - event_start) / 1000
+    if event_count >= 0 and perf.runtime_sec > 0:
+      perf.event_per_sec = event_count / perf.runtime_sec
+
+    return perf
 
   def cleanup(self):
     if self.manage_resources:

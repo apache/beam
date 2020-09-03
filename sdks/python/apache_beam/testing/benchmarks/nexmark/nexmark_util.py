@@ -230,6 +230,15 @@ def millis_to_timestamp(millis):
 
 def get_counter_metric(result, namespace, name):
   # type: (PipelineResult, str, str) -> int
+
+  """
+  get specific counter metric from pipeline result
+
+  :param result: the PipelineResult which metrics are read from
+  :param namespace: a string representing the namespace of wanted metric
+  :param name: a string representing the  name of the wanted metric
+  :return: the result of the wanted metric if it exist, else -1
+  """
   metrics = result.metrics().query(
       MetricsFilter().with_namespace(namespace).with_name(name))
   counters = metrics['counters']
@@ -242,15 +251,37 @@ def get_counter_metric(result, namespace, name):
 
 def get_start_time_metric(result, namespace, name):
   # type: (PipelineResult, str, str) -> int
+
+  """
+  get the start time out of all times recorded by the specified distribution
+  metric
+
+  :param result: the PipelineResult which metrics are read from
+  :param namespace: a string representing the namespace of wanted metric
+  :param name: a string representing the  name of the wanted metric
+  :return: the smallest time in the metric or -1 if it doesn't exist
+  """
   distributions = result.metrics().query(
       MetricsFilter().with_namespace(namespace).with_name(
           name))['distributions']
-  return min(map(lambda m: m.result.min, distributions))
+  min_list = list(map(lambda m: m.result.min, distributions))
+  return min(min_list) if len(min_list) > 0 else -1
 
 
 def get_end_time_metric(result, namespace, name):
   # type: (PipelineResult, str, str) -> int
+
+  """
+  get the end time out of all times recorded by the specified distribution
+  metric
+
+  :param result: the PipelineResult which metrics are read from
+  :param namespace: a string representing the namespace of wanted metric
+  :param name: a string representing the  name of the wanted metric
+  :return: the largest time in the metric or -1 if it doesn't exist
+  """
   distributions = result.metrics().query(
       MetricsFilter().with_namespace(namespace).with_name(
           name))['distributions']
-  return max(map(lambda m: m.result.max, distributions))
+  max_list = list(map(lambda m: m.result.max, distributions))
+  return max(max_list) if len(max_list) > 0 else -1
