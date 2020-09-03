@@ -1225,7 +1225,12 @@ public class ElasticsearchIO {
     @Override
     public PDone expand(PCollection<String> input) {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
+      FieldValueExtractFn idFn = getIdFn();
+      BooleanFieldValueExtractFn isDeleteFn = getIsDeleteFn();
       checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
+      checkArgument(
+          isDeleteFn == null || idFn != null,
+          "Id needs to be specified by withIdFn for delete operation");
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }
@@ -1368,15 +1373,13 @@ public class ElasticsearchIO {
           documentMetadata = getDocumentMetadata(parsedDocument);
           if (spec.getIsDeleteFn() != null) {
             isDelete = spec.getIsDeleteFn().apply(parsedDocument);
-            // if it is a delete opration, then it is mandatory to specify the document id using
-            // getIdFn
-            checkArgument(
-                !(isDelete && spec.getIdFn() == null),
-                "Id needs to be specified by withIdFn for delete operation");
           }
         }
 
-        if (!isDelete) {
+        if (isDelete) {
+          // delete request used for deleting a document.
+          batch.add(String.format("{ \"delete\" : %s }%n", documentMetadata));
+        } else {
           // index is an insert/upsert and update is a partial update (or insert if not existing)
           if (spec.getUsePartialUpdate()) {
             batch.add(
@@ -1386,9 +1389,6 @@ public class ElasticsearchIO {
           } else {
             batch.add(String.format("{ \"index\" : %s }%n%s%n", documentMetadata, document));
           }
-        } else {
-          // delete request used for deleting a document.
-          batch.add(String.format("{ \"delete\" : %s }%n", documentMetadata));
         }
 
         currentBatchSizeBytes += document.getBytes(StandardCharsets.UTF_8).length;

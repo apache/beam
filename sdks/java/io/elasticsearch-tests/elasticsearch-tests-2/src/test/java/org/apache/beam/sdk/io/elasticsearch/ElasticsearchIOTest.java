@@ -231,11 +231,4 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithPartialUpdates();
     elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithoutPartialUpdate();
   }
-
-  @Test
-  public void testInvalidWriteWithIsDeleteFn() throws Throwable {
-    elasticsearchIOTestCommon.setExpectedException(expectedException);
-    elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testInvalidWriteWithIsDeletedFn();
-  }
 }

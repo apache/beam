@@ -747,30 +747,4 @@ class ElasticsearchIOTestCommon implements Serializable {
     assertEquals(numDocs / 2, currentNumDocs);
     assertEquals(0, countByScientistName(connectionConfiguration, restClient, "Darwin"));
   }
-
-  /**
-   * Tests IllegalArgumentException while deletion of documents from Elasticsearch index. While
-   * using withIsDeleteFn(), it is mandatory to define the document using withIdFn().
-   */
-  void testInvalidWriteWithIsDeletedFn() throws Throwable {
-    if (!useAsITests) {
-      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
-    }
-    expectedException.expectCause(isA(IllegalArgumentException.class));
-
-    // partial documents containing the ID and group only
-    List<String> data = new ArrayList<>();
-    for (int i = 0; i < numDocs; i++) {
-      data.add(String.format("{\"id\" : %s, \"is_deleted\": true}", i));
-    }
-
-    pipeline
-        .apply(Create.of(data))
-        .apply(
-            ElasticsearchIO.write()
-                .withConnectionConfiguration(connectionConfiguration)
-                .withIndexFn(doc -> "test")
-                .withIsDeleteFn(doc -> doc.get("is_deleted").asBoolean()));
-    pipeline.run();
-  }
 }
