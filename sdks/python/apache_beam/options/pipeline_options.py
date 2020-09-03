@@ -685,8 +685,8 @@ class BigQueryOptions(PipelineOptions):
         default=180,
         help=(
             'The minimum duration in seconds between percentile latencies '
-            'logging. The interval might be longer than the specified value due '
-            'to each bundle processing time.'))
+            'logging. The interval might be longer than the specified value '
+            'due to each bundle processing time.'))
 
   def validate(self, validator):
     errors = []
