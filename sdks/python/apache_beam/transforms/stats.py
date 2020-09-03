@@ -226,7 +226,7 @@ class ApproximateUniqueCombineFn(CombineFn):
       accumulator.add(hashed_value)
       return accumulator
     except Exception as e:
-      raise RuntimeError("Runtime exception: %s", e)
+      raise RuntimeError("Runtime exception: %s" % e)
 
   # created an issue https://issues.apache.org/jira/browse/BEAM-7285 to speed up
   # merge process.

@@ -496,6 +496,19 @@ class ApproximateUniqueTest(unittest.TestCase):
         'The key coder "Base64PickleCoder" '
         'for ApproximateUniqueCombineFn is not deterministic.')
 
+  def test_approximate_unique_combine_fn_by_wrong_coder(self):
+    # test if the combiner throws an error with a wrong coder.
+    test_input = 'a'
+    sample_size = 30
+    coder = coders.FloatCoder()
+    combine_fn = ApproximateUniqueCombineFn(sample_size, coder)
+    accumulator = combine_fn.create_accumulator()
+    with self.assertRaises(RuntimeError) as e:
+      accumulator = combine_fn.add_input(accumulator, test_input)
+
+    expected_msg = 'Runtime exception: required argument is not a float'
+    assert e.exception.args[0] == expected_msg
+
   def test_approximate_unique_combine_fn_adds_values_correctly(self):
     test_input = [['a', 'b', 'c'], ['b', 'd']]
     sample_size = 30
