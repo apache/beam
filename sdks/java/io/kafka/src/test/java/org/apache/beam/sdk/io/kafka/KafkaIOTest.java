@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -39,8 +40,10 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -114,6 +117,9 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
@@ -1276,6 +1282,51 @@ public class KafkaIOTest {
         assertEquals(i, record.key().intValue());
         assertEquals(i, record.value().longValue());
         assertEquals(i, record.timestamp().intValue());
+        assertEquals(0, record.headers().toArray().length);
+      }
+    }
+  }
+
+  @Test
+  public void testKafkaWriteHeaders() throws Exception {
+    // Set different output topic names
+    int numElements = 1;
+    SimpleEntry<String, String> header = new SimpleEntry<>("header_key", "header_value");
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+
+      ProducerSendCompletionThread completionThread =
+          new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
+
+      String defaultTopic = "test";
+      p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+          .apply(
+              ParDo.of(
+                  new KV2ProducerRecord(defaultTopic, true, System.currentTimeMillis(), header)))
+          .setCoder(ProducerRecordCoder.of(VarIntCoder.of(), VarLongCoder.of()))
+          .apply(
+              KafkaIO.<Integer, Long>writeRecords()
+                  .withBootstrapServers("none")
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(LongSerializer.class)
+                  .withInputTimestamp()
+                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+
+      p.run();
+
+      completionThread.shutdown();
+
+      // Verify that appropriate header is written with producer record
+      List<ProducerRecord<Integer, Long>> sent = producerWrapper.mockProducer.history();
+
+      for (int i = 0; i < numElements; i++) {
+        ProducerRecord<Integer, Long> record = sent.get(i);
+        Headers headers = record.headers();
+        assertNotNull(headers);
+        Header[] headersArray = headers.toArray();
+        assertEquals(1, headersArray.length);
+        assertEquals(header.getKey(), headersArray[0].key());
+        assertEquals(
+            header.getValue(), new String(headersArray[0].value(), Charset.defaultCharset()));
       }
     }
   }
@@ -1324,6 +1375,7 @@ public class KafkaIOTest {
     final String topic;
     final boolean isSingleTopic;
     final Long ts;
+    final SimpleEntry<String, String> header;
 
     KV2ProducerRecord(String topic) {
       this(topic, true);
@@ -1338,21 +1390,36 @@ public class KafkaIOTest {
     }
 
     KV2ProducerRecord(String topic, boolean isSingleTopic, Long ts) {
+      this(topic, isSingleTopic, ts, null);
+    }
+
+    KV2ProducerRecord(
+        String topic, boolean isSingleTopic, Long ts, SimpleEntry<String, String> header) {
       this.topic = topic;
       this.isSingleTopic = isSingleTopic;
       this.ts = ts;
+      this.header = header;
     }
 
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       KV<Integer, Long> kv = ctx.element();
+      List<Header> headers = null;
+      if (header != null) {
+        headers =
+            Arrays.asList(
+                new RecordHeader(
+                    header.getKey(), header.getValue().getBytes(Charset.defaultCharset())));
+      }
       if (isSingleTopic) {
-        ctx.output(new ProducerRecord<>(topic, null, ts, kv.getKey(), kv.getValue()));
+        ctx.output(new ProducerRecord<>(topic, null, ts, kv.getKey(), kv.getValue(), headers));
       } else {
         if (kv.getKey() % 2 == 0) {
-          ctx.output(new ProducerRecord<>(topic + "_2", null, ts, kv.getKey(), kv.getValue()));
+          ctx.output(
+              new ProducerRecord<>(topic + "_2", null, ts, kv.getKey(), kv.getValue(), headers));
         } else {
-          ctx.output(new ProducerRecord<>(topic + "_1", null, ts, kv.getKey(), kv.getValue()));
+          ctx.output(
+              new ProducerRecord<>(topic + "_1", null, ts, kv.getKey(), kv.getValue(), headers));
         }
       }
     }
