@@ -26,6 +26,11 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class Histogram(object):
+  """A histogram that supports estimated percentile with linear interpolation.
+
+  This class is considered experimental and may break or receive backwards-
+  incompatible changes in future versions of the Apache Beam SDK.
+  """
   def __init__(self, bucket_type):
     self._lock = threading.Lock()
     self._bucket_type = bucket_type
@@ -74,6 +79,12 @@ class Histogram(object):
     return self.get_linear_interpolation(0.50)
 
   def get_linear_interpolation(self, percentile):
+    """Calculate percentile estimation based on linear interpolation.
+
+    It first finds the bucket which includes the target percentile and
+    projects the estimated point in the bucket by assuming all the elements
+    in the bucket are uniformly distributed.
+    """
     with self._lock:
       total_num_records = self.total_count()
       if total_num_records == 0:
@@ -102,26 +113,46 @@ class Histogram(object):
 
 class BucketType(object):
   def range_from(self):
+    """Lower bound of a starting bucket."""
     raise NotImplementedError
 
   def range_to(self):
+    """Upper bound of an ending bucket."""
     raise NotImplementedError
 
   def num_buckets(self):
+    """The number of buckets."""
     raise NotImplementedError
 
   def bucket_index(self, value):
+    """Get the bucket array index for the given value."""
     raise NotImplementedError
 
   def bucket_size(self, index):
+    """Get the bucket size for the given bucket array index."""
     raise NotImplementedError
 
   def accumulated_bucket_size(self, end_index):
+    """Get the accumulated bucket size from bucket index 0 until endIndex.
+
+    Generally, this can be calculated as
+    `sigma(0 <= i < endIndex) getBucketSize(i)`. However, a child class could
+    provide better optimized calculation.
+    """
     raise NotImplementedError
 
 
 class LinearBucket(BucketType):
   def __init__(self, start, width, num_buckets):
+    """Create a histogram with linear buckets.
+
+    Args:
+      start: Lower bound of a starting bucket.
+      width: Bucket width. Smaller width implies a better resolution for
+        percentile estimation.
+      num_buckets: The number of buckets. Upper bound of an ending bucket is
+        defined by start + width * numBuckets.
+    """
     self._start = start
     self._width = width
     self._num_buckets = num_buckets
