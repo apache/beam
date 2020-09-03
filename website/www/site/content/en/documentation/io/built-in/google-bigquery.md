@@ -206,14 +206,14 @@ returned as base64-encoded bytes.
 
 ## Reading from BigQuery
 
-BigQueryIO allows you to read from a BigQuery table, or read the results of an
-arbitrary SQL query string. By default, Beam invokes a [BigQuery export
+BigQueryIO allows you to read from a BigQuery table, or to execute a SQL query
+and read the results. By default, Beam invokes a [BigQuery export
 request](https://cloud.google.com/bigquery/docs/exporting-data) when you apply a
-BigQueryIO read transform. However, the Beam SDK for Java (version 2.11.0 and
-later) adds support for the beta release of the [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)
-as an [experimental feature](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html).
-See [Using the BigQuery Storage API](#storage-api) for more information and a
-list of limitations.
+BigQueryIO read transform. However, the Beam SDK for Java also supports using
+the [BigQuery Storage
+API](https://cloud.google.com/bigquery/docs/reference/storage) to read directly
+from BigQuery storage. See [Using the BigQuery Storage API](#storage-api) for
+more information.
 
 > Beam’s use of BigQuery APIs is subject to BigQuery's
 > [Quota](https://cloud.google.com/bigquery/quota-policy)
@@ -322,21 +322,17 @@ in the following example:
 ### Using the BigQuery Storage API {#storage-api}
 
 The [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)
-allows you to directly access tables in BigQuery storage. As a result, your
-pipeline can read from BigQuery storage faster than previously possible.
+allows you to directly access tables in BigQuery storage, and supports features
+such as column selection and predicate filter push-down which can allow more
+efficient pipeline execution.
 
-The Beam SDK for Java (version 2.11.0 and later) adds support for the beta
-release of the BigQuery Storage API as an [experimental feature](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html).
-Beam's support for the BigQuery Storage API has the following limitations:
+The Beam SDK for Java supports using the BigQuery Storage API when reading from
+BigQuery. SDK versions before 2.24.0 support the BigQuery Storage API as an
+[experimental feature](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html)
+and use the pre-GA BigQuery Storage API surface. Callers should migrate
+pipelines which use the BigQuery Storage API to use SDK version 2.24.0 or later.
 
-* The SDK for Python does not support the BigQuery Storage API.
-* SDK versions 2.11.0 and 2.12.0 do not support reading with a query string; you
-  can only read from a table.
-* SDK versions before 2.15.0 do not support dynamic work rebalancing. As a
-  result, reads might be less efficient in the presence of stragglers.
-
-Because this is currently a Beam experimental feature, export based reads are
-recommended for production jobs.
+The Beam SDK for Python does not support the BigQuery Storage API.
 
 #### Updating your code
 
