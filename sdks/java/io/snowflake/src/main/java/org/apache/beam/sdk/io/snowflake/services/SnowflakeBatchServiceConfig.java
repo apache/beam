@@ -64,11 +64,11 @@ public class SnowflakeBatchServiceConfig extends ServiceConfig {
   public SnowflakeBatchServiceConfig(
       SerializableFunction<Void, DataSource> dataSourceProviderFn,
       List<String> filesList,
+      SnowflakeTableSchema tableSchema,
       String database,
       String schema,
       String table,
       String query,
-      SnowflakeTableSchema tableSchema,
       CreateDisposition createDisposition,
       WriteDisposition writeDisposition,
       String storageIntegrationName,

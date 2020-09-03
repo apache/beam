@@ -23,8 +23,6 @@ import net.snowflake.client.jdbc.internal.fasterxml.jackson.databind.ObjectMappe
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentials;
-import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentialsFactory;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
@@ -76,10 +74,8 @@ public class WriteBuilder
 
   @Override
   public PTransform<PCollection<byte[]>, PDone> buildExternal(Configuration c) {
-    SnowflakeCredentials credentials = SnowflakeCredentialsFactory.of(c);
-
     SnowflakeIO.DataSourceConfiguration dataSourceConfiguration =
-        SnowflakeIO.DataSourceConfiguration.create(credentials)
+        SnowflakeIO.DataSourceConfiguration.create()
             .withServerName(c.getServerName())
             .withDatabase(c.getDatabase())
             .withSchema(c.getSchema())
