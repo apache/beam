@@ -570,6 +570,9 @@ class Stager(object):
         build_setup_args = [
             Stager._get_python_executable(),
             os.path.basename(setup_file),
+            'egg_info',
+            '--egg-base',
+            temp_dir,
             'sdist',
             '--dist-dir',
             temp_dir
