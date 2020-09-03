@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.jdbc;
 
 import static org.apache.beam.sdk.extensions.sql.impl.JdbcDriver.CONNECT_STRING_PREFIX;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -38,8 +37,7 @@ public class BeamSqlLine {
   private static final String NICKNAME = "BeamSQL";
 
   public static void main(String[] args) throws IOException {
-    final InputStream inputStream = new ByteArrayInputStream(new byte[0]);
-    runSqlLine(args, inputStream, System.out, System.err);
+    runSqlLine(args, null, System.out, System.err);
   }
 
   private static String[] checkConnectionArgs(String[] args) {
