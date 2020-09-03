@@ -15,7 +15,16 @@
 # limitations under the License.
 #
 
-"""This module has all statistic related transforms."""
+"""This module has all statistic related transforms.
+
+This ApproximateUnique class will be deprecated [1]. PLease look into using the
+approximate algorithms in the Beam Java SDK instead [2].
+
+[1] https://lists.apache.org/thread.html/501605df5027567099b81f18c080469661fb426
+4a002615fa1510502%40%3Cdev.beam.apache.org%3E
+[2] https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/
+apache/beam/sdk/transforms/ApproximateUnique.java
+"""
 
 # pytype: skip-file
 
@@ -138,11 +147,12 @@ class _LargestUnique(object):
   An object to keep samples and calculate sample hash space. It is an
   accumulator of a combine function.
   """
+  # We use unsigned 64-bit hashes.
   _HASH_SPACE_SIZE = 2.0**64
 
   def __init__(self, sample_size):
     self._sample_size = sample_size
-    self._min_hash = sys.maxsize
+    self._min_hash = 2.0**64
     self._sample_heap = []
     self._sample_set = set()
 
@@ -167,7 +177,6 @@ class _LargestUnique(object):
         self._min_hash = self._sample_heap[0]
       elif element < self._min_hash:
         self._min_hash = element
-
     return True
 
   def get_estimate(self):
@@ -189,7 +198,6 @@ class _LargestUnique(object):
     est = log1p(-sample_size/sample_space) / log1p(-1/sample_space)
       * hash_space / sample_space
     """
-
     if len(self._sample_heap) < self._sample_size:
       return len(self._sample_heap)
     else:
@@ -198,7 +206,6 @@ class _LargestUnique(object):
           math.log1p(-self._sample_size / sample_space_size) /
           math.log1p(-1 / sample_space_size) * self._HASH_SPACE_SIZE /
           sample_space_size)
-
       return round(est)
 
 

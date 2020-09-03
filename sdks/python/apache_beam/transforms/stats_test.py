@@ -164,49 +164,8 @@ class ApproximateUniqueTest(unittest.TestCase):
     # expected max error.
     sample_size = 16
     max_err = 2 / math.sqrt(sample_size)
-    test_input = [
-        4,
-        34,
-        29,
-        46,
-        80,
-        66,
-        51,
-        81,
-        31,
-        9,
-        26,
-        36,
-        10,
-        41,
-        90,
-        35,
-        33,
-        19,
-        88,
-        86,
-        28,
-        93,
-        38,
-        76,
-        15,
-        87,
-        12,
-        39,
-        84,
-        13,
-        32,
-        49,
-        65,
-        100,
-        16,
-        27,
-        23,
-        30,
-        96,
-        54
-    ]
-
+    test_input = list(range(100))
+    random.shuffle(test_input)
     actual_count = len(set(test_input))
 
     with TestPipeline() as pipeline:
@@ -483,8 +442,7 @@ class ApproximateUniqueTest(unittest.TestCase):
           equal_to([True]),
           label='assert:globally_by_error_with_skewed_data')
 
-  def test_approximate_unique_combine_fn_by_nondeterministic_coder(self):
-    # test if the combiner throws an error with a nondeterministic coder.
+  def test_approximate_unique_combine_fn_requires_nondeterministic_coder(self):
     sample_size = 30
     coder = coders.Base64PickleCoder()
 
@@ -496,8 +454,7 @@ class ApproximateUniqueTest(unittest.TestCase):
         'The key coder "Base64PickleCoder" '
         'for ApproximateUniqueCombineFn is not deterministic.')
 
-  def test_approximate_unique_combine_fn_by_wrong_coder(self):
-    # test if the combiner throws an error with a wrong coder.
+  def test_approximate_unique_combine_fn_requires_compatible_coder(self):
     test_input = 'a'
     sample_size = 30
     coder = coders.FloatCoder()
