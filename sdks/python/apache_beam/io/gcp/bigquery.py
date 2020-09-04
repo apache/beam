@@ -1107,7 +1107,7 @@ class BigQueryWriteFn(DoFn):
         self.__class__, "rows_failed_per_batch")
     self.bigquery_wrapper = None
     self._latency_logging_frequency_msec = (
-        latency_logging_frequency_sec * 1000) or 180000
+        latency_logging_frequency_sec or 180) * 1000
 
   def display_data(self):
     return {
