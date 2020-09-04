@@ -680,7 +680,7 @@ class BigQueryOptions(PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
-        '--latency_logging_frequency',
+        '--latency_logging_frequency_sec',
         type=int,
         default=180,
         help=(
@@ -692,7 +692,7 @@ class BigQueryOptions(PipelineOptions):
     errors = []
     errors.extend(
         validator.validate_optional_argument_positive(
-            self, 'latency_logging_frequency'))
+            self, 'latency_logging_frequency_sec'))
     return errors
 
 

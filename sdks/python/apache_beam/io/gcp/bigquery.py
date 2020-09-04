@@ -1036,7 +1036,7 @@ class BigQueryWriteFn(DoFn):
       retry_strategy=None,
       additional_bq_parameters=None,
       ignore_insert_ids=False,
-      latency_logging_frequency=None):
+      latency_logging_frequency_sec=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1077,8 +1077,8 @@ class BigQueryWriteFn(DoFn):
         duplication of data inserted to BigQuery, set `ignore_insert_ids`
         to True to increase the throughput for BQ writing. See:
         https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication
-      latency_logging_frequency: The frequency in seconds that the logger prints
-        out streaming insert API latency percentile information.
+      latency_logging_frequency_sec: The frequency in seconds that the logger
+        prints out streaming insert API latency percentile information.
     """
     self.schema = schema
     self.test_client = test_client
@@ -1106,7 +1106,8 @@ class BigQueryWriteFn(DoFn):
     self.failed_rows_metric = Metrics.distribution(
         self.__class__, "rows_failed_per_batch")
     self.bigquery_wrapper = None
-    self._latency_logging_frequency = latency_logging_frequency or 180
+    self._latency_logging_frequency_msec = (
+        latency_logging_frequency_sec * 1000) or 180000
 
   def display_data(self):
     return {
@@ -1209,13 +1210,13 @@ class BigQueryWriteFn(DoFn):
       return self._flush_all_batches()
 
   def finish_bundle(self):
-    current_millis = int(time.time() * 1000)
     if BigQueryWriteFn.LATENCY_LOGGING_LOCK.acquire(False):
       try:
+        current_millis = int(time.time() * 1000)
         if (BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.total_count() > 0 and
             (current_millis -
              BigQueryWriteFn.LATENCY_LOGGING_LAST_REPORTED_MILLIS) >
-            self._latency_logging_frequency * 1000):
+            self._latency_logging_frequency_msec):
           self._log_percentiles()
           BigQueryWriteFn.LATENCY_LOGGING_HISTOGRAM.clear()
           BigQueryWriteFn.LATENCY_LOGGING_LAST_REPORTED_MILLIS = current_millis
@@ -1333,7 +1334,7 @@ class _StreamToBigQuery(PTransform):
       retry_strategy,
       additional_bq_parameters,
       ignore_insert_ids,
-      latency_logging_frequency,
+      latency_logging_frequency_sec,
       test_client=None):
     self.table_reference = table_reference
     self.table_side_inputs = table_side_inputs
@@ -1347,7 +1348,7 @@ class _StreamToBigQuery(PTransform):
     self.test_client = test_client
     self.additional_bq_parameters = additional_bq_parameters
     self.ignore_insert_ids = ignore_insert_ids
-    self.latency_logging_frequency = latency_logging_frequency
+    self.latency_logging_frequency_sec = latency_logging_frequency_sec
 
   class InsertIdPrefixFn(DoFn):
     def __init__(self, shards=DEFAULT_SHARDS_PER_DESTINATION):
@@ -1377,7 +1378,7 @@ class _StreamToBigQuery(PTransform):
         test_client=self.test_client,
         additional_bq_parameters=self.additional_bq_parameters,
         ignore_insert_ids=self.ignore_insert_ids,
-        latency_logging_frequency=self.latency_logging_frequency)
+        latency_logging_frequency_sec=self.latency_logging_frequency_sec)
 
     def drop_shard(elms):
       key_and_shard = elms[0]
@@ -1627,8 +1628,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     experiments = p.options.view_as(DebugOptions).experiments or []
     # TODO(pabloem): Use a different method to determine if streaming or batch.
     is_streaming_pipeline = p.options.view_as(StandardOptions).streaming
-    latency_logging_frequency = p.options.view_as(
-        BigQueryOptions).latency_logging_frequency
+    latency_logging_frequency_sec = p.options.view_as(
+        BigQueryOptions).latency_logging_frequency_sec
 
     method_to_use = self._compute_method(experiments, is_streaming_pipeline)
 
@@ -1655,7 +1656,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           self.insert_retry_strategy,
           self.additional_bq_parameters,
           self._ignore_insert_ids,
-          latency_logging_frequency,
+          latency_logging_frequency_sec,
           test_client=self.test_client)
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
