@@ -21,8 +21,9 @@ import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import Flink
-import Docker
 import InfluxDBCredentialsHelper
+
+import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -81,6 +82,7 @@ def batchScenarios = { datasetName ->
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
       ]
     ],
     // TODO(BEAM-10270): Takes too long time to execute (currently more than 3 hours). Re-enable
@@ -106,6 +108,7 @@ def batchScenarios = { datasetName ->
     //                         parallelism          : 5,
     //                         job_endpoint         : 'localhost:8099',
     //                         environment_type     : 'DOCKER',
+    //                         environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
     //                 ]
     //         ],
     [
@@ -129,6 +132,7 @@ def batchScenarios = { datasetName ->
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
       ]
     ],
     [
@@ -152,6 +156,7 @@ def batchScenarios = { datasetName ->
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
       ]
     ],
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
@@ -184,6 +189,7 @@ def streamingScenarios = { datasetName ->
         stateful             : null,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
       ]
     ],
     [
@@ -216,27 +222,25 @@ def streamingScenarios = { datasetName ->
         shutdown_sources_after_idle_ms: 300000,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
       ]
     ],
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
 def loadTestJob = { scope, triggeringContext, mode ->
-  Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-  String imageTag = now + '-pardo-' + mode
-  String pythonSDKHarnessImageName = publisher.getFullImageName('beam_python3.7_sdk', imageTag)
-
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 5
-  additionalPipelineArgs << [environment_config: pythonSDKHarnessImageName]
   List<Map> testScenarios = mode == 'batch' ? batchScenarios(datasetName) : streamingScenarios(datasetName)
 
-  publisher.publish(':sdks:python:container:py37:dockerPush', imageTag)
-  publisher.publish(':runners:flink:1.10:job-server-container:dockerPush', imageTag)
-
   Flink flink = new Flink(scope, "beam_LoadTests_Python_ParDo_Flink_${mode.capitalize()}")
-  String jobServerImageName = publisher.getFullImageName('beam_flink1.10_job_server', imageTag)
-  flink.setUp([pythonSDKHarnessImageName], numberOfWorkers, jobServerImageName)
+  flink.setUp(
+      [
+        "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest"
+      ],
+      numberOfWorkers,
+      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
+
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, testScenarios, 'ParDo', mode)
 }
 
