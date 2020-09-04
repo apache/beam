@@ -190,15 +190,10 @@ class NexmarkLauncher(object):
     self.project = self.pipeline_options.view_as(GoogleCloudOptions).project
     self.streaming = self.pipeline_options.view_as(StandardOptions).streaming
 
-    # wait_until_finish ensures that the streaming job is canceled.
-    self.wait_until_finish_duration = (
-        self.pipeline_options.view_as(TestOptions).wait_until_finish_duration)
-    self.runner = self.pipeline_options.view_as(StandardOptions).runner
-
     if self.streaming:
-      if self.wait_until_finish_duration is None or self.project is None:
+      if self.args.subscription_name is None or self.project is None:
         raise ValueError(
-            'argument --wait_until_finish_duration and --project ' +
+            'argument --subscription_name and --project ' +
             'are required when running in streaming mode')
     else:
       if self.args.input is None:
