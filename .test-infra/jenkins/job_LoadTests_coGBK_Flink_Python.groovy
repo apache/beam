@@ -21,8 +21,9 @@ import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import Flink
-import Docker
 import InfluxDBCredentialsHelper
+
+import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -56,6 +57,7 @@ def scenarios = { datasetName ->
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
       ]
     ],
     [
@@ -86,6 +88,7 @@ def scenarios = { datasetName ->
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
       ]
     ],
     [
@@ -116,26 +119,24 @@ def scenarios = { datasetName ->
         parallelism          : 5,
         job_endpoint         : 'localhost:8099',
         environment_type     : 'DOCKER',
+        environment_config   : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
       ]
     ],
   ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
 def loadTest = { scope, triggeringContext ->
-  Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-  String imageTag = now + '-cogbk-batch'
-  String pythonSDKHarnessImageName = publisher.getFullImageName('beam_python3.7_sdk', imageTag)
-
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 5
-  additionalPipelineArgs << [environment_config: pythonSDKHarnessImageName]
   List<Map> testScenarios = scenarios(datasetName)
 
-  publisher.publish(':sdks:python:container:py37:dockerPush', imageTag)
-  publisher.publish(':runners:flink:1.10:job-server-container:dockerPush', imageTag)
   def flink = new Flink(scope, 'beam_LoadTests_Python_CoGBK_Flink_Batch')
-  String jobServerImageName = publisher.getFullImageName('beam_flink1.10_job_server', imageTag)
-  flink.setUp([pythonSDKHarnessImageName], numberOfWorkers, jobServerImageName)
+  flink.setUp(
+      [
+        "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest"
+      ],
+      numberOfWorkers,
+      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
 
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, testScenarios, 'CoGBK', 'batch')
 }

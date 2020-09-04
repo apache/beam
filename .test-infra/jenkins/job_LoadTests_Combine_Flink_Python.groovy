@@ -21,8 +21,9 @@ import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import Flink
-import Docker
 import InfluxDBCredentialsHelper
+
+import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -51,6 +52,7 @@ def loadTestConfigurations = { mode, datasetName ->
         parallelism         : 5,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
+        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
         top_count           : 20,
       ]
     ],
@@ -72,6 +74,7 @@ def loadTestConfigurations = { mode, datasetName ->
         parallelism         : 16,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
+        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
         fanout              : 4,
         top_count           : 20,
       ]
@@ -94,6 +97,7 @@ def loadTestConfigurations = { mode, datasetName ->
         parallelism         : 16,
         job_endpoint        : 'localhost:8099',
         environment_type    : 'DOCKER',
+        environment_config  : "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest",
         fanout              : 8,
         top_count           : 20,
       ]
@@ -113,12 +117,7 @@ def addStreamingOptions(test) {
 }
 
 def loadTestJob = { scope, triggeringContext, mode ->
-  Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-  String imageTag = now + '-combine-' + mode
-  String pythonSDKHarnessImageName = publisher.getFullImageName('beam_python3.7_sdk', imageTag)
-
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  additionalPipelineArgs << [environment_config: pythonSDKHarnessImageName]
   List<Map> testScenarios = loadTestConfigurations(mode, datasetName)
   Map<Integer, List> testScenariosByParallelism = testScenarios.groupBy { test ->
     test.pipelineOptions.parallelism
@@ -126,11 +125,13 @@ def loadTestJob = { scope, triggeringContext, mode ->
   Integer initialParallelism = testScenariosByParallelism.keySet().iterator().next()
   List initialScenarios = testScenariosByParallelism.remove(initialParallelism)
 
-  publisher.publish(':sdks:python:container:py37:dockerPush', imageTag)
-  publisher.publish(':runners:flink:1.10:job-server-container:dockerPush', imageTag)
   def flink = new Flink(scope, "beam_LoadTests_Python_Combine_Flink_${mode.capitalize()}")
-  String jobServerImageName = publisher.getFullImageName('beam_flink1.10_job_server', imageTag)
-  flink.setUp([pythonSDKHarnessImageName], initialParallelism, jobServerImageName)
+  flink.setUp(
+      [
+        "${DOCKER_CONTAINER_REGISTRY}/beam_python3.7_sdk:latest"
+      ],
+      initialParallelism,
+      "${DOCKER_CONTAINER_REGISTRY}/beam_flink1.10_job_server:latest")
 
   // Execute all scenarios connected with initial parallelism.
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, initialScenarios, 'Combine', mode)
